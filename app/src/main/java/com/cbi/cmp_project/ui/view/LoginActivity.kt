@@ -11,30 +11,31 @@ import androidx.lifecycle.lifecycleScope
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.databinding.ActivityLoginBinding
 import com.cbi.cmp_project.utils.LoadingDialog
+import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var loadingDialog: LoadingDialog
-    private lateinit var binding: ActivityLoginBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        binding = ActivityLoginBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setContentView(R.layout.activity_login)
 
-        Log.d("LoginActivity", "onCreate started")
+        loadingDialog = LoadingDialog(this)
 
-//        loadingDialog = LoadingDialog(this)
+        // Set click listener for login button
+        val loginButton = findViewById<MaterialButton>(R.id.btn_login_submit)
 
-        binding.btnLoginSubmit.setOnClickListener {
-            Log.d("LoginActivity", "Button clicked!")
-//            showLoading()
-//
-//            lifecycleScope.launch {
-//                delay(5000)
-//                hideLoading()
-//            }
+        loginButton.setOnClickListener { view ->
+
+            showLoading()
+
+            lifecycleScope.launch {
+                delay(3500)
+                hideLoading()
+            }
         }
 
     }

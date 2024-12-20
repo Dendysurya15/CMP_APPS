@@ -165,7 +165,7 @@
                         android:gravity="center"
                         android:id="@+id/version_app"
                         android:fontFamily="@font/manrope_semibold"
-                        android:layout_marginTop="50dp"
+                        android:layout_marginTop="90dp"
                         android:text="Versi 1.5.73" />
     </LinearLayout>
 

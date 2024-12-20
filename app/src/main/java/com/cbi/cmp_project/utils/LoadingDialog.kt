@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ImageView
 import androidx.activity.enableEdgeToEdge
@@ -15,22 +16,33 @@ import com.cbi.cmp_project.R
 
 
 class LoadingDialog(context: Context) : Dialog(context) {
+    private var loadingLogo: ImageView? = null
+    private var bounceAnimation: Animation? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContentView(R.layout.activity_loading_dialog)
-        // Make dialog background transparent
+
         window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-
-        // Make dialog full screen
         window?.setLayout(-1, -1)
-
-        // Set cancelable
         setCancelable(false)
 
-        // Start bouncing animation
-        val loadingLogo = findViewById<ImageView>(R.id.loading_logo)
-        val bounceAnimation = AnimationUtils.loadAnimation(context, R.anim.bounce)
-        loadingLogo.startAnimation(bounceAnimation)
+        loadingLogo = findViewById<ImageView>(R.id.loading_logo)
+        bounceAnimation = AnimationUtils.loadAnimation(context, R.anim.bounce)
+        startBouncing()
+    }
+
+    private fun startBouncing() {
+        loadingLogo?.startAnimation(bounceAnimation)
+    }
+
+    override fun show() {
+        super.show()
+        startBouncing()
+    }
+
+    override fun dismiss() {
+        loadingLogo?.clearAnimation()
+        super.dismiss()
     }
 }

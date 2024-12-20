@@ -1,11 +1,13 @@
 package com.cbi.cmp_project
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.cbi.cmp_project.ui.view.LoginActivity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -28,7 +30,9 @@ class MainActivity : AppCompatActivity() {
         showingSplash = false
 
         // Switch to main layout
-        setContentView(R.layout.activity_login)
+        startActivity(Intent(this, LoginActivity::class.java))
+        finish() // This removes MainActivity from the back stack
+
 
 
     }

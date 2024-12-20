@@ -1,25 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <set xmlns:android="http://schemas.android.com/apk/res/android"
-    android:fillAfter="true"
-    android:duration="1000">
-
-    <scale
-        android:duration="500"
-        android:fromXScale="1.0"
-        android:fromYScale="1.0"
-        android:pivotX="50%"
-        android:pivotY="50%"
-        android:repeatCount="4"
-        android:repeatMode="reverse"
-        android:toXScale="0.8"
-        android:toYScale="0.8" />
+    android:fillAfter="true">
 
     <translate
-        android:duration="500"
+        android:duration="300"
         android:fromYDelta="0%"
-        android:pivotX="50%"
-        android:pivotY="50%"
-        android:repeatCount="4"
-        android:repeatMode="reverse"
-        android:toYDelta="-20%" />
+        android:toYDelta="-10%"
+        android:repeatCount="infinite"
+        android:repeatMode="reverse" />
 </set>
