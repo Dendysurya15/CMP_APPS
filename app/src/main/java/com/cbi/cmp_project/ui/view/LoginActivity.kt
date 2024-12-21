@@ -1,5 +1,6 @@
 package com.cbi.cmp_project.ui.view
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
@@ -35,10 +36,17 @@ class LoginActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 delay(3500)
                 hideLoading()
+                navigateToHomePage()
             }
         }
 
     }
+
+    private fun navigateToHomePage() {
+        startActivity(Intent(this, HomePageActivity::class.java))
+        finish() // This removes LoginActivity from the back stack
+    }
+
 
     private fun showLoading() {
         loadingDialog.show()
