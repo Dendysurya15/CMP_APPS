@@ -9,6 +9,7 @@
     app:cardCornerRadius="10dp"
     android:id="@+id/card_panen_tbs"
     app:cardElevation="4dp"
+    android:foreground="?attr/selectableItemBackground"
     app:cardBackgroundColor="@color/greenDefault">
 
     <LinearLayout

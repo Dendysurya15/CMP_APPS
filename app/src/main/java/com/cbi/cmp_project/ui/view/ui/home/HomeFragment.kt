@@ -1,8 +1,10 @@
 package com.cbi.cmp_project.ui.view.ui.home
 
+import android.content.Intent
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,41 +15,59 @@ import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.databinding.FragmentHomeBinding
+import com.cbi.cmp_project.ui.view.FeaturePanenTBSActivity
 import com.google.android.material.card.MaterialCardView
 
 class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private lateinit var featureAdapter: FeatureAdapter
+    private lateinit var homeViewModel: HomeViewModel
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        val homeViewModel = ViewModelProvider(this).get(HomeViewModel::class.java)
+        homeViewModel = ViewModelProvider(this).get(HomeViewModel::class.java)
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
         setupRecyclerView()
+        observeViewModel()
         return root
+    }
+
+    private fun observeViewModel() {
+        homeViewModel.navigationEvent.observe(viewLifecycleOwner) { event ->
+            when (event) {
+                is FeatureCardEvent.NavigateToAddPanen -> {
+                    // Check if context is available and navigate
+                    event.context?.let {
+                        val intent = Intent(it, FeaturePanenTBSActivity::class.java)
+                        startActivity(intent)
+                    }
+                }
+            }
+        }
     }
 
     private fun setupRecyclerView() {
         val features = listOf(
-            FeatureCard(
-                cardBackgroundColor = R.color.orange,
-                featureName = "Absensi",
-                featureNameBackgroundColor = R.color.yellowdarker,
-                iconResource = R.drawable.baseline_check_24,
-                functionName = "Lapor Absensi Anda",
-                functionDescription = "Harap Absensi Untuk Memulai Mengerjakan Pekerjaan Anda!",
-                displayType = DisplayType.ICON
-            ),
+//            FeatureCard(
+//                cardBackgroundColor = R.color.orange,
+//                featureName = "Absensi",
+//                featureNameBackgroundColor = R.color.yellowdarker,
+//                iconResource = R.drawable.baseline_check_24,
+//                functionName = "Lapor Absensi Anda",
+//                functionDescription = "Harap Absensi Untuk Memulai Mengerjakan Pekerjaan Anda!",
+//                displayType = DisplayType.ICON
+//            ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
                 featureName = "Panen TBS",
@@ -109,7 +129,12 @@ class HomeFragment : Fragment() {
 
         binding.featuresRecyclerView.apply {
             layoutManager = gridLayoutManager
-            adapter = FeatureAdapter().also { it.setFeatures(features) }
+            adapter = FeatureAdapter { featureCard ->
+                // Pass the context to the ViewModel for navigation handling
+                homeViewModel.onFeatureCardClicked(featureCard, requireContext())
+            }.also {
+                it.setFeatures(features)
+            }
             addItemDecoration(object : RecyclerView.ItemDecoration() {
                 override fun getItemOffsets(
                     outRect: Rect,
@@ -150,7 +175,7 @@ enum class DisplayType {
 }
 
 
-class FeatureAdapter : RecyclerView.Adapter<FeatureAdapter.FeatureViewHolder>() {
+class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit)  : RecyclerView.Adapter<FeatureAdapter.FeatureViewHolder>() {
 
     private var features = listOf<FeatureCard>()
 
@@ -206,6 +231,10 @@ class FeatureAdapter : RecyclerView.Adapter<FeatureAdapter.FeatureViewHolder>() 
         // Set function name and description
         holder.functionName.text = feature.functionName
         holder.functionDescription.text = feature.functionDescription
+
+        holder.cardView.setOnClickListener {
+            onFeatureClicked(feature)
+        }
     }
 
     override fun getItemCount() = features.size
