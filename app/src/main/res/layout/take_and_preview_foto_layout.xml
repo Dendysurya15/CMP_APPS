@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+
     android:layout_margin="8dp">
 
     <ImageView
@@ -10,6 +11,7 @@
         android:layout_width="100dp"
         android:layout_height="100dp"
         android:padding="8dp"
+        android:foreground="?attr/selectableItemBackground"
         android:layout_gravity="center"
         android:src="@drawable/baseline_add_a_photo_24"
         android:background="@drawable/dashed_border_radius"

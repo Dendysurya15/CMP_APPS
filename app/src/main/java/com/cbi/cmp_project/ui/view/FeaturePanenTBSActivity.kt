@@ -17,17 +17,23 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.ui.adapter.TakeFotoPreviewAdapter
 import com.cbi.cmp_project.ui.view.ui.home.HomeFragment
+import com.cbi.cmp_project.ui.viewModel.LocationViewModel
+import com.cbi.cmp_project.utils.AppUtils
+import com.google.android.material.snackbar.Snackbar
 import kotlin.reflect.KMutableProperty0
 
 class FeaturePanenTBSActivity : AppCompatActivity() {
@@ -40,6 +46,12 @@ class FeaturePanenTBSActivity : AppCompatActivity() {
     private var seranganTikus = 0
     private var tangkaiPanjang = 0
     private var tidakVcut = 0
+    private var lat: Double? = null
+    private var lon: Double? = null
+
+    private lateinit var locationViewModel: LocationViewModel
+    private var locationEnable:Boolean = false
+    private var isPermissionRationaleShown = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,9 +61,53 @@ class FeaturePanenTBSActivity : AppCompatActivity() {
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
 
-        // Initialize all layouts and RecyclerView
+        setupHeader()
         setupLayout()
+        initViewModel()
     }
+
+    private fun setupHeader() {
+        val featureName = intent.getStringExtra("FEATURE_NAME")
+        val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
+        AppUtils.setupFeatureHeader(featureName, tvFeatureName)
+    }
+
+    private fun initViewModel() {
+        val status_location = findViewById<ImageView>(R.id.status_location)
+        locationViewModel = ViewModelProvider(
+            this,
+            LocationViewModel.Factory(application,status_location, this)
+        )[LocationViewModel::class.java]
+    }
+
+
+
+
+    private fun showSnackbar(message: String) {
+        Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_LONG).show()
+    }
+
+    private fun requestLocationPermission() {
+        if (ActivityCompat.shouldShowRequestPermissionRationale(
+                this,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            )
+        ) {
+            showSnackbar("Location permission is required for this app. Change in Settings App")
+            isPermissionRationaleShown = true
+        } else {
+            requestPermissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    private val requestPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                locationViewModel.startLocationUpdates()
+            } else {
+                showSnackbar("Location permission denied.")
+            }
+        }
 
     /**
      * Sets up all spinner mappings, counters, and the RecyclerView.
@@ -90,14 +146,13 @@ class FeaturePanenTBSActivity : AppCompatActivity() {
             setupPaneWithButtons(layoutId, R.id.tvNumberPanen, labelText, counterVar)
         }
 
-        // Setup RecyclerView
-        setupRecyclerView()
+        setupRecyclerViewTakePreviewFoto()
     }
 
     /**
      * Configures the RecyclerView to repeat the layout 3 times.
      */
-    private fun setupRecyclerView() {
+    private fun setupRecyclerViewTakePreviewFoto() {
         val recyclerView: RecyclerView = findViewById(R.id.recyclerViewFotoPreview)
 
         val displayMetrics = resources.displayMetrics
@@ -147,11 +202,9 @@ class FeaturePanenTBSActivity : AppCompatActivity() {
             }
         }
 
-        // Vibrate when the counter goes below 0
         fun vibrate() {
             val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                // Vibrate for 100 milliseconds
                 vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
             } else {
                 vibrator.vibrate(100) // For devices below Android O
@@ -199,5 +252,23 @@ class FeaturePanenTBSActivity : AppCompatActivity() {
         val intent = Intent(this, HomePageActivity::class.java)
         startActivity(intent)
         finishAffinity()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        locationViewModel.locationPermissions.observe(this) { isLocationEnabled ->
+            if (!isLocationEnabled) {
+                requestLocationPermission()
+            } else {
+                locationViewModel.startLocationUpdates()
+            }
+        }
+
+        locationViewModel.locationData.observe(this) { location ->
+            locationEnable = true
+            lat = location.latitude
+            lon = location.longitude
+        }
+
     }
 }

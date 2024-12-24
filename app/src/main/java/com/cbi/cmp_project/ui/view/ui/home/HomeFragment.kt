@@ -47,9 +47,12 @@ class HomeFragment : Fragment() {
         homeViewModel.navigationEvent.observe(viewLifecycleOwner) { event ->
             when (event) {
                 is FeatureCardEvent.NavigateToPanenTBS -> {
-                    // Check if context is available and navigate
                     event.context?.let {
                         val intent = Intent(it, FeaturePanenTBSActivity::class.java)
+                        // Pass the feature name to the intent
+                        event.featureName?.let { featureName ->
+                            intent.putExtra("FEATURE_NAME", featureName)
+                        }
                         startActivity(intent)
                     }
                 }
