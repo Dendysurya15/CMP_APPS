@@ -1,10 +1,289 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/blueLight"
     tools:context=".ui.view.FeaturePanenTBSActivity">
 
+    <!-- Header Section -->
+    <include
+        android:id="@+id/test"
+        layout="@layout/header_feature_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- ScrollView Section -->
+    <ScrollView
+        android:id="@+id/scPanen"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+
+        app:layout_constraintTop_toBottomOf="@id/test"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:clickable="true"
+            android:paddingRight="20dp"
+            android:paddingLeft="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="left"
+                android:orientation="vertical"
+                tools:ignore="RtlHardcoded,UselessParent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="left"
+                android:orientation="vertical"
+                tools:ignore="RtlHardcoded">
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutEstate"/>
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutAfdeling"/>
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutTahunTanam"/>
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutBlok"/>
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutAncak"/>
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutTipePanen"/>
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutNoTPH"/>
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutKemandoran"/>
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutPemanen"/>
+
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="10dp"
+                    android:id="@+id/layoutSelAsistensi">
+                    <TextView
+                        android:layout_width="130dp"
+                        android:layout_height="match_parent"
+                        android:text="Asistensi"
+                        android:textSize="17dp"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:gravity="center|left"/>
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:thumbTint="@color/greenDefault"
+                        app:trackTint="@color/graylightDarker"
+                        android:id="@+id/selAsistensi"/>
+                </LinearLayout>
+
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutKemandoranLain"/>
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutPemanenLain"/>
+
+                <include
+                    layout="@layout/pane_number_layout"
+                    android:id="@+id/layoutJumTBS"/>
+
+                <include
+                    layout="@layout/pane_number_layout"
+                    android:id="@+id/layoutBMentah"/>
+
+                <include
+                    layout="@layout/pane_number_layout"
+                    android:id="@+id/layoutBLewatMasak"/>
+
+                <include
+                    layout="@layout/pane_number_layout"
+                    android:id="@+id/layoutJjgKosong"/>
+
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:id="@+id/layoutTBSMasak"
+                    android:background="@color/white"
+                    android:paddingBottom="10dp"
+                    android:paddingTop="10dp"
+
+                    android:layout_marginTop="10dp"
+                    android:paddingLeft="10dp">
+                    <TextView
+                        android:layout_width="120dp"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:textSize="17dp"
+                        android:layout_height="wrap_content"
+                        android:text="Buah Masak"
+                        />
+                    <TextView
+
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:text="30 Buah"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:textSize="17dp"
+                        android:textColor="@color/black"
+                        android:gravity="center|left"
+
+                        android:id="@+id/tvTBSMasak"/>
+
+                    <TextView
+
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:text="[20,30%]"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:textSize="17dp"
+                        android:gravity="center|left"
+
+                        android:id="@+id/tvPercent" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:id="@+id/layoutKirimPabrik"
+                    android:background="@color/white"
+                    android:paddingBottom="10dp"
+                    android:paddingLeft="10dp">
+                    <TextView
+                        android:layout_width="120dp"
+                        android:layout_height="wrap_content"
+                        android:text="Dikirim ke Pabrik"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:textSize="17dp"
+                        />
+                    <TextView
+
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:text="30 Buah"
+                        android:textColor="@color/black"
+                        android:gravity="center|left"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:textSize="17dp"
+                        android:id="@+id/tvKirimPabrik"/>
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:id="@+id/layoutTBSDibayar"
+                    android:background="@color/white"
+                    android:paddingBottom="10dp"
+                    android:paddingLeft="10dp">
+                    <TextView
+                        android:layout_width="120dp"
+                        android:layout_height="wrap_content"
+                        android:text="Janjang Dibayar"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:textSize="17dp"
+                       />
+                    <TextView
+
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:text="30 Buah"
+                        android:textColor="@color/black"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:textSize="17dp"
+                        android:gravity="center|left"
+                        android:id="@+id/tvTBSDibayar"/>
+                </LinearLayout>
+
+                <include
+                    layout="@layout/pane_number_layout"
+                    android:id="@+id/layoutAbnormal"/>
+
+                <include
+                    layout="@layout/pane_number_layout"
+                    android:id="@+id/layoutSeranganTikus"/>
+
+                <include
+                    layout="@layout/pane_number_layout"
+                    android:id="@+id/layoutTangkaiPanjang"/>
+
+                <include
+                    layout="@layout/pane_number_layout"
+                    android:id="@+id/layoutTidakVcut"/>
+
+                <TextView
+                    android:layout_width="200dp"
+                    android:layout_height="match_parent"
+                    android:text="Lampiran Foto"
+                    android:layout_marginTop="10dp"
+                    android:fontFamily="@font/manrope_extrabold"
+                    android:id="@+id/tvPanenTBS"
+                    android:textSize="19dp"
+                    android:gravity="center|left"
+                    tools:ignore="HardcodedText,RtlHardcoded"/>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerViewFotoPreview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/tvPanenTBS"
+                    tools:listitem="@layout/take_and_preview_foto_layout"
+                    android:padding="10dp"
+                    android:clipToPadding="false"
+                    tools:spanCount="3"
+                    tools:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+                    tools:itemCount="3"
+                />
+
+
+            </LinearLayout>
+
+            </LinearLayout>
+        </RelativeLayout>
+
+
+
+
+    </ScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>

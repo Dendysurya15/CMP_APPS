@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center"
+android:layout_marginTop="10dp"
+    android:id="@+id/parentSpPanenTBS"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <TextView
+        android:layout_width="130dp"
+        android:layout_height="match_parent"
+        android:text="Loading.."
+        android:fontFamily="@font/manrope_semibold"
+        android:id="@+id/tvPanenTBS"
+        android:textSize="17dp"
+        android:gravity="center|left"
+        tools:ignore="HardcodedText,RtlHardcoded"/>
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginLeft="5dp"
+
+        >
+
+        <com.jaredrummler.materialspinner.MaterialSpinner
+
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/spPanenTBS"
+            app:ms_text_color="@color/black"
+            app:ms_hint="Pilih Arah"
+            />
+
+        <com.jaredrummler.materialspinner.MaterialSpinner
+
+            android:visibility="gone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+
+            android:id="@+id/spPanenTBS1"
+            app:ms_text_color="@color/black"
+            />
+
+    </com.google.android.material.card.MaterialCardView>
+</LinearLayout>

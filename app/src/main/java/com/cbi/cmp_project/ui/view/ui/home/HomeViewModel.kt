@@ -15,7 +15,7 @@ class HomeViewModel : ViewModel() {
         when (feature.featureName) {
             "Panen TBS" -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    _navigationEvent.value = FeatureCardEvent.NavigateToAddPanen(context)
+                    _navigationEvent.value = FeatureCardEvent.NavigateToPanenTBS(context)
                 }
             }
         }
@@ -23,5 +23,5 @@ class HomeViewModel : ViewModel() {
 }
 
 sealed class FeatureCardEvent(val context: Context? = null) {
-    class NavigateToAddPanen(context: Context) : FeatureCardEvent(context)
+    class NavigateToPanenTBS(context: Context) : FeatureCardEvent(context)
 }

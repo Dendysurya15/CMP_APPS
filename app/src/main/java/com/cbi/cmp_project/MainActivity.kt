@@ -1,39 +1,65 @@
 package com.cbi.cmp_project
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.cbi.cmp_project.ui.view.LoginActivity
+import com.cbi.cmp_project.utils.AppUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private var showingSplash = true
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Show splash screen layout first
         setContentView(R.layout.activity_splash_screen)
+
+        // Set app version dynamically in the splash screen
+        setAppVersion()
 
         // Start a coroutine to handle splash screen timing
         lifecycleScope.launch {
-            delay(2000) // Wait for 2 seconds
+            delay(1500) // Wait for 1.5 seconds
             showMainContent()
         }
+    }
+
+    private fun setAppVersion() {
+        val versionTextView: TextView = findViewById(R.id.version_app)
+        val appVersion = AppUtils.getAppVersion(this) // Use AppUtils here
+        versionTextView.text = "$appVersion"
     }
 
     private fun showMainContent() {
         if (!showingSplash) return
         showingSplash = false
 
-        // Switch to main layout
-        startActivity(Intent(this, LoginActivity::class.java))
-        finish() // This removes MainActivity from the back stack
+//        // Check login status and navigate accordingly
+//        if (isUserLoggedIn()) {
+//            setContentView(R.layout.activity_main) // Switch to main layout
+//            setupMainUI()
+//        } else {
+            startActivity(Intent(this, LoginActivity::class.java))
+            finish() // Remove MainActivity from the back stack
+//        }
+    }
 
+    private fun isUserLoggedIn(): Boolean {
+        // Replace with your logic to check if the user is logged in
+        val sharedPreferences = getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE)
+        return sharedPreferences.getBoolean("isLoggedIn", false)
+    }
 
-
+    private fun setupMainUI() {
+        // Initialize main content views here
     }
 }

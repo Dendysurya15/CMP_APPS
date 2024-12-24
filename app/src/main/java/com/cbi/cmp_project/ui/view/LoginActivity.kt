@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
+import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -11,6 +12,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.databinding.ActivityLoginBinding
+import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.delay
@@ -34,12 +36,20 @@ class LoginActivity : AppCompatActivity() {
             showLoading()
 
             lifecycleScope.launch {
-                delay(3500)
+                delay(1500)
                 hideLoading()
                 navigateToHomePage()
             }
         }
 
+        setAppVersion()
+
+    }
+
+    private fun setAppVersion() {
+        val versionTextView: TextView = findViewById(R.id.version_app)
+        val appVersion = AppUtils.getAppVersion(this) // Use AppUtils here
+        versionTextView.text = "$appVersion"
     }
 
     private fun navigateToHomePage() {

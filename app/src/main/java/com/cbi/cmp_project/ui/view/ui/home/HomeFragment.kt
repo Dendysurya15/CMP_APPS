@@ -46,7 +46,7 @@ class HomeFragment : Fragment() {
     private fun observeViewModel() {
         homeViewModel.navigationEvent.observe(viewLifecycleOwner) { event ->
             when (event) {
-                is FeatureCardEvent.NavigateToAddPanen -> {
+                is FeatureCardEvent.NavigateToPanenTBS -> {
                     // Check if context is available and navigate
                     event.context?.let {
                         val intent = Intent(it, FeaturePanenTBSActivity::class.java)

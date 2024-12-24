@@ -18,6 +18,9 @@
     <color name="greenDarkerLight">#859C80</color>
     <color name="orange">#E88F2A</color>
     <color name="yellowdarker">#8FC33C</color>
+    <color name="blueLight">#f7fbff</color>
+    <color name="graylightDarker">#d3d3d3</color>
+
 
 
     <color name="grayDefault">#5a5a5a</color>

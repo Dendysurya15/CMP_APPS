@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="85dp"
+        android:backgroundTint="@color/white"
+        app:cardCornerRadius="0dp"
+        android:id="@+id/navbar"
+        app:cardElevation="50dp"
+        tools:ignore="MissingConstraints">
+<!--        <FrameLayout&ndash;&gt;-->
+        <!--            android:layout_width="match_parent"-->
+        <!--            android:layout_height="match_parent">-->
+
+        <!--            &lt;!&ndash; ImageView with fitXY scaleType &ndash;&gt;-->
+        <!--            <ImageView-->
+        <!--                android:layout_width="300dp"-->
+        <!--                android:layout_height="300dp"-->
+        <!--                android:src="@drawable/cbi"-->
+
+        <!--                android:scaleType="fitXY"-->
+        <!--                android:layout_gravity="right"-->
+        <!--                android:layout_centerInParent="true" />-->
+
+        <!--            &lt;!&ndash; Semi-transparent overlay (Light opacity) &ndash;&gt;-->
+        <!--            <View-->
+        <!--                android:layout_width="match_parent"-->
+        <!--                android:layout_height="match_parent"-->
+        <!--                android:background="@android:color/white"-->
+        <!--                android:alpha="0.8" /> &lt;!&ndash; Adjust alpha for opacity &ndash;&gt;-->
+
+        <!--        </FrameLayout>-->
+        <!--        <ImageView-->
+        <!--            android:layout_width="wrap_content"-->
+        <!--            android:layout_height="200dp"-->
+        <!--            android:src="@drawable/cbi"-->
+        <!--            android:layout_marginRight="30dp"-->
+        <!--            android:scaleType="fitXY"-->
+        <!--            android:layout_gravity="right"-->
+        <!--            android:layout_centerInParent="true"/>-->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal" android:weightSum="4">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="center_vertical"
+                android:layout_margin="10dp"
+                android:id="@+id/btn_back"
+                android:layout_weight="1"
+                android:background="@drawable/rounded_radius_background"
+                android:foreground="?attr/selectableItemBackground"
+                android:src="@drawable/arrow_back"
+                />
+            <ImageView
+                android:layout_width="5dp"
+                android:layout_weight="1"
+                android:layout_height="match_parent"
+                android:layout_gravity="center_vertical"
+                android:foreground="?attr/selectableItemBackground"
+                android:src="@drawable/cbi"
+                />
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:orientation="vertical"
+                android:paddingLeft="10dp"
+                android:layout_height="match_parent"
+                android:layout_weight="2">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="Panen TBS (Versi 1.5.63)"
+                    android:fontFamily="@font/montserrat_semibold"
+                    android:textColor="@color/black"
+                    android:textSize="14dp"
+                    android:gravity="bottom"
+                    android:layout_weight="1"
+                    android:lineSpacingExtra="2dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:fontFamily="@font/montserrat_mediumitalic"
+                    android:textSize="13dp"
+                    android:gravity="top"
+                    android:text="Muhammad Arifin Ilham"
+                    android:layout_weight="1"
+                    android:lineSpacingExtra="2dp" /> <!-- Tighter line spacing -->
+            </LinearLayout>
+
+
+        <LinearLayout
+            android:layout_width="60dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_height="match_parent"
+            android:layout_weight="1">
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="25dp"
+                android:id="@+id/status_location"
+                android:src="@drawable/baseline_location_on_24"
+                />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="12.5 m"
+                android:fontFamily="@font/montserrat_semibold"
+                android:textColor="@color/black"
+                android:textSize="12dp"
+                android:gravity="center" />
+        </LinearLayout>
+        </LinearLayout>
+
+
+
+    </com.google.android.material.card.MaterialCardView>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>
