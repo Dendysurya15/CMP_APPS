@@ -28,15 +28,19 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.data.repository.CameraRepository
 import com.cbi.cmp_project.ui.adapter.TakeFotoPreviewAdapter
 import com.cbi.cmp_project.ui.view.ui.home.HomeFragment
+import com.cbi.cmp_project.ui.viewModel.CameraViewModel
 import com.cbi.cmp_project.ui.viewModel.LocationViewModel
 import com.cbi.cmp_project.utils.AppUtils
 import com.google.android.material.snackbar.Snackbar
+import java.io.File
 import kotlin.reflect.KMutableProperty0
 
-class FeaturePanenTBSActivity : AppCompatActivity() {
+open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.PhotoCallback {
 
     private var jumTBS = 0
     private var bMentah = 0
@@ -49,6 +53,8 @@ class FeaturePanenTBSActivity : AppCompatActivity() {
     private var lat: Double? = null
     private var lon: Double? = null
 
+    private var featureName: String? = null
+    private lateinit var cameraViewModel: CameraViewModel
     private lateinit var locationViewModel: LocationViewModel
     private var locationEnable:Boolean = false
     private var isPermissionRationaleShown = false
@@ -56,31 +62,38 @@ class FeaturePanenTBSActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_panen_tbs)
-
-        // Set up the back button
+        initViewModel()
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
 
         setupHeader()
         setupLayout()
-        initViewModel()
+
     }
 
     private fun setupHeader() {
-        val featureName = intent.getStringExtra("FEATURE_NAME")
+        featureName = intent.getStringExtra("FEATURE_NAME")
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
         AppUtils.setupFeatureHeader(featureName, tvFeatureName)
     }
 
     private fun initViewModel() {
-        val status_location = findViewById<ImageView>(R.id.status_location)
+
+        val idTakeFotoLayout = findViewById<View>(R.id.id_take_foto_layout)
+        val idEditFotoLayout = findViewById<View>(R.id.id_editable_foto_layout)
+        val cameraRepository = CameraRepository(this, window, idTakeFotoLayout, idEditFotoLayout)
+        cameraRepository.setPhotoCallback(this)
+        cameraViewModel = ViewModelProvider(
+            this,
+            CameraViewModel.Factory(cameraRepository)
+        )[CameraViewModel::class.java]
+
+        val status_location = findViewById<ImageView>(R.id.statusLocation)
         locationViewModel = ViewModelProvider(
             this,
             LocationViewModel.Factory(application,status_location, this)
         )[LocationViewModel::class.java]
     }
-
-
 
 
     private fun showSnackbar(message: String) {
@@ -165,7 +178,7 @@ class FeaturePanenTBSActivity : AppCompatActivity() {
         val layoutManager = GridLayoutManager(this, spanCount)
         recyclerView.layoutManager = layoutManager
 
-        val adapter = TakeFotoPreviewAdapter(3)
+        val adapter = TakeFotoPreviewAdapter(3, cameraViewModel, this, featureName)
         recyclerView.adapter = adapter
     }
 
@@ -205,9 +218,9 @@ class FeaturePanenTBSActivity : AppCompatActivity() {
         fun vibrate() {
             val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+                vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
             } else {
-                vibrator.vibrate(100) // For devices below Android O
+                vibrator.vibrate(50) // For devices below Android O
             }
         }
 
@@ -271,4 +284,47 @@ class FeaturePanenTBSActivity : AppCompatActivity() {
         }
 
     }
+
+    override fun onPause() {
+        super.onPause()
+        locationViewModel.stopLocationUpdates()
+
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        locationViewModel.stopLocationUpdates()
+
+
+    }
+
+    override fun onPhotoTaken(
+        photoFile: File,
+        fname: String,
+        resultCode: String,
+        deletePhoto: View?,
+        position: Int,
+    ) {
+
+
+        Log.d("testing", fname.toString())
+        Log.d("testing", resultCode.toString())
+        Log.d("testing", position.toString())
+        // Update the RecyclerView item with the new photo
+        val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewFotoPreview)
+        val adapter = recyclerView.adapter as? TakeFotoPreviewAdapter
+
+        adapter?.addPhotoFile("${position}", photoFile)
+
+        // Find the specific ImageView in the RecyclerView item
+        val viewHolder = recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder
+        viewHolder?.let {
+            // Load the image using Glide or your preferred image loading library
+            Glide.with(this)
+                .load(photoFile)
+                .into(it.imageView)
+        }
+    }
+
+
 }

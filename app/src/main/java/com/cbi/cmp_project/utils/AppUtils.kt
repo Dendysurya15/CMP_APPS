@@ -33,4 +33,13 @@ object AppUtils {
         val headerText = "${featureName ?: "Default Feature Name"} ($appVersion)"
         tvFeatureName.text = headerText
     }
+
+    fun splitStringWatermark(input: String, chunkSize: Int): String {
+        return if (input.length > chunkSize) {
+            val regex = "(.{$chunkSize})"
+            input.replace(Regex(regex), "$1-\n")
+        } else {
+            input
+        }
+    }
 }

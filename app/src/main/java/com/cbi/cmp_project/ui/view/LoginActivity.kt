@@ -36,7 +36,7 @@ class LoginActivity : AppCompatActivity() {
             showLoading()
 
             lifecycleScope.launch {
-                delay(1500)
+                delay(500)
                 hideLoading()
                 navigateToHomePage()
             }

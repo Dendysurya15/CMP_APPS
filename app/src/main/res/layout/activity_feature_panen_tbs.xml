@@ -3,7 +3,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
+    android:id="@+id/mainPanenTBS"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/blueLight"
@@ -258,8 +258,18 @@
                     android:text="Lampiran Foto"
                     android:layout_marginTop="10dp"
                     android:fontFamily="@font/manrope_extrabold"
-                    android:id="@+id/tvPanenTBS"
+
                     android:textSize="19dp"
+                    android:gravity="center|left"
+                    tools:ignore="HardcodedText,RtlHardcoded"/>
+
+                <TextView
+                    android:layout_width="200dp"
+                    android:layout_height="match_parent"
+                    android:text="Minimal Upload 1 Foto*"
+                    android:textStyle="italic"
+                    android:fontFamily="@font/manrope_medium"
+                    android:textSize="13dp"
                     android:gravity="center|left"
                     tools:ignore="HardcodedText,RtlHardcoded"/>
 
@@ -286,4 +296,19 @@
 
 
     </ScrollView>
+
+    <include
+        android:id="@+id/id_take_foto_layout"
+        layout="@layout/camera_view"
+        android:visibility="gone"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <include
+        android:id="@+id/id_editable_foto_layout"
+        layout="@layout/camera_edit"
+        android:visibility="gone"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
