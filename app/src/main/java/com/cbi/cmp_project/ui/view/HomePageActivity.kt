@@ -62,19 +62,18 @@ class HomePageActivity : AppCompatActivity() {
 
 
     private suspend fun downloadFile() {
-        // Show loading dialog
+
         runOnUiThread { loadingDialog.show() }
 
         val progressJob = lifecycleScope.launch(Dispatchers.Main) {
             var dots = 1
             while (true) {
-                loadingDialog.setMessage("${stringXML(R.string.fetching_data)}${".".repeat(dots)}")
+                loadingDialog.setMessage("${stringXML(R.string.download_dataset)}${".".repeat(dots)}")
                 dots = if (dots >= 3) 1 else dots + 1
                 delay(500) // Update every 500ms
             }
         }
 
-        // Check for internet connection
         val hasInternet = withContext(Dispatchers.IO) { isInternetAvailable() }
         if (!hasInternet) {
             runOnUiThread {

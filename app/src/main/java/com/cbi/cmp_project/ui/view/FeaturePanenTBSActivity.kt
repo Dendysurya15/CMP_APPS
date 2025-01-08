@@ -10,8 +10,10 @@ import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.util.Base64
 import android.util.Log
 import android.view.View
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.EditText
@@ -25,15 +27,22 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.data.model.BUnitCodeModel
+import com.cbi.cmp_project.data.model.CompanyCodeModel
+import com.cbi.cmp_project.data.model.DivisionCodeModel
+import com.cbi.cmp_project.data.model.FieldCodeModel
+import com.cbi.cmp_project.data.model.TPHModel
 import com.cbi.cmp_project.data.repository.CameraRepository
 import com.cbi.cmp_project.data.repository.PanenTBSRepository
 import com.cbi.cmp_project.databinding.PertanyaanSpinnerLayoutBinding
@@ -44,13 +53,24 @@ import com.cbi.cmp_project.ui.viewModel.LocationViewModel
 import com.cbi.cmp_project.ui.viewModel.PanenTBSViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppUtils
+import com.cbi.cmp_project.utils.AppUtils.stringXML
+import com.cbi.cmp_project.utils.LoadingDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.jaredrummler.materialspinner.MaterialSpinner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONException
 import org.json.JSONObject
+import java.io.ByteArrayInputStream
 import java.io.File
+import java.util.zip.GZIPInputStream
 import kotlin.reflect.KMutableProperty0
 
 open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.PhotoCallback {
@@ -75,6 +95,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var locationEnable:Boolean = false
     private var isPermissionRationaleShown = false
 
+    private var companyCodeList: List<CompanyCodeModel> = emptyList()
+    private var bUnitCodeList: List<BUnitCodeModel> = emptyList()
+    private var divisionCodeList: List<DivisionCodeModel> = emptyList()
+    private var fieldCodeList: List<FieldCodeModel> = emptyList()
+    private var tphList: List<TPHModel>? = null // Lazy-loaded
+    private lateinit var loadingDialog: LoadingDialog
+
+    private var selectedBUnitCodeValue: Int? = null
+    private var selectedDivisionCodeValue: Int? = null
+    private var selectedTahunTanamValue: String? = null
+    private var selectedFieldCodeValue: Int? = null
+    private var selectedAncakValue: Int? = null
+    private var selectedTPHValue: Int? = null
+
     enum class InputType {
         SPINNER,
     }
@@ -92,12 +126,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_panen_tbs)
+        loadingDialog = LoadingDialog(this)
         initViewModel()
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
 
         setupHeader()
-        setupLayout()
+
+        loadFileAsync()
+
 
 
         val mbSaveDataPanenTBS = findViewById<MaterialButton>(R.id.mbSaveDataPanenTBS)
@@ -177,6 +214,121 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         }
     }
+
+    private fun loadFileAsync() {
+        val downloadedFile = File(application.getExternalFilesDir(null), "dataset_tph.txt")
+        loadingDialog.show()
+        val progressJob = lifecycleScope.launch(Dispatchers.Main) {
+            var dots = 1
+            while (true) {
+                loadingDialog.setMessage("${stringXML(R.string.fetching_dataset)}${".".repeat(dots)}")
+                dots = if (dots >= 3) 1 else dots + 1
+                delay(500) // Update every 500ms
+            }
+        }
+
+
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    decompressFile(downloadedFile)
+                }
+            } catch (e: Exception) {
+                Log.e("LoadFileAsync", "Error: ${e.message}")
+            } finally {
+                withContext(Dispatchers.Main) {
+                    loadingDialog.dismiss()
+                    progressJob.cancel()
+                    setupLayout()
+                }
+            }
+        }
+    }
+
+    private fun decompressFile(file: File) {
+        try {
+            // Read the entire content as a Base64-encoded string
+            val base64String = file.readText()
+
+            // Decode the Base64 string
+            val compressedData = Base64.decode(base64String, Base64.DEFAULT)
+
+            // Decompress using GZIP
+            val gzipInputStream = GZIPInputStream(ByteArrayInputStream(compressedData))
+            val decompressedData = gzipInputStream.readBytes()
+
+            // Convert the decompressed bytes to a JSON string
+            val jsonString = String(decompressedData)
+            Log.d("DecompressedJSON", "Decompressed JSON: $jsonString")
+
+            // Parse the JSON into data classes
+            parseJsonData(jsonString)
+
+        } catch (e: Exception) {
+            Log.e("DecompressFile", "Error decompressing file: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    private fun parseJsonData(jsonString: String) {
+        try {
+            val jsonObject = JSONObject(jsonString)
+            val gson = Gson()
+
+            // Parse lightweight data
+//            val companyCodeList: List<CompanyCodeModel> = gson.fromJson(
+//                jsonObject.getJSONArray("CompanyCode").toString(),
+//                object : TypeToken<List<CompanyCodeModel>>() {}.type
+//            )
+
+            val bUnitCodeList : List<BUnitCodeModel> = gson.fromJson(
+                jsonObject.getJSONArray("BUnitCode").toString(),
+                object :TypeToken<List<BUnitCodeModel>>() {}.type
+            )
+
+            val divisionCodeList: List<DivisionCodeModel> = gson.fromJson(
+                jsonObject.getJSONArray("DivisionCode").toString(),
+                object : TypeToken<List<DivisionCodeModel>>() {}.type
+            )
+
+            val fieldCodeList: List<FieldCodeModel> = gson.fromJson(
+                jsonObject.getJSONArray("FieldCode").toString(),
+                object : TypeToken<List<FieldCodeModel>>() {}.type
+            )
+
+            // Log parsed data for debugging
+            Log.d("ParsedData", "CompanyCode: $companyCodeList")
+            Log.d("ParsedData", "bUnitCodeList: $bUnitCodeList")
+            Log.d("ParsedData", "DivisionCode: $divisionCodeList")
+            Log.d("ParsedData", "FieldCode: $fieldCodeList")
+
+            // Cache lightweight data
+            this.companyCodeList = companyCodeList
+            this.bUnitCodeList = bUnitCodeList
+            this.divisionCodeList = divisionCodeList
+            this.fieldCodeList = fieldCodeList
+
+//            // Lazy-load TPH only when needed
+//            this.tphList = null // Initialize as null
+
+            loadTPHData(jsonObject)
+
+        } catch (e: JSONException) {
+            Log.e("ParseJsonData", "Error parsing JSON: ${e.message}")
+        }
+    }
+
+    private fun loadTPHData(jsonObject: JSONObject) {
+        if (tphList == null) {
+            val gson = Gson()
+            tphList = gson.fromJson(
+                jsonObject.getJSONArray("TPH").toString(),
+                object : TypeToken<List<TPHModel>>() {}.type
+            )
+            Log.d("TPHData", "Loaded TPH data with ${tphList?.size} entries")
+        }
+    }
+
 
     private fun setupHeader() {
         featureName = intent.getStringExtra("FEATURE_NAME")
@@ -311,12 +463,23 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Triple(findViewById<LinearLayout>(R.id.layoutPemanenLain), getString(R.string.field_pemanen_lain), InputType.SPINNER)
         )
 
-
-        // First set up all spinners with empty data and text
         inputMappings.forEach { (layoutView, key, inputType) ->
             updateTextInPertanyaan(layoutView, key)
             when (inputType) {
-                InputType.SPINNER -> setupSpinnerView(layoutView, emptyList())
+                InputType.SPINNER -> {
+                    when (layoutView.id) {
+                        R.id.layoutEstate -> {
+
+                            val bUnitNames = bUnitCodeList.map { it.BUnitName }
+                            setupSpinnerView(layoutView, bUnitNames)
+                        }
+                        else -> {
+                            // Set empty list for any other spinner
+                            setupSpinnerView(layoutView, emptyList())
+                        }
+
+                    }
+                }
             }
         }
 
@@ -338,13 +501,229 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         setupRecyclerViewTakePreviewFoto()
     }
 
-    private fun setupSpinnerView(linearLayout: LinearLayout, data: List<String>) {
-        // Find the spinner inside the provided LinearLayout
-        val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-
-        spinner.visibility = View.VISIBLE
-
+    fun resetViewsBelow(triggeredLayout: Int) {
+        when (triggeredLayout) {
+            R.id.layoutEstate -> {
+                clearSpinnerView(R.id.layoutAfdeling, ::resetSelectedDivisionCode)
+                clearSpinnerView(R.id.layoutTahunTanam, ::resetSelectedTahunTanam)
+                clearSpinnerView(R.id.layoutBlok, ::resetSelectedFieldCode)
+                clearSpinnerView(R.id.layoutAncak, ::resetSelectedAncak)
+                clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
+            }
+            R.id.layoutAfdeling -> {
+                clearSpinnerView(R.id.layoutTahunTanam, ::resetSelectedTahunTanam)
+                clearSpinnerView(R.id.layoutBlok, ::resetSelectedFieldCode)
+                clearSpinnerView(R.id.layoutAncak, ::resetSelectedAncak)
+                clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
+            }
+            R.id.layoutTahunTanam -> {
+                clearSpinnerView(R.id.layoutBlok, ::resetSelectedFieldCode)
+                clearSpinnerView(R.id.layoutAncak, ::resetSelectedAncak)
+                clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
+            }
+            R.id.layoutBlok -> {
+                clearSpinnerView(R.id.layoutAncak, ::resetSelectedAncak)
+                clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
+            }
+            R.id.layoutAncak -> {
+                clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
+            }
+        }
     }
+
+    fun clearSpinnerView(layoutId: Int, resetSelectedValue: () -> Unit) {
+        val layoutView = findViewById<LinearLayout>(layoutId)
+        setupSpinnerView(layoutView, emptyList()) // Pass an empty list to reset the spinner
+        resetSelectedValue() // Reset the associated selected value
+    }
+
+    // Functions to reset selected values
+    fun resetSelectedDivisionCode() {
+        selectedDivisionCodeValue = null
+    }
+
+    fun resetSelectedTahunTanam() {
+        selectedTahunTanamValue = null
+    }
+
+    fun resetSelectedFieldCode() {
+        selectedFieldCodeValue = null
+    }
+
+    fun resetSelectedAncak() {
+        selectedAncakValue = null
+    }
+
+    fun resetSelectedTPH() {
+        // Assuming you have a variable for TPH selection
+        selectedTPHValue = null
+    }
+
+    private fun setupSpinnerView(linearLayout: LinearLayout, data: List<String>, onItemSelected: (Int) -> Unit = {}) {
+        val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+        val tvError = linearLayout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+
+        spinner.setItems(data)
+        spinner.setTextSize(18f)
+        spinner.setOnItemSelectedListener { _, position, _, item ->
+            tvError.visibility = View.GONE
+
+            when(linearLayout.id){
+                R.id.layoutEstate->{
+
+                    val selectedBUnit = bUnitCodeList.getOrNull(position)
+                    resetViewsBelow(R.id.layoutEstate)
+                    selectedBUnit?.let { bUnit ->
+                        // Filter DivisionCode list based on selected BUnitCode
+                        val filteredDivisionCodes = divisionCodeList.filter { division ->
+                            division.BUnitCode == bUnit.BUnitCode  // Match the code (adjust field name as needed)
+                        }
+                        val divisionCodeNames = filteredDivisionCodes.map { it.DivisionName }
+                        val afdelingLayoutView = findViewById<LinearLayout>(R.id.layoutAfdeling)
+
+                        selectedBUnitCodeValue = bUnit.BUnitCode
+                        setupSpinnerView(afdelingLayoutView, divisionCodeNames)
+                    } ?: run {
+                        // If no BUnitCode is selected (shouldn't happen if the list is valid)
+                        Log.e("Spinner", "Invalid BUnitCode selection")
+                    }
+                }
+                R.id.layoutAfdeling -> {
+                    val selectedAfdeling = item.toString()
+                    resetViewsBelow(R.id.layoutAfdeling)
+                    val selectedDivisionCode = divisionCodeList.find { it.DivisionName == selectedAfdeling }?.DivisionCode
+                    selectedDivisionCodeValue = selectedDivisionCode ?: run {
+                        // Handle the case where no matching DivisionCode is found
+                        Log.e("Spinner", "No DivisionCode found for DivisionName: $selectedAfdeling")
+                        null
+                    }
+
+                    // Filter the fieldCodeList based on the selected BUnitCode and DivisionCode
+                    val filteredFieldCodes = fieldCodeList.filter { fieldCode ->
+                        fieldCode.BUnitCode == selectedBUnitCodeValue && fieldCode.DivisionCode == selectedDivisionCodeValue
+                    }
+
+                    if (filteredFieldCodes.isNotEmpty()) {
+                        // Extract PlantingYear from the filtered results
+                        val plantingYears = filteredFieldCodes
+                            .map { it.PlantingYear.toString() } // Convert each PlantingYear to String
+                            .distinct() // Remove duplicate years
+                            .sorted() // Sort the years in ascending order
+
+                        val plantingYearLayoutView = findViewById<LinearLayout>(R.id.layoutTahunTanam)
+
+                        setupSpinnerView(plantingYearLayoutView, plantingYears)
+                    } else {
+                        val plantingYearLayoutView = findViewById<LinearLayout>(R.id.layoutTahunTanam)
+                        setupSpinnerView(plantingYearLayoutView, emptyList())
+                    }
+                }
+                R.id.layoutTahunTanam -> {
+                    val selectedTahunTanam = item.toString()
+                    resetViewsBelow(R.id.layoutTahunTanam)
+                    selectedTahunTanamValue = selectedTahunTanam
+                    val filteredFieldCodes = fieldCodeList.filter { fieldCode ->
+                        fieldCode.BUnitCode == selectedBUnitCodeValue &&
+                                fieldCode.DivisionCode == selectedDivisionCodeValue &&
+                                fieldCode.PlantingYear.toString() == selectedTahunTanam // Match the selected PlantingYear
+                    }
+
+                    if (filteredFieldCodes.isNotEmpty()) {
+                        // Extract the FieldName for the filtered fieldCodes
+                        val fieldNames = filteredFieldCodes.map { it.FieldName }
+
+                        val blokLayoutView = findViewById<LinearLayout>(R.id.layoutBlok)
+
+                        setupSpinnerView(blokLayoutView, fieldNames)
+                    } else {
+                        val blokLayoutView = findViewById<LinearLayout>(R.id.layoutBlok)
+                        setupSpinnerView(blokLayoutView, emptyList())
+                    }
+                }
+
+                R.id.layoutBlok->{
+                    val selectedBlok = item.toString()
+                    resetViewsBelow(R.id.layoutBlok)
+                    val selectedFieldCode = fieldCodeList.find { it.FieldName == selectedBlok }?.FieldCode
+                    selectedFieldCodeValue = selectedFieldCode ?: run {
+                        null
+                    }
+
+                    val filteredTPH = tphList?.filter { tph ->
+                        tph.BUnitCode == selectedBUnitCodeValue &&
+                                tph.DivisionCode == selectedDivisionCodeValue &&
+                                tph.planting_year == selectedTahunTanamValue!!.toInt() &&
+                                tph.FieldCode == selectedFieldCodeValue
+                    }
+
+                    if (filteredTPH != null && filteredTPH.isNotEmpty()) {
+                        // Extract distinct values for 'Ancak' from the filtered TPH data
+                        val ancakValues = filteredTPH.map { it.ancak }.distinct()
+
+                        // Find the layout for 'Ancak' (assuming it's R.id.layoutAncak)
+                        val ancakLayoutView = findViewById<LinearLayout>(R.id.layoutAncak)
+
+                        // Set up the spinner for Ancak values
+                        setupSpinnerView(ancakLayoutView, ancakValues.map { it.toString() }) // Convert to String for spinner
+                    } else {
+                        // Handle case where no matching TPH data is found
+                        Log.e("Spinner", "No matching TPH data found for the selected filters")
+
+                        // Set an empty list to the spinner for Ancak
+                        val ancakLayoutView = findViewById<LinearLayout>(R.id.layoutAncak)
+                        setupSpinnerView(ancakLayoutView, emptyList()) // Empty list when no data is found
+                    }
+
+                }
+                R.id.layoutAncak->{
+                    val selectedAncak = item.toString()
+                    resetViewsBelow(R.id.layoutAncak)
+                    // Find the matching TPH entry based on selectedAncak and other filter criteria
+                    val selectedAncakCode = tphList?.find { tph ->
+                                tph.BUnitCode == selectedBUnitCodeValue &&
+                                tph.DivisionCode == selectedDivisionCodeValue &&
+                                tph.planting_year == selectedTahunTanamValue?.toInt() &&
+                                tph.FieldCode == selectedFieldCodeValue &&
+                                tph.ancak.toString() == selectedAncak // Match the selectedAncak with TPH's ancak
+                    }?.ancak
+
+                    selectedAncakValue = selectedAncakCode ?: run {
+                        // If no matching TPH entry is found, return null
+                        null
+                    }
+
+                    val filteredTPH = tphList?.filter { tph ->
+                        tph.BUnitCode == selectedBUnitCodeValue &&
+                                tph.DivisionCode == selectedDivisionCodeValue &&
+                                tph.planting_year == selectedTahunTanamValue?.toInt() &&
+                                tph.FieldCode == selectedFieldCodeValue &&
+                                tph.ancak == selectedAncakValue
+                    }
+
+                    if (filteredTPH != null && filteredTPH.isNotEmpty()) {
+                        // Extract distinct values for 'Ancak' from the filtered TPH data
+                        val tphValues = filteredTPH.map { it.tph }.distinct()
+
+                        // Find the layout for 'Ancak' (assuming it's R.id.layoutAncak)
+                        val ancakLayoutView = findViewById<LinearLayout>(R.id.layoutNoTPH)
+
+                        // Set up the spinner for Ancak values
+                        setupSpinnerView(ancakLayoutView, tphValues.map { it.toString() }) // Convert to String for spinner
+                    } else {
+                        // Handle case where no matching TPH data is found
+                        Log.e("Spinner", "No matching TPH data found for the selected filters")
+
+                        // Set an empty list to the spinner for Ancak
+                        val ancakLayoutView = findViewById<LinearLayout>(R.id.layoutNoTPH)
+                        setupSpinnerView(ancakLayoutView, emptyList())
+                    }
+                }
+
+
+            }
+        }
+    }
+
 
 
     /**

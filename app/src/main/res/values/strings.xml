@@ -34,6 +34,7 @@
     <string name="al_success_download_dataset">Berhasil unduh data</string>
     <string name="al_success_download_dataset_description">Dataset aplikasi berhasil diunduh!</string>
 
-    <string name="fetching_data">Sedang mengunduh dataset</string>
+    <string name="download_dataset">Sedang mengunduh dataset</string>
+    <string name="fetching_dataset">Sedang mengambil dataset</string>
 
 </resources>

@@ -19,9 +19,15 @@ android:layout_marginTop="10dp"
         android:gravity="center|left"
         tools:ignore="HardcodedText,RtlHardcoded"/>
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:orientation="vertical"
+        android:layout_height="match_parent">
+
+
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:layout_marginLeft="5dp"
 
         >
@@ -32,7 +38,7 @@ android:layout_marginTop="10dp"
             android:layout_height="wrap_content"
             android:id="@+id/spPanenTBS"
             app:ms_text_color="@color/black"
-            app:ms_hint="Pilih Arah"
+            app:ms_hint="Pilih Kategori Yang Sesuai"
             />
 
         <com.jaredrummler.materialspinner.MaterialSpinner
@@ -45,5 +51,22 @@ android:layout_marginTop="10dp"
             app:ms_text_color="@color/black"
             />
 
+
+
+
+
     </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:id="@+id/tvErrorFormPanenTBS"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Jawaban harus diisi!"
+            android:textColor="@color/colorRedDark"
+            android:visibility="gone"
+            android:layout_marginTop="5dp"
+            android:paddingStart="12dp"
+            android:paddingBottom="4dp"
+            android:textSize="13dp" />
+    </LinearLayout>
 </LinearLayout>
