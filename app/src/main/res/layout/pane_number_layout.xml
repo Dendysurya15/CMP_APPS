@@ -37,7 +37,8 @@
             android:inputType="number"
             android:selectAllOnFocus="true"
             android:hint="0"
-            android:textColor="@color/black"/>
+            android:textColor="@color/black"
+            android:textColorHighlight="@color/greenDarkerLight"/>
 
 <!--        <EditText-->
 <!--            android:layout_width="50dp"-->

@@ -39,6 +39,11 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
     val locationData: LiveData<Location>
         get() = _locationData
 
+    private val _locationAccuracy = MutableLiveData<Float>()
+    val locationAccuracy: LiveData<Float>
+        get() = _locationAccuracy
+
+
     private var isStartLocations = false
     private val mFusedLocationClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(application)
@@ -89,6 +94,7 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
                                 locationResult.lastLocation?.let {
                                     if (it.latitude.toString().isNotEmpty()) {
                                         _locationData.value = it
+                                        _locationAccuracy.value = it.accuracy // Add this line
                                         imageView.setImageResource(R.drawable.baseline_location_on_24)
                                         imageView.imageTintList =
                                             ColorStateList.valueOf(activity.resources.getColor(R.color.greenbutton))

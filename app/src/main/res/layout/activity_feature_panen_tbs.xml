@@ -161,13 +161,13 @@
 
                         android:layout_width="wrap_content"
                         android:layout_height="match_parent"
-                        android:text="30 Buah"
+                        android:text=""
                         android:fontFamily="@font/manrope_semibold"
                         android:textSize="17dp"
                         android:textColor="@color/black"
                         android:gravity="center|left"
 
-                        android:id="@+id/tvTBSMasak"/>
+                        android:id="@+id/tvCounterBuahMasak"/>
 
                     <TextView
 
@@ -201,12 +201,12 @@
 
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:text="30 Buah"
+
                         android:textColor="@color/black"
                         android:gravity="center|left"
                         android:fontFamily="@font/manrope_semibold"
                         android:textSize="17dp"
-                        android:id="@+id/tvKirimPabrik"/>
+                        android:id="@+id/tvCounterKirimPabrik"/>
                 </LinearLayout>
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -228,12 +228,12 @@
 
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:text="30 Buah"
+
                         android:textColor="@color/black"
                         android:fontFamily="@font/manrope_semibold"
                         android:textSize="17dp"
                         android:gravity="center|left"
-                        android:id="@+id/tvTBSDibayar"/>
+                        android:id="@+id/tvCounterTBSDibayar"/>
                 </LinearLayout>
 
                 <include
@@ -277,7 +277,7 @@
                     android:id="@+id/recyclerViewFotoPreview"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_below="@id/tvPanenTBS"
+                    android:layout_below="@id/tvTitleFormPanenTBS"
                     tools:listitem="@layout/take_and_preview_foto_layout"
                     android:padding="10dp"
                     android:clipToPadding="false"
@@ -285,6 +285,33 @@
                     tools:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
                     tools:itemCount="3"
                 />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:layout_gravity="right"
+                    android:layout_marginTop="30dp"
+                    android:layout_marginBottom="30dp"
+                    >
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/mbSaveDataPanenTBS"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Simpan Data"
+                        android:textSize="16dp"
+                        android:fontFamily="@font/manrope_semibold"
+                        app:backgroundTint="@color/greenDefault"
+                        app:cornerRadius="10dp"
+                        app:elevation="10dp"
+                        app:icon="@drawable/baseline_save_24"
+                        app:iconGravity="start"
+                        app:iconTint="@color/white"
+                        app:iconPadding="8dp"/>
+
+                </LinearLayout>
+
 
 
             </LinearLayout>

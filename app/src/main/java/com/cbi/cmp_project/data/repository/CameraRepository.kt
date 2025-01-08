@@ -231,6 +231,9 @@ class CameraRepository(private val context: Context, private val window: Window,
 
                                 cameraDevice = p0
                                 isCameraOpen = true
+
+
+                                Log.d("testing", isCameraOpen.toString())
                                 capReq =
                                     cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
 
@@ -363,6 +366,7 @@ class CameraRepository(private val context: Context, private val window: Window,
                                         commentWm = AppUtils.splitStringWatermark(commentWm!!, 60)
                                         val watermarkText = if (resultCode == "0") {
                                             "CMP\n${dateWM}"
+
                                         } else {
                                             "CMP\n${commentWm}\n${dateWM}"
                                         }
@@ -573,9 +577,10 @@ class CameraRepository(private val context: Context, private val window: Window,
         zoomView.findViewById<ImageView>(R.id.closeZoom)?.setOnClickListener {
             zoomView.visibility = View.GONE
         }
-        zoomView.findViewById<ImageView>(R.id.deletePhoto)?.setOnClickListener {
+        zoomView.findViewById<ImageView>(R.id.changePhoto)?.setOnClickListener {
             file.delete()
             zoomView.visibility = View.GONE
+            
         }
     }
 
@@ -593,7 +598,7 @@ class CameraRepository(private val context: Context, private val window: Window,
     fun deletePhotoSelected(fileName: String): Boolean {
         val rootDCIM = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
-            "Monitoring-Traksi"
+            "CMP"
         ).toString()
 
         val rootApp = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES).toString()

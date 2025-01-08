@@ -27,7 +27,6 @@ class TakeFotoPreviewAdapter(
     private val featureName: String?
 ) : RecyclerView.Adapter<TakeFotoPreviewAdapter.FotoViewHolder>() {
 
-    // Define the click listener interface
     var onItemClick: ((Int) -> Unit)? = null
 
     // Store the comment text for each item in the adapter
@@ -54,24 +53,23 @@ class TakeFotoPreviewAdapter(
     }
 
     override fun onBindViewHolder(holder: FotoViewHolder, position: Int) {
-        // Dynamically set the titleComment text and color
         holder.titleCommentTextView.text = "Komentar Foto ${position + 1}"
 
-        // Set any existing comment if available
         holder.commentTextView.text = comments[position] // Set the current comment to the TextView
 
-        // Set the click listener for the TextView (to trigger the comment editing)
         holder.commentTextView.setOnClickListener {
-            // Create the AlertDialog to update the comment
             showCommentDialog(position, holder.commentTextView, position + 1)
         }
 
-        // Set the click listener for the item view (to trigger the camera action)
         holder.itemView.setOnClickListener {
             if (comments[position].isEmpty()) {
 
                 val background = holder.commentTextView.background as GradientDrawable
-                background.setStroke(6, ContextCompat.getColor(context, android.R.color.holo_red_light)) // Set red border
+                if (comments[position].isNotEmpty()) {
+                    background.setStroke(6, ContextCompat.getColor(context, R.color.greytext)) // Use your neutral color
+                } else {
+                    background.setStroke(6, ContextCompat.getColor(context, android.R.color.holo_red_dark))
+                }
 
                 Toast.makeText(context, "Harap Mengisi Komentar Terlebih Dahulu!", Toast.LENGTH_SHORT).show()
 
@@ -107,7 +105,6 @@ class TakeFotoPreviewAdapter(
     fun addPhotoFile(id: String, file: File) {
         Log.d("testing", "Adding photo with id: $id, file: ${file.path}")
         listFileFoto[id] = file
-//        notifyItemChanged(id.toInt())
     }
 
     fun removePhotoFile(id: String) {
@@ -125,7 +122,7 @@ class TakeFotoPreviewAdapter(
         val builder = AlertDialog.Builder(context)
         builder.setTitle("Komentar Foto $indexFoto")
 
-        // Create a new EditText for the dialog
+
         val commentEditText = EditText(context)
         commentEditText.setText(textView.text) // Set the current comment as default
         commentEditText.hint = "Enter your comment here"
@@ -134,7 +131,7 @@ class TakeFotoPreviewAdapter(
 
         builder.setPositiveButton("Simpan") { _, _ ->
             comments[position] = commentEditText.text.toString()
-            textView.text = comments[position] // Update the TextView in the RecyclerView
+            textView.text = comments[position]
 
             val background = textView.background as GradientDrawable
             background.setStroke(6, ContextCompat.getColor(context, android.R.color.holo_green_light)) // Set green border

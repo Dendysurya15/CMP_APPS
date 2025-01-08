@@ -54,7 +54,7 @@ class LoginActivity : AppCompatActivity() {
 
     private fun navigateToHomePage() {
         startActivity(Intent(this, HomePageActivity::class.java))
-        finish() // This removes LoginActivity from the back stack
+        finish()
     }
 
 

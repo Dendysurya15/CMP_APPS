@@ -3,12 +3,14 @@ package com.cbi.cmp_project
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.cbi.cmp_project.data.database.DatabaseHelper
 import com.cbi.cmp_project.ui.view.LoginActivity
 import com.cbi.cmp_project.utils.AppUtils
 import kotlinx.coroutines.delay
@@ -25,6 +27,15 @@ class MainActivity : AppCompatActivity() {
 
         // Set app version dynamically in the splash screen
         setAppVersion()
+        val dbHelper = DatabaseHelper(this)
+        val db = dbHelper.writableDatabase // Initialize the database
+
+        if (db.isOpen) {
+            Log.d("DatabaseCheck", "Database is open and accessible!")
+        } else {
+            Log.e("DatabaseCheck", "Database is closed!")
+        }
+
 
         // Start a coroutine to handle splash screen timing
         lifecycleScope.launch {

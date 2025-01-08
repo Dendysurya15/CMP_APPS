@@ -9,6 +9,25 @@
     <string name="title_home">Home</string>
     <string name="title_dashboard">Profile</string>
     <string name="title_notifications">Notifications</string>
+    <string name="confirmation_dialog_cancel">Batal</string>
+    <string name="confirmation_dialog_accept">Ya</string>
+    <string name="confirmation_dialog_title">Konfirmasi Pilihan Anda!</string>
+    <string name="confirmation_dialog_description">Pastikan Anda telah memeriksa dengan teliti sebelum melanjutkan.</string>
+
+
+<!--    form panen tbs-->
+    <string name="field_estate">Estate</string>
+    <string name="field_afdeling">Afdeling</string>
+    <string name="field_tahun_tanam">Tahun Tanam</string>
+    <string name="field_blok">Blok</string>
+    <string name="field_ancak">Ancak</string>
+    <string name="field_tipe_panen">Tipe Panen</string>
+    <string name="field_no_tph">No. TPH</string>
+    <string name="field_kemandoran">Kemandoran</string>
+    <string name="field_pemanen">Pemanen</string>
+    <string name="field_kemandoran_lain">Kemandoran Lain</string>
+    <string name="field_pemanen_lain">Pemanen Lain</string>
+
 
 
 </resources>

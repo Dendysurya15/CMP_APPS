@@ -22,6 +22,11 @@ object AppUtils {
         return "Versi ${context.getString(R.string.app_version)}"
     }
 
+
+    fun Context.stringXML(field: Int): String {
+        return getString(field)
+    }
+
     /**
      * Alternative method to fetch the version name directly from BuildConfig with a "V" prefix.
      * Use this if you don't want to rely on Gradle's `resValue`.
