@@ -28,6 +28,12 @@
     <string name="field_kemandoran_lain">Kemandoran Lain</string>
     <string name="field_pemanen_lain">Pemanen Lain</string>
 
+    <string name="al_back">Kembali</string>
+    <string name="al_no_internet_connection">Tidak Ada Internet!</string>
+    <string name="al_no_internet_connection_description_download_dataset">Pastikan perangkat terhubung agar dapat mengunduh dataset aplikasi!</string>
+    <string name="al_success_download_dataset">Berhasil unduh data</string>
+    <string name="al_success_download_dataset_description">Dataset aplikasi berhasil diunduh!</string>
 
+    <string name="fetching_data">Sedang mengunduh dataset</string>
 
 </resources>

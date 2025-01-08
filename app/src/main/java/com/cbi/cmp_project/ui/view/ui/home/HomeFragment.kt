@@ -1,9 +1,11 @@
 package com.cbi.cmp_project.ui.view.ui.home
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.util.Base64
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -11,6 +13,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -19,15 +22,32 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.data.network.RetrofitClient
 import com.cbi.cmp_project.databinding.FragmentHomeBinding
 import com.cbi.cmp_project.ui.view.FeaturePanenTBSActivity
+import com.cbi.cmp_project.utils.LoadingDialog
 import com.google.android.material.card.MaterialCardView
+import okhttp3.ResponseBody
+import org.json.JSONObject
+import retrofit2.Response
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.zip.GZIPInputStream
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private lateinit var featureAdapter: FeatureAdapter
     private lateinit var homeViewModel: HomeViewModel
+
+
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -40,7 +60,37 @@ class HomeFragment : Fragment() {
 
         setupRecyclerView()
         observeViewModel()
+
+        val downloadedFile = File(requireContext().getExternalFilesDir(null), "dataset_tph.txt")
+//        decompressFile(downloadedFile)
         return root
+    }
+
+
+    private fun decompressFile(file: File) {
+        try {
+            // Read the entire content as a Base64-encoded string
+            val base64String = file.readText()
+
+            // Decode the Base64 string
+            val compressedData = Base64.decode(base64String, Base64.DEFAULT)
+
+            // Decompress using GZIP
+            val gzipInputStream = GZIPInputStream(ByteArrayInputStream(compressedData))
+            val decompressedData = gzipInputStream.readBytes()
+
+            // Convert the decompressed bytes to a JSON string
+            val jsonString = String(decompressedData)
+            Log.d("DecompressedJSON", "Decompressed JSON: $jsonString")
+
+            // Now you can log or process the JSON data
+            val jsonObject = JSONObject(jsonString)
+            Log.d("DecompressedJSON", "Available keys: ${jsonObject.keys().asSequence().toList()}")
+
+        } catch (e: Exception) {
+            Log.e("DecompressFile", "Error decompressing file: ${e.message}")
+            e.printStackTrace()
+        }
     }
 
     private fun observeViewModel() {
@@ -203,6 +253,8 @@ class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit)  : Rec
         return FeatureViewHolder(view)
     }
 
+
+
     override fun onBindViewHolder(holder: FeatureViewHolder, position: Int) {
         val feature = features[position]
         val context = holder.itemView.context
@@ -241,4 +293,7 @@ class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit)  : Rec
     }
 
     override fun getItemCount() = features.size
+
+
+
 }

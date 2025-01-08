@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -17,6 +18,7 @@ import com.cbi.cmp_project.R
 
 class LoadingDialog(context: Context) : Dialog(context) {
     private var loadingLogo: ImageView? = null
+    private var messageTextView: TextView? = null
     private var bounceAnimation: Animation? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,8 +30,12 @@ class LoadingDialog(context: Context) : Dialog(context) {
         setCancelable(false)
 
         loadingLogo = findViewById<ImageView>(R.id.loading_logo)
+        messageTextView = findViewById(R.id.loading_message)
         bounceAnimation = AnimationUtils.loadAnimation(context, R.anim.bounce)
         startBouncing()
+    }
+    fun setMessage(message: String) {
+        messageTextView?.text = message
     }
 
     private fun startBouncing() {

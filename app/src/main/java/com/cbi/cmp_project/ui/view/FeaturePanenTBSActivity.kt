@@ -108,7 +108,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 this,
                 "Simpan",
                 getString(R.string.confirmation_dialog_title),
-                getString(R.string.confirmation_dialog_description)
+                getString(R.string.confirmation_dialog_description),
+                "warning.json"
             ) {
 
                 panenTBSViewModel.insertPanenTBSVM(
@@ -154,7 +155,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             this,
                             "Sukses",
                             "Data berhasil disimpan!",
-
+"success.json"
                         ) {
                             Toast.makeText(
                                 this,

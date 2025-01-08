@@ -1,6 +1,9 @@
 package com.cbi.cmp_project.utils
 
 import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.widget.TextView
 import com.cbi.cmp_project.R
 import com.jaredrummler.materialspinner.BuildConfig
@@ -25,6 +28,17 @@ object AppUtils {
 
     fun Context.stringXML(field: Int): String {
         return getString(field)
+    }
+
+    fun Context.vibrate() {
+        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(100)
+        }
     }
 
     /**
