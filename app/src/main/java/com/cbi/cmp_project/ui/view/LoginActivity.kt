@@ -14,20 +14,21 @@ import com.cbi.cmp_project.R
 import com.cbi.cmp_project.databinding.ActivityLoginBinding
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.LoadingDialog
+import com.cbi.cmp_project.utils.PrefManager
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var loadingDialog: LoadingDialog
-
+    private var prefManager: PrefManager? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_login)
 
         loadingDialog = LoadingDialog(this)
-
+        prefManager = PrefManager(this)
         // Set click listener for login button
         val loginButton = findViewById<MaterialButton>(R.id.btn_login_submit)
 

@@ -216,7 +216,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
     private fun loadFileAsync() {
-        val downloadedFile = File(application.getExternalFilesDir(null), "dataset_tph.txt")
+        val downloadedFile = File(application.getExternalFilesDir(null), "dataset_company.zip")
         loadingDialog.show()
         val progressJob = lifecycleScope.launch(Dispatchers.Main) {
             var dots = 1
@@ -247,18 +247,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     private fun decompressFile(file: File) {
         try {
-            // Read the entire content as a Base64-encoded string
-            val base64String = file.readText()
-
-            // Decode the Base64 string
-            val compressedData = Base64.decode(base64String, Base64.DEFAULT)
-
-            // Decompress using GZIP
-            val gzipInputStream = GZIPInputStream(ByteArrayInputStream(compressedData))
+            // Read the GZIP-compressed file directly
+            val gzipInputStream = GZIPInputStream(file.inputStream())
             val decompressedData = gzipInputStream.readBytes()
 
             // Convert the decompressed bytes to a JSON string
-            val jsonString = String(decompressedData)
+            val jsonString = String(decompressedData, Charsets.UTF_8)
             Log.d("DecompressedJSON", "Decompressed JSON: $jsonString")
 
             // Parse the JSON into data classes
@@ -269,6 +263,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             e.printStackTrace()
         }
     }
+
 
     private fun parseJsonData(jsonString: String) {
         try {

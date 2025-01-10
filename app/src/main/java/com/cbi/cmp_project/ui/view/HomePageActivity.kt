@@ -23,6 +23,7 @@ import com.cbi.cmp_project.databinding.ActivityHomePageBinding
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.LoadingDialog
+import com.cbi.cmp_project.utils.PrefManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -39,6 +40,7 @@ class HomePageActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityHomePageBinding
     private lateinit var loadingDialog: LoadingDialog
+    private var prefManager: PrefManager? = null
     private val requiredPermissions = arrayOf(
         Manifest.permission.CAMERA,
         Manifest.permission.READ_EXTERNAL_STORAGE,
@@ -46,10 +48,25 @@ class HomePageActivity : AppCompatActivity() {
 
     private val permissionRequestCode = 1001
 
+    object ApiCallManager {
+        val apiCallList = listOf(
+            Pair("datasetCompanyCode.zip", RetrofitClient.instance::downloadDatasetCompany),
+            Pair("datasetBUnitCode.zip", RetrofitClient.instance::downloadDatasetBUnit),
+            Pair("datasetDivisionCode.zip", RetrofitClient.instance::downloadDatasetDivision),
+            Pair("datasetTPHCode.zip", RetrofitClient.instance::downloadDatasetTPH),
+            Pair("datasetFieldCode.zip", RetrofitClient.instance::downloadDatasetField),
+            Pair("datasetWorkerInGroup.zip", RetrofitClient.instance::downloadDatasetWorkerInGroup),
+            Pair("datasetWorkerGroup.zip", RetrofitClient.instance::downloadDatasetWorkerGroup),
+            Pair("datasetWorker.zip", RetrofitClient.instance::downloadDatasetWorker)
+        )
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityHomePageBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        prefManager = PrefManager(this)
         loadingDialog = LoadingDialog(this)
         // Check and request permissions
         checkPermissions()
@@ -60,112 +77,123 @@ class HomePageActivity : AppCompatActivity() {
         navView.setupWithNavController(navController)
     }
 
+    private suspend fun downloadAndStoreFiles(apiCalls: List<Pair<String, suspend () -> Response<ResponseBody>>>) {
+        val downloadsDir = this.getExternalFilesDir(null)
+        val fileList = mutableListOf<String?>()
 
-    private suspend fun downloadFile() {
-
-        runOnUiThread { loadingDialog.show() }
-
-        val progressJob = lifecycleScope.launch(Dispatchers.Main) {
-            var dots = 1
-            while (true) {
-                loadingDialog.setMessage("${stringXML(R.string.download_dataset)}${".".repeat(dots)}")
-                dots = if (dots >= 3) 1 else dots + 1
-                delay(500) // Update every 500ms
+        for ((fileName, apiCall) in apiCalls) { // Include both fileName and apiCall
+            val isSuccessful = downloadFile(fileName, apiCall, downloadsDir, fileList) // Pass fileName
+            if (!isSuccessful) {
+                Log.e("FileDownload", "File download failed for $fileName. Moving to next file.")
             }
         }
 
-        val hasInternet = withContext(Dispatchers.IO) { isInternetAvailable() }
-        if (!hasInternet) {
-            runOnUiThread {
-                AlertDialogUtility.withSingleAction(
-                    this,
-                    stringXML(R.string.al_back),
-                    stringXML(R.string.al_no_internet_connection),
-                    stringXML(R.string.al_no_internet_connection_description_download_dataset),
-                    "network_error.json",
-                    R.color.colorRedDark
-                ) {}
+        // Save the file list in PrefManager
+        prefManager!!.saveFileList(fileList)
+
+        // Log the saved file list
+        val savedFileList = prefManager!!.getFileList()
+        Log.d("FileList", "Downloaded files: $savedFileList")
+    }
+
+    private fun startFileDownload() {
+        lifecycleScope.launch {
+            runOnUiThread { loadingDialog.show() }
+
+            val progressJob = lifecycleScope.launch(Dispatchers.Main) {
+                var dots = 1
+                while (true) {
+                    loadingDialog.setMessage("${stringXML(R.string.download_dataset)}${".".repeat(dots)}")
+                    dots = if (dots >= 3) 1 else dots + 1
+                    delay(500) // Update every 500ms
+                }
             }
 
-            runOnUiThread { loadingDialog.dismiss()
+            val hasInternet = withContext(Dispatchers.IO) { isInternetAvailable() }
+            if (!hasInternet) {
+                runOnUiThread {
+                    AlertDialogUtility.withSingleAction(
+                        this@HomePageActivity,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_no_internet_connection),
+                        stringXML(R.string.al_no_internet_connection_description_download_dataset),
+                        "network_error.json",
+                        R.color.colorRedDark
+                    ) {}
                 }
-
-            runOnUiThread{
                 progressJob.cancel()
+                loadingDialog.dismiss()
+                return@launch
             }
-            return
+
+            if (prefManager!!.isFirstTimeLaunch) {
+                prefManager!!.isFirstTimeLaunch = false
+            }
+
+            // Pass the global list with both file names and API calls
+            val apiCalls = ApiCallManager.apiCallList
+
+            downloadAndStoreFiles(apiCalls)
+
+            progressJob.cancel()
+            loadingDialog.dismiss()
         }
+    }
 
-        try {
-            // Perform file download
-            val response: Response<ResponseBody> = withContext(Dispatchers.IO) {
-                RetrofitClient.instance.downloadDataset()
-            }
 
-            if (response.isSuccessful) {
-                val responseBody = response.body()
 
-                if (responseBody == null) {
-                    Log.e("FileDownload", "Response body is null")
-                    runOnUiThread {
-                        Toast.makeText(this, "No content in response", Toast.LENGTH_LONG).show()
-                    }
-                    runOnUiThread { loadingDialog.dismiss()
-                        }
-                    runOnUiThread{
-                        progressJob.cancel()
-                    }
-                    return
-                }
-
-                val file = withContext(Dispatchers.IO) { saveFileToStorage(responseBody) }
-
-                if (file != null) {
-                    Log.d("FileDownload", "File downloaded successfully: ${file.absolutePath}")
-
-                    runOnUiThread {
-                        AlertDialogUtility.alertDialogAction(
-                            this,
-                            stringXML(R.string.al_success_download_dataset),
-                            stringXML(R.string.al_success_download_dataset_description),
-                            "success.json"
-                        ) {
-                        }
+    private suspend fun downloadFile(
+        fileName: String, // Use file name from the global variable
+        apiCall: suspend () -> Response<ResponseBody>,
+        downloadsDir: File?,
+        fileList: MutableList<String?>
+    ): Boolean {
+        return try {
+            withContext(Dispatchers.IO) {
+                val response = apiCall()
+                if (response.isSuccessful) {
+                    val responseBody = response.body()
+                    if (responseBody != null) {
+                        val file = File(downloadsDir, fileName) // Use the file name directly
+                        saveFileToStorage(responseBody, file)
+                        fileList.add(fileName) // Add the file name to the list
+                        Log.d("FileDownload", "$fileName downloaded successfully.")
+                        true
+                    } else {
+                        fileList.add(null) // Add null for failed download
+                        Log.e("FileDownload", "Response body is null.")
+                        false
                     }
                 } else {
-                    runOnUiThread {
-                        Toast.makeText(this, "Error saving file", Toast.LENGTH_LONG).show()
-                    }
-                }
-            } else {
-                Log.e("FileDownload", "Error downloading file: ${response.message()}")
-                runOnUiThread {
-                    Toast.makeText(this, "Error downloading file", Toast.LENGTH_LONG).show()
+                    fileList.add(null) // Add null for failed download
+                    Log.e("FileDownload", "Download failed: ${response.message()}")
+                    false
                 }
             }
         } catch (e: Exception) {
-            Log.e("FileDownload", "Exception during file download: ${e.message}")
-            runOnUiThread {
-                AlertDialogUtility.withSingleAction(
-                    this,
-                    stringXML(R.string.al_back),
-                    stringXML(R.string.al_no_internet_connection),
-                    "Download failed: ${e.message}",
-                    "network_error.json",
-                    R.color.colorRedDark
-                ) {}
-                Toast.makeText(this, "Unduh dataset gagal: ${e.message}", Toast.LENGTH_LONG).show()
-            }
-        } finally {
-            // Hide loading dialog
-            runOnUiThread { loadingDialog.dismiss()
-                }
-
-            runOnUiThread{
-                progressJob.cancel()
-            }
+            fileList.add(null) // Add null for exception
+            Log.e("FileDownload", "Error downloading file: ${e.message}")
+            false
         }
     }
+
+
+
+    private fun saveFileToStorage(body: ResponseBody, file: File): Boolean {
+        return try {
+            body.byteStream().use { inputStream ->
+                FileOutputStream(file).use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("FileDownload", "Error saving file: ${e.message}")
+            false
+        }
+    }
+
+
 
     /**
      * Checks for internet availability.
@@ -194,36 +222,36 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
+    private fun shouldStartFileDownload(): Boolean {
+        val savedFileList = prefManager!!.getFileList() // Retrieve the saved file list
+        val downloadsDir = this.getExternalFilesDir(null) // Get the downloads directory
 
+        // Check if it's the first time launch
+        if (prefManager!!.isFirstTimeLaunch) {
+            prefManager!!.isFirstTimeLaunch = false // Set it to false after the first launch
+            return true // Need to start the file download
+        }
 
-    private fun saveFileToStorage(body: ResponseBody): File? {
-        val downloadsDir = this.getExternalFilesDir(null)
-        val file = File(downloadsDir, "dataset_tph.txt") // Save as txt file
-
-        return try {
-            // Read the file stream in chunks
-            val inputStream: InputStream = body.byteStream()
-            val outputStream: OutputStream = FileOutputStream(file)
-
-            val buffer = ByteArray(1024 * 8)  // Use a larger buffer for better performance
-            var bytesRead: Int
-            var totalBytesRead = 0L
-            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                outputStream.write(buffer, 0, bytesRead)
-                totalBytesRead += bytesRead
+        if (savedFileList.isNotEmpty()) {
+            // Check if any entry is null
+            if (savedFileList.contains(null)) {
+                return true // Restart download if any null exists
             }
 
-            outputStream.flush()
-            outputStream.close()
-            inputStream.close()
+            // Check if all files exist
+            val missingFiles = savedFileList.filterNot { fileName ->
+                fileName != null && File(downloadsDir, fileName).exists()
+            }
 
-            Log.d("FileDownload", "File saved: ${file.absolutePath}, Size: $totalBytesRead bytes")
-            file
-        } catch (e: IOException) {
-            Log.e("FileDownload", "Error saving file: ${e.message}")
-            null
+            if (missingFiles.isNotEmpty()) {
+                Log.e("FileCheck", "Missing files detected: $missingFiles")
+                return true // Restart download if any file is missing
+            }
         }
+
+        return false // No need to start the download
     }
+
 
 
     // Check if the required permissions are granted
@@ -243,24 +271,11 @@ class HomePageActivity : AppCompatActivity() {
                 permissionRequestCode
             )
         }else{
-            startFileDownload()
-        }
-    }
-
-    private fun startFileDownload() {
-
-        val downloadsDir = this.getExternalFilesDir(null)
-        val file = File(downloadsDir, "dataset_tph.txt") // Save as txt file
-
-        // Check if the file already exists
-        if (!file.exists()) {
-            lifecycleScope.launch {
-                downloadFile()
+            if (shouldStartFileDownload()) {
+                startFileDownload()
             }
         }
-
     }
-
 
     // Handle the result of permission request
     override fun onRequestPermissionsResult(
@@ -283,8 +298,9 @@ class HomePageActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }else {
-                // Permissions granted, proceed to download file
-                startFileDownload()
+                if (shouldStartFileDownload()) {
+                    startFileDownload()
+                }
             }
         }
     }
