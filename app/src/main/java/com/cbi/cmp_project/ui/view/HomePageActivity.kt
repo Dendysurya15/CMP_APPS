@@ -7,7 +7,10 @@ import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
+import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -17,9 +20,12 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.data.network.RetrofitClient
 import com.cbi.cmp_project.databinding.ActivityHomePageBinding
+import com.cbi.cmp_project.ui.adapter.ProgressUploadAdapter
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.LoadingDialog
@@ -96,49 +102,83 @@ class HomePageActivity : AppCompatActivity() {
         Log.d("FileList", "Downloaded files: $savedFileList")
     }
 
-    private fun startFileDownload() {
-        lifecycleScope.launch {
-            runOnUiThread { loadingDialog.show() }
+        private fun startFileDownload() {
+            lifecycleScope.launch {
+//                runOnUiThread { loadingDialog.show() }
+//
+//                val progressJob = lifecycleScope.launch(Dispatchers.Main) {
+//                    var dots = 1
+//                    while (true) {
+//                        loadingDialog.setMessage("${stringXML(R.string.download_dataset)}${".".repeat(dots)}")
+//                        dots = if (dots >= 3) 1 else dots + 1
+//                        delay(500) // Update every 500ms
+//                    }
+//                }
 
-            val progressJob = lifecycleScope.launch(Dispatchers.Main) {
-                var dots = 1
-                while (true) {
-                    loadingDialog.setMessage("${stringXML(R.string.download_dataset)}${".".repeat(dots)}")
-                    dots = if (dots >= 3) 1 else dots + 1
-                    delay(500) // Update every 500ms
+                val dialogView = layoutInflater.inflate(R.layout.list_card_upload, null)
+                val alertDialog = AlertDialog.Builder(this@HomePageActivity)
+                    .setCancelable(false)
+                    .setView(dialogView)
+                    .create()
+
+
+                alertDialog.show()
+                alertDialog.window?.setLayout(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+
+                val recyclerView = alertDialog.findViewById<RecyclerView>(R.id.features_recycler_view)
+                recyclerView?.layoutManager = LinearLayoutManager(this@HomePageActivity, LinearLayoutManager.VERTICAL, false)
+                recyclerView?.adapter = ProgressUploadAdapter()
+
+
+                val titleTextView = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
+                val counterTextView = dialogView.findViewById<TextView>(R.id.counter_dataset)
+
+                val apiCallsSize = ApiCallManager.apiCallList.size
+
+                counterTextView.text = "0 / $apiCallsSize"
+
+                lifecycleScope.launch(Dispatchers.Main) {
+                    var dots = 0
+                    while (alertDialog.isShowing) {
+                        titleTextView.text = "Mengunduh Dataset" + ".".repeat(dots)
+                        dots = if (dots >= 4) 1 else dots + 1
+                        delay(500) // Update every 500ms
+                    }
                 }
+
+//                val hasInternet = withContext(Dispatchers.IO) { isInternetAvailable() }
+//                if (!hasInternet) {
+//                    runOnUiThread {
+//                        AlertDialogUtility.withSingleAction(
+//                            this@HomePageActivity,
+//                            stringXML(R.string.al_back),
+//                            stringXML(R.string.al_no_internet_connection),
+//                            stringXML(R.string.al_no_internet_connection_description_download_dataset),
+//                            "network_error.json",
+//                            R.color.colorRedDark
+//                        ) {}
+//                    }
+////                    progressJob.cancel()
+////                    loadingDialog.dismiss()
+//                    return@launch
+//                }
+//
+//                if (prefManager!!.isFirstTimeLaunch) {
+//                    prefManager!!.isFirstTimeLaunch = false
+//                }
+//
+//                // Pass the global list with both file names and API calls
+//                val apiCalls = ApiCallManager.apiCallList
+//
+//                downloadAndStoreFiles(apiCalls)
+//                alertDialog.dismiss()
+//                progressJob.cancel()
+//                loadingDialog.dismiss()
             }
-
-            val hasInternet = withContext(Dispatchers.IO) { isInternetAvailable() }
-            if (!hasInternet) {
-                runOnUiThread {
-                    AlertDialogUtility.withSingleAction(
-                        this@HomePageActivity,
-                        stringXML(R.string.al_back),
-                        stringXML(R.string.al_no_internet_connection),
-                        stringXML(R.string.al_no_internet_connection_description_download_dataset),
-                        "network_error.json",
-                        R.color.colorRedDark
-                    ) {}
-                }
-                progressJob.cancel()
-                loadingDialog.dismiss()
-                return@launch
-            }
-
-            if (prefManager!!.isFirstTimeLaunch) {
-                prefManager!!.isFirstTimeLaunch = false
-            }
-
-            // Pass the global list with both file names and API calls
-            val apiCalls = ApiCallManager.apiCallList
-
-            downloadAndStoreFiles(apiCalls)
-
-            progressJob.cancel()
-            loadingDialog.dismiss()
         }
-    }
 
 
 
@@ -233,14 +273,22 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         if (savedFileList.isNotEmpty()) {
+            // Log the file list and download directory for debugging
+            Log.d("FileCheck", "Saved file list: $savedFileList")
+            Log.d("FileCheck", "Downloads directory: $downloadsDir")
+
             // Check if any entry is null
             if (savedFileList.contains(null)) {
+                Log.e("FileCheck", "Null entries found in savedFileList.")
                 return true // Restart download if any null exists
             }
 
             // Check if all files exist
             val missingFiles = savedFileList.filterNot { fileName ->
-                fileName != null && File(downloadsDir, fileName).exists()
+                val file = File(downloadsDir, fileName)
+                val exists = file.exists()
+                Log.d("FileCheck", "Checking if file exists: ${file.path} -> $exists")
+                fileName != null && exists
             }
 
             if (missingFiles.isNotEmpty()) {
@@ -251,6 +299,7 @@ class HomePageActivity : AppCompatActivity() {
 
         return false // No need to start the download
     }
+
 
 
 

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="10dp">
+
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="10dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+
+            android:layout_marginLeft="10dp"
+            android:textColor="@color/black"
+            android:paddingVertical="5dp"
+            android:id="@+id/tvTitleProgressBarLayout"
+            android:textStyle="bold"
+            android:fontFamily="@font/montserrat_bold"
+            android:layout_gravity="center_vertical"
+
+            android:textSize="20dp" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/close_progress_bar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|bottom"
+            android:src="@drawable/baseline_close_24"
+            android:layout_margin="10dp"
+            app:backgroundTint="@color/graylight"
+            app:tint="@color/graytextdark"
+            android:visibility="gone"
+            app:maxImageSize="35dp"
+            app:rippleColor="@color/colorRedDark"
+            android:tooltipText="Menu Upload"
+            tools:ignore="MissingConstraints" />
+    </LinearLayout>
+
+<!--    <TextView-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="Proses pengunduhan dataset sedang berlangsung, mohon untuk menunggu sementara!"-->
+<!--        android:layout_marginLeft="10dp"-->
+<!--        android:textColor="@color/grayDefault"-->
+<!--        android:paddingVertical="5dp"-->
+<!--        android:paddingHorizontal="10dp"-->
+<!--        android:textStyle="bold"-->
+<!--        android:fontFamily="@font/montserrat_light"-->
+<!--        android:layout_gravity="center_vertical"-->
+<!--        android:textSize="14dp" />-->
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="visible"
+        android:id="@+id/counterContainerFile"
+        tools:ignore="MissingConstraints">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="File Data"
+            android:layout_marginLeft="10dp"
+            android:id="@+id/tv_title_progress_jumlah"
+            android:textColor="@color/black"
+            android:paddingVertical="5dp"
+            android:textStyle="bold"
+            android:fontFamily="@font/manrope_medium"
+            android:textSize="14dp"
+            />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/counter_dataset"
+            android:layout_marginLeft="5dp"
+            android:textSize="14dp"
+            />
+
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/features_recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:clipToPadding="false"
+        android:nestedScrollingEnabled="false"
+        android:layout_marginTop="8dp"
+        tools:listitem="@layout/list_progress_upload"
+        tools:itemCount="5"
+        tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+</LinearLayout>

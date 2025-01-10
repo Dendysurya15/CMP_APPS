@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="5dp"
+    android:layout_marginVertical="5dp"
+    app:cardCornerRadius="5dp"
+    android:id="@+id/idListDataP2H"
+
+    app:cardBackgroundColor="@color/white">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingVertical="10dp"
+        android:paddingHorizontal="10dp"
+
+        tools:ignore="MissingConstraints">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+<!--            android:weightSum="1"-->
+
+<!--            <ImageView-->
+<!--                android:layout_width="60dp"-->
+<!--                android:layout_height="match_parent"-->
+<!--                android:id="@+id/imgUploadPreview"-->
+<!--                android:layout_weight="0.1"-->
+<!--                android:visibility="gone"-->
+<!--                android:textColor="@color/black"-->
+<!--                android:src="@drawable/baseline_folder_zip_24"-->
+<!--                android:adjustViewBounds="true"-->
+<!--                android:padding="7dp"-->
+<!--                />-->
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_weight="0.9">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="20dp"
+                    android:textColor="@color/black"
+                    android:textStyle="bold"
+                    android:text="Dataset Company.zip"
+                    android:id="@+id/tv_name_images"
+                    android:textSize="14dp"/>
+
+
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:orientation="horizontal"
+                    android:weightSum="1"
+                    android:layout_height="wrap_content">
+
+                    <ProgressBar
+                        android:id="@+id/progressBarUpload"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:visibility="visible"
+                        android:layout_width="wrap_content"
+                        android:layout_height="20dp"
+                        android:progressTint="@color/greenDefault"
+                        android:backgroundTint="@color/greendarkerbutton"
+                        android:max="100"
+                        android:layout_weight="0.9"
+                        android:progress="0"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:textColor="@color/black"
+                        android:text="0%"
+                        android:id="@+id/percentageProgressBarCard"
+                        android:layout_weight="0.1"
+                        android:gravity="center_vertical|center"
+                        android:textStyle="italic"
+                        android:textSize="11dp"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:orientation="horizontal"
+                    android:weightSum="1"
+                    android:layout_height="match_parent">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:textColor="@color/black"
+                        android:id="@+id/status_progress"
+                        android:layout_weight="0.9"
+                        android:visibility="gone"
+                        android:text="Download complete"
+                        android:gravity="center_vertical"
+                        android:layout_gravity="left"
+                        android:textStyle="italic"
+                        android:textSize="11dp"/>
+
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/icon_status_progress"
+                        android:layout_weight="0.1"
+                        android:visibility="gone"
+                        android:tint="@color/greendarkerbutton"
+                        android:src="@drawable/baseline_check_24"
+                        tools:ignore="UseAppTint" />
+                </LinearLayout>
+
+
+
+
+            </LinearLayout>
+
+
+        </LinearLayout>
+
+
+
+
+    </LinearLayout>
+
+
+</androidx.cardview.widget.CardView>
