@@ -47,8 +47,7 @@
                     android:layout_height="20dp"
                     android:textColor="@color/black"
                     android:textStyle="bold"
-                    android:text="Dataset Company.zip"
-                    android:id="@+id/tv_name_images"
+                    android:id="@+id/tv_name_progress"
                     android:textSize="14dp"/>
 
 
@@ -111,6 +110,14 @@
                         android:tint="@color/greendarkerbutton"
                         android:src="@drawable/baseline_check_24"
                         tools:ignore="UseAppTint" />
+
+                    <ProgressBar
+                        android:id="@+id/progress_circular_loading"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone"
+                        style="@android:style/Widget.ProgressBar.Small"
+                        android:indeterminate="true" />
                 </LinearLayout>
 
 

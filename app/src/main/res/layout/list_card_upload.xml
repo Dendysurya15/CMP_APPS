@@ -95,12 +95,25 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/features_recycler_view"
         android:layout_width="match_parent"
-        android:layout_height="300dp"
+        android:layout_height="400dp"
         android:clipToPadding="false"
         android:nestedScrollingEnabled="false"
         android:layout_marginTop="8dp"
         tools:listitem="@layout/list_progress_upload"
-        tools:itemCount="5"
+        tools:itemCount="7"
         tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:id="@+id/close_progress_statement"
+        android:textColor="@color/black"
+        android:paddingVertical="5dp"
+        android:visibility="gone"
+        android:textStyle="bold"
+        android:fontFamily="@font/montserrat_mediumitalic"
+        android:textSize="14dp"
+        />
 
 </LinearLayout>

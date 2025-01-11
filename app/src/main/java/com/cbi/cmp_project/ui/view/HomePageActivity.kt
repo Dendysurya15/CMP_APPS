@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
+import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
@@ -30,6 +31,7 @@ import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -52,6 +54,11 @@ class HomePageActivity : AppCompatActivity() {
         Manifest.permission.READ_EXTERNAL_STORAGE,
         Manifest.permission.WRITE_EXTERNAL_STORAGE,)
 
+    data class ErrorResponse(
+        val statusCode: Int,
+        val message: String,
+        val error: String? = null
+    )
     private val permissionRequestCode = 1001
 
     object ApiCallManager {
@@ -83,137 +90,176 @@ class HomePageActivity : AppCompatActivity() {
         navView.setupWithNavController(navController)
     }
 
-    private suspend fun downloadAndStoreFiles(apiCalls: List<Pair<String, suspend () -> Response<ResponseBody>>>) {
-        val downloadsDir = this.getExternalFilesDir(null)
-        val fileList = mutableListOf<String?>()
-
-        for ((fileName, apiCall) in apiCalls) { // Include both fileName and apiCall
-            val isSuccessful = downloadFile(fileName, apiCall, downloadsDir, fileList) // Pass fileName
-            if (!isSuccessful) {
-                Log.e("FileDownload", "File download failed for $fileName. Moving to next file.")
-            }
-        }
-
-        // Save the file list in PrefManager
-        prefManager!!.saveFileList(fileList)
-
-        // Log the saved file list
-        val savedFileList = prefManager!!.getFileList()
-        Log.d("FileList", "Downloaded files: $savedFileList")
-    }
-
-        private fun startFileDownload() {
-            lifecycleScope.launch {
-//                runOnUiThread { loadingDialog.show() }
+//    private suspend fun downloadAndStoreFiles(apiCalls: List<Pair<String, suspend () -> Response<ResponseBody>>>) {
+//        val downloadsDir = this.getExternalFilesDir(null)
+//        val fileList = mutableListOf<String?>()
 //
-//                val progressJob = lifecycleScope.launch(Dispatchers.Main) {
-//                    var dots = 1
-//                    while (true) {
-//                        loadingDialog.setMessage("${stringXML(R.string.download_dataset)}${".".repeat(dots)}")
-//                        dots = if (dots >= 3) 1 else dots + 1
-//                        delay(500) // Update every 500ms
-//                    }
-//                }
+//        for ((fileName, apiCall) in apiCalls) { // Include both fileName and apiCall
+//            val isSuccessful = downloadFile(fileName, apiCall, downloadsDir, fileList) // Pass fileName
+//            if (!isSuccessful) {
+//                Log.e("FileDownload", "File download failed for $fileName. Moving to next file.")
+//            }
+//        }
+//
+//        // Save the file list in PrefManager
+//        prefManager!!.saveFileList(fileList)
+//
+//        // Log the saved file list
+//        val savedFileList = prefManager!!.getFileList()
+//        Log.d("FileList", "Downloaded files: $savedFileList")
+//    }
 
-                val dialogView = layoutInflater.inflate(R.layout.list_card_upload, null)
-                val alertDialog = AlertDialog.Builder(this@HomePageActivity)
-                    .setCancelable(false)
-                    .setView(dialogView)
-                    .create()
+    private fun startFileDownload() {
+        lifecycleScope.launch {
+            // Inflate dialog layout
+            val dialogView = layoutInflater.inflate(R.layout.list_card_upload, null)
+            val alertDialog = AlertDialog.Builder(this@HomePageActivity)
+                .setCancelable(false)
+                .setView(dialogView)
+                .create()
+
+            alertDialog.show()
+            alertDialog.window?.setLayout(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+
+            val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
+            recyclerView?.layoutManager = LinearLayoutManager(this@HomePageActivity, LinearLayoutManager.VERTICAL, false)
 
 
-                alertDialog.show()
-                alertDialog.window?.setLayout(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
+            val apiCallsSize = ApiCallManager.apiCallList.size
+            val progressList = MutableList(apiCallsSize) { 0 } // Initialize progress list with 0%
+            val statusList = MutableList(apiCallsSize) { "Menunggu" } // Initialize with "Waiting" status
+            val iconList = MutableList(apiCallsSize) { R.id.progress_circular_loading }
+            val fileNames = ApiCallManager.apiCallList.map { it.first } // Get the file names from ApiCallManager
 
-                val recyclerView = alertDialog.findViewById<RecyclerView>(R.id.features_recycler_view)
-                recyclerView?.layoutManager = LinearLayoutManager(this@HomePageActivity, LinearLayoutManager.VERTICAL, false)
-                recyclerView?.adapter = ProgressUploadAdapter()
+            val progressAdapter = ProgressUploadAdapter(progressList, statusList, iconList, fileNames.toMutableList()) // Pass fileNames
+            recyclerView?.adapter = progressAdapter
+
+            val titleTextView = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
+            val counterTextView = dialogView.findViewById<TextView>(R.id.counter_dataset)
+            counterTextView.text = "0 / $apiCallsSize"
+
+            // Start the title animation
+            lifecycleScope.launch(Dispatchers.Main) {
+                var dots = 0
+                while (alertDialog.isShowing) {
+                    titleTextView.text = "Mengunduh Dataset" + ".".repeat(dots)
+                    dots = if (dots >= 4) 1 else dots + 1
+                    delay(500)
+                }
+            }
+
+            for (i in 0 until apiCallsSize) {
+                withContext(Dispatchers.Main) {
+                    progressAdapter.updateProgress(i, 0, "Menunggu", R.id.progress_circular_loading)
+                }
+            }
+
+            // Download files and update progress
+            var completedCount = 0
+            val downloadsDir = this@HomePageActivity.getExternalFilesDir(null)
+            val fileList = mutableListOf<String?>()
 
 
-                val titleTextView = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-                val counterTextView = dialogView.findViewById<TextView>(R.id.counter_dataset)
+            for ((index, apiCall) in ApiCallManager.apiCallList.withIndex()) {
+                val fileName = apiCall.first
+                val apiCallFunction = apiCall.second
 
-                val apiCallsSize = ApiCallManager.apiCallList.size
+                // Update progress as soon as downloading starts
+                withContext(Dispatchers.Main) {
+                    progressAdapter.resetProgress(index)
+                    progressAdapter.updateProgress(index, 0, "Sedang Mengunduh",  R.id.progress_circular_loading)  // Show circular progress when download starts
+                }
 
-                counterTextView.text = "0 / $apiCallsSize"
 
-                lifecycleScope.launch(Dispatchers.Main) {
-                    var dots = 0
-                    while (alertDialog.isShowing) {
-                        titleTextView.text = "Mengunduh Dataset" + ".".repeat(dots)
-                        dots = if (dots >= 4) 1 else dots + 1
-                        delay(500) // Update every 500ms
+                for (progress in 0..100 step 10) {
+                    withContext(Dispatchers.Main) {
+                        progressAdapter.updateProgress(index, progress, "Sedang Mengunduh",  R.id.progress_circular_loading)
+                    }
+//                    delay(200)
+                }
+
+                val (isSuccessful, message) = downloadFile(fileName, apiCallFunction, downloadsDir, fileList)
+                if (isSuccessful) {
+                    completedCount++
+                    withContext(Dispatchers.Main) {
+                        progressAdapter.updateProgress(index, 100, message, R.drawable.baseline_check_24)
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        progressAdapter.updateProgress(index, 100, message, R.drawable.baseline_close_24)
                     }
                 }
 
-//                val hasInternet = withContext(Dispatchers.IO) { isInternetAvailable() }
-//                if (!hasInternet) {
-//                    runOnUiThread {
-//                        AlertDialogUtility.withSingleAction(
-//                            this@HomePageActivity,
-//                            stringXML(R.string.al_back),
-//                            stringXML(R.string.al_no_internet_connection),
-//                            stringXML(R.string.al_no_internet_connection_description_download_dataset),
-//                            "network_error.json",
-//                            R.color.colorRedDark
-//                        ) {}
-//                    }
-////                    progressJob.cancel()
-////                    loadingDialog.dismiss()
-//                    return@launch
-//                }
-//
-//                if (prefManager!!.isFirstTimeLaunch) {
-//                    prefManager!!.isFirstTimeLaunch = false
-//                }
-//
-//                // Pass the global list with both file names and API calls
-//                val apiCalls = ApiCallManager.apiCallList
-//
-//                downloadAndStoreFiles(apiCalls)
-//                alertDialog.dismiss()
-//                progressJob.cancel()
-//                loadingDialog.dismiss()
+                withContext(Dispatchers.Main) {
+                    counterTextView.text = "$completedCount / $apiCallsSize"
+                }
             }
-        }
 
+            prefManager!!.saveFileList(fileList)
+
+
+            val savedFileList = prefManager!!.getFileList()
+
+            Log.d("testing", savedFileList.toString())
+
+            // Add countdown message and delay before dismissing
+            val closeText = dialogView.findViewById<TextView>(R.id.close_progress_statement)
+            closeText.visibility = View.VISIBLE
+
+            for (i in 3 downTo 1) {
+                withContext(Dispatchers.Main) {
+                    closeText.text = "Dialog tertutup otomatis dalam ${i} detik"
+                    delay(1000) // Wait for 1 second
+                }
+            }
+
+            alertDialog.dismiss()
+        }
+    }
 
 
     private suspend fun downloadFile(
-        fileName: String, // Use file name from the global variable
+        fileName: String,
         apiCall: suspend () -> Response<ResponseBody>,
         downloadsDir: File?,
         fileList: MutableList<String?>
-    ): Boolean {
+    ): Pair<Boolean, String> {  // Changed return type to include message
         return try {
             withContext(Dispatchers.IO) {
                 val response = apiCall()
                 if (response.isSuccessful) {
                     val responseBody = response.body()
                     if (responseBody != null) {
-                        val file = File(downloadsDir, fileName) // Use the file name directly
+                        val file = File(downloadsDir, fileName)
                         saveFileToStorage(responseBody, file)
-                        fileList.add(fileName) // Add the file name to the list
+                        fileList.add(fileName)
                         Log.d("FileDownload", "$fileName downloaded successfully.")
-                        true
+                        Pair(true, "Unduh Selesai")
                     } else {
-                        fileList.add(null) // Add null for failed download
+                        fileList.add(null)
                         Log.e("FileDownload", "Response body is null.")
-                        false
+                        Pair(false, "Response body kosong")
                     }
                 } else {
-                    fileList.add(null) // Add null for failed download
-                    Log.e("FileDownload", "Download failed: ${response.message()}")
-                    false
+                    fileList.add(null)
+                    try {
+                        val errorBody = response.errorBody()?.string()
+                        val gson = Gson()
+                        val errorResponse = gson.fromJson(errorBody, ErrorResponse::class.java)
+                        Log.e("FileDownload", "Error message: ${errorResponse.message}")
+                        Pair(false, "Unduh Gagal! ${errorResponse.message}")  // Added prefix here
+                    } catch (e: Exception) {
+                        Pair(false, "Unduh Gagal! Kode: ${response.code()}")  // Added prefix here
+                    }
                 }
             }
         } catch (e: Exception) {
-            fileList.add(null) // Add null for exception
+            fileList.add(null)
             Log.e("FileDownload", "Error downloading file: ${e.message}")
-            false
+            Pair(false, "Unduh Gagal! ${e.message}")  // Added prefix here
         }
     }
 
@@ -266,39 +312,42 @@ class HomePageActivity : AppCompatActivity() {
         val savedFileList = prefManager!!.getFileList() // Retrieve the saved file list
         val downloadsDir = this.getExternalFilesDir(null) // Get the downloads directory
 
-        // Check if it's the first time launch
+        Log.d("FileCheck", "Saved file list: $savedFileList")
+        Log.d("FileCheck", "Downloads directory: $downloadsDir")
+        Log.d("FileCheck", "Is first time launch: ${prefManager!!.isFirstTimeLaunch}")
+
         if (prefManager!!.isFirstTimeLaunch) {
-            prefManager!!.isFirstTimeLaunch = false // Set it to false after the first launch
-            return true // Need to start the file download
+            Log.d("FileCheck", "First time launch detected.")
+            prefManager!!.isFirstTimeLaunch = false
+            return true
         }
 
         if (savedFileList.isNotEmpty()) {
-            // Log the file list and download directory for debugging
-            Log.d("FileCheck", "Saved file list: $savedFileList")
-            Log.d("FileCheck", "Downloads directory: $downloadsDir")
-
-            // Check if any entry is null
+            // Check for null entries
             if (savedFileList.contains(null)) {
                 Log.e("FileCheck", "Null entries found in savedFileList.")
-                return true // Restart download if any null exists
+                return true
             }
 
             // Check if all files exist
             val missingFiles = savedFileList.filterNot { fileName ->
                 val file = File(downloadsDir, fileName)
                 val exists = file.exists()
-                Log.d("FileCheck", "Checking if file exists: ${file.path} -> $exists")
+                Log.d("FileCheck", "Checking file: ${file.path} -> Exists: $exists")
                 fileName != null && exists
             }
 
             if (missingFiles.isNotEmpty()) {
                 Log.e("FileCheck", "Missing files detected: $missingFiles")
-                return true // Restart download if any file is missing
+                return true
             }
+        } else {
+            Log.d("FileCheck", "Saved file list is empty.")
         }
 
-        return false // No need to start the download
+        return false
     }
+
 
 
 
@@ -321,7 +370,10 @@ class HomePageActivity : AppCompatActivity() {
             )
         }else{
             if (shouldStartFileDownload()) {
+                Log.d("FileCheck", "Starting file download...")
                 startFileDownload()
+            } else {
+                Log.d("FileCheck", "File download not required.")
             }
         }
     }
@@ -348,7 +400,10 @@ class HomePageActivity : AppCompatActivity() {
                 ).show()
             }else {
                 if (shouldStartFileDownload()) {
+                    Log.d("FileCheck", "Starting file download...")
                     startFileDownload()
+                } else {
+                    Log.d("FileCheck", "File download not required.")
                 }
             }
         }
