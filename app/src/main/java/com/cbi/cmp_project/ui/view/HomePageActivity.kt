@@ -127,14 +127,30 @@ class HomePageActivity : AppCompatActivity() {
             val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
             recyclerView?.layoutManager = LinearLayoutManager(this@HomePageActivity, LinearLayoutManager.VERTICAL, false)
 
+            // Get saved file list and determine which files need downloading
+            val savedFileList = prefManager!!.getFileList()
+            val filesToDownload = ApiCallManager.apiCallList.filterIndexed { index, pair ->
+                val fileName = pair.first
+                val file = File(this@HomePageActivity.getExternalFilesDir(null), fileName)
+                val needsDownload = savedFileList.getOrNull(index) == null || !file.exists()
+                Log.d("FileDownload", "File: $fileName, Needs download: $needsDownload")
+                needsDownload
+            }
 
-            val apiCallsSize = ApiCallManager.apiCallList.size
-            val progressList = MutableList(apiCallsSize) { 0 } // Initialize progress list with 0%
-            val statusList = MutableList(apiCallsSize) { "Menunggu" } // Initialize with "Waiting" status
+            val apiCallsSize = filesToDownload.size
+            if (apiCallsSize == 0) {
+                Log.d("FileDownload", "No files need downloading")
+                alertDialog.dismiss()
+                return@launch
+            }
+
+            // Initialize adapter with files that need downloading
+            val progressList = MutableList(apiCallsSize) { 0 }
+            val statusList = MutableList(apiCallsSize) { "Menunggu" }
             val iconList = MutableList(apiCallsSize) { R.id.progress_circular_loading }
-            val fileNames = ApiCallManager.apiCallList.map { it.first } // Get the file names from ApiCallManager
+            val fileNames = filesToDownload.map { it.first }
 
-            val progressAdapter = ProgressUploadAdapter(progressList, statusList, iconList, fileNames.toMutableList()) // Pass fileNames
+            val progressAdapter = ProgressUploadAdapter(progressList, statusList, iconList, fileNames.toMutableList())
             recyclerView?.adapter = progressAdapter
 
             val titleTextView = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
@@ -151,46 +167,52 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
+            // Initialize all items with waiting status
             for (i in 0 until apiCallsSize) {
                 withContext(Dispatchers.Main) {
                     progressAdapter.updateProgress(i, 0, "Menunggu", R.id.progress_circular_loading)
                 }
             }
 
-            // Download files and update progress
             var completedCount = 0
             val downloadsDir = this@HomePageActivity.getExternalFilesDir(null)
-            val fileList = mutableListOf<String?>()
+            val newFileList = savedFileList.toMutableList()
 
-
-            for ((index, apiCall) in ApiCallManager.apiCallList.withIndex()) {
+            // Download files
+            for ((index, apiCall) in filesToDownload.withIndex()) {
                 val fileName = apiCall.first
                 val apiCallFunction = apiCall.second
+                val originalIndex = ApiCallManager.apiCallList.indexOfFirst { it.first == fileName }
 
-                // Update progress as soon as downloading starts
                 withContext(Dispatchers.Main) {
                     progressAdapter.resetProgress(index)
-                    progressAdapter.updateProgress(index, 0, "Sedang Mengunduh",  R.id.progress_circular_loading)  // Show circular progress when download starts
+                    progressAdapter.updateProgress(index, 0, "Sedang Mengunduh", R.id.progress_circular_loading)
                 }
-
 
                 for (progress in 0..100 step 10) {
                     withContext(Dispatchers.Main) {
-                        progressAdapter.updateProgress(index, progress, "Sedang Mengunduh",  R.id.progress_circular_loading)
+                        progressAdapter.updateProgress(index, progress, "Sedang Mengunduh", R.id.progress_circular_loading)
                     }
-//                    delay(200)
                 }
 
-                val (isSuccessful, message) = downloadFile(fileName, apiCallFunction, downloadsDir, fileList)
+                val (isSuccessful, message) = downloadFile(fileName, apiCallFunction, downloadsDir, newFileList)
+
+                // Ensure the list has enough capacity
+                while (newFileList.size <= originalIndex) {
+                    newFileList.add(null)
+                }
+
                 if (isSuccessful) {
                     completedCount++
                     withContext(Dispatchers.Main) {
                         progressAdapter.updateProgress(index, 100, message, R.drawable.baseline_check_24)
                     }
+                    newFileList[originalIndex] = fileName
                 } else {
                     withContext(Dispatchers.Main) {
                         progressAdapter.updateProgress(index, 100, message, R.drawable.baseline_close_24)
                     }
+                    newFileList[originalIndex] = null
                 }
 
                 withContext(Dispatchers.Main) {
@@ -198,21 +220,19 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            prefManager!!.saveFileList(fileList)
+            // Save updated file list
+            prefManager!!.saveFileList(newFileList)
 
+            Log.d("testing", "Updated file list: ${newFileList}")
 
-            val savedFileList = prefManager!!.getFileList()
-
-            Log.d("testing", savedFileList.toString())
-
-            // Add countdown message and delay before dismissing
+            // Countdown and dismiss
             val closeText = dialogView.findViewById<TextView>(R.id.close_progress_statement)
             closeText.visibility = View.VISIBLE
 
             for (i in 3 downTo 1) {
                 withContext(Dispatchers.Main) {
                     closeText.text = "Dialog tertutup otomatis dalam ${i} detik"
-                    delay(1000) // Wait for 1 second
+                    delay(1000)
                 }
             }
 
