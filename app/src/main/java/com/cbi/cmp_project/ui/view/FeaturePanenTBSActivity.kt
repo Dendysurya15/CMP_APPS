@@ -13,6 +13,7 @@ import android.os.Vibrator
 import android.util.Base64
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
@@ -43,9 +44,13 @@ import com.cbi.cmp_project.data.model.CompanyCodeModel
 import com.cbi.cmp_project.data.model.DivisionCodeModel
 import com.cbi.cmp_project.data.model.FieldCodeModel
 import com.cbi.cmp_project.data.model.TPHModel
+import com.cbi.cmp_project.data.model.WorkerGroupModel
+import com.cbi.cmp_project.data.model.WorkerInGroupModel
+import com.cbi.cmp_project.data.model.WorkerModel
 import com.cbi.cmp_project.data.repository.CameraRepository
 import com.cbi.cmp_project.data.repository.PanenTBSRepository
 import com.cbi.cmp_project.databinding.PertanyaanSpinnerLayoutBinding
+import com.cbi.cmp_project.ui.adapter.SelectedWorkerAdapter
 import com.cbi.cmp_project.ui.adapter.TakeFotoPreviewAdapter
 import com.cbi.cmp_project.ui.view.ui.home.HomeFragment
 import com.cbi.cmp_project.ui.viewModel.CameraViewModel
@@ -55,6 +60,8 @@ import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.LoadingDialog
+import com.google.android.flexbox.FlexboxLayoutManager
+import com.google.android.flexbox.JustifyContent
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
@@ -66,6 +73,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
@@ -100,14 +108,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var divisionCodeList: List<DivisionCodeModel> = emptyList()
     private var fieldCodeList: List<FieldCodeModel> = emptyList()
     private var tphList: List<TPHModel>? = null // Lazy-loaded
-    private lateinit var loadingDialog: LoadingDialog
+    private var workerList: List<WorkerModel> = emptyList()
+    private var workerInGroupList: List<WorkerInGroupModel> = emptyList()
+    private var workerGroupList: List<WorkerGroupModel> = emptyList()
 
+    private lateinit var loadingDialog: LoadingDialog
+    private lateinit var selectedWorkerAdapter: SelectedWorkerAdapter
+    private lateinit var rvSelectedWorkers: RecyclerView
     private var selectedBUnitCodeValue: Int? = null
     private var selectedDivisionCodeValue: Int? = null
     private var selectedTahunTanamValue: String? = null
     private var selectedFieldCodeValue: Int? = null
     private var selectedAncakValue: Int? = null
     private var selectedTPHValue: Int? = null
+    private var selectedKemandoranValue: Int? = null
 
     enum class InputType {
         SPINNER,
@@ -133,7 +147,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         setupHeader()
 
-        loadFileAsync()
+        loadAllFilesAsync()
 
 
 
@@ -215,8 +229,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
-    private fun loadFileAsync() {
-        val downloadedFile = File(application.getExternalFilesDir(null), "dataset_company.zip")
+    private fun loadAllFilesAsync() {
+        val filesToDownload = AppUtils.ApiCallManager.apiCallList.map { it.first }
         loadingDialog.show()
         val progressJob = lifecycleScope.launch(Dispatchers.Main) {
             var dots = 1
@@ -227,11 +241,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
-
         lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    decompressFile(downloadedFile)
+                    filesToDownload.forEach { fileName ->
+                        val file = File(application.getExternalFilesDir(null), fileName)
+                        if (file.exists()) {
+                            decompressFile(file) // Process each file
+                        } else {
+                            Log.e("LoadFileAsync", "File not found: $fileName")
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("LoadFileAsync", "Error: ${e.message}")
@@ -255,7 +275,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val jsonString = String(decompressedData, Charsets.UTF_8)
             Log.d("DecompressedJSON", "Decompressed JSON: $jsonString")
 
-            // Parse the JSON into data classes
             parseJsonData(jsonString)
 
         } catch (e: Exception) {
@@ -270,41 +289,115 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val jsonObject = JSONObject(jsonString)
             val gson = Gson()
 
-            // Parse lightweight data
-//            val companyCodeList: List<CompanyCodeModel> = gson.fromJson(
-//                jsonObject.getJSONArray("CompanyCode").toString(),
-//                object : TypeToken<List<CompanyCodeModel>>() {}.type
-//            )
+            val keyObject = jsonObject.getJSONObject("key")
 
-            val bUnitCodeList : List<BUnitCodeModel> = gson.fromJson(
-                jsonObject.getJSONArray("BUnitCode").toString(),
-                object :TypeToken<List<BUnitCodeModel>>() {}.type
-            )
+            // Parse CompanyCodeDB
+            if (jsonObject.has("CompanyCodeDB")) {
+                val companyCodeArray = jsonObject.getJSONArray("CompanyCodeDB")
+                val transformedCompanyCodeArray = transformJsonArray(companyCodeArray, keyObject)
+                val companyCodeList: List<CompanyCodeModel> = gson.fromJson(
+                    transformedCompanyCodeArray.toString(),
+                    object : TypeToken<List<CompanyCodeModel>>() {}.type
+                )
+                Log.d("ParsedData", "CompanyCode: $companyCodeList")
+                this.companyCodeList = companyCodeList
+            } else {
+                Log.e("ParseJsonData", "CompanyCodeDB key is missing")
+            }
 
-            val divisionCodeList: List<DivisionCodeModel> = gson.fromJson(
-                jsonObject.getJSONArray("DivisionCode").toString(),
-                object : TypeToken<List<DivisionCodeModel>>() {}.type
-            )
+            // Parse BUnitCodeDB
+            if (jsonObject.has("BUnitCodeDB")) {
+                val bUnitCodeArray = jsonObject.getJSONArray("BUnitCodeDB")
+                val transformedBUnitCodeArray = transformJsonArray(bUnitCodeArray, keyObject)
+                val bUnitCodeList: List<BUnitCodeModel> = gson.fromJson(
+                    transformedBUnitCodeArray.toString(),
+                    object : TypeToken<List<BUnitCodeModel>>() {}.type
+                )
+                Log.d("ParsedData", "BUnitCode: $bUnitCodeList")
+                this.bUnitCodeList = bUnitCodeList
+            } else {
+                Log.e("ParseJsonData", "BUnitCodeDB key is missing")
+            }
 
-            val fieldCodeList: List<FieldCodeModel> = gson.fromJson(
-                jsonObject.getJSONArray("FieldCode").toString(),
-                object : TypeToken<List<FieldCodeModel>>() {}.type
-            )
+            // Parse DivisionCodeDB
+            if (jsonObject.has("DivisionCodeDB")) {
+                val divisionCodeArray = jsonObject.getJSONArray("DivisionCodeDB")
+                val transformedDivisionCodeArray = transformJsonArray(divisionCodeArray, keyObject)
+                val divisionCodeList: List<DivisionCodeModel> = gson.fromJson(
+                    transformedDivisionCodeArray.toString(),
+                    object : TypeToken<List<DivisionCodeModel>>() {}.type
+                )
+                Log.d("ParsedData", "DivisionCode: $divisionCodeList")
+                this.divisionCodeList = divisionCodeList
+            } else {
+                Log.e("ParseJsonData", "DivisionCodeDB key is missing")
+            }
 
-            // Log parsed data for debugging
-            Log.d("ParsedData", "CompanyCode: $companyCodeList")
-            Log.d("ParsedData", "bUnitCodeList: $bUnitCodeList")
-            Log.d("ParsedData", "DivisionCode: $divisionCodeList")
-            Log.d("ParsedData", "FieldCode: $fieldCodeList")
+            // Parse FieldCodeDB
+            if (jsonObject.has("FieldCodeDB")) {
+                val fieldCodeArray = jsonObject.getJSONArray("FieldCodeDB")
+                val transformedFieldCodeArray = transformJsonArray(fieldCodeArray, keyObject)
+                val fieldCodeList: List<FieldCodeModel> = gson.fromJson(
+                    transformedFieldCodeArray.toString(),
+                    object : TypeToken<List<FieldCodeModel>>() {}.type
+                )
+                Log.d("ParsedData", "FieldCode: $fieldCodeList")
+                this.fieldCodeList = fieldCodeList
+            } else {
+                Log.e("ParseJsonData", "FieldCodeDB key is missing")
+            }
+
+            // Parse WorkerDB
+            if (jsonObject.has("WorkerDB")) {
+                val workerArray = jsonObject.getJSONArray("WorkerDB")
+                val transformedWorkerArray = transformJsonArray(workerArray, keyObject)
+                val workerList: List<WorkerModel> = gson.fromJson(
+                    transformedWorkerArray.toString(),
+                    object : TypeToken<List<WorkerModel>>() {}.type
+                )
+                Log.d("ParsedData", "Worker: $workerList")
+                this.workerList = workerList
+            } else {
+                Log.e("ParseJsonData", "WorkerDB key is missing")
+            }
+
+            // Parse WorkerGroupDB
+            if (jsonObject.has("WorkerGroupDB")) {
+                val workerGroupArray = jsonObject.getJSONArray("WorkerGroupDB")
+                val transformedWorkerGroupArray = transformJsonArray(workerGroupArray, keyObject)
+                val workerGroupList: List<WorkerGroupModel> = gson.fromJson(
+                    transformedWorkerGroupArray.toString(),
+                    object : TypeToken<List<WorkerGroupModel>>() {}.type
+                )
+                Log.d("ParsedData", "WorkerGroup: $workerGroupList")
+                this.workerGroupList = workerGroupList
+            } else {
+                Log.e("ParseJsonData", "WorkerGroupDB key is missing")
+            }
+
+            // Parse WorkerInGroupDB
+            if (jsonObject.has("WorkerInGroupDB")) {
+                val workerInGroupArray = jsonObject.getJSONArray("WorkerInGroupDB")
+                val transformedWorkerInGroupArray = transformJsonArray(workerInGroupArray, keyObject)
+                val workerInGroupList: List<WorkerInGroupModel> = gson.fromJson(
+                    transformedWorkerInGroupArray.toString(),
+                    object : TypeToken<List<WorkerInGroupModel>>() {}.type
+                )
+                Log.d("ParsedData", "WorkerInGroup: $workerInGroupList")
+                this.workerInGroupList = workerInGroupList
+            } else {
+                Log.e("ParseJsonData", "WorkerInGroupDB key is missing")
+            }
 
             // Cache lightweight data
             this.companyCodeList = companyCodeList
             this.bUnitCodeList = bUnitCodeList
             this.divisionCodeList = divisionCodeList
             this.fieldCodeList = fieldCodeList
+            this.workerList = workerList
+            this.workerGroupList = workerGroupList
+            this.workerInGroupList = workerInGroupList
 
-//            // Lazy-load TPH only when needed
-//            this.tphList = null // Initialize as null
 
             loadTPHData(jsonObject)
 
@@ -313,14 +406,45 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
+    fun transformJsonArray(jsonArray: JSONArray, keyObject: JSONObject): JSONArray {
+        val transformedArray = JSONArray()
+
+        for (i in 0 until jsonArray.length()) {
+            val item = jsonArray.getJSONObject(i)
+            val transformedItem = JSONObject()
+
+            keyObject.keys().forEach { key ->
+                val fieldName = keyObject.getString(key)  // This gets the field name from the key object
+                val fieldValue = item.get(key)  // This gets the corresponding value from the item
+                transformedItem.put(fieldName, fieldValue)
+            }
+
+            transformedArray.put(transformedItem)
+        }
+
+        return transformedArray
+    }
+
     private fun loadTPHData(jsonObject: JSONObject) {
-        if (tphList == null) {
-            val gson = Gson()
-            tphList = gson.fromJson(
-                jsonObject.getJSONArray("TPH").toString(),
-                object : TypeToken<List<TPHModel>>() {}.type
-            )
-            Log.d("TPHData", "Loaded TPH data with ${tphList?.size} entries")
+        try {
+            // Check if the tphList is null or needs to be loaded
+            if (tphList == null) {
+                val gson = Gson()
+
+                if (jsonObject.has("TPHDB")) {
+                    // Dynamically transform and parse TPH data
+                    val tphArray = jsonObject.getJSONArray("TPHDB")
+                    val transformedTphArray = transformJsonArray(tphArray, jsonObject.getJSONObject("key"))
+                    tphList = gson.fromJson(
+                        transformedTphArray.toString(),
+                        object : TypeToken<List<TPHModel>>() {}.type
+                    )
+                }
+                // Log the number of entries loaded
+                Log.d("ParsedData", "Loaded TPH data with ${tphList?.size} entries")
+            }
+        } catch (e: Exception) {
+            Log.e("TPHData", "Error loading TPH data", e)
         }
     }
 
@@ -493,6 +617,26 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             setupPaneWithButtons(layoutId, R.id.tvNumberPanen, labelText, counterVar)
         }
 
+        rvSelectedWorkers = RecyclerView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = resources.getDimensionPixelSize(R.dimen.top_margin)  // Or direct pixels: 32
+            }
+            layoutManager = FlexboxLayoutManager(context).apply {
+                justifyContent = JustifyContent.FLEX_START
+            }
+            overScrollMode = View.OVER_SCROLL_NEVER
+        }
+        selectedWorkerAdapter = SelectedWorkerAdapter()
+        rvSelectedWorkers.adapter = selectedWorkerAdapter
+
+
+        val layoutPemanen = findViewById<LinearLayout>(R.id.layoutPemanen)
+        val parentLayout = layoutPemanen.parent as ViewGroup
+        val index = parentLayout.indexOfChild(layoutPemanen)
+        parentLayout.addView(rvSelectedWorkers, index + 1)
         setupRecyclerViewTakePreviewFoto()
     }
 
@@ -510,6 +654,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 clearSpinnerView(R.id.layoutBlok, ::resetSelectedFieldCode)
                 clearSpinnerView(R.id.layoutAncak, ::resetSelectedAncak)
                 clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutKemandoran, ::resetSelectedKemandoran)
             }
             R.id.layoutTahunTanam -> {
                 clearSpinnerView(R.id.layoutBlok, ::resetSelectedFieldCode)
@@ -552,6 +697,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     fun resetSelectedTPH() {
         // Assuming you have a variable for TPH selection
         selectedTPHValue = null
+    }
+
+    fun resetSelectedKemandoran(){
+        selectedKemandoranValue = null
     }
 
     private fun setupSpinnerView(linearLayout: LinearLayout, data: List<String>, onItemSelected: (Int) -> Unit = {}) {
@@ -612,6 +761,42 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         val plantingYearLayoutView = findViewById<LinearLayout>(R.id.layoutTahunTanam)
                         setupSpinnerView(plantingYearLayoutView, emptyList())
                     }
+
+                    val filteredWorkerGroups = workerGroupList.filter { workerGroup ->
+                        // Match estate_code with selectedBUnitCodeValue (split by '_', check the second part)
+                        val estateCodeParts = workerGroup.estate_code.split('_')
+                        val estateCodeMatch = estateCodeParts.getOrNull(1)?.toString() == selectedBUnitCodeValue?.toString()
+
+                        // Match the DivisionName with the worker group's name (partial matching)
+                        val divisionCode = divisionCodeList.find { it.DivisionCode == selectedDivisionCodeValue }
+                        val divisionName = divisionCode?.DivisionName ?: ""
+
+                        // Normalize divisionName (strip out spaces and hyphens)
+                        val normalizedDivisionName = divisionName.replace("[-\\s]".toRegex(), "")
+
+                        // Normalize worker group name (strip out spaces and hyphens)
+                        val normalizedWorkerGroupName = workerGroup.name.replace("[-\\s]".toRegex(), "")
+
+                        // We use 'contains' to match parts of the normalized DivisionName
+                        val nameMatch = normalizedWorkerGroupName.contains(normalizedDivisionName, ignoreCase = true)
+
+                        // Return the final match status
+                        val matchResult = estateCodeMatch && nameMatch
+                        matchResult
+                    }
+
+
+                    if (filteredWorkerGroups.isNotEmpty()) {
+                        // Extract worker group names
+                        val workerGroupNames = filteredWorkerGroups.map { it.name }.distinct()
+
+                        val kemandoranLayoutView = findViewById<LinearLayout>(R.id.layoutKemandoran)
+                        setupSpinnerView(kemandoranLayoutView, workerGroupNames)
+                    } else {
+                        val kemandoranLayoutView = findViewById<LinearLayout>(R.id.layoutKemandoran)
+                        setupSpinnerView(kemandoranLayoutView, emptyList())
+                    }
+
                 }
                 R.id.layoutTahunTanam -> {
                     val selectedTahunTanam = item.toString()
@@ -661,9 +846,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         // Set up the spinner for Ancak values
                         setupSpinnerView(ancakLayoutView, ancakValues.map { it.toString() }) // Convert to String for spinner
                     } else {
-                        // Handle case where no matching TPH data is found
-                        Log.e("Spinner", "No matching TPH data found for the selected filters")
-
                         // Set an empty list to the spinner for Ancak
                         val ancakLayoutView = findViewById<LinearLayout>(R.id.layoutAncak)
                         setupSpinnerView(ancakLayoutView, emptyList()) // Empty list when no data is found
@@ -683,7 +865,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }?.ancak
 
                     selectedAncakValue = selectedAncakCode ?: run {
-                        // If no matching TPH entry is found, return null
                         null
                     }
 
@@ -696,22 +877,51 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
 
                     if (filteredTPH != null && filteredTPH.isNotEmpty()) {
-                        // Extract distinct values for 'Ancak' from the filtered TPH data
+
                         val tphValues = filteredTPH.map { it.tph }.distinct()
 
-                        // Find the layout for 'Ancak' (assuming it's R.id.layoutAncak)
                         val ancakLayoutView = findViewById<LinearLayout>(R.id.layoutNoTPH)
 
-                        // Set up the spinner for Ancak values
                         setupSpinnerView(ancakLayoutView, tphValues.map { it.toString() }) // Convert to String for spinner
                     } else {
-                        // Handle case where no matching TPH data is found
-                        Log.e("Spinner", "No matching TPH data found for the selected filters")
 
-                        // Set an empty list to the spinner for Ancak
                         val ancakLayoutView = findViewById<LinearLayout>(R.id.layoutNoTPH)
                         setupSpinnerView(ancakLayoutView, emptyList())
                     }
+                }
+                R.id.layoutKemandoran -> {
+                    selectedWorkerAdapter.clearAllWorkers()
+                    val selectedKemandoran = item.toString()
+                    val matchingWorkerGroup = workerGroupList.find { workerGroup ->
+                        workerGroup.name.equals(selectedKemandoran, ignoreCase = true)
+                    }
+
+                    matchingWorkerGroup?.let { workerGroup ->
+                        val workerGroupCode = workerGroup.worker_group_code
+                        val workersInGroup = workerInGroupList.filter { worker ->
+                            worker.worker_group_code == workerGroupCode
+                        }
+                        val workerCodes = workersInGroup.map { it.worker_code }
+
+                        if (workerCodes.isNotEmpty()) {
+                            val workerNames = workerCodes.mapNotNull { workerCode ->
+                                workerList.find { worker -> worker.worker_code == workerCode }?.name
+                            }
+
+                            selectedWorkerAdapter.setAvailableWorkers(workerNames)
+
+                            val pemanenLayoutView = findViewById<LinearLayout>(R.id.layoutPemanen)
+                            setupSpinnerView(pemanenLayoutView, selectedWorkerAdapter.getAvailableWorkers())
+                        } else {
+                            val pemanenLayoutView = findViewById<LinearLayout>(R.id.layoutPemanen)
+                            setupSpinnerView(pemanenLayoutView, emptyList())
+                        }
+                    }
+                }
+                R.id.layoutPemanen -> {
+                    val selectedWorker = item.toString()
+                    selectedWorkerAdapter.addWorker(selectedWorker)
+                    setupSpinnerView(linearLayout, selectedWorkerAdapter.getAvailableWorkers())
                 }
 
 

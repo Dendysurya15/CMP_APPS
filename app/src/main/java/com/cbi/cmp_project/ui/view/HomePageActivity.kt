@@ -28,6 +28,7 @@ import com.cbi.cmp_project.data.network.RetrofitClient
 import com.cbi.cmp_project.databinding.ActivityHomePageBinding
 import com.cbi.cmp_project.ui.adapter.ProgressUploadAdapter
 import com.cbi.cmp_project.utils.AlertDialogUtility
+import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
@@ -60,19 +61,6 @@ class HomePageActivity : AppCompatActivity() {
         val error: String? = null
     )
     private val permissionRequestCode = 1001
-
-    object ApiCallManager {
-        val apiCallList = listOf(
-            Pair("datasetCompanyCode.zip", RetrofitClient.instance::downloadDatasetCompany),
-            Pair("datasetBUnitCode.zip", RetrofitClient.instance::downloadDatasetBUnit),
-            Pair("datasetDivisionCode.zip", RetrofitClient.instance::downloadDatasetDivision),
-            Pair("datasetTPHCode.zip", RetrofitClient.instance::downloadDatasetTPH),
-            Pair("datasetFieldCode.zip", RetrofitClient.instance::downloadDatasetField),
-            Pair("datasetWorkerInGroup.zip", RetrofitClient.instance::downloadDatasetWorkerInGroup),
-            Pair("datasetWorkerGroup.zip", RetrofitClient.instance::downloadDatasetWorkerGroup),
-            Pair("datasetWorker.zip", RetrofitClient.instance::downloadDatasetWorker)
-        )
-    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -124,7 +112,7 @@ class HomePageActivity : AppCompatActivity() {
 
             // Get saved file list and determine which files need downloading
             val savedFileList = prefManager!!.getFileList()
-            val filesToDownload = ApiCallManager.apiCallList.filterIndexed { index, pair ->
+            val filesToDownload = AppUtils.ApiCallManager.apiCallList.filterIndexed { index, pair ->
                 val fileName = pair.first
                 val file = File(this@HomePageActivity.getExternalFilesDir(null), fileName)
                 val needsDownload = savedFileList.getOrNull(index) == null || !file.exists()
@@ -177,7 +165,7 @@ class HomePageActivity : AppCompatActivity() {
             for ((index, apiCall) in filesToDownload.withIndex()) {
                 val fileName = apiCall.first
                 val apiCallFunction = apiCall.second
-                val originalIndex = ApiCallManager.apiCallList.indexOfFirst { it.first == fileName }
+                val originalIndex = AppUtils.ApiCallManager.apiCallList.indexOfFirst { it.first == fileName }
 
                 withContext(Dispatchers.Main) {
                     progressAdapter.resetProgress(index)

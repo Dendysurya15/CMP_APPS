@@ -6,6 +6,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.widget.TextView
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.data.network.RetrofitClient
 import com.jaredrummler.materialspinner.BuildConfig
 
 object AppUtils {
@@ -16,6 +17,19 @@ object AppUtils {
     const val LOG_LOC = "locationLog"
 
     const val REQUEST_CHECK_SETTINGS = 0x1
+
+    object ApiCallManager {
+        val apiCallList = listOf(
+            Pair("datasetCompanyCode.zip", RetrofitClient.instance::downloadDatasetCompany),
+            Pair("datasetBUnitCode.zip", RetrofitClient.instance::downloadDatasetBUnit),
+            Pair("datasetDivisionCode.zip", RetrofitClient.instance::downloadDatasetDivision),
+            Pair("datasetTPHCode.zip", RetrofitClient.instance::downloadDatasetTPH),
+            Pair("datasetFieldCode.zip", RetrofitClient.instance::downloadDatasetField),
+            Pair("datasetWorkerInGroup.zip", RetrofitClient.instance::downloadDatasetWorkerInGroup),
+            Pair("datasetWorkerGroup.zip", RetrofitClient.instance::downloadDatasetWorkerGroup),
+            Pair("datasetWorker.zip", RetrofitClient.instance::downloadDatasetWorker)
+        )
+    }
     /**
      * Gets the current app version from BuildConfig or string resources.
      * @param context The context used to retrieve the string resource.
