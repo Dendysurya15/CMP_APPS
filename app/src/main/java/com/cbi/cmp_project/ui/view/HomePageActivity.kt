@@ -90,26 +90,21 @@ class HomePageActivity : AppCompatActivity() {
         navView.setupWithNavController(navController)
     }
 
-//    private suspend fun downloadAndStoreFiles(apiCalls: List<Pair<String, suspend () -> Response<ResponseBody>>>) {
-//        val downloadsDir = this.getExternalFilesDir(null)
-//        val fileList = mutableListOf<String?>()
-//
-//        for ((fileName, apiCall) in apiCalls) { // Include both fileName and apiCall
-//            val isSuccessful = downloadFile(fileName, apiCall, downloadsDir, fileList) // Pass fileName
-//            if (!isSuccessful) {
-//                Log.e("FileDownload", "File download failed for $fileName. Moving to next file.")
-//            }
-//        }
-//
-//        // Save the file list in PrefManager
-//        prefManager!!.saveFileList(fileList)
-//
-//        // Log the saved file list
-//        val savedFileList = prefManager!!.getFileList()
-//        Log.d("FileList", "Downloaded files: $savedFileList")
-//    }
 
     private fun startFileDownload() {
+
+        if (!isInternetAvailable()) {
+            AlertDialogUtility.withSingleAction(
+                this@HomePageActivity,
+                stringXML(R.string.al_back),
+                stringXML(R.string.al_no_internet_connection),
+                stringXML(R.string.al_no_internet_connection_description_download_dataset),
+                "network_error.json",
+                R.color.colorRedDark
+            ) {}
+            return
+        }
+
         lifecycleScope.launch {
             // Inflate dialog layout
             val dialogView = layoutInflater.inflate(R.layout.list_card_upload, null)
@@ -222,8 +217,6 @@ class HomePageActivity : AppCompatActivity() {
 
             // Save updated file list
             prefManager!!.saveFileList(newFileList)
-
-            Log.d("testing", "Updated file list: ${newFileList}")
 
             // Countdown and dismiss
             val closeText = dialogView.findViewById<TextView>(R.id.close_progress_statement)
