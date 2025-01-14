@@ -59,11 +59,13 @@ import com.cbi.cmp_project.ui.viewModel.PanenTBSViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.stringXML
+import com.cbi.cmp_project.utils.DataCacheManager
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.gson.Gson
@@ -115,6 +117,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var loadingDialog: LoadingDialog
     private lateinit var selectedWorkerAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedWorkers: RecyclerView
+    private lateinit var dataCacheManager: DataCacheManager
     private var selectedBUnitCodeValue: Int? = null
     private var selectedDivisionCodeValue: Int? = null
     private var selectedTahunTanamValue: String? = null
@@ -141,13 +144,50 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_panen_tbs)
         loadingDialog = LoadingDialog(this)
+        dataCacheManager = DataCacheManager(this)
         initViewModel()
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
 
         setupHeader()
 
-        loadAllFilesAsync()
+        lifecycleScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                loadingDialog.show()  // Show loading at start
+                loadingDialog.setMessage("Loading data...")
+            }
+
+            try {
+                val cachedData = dataCacheManager.getDatasets()
+
+                if (cachedData != null && !dataCacheManager.needsRefresh()) {
+                    // Use cached data
+                    companyCodeList = cachedData.companyCodeList
+                    bUnitCodeList = cachedData.bUnitCodeList
+                    divisionCodeList = cachedData.divisionCodeList
+                    fieldCodeList = cachedData.fieldCodeList
+                    workerList = cachedData.workerList
+                    workerGroupList = cachedData.workerGroupList
+                    workerInGroupList = cachedData.workerInGroupList
+                    tphList = cachedData.tphList
+
+                    withContext(Dispatchers.Main) {
+                        loadingDialog.dismiss()  // Dismiss loading before setting up layout
+                        setupLayout()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        loadingDialog.dismiss()  // Dismiss current loading
+                        loadAllFilesAsync()  // This has its own loading dialog
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    loadingDialog.dismiss()  // Make sure to dismiss on error
+                    // Maybe show error message
+                }
+            }
+        }
 
 
 
@@ -253,6 +293,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
                     }
                 }
+
+                dataCacheManager.saveDatasets(
+                    companyCodeList,
+                    bUnitCodeList,
+                    divisionCodeList,
+                    fieldCodeList,
+                    workerList,
+                    workerGroupList,
+                    workerInGroupList,
+                    tphList!!
+                )
             } catch (e: Exception) {
                 Log.e("LoadFileAsync", "Error: ${e.message}")
             } finally {
@@ -592,6 +643,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             val bUnitNames = bUnitCodeList.map { it.BUnitName }
                             setupSpinnerView(layoutView, bUnitNames)
                         }
+                        R.id.layoutTipePanen->{
+                            val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
+                            setupSpinnerView(layoutView, tipePanenOptions)
+                        }
                         else -> {
                             // Set empty list for any other spinner
                             setupSpinnerView(layoutView, emptyList())
@@ -638,6 +693,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val index = parentLayout.indexOfChild(layoutPemanen)
         parentLayout.addView(rvSelectedWorkers, index + 1)
         setupRecyclerViewTakePreviewFoto()
+        setupSwitch()
     }
 
     fun resetViewsBelow(triggeredLayout: Int) {
@@ -673,6 +729,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     fun clearSpinnerView(layoutId: Int, resetSelectedValue: () -> Unit) {
         val layoutView = findViewById<LinearLayout>(layoutId)
+        if (layoutId != R.id.layoutAfdeling) {
+            layoutView.visibility = View.GONE
+        }
         setupSpinnerView(layoutView, emptyList()) // Pass an empty list to reset the spinner
         resetSelectedValue() // Reset the associated selected value
     }
@@ -755,10 +814,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             .sorted() // Sort the years in ascending order
 
                         val plantingYearLayoutView = findViewById<LinearLayout>(R.id.layoutTahunTanam)
-
+                        plantingYearLayoutView.visibility = View.VISIBLE
                         setupSpinnerView(plantingYearLayoutView, plantingYears)
                     } else {
+
                         val plantingYearLayoutView = findViewById<LinearLayout>(R.id.layoutTahunTanam)
+
                         setupSpinnerView(plantingYearLayoutView, emptyList())
                     }
 
@@ -791,6 +852,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         val workerGroupNames = filteredWorkerGroups.map { it.name }.distinct()
 
                         val kemandoranLayoutView = findViewById<LinearLayout>(R.id.layoutKemandoran)
+
                         setupSpinnerView(kemandoranLayoutView, workerGroupNames)
                     } else {
                         val kemandoranLayoutView = findViewById<LinearLayout>(R.id.layoutKemandoran)
@@ -813,7 +875,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         val fieldNames = filteredFieldCodes.map { it.FieldName }
 
                         val blokLayoutView = findViewById<LinearLayout>(R.id.layoutBlok)
-
+                        blokLayoutView.visibility = View.VISIBLE
                         setupSpinnerView(blokLayoutView, fieldNames)
                     } else {
                         val blokLayoutView = findViewById<LinearLayout>(R.id.layoutBlok)
@@ -842,8 +904,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         // Find the layout for 'Ancak' (assuming it's R.id.layoutAncak)
                         val ancakLayoutView = findViewById<LinearLayout>(R.id.layoutAncak)
-
-                        // Set up the spinner for Ancak values
+                        ancakLayoutView.visibility = View.VISIBLE
                         setupSpinnerView(ancakLayoutView, ancakValues.map { it.toString() }) // Convert to String for spinner
                     } else {
                         // Set an empty list to the spinner for Ancak
@@ -880,14 +941,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         val tphValues = filteredTPH.map { it.tph }.distinct()
 
-                        val ancakLayoutView = findViewById<LinearLayout>(R.id.layoutNoTPH)
-
-                        setupSpinnerView(ancakLayoutView, tphValues.map { it.toString() }) // Convert to String for spinner
+                        val tphLayoutView = findViewById<LinearLayout>(R.id.layoutNoTPH)
+                        tphLayoutView.visibility = View.VISIBLE
+                        setupSpinnerView(tphLayoutView, tphValues.map { it.toString() }) // Convert to String for spinner
                     } else {
 
                         val ancakLayoutView = findViewById<LinearLayout>(R.id.layoutNoTPH)
                         setupSpinnerView(ancakLayoutView, emptyList())
                     }
+                }
+                R.id.layoutNoTPH->{
+                    val kemandoranLayoutView = findViewById<LinearLayout>(R.id.layoutKemandoran)
+                    kemandoranLayoutView.visibility = View.VISIBLE
                 }
                 R.id.layoutKemandoran -> {
                     selectedWorkerAdapter.clearAllWorkers()
@@ -911,6 +976,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             selectedWorkerAdapter.setAvailableWorkers(workerNames)
 
                             val pemanenLayoutView = findViewById<LinearLayout>(R.id.layoutPemanen)
+                            pemanenLayoutView.visibility = View.VISIBLE
                             setupSpinnerView(pemanenLayoutView, selectedWorkerAdapter.getAvailableWorkers())
                         } else {
                             val pemanenLayoutView = findViewById<LinearLayout>(R.id.layoutPemanen)
@@ -922,6 +988,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     val selectedWorker = item.toString()
                     selectedWorkerAdapter.addWorker(selectedWorker)
                     setupSpinnerView(linearLayout, selectedWorkerAdapter.getAvailableWorkers())
+
+                    val asistensiLayoutView = findViewById<LinearLayout>(R.id.layoutSelAsistensi)
+                    asistensiLayoutView.visibility = View.VISIBLE
                 }
 
 
@@ -929,7 +998,27 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
+    private fun setupSwitch() {
+        val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
+        val layoutKemandoranLain = findViewById<LinearLayout>(R.id.layoutKemandoranLain)
+        val layoutPemanenLain = findViewById<LinearLayout>(R.id.layoutPemanenLain)
 
+        switchAsistensi.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                // Show layouts when switch is ON
+                layoutKemandoranLain.visibility = View.VISIBLE
+                layoutPemanenLain.visibility = View.VISIBLE
+
+                // Setup spinner for KemandoranLain if needed
+                setupSpinnerView(layoutKemandoranLain, workerGroupList.map { it.name })
+            } else {
+                // Hide layouts when switch is OFF
+                layoutKemandoranLain.visibility = View.GONE
+                layoutPemanenLain.visibility = View.GONE
+
+            }
+        }
+    }
 
     /**
      * Configures the RecyclerView to repeat the layout 3 times.

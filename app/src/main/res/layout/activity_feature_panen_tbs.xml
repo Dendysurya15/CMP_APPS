@@ -64,30 +64,37 @@
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutTahunTanam"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutBlok"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutAncak"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutTipePanen"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutNoTPH"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutKemandoran"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutPemanen"/>
 
 
@@ -95,6 +102,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
+                    android:visibility="gone"
                     android:layout_marginTop="10dp"
                     android:id="@+id/layoutSelAsistensi">
                     <TextView
@@ -107,34 +115,40 @@
                     <com.google.android.material.switchmaterial.SwitchMaterial
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        app:thumbTint="@color/greenDefault"
-                        app:trackTint="@color/graylightDarker"
+                        app:thumbTint="@color/switch_thumb_selector"
+                        app:trackTint="@color/switch_track_selector"
                         android:id="@+id/selAsistensi"/>
                 </LinearLayout>
 
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutKemandoranLain"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutPemanenLain"/>
 
                 <include
                     layout="@layout/pane_number_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutJumTBS"/>
 
                 <include
                     layout="@layout/pane_number_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutBMentah"/>
 
                 <include
                     layout="@layout/pane_number_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutBLewatMasak"/>
 
                 <include
                     layout="@layout/pane_number_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutJjgKosong"/>
 
 
@@ -143,6 +157,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
+                    android:visibility="gone"
                     android:id="@+id/layoutTBSMasak"
                     android:background="@color/white"
                     android:paddingBottom="10dp"
@@ -186,6 +201,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
+                    android:visibility="gone"
                     android:id="@+id/layoutKirimPabrik"
                     android:background="@color/white"
                     android:paddingBottom="10dp"
@@ -208,11 +224,13 @@
                         android:textSize="17dp"
                         android:id="@+id/tvCounterKirimPabrik"/>
                 </LinearLayout>
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
+                    android:visibility="gone"
                     android:id="@+id/layoutTBSDibayar"
                     android:background="@color/white"
                     android:paddingBottom="10dp"
@@ -238,22 +256,27 @@
 
                 <include
                     layout="@layout/pane_number_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutAbnormal"/>
 
                 <include
                     layout="@layout/pane_number_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutSeranganTikus"/>
 
                 <include
                     layout="@layout/pane_number_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutTangkaiPanjang"/>
 
                 <include
                     layout="@layout/pane_number_layout"
+                    android:visibility="gone"
                     android:id="@+id/layoutTidakVcut"/>
 
                 <TextView
                     android:layout_width="200dp"
+                    android:visibility="gone"
                     android:layout_height="match_parent"
                     android:text="Lampiran Foto"
                     android:layout_marginTop="10dp"
@@ -267,6 +290,7 @@
                     android:layout_width="200dp"
                     android:layout_height="match_parent"
                     android:text="Minimal Upload 1 Foto*"
+                    android:visibility="gone"
                     android:textStyle="italic"
                     android:fontFamily="@font/manrope_medium"
                     android:textSize="13dp"
@@ -277,6 +301,7 @@
                     android:id="@+id/recyclerViewFotoPreview"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:visibility="gone"
                     android:layout_below="@id/tvTitleFormPanenTBS"
                     tools:listitem="@layout/take_and_preview_foto_layout"
                     android:padding="10dp"
@@ -291,6 +316,7 @@
                     android:layout_height="match_parent"
                     android:orientation="horizontal"
                     android:layout_gravity="right"
+                    android:visibility="gone"
                     android:layout_marginTop="30dp"
                     android:layout_marginBottom="30dp"
                     >

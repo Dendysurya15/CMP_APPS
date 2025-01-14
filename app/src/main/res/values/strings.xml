@@ -37,4 +37,10 @@
     <string name="download_dataset">Sedang mengunduh dataset</string>
     <string name="fetching_dataset">Sedang mengambil dataset</string>
 
+    <string-array name="tipe_panen_options">
+        <item>Normal</item>
+        <item>Cut &amp; Carry</item>
+        <item>MAIC</item>
+    </string-array>
+
 </resources>

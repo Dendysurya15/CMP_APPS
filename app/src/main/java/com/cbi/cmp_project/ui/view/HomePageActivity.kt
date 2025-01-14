@@ -323,6 +323,7 @@ class HomePageActivity : AppCompatActivity() {
             return true
         }
 
+        Log.d("testing", savedFileList.toString())
         if (savedFileList.isNotEmpty()) {
             // Check for null entries
             if (savedFileList.contains(null)) {
