@@ -27,6 +27,25 @@ class PrefManager(_context: Context) {
         }
     }
 
+    fun setDateModified(key: String, value: String?) {
+        editor.putString(key, value)
+        editor.commit()
+    }
+
+    fun getAllDateModified(): Map<String, String?> {
+        val allEntries = pref.all
+        val dateModifiedMap = mutableMapOf<String, String?>()
+
+        for ((key, value) in allEntries) {
+            // Check if the key matches your convention for date_modified keys
+            if (key.endsWith("DB") && value is String) {
+                dateModifiedMap[key] = value
+            }
+        }
+
+        return dateModifiedMap
+    }
+
     // Clear the file list
     fun clearFileList() {
         editor.remove("downloaded_file_list").apply()

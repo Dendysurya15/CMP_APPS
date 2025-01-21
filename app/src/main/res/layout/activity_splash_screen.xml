@@ -29,7 +29,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="19sp"
+            android:textSize="19dp"
             android:gravity="left"
             android:textStyle="italic"
             android:fontFamily="@font/montserrat_semibolditalic"
@@ -41,7 +41,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="30sp"
+            android:textSize="30dp"
             android:fontFamily="@font/manrope_extrabold"
             android:textColor="@color/greenDefault"
             android:layout_marginHorizontal="30dp"
@@ -52,7 +52,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="15sp"
+            android:textSize="15dp"
             android:textColor="@color/black"
             android:layout_marginHorizontal="30dp"
             android:gravity="left"

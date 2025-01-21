@@ -11,34 +11,48 @@ import retrofit2.http.Url
 
 interface ApiService {
     @Streaming
-    @GET("downloadDatasetCompanyJson")
-    suspend fun downloadDatasetCompany(): Response<ResponseBody>
+    @GET("downloadDatasetKaryawanJson")
+    suspend fun downloadDatasetKaryawanJson(): Response<ResponseBody>
 
     @Streaming
-    @GET("downloadDatasetBUnitJson")
-    suspend fun downloadDatasetBUnit(): Response<ResponseBody>
+    @GET("downloadDatasetKemandoranJson")
+    suspend fun downloadDatasetKemandoranJson(): Response<ResponseBody>
 
     @Streaming
-    @GET("downloadDatasetDivisionJson")
-    suspend fun downloadDatasetDivision(): Response<ResponseBody>
+    @GET("downloadDatasetKemandoranDetailJson")
+    suspend fun downloadDatasetKemandoranDetailJson(): Response<ResponseBody>
 
     @Streaming
-    @GET("downloadDatasetTPHJson")
-    suspend fun downloadDatasetTPH(): Response<ResponseBody>
+    @GET("downloadDatasetTPHNewJson")
+    suspend fun downloadDatasetTPHNewJson(): Response<ResponseBody>
 
     @Streaming
-    @GET("downloadDatasetFieldJson")
-    suspend fun downloadDatasetField(): Response<ResponseBody>
+    @GET("downloadDatasetBlokJson")
+    suspend fun downloadDatasetBlokJson(): Response<ResponseBody>
 
     @Streaming
-    @GET("downloadDatasetWorkerInGroupJson")
-    suspend fun downloadDatasetWorkerInGroup(): Response<ResponseBody>
+    @GET("downloadDatasetDivisiJson")
+    suspend fun downloadDatasetDivisiJson(): Response<ResponseBody>
 
     @Streaming
-    @GET("downloadDatasetWorkerGroupJson")
-    suspend fun downloadDatasetWorkerGroup(): Response<ResponseBody>
+    @GET("downloadDatasetDeptJson")
+    suspend fun downloadDatasetDeptJson(): Response<ResponseBody>
 
     @Streaming
-    @GET("downloadDatasetWorkerJson")
-    suspend fun downloadDatasetWorker(): Response<ResponseBody>
+    @GET("downloadDatasetWilayahJson")
+    suspend fun downloadDatasetWilayahJson(): Response<ResponseBody>
+
+    @Streaming
+    @GET("downloadDatasetRegionalJson")
+    suspend fun downloadDatasetRegionalJson(): Response<ResponseBody>
+
+
+    @GET("getTablesLatestModified")
+    suspend fun getTablesLatestModified(): Response<TablesModifiedResponse>
+
+    data class TablesModifiedResponse(
+        val statusCode: Int,
+        val message: String,
+        val data: Map<String, String?>
+    )
 }

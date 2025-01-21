@@ -161,30 +161,47 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 val cachedData = dataCacheManager.getDatasets()
 
                 if (cachedData != null && !dataCacheManager.needsRefresh()) {
-                    // Use cached data
-                    companyCodeList = cachedData.companyCodeList
-                    bUnitCodeList = cachedData.bUnitCodeList
-                    divisionCodeList = cachedData.divisionCodeList
-                    fieldCodeList = cachedData.fieldCodeList
-                    workerList = cachedData.workerList
-                    workerGroupList = cachedData.workerGroupList
-                    workerInGroupList = cachedData.workerInGroupList
-                    tphList = cachedData.tphList
-
-                    withContext(Dispatchers.Main) {
-                        loadingDialog.dismiss()  // Dismiss loading before setting up layout
-                        setupLayout()
-                    }
+//                    // Check if any of the datasets are empty
+//                    val hasEmptyDatasets = cachedData.companyCodeList.isEmpty() ||
+//                            cachedData.bUnitCodeList.isEmpty() ||
+//                            cachedData.divisionCodeList.isEmpty() ||
+//                            cachedData.fieldCodeList.isEmpty() ||
+//                            cachedData.workerList.isEmpty() ||
+//                            cachedData.workerGroupList.isEmpty() ||
+//                            cachedData.workerInGroupList.isEmpty() ||
+//                            cachedData.tphList.isEmpty()
+//
+//                    if (hasEmptyDatasets) {
+//                        withContext(Dispatchers.Main) {
+//                            loadingDialog.dismiss()
+//                            loadAllFilesAsync()  // This will reload all datasets
+//                        }
+//                    } else {
+//                        // All datasets have values, use cached data
+//                        companyCodeList = cachedData.companyCodeList
+//                        bUnitCodeList = cachedData.bUnitCodeList
+//                        divisionCodeList = cachedData.divisionCodeList
+//                        fieldCodeList = cachedData.fieldCodeList
+//                        workerList = cachedData.workerList
+//                        workerGroupList = cachedData.workerGroupList
+//                        workerInGroupList = cachedData.workerInGroupList
+//                        tphList = cachedData.tphList
+//
+//                        withContext(Dispatchers.Main) {
+//                            loadingDialog.dismiss()
+//                            setupLayout()
+//                        }
+//                    }
                 } else {
                     withContext(Dispatchers.Main) {
-                        loadingDialog.dismiss()  // Dismiss current loading
-                        loadAllFilesAsync()  // This has its own loading dialog
+                        loadingDialog.dismiss()
+                        loadAllFilesAsync()
                     }
                 }
             } catch (e: Exception) {
+                Log.e("DataLoading", "Error loading data: ${e.message}")
                 withContext(Dispatchers.Main) {
-                    loadingDialog.dismiss()  // Make sure to dismiss on error
-                    // Maybe show error message
+                    loadingDialog.dismiss()
                 }
             }
         }
@@ -246,7 +263,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             this,
                             "Sukses",
                             "Data berhasil disimpan!",
-"success.json"
+                            "success.json"
                         ) {
                             Toast.makeText(
                                 this,
@@ -284,26 +301,26 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    filesToDownload.forEach { fileName ->
+                    filesToDownload.forEachIndexed  { index, fileName ->
                         val file = File(application.getExternalFilesDir(null), fileName)
                         if (file.exists()) {
-                            decompressFile(file) // Process each file
+                            decompressFile(file, index == filesToDownload.lastIndex) // Process each file
                         } else {
                             Log.e("LoadFileAsync", "File not found: $fileName")
                         }
                     }
                 }
 
-                dataCacheManager.saveDatasets(
-                    companyCodeList,
-                    bUnitCodeList,
-                    divisionCodeList,
-                    fieldCodeList,
-                    workerList,
-                    workerGroupList,
-                    workerInGroupList,
-                    tphList!!
-                )
+//                dataCacheManager.saveDatasets(
+//                    companyCodeList,
+//                    bUnitCodeList,
+//                    divisionCodeList,
+//                    fieldCodeList,
+//                    workerList,
+//                    workerGroupList,
+//                    workerInGroupList,
+//                    tphList!!
+//                )
             } catch (e: Exception) {
                 Log.e("LoadFileAsync", "Error: ${e.message}")
             } finally {
@@ -316,7 +333,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
-    private fun decompressFile(file: File) {
+    private fun decompressFile(file: File, isLastFile: Boolean) {
         try {
             // Read the GZIP-compressed file directly
             val gzipInputStream = GZIPInputStream(file.inputStream())
@@ -326,7 +343,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val jsonString = String(decompressedData, Charsets.UTF_8)
             Log.d("DecompressedJSON", "Decompressed JSON: $jsonString")
 
-            parseJsonData(jsonString)
+            parseJsonData(jsonString, isLastFile)
 
         } catch (e: Exception) {
             Log.e("DecompressFile", "Error decompressing file: ${e.message}")
@@ -335,7 +352,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
 
-    private fun parseJsonData(jsonString: String) {
+    private fun parseJsonData(jsonString: String, isLastFile: Boolean) {
         try {
             val jsonObject = JSONObject(jsonString)
             val gson = Gson()
@@ -450,7 +467,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             this.workerInGroupList = workerInGroupList
 
 
-            loadTPHData(jsonObject)
+            if (isLastFile) {
+                loadTPHData(jsonObject)
+            }
 
         } catch (e: JSONException) {
             Log.e("ParseJsonData", "Error parsing JSON: ${e.message}")
@@ -991,6 +1010,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     val asistensiLayoutView = findViewById<LinearLayout>(R.id.layoutSelAsistensi)
                     asistensiLayoutView.visibility = View.VISIBLE
+
+                    val tbsMasakLayoutView = findViewById<LinearLayout>(R.id.layoutTBSMasak)
+                    tbsMasakLayoutView.visibility = View.VISIBLE
+
+                    val kirimPabrikLayoutView = findViewById<LinearLayout>(R.id.layoutKirimPabrik)
+                    kirimPabrikLayoutView.visibility = View.VISIBLE
+
+                    val tbsDibayarLayoutView = findViewById<LinearLayout>(R.id.layoutTBSDibayar)
+                    tbsDibayarLayoutView.visibility = View.VISIBLE
+
                 }
 
 

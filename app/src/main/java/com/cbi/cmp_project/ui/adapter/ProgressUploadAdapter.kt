@@ -89,7 +89,7 @@ class ProgressUploadAdapter(
     fun resetProgress(position: Int) {
         progressList[position] = 0
         statusList[position] = "Menunggu"
-        iconList[position] = R.drawable.progress_circular
+        iconList[position] = R.id.progress_circular_loading
         notifyItemChanged(position)
     }
 

@@ -26,7 +26,7 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val worker = selectedWorkers[position]
-        holder.workerName.text = worker
+        holder.workerName.text = worker.uppercase()
         holder.removeButton.setOnClickListener {
             removeWorker(position)
         }

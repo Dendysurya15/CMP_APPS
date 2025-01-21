@@ -2,10 +2,12 @@ package com.cbi.cmp_project.ui.view
 
 import android.os.Bundle
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.Build
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -24,43 +26,73 @@ import androidx.navigation.ui.setupWithNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.data.model.KaryawanModel
+import com.cbi.cmp_project.data.model.KemandoranDetailModel
+import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.network.RetrofitClient
 import com.cbi.cmp_project.databinding.ActivityHomePageBinding
 import com.cbi.cmp_project.ui.adapter.ProgressUploadAdapter
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.stringXML
+import com.cbi.cmp_project.utils.DataCacheManager
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
+import com.cbi.markertph.data.model.BlokModel
+import com.cbi.markertph.data.model.DeptModel
+import com.cbi.markertph.data.model.DivisiModel
+import com.cbi.markertph.data.model.RegionalModel
+import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.markertph.data.model.WilayahModel
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
+import org.json.JSONArray
+import org.json.JSONException
+import org.json.JSONObject
 import retrofit2.Response
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.zip.GZIPInputStream
 
 class HomePageActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityHomePageBinding
     private lateinit var loadingDialog: LoadingDialog
     private var prefManager: PrefManager? = null
-    private val requiredPermissions = arrayOf(
-        Manifest.permission.CAMERA,
-        Manifest.permission.READ_EXTERNAL_STORAGE,
-        Manifest.permission.WRITE_EXTERNAL_STORAGE,)
 
+    private lateinit var dataCacheManager: DataCacheManager
     data class ErrorResponse(
         val statusCode: Int,
         val message: String,
         val error: String? = null
     )
     private val permissionRequestCode = 1001
+    companion object {
+        private const val CHUNK_SIZE = 8192 // 8KB chunks
+        private const val DEFAULT_BUFFER_SIZE = 8192 * 4 // Increased buffer size for better performance
+    }
+
+    private var filesToUpdate = mutableListOf<String>()
+    private var regionalList: List<RegionalModel> = emptyList()
+    private var wilayahList: List<WilayahModel> = emptyList()
+    private var deptList: List<DeptModel> = emptyList()
+    private var divisiList: List<DivisiModel> = emptyList()
+    private var blokList: List<BlokModel> = emptyList()
+    private var karyawanList: List<KaryawanModel> = emptyList()
+    private var kemandoranList: List<KemandoranModel> = emptyList()
+    private var kemandoranDetailList: List<KemandoranDetailModel> = emptyList()
+    private var tphList: List<TPHNewModel>? = null // Lazy-loaded
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,7 +101,7 @@ class HomePageActivity : AppCompatActivity() {
         setContentView(binding.root)
         prefManager = PrefManager(this)
         loadingDialog = LoadingDialog(this)
-        // Check and request permissions
+        dataCacheManager = DataCacheManager(this)
         checkPermissions()
 
         val navView: BottomNavigationView = binding.navView
@@ -83,7 +115,7 @@ class HomePageActivity : AppCompatActivity() {
 
         if (!isInternetAvailable()) {
             AlertDialogUtility.withSingleAction(
-                this@HomePageActivity,
+                this,
                 stringXML(R.string.al_back),
                 stringXML(R.string.al_no_internet_connection),
                 stringXML(R.string.al_no_internet_connection_description_download_dataset),
@@ -111,11 +143,22 @@ class HomePageActivity : AppCompatActivity() {
             recyclerView?.layoutManager = LinearLayoutManager(this@HomePageActivity, LinearLayoutManager.VERTICAL, false)
 
             // Get saved file list and determine which files need downloading
-            val savedFileList = prefManager!!.getFileList()
+            val savedFileList = prefManager!!.getFileList().let { list ->
+                if (list.isEmpty() || list.size != AppUtils.ApiCallManager.apiCallList.size) {
+                    // If empty or wrong size, create new list with correct size
+                    MutableList<String?>(AppUtils.ApiCallManager.apiCallList.size) { index ->
+                        // Copy existing values if any, null otherwise
+                        list.getOrNull(index)
+                    }
+                } else {
+                    list.toMutableList()
+                }
+            }
+
             val filesToDownload = AppUtils.ApiCallManager.apiCallList.filterIndexed { index, pair ->
                 val fileName = pair.first
                 val file = File(this@HomePageActivity.getExternalFilesDir(null), fileName)
-                val needsDownload = savedFileList.getOrNull(index) == null || !file.exists()
+                val needsDownload = savedFileList.getOrNull(index) == null || !file.exists() ||  filesToUpdate.contains(fileName)
                 Log.d("FileDownload", "File: $fileName, Needs download: $needsDownload")
                 needsDownload
             }
@@ -127,7 +170,6 @@ class HomePageActivity : AppCompatActivity() {
                 return@launch
             }
 
-            // Initialize adapter with files that need downloading
             val progressList = MutableList(apiCallsSize) { 0 }
             val statusList = MutableList(apiCallsSize) { "Menunggu" }
             val iconList = MutableList(apiCallsSize) { R.id.progress_circular_loading }
@@ -140,7 +182,6 @@ class HomePageActivity : AppCompatActivity() {
             val counterTextView = dialogView.findViewById<TextView>(R.id.counter_dataset)
             counterTextView.text = "0 / $apiCallsSize"
 
-            // Start the title animation
             lifecycleScope.launch(Dispatchers.Main) {
                 var dots = 0
                 while (alertDialog.isShowing) {
@@ -150,7 +191,6 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            // Initialize all items with waiting status
             for (i in 0 until apiCallsSize) {
                 withContext(Dispatchers.Main) {
                     progressAdapter.updateProgress(i, 0, "Menunggu", R.id.progress_circular_loading)
@@ -159,11 +199,10 @@ class HomePageActivity : AppCompatActivity() {
 
             var completedCount = 0
             val downloadsDir = this@HomePageActivity.getExternalFilesDir(null)
-            val newFileList = savedFileList.toMutableList()
 
-            // Download files
             for ((index, apiCall) in filesToDownload.withIndex()) {
                 val fileName = apiCall.first
+
                 val apiCallFunction = apiCall.second
                 val originalIndex = AppUtils.ApiCallManager.apiCallList.indexOfFirst { it.first == fileName }
 
@@ -178,35 +217,39 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
 
-                val (isSuccessful, message) = downloadFile(fileName, apiCallFunction, downloadsDir, newFileList)
-
-                // Ensure the list has enough capacity
-                while (newFileList.size <= originalIndex) {
-                    newFileList.add(null)
-                }
+                val (isSuccessful, message) = downloadFile(fileName, apiCallFunction, downloadsDir, savedFileList)
 
                 if (isSuccessful) {
                     completedCount++
                     withContext(Dispatchers.Main) {
                         progressAdapter.updateProgress(index, 100, message, R.drawable.baseline_check_24)
                     }
-                    newFileList[originalIndex] = fileName
+                    savedFileList[originalIndex] = fileName
                 } else {
                     withContext(Dispatchers.Main) {
                         progressAdapter.updateProgress(index, 100, message, R.drawable.baseline_close_24)
                     }
-                    newFileList[originalIndex] = null
+                    savedFileList[originalIndex] = null
                 }
 
                 withContext(Dispatchers.Main) {
                     counterTextView.text = "$completedCount / $apiCallsSize"
                 }
             }
+            val cleanedList = savedFileList.toMutableList()
+            for (i in cleanedList.indices.reversed()) {
+                val fileName = cleanedList[i]
+                if (fileName != null) {
+                    // Check if this fileName appears earlier in the list
+                    val firstIndex = cleanedList.indexOf(fileName)
+                    if (firstIndex != i) {
+                        // If found earlier, remove this duplicate
+                        cleanedList.removeAt(i)
+                    }
+                }
+            }
 
-            // Save updated file list
-            prefManager!!.saveFileList(newFileList)
-
-            // Countdown and dismiss
+            prefManager!!.saveFileList(cleanedList)
             val closeText = dialogView.findViewById<TextView>(R.id.close_progress_statement)
             closeText.visibility = View.VISIBLE
 
@@ -217,10 +260,470 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
+            loadAllFilesAsync()
             alertDialog.dismiss()
         }
     }
 
+
+    private fun loadAllFilesAsync() {
+        val filesToDownload = AppUtils.ApiCallManager.apiCallList.map { it.first }
+        loadingDialog.show()
+
+        // Create a flow to emit progress updates
+        val progressFlow = MutableStateFlow(Pair("", 0))
+
+        // Job to update the loading dialog
+        val progressJob = lifecycleScope.launch(Dispatchers.Main) {
+            var dots = 1
+            progressFlow.collect { (currentFile, progress) ->
+                val message = if (currentFile.isNotEmpty()) {
+                    "Sedang ekstrak file $currentFile${".".repeat(dots)} ($progress%)"
+                } else {
+                    "${stringXML(R.string.fetching_dataset)}${".".repeat(dots)}"
+                }
+                loadingDialog.setMessage(message)
+                dots = if (dots >= 3) 1 else dots + 1
+                delay(500)
+            }
+        }
+
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    filesToDownload.forEachIndexed { index, fileName ->
+                        val file = File(application.getExternalFilesDir(null), fileName)
+                        if (file.exists()) {
+                            // Update progress for each file
+                            updateDecompressionProgress(fileName, progressFlow)
+                            decompressFile(file, index == filesToDownload.lastIndex, progressFlow)
+                        }
+                    }
+                }
+//
+//                Log.d("LoadFiles", """
+//            Data loaded:
+//            - Regionals: ${regionalList.size}
+//            - Wilayah: ${wilayahList.size}
+//            - Dept: ${deptList.size}
+//            - Divisi: ${divisiList.size}
+//            - Blok: ${blokList.size}
+//            - TPH: ${tphList?.size ?: 0}
+//            """.trimIndent())
+
+                dataCacheManager.saveDatasets(
+                    regionalList,
+                    wilayahList,
+                    deptList,
+                    divisiList,
+                    blokList,
+                    tphList!!,
+                    karyawanList,
+                    kemandoranList,
+                    kemandoranDetailList
+                )
+            } catch (e: Exception) {
+                Log.e("LoadFiles", "Error loading files", e)
+            } finally {
+                withContext(Dispatchers.Main) {
+                    progressJob.cancel()
+                    loadingDialog.dismiss()
+                }
+            }
+        }
+    }
+
+    private fun updateDecompressionProgress(fileName: String, progressFlow: MutableStateFlow<Pair<String, Int>>) {
+        lifecycleScope.launch(Dispatchers.Main) {
+            for (progress in 0..100 step 2) {
+                progressFlow.emit(Pair(fileName, progress))
+                delay(50) // Adjust this delay to control progress speed
+            }
+        }
+    }
+
+    private fun decompressFile(
+        file: File,
+        isLastFile: Boolean,
+        progressFlow: MutableStateFlow<Pair<String, Int>>
+    ) {
+        try {
+            Log.d("Decompress", "Starting decompression of ${file.name}")
+
+            when (file.name) {
+                "datasetTPH.zip" -> {
+                    Log.d("Decompress", "Processing large TPH file")
+                    handleLargeFileChunked(file, isLastFile, progressFlow)
+                }
+                else -> {
+                    GZIPInputStream(file.inputStream()).use { gzipInputStream ->
+                        val decompressedData = gzipInputStream.readBytes()
+                        Log.d("Decompress", "Decompressed ${file.name}: ${decompressedData.size} bytes")
+                        val jsonString = String(decompressedData, Charsets.UTF_8)
+                        parseJsonData(jsonString, isLastFile)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Decompress", "Error processing ${file.name}", e)
+            throw e
+        }
+    }
+
+    @SuppressLint("SuspiciousIndentation")
+    private fun parseJsonData(jsonString: String, isLastFile: Boolean) {
+        try {
+            val jsonObject = JSONObject(jsonString)
+            val gson = Gson()
+
+            val keyObject = jsonObject.getJSONObject("key")
+            val dateModified = jsonObject.getString("date_modified")
+
+            // Parse CompanyCodeDB
+            if (jsonObject.has("RegionalDB")) {
+                val companyCodeArray = jsonObject.getJSONArray("RegionalDB")
+
+                val dateModified = jsonObject.getString("date_modified")
+                val transformedCompanyCodeArray = transformJsonArray(companyCodeArray, keyObject)
+                val regionalList: List<RegionalModel> = gson.fromJson(
+                    transformedCompanyCodeArray.toString(),
+                    object : TypeToken<List<RegionalModel>>() {}.type
+                )
+
+                prefManager?.setDateModified("RegionalDB", dateModified) // Store dynamically
+
+                this.regionalList = regionalList
+            } else {
+                Log.e("ParseJsonData", "RegionalDB key is missing")
+            }
+
+            // Parse CompanyCodeDB
+            if (jsonObject.has("WilayahDB")) {
+                val companyCodeArray = jsonObject.getJSONArray("WilayahDB")
+                val transformedCompanyCodeArray = transformJsonArray(companyCodeArray, keyObject)
+                val wilayahList: List<WilayahModel> = gson.fromJson(
+                    transformedCompanyCodeArray.toString(),
+                    object : TypeToken<List<WilayahModel>>() {}.type
+                )
+                Log.d("ParsedData", "WilayahDB: $wilayahList")
+                this.wilayahList = wilayahList
+                prefManager?.setDateModified("WilayahDB", dateModified) // Store dynamically
+            } else {
+                Log.e("ParseJsonData", "WilayahDB key is missing")
+            }
+
+            if (jsonObject.has("DeptDB")) {
+                val bUnitCodeArray = jsonObject.getJSONArray("DeptDB")
+                val transformedBUnitCodeArray = transformJsonArray(bUnitCodeArray, keyObject)
+                val deptList: List<DeptModel> = gson.fromJson(
+                    transformedBUnitCodeArray.toString(),
+                    object : TypeToken<List<DeptModel>>() {}.type
+                )
+                Log.d("ParsedData", "BUnitCode: $deptList")
+                this.deptList = deptList
+                prefManager?.setDateModified("DeptDB", dateModified) // Store dynamically
+            } else {
+                Log.e("ParseJsonData", "DeptDB key is missing")
+            }
+
+            // Parse DivisionCodeDB
+            if (jsonObject.has("DivisiDB")) {
+                val divisionCodeArray = jsonObject.getJSONArray("DivisiDB")
+                val transformedDivisionCodeArray = transformJsonArray(divisionCodeArray, keyObject)
+                val divisiList: List<DivisiModel> = gson.fromJson(
+                    transformedDivisionCodeArray.toString(),
+                    object : TypeToken<List<DivisiModel>>() {}.type
+                )
+                Log.d("ParsedData", "DivisionCode: $divisiList")
+                this.divisiList = divisiList
+                prefManager?.setDateModified("DivisiDB", dateModified) // Store dynamically
+            } else {
+                Log.e("ParseJsonData", "DivisiDB key is missing")
+            }
+
+            // Parse FieldCodeDB
+            if (jsonObject.has("BlokDB")) {
+                val fieldCodeArray = jsonObject.getJSONArray("BlokDB")
+                val transformedFieldCodeArray = transformJsonArray(fieldCodeArray, keyObject)
+                val blokList: List<BlokModel> = gson.fromJson(
+                    transformedFieldCodeArray.toString(),
+                    object : TypeToken<List<BlokModel>>() {}.type
+                )
+                Log.d("ParsedData", "FieldCode: $blokList")
+                this.blokList = blokList
+                prefManager?.setDateModified("BlokDB", dateModified) // Store dynamically
+            } else {
+                Log.e("ParseJsonData", "BlokDB key is missing")
+            }
+
+            // Parse KaryawanDB
+            if (jsonObject.has("KaryawanDB")) {
+                val fieldCodeArray = jsonObject.getJSONArray("KaryawanDB")
+                val transformedFieldCodeArray = transformJsonArrayInChunks(fieldCodeArray, keyObject)
+                val karyawanList: List<KaryawanModel> = gson.fromJson(
+                    transformedFieldCodeArray.toString(),
+                    object : TypeToken<List<KaryawanModel>>() {}.type
+                )
+                Log.d("ParsedData", "KaryawanDB: $karyawanList")
+                this.karyawanList = karyawanList
+                prefManager?.setDateModified("KaryawanDB", dateModified) // Store dynamically
+            } else {
+                Log.e("ParseJsonData", "KaryawanDB key is missing")
+            }
+
+            // Parse KemandoranDB
+            if (jsonObject.has("KemandoranDB")) {
+                val fieldCodeArray = jsonObject.getJSONArray("KemandoranDB")
+                val transformedFieldCodeArray = transformJsonArray(fieldCodeArray, keyObject)
+                val kemandoranList: List<KemandoranModel> = gson.fromJson(
+                    transformedFieldCodeArray.toString(),
+                    object : TypeToken<List<KemandoranModel>>() {}.type
+                )
+                Log.d("ParsedData", "KemandoranDB: $kemandoranList")
+                this.kemandoranList = kemandoranList
+                prefManager?.setDateModified("KemandoranDB", dateModified) // Store dynamically
+            } else {
+                Log.e("ParseJsonData", "KemandoranDB key is missing")
+            }
+
+            // Parse KemandoranDetailDB
+            if (jsonObject.has("KemandoranDetailDB")) {
+                val fieldCodeArray = jsonObject.getJSONArray("KemandoranDetailDB")
+                val transformedFieldCodeArray = transformJsonArray(fieldCodeArray, keyObject)
+                val kemandoranDetailList: List<KemandoranDetailModel> = gson.fromJson(
+                    transformedFieldCodeArray.toString(),
+                    object : TypeToken<List<KemandoranDetailModel>>() {}.type
+                )
+                Log.d("ParsedData", "KemandoranDetailDB: $kemandoranDetailList")
+                this.kemandoranDetailList = kemandoranDetailList
+                prefManager?.setDateModified("KemandoranDetailDB", dateModified) // Store dynamically
+            } else {
+                Log.e("ParseJsonData", "KemandoranDetailDB key is missing")
+            }
+
+            this.regionalList = regionalList
+            this.wilayahList = wilayahList
+            this.deptList = deptList
+            this.divisiList = divisiList
+            this.blokList = blokList
+            this.karyawanList = karyawanList
+            this.kemandoranList = kemandoranList
+            this.kemandoranDetailList = kemandoranDetailList
+
+        } catch (e: JSONException) {
+            Log.e("ParseJsonData", "Error parsing JSON: ${e.message}")
+        }
+    }
+
+    fun transformJsonArray(jsonArray: JSONArray, keyObject: JSONObject): JSONArray {
+        val transformedArray = JSONArray()
+
+        for (i in 0 until jsonArray.length()) {
+            val item = jsonArray.getJSONObject(i)
+            val transformedItem = JSONObject()
+
+            keyObject.keys().forEach { key ->
+                val fieldName = keyObject.getString(key)  // This gets the field name from the key object
+                val fieldValue = item.get(key)  // This gets the corresponding value from the item
+                transformedItem.put(fieldName, fieldValue)
+            }
+
+            transformedArray.put(transformedItem)
+        }
+
+        return transformedArray
+    }
+
+    fun transformJsonArrayInChunks(jsonArray: JSONArray, keyObject: JSONObject): JSONArray {
+        val transformedArray = JSONArray()
+        val chunkSize = 100 // Adjust this based on your needs
+
+        try {
+            for (i in 0 until jsonArray.length()) {
+                val item = jsonArray.getJSONObject(i)
+                val transformedItem = JSONObject()
+
+                keyObject.keys().forEach { key ->
+                    val fieldName = keyObject.getString(key)
+                    val fieldValue = item.get(key)
+                    transformedItem.put(fieldName, fieldValue)
+                }
+
+                transformedArray.put(transformedItem)
+
+                // After each chunk is processed, suggest garbage collection
+                if (i % chunkSize == 0) {
+                    System.gc()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Transform", "Error transforming array: ${e.message}")
+        }
+
+        return transformedArray
+    }
+
+    private fun loadTPHData(jsonObject: JSONObject) {
+        try {
+            if (jsonObject.has("TPHDB")) {
+                Log.d("testing", "masuk sini ges")
+                val tphArray = jsonObject.getJSONArray("TPHDB")
+                val keyObject = jsonObject.getJSONObject("key")
+                val chunkSize = 50 // Adjust the chunk size as needed
+
+                // Create a mutable list to accumulate all TPHNewModel objects
+                val accumulatedTPHList = mutableListOf<TPHNewModel>()
+
+                // Process the TPHDB array in chunks
+                for (i in 0 until tphArray.length() step chunkSize) {
+                    val chunk = JSONArray()
+                    for (j in i until (i + chunkSize).coerceAtMost(tphArray.length())) {
+                        chunk.put(tphArray.getJSONObject(j))
+                    }
+
+                    // Transform the current chunk
+                    val transformedChunk = transformJsonArray(chunk, keyObject)
+
+                    // Parse the transformed chunk into a list of TPHNewModel
+                    val chunkList: List<TPHNewModel> = Gson().fromJson(
+                        transformedChunk.toString(),
+                        object : TypeToken<List<TPHNewModel>>() {}.type
+                    )
+
+                    accumulatedTPHList.addAll(chunkList)
+
+                    Log.d("LoadTPHData", "Processed chunk: $i to ${(i + chunkSize - 1).coerceAtMost(tphArray.length() - 1)}")
+                }
+
+                this.tphList = accumulatedTPHList
+                val dateModified = jsonObject.getString("date_modified")
+
+                prefManager?.setDateModified("TPHDB", dateModified) // Store dynamically
+                Log.d("ParsedData", "Total TPHDB items: ${tphList?.size ?: 0}")
+            } else {
+                Log.e("LoadTPHData", "TPHDB key is missing")
+            }
+        } catch (e: JSONException) {
+            Log.e("LoadTPHData", "Error processing TPH data: ${e.message}")
+        }
+    }
+
+
+    private fun handleLargeFileChunked(file: File, isLastFile: Boolean, progressFlow: MutableStateFlow<Pair<String, Int>>) {
+        try {
+            Log.d("HandleLargeFile", "Starting chunked processing of: ${file.name}")
+            val startTime = System.currentTimeMillis()
+
+            // Initial progress - 0%
+            lifecycleScope.launch(Dispatchers.Main) {
+                progressFlow.emit(Pair(file.name, 0))
+            }
+
+            // Create a temporary file to store decompressed data
+            val tempFile = File(file.parent, "temp_decompressed.json")
+
+            // Step 1: Decompress the file (0-50% progress)
+            GZIPInputStream(file.inputStream().buffered(DEFAULT_BUFFER_SIZE)).use { gzipInputStream ->
+                FileOutputStream(tempFile).use { outputStream ->
+                    val buffer = ByteArray(CHUNK_SIZE)
+                    var totalBytes = 0L
+                    var bytesRead: Int
+
+                    while (gzipInputStream.read(buffer).also { bytesRead = it } != -1) {
+                        outputStream.write(buffer, 0, bytesRead)
+                        totalBytes += bytesRead
+                        if (totalBytes % (10 * 1024 * 1024) == 0L) {
+                            Log.d("HandleLargeFile", "Decompressed: ${totalBytes / (1024 * 1024)} MB")
+                            // Update progress during decompression
+                            lifecycleScope.launch(Dispatchers.Main) {
+                                val progress = (totalBytes / (100 * 1024 * 1024.0) * 50).toInt().coerceIn(0, 50)
+                                progressFlow.emit(Pair(file.name, progress))
+                            }
+                        }
+                    }
+                    Log.d("HandleLargeFile", "Total decompressed size: ${totalBytes / (1024 * 1024)} MB")
+                }
+            }
+
+            // After decompression - 50%
+            lifecycleScope.launch(Dispatchers.Main) {
+                progressFlow.emit(Pair(file.name, 50))
+            }
+
+            // Step 2: Read and parse in a controlled way (50-100% progress)
+            try {
+                // Start reading JSON - 60%
+                lifecycleScope.launch(Dispatchers.Main) {
+                    progressFlow.emit(Pair(file.name, 60))
+                }
+
+                tempFile.inputStream().bufferedReader().use { reader ->
+                    val jsonContent = reader.readText()
+                    Log.d("HandleLargeFile", "JSON loaded into memory, size: ${jsonContent.length} chars")
+
+                    // JSON loaded - 70%
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        progressFlow.emit(Pair(file.name, 70))
+                    }
+
+                    val jsonObject = JSONObject(jsonContent)
+                    Log.d("HandleLargeFile", "JSON successfully parsed")
+
+                    // JSON parsed - 80%
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        progressFlow.emit(Pair(file.name, 80))
+                    }
+
+                    if (jsonObject.has("TPHDB")) {
+                        Log.d("HandleLargeFile", "Found TPHDB")
+                        loadTPHData(jsonObject)
+                    } else {
+                        Log.d("HandleLargeFile", "Processing regular data")
+                        parseJsonData(jsonContent, isLastFile)
+                    }
+
+                    // Data processed - 90%
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        progressFlow.emit(Pair(file.name, 90))
+                    }
+                }
+            } catch (e: OutOfMemoryError) {
+                Log.e("HandleLargeFile", "OutOfMemoryError: ${e.message}")
+                System.gc()
+                e.printStackTrace()
+                // Error progress
+                lifecycleScope.launch(Dispatchers.Main) {
+                    progressFlow.emit(Pair("Error: ${file.name}", -1))
+                }
+            } catch (e: JSONException) {
+                Log.e("HandleLargeFile", "JSON parsing error: ${e.message}")
+                e.printStackTrace()
+                // Error progress
+                lifecycleScope.launch(Dispatchers.Main) {
+                    progressFlow.emit(Pair("Error: ${file.name}", -1))
+                }
+            }
+
+            // Clean up
+            tempFile.delete()
+
+            val endTime = System.currentTimeMillis()
+            Log.d("HandleLargeFile", "Total processing time: ${endTime - startTime} ms")
+
+            // Complete - 100%
+            lifecycleScope.launch(Dispatchers.Main) {
+                progressFlow.emit(Pair(file.name, 100))
+            }
+
+        } catch (e: Exception) {
+            Log.e("HandleLargeFile", "Error in processing: ${e.message}")
+            e.printStackTrace()
+            // Error progress
+            lifecycleScope.launch(Dispatchers.Main) {
+                progressFlow.emit(Pair("Error: ${file.name}", -1))
+            }
+        }
+    }
 
     private suspend fun downloadFile(
         fileName: String,
@@ -309,13 +812,9 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private fun shouldStartFileDownload(): Boolean {
-        val savedFileList = prefManager!!.getFileList() // Retrieve the saved file list
-        val downloadsDir = this.getExternalFilesDir(null) // Get the downloads directory
-
-        Log.d("FileCheck", "Saved file list: $savedFileList")
-        Log.d("FileCheck", "Downloads directory: $downloadsDir")
-        Log.d("FileCheck", "Is first time launch: ${prefManager!!.isFirstTimeLaunch}")
+    private suspend fun shouldStartFileDownload(): Boolean {
+        val savedFileList = prefManager!!.getFileList()
+        val downloadsDir = this.getExternalFilesDir(null)
 
         if (prefManager!!.isFirstTimeLaunch) {
             Log.d("FileCheck", "First time launch detected.")
@@ -323,15 +822,12 @@ class HomePageActivity : AppCompatActivity() {
             return true
         }
 
-        Log.d("testing", savedFileList.toString())
         if (savedFileList.isNotEmpty()) {
-            // Check for null entries
             if (savedFileList.contains(null)) {
                 Log.e("FileCheck", "Null entries found in savedFileList.")
                 return true
             }
 
-            // Check if all files exist
             val missingFiles = savedFileList.filterNot { fileName ->
                 val file = File(downloadsDir, fileName)
                 val exists = file.exists()
@@ -345,22 +841,97 @@ class HomePageActivity : AppCompatActivity() {
             }
         } else {
             Log.d("FileCheck", "Saved file list is empty.")
+            return true
         }
 
-        return false
+
+        if (!isInternetAvailable()) {
+            Log.d("NetworkCheck", "No internet connection available")
+            filesToUpdate.clear()  // Clear any pending updates
+            return false
+        }
+
+        val shouldDownload = checkServerDates()
+        Log.d("testing", filesToUpdate.toString())
+        Log.d("testing", shouldDownload.toString())
+
+        return shouldDownload
     }
 
 
+    private suspend fun checkServerDates(): Boolean {
+        try {
+            filesToUpdate.clear()
+
+            val response = RetrofitClient.instance.getTablesLatestModified()
+            if (response.isSuccessful && response.body()?.statusCode == 1) {
+                val serverData = response.body()?.data ?: return true
+                val localData = prefManager?.getAllDateModified() ?: return true
+
+                val keyMapping = mapOf(
+                    AppUtils.ApiCallManager.apiCallList[0].first to Pair("regional", "RegionalDB"),
+                    AppUtils.ApiCallManager.apiCallList[1].first to Pair("wilayah", "WilayahDB"),
+                    AppUtils.ApiCallManager.apiCallList[2].first to Pair("dept", "DeptDB"),
+                    AppUtils.ApiCallManager.apiCallList[3].first to Pair("divisi", "DivisiDB"),
+                    AppUtils.ApiCallManager.apiCallList[4].first to Pair("blok", "BlokDB"),
+                    AppUtils.ApiCallManager.apiCallList[5].first to Pair("tph", "TPHDB")
+                )
+
+                keyMapping.forEach { (filename, keys) ->
+                    val (serverKey, localKey) = keys
+                    val serverDate = serverData[serverKey]
+                    val localDate = localData[localKey]
+
+                    Log.d("DateComparison", """
+                    Comparing dates for $localKey:
+                    Server date ($serverKey): $serverDate
+                    Local date ($localKey): $localDate
+                """.trimIndent())
+
+                    if (serverDate != null && localDate != null) {
+                        val serverDateTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                            .parse(serverDate)
+                        val localDateTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                            .parse(localDate)
+
+                        if (serverDateTime != null && localDateTime != null) {
+                            if (serverDateTime.after(localDateTime)) {
+                                Log.d("DateComparison", "$localKey needs update: Server date is newer")
+                                filesToUpdate.add(filename)
+                            }
+                        }
+                    }
+                }
+
+                return filesToUpdate.isNotEmpty()
+            }
+            return true
+        } catch (e: Exception) {
+            Log.e("FileCheck", "Error checking server dates", e)
+            return true
+        }
+    }
 
 
-
-    // Check if the required permissions are granted
     private fun checkPermissions() {
         val permissionsToRequest = mutableListOf<String>()
 
-        for (permission in requiredPermissions) {
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(permission)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13 and above
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
+                != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
+            }
+        } else {
+            // Android 12 and below
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
         }
 
@@ -371,16 +942,16 @@ class HomePageActivity : AppCompatActivity() {
                 permissionRequestCode
             )
         }else{
-            if (shouldStartFileDownload()) {
-                Log.d("FileCheck", "Starting file download...")
-                startFileDownload()
-            } else {
-                Log.d("FileCheck", "File download not required.")
+            lifecycleScope.launch {
+                val shouldDownload = shouldStartFileDownload()
+                if (shouldDownload) {
+                    Log.d("FileCheck", "Starting file download...")
+                    startFileDownload()
+                }
             }
         }
     }
 
-    // Handle the result of permission request
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
@@ -401,11 +972,13 @@ class HomePageActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }else {
-                if (shouldStartFileDownload()) {
-                    Log.d("FileCheck", "Starting file download...")
-                    startFileDownload()
-                } else {
-                    Log.d("FileCheck", "File download not required.")
+                lifecycleScope.launch {
+                    if (shouldStartFileDownload()) {
+                        Log.d("FileCheck", "Starting file download...")
+                        startFileDownload()
+                    } else {
+                        Log.d("FileCheck", "File download not required.")
+                    }
                 }
             }
         }

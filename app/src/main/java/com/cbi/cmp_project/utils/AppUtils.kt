@@ -19,15 +19,18 @@ object AppUtils {
     const val REQUEST_CHECK_SETTINGS = 0x1
 
     object ApiCallManager {
+        //        noted : field ditengah merupakan nama db yg ada di server, harus sama !
         val apiCallList = listOf(
-            Pair("datasetCompanyCode.zip", RetrofitClient.instance::downloadDatasetCompany),
-            Pair("datasetBUnitCode.zip", RetrofitClient.instance::downloadDatasetBUnit),
-            Pair("datasetDivisionCode.zip", RetrofitClient.instance::downloadDatasetDivision),
-            Pair("datasetTPHCode.zip", RetrofitClient.instance::downloadDatasetTPH),
-            Pair("datasetFieldCode.zip", RetrofitClient.instance::downloadDatasetField),
-            Pair("datasetWorkerInGroup.zip", RetrofitClient.instance::downloadDatasetWorkerInGroup),
-            Pair("datasetWorkerGroup.zip", RetrofitClient.instance::downloadDatasetWorkerGroup),
-            Pair("datasetWorker.zip", RetrofitClient.instance::downloadDatasetWorker)
+            Pair("datasetRegional.zip", RetrofitClient.instance::downloadDatasetRegionalJson),
+            Pair("datasetWilayah.zip", RetrofitClient.instance::downloadDatasetWilayahJson),
+            Pair("datasetDept.zip", RetrofitClient.instance::downloadDatasetDeptJson),
+            Pair("datasetDivisi.zip", RetrofitClient.instance::downloadDatasetDivisiJson),
+            Pair("datasetBlok.zip", RetrofitClient.instance::downloadDatasetBlokJson),
+            Pair("datasetTPH.zip", RetrofitClient.instance::downloadDatasetTPHNewJson),
+            Pair("datasetTPH.zip", RetrofitClient.instance::downloadDatasetTPHNewJson),
+            Pair("datasetKaryawan.zip", RetrofitClient.instance::downloadDatasetKaryawanJson),
+            Pair("datasetKemandoran.zip", RetrofitClient.instance::downloadDatasetKemandoranJson),
+            Pair("datasetKemandoranDetail.zip", RetrofitClient.instance::downloadDatasetKemandoranDetailJson),
         )
     }
     /**
