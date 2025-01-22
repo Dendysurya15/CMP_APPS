@@ -56,6 +56,14 @@
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutRegional"/>
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
+                    android:id="@+id/layoutWilayah"/>
+
+                <include
+                    layout="@layout/pertanyaan_spinner_layout"
                     android:id="@+id/layoutEstate"/>
 
                 <include
@@ -66,6 +74,7 @@
                     layout="@layout/pertanyaan_spinner_layout"
                     android:visibility="gone"
                     android:id="@+id/layoutTahunTanam"/>
+
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"

@@ -16,6 +16,8 @@
 
 
 <!--    form panen tbs-->
+    <string name="field_regional">Regional</string>
+    <string name="field_wilayah">Wilayah</string>
     <string name="field_estate">Estate</string>
     <string name="field_afdeling">Afdeling</string>
     <string name="field_tahun_tanam">Tahun Tanam</string>

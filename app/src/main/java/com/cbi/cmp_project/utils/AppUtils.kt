@@ -19,18 +19,17 @@ object AppUtils {
     const val REQUEST_CHECK_SETTINGS = 0x1
 
     object ApiCallManager {
-        //        noted : field ditengah merupakan nama db yg ada di server, harus sama !
+
         val apiCallList = listOf(
             Pair("datasetRegional.zip", RetrofitClient.instance::downloadDatasetRegionalJson),
             Pair("datasetWilayah.zip", RetrofitClient.instance::downloadDatasetWilayahJson),
             Pair("datasetDept.zip", RetrofitClient.instance::downloadDatasetDeptJson),
             Pair("datasetDivisi.zip", RetrofitClient.instance::downloadDatasetDivisiJson),
             Pair("datasetBlok.zip", RetrofitClient.instance::downloadDatasetBlokJson),
-            Pair("datasetTPH.zip", RetrofitClient.instance::downloadDatasetTPHNewJson),
-            Pair("datasetTPH.zip", RetrofitClient.instance::downloadDatasetTPHNewJson),
             Pair("datasetKaryawan.zip", RetrofitClient.instance::downloadDatasetKaryawanJson),
             Pair("datasetKemandoran.zip", RetrofitClient.instance::downloadDatasetKemandoranJson),
             Pair("datasetKemandoranDetail.zip", RetrofitClient.instance::downloadDatasetKemandoranDetailJson),
+            Pair("datasetTPH.zip", RetrofitClient.instance::downloadDatasetTPHNewJson),
         )
     }
     /**

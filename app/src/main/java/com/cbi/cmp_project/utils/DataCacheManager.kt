@@ -63,9 +63,9 @@ class DataCacheManager(private val context: Context) {
                 divisiList = gson.fromJson(prefs.getString("DivisiDB", "[]"), object : TypeToken<List<DivisiModel>>() {}.type),
                 blokList = gson.fromJson(prefs.getString("BlokDB", "[]"), object : TypeToken<List<BlokModel>>() {}.type),
                 tphList = gson.fromJson(prefs.getString("TPHDB", "[]"), object : TypeToken<List<TPHNewModel>>() {}.type),
-                karyawanList = gson.fromJson(prefs.getString("TPHDB", "[]"), object : TypeToken<List<KaryawanModel>>() {}.type),
-                kemandoranList = gson.fromJson(prefs.getString("TPHDB", "[]"), object : TypeToken<List<KemandoranModel>>() {}.type),
-                kemandoranDetailList = gson.fromJson(prefs.getString("TPHDB", "[]"), object : TypeToken<List<KemandoranDetailModel>>() {}.type),
+                karyawanList = gson.fromJson(prefs.getString("KaryawanDB", "[]"), object : TypeToken<List<KaryawanModel>>() {}.type),
+                kemandoranList = gson.fromJson(prefs.getString("KemandoranDB", "[]"), object : TypeToken<List<KemandoranModel>>() {}.type),
+                kemandoranDetailList = gson.fromJson(prefs.getString("KemandoranDetailDB", "[]"), object : TypeToken<List<KemandoranDetailModel>>() {}.type),
             )
         } catch (e: Exception) {
             null

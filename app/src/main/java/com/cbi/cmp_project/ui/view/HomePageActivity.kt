@@ -265,24 +265,15 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-
     private fun loadAllFilesAsync() {
         val filesToDownload = AppUtils.ApiCallManager.apiCallList.map { it.first }
+        Log.d("LoadFiles", "Starting to load files: ${filesToDownload.joinToString()}")
+
         loadingDialog.show()
-
-        // Create a flow to emit progress updates
-        val progressFlow = MutableStateFlow(Pair("", 0))
-
-        // Job to update the loading dialog
         val progressJob = lifecycleScope.launch(Dispatchers.Main) {
             var dots = 1
-            progressFlow.collect { (currentFile, progress) ->
-                val message = if (currentFile.isNotEmpty()) {
-                    "Sedang ekstrak file $currentFile${".".repeat(dots)} ($progress%)"
-                } else {
-                    "${stringXML(R.string.fetching_dataset)}${".".repeat(dots)}"
-                }
-                loadingDialog.setMessage(message)
+            while (true) {
+                loadingDialog.setMessage("${stringXML(R.string.fetching_dataset)}${".".repeat(dots)}")
                 dots = if (dots >= 3) 1 else dots + 1
                 delay(500)
             }
@@ -292,24 +283,26 @@ class HomePageActivity : AppCompatActivity() {
             try {
                 withContext(Dispatchers.IO) {
                     filesToDownload.forEachIndexed { index, fileName ->
+                        Log.d("LoadFiles", "Processing file $fileName (${index + 1}/${filesToDownload.size})")
                         val file = File(application.getExternalFilesDir(null), fileName)
                         if (file.exists()) {
-                            // Update progress for each file
-                            updateDecompressionProgress(fileName, progressFlow)
-                            decompressFile(file, index == filesToDownload.lastIndex, progressFlow)
+                            Log.d("LoadFiles", "File exists: ${file.length()} bytes")
+                            decompressFile(file, index == filesToDownload.lastIndex)
+                        } else {
+                            Log.e("LoadFiles", "File not found: $fileName")
                         }
                     }
                 }
-//
-//                Log.d("LoadFiles", """
-//            Data loaded:
-//            - Regionals: ${regionalList.size}
-//            - Wilayah: ${wilayahList.size}
-//            - Dept: ${deptList.size}
-//            - Divisi: ${divisiList.size}
-//            - Blok: ${blokList.size}
-//            - TPH: ${tphList?.size ?: 0}
-//            """.trimIndent())
+
+                Log.d("LoadFiles", """
+                Data loaded:
+                - Regionals: ${regionalList.size}
+                - Wilayah: ${wilayahList.size}
+                - Dept: ${deptList.size}
+                - Divisi: ${divisiList.size}
+                - Blok: ${blokList.size}
+                - TPH: ${tphList?.size ?: 0}
+            """.trimIndent())
 
                 dataCacheManager.saveDatasets(
                     regionalList,
@@ -326,34 +319,22 @@ class HomePageActivity : AppCompatActivity() {
                 Log.e("LoadFiles", "Error loading files", e)
             } finally {
                 withContext(Dispatchers.Main) {
-                    progressJob.cancel()
                     loadingDialog.dismiss()
+                    progressJob.cancel()
+
                 }
             }
         }
     }
 
-    private fun updateDecompressionProgress(fileName: String, progressFlow: MutableStateFlow<Pair<String, Int>>) {
-        lifecycleScope.launch(Dispatchers.Main) {
-            for (progress in 0..100 step 2) {
-                progressFlow.emit(Pair(fileName, progress))
-                delay(50) // Adjust this delay to control progress speed
-            }
-        }
-    }
-
-    private fun decompressFile(
-        file: File,
-        isLastFile: Boolean,
-        progressFlow: MutableStateFlow<Pair<String, Int>>
-    ) {
+    private fun decompressFile(file: File, isLastFile: Boolean) {
         try {
             Log.d("Decompress", "Starting decompression of ${file.name}")
 
             when (file.name) {
                 "datasetTPH.zip" -> {
                     Log.d("Decompress", "Processing large TPH file")
-                    handleLargeFileChunked(file, isLastFile, progressFlow)
+                    handleLargeFileChunked(file, isLastFile)
                 }
                 else -> {
                     GZIPInputStream(file.inputStream()).use { gzipInputStream ->
@@ -474,7 +455,7 @@ class HomePageActivity : AppCompatActivity() {
             // Parse KemandoranDB
             if (jsonObject.has("KemandoranDB")) {
                 val fieldCodeArray = jsonObject.getJSONArray("KemandoranDB")
-                val transformedFieldCodeArray = transformJsonArray(fieldCodeArray, keyObject)
+                val transformedFieldCodeArray = transformJsonArrayInChunks(fieldCodeArray, keyObject)
                 val kemandoranList: List<KemandoranModel> = gson.fromJson(
                     transformedFieldCodeArray.toString(),
                     object : TypeToken<List<KemandoranModel>>() {}.type
@@ -609,20 +590,15 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
-    private fun handleLargeFileChunked(file: File, isLastFile: Boolean, progressFlow: MutableStateFlow<Pair<String, Int>>) {
+    private fun handleLargeFileChunked(file: File, isLastFile: Boolean) {
         try {
             Log.d("HandleLargeFile", "Starting chunked processing of: ${file.name}")
             val startTime = System.currentTimeMillis()
 
-            // Initial progress - 0%
-            lifecycleScope.launch(Dispatchers.Main) {
-                progressFlow.emit(Pair(file.name, 0))
-            }
-
             // Create a temporary file to store decompressed data
             val tempFile = File(file.parent, "temp_decompressed.json")
 
-            // Step 1: Decompress the file (0-50% progress)
+            // Step 1: Decompress the file
             GZIPInputStream(file.inputStream().buffered(DEFAULT_BUFFER_SIZE)).use { gzipInputStream ->
                 FileOutputStream(tempFile).use { outputStream ->
                     val buffer = ByteArray(CHUNK_SIZE)
@@ -634,74 +610,39 @@ class HomePageActivity : AppCompatActivity() {
                         totalBytes += bytesRead
                         if (totalBytes % (10 * 1024 * 1024) == 0L) {
                             Log.d("HandleLargeFile", "Decompressed: ${totalBytes / (1024 * 1024)} MB")
-                            // Update progress during decompression
-                            lifecycleScope.launch(Dispatchers.Main) {
-                                val progress = (totalBytes / (100 * 1024 * 1024.0) * 50).toInt().coerceIn(0, 50)
-                                progressFlow.emit(Pair(file.name, progress))
-                            }
                         }
                     }
                     Log.d("HandleLargeFile", "Total decompressed size: ${totalBytes / (1024 * 1024)} MB")
                 }
             }
 
-            // After decompression - 50%
-            lifecycleScope.launch(Dispatchers.Main) {
-                progressFlow.emit(Pair(file.name, 50))
-            }
-
-            // Step 2: Read and parse in a controlled way (50-100% progress)
+            // Step 2: Read and parse in a controlled way
             try {
-                // Start reading JSON - 60%
-                lifecycleScope.launch(Dispatchers.Main) {
-                    progressFlow.emit(Pair(file.name, 60))
-                }
-
                 tempFile.inputStream().bufferedReader().use { reader ->
                     val jsonContent = reader.readText()
                     Log.d("HandleLargeFile", "JSON loaded into memory, size: ${jsonContent.length} chars")
 
-                    // JSON loaded - 70%
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        progressFlow.emit(Pair(file.name, 70))
-                    }
-
                     val jsonObject = JSONObject(jsonContent)
                     Log.d("HandleLargeFile", "JSON successfully parsed")
 
-                    // JSON parsed - 80%
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        progressFlow.emit(Pair(file.name, 80))
-                    }
-
+                    // Check if this is TPH data
                     if (jsonObject.has("TPHDB")) {
                         Log.d("HandleLargeFile", "Found TPHDB")
+                        // Process TPH data directly
                         loadTPHData(jsonObject)
                     } else {
+                        // Process other data
                         Log.d("HandleLargeFile", "Processing regular data")
                         parseJsonData(jsonContent, isLastFile)
-                    }
-
-                    // Data processed - 90%
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        progressFlow.emit(Pair(file.name, 90))
                     }
                 }
             } catch (e: OutOfMemoryError) {
                 Log.e("HandleLargeFile", "OutOfMemoryError: ${e.message}")
-                System.gc()
+                System.gc() // Request garbage collection
                 e.printStackTrace()
-                // Error progress
-                lifecycleScope.launch(Dispatchers.Main) {
-                    progressFlow.emit(Pair("Error: ${file.name}", -1))
-                }
             } catch (e: JSONException) {
                 Log.e("HandleLargeFile", "JSON parsing error: ${e.message}")
                 e.printStackTrace()
-                // Error progress
-                lifecycleScope.launch(Dispatchers.Main) {
-                    progressFlow.emit(Pair("Error: ${file.name}", -1))
-                }
             }
 
             // Clean up
@@ -710,21 +651,11 @@ class HomePageActivity : AppCompatActivity() {
             val endTime = System.currentTimeMillis()
             Log.d("HandleLargeFile", "Total processing time: ${endTime - startTime} ms")
 
-            // Complete - 100%
-            lifecycleScope.launch(Dispatchers.Main) {
-                progressFlow.emit(Pair(file.name, 100))
-            }
-
         } catch (e: Exception) {
             Log.e("HandleLargeFile", "Error in processing: ${e.message}")
             e.printStackTrace()
-            // Error progress
-            lifecycleScope.launch(Dispatchers.Main) {
-                progressFlow.emit(Pair("Error: ${file.name}", -1))
-            }
         }
     }
-
     private suspend fun downloadFile(
         fileName: String,
         apiCall: suspend () -> Response<ResponseBody>,
