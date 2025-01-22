@@ -19,8 +19,8 @@ class CameraViewModel(private val cameraRepository: CameraRepository) : ViewMode
         cameraRepository.closeCamera(   )
     }
 
-    fun openZoomPhotos(file: File, function: () -> Unit) {
-        cameraRepository.openZoomPhotos(file, function)
+    fun openZoomPhotos(file: File,  onChangePhoto: () -> Unit) {
+        cameraRepository.openZoomPhotos(file, onChangePhoto)
     }
 
     fun closeZoomPhotos() {

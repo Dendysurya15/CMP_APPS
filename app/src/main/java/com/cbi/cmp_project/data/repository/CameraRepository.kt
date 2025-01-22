@@ -562,10 +562,8 @@ class CameraRepository(private val context: Context, private val window: Window,
         }
     }
 
-    fun openZoomPhotos(file: File, function: () -> Unit) {
-
+    fun openZoomPhotos(file: File, onChangePhoto: () -> Unit) {
         val fotoZoom = zoomView.findViewById<ImageView>(R.id.fotoZoom)
-
         zoomView.visibility = View.VISIBLE
 
         Glide.with(context)
@@ -574,15 +572,18 @@ class CameraRepository(private val context: Context, private val window: Window,
             .skipMemoryCache(true)
             .into(fotoZoom)
 
+        // Close button logic
         zoomView.findViewById<ImageView>(R.id.closeZoom)?.setOnClickListener {
             zoomView.visibility = View.GONE
         }
+
+        // Change photo logic
         zoomView.findViewById<ImageView>(R.id.changePhoto)?.setOnClickListener {
-            file.delete()
             zoomView.visibility = View.GONE
-            
+            onChangePhoto.invoke() // Just call the callback without deleting the file
         }
     }
+
 
     fun closeZoomPhotos() {
         YoYo.with(Techniques.FadeOut)

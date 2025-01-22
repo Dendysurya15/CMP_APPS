@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.cbi.cmp_project.data.database.DatabaseHelper
 import com.cbi.cmp_project.data.network.RetrofitClient
+import com.cbi.cmp_project.ui.view.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.LoginActivity
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.LoadingDialog
@@ -70,7 +71,7 @@ class MainActivity : AppCompatActivity() {
 //            setContentView(R.layout.activity_main) // Switch to main layout
 //            setupMainUI()
 //        } else {
-            startActivity(Intent(this, LoginActivity::class.java))
+            startActivity(Intent(this, FeaturePanenTBSActivity::class.java))
             finish() // Remove MainActivity from the back stack
 //        }
     }

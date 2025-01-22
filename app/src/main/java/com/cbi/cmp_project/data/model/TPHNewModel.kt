@@ -6,7 +6,7 @@ data class TPHNewModel (
     val company:String,
     val company_ppro:Int,
     val dept:Int,
-    val dept_ppro:String,
+    val dept_abbr:String,
     val divisi:Int,
     val divisi_ppro:String,
     val blok:Int,

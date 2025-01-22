@@ -127,8 +127,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var tphList: List<TPHNewModel>? = null // Lazy-loaded
 
     private lateinit var loadingDialog: LoadingDialog
-    private lateinit var selectedWorkerAdapter: SelectedWorkerAdapter
-    private lateinit var rvSelectedWorkers: RecyclerView
+    private lateinit var selectedPemanenAdapter: SelectedWorkerAdapter
+    private lateinit var selectedPemanenLainAdapter: SelectedWorkerAdapter
+    private lateinit var rvSelectedPemanen: RecyclerView
+    private lateinit var rvSelectedPemanenLain: RecyclerView
     private lateinit var dataCacheManager: DataCacheManager
     private var selectedKemandoranValue: Int? = null
 
@@ -141,6 +143,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var selectedAfdeling: String = ""
     private var selectedBlok: String = ""
     private var selectedTPH: String = ""
+    private var selectedKemandoranLain: String = ""
 
 
     private var selectedRegionalValue: Int? = null
@@ -159,6 +162,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var selectedEstateSpinnerIndex: Int? = null
     private var selectedBUnitSpinnerIndex: Int? = null
     private var selectedFieldCodeSpinnerIndex: Int? = null
+    private var selectedKemandoranLainSpinnerIndex: Int? = null
     private var selectedTPHSpinnerIndex: Int? = null
 
     private var buahMasak = 0
@@ -181,80 +185,80 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         setupHeader()
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                loadingDialog.show()  // Show loading at start
-                loadingDialog.setMessage("Loading data...")
-            }
-
-            try {
-                val cachedData = dataCacheManager.getDatasets()
-
-                if (cachedData != null) {
-
-
-
-
-                    val hasEmptyDatasets = listOf(
-                        "regionalList" to cachedData.regionalList,
-                        "wilayahList" to cachedData.wilayahList,
-                        "deptList" to cachedData.deptList,
-                        "divisiList" to cachedData.divisiList,
-                        "blokList" to cachedData.blokList,
-                        "tphList" to cachedData.tphList,
-                        "karyawanList" to cachedData.karyawanList,
-                        "kemandoranList" to cachedData.kemandoranList,
-                        "kemandoranDetailList" to cachedData.kemandoranDetailList
-                    ).map { (name, list) ->
-                        if (list.isEmpty()) {
-                            AppLogger.d("$name is empty.")
-                            true
-                        } else {
-                            AppLogger.d("$name has data with size: ${list.size}.")
-                            false
-                        }
-                    }.any { it }
-
-                    if (hasEmptyDatasets) {
-                        withContext(Dispatchers.Main) {
-                            loadingDialog.dismiss()
-                            AlertDialogUtility.alertDialogAction(
-                                this@FeaturePanenTBSActivity,
-                                "Terjadi Kesalahan!",
-                                "Dataset Gagal di-load! Mohon mengunduh data di halaman home",
-                                "warning.json"
-                            ) {
-                            }
-                        }
-                    } else {
-                        regionalList = cachedData.regionalList
-                        wilayahList = cachedData.wilayahList
-                        deptList = cachedData.deptList
-                        divisiList = cachedData.divisiList
-                        blokList = cachedData.blokList
-                        tphList = cachedData.tphList
-                        karyawanList = cachedData.karyawanList
-                        kemandoranList = cachedData.kemandoranList
-                        kemandoranDetailList = cachedData.kemandoranDetailList
-
-                        withContext(Dispatchers.Main) {
-                            loadingDialog.dismiss()
+//        lifecycleScope.launch(Dispatchers.IO) {
+//            withContext(Dispatchers.Main) {
+//                loadingDialog.show()  // Show loading at start
+//                loadingDialog.setMessage("Loading data...")
+//            }
+//
+//            try {
+//                val cachedData = dataCacheManager.getDatasets()
+//
+//                if (cachedData != null) {
+//
+//
+//
+//
+//                    val hasEmptyDatasets = listOf(
+//                        "regionalList" to cachedData.regionalList,
+//                        "wilayahList" to cachedData.wilayahList,
+//                        "deptList" to cachedData.deptList,
+//                        "divisiList" to cachedData.divisiList,
+//                        "blokList" to cachedData.blokList,
+//                        "tphList" to cachedData.tphList,
+//                        "karyawanList" to cachedData.karyawanList,
+//                        "kemandoranList" to cachedData.kemandoranList,
+//                        "kemandoranDetailList" to cachedData.kemandoranDetailList
+//                    ).map { (name, list) ->
+//                        if (list.isEmpty()) {
+////                            AppLogger.d("$name is empty.")
+//                            true
+//                        } else {
+////                            AppLogger.d("$name has data with size: ${list.size}.")
+//                            false
+//                        }
+//                    }.any { it }
+//
+//                    if (hasEmptyDatasets) {
+//                        withContext(Dispatchers.Main) {
+//                            loadingDialog.dismiss()
+//                            AlertDialogUtility.alertDialogAction(
+//                                this@FeaturePanenTBSActivity,
+//                                "Terjadi Kesalahan!",
+//                                "Dataset Gagal di-load! Mohon mengunduh data di halaman home",
+//                                "warning.json"
+//                            ) {
+//                            }
+//                        }
+//                    } else {
+//                        regionalList = cachedData.regionalList
+//                        wilayahList = cachedData.wilayahList
+//                        deptList = cachedData.deptList
+//                        divisiList = cachedData.divisiList
+//                        blokList = cachedData.blokList
+//                        tphList = cachedData.tphList
+//                        karyawanList = cachedData.karyawanList
+//                        kemandoranList = cachedData.kemandoranList
+//                        kemandoranDetailList = cachedData.kemandoranDetailList
+//
+//                        withContext(Dispatchers.Main) {
+//                            loadingDialog.dismiss()
                             setupLayout()
-                        }
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        loadingDialog.dismiss()
-
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("DataLoading", "Error loading data: ${e.message}")
-                withContext(Dispatchers.Main) {
-                    loadingDialog.dismiss()
-                }
-            }
-        }
+//                        }
+//                    }
+//                } else {
+//                    withContext(Dispatchers.Main) {
+//                        loadingDialog.dismiss()
+//
+//                    }
+//                }
+//            } catch (e: Exception) {
+//                Log.e("DataLoading", "Error loading data: ${e.message}")
+//                withContext(Dispatchers.Main) {
+//                    loadingDialog.dismiss()
+//                }
+//            }
+//        }
 
 
 
@@ -464,7 +468,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Triple(findViewById<LinearLayout>(R.id.layoutAfdeling), getString(R.string.field_afdeling), InputType.SPINNER),
             Triple(findViewById<LinearLayout>(R.id.layoutTahunTanam), getString(R.string.field_tahun_tanam), InputType.SPINNER),
             Triple(findViewById<LinearLayout>(R.id.layoutBlok), getString(R.string.field_blok), InputType.SPINNER),
-            Triple(findViewById<LinearLayout>(R.id.layoutAncak), getString(R.string.field_ancak), InputType.SPINNER),
             Triple(findViewById<LinearLayout>(R.id.layoutTipePanen), getString(R.string.field_tipe_panen), InputType.SPINNER),
             Triple(findViewById<LinearLayout>(R.id.layoutNoTPH), getString(R.string.field_no_tph), InputType.SPINNER),
             Triple(findViewById<LinearLayout>(R.id.layoutKemandoran), getString(R.string.field_kemandoran), InputType.SPINNER),
@@ -479,9 +482,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 InputType.SPINNER -> {
                     when (layoutView.id) {
                         R.id.layoutRegional -> {
-                            val bUnitNames = regionalList.map { it.nama }
-                            Log.d("testing", bUnitNames.toString())
-                            setupSpinnerView(layoutView, bUnitNames)
+//                            val bUnitNames = regionalList.map { it.nama }
+//
+//                            setupSpinnerView(layoutView, bUnitNames)
                         }
                         R.id.layoutTipePanen->{
                             val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
@@ -511,26 +514,47 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             setupPaneWithButtons(layoutId, R.id.tvNumberPanen, labelText, counterVar)
         }
 
-        rvSelectedWorkers = RecyclerView(this).apply {
+        rvSelectedPemanen = RecyclerView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                topMargin = resources.getDimensionPixelSize(R.dimen.top_margin)  // Or direct pixels: 32
+                topMargin = resources.getDimensionPixelSize(R.dimen.top_margin)
             }
             layoutManager = FlexboxLayoutManager(context).apply {
                 justifyContent = JustifyContent.FLEX_START
             }
             overScrollMode = View.OVER_SCROLL_NEVER
         }
-        selectedWorkerAdapter = SelectedWorkerAdapter()
-        rvSelectedWorkers.adapter = selectedWorkerAdapter
+        selectedPemanenAdapter = SelectedWorkerAdapter()
+        rvSelectedPemanen.adapter = selectedPemanenAdapter
 
 
         val layoutPemanen = findViewById<LinearLayout>(R.id.layoutPemanen)
         val parentLayout = layoutPemanen.parent as ViewGroup
         val index = parentLayout.indexOfChild(layoutPemanen)
-        parentLayout.addView(rvSelectedWorkers, index + 1)
+        parentLayout.addView(rvSelectedPemanen, index + 1)
+
+        rvSelectedPemanenLain = RecyclerView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = resources.getDimensionPixelSize(R.dimen.top_margin)
+            }
+            layoutManager = FlexboxLayoutManager(context).apply {
+                justifyContent = JustifyContent.FLEX_START
+            }
+            overScrollMode = View.OVER_SCROLL_NEVER
+        }
+        selectedPemanenLainAdapter = SelectedWorkerAdapter()
+        rvSelectedPemanenLain.adapter = selectedPemanenLainAdapter
+
+        val layoutPemanenLain = findViewById<LinearLayout>(R.id.layoutPemanenLain)
+        val parentLayoutLain = layoutPemanenLain.parent as ViewGroup
+        val index2 = parentLayoutLain.indexOfChild(layoutPemanenLain)
+        parentLayoutLain.addView(rvSelectedPemanenLain, index2 + 1)
+
         setupRecyclerViewTakePreviewFoto()
         setupSwitch()
     }
@@ -543,43 +567,66 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 clearSpinnerView(R.id.layoutAfdeling, ::resetSelectedDivisionCode)
                 clearSpinnerView(R.id.layoutTahunTanam, ::resetSelectedTahunTanam)
                 clearSpinnerView(R.id.layoutBlok, ::resetSelectedFieldCode)
-                clearSpinnerView(R.id.layoutAncak, ::resetSelectedAncak)
+
                 clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutKemandoran, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutPemanen, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutKemandoranLain, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutPemanenLain, ::resetSelectedTPH)
             }
             R.id.layoutWilayah -> {
                 clearSpinnerView(R.id.layoutEstate, ::resetSelectedDivisionCode)
                 clearSpinnerView(R.id.layoutAfdeling, ::resetSelectedDivisionCode)
                 clearSpinnerView(R.id.layoutTahunTanam, ::resetSelectedTahunTanam)
                 clearSpinnerView(R.id.layoutBlok, ::resetSelectedFieldCode)
-                clearSpinnerView(R.id.layoutAncak, ::resetSelectedAncak)
+
                 clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutKemandoran, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutPemanen, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutKemandoranLain, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutPemanenLain, ::resetSelectedTPH)
             }
             R.id.layoutEstate -> {
                 clearSpinnerView(R.id.layoutAfdeling, ::resetSelectedDivisionCode)
                 clearSpinnerView(R.id.layoutTahunTanam, ::resetSelectedTahunTanam)
                 clearSpinnerView(R.id.layoutBlok, ::resetSelectedFieldCode)
-                clearSpinnerView(R.id.layoutAncak, ::resetSelectedAncak)
+
                 clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutKemandoran, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutPemanen, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutKemandoranLain, ::resetSelectedTPH)
+                clearSpinnerView(R.id.layoutPemanenLain, ::resetSelectedTPH)
             }
             R.id.layoutAfdeling -> {
                 clearSpinnerView(R.id.layoutTahunTanam, ::resetSelectedTahunTanam)
                 clearSpinnerView(R.id.layoutBlok, ::resetSelectedFieldCode)
-                clearSpinnerView(R.id.layoutAncak, ::resetSelectedAncak)
+
                 clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
-                clearSpinnerView(R.id.layoutKemandoran, ::resetSelectedKemandoran)
+//                clearSpinnerView(R.id.layoutKemandoran, ::resetSelectedTPH)
+//                clearSpinnerView(R.id.layoutPemanen, ::resetSelectedTPH)
+//                clearSpinnerView(R.id.layoutKemandoranLain, ::resetSelectedTPH)
+//                clearSpinnerView(R.id.layoutPemanenLain, ::resetSelectedTPH)
+                selectedPemanenAdapter.clearAllWorkers()
+                selectedPemanenLainAdapter.clearAllWorkers()
             }
             R.id.layoutTahunTanam -> {
                 clearSpinnerView(R.id.layoutBlok, ::resetSelectedFieldCode)
-                clearSpinnerView(R.id.layoutAncak, ::resetSelectedAncak)
+
                 clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
+//                clearSpinnerView(R.id.layoutKemandoran, ::resetSelectedTPH)
+//                clearSpinnerView(R.id.layoutPemanen, ::resetSelectedTPH)
+//                clearSpinnerView(R.id.layoutKemandoranLain, ::resetSelectedTPH)
+//                clearSpinnerView(R.id.layoutPemanenLain, ::resetSelectedTPH)
             }
             R.id.layoutBlok -> {
-                clearSpinnerView(R.id.layoutAncak, ::resetSelectedAncak)
+
                 clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
+//                clearSpinnerView(R.id.layoutKemandoran, ::resetSelectedTPH)
+//                clearSpinnerView(R.id.layoutPemanen, ::resetSelectedTPH)
+//                clearSpinnerView(R.id.layoutKemandoranLain, ::resetSelectedTPH)
+//                clearSpinnerView(R.id.layoutPemanenLain, ::resetSelectedTPH)
             }
-            R.id.layoutAncak -> {
-                clearSpinnerView(R.id.layoutNoTPH, ::resetSelectedTPH)
-            }
+
         }
     }
 
@@ -715,11 +762,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     val layoutKemandoranLain = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoranLain)
 
                     if (selectedDivisiId != null) {
+
+                        val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
                         // Filter the Blok list for Tahun Tanam
                         val filteredBlokList = blokList.filter {
                             it.regional == selectedRegionalValue &&
                                     it.dept == selectedEstateValue &&
                                     it.divisi == selectedDivisiId
+                            (it.divisi == selectedDivisiId || it.dept_abbr == estateAbbr)
                         }
 
                         val tahunTanamList = filteredBlokList.map { it.tahun }.distinct().sorted()
@@ -733,15 +783,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     } else {
                         layoutTahunTanam.visibility = View.GONE
                     }
+                    val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
 
-                    // Filter the Kemandoran list for the selected Afdeling
                     val filteredKemandoranList = kemandoranList.filter {
-                        it.dept == selectedEstateValue &&
+                        (it.dept == selectedEstateValue  || it.dept_abbr == estateAbbr)&&
                                 it.divisi == selectedDivisiValue
                     }
                     val kemandoranNames = filteredKemandoranList.map { it.nama }
 
-                    Log.d("testing", kemandoranNames.toString())
                     if (kemandoranNames.isNotEmpty()) {
                         setupSpinnerView(layoutKemandoran, kemandoranNames)
                         layoutKemandoran.visibility = View.VISIBLE
@@ -749,16 +798,29 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         layoutKemandoran.visibility = View.GONE
                     }
 
-                    // Filter the non-selected Afdeling
-                    val filteredDivisiList = divisiList.filter { it.dept == selectedEstateValue }
-                    val divisiCodeNames = filteredDivisiList.map { it.abbr }
-                    val nonSelectedAfdelingKemandoran = divisiCodeNames.filter { it != selectedAfdeling }
 
+                    val nonSelectedAfdelingKemandoran = divisiList.filter { it.abbr != selectedAfdeling && it.dept == selectedEstateValue}
+
+                    val nonSelectedIdAfdeling = nonSelectedAfdelingKemandoran.map{it.id}
+
+                    val existingDivisiIds = kemandoranList.map { it.divisi }.toSet()
+
+                    val missingIds = nonSelectedIdAfdeling.filterNot { it in existingDivisiIds }
+                    val validNonSelectedIdAfdeling = nonSelectedIdAfdeling.filter { it !in missingIds }
+
+                    val filteredKemandoranLainList = kemandoranList.filter { kemandoran ->
+                        (kemandoran.dept == selectedEstateValue || kemandoran.dept_abbr == estateAbbr) &&
+                                kemandoran.divisi in validNonSelectedIdAfdeling
+                    }
+
+
+                    val kemandoranLainListNames = filteredKemandoranLainList.map { it.nama }
+
+                    AppLogger.d(kemandoranLainListNames.toString())
                     if (nonSelectedAfdelingKemandoran.isNotEmpty()) {
-                        setupSpinnerView(layoutKemandoranLain, nonSelectedAfdelingKemandoran)
-                        layoutKemandoranLain.visibility = View.VISIBLE
+                        setupSpinnerView(layoutKemandoranLain, kemandoranLainListNames)
                     } else {
-                        layoutKemandoranLain.visibility = View.GONE
+                        setupSpinnerView(layoutKemandoranLain, emptyList())
                     }
 
                 }
@@ -766,8 +828,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     val selectedTahunTanam = item.toString()
                     resetViewsBelow(R.id.layoutTahunTanam)
                     selectedTahunTanamValue = selectedTahunTanam
-                    val filteredBlokCodes = blokList.filter { it ->
-                        it.regional == selectedRegionalValue && it.dept == selectedEstateValue && it.divisi == selectedDivisiValue  && it.tahun == selectedTahunTanamValue
+                    val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
+
+                    val filteredBlokCodes = blokList.filter {
+                        it.regional == selectedRegionalValue &&
+                                it.dept == selectedEstateValue &&
+                                (it.divisi == selectedDivisiValue || it.dept_abbr == estateAbbr) &&
+                                it.tahun == selectedTahunTanamValue
                     }
                     val layoutBlok = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutBlok)
                     if (filteredBlokCodes.isNotEmpty()) {
@@ -780,25 +847,29 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 }
                 R.id.layoutBlok -> {
                     resetViewsBelow(R.id.layoutBlok)
-//                    binding.layoutAncak.root.visibility = View.VISIBLE
+
                     selectedBlok = item.toString()
                     selectedFieldCodeSpinnerIndex = position
-                    val selectedFieldId = blokList.find { it.regional == selectedRegionalValue && it.tahun == selectedTahunTanamValue &&   it.kode == selectedBlok && it.dept == selectedEstateValue && it.divisi == selectedDivisiValue  }?.id
+                    val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
+                    val selectedFieldId = blokList.find { blok ->
+                        blok.regional == selectedRegionalValue &&
+                                blok.tahun == selectedTahunTanamValue &&
+                                blok.kode == selectedBlok &&
+                                blok.dept == selectedEstateValue &&
+                                (blok.divisi == selectedDivisiValue || blok.dept_abbr == estateAbbr) // Highlighted OR condition
+                    }?.id
                     selectedBlokValue = selectedFieldId
 
-//                    Log.d("testing", selectedRegionalValue.toString())
-//                    Log.d("testing", selectedEstateValue.toString())
-//                    Log.d("testing", selectedDivisiValue.toString())
-//                    Log.d("testing", selectedBlok.toString())
-//                    Log.d("testing", selectedBlokValue.toString())
-//                    Log.d("testing", selectedTahunTanamValue.toString())
                     val layoutNoTPH = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
+                    layoutNoTPH.visibility = View.VISIBLE
+                    val layoutAncak = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutAncak)
+                    val layoutTipePanen = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTipePanen)
                     lifecycleScope.launch {
                         val filteredTPH = withContext(Dispatchers.Default) {
                             tphList?.filter { tph ->
                                 tph.regional == selectedRegionalValue &&
                                         tph.dept == selectedEstateValue &&
-                                        tph.divisi == selectedDivisiValue &&
+                                        (tph.divisi == selectedDivisiValue || tph.dept_abbr == estateAbbr) && // Highlighted OR condition
                                         tph.tahun == selectedTahunTanamValue &&
                                         tph.blok == selectedBlokValue
                             }
@@ -808,30 +879,37 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         if (!filteredTPH.isNullOrEmpty()) {
                             val tphNumbers = filteredTPH.map { it.nomor }
                             setupSpinnerView(layoutNoTPH, tphNumbers)
-                            layoutNoTPH.visibility = View.VISIBLE
-                        } else {
-                            layoutNoTPH.visibility = View.VISIBLE
+
+                        }else{
+                            setupSpinnerView(layoutNoTPH, emptyList())
                         }
+                        layoutAncak.visibility = View.VISIBLE
+                        layoutTipePanen.visibility = View.VISIBLE
                     }
                 }
 
                 R.id.layoutNoTPH ->{
                     selectedTPH = item.toString()
                     selectedTPHSpinnerIndex = position
+                    val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
                     val selectedTPHId = tphList!!.find {
                         it.regional == selectedRegionalValue &&
                                 it.dept == selectedEstateValue &&
-                                it.divisi == selectedDivisiValue &&
+                                (it.divisi == selectedDivisiValue || it.dept_abbr == estateAbbr)
                                 it.blok == selectedBlokValue &&
                                 it.tahun == selectedTahunTanamValue &&
                                 it.nomor == selectedTPH
                     }
                     selectedTPHValue = selectedTPHId?.id
 
+                    val layoutKemandoran = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoran)
+
+                    layoutKemandoran.visibility = View.VISIBLE
+
 
                 }
                 R.id.layoutKemandoran -> {
-                    selectedWorkerAdapter.clearAllWorkers()
+//                    selectedPemanenAdapter.clearAllWorkers()
                     val selectedKemandoran = item.toString()
                     val filteredKemandoranId = kemandoranList.find {
                         it.dept == selectedEstateValue &&
@@ -856,17 +934,70 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         layoutPemanen.visibility = View.VISIBLE
                     } else {
                         AppLogger.d("No matching karyawan found for the given filters.")
-                        layoutPemanen.visibility = View.GONE
+                        setupSpinnerView(layoutPemanen, emptyList())
+
                     }
 
                 }
                 R.id.layoutPemanen -> {
-                    val selectedWorker = item.toString()
-                    selectedWorkerAdapter.addWorker(selectedWorker)
-                    setupSpinnerView(linearLayout, selectedWorkerAdapter.getAvailableWorkers())
+                    val selectedPemanen = item.toString()
+                    selectedPemanenAdapter.addWorker(selectedPemanen)
+
+                    // Get the updated list of available workers
+                    val availableWorkers = selectedPemanenAdapter.getAvailableWorkers()
+
+                    // Only update the spinner if there are still available workers
+                    if (availableWorkers.isNotEmpty()) {
+                        setupSpinnerView(linearLayout, availableWorkers)
+                    }
 
                     val asistensiLayoutView = findViewById<LinearLayout>(R.id.layoutSelAsistensi)
                     asistensiLayoutView.visibility = View.VISIBLE
+                }
+
+                R.id.layoutKemandoranLain -> {
+//                    selectedPemanenLainAdapter.clearAllWorkers()
+                    selectedKemandoranLain = item.toString()
+                    selectedKemandoranLainSpinnerIndex = position
+                    val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
+
+                    val selectedIdKemandoranLain = kemandoranList.find{
+                        (it.divisi == selectedDivisiValue || it.dept_abbr == estateAbbr) &&
+                        it.nama == selectedKemandoranLain
+                    }?.id
+
+                    val filteredKemandoranDetails  = kemandoranDetailList.filter { it ->
+                        it.header == selectedIdKemandoranLain
+                    }
+
+                    val allKaryawanIdInKemandoranDetail = filteredKemandoranDetails.map{it.id}
+
+
+                    AppLogger.d(allKaryawanIdInKemandoranDetail.toString())
+                    val listKaryawanKemandoranLain = karyawanList.filter{it.id in allKaryawanIdInKemandoranDetail}
+                    AppLogger.d(listKaryawanKemandoranLain.toString())
+                    val namaKaryawanKemandoranLain = listKaryawanKemandoranLain.map{it.nama}
+
+                    AppLogger.d(namaKaryawanKemandoranLain.toString())
+                    val layoutPemanenLain = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                    if (namaKaryawanKemandoranLain.isNotEmpty()) {
+                        setupSpinnerView(layoutPemanenLain, namaKaryawanKemandoranLain)
+                        layoutPemanenLain.visibility = View.VISIBLE
+                    }else{
+                        layoutPemanenLain.visibility = View.GONE
+                    }
+
+                }
+
+                R.id.layoutPemanenLain->{
+                    val selectedPemanenLain = item.toString()
+                    selectedPemanenLainAdapter.addWorker(selectedPemanenLain)
+                    val availableWorkers = selectedPemanenLainAdapter.getAvailableWorkers()
+
+                    // Only update the spinner if there are still available workers
+                    if (availableWorkers.isNotEmpty()) {
+                        setupSpinnerView(linearLayout, availableWorkers)
+                    }
                 }
 
 
@@ -889,6 +1020,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 //                setupSpinnerView(layoutKemandoranLain, workerGroupList.map { it.name })
             } else {
                 // Hide layouts when switch is OFF
+                selectedPemanenLainAdapter.clearAllWorkers()
                 layoutKemandoranLain.visibility = View.GONE
                 layoutPemanenLain.visibility = View.GONE
 

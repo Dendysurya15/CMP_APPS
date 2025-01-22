@@ -1,10 +1,15 @@
 package com.cbi.cmp_project.ui.adapter
 
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -14,10 +19,13 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.data.repository.CameraRepository
 import com.cbi.cmp_project.ui.viewModel.CameraViewModel
+import com.google.android.material.snackbar.Snackbar
 import java.io.File
 
 class TakeFotoPreviewAdapter(
@@ -25,7 +33,7 @@ class TakeFotoPreviewAdapter(
     private val cameraViewModel: CameraViewModel,
     private val context: Context,
     private val featureName: String?
-) : RecyclerView.Adapter<TakeFotoPreviewAdapter.FotoViewHolder>() {
+) : RecyclerView.Adapter<TakeFotoPreviewAdapter.FotoViewHolder>(), CameraRepository.PhotoCallback {
 
     var onItemClick: ((Int) -> Unit)? = null
 
@@ -81,36 +89,107 @@ class TakeFotoPreviewAdapter(
                     vibrator.vibrate(80)
                 }
             } else {
-
-                    val uniqueKodeFoto = "${position + 1}"
-
-                    if (listFileFoto.containsKey(position.toString())) {
-
-                        cameraViewModel.openZoomPhotos(listFileFoto[position.toString()]!!) {}
-                    } else {
-                        cameraViewModel.takeCameraPhotos(
-                            uniqueKodeFoto,
-                            holder.imageView,
-                            position,
-                            null,
-                            comments[position],
-                            uniqueKodeFoto,
-                            featureName
-                        )
-                    }
+                checkCameraPermission(position, holder)
             }
         }
     }
 
+    private fun checkCameraPermission(position: Int, holder: FotoViewHolder) {
+        when {
+            ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                handleCameraAction(position, holder)
+            }
+
+            ActivityCompat.shouldShowRequestPermissionRationale(
+                context as Activity,
+                android.Manifest.permission.CAMERA
+            ) -> {
+                showPermissionRationale()
+            }
+
+            else -> {
+                ActivityCompat.requestPermissions(
+                    context as Activity,
+                    arrayOf(android.Manifest.permission.CAMERA),
+                    CAMERA_PERMISSION_REQUEST_CODE
+                )
+            }
+        }
+    }
+
+    private fun handleCameraAction(position: Int, holder: FotoViewHolder) {
+        val uniqueKodeFoto = "${position + 1}"
+
+        if (listFileFoto.containsKey(position.toString())) {
+            Log.d("TakeFotoAdapter", "Opening existing photo for position $position")
+            val existingFile = listFileFoto[position.toString()]!!
+
+            // Open the zoom view
+            cameraViewModel.openZoomPhotos(existingFile) {
+                Log.d("TakeFotoAdapter", "Opening camera to retake photo for position $position")
+
+                // Retake the photo without deleting the existing one
+                cameraViewModel.takeCameraPhotos(
+                    uniqueKodeFoto,
+                    holder.imageView,
+                    position,
+                    null,
+                    comments[position],
+                    uniqueKodeFoto,
+                    featureName
+                )
+
+                // After taking a new photo, update the map only if successful
+                // (this assumes `takeCameraPhotos` handles file creation internally)
+                listFileFoto[position.toString()] = existingFile
+            }
+        } else {
+            Log.d("TakeFotoAdapter", "Taking new photo for position $position")
+            cameraViewModel.takeCameraPhotos(
+                uniqueKodeFoto,
+                holder.imageView,
+                position,
+                null,
+                comments[position],
+                uniqueKodeFoto,
+                featureName
+            )
+        }
+    }
+
+
+    companion object {
+        const val CAMERA_PERMISSION_REQUEST_CODE = 100
+    }
+
+    private fun showPermissionRationale() {
+        if (context is Activity) {
+            Snackbar.make(
+                context.findViewById(android.R.id.content),
+                "Camera permission dibutuhkan untuk mengambil foto",
+                Snackbar.LENGTH_INDEFINITE
+            ).setAction("Izinkan") {
+                ActivityCompat.requestPermissions(
+                    context,
+                    arrayOf(android.Manifest.permission.CAMERA),
+                    CAMERA_PERMISSION_REQUEST_CODE
+                )
+            }.show()
+        }
+    }
+
+
+
     fun addPhotoFile(id: String, file: File) {
-        Log.d("testing", "Adding photo with id: $id, file: ${file.path}")
         listFileFoto[id] = file
     }
 
     fun removePhotoFile(id: String) {
         listFileFoto.remove(id)
-//        val position = id.toIntOrNull()?.minus(1) ?: return
-//        notifyItemChanged(position)
+
     }
 
     override fun getItemCount(): Int {
@@ -142,6 +221,11 @@ class TakeFotoPreviewAdapter(
         }
 
         builder.show()
+    }
+
+    override fun onPhotoTaken(photoFile: File, fname: String, resultCode: String, deletePhoto: View?, position: Int) {
+        listFileFoto[position.toString()] = photoFile
+        notifyDataSetChanged()
     }
 }
 

@@ -7,6 +7,7 @@ data class BlokModel (
     val company_ppro:String,
     val dept:Int,
     val dept_ppro:String,
+    val dept_abbr:String,
     val divisi:Int,
     val divisi_ppro:Int,
     val nama:String,

@@ -11,7 +11,7 @@ import com.cbi.cmp_project.R
 
 class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHolder>() {
     private val selectedWorkers = mutableListOf<String>()
-    private var availableWorkers = mutableListOf<String>()
+    private val allWorkers = mutableListOf<String>()  // Keep track of all workers
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val workerName: TextView = view.findViewById(R.id.worker_name)
@@ -37,30 +37,29 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
     fun addWorker(worker: String) {
         if (!selectedWorkers.contains(worker)) {
             selectedWorkers.add(worker)
-            availableWorkers.remove(worker)
             notifyDataSetChanged()
         }
     }
 
     private fun removeWorker(position: Int) {
-        val worker = selectedWorkers[position]
         selectedWorkers.removeAt(position)
-        availableWorkers.add(worker)
         notifyDataSetChanged()
     }
 
     fun setAvailableWorkers(workers: List<String>) {
-        availableWorkers.clear()
-        availableWorkers.addAll(workers)
+        allWorkers.clear()
+        allWorkers.addAll(workers)
     }
 
-    fun getAvailableWorkers(): List<String> = availableWorkers
+    fun getAvailableWorkers(): List<String> {
+        return allWorkers.filter { !selectedWorkers.contains(it) }
+    }
 
     fun getSelectedWorkers(): List<String> = selectedWorkers
 
     fun clearAllWorkers() {
         selectedWorkers.clear()
-        availableWorkers.clear()
+        allWorkers.clear()
         notifyDataSetChanged()
     }
 }
