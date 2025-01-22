@@ -63,6 +63,7 @@ import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.stringXML
+import com.cbi.cmp_project.utils.AppUtils.vibrate
 import com.cbi.cmp_project.utils.DataCacheManager
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.markertph.data.model.BlokModel
@@ -97,7 +98,7 @@ import kotlin.reflect.KMutableProperty0
 open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.PhotoCallback {
 
     private var jumTBS = 0
-    var tbsMasak = 0
+
     private var bMentah = 0
     private var bLewatMasak = 0
     private var jjgKosong = 0
@@ -358,50 +359,105 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         findViewById<TextView>(R.id.tvCounterTBSDibayar).text = "$tbsDibayar Buah"
     }
 
-    private fun updateDependentCounters(layoutId: Int, change: Int) {
+    private fun updateDependentCounters(layoutId: Int, change: Int, counterVar: KMutableProperty0<Int>) {
         when (layoutId) {
             R.id.layoutJumTBS -> {
-                if (change > 0) {
-                    jumTBS += 1
-                    formulas()
-                } else { // When decrementing
-                    if (tbsMasak > 0) {
-                        jumTBS -= 1
-                        formulas()
+
+                if (change > 0) { // When change is positive (Increment)
+                    jumTBS += change
+                    counterVar.set(jumTBS)
+                } else if (change < 0) { // When change is negative (Decrement)
+                    if (buahMasak > 0) {  // Prevent going negative
+                        jumTBS += change
+                        counterVar.set(jumTBS)
+                    }else{
+                        vibrate()
                     }
                 }
             }
+
             R.id.layoutBMentah -> {
                 if (change > 0) {
-                    if (tbsMasak > 0) {
-                        bMentah += 1
-                        formulas()
+                    if (buahMasak > 0 ) {
+                        bMentah += change
+                        counterVar.set(bMentah)
+                    }else{
+                        vibrate()
                     }
-                } else { // When decrementing
-                    if (bMentah > 0) {
-                        bMentah -= 1
-                        formulas()
+                } else if (change < 0) { // When change is negative (Decrement)
+                    if (bMentah > 0) { // Prevent going negative
+                        bMentah += change
+                        counterVar.set(bMentah)
+                    }else{
+                        vibrate()
                     }
                 }
             }
+
             R.id.layoutBLewatMasak -> {
-                // Case 3: When BLewatMasak changes, subtract from all EXCEPT buahMasak
-
+                if (change > 0) { // When change is positive (Increment)
+                    if (buahMasak > 0) {
+                        bLewatMasak += change
+                        counterVar.set(bLewatMasak)
+                    }else{
+                        vibrate()
+                    }
+                } else if (change < 0) { // When change is negative (Decrement)
+                    if (bLewatMasak > 0) { // Prevent going negative
+                        bLewatMasak += change
+                        counterVar.set(bLewatMasak)
+                    }else{
+                        vibrate()
+                    }
+                }
             }
-            R.id.layoutJjgKosong -> {
 
+            R.id.layoutJjgKosong -> {
+                if (change > 0) { // When change is positive (Increment)
+                    if (buahMasak > 0) {
+                        jjgKosong += change
+                        counterVar.set(jjgKosong)
+                    }else{
+                        vibrate()
+                    }
+                } else if (change < 0) { // When change is negative (Decrement)
+                    if (jjgKosong > 0) { // Prevent going negative
+                        jjgKosong += change
+                        counterVar.set(jjgKosong)
+                    }else{
+                        vibrate()
+                    }
+                }
+            }
+
+            R.id.layoutAbnormal -> {
+                if (change > 0) { // When change is positive (Increment)
+                    if (jumTBS > abnormal) { // Prevent abnormal from exceeding tbs
+                        abnormal += change
+                        counterVar.set(abnormal)
+                    }else{
+                        vibrate()
+                    }
+                } else if (change < 0) { // When change is negative (Decrement)
+                    if (abnormal > 0) { // Prevent going negative
+                        abnormal += change
+                        counterVar.set(abnormal)
+                    }else{
+                        vibrate()
+                    }
+                }
             }
         }
+
+        formulas()
         updateCounterTextViews()
     }
 
     private fun formulas(){
         buahMasak = jumTBS - jjgKosong - bMentah - bLewatMasak
-
-        Log.d("testing", buahMasak.toString())
-        bMentah = jumTBS - bLewatMasak - jjgKosong - tbsMasak
-        bLewatMasak = jumTBS - bMentah - tbsMasak - jjgKosong
-        jjgKosong = jumTBS - bMentah - tbsMasak - bLewatMasak
+        bMentah = jumTBS - bLewatMasak - jjgKosong - buahMasak
+        bLewatMasak = jumTBS - bMentah - buahMasak - jjgKosong
+        jjgKosong = jumTBS - bMentah - buahMasak - bLewatMasak
         tbsDibayar = jumTBS - bMentah - jjgKosong
         kirimPabrik = jumTBS - jjgKosong - abnormal
     }
@@ -1051,11 +1107,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     /**
      * Updates the text of a spinner's label in the included layout.
      */
-//    private fun updateTextInPertanyaanSpinner(layoutId: Int, textViewId: Int, newText: String) {
-//        val includedLayout = findViewById<View>(layoutId)
-//        val textView = includedLayout.findViewById<TextView>(textViewId)
-//        textView.text = newText
-//    }
 
     private fun updateTextInPertanyaan(linearLayout: LinearLayout, text: String) {
         // Assuming the TextView inside the LinearLayout has an ID, e.g., `tvTitleFormPanenTBS`
@@ -1076,14 +1127,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val btDec = includedLayout.findViewById<CardView>(R.id.btDec)
         val btInc = includedLayout.findViewById<CardView>(R.id.btInc)
-
-        fun syncCounterWithEditText() {
-            val enteredValue = etNumber.text.toString().toIntOrNull()
-            if (enteredValue != null) {
-                counterVar.set(enteredValue)
-            }
-        }
-
         fun vibrate() {
             val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -1105,22 +1148,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
         btDec.setOnClickListener {
-            syncCounterWithEditText()
             if (counterVar.get() > 0) {
-                counterVar.set(counterVar.get() - 1)
+                updateDependentCounters(layoutId, -1, counterVar)  // Decrement through dependent counter
                 etNumber.setText(counterVar.get().toString())
-                updateDependentCounters(layoutId, -1)
             } else {
                 vibrate()
-                changeEditTextStyle(counterVar.get() <= 0)
+                changeEditTextStyle(true)
             }
         }
 
+
         btInc.setOnClickListener {
-            syncCounterWithEditText()
-            counterVar.set(counterVar.get() + 1)
+            updateDependentCounters(layoutId, 1, counterVar)  // Increment through dependent counter
             etNumber.setText(counterVar.get().toString())
-            updateDependentCounters(layoutId, 1)
             changeEditTextStyle(counterVar.get() <= 0)
         }
     }

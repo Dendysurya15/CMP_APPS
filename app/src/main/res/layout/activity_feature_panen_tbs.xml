@@ -145,22 +145,22 @@
 
                 <include
                     layout="@layout/pane_number_layout"
-                    android:visibility="gone"
+                    android:visibility="visible"
                     android:id="@+id/layoutJumTBS"/>
 
                 <include
                     layout="@layout/pane_number_layout"
-                    android:visibility="gone"
+                    android:visibility="visible"
                     android:id="@+id/layoutBMentah"/>
 
                 <include
                     layout="@layout/pane_number_layout"
-                    android:visibility="gone"
+                    android:visibility="visible"
                     android:id="@+id/layoutBLewatMasak"/>
 
                 <include
                     layout="@layout/pane_number_layout"
-                    android:visibility="gone"
+                    android:visibility="visible"
                     android:id="@+id/layoutJjgKosong"/>
 
 
@@ -169,7 +169,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
-                    android:visibility="gone"
+                    android:visibility="visible"
                     android:id="@+id/layoutTBSMasak"
                     android:background="@color/white"
                     android:paddingBottom="10dp"
@@ -213,7 +213,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
-                    android:visibility="gone"
+                    android:visibility="visible"
                     android:id="@+id/layoutKirimPabrik"
                     android:background="@color/white"
                     android:paddingBottom="10dp"
@@ -242,7 +242,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
-                    android:visibility="gone"
+                    android:visibility="visible"
                     android:id="@+id/layoutTBSDibayar"
                     android:background="@color/white"
                     android:paddingBottom="10dp"
