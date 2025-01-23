@@ -200,12 +200,10 @@
 
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:text="[20,30%]"
                         android:fontFamily="@font/manrope_semibold"
                         android:textSize="17dp"
                         android:gravity="center|left"
-
-                        android:id="@+id/tvPercent" />
+                        android:id="@+id/tvPercentBuahMasak" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -227,7 +225,7 @@
                         />
                     <TextView
 
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="match_parent"
 
                         android:textColor="@color/black"
@@ -235,6 +233,13 @@
                         android:fontFamily="@font/manrope_semibold"
                         android:textSize="17dp"
                         android:id="@+id/tvCounterKirimPabrik"/>
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:textSize="17dp"
+                        android:gravity="center|left"
+                        android:id="@+id/tvPercentKirimPabrik" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -255,15 +260,20 @@
                         android:textSize="17dp"
                        />
                     <TextView
-
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="match_parent"
-
                         android:textColor="@color/black"
                         android:fontFamily="@font/manrope_semibold"
                         android:textSize="17dp"
                         android:gravity="center|left"
                         android:id="@+id/tvCounterTBSDibayar"/>
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:textSize="17dp"
+                        android:gravity="center|left"
+                        android:id="@+id/tvPercentTBSDibayar" />
                 </LinearLayout>
 
                 <include
@@ -284,7 +294,7 @@
                 <include
                     layout="@layout/pane_number_layout"
                     android:visibility="gone"
-                    android:id="@+id/layoutTidakVcut"/>
+                    android:id="@+id/layoutVcut"/>
 
                 <TextView
                     android:layout_width="200dp"

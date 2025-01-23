@@ -40,6 +40,17 @@
             android:textColor="@color/black"
             android:textColorHighlight="@color/greenDarkerLight"/>
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="17dp"
+            android:fontFamily="@font/manrope_semibold"
+            android:id="@+id/tvPercent"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:singleLine="false"
+            android:lineSpacingExtra="2dp"
+            android:gravity="start" />
 <!--        <EditText-->
 <!--            android:layout_width="50dp"-->
 <!--            android:layout_height="wrap_content"-->

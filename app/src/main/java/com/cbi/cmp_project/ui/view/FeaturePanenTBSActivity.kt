@@ -66,6 +66,7 @@ import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.AppUtils.vibrate
 import com.cbi.cmp_project.utils.DataCacheManager
 import com.cbi.cmp_project.utils.LoadingDialog
+import com.cbi.cmp_project.utils.MathFun
 import com.cbi.markertph.data.model.BlokModel
 import com.cbi.markertph.data.model.DeptModel
 import com.cbi.markertph.data.model.DivisiModel
@@ -105,7 +106,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var abnormal = 0
     private var seranganTikus = 0
     private var tangkaiPanjang = 0
-    private var tidakVcut = 0
+    private var vCut = 0
     private var lat: Double? = null
     private var lon: Double? = null
     var currentAccuracy : Float = 0F
@@ -169,6 +170,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var buahMasak = 0
     private var kirimPabrik = 0
     private var tbsDibayar = 0
+    var persenMentah = 0f
+    var persenLewatMasak = 0f
+    var persenJjgKosong = 0f
+    var persenMasak = 0f
 
 
 
@@ -357,12 +362,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         findViewById<TextView>(R.id.tvCounterBuahMasak).text = "$buahMasak Buah"
         findViewById<TextView>(R.id.tvCounterKirimPabrik).text = "$kirimPabrik Buah"
         findViewById<TextView>(R.id.tvCounterTBSDibayar).text = "$tbsDibayar Buah"
+        findViewById<TextView>(R.id.tvPercentBuahMasak).text = "($persenMasak)%"
     }
 
-    private fun updateDependentCounters(layoutId: Int, change: Int, counterVar: KMutableProperty0<Int>) {
+    private fun updateDependentCounters(layoutId: Int, change: Int, counterVar: KMutableProperty0<Int>,  tvPercent: TextView?) {
         when (layoutId) {
             R.id.layoutJumTBS -> {
-
                 if (change > 0) { // When change is positive (Increment)
                     jumTBS += change
                     counterVar.set(jumTBS)
@@ -447,10 +452,77 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
                 }
             }
+            R.id.layoutSeranganTikus -> {
+                if (change > 0) {
+                    if (jumTBS > seranganTikus) {
+                        seranganTikus += change
+                        counterVar.set(seranganTikus)
+                    }else{
+                        vibrate()
+                    }
+                } else if (change < 0) { // When change is negative (Decrement)
+                    if (seranganTikus > 0) { // Prevent going negative
+                        seranganTikus += change
+                        counterVar.set(seranganTikus)
+                    }else{
+                        vibrate()
+                    }
+                }
+            }
+            R.id.layoutTangkaiPanjang -> {
+                if (change > 0) {
+                    if (jumTBS > tangkaiPanjang) {
+                        tangkaiPanjang += change
+                        counterVar.set(tangkaiPanjang)
+                    }else{
+                        vibrate()
+                    }
+                } else if (change < 0) { // When change is negative (Decrement)
+                    if (tangkaiPanjang > 0) { // Prevent going negative
+                        tangkaiPanjang += change
+                        counterVar.set(tangkaiPanjang)
+                    }else{
+                        vibrate()
+                    }
+                }
+            }
+            R.id.layoutVcut -> {
+                if (change > 0) {
+                    if (jumTBS > vCut) {
+                        vCut += change
+                        counterVar.set(vCut)
+                    }else{
+                        vibrate()
+                    }
+                } else if (change < 0) {
+                    if (jumTBS > 0) {
+                        vCut += change
+                        counterVar.set(vCut)
+                    }else{
+                        vibrate()
+                    }
+                }
+            }
         }
 
         formulas()
         updateCounterTextViews()
+
+        if (layoutId == R.id.layoutJumTBS) {
+            tvPercent?.let {
+                it.setText("${persenMentah}%")
+            }
+        }
+        else if (layoutId == R.id.layoutBLewatMasak) {
+            tvPercent?.let {
+                it.setText("${persenLewatMasak}%")
+            }
+        }
+        else if(layoutId == R.id.layoutJjgKosong){
+            tvPercent?.let {
+                it.setText("${persenJjgKosong}%")
+            }
+        }
     }
 
     private fun formulas(){
@@ -460,6 +532,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         jjgKosong = jumTBS - bMentah - buahMasak - bLewatMasak
         tbsDibayar = jumTBS - bMentah - jjgKosong
         kirimPabrik = jumTBS - jjgKosong - abnormal
+        persenMentah = MathFun().round((bMentah.toFloat()/jumTBS.toFloat()*100), 2)!!
+        persenMasak = MathFun().round((bMentah.toFloat()/jumTBS.toFloat()*100), 2)!!
+        persenLewatMasak = MathFun().round((bLewatMasak.toFloat()/jumTBS.toFloat()*100), 2)!!
+        persenJjgKosong = MathFun().round((jjgKosong.toFloat()/jumTBS.toFloat()*100), 2)!!
     }
 
     private fun initViewModel() {
@@ -564,7 +640,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Triple(R.id.layoutAbnormal, "Abnormal", ::abnormal),
             Triple(R.id.layoutSeranganTikus, "Serangan Tikus", ::seranganTikus),
             Triple(R.id.layoutTangkaiPanjang, "Tangkai Panjang", ::tangkaiPanjang),
-            Triple(R.id.layoutTidakVcut, "Tidak V-Cut", ::tidakVcut)
+            Triple(R.id.layoutVcut, "Tidak V-Cut", ::vCut)
         )
         counterMappings.forEach { (layoutId, labelText, counterVar) ->
             setupPaneWithButtons(layoutId, R.id.tvNumberPanen, labelText, counterVar)
@@ -1121,6 +1197,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val includedLayout = findViewById<View>(layoutId)
         val textView = includedLayout.findViewById<TextView>(textViewId)
         val etNumber = includedLayout.findViewById<EditText>(R.id.etNumber)
+        val tvPercent = includedLayout.findViewById<TextView>(R.id.tvPercent)
 
         textView.text = labelText
         etNumber.setText(counterVar.get().toString())
@@ -1149,7 +1226,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         btDec.setOnClickListener {
             if (counterVar.get() > 0) {
-                updateDependentCounters(layoutId, -1, counterVar)  // Decrement through dependent counter
+                updateDependentCounters(layoutId, -1, counterVar,  tvPercent)  // Decrement through dependent counter
                 etNumber.setText(counterVar.get().toString())
             } else {
                 vibrate()
@@ -1159,7 +1236,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
         btInc.setOnClickListener {
-            updateDependentCounters(layoutId, 1, counterVar)  // Increment through dependent counter
+            updateDependentCounters(layoutId, 1, counterVar,  tvPercent)  // Increment through dependent counter
             etNumber.setText(counterVar.get().toString())
             changeEditTextStyle(counterVar.get() <= 0)
         }
