@@ -1,25 +1,57 @@
 package com.cbi.cmp_project.ui.view.generate_espb
 
 import android.os.Bundle
-import android.widget.Button
+import android.util.Base64
 import android.widget.TextView
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.cbi.cmp_project.R
+import com.github.junrar.Archive
+import com.github.junrar.rarfile.FileHeader
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
 
 class ListTPHFromQRActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContentView(R.layout.activity_list_tphfrom_qractivity)
         val qrResult = intent.getStringExtra(EXTRA_QR_RESULT) ?: ""
-        findViewById<TextView>(R.id.textViewResult).text = qrResult
+        val jsonStr = readJsonFromEncryptedBase64Rar(qrResult)
+        findViewById<TextView>(R.id.textViewResult).text = jsonStr
+    }
 
-        // Handle scan again button click
-        findViewById<Button>(R.id.buttonScanAgain).setOnClickListener {
-            finish()  // This will return to MainActivity
+    fun readJsonFromEncryptedBase64Rar(base64String: String, password: String = "CBI@2025"): String? {
+        return try {
+            // Remove header if present
+            val base64Data = if (base64String.contains(",")) {
+                base64String.substring(base64String.indexOf(",") + 1)
+            } else {
+                base64String
+            }
+
+            // Decode base64 to bytes
+            val decodedBytes = Base64.decode(base64Data, Base64.DEFAULT)
+
+            // Create RAR archive from bytes
+            ByteArrayInputStream(decodedBytes).use { byteStream ->
+                Archive(byteStream, password).use { archive ->
+                    // Look for file.json
+                    val fileHeader: FileHeader? = archive.fileHeaders.find { it.fileName == "output.json" }
+
+                    if (fileHeader != null) {
+                        // Read the JSON content
+                        ByteArrayOutputStream().use { outputStream ->
+                            archive.extractFile(fileHeader, outputStream)
+                            return String(outputStream.toByteArray(), StandardCharsets.UTF_8)
+                        }
+                    }
+                }
+            }
+
+            null // Return null if file.json was not found
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 
