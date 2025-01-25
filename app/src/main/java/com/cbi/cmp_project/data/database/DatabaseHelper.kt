@@ -90,7 +90,7 @@ class DatabaseHelper(context: Context):
         """.trimIndent()
 
     override fun onCreate(db: SQLiteDatabase?) {
-        db?.execSQL(createTablePanenTBS)
+//        db?.execSQL(createTablePanenTBS)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {

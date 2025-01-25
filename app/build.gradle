@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -54,8 +55,15 @@ dependencies {
     implementation libs.material
     implementation libs.androidx.activity
     implementation libs.androidx.constraintlayout
+    implementation libs.androidx.room.runtime
+    ksp libs.androidx.room.compiler
+    implementation libs.androidx.room.ktx
+//    def room_version = "2.6.1"
+//
+//    implementation "androidx.room:room-runtime:$room_version"
+//    ksp "androidx.room:room-compiler:$room_version"
+//    annotationProcessor "androidx.room:room-compiler:$room_version"
 
-    // Optional: Add lifecycle dependencies for coroutines
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.7.0"
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0"
     implementation 'de.hdodenhof:circleimageview:3.1.0'

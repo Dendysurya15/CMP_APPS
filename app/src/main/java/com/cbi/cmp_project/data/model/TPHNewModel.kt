@@ -1,7 +1,47 @@
 package com.cbi.markertph.data.model
 
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
+
+@Entity(
+    tableName = "tph",
+//    foreignKeys = [
+//        ForeignKey(
+//            entity = RegionalModel::class, // The referenced table
+//            parentColumns = ["id"], // The column in the referenced table
+//            childColumns = ["regional"], // The column in this table
+//            onDelete = ForeignKey.CASCADE // Optional: Specify behavior on deletion
+//        ),
+//        ForeignKey(
+//            entity = DeptModel::class, // The referenced table
+//            parentColumns = ["id"], // The column in the referenced table
+//            childColumns = ["dept"], // The column in this table
+//            onDelete = ForeignKey.CASCADE // Optional: Specify behavior on deletion
+//        ),
+//        ForeignKey(
+//            entity = DivisiModel::class, // The referenced table
+//            parentColumns = ["id"], // The column in the referenced table
+//            childColumns = ["divisi"], // The column in this table
+//            onDelete = ForeignKey.CASCADE // Optional: Specify behavior on deletion
+//        ),
+//        ForeignKey(
+//            entity = BlokModel::class, // The referenced table
+//            parentColumns = ["id"], // The column in the referenced table
+//            childColumns = ["blok"], // The column in this table
+//            onDelete = ForeignKey.CASCADE // Optional: Specify behavior on deletion
+//        ),
+//    ],
+//    indices = [
+//        Index(value = ["regional"]),
+//        Index(value = ["dept"]),
+//        Index(value = ["divisi"]),
+//        Index(value = ["blok"])]
+)
+
 data class TPHNewModel (
-    val id:Int,
+    @PrimaryKey val id:Int,
     val regional:Int,
     val company:String,
     val company_ppro:Int,

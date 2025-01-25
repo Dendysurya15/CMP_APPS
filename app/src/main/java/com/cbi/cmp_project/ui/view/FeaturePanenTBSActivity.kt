@@ -39,17 +39,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.cbi.cmp_project.R
-import com.cbi.cmp_project.data.model.BUnitCodeModel
-import com.cbi.cmp_project.data.model.CompanyCodeModel
-import com.cbi.cmp_project.data.model.DivisionCodeModel
-import com.cbi.cmp_project.data.model.FieldCodeModel
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
-import com.cbi.cmp_project.data.model.TPHModel
-import com.cbi.cmp_project.data.model.WorkerGroupModel
-import com.cbi.cmp_project.data.model.WorkerInGroupModel
-import com.cbi.cmp_project.data.model.WorkerModel
 import com.cbi.cmp_project.data.repository.CameraRepository
 import com.cbi.cmp_project.data.repository.PanenTBSRepository
 import com.cbi.cmp_project.databinding.PertanyaanSpinnerLayoutBinding
@@ -191,80 +183,81 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         setupHeader()
 
-//        lifecycleScope.launch(Dispatchers.IO) {
-//            withContext(Dispatchers.Main) {
-//                loadingDialog.show()  // Show loading at start
-//                loadingDialog.setMessage("Loading data...")
-//            }
-//
-//            try {
-//                val cachedData = dataCacheManager.getDatasets()
-//
-//                if (cachedData != null) {
-//
-//
-//
-//
-//                    val hasEmptyDatasets = listOf(
-//                        "regionalList" to cachedData.regionalList,
-//                        "wilayahList" to cachedData.wilayahList,
-//                        "deptList" to cachedData.deptList,
-//                        "divisiList" to cachedData.divisiList,
-//                        "blokList" to cachedData.blokList,
-//                        "tphList" to cachedData.tphList,
-//                        "karyawanList" to cachedData.karyawanList,
-//                        "kemandoranList" to cachedData.kemandoranList,
-//                        "kemandoranDetailList" to cachedData.kemandoranDetailList
-//                    ).map { (name, list) ->
-//                        if (list.isEmpty()) {
-////                            AppLogger.d("$name is empty.")
-//                            true
-//                        } else {
-////                            AppLogger.d("$name has data with size: ${list.size}.")
-//                            false
-//                        }
-//                    }.any { it }
-//
-//                    if (hasEmptyDatasets) {
-//                        withContext(Dispatchers.Main) {
-//                            loadingDialog.dismiss()
-//                            AlertDialogUtility.alertDialogAction(
-//                                this@FeaturePanenTBSActivity,
-//                                "Terjadi Kesalahan!",
-//                                "Dataset Gagal di-load! Mohon mengunduh data di halaman home",
-//                                "warning.json"
-//                            ) {
-//                            }
-//                        }
-//                    } else {
-//                        regionalList = cachedData.regionalList
-//                        wilayahList = cachedData.wilayahList
-//                        deptList = cachedData.deptList
-//                        divisiList = cachedData.divisiList
-//                        blokList = cachedData.blokList
-//                        tphList = cachedData.tphList
-//                        karyawanList = cachedData.karyawanList
-//                        kemandoranList = cachedData.kemandoranList
-//                        kemandoranDetailList = cachedData.kemandoranDetailList
-//
-//                        withContext(Dispatchers.Main) {
-//                            loadingDialog.dismiss()
+        lifecycleScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                loadingDialog.show()  // Show loading at start
+                loadingDialog.setMessage("Loading data...")
+            }
+
+            try {
+                val cachedData = dataCacheManager.getDatasets()
+
+                if (cachedData != null) {
+
+
+
+
+                    val hasEmptyDatasets = listOf(
+                        "regionalList" to cachedData.regionalList,
+                        "wilayahList" to cachedData.wilayahList,
+                        "deptList" to cachedData.deptList,
+                        "divisiList" to cachedData.divisiList,
+                        "blokList" to cachedData.blokList,
+                        "tphList" to cachedData.tphList,
+                        "karyawanList" to cachedData.karyawanList,
+                        "kemandoranList" to cachedData.kemandoranList,
+                        "kemandoranDetailList" to cachedData.kemandoranDetailList
+                    ).map { (name, list) ->
+                        if (list.isEmpty()) {
+//                            AppLogger.d("$name is empty.")
+                            true
+                        } else {
+//                            AppLogger.d("$name has data with size: ${list.size}.")
+                            false
+                        }
+                    }.any { it }
+
+                    if (hasEmptyDatasets) {
+                        withContext(Dispatchers.Main) {
+                            loadingDialog.dismiss()
+                            AlertDialogUtility.alertDialogAction(
+                                this@FeaturePanenTBSActivity,
+                                "Terjadi Kesalahan!",
+                                "Dataset Gagal di-load! Mohon mengunduh data di halaman home",
+                                "warning.json"
+                            ) {
+                            }
+                        }
+                    } else {
+                        regionalList = cachedData.regionalList
+                        wilayahList = cachedData.wilayahList
+                        deptList = cachedData.deptList
+                        divisiList = cachedData.divisiList
+                        blokList = cachedData.blokList
+                        tphList = cachedData.tphList
+                        karyawanList = cachedData.karyawanList
+                        kemandoranList = cachedData.kemandoranList
+                        kemandoranDetailList = cachedData.kemandoranDetailList
+
+                        withContext(Dispatchers.Main) {
+                            loadingDialog.dismiss()
+                            Log.d("testing", "test")
                             setupLayout()
-//                        }
-//                    }
-//                } else {
-//                    withContext(Dispatchers.Main) {
-//                        loadingDialog.dismiss()
-//
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                Log.e("DataLoading", "Error loading data: ${e.message}")
-//                withContext(Dispatchers.Main) {
-//                    loadingDialog.dismiss()
-//                }
-//            }
-//        }
+                        }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        loadingDialog.dismiss()
+
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("DataLoading", "Error loading data: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    loadingDialog.dismiss()
+                }
+            }
+        }
 
 
 
@@ -508,7 +501,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         formulas()
         updateCounterTextViews()
 
-        if (layoutId == R.id.layoutJumTBS) {
+        if (layoutId == R.id.layoutBMentah) {
             tvPercent?.let {
                 it.setText("${persenMentah}%")
             }
@@ -614,9 +607,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 InputType.SPINNER -> {
                     when (layoutView.id) {
                         R.id.layoutRegional -> {
-//                            val bUnitNames = regionalList.map { it.nama }
-//
-//                            setupSpinnerView(layoutView, bUnitNames)
+                            val bUnitNames = regionalList.map { it.nama }
+
+                            setupSpinnerView(layoutView, bUnitNames)
                         }
                         R.id.layoutTipePanen->{
                             val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()

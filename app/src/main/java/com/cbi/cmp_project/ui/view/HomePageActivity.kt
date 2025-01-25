@@ -11,6 +11,7 @@ import android.os.Build
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -18,6 +19,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
@@ -30,8 +32,14 @@ import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.network.RetrofitClient
+import com.cbi.cmp_project.data.repository.CameraRepository
+import com.cbi.cmp_project.data.repository.PanenTBSRepository
 import com.cbi.cmp_project.databinding.ActivityHomePageBinding
 import com.cbi.cmp_project.ui.adapter.ProgressUploadAdapter
+import com.cbi.cmp_project.ui.viewModel.CameraViewModel
+import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
+import com.cbi.cmp_project.ui.viewModel.LocationViewModel
+import com.cbi.cmp_project.ui.viewModel.PanenTBSViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.stringXML
@@ -92,7 +100,10 @@ class HomePageActivity : AppCompatActivity() {
     private var karyawanList: List<KaryawanModel> = emptyList()
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var kemandoranDetailList: List<KemandoranDetailModel> = emptyList()
-    private var tphList: List<TPHNewModel>? = null // Lazy-loaded
+    private var tphList: List<TPHNewModel>? = null
+
+    private lateinit var datasetViewModel: DatasetViewModel
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,6 +112,7 @@ class HomePageActivity : AppCompatActivity() {
         setContentView(binding.root)
         prefManager = PrefManager(this)
         loadingDialog = LoadingDialog(this)
+        initViewModel()
         dataCacheManager = DataCacheManager(this)
         checkPermissions()
 
@@ -110,20 +122,25 @@ class HomePageActivity : AppCompatActivity() {
         navView.setupWithNavController(navController)
     }
 
+    private fun initViewModel() {
+        val factory = DatasetViewModel.DatasetViewModelFactory(application)
+        datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
+    }
+
 
     private fun startFileDownload() {
-
-        if (!isInternetAvailable()) {
-            AlertDialogUtility.withSingleAction(
-                this,
-                stringXML(R.string.al_back),
-                stringXML(R.string.al_no_internet_connection),
-                stringXML(R.string.al_no_internet_connection_description_download_dataset),
-                "network_error.json",
-                R.color.colorRedDark
-            ) {}
-            return
-        }
+//
+//        if (!isInternetAvailable()) {
+//            AlertDialogUtility.withSingleAction(
+//                this,
+//                stringXML(R.string.al_back),
+//                stringXML(R.string.al_no_internet_connection),
+//                stringXML(R.string.al_no_internet_connection_description_download_dataset),
+//                "network_error.json",
+//                R.color.colorRedDark
+//            ) {}
+//            return
+//        }
 
         lifecycleScope.launch {
             // Inflate dialog layout
@@ -371,14 +388,14 @@ class HomePageActivity : AppCompatActivity() {
                     object : TypeToken<List<RegionalModel>>() {}.type
                 )
 
-                prefManager?.setDateModified("RegionalDB", dateModified) // Store dynamically
-
+                prefManager?.setDateModified("RegionalDB", dateModified)
+                datasetViewModel.updateOrInsertRegional(regionalList)
                 this.regionalList = regionalList
             } else {
                 Log.e("ParseJsonData", "RegionalDB key is missing")
             }
 
-            // Parse CompanyCodeDB
+
             if (jsonObject.has("WilayahDB")) {
                 val companyCodeArray = jsonObject.getJSONArray("WilayahDB")
                 val transformedCompanyCodeArray = transformJsonArray(companyCodeArray, keyObject)
@@ -388,6 +405,7 @@ class HomePageActivity : AppCompatActivity() {
                 )
                 Log.d("ParsedData", "WilayahDB: $wilayahList")
                 this.wilayahList = wilayahList
+//                datasetViewModel.updateOrInsertWilayah(wilayahList)
                 prefManager?.setDateModified("WilayahDB", dateModified) // Store dynamically
             } else {
                 Log.e("ParseJsonData", "WilayahDB key is missing")
@@ -402,6 +420,7 @@ class HomePageActivity : AppCompatActivity() {
                 )
                 Log.d("ParsedData", "BUnitCode: $deptList")
                 this.deptList = deptList
+//                datasetViewModel.updateOrInsertDept(deptList)
                 prefManager?.setDateModified("DeptDB", dateModified) // Store dynamically
             } else {
                 Log.e("ParseJsonData", "DeptDB key is missing")
@@ -417,6 +436,7 @@ class HomePageActivity : AppCompatActivity() {
                 )
                 Log.d("ParsedData", "DivisionCode: $divisiList")
                 this.divisiList = divisiList
+//                datasetViewModel.updateOrInsertDivisi(divisiList)
                 prefManager?.setDateModified("DivisiDB", dateModified) // Store dynamically
             } else {
                 Log.e("ParseJsonData", "DivisiDB key is missing")
@@ -432,6 +452,7 @@ class HomePageActivity : AppCompatActivity() {
                 )
                 Log.d("ParsedData", "FieldCode: $blokList")
                 this.blokList = blokList
+//                datasetViewModel.updateOrInsertBlok(blokList)
                 prefManager?.setDateModified("BlokDB", dateModified) // Store dynamically
             } else {
                 Log.e("ParseJsonData", "BlokDB key is missing")
@@ -447,6 +468,7 @@ class HomePageActivity : AppCompatActivity() {
                 )
                 Log.d("ParsedData", "KaryawanDB: $karyawanList")
                 this.karyawanList = karyawanList
+//                datasetViewModel.updateOrInsertKaryawan(karyawanList)
                 prefManager?.setDateModified("KaryawanDB", dateModified) // Store dynamically
             } else {
                 Log.e("ParseJsonData", "KaryawanDB key is missing")
@@ -462,6 +484,7 @@ class HomePageActivity : AppCompatActivity() {
                 )
                 Log.d("ParsedData", "KemandoranDB: $kemandoranList")
                 this.kemandoranList = kemandoranList
+//                datasetViewModel.updateOrInsertKemandoran(kemandoranList)
                 prefManager?.setDateModified("KemandoranDB", dateModified) // Store dynamically
             } else {
                 Log.e("ParseJsonData", "KemandoranDB key is missing")
@@ -477,6 +500,7 @@ class HomePageActivity : AppCompatActivity() {
                 )
                 Log.d("ParsedData", "KemandoranDetailDB: $kemandoranDetailList")
                 this.kemandoranDetailList = kemandoranDetailList
+//                datasetViewModel.updateOrInsertKemandoranDetail(kemandoranDetailList)
                 prefManager?.setDateModified("KemandoranDetailDB", dateModified) // Store dynamically
             } else {
                 Log.e("ParseJsonData", "KemandoranDetailDB key is missing")
@@ -776,11 +800,11 @@ class HomePageActivity : AppCompatActivity() {
         }
 
 
-        if (!isInternetAvailable()) {
-            Log.d("NetworkCheck", "No internet connection available")
-            filesToUpdate.clear()  // Clear any pending updates
-            return false
-        }
+//        if (!isInternetAvailable()) {
+//            Log.d("NetworkCheck", "No internet connection available")
+//            filesToUpdate.clear()  // Clear any pending updates
+//            return false
+//        }
 
         val shouldDownload = checkServerDates()
         Log.d("testing", filesToUpdate.toString())

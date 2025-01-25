@@ -1,7 +1,11 @@
 package com.cbi.markertph.data.model
 
-data class RegionalModel (
-    val id:Int,
-    val abbr:String,
-    val nama:String,
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "regional")
+data class RegionalModel(
+    @PrimaryKey val id: Int,
+    val abbr: String,
+    val nama: String
 )

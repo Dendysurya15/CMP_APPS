@@ -2,17 +2,9 @@ package com.cbi.cmp_project.utils
 
 import android.content.Context
 import android.provider.Settings.Global.putString
-import com.cbi.cmp_project.data.model.BUnitCodeModel
-import com.cbi.cmp_project.data.model.CompanyCodeModel
-import com.cbi.cmp_project.data.model.DivisionCodeModel
-import com.cbi.cmp_project.data.model.FieldCodeModel
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
-import com.cbi.cmp_project.data.model.TPHModel
-import com.cbi.cmp_project.data.model.WorkerGroupModel
-import com.cbi.cmp_project.data.model.WorkerInGroupModel
-import com.cbi.cmp_project.data.model.WorkerModel
 import com.cbi.markertph.data.model.BlokModel
 import com.cbi.markertph.data.model.DeptModel
 import com.cbi.markertph.data.model.DivisiModel
