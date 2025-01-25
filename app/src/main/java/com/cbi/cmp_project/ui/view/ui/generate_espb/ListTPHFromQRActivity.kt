@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.ui.view.generate_espb
+package com.cbi.cmp_project.ui.view.ui.generate_espb
 
 import android.os.Bundle
 import android.util.Base64

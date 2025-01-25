@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.ui.view.generate_espb
+package com.cbi.cmp_project.ui.view.ui.generate_espb
 
 import android.Manifest
 import android.content.Intent
@@ -63,14 +63,8 @@ class GenerateEspbActivity : AppCompatActivity() {
             setOrientationLocked(false)
             setBeepEnabled(true)
             setPrompt("Align QR code within the frame")
-
-            // Customize scanner settings for better performance
-//            setViewfinderWidth(800)  // Larger scanning area
-//            setViewfinderHeight(800)
             setTimeout(60000)  // 60 second timeout
-            // Additional settings for complex QR codes
             setCameraId(0)  // Use back camera
-//            setInvertScan(false)  // Don't invert image scanning
             setBarcodeImageEnabled(true)  // Save scanned barcode image
         }
 

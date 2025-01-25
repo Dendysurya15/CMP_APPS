@@ -21,7 +21,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.databinding.FragmentHomeBinding
 import com.cbi.cmp_project.ui.view.FeaturePanenTBSActivity
-import com.cbi.cmp_project.ui.view.generate_espb.GenerateEspbActivity
+import com.cbi.cmp_project.ui.view.ui.generate_espb.GenerateEspbActivity
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File

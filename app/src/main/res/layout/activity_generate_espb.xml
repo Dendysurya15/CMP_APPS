@@ -5,7 +5,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.view.generate_espb.GenerateEspbActivity">
+    tools:context=".ui.view.ui.generate_espb.GenerateEspbActivity">
 
     <androidx.camera.view.PreviewView
         android:id="@+id/preview_view"

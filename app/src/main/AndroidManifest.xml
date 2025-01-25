@@ -37,10 +37,10 @@
         android:theme="@style/Theme.Cmp_project"
         tools:targetApi="31">
         <activity
-            android:name=".ui.view.generate_espb.ListTPHFromQRActivity"
+            android:name=".ui.view.ui.generate_espb.ListTPHFromQRActivity"
             android:exported="false" />
         <activity
-            android:name=".ui.view.generate_espb.GenerateEspbActivity"
+            android:name=".ui.view.ui.generate_espb.GenerateEspbActivity"
             android:exported="false" />
         <activity
             android:name=".ui.view.FeaturePanenTBSActivity"
