@@ -9,7 +9,6 @@ data class PanenEntity(
     val tph_id: String,
     val date_created: Int,
     val created_by: Int,
-    val approved_by: Int,
     val karyawan_id: String,
     val jjg_json: String,
     val foto: String,
@@ -18,5 +17,6 @@ data class PanenEntity(
     val lat: Double,
     val lon: Double,
     val jenis_panen: Int,
-    val ancak: Int
+    val ancak: Int,
+    val archive: Int
 )

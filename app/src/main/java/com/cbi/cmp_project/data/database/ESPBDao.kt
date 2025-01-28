@@ -2,24 +2,46 @@ package com.cbi.cmp_project.data.database
 
 import androidx.room.*
 import com.cbi.cmp_project.data.model.ESPBEntity
+import com.cbi.cmp_project.data.model.PanenEntity
 
 @Dao
-interface EspbDao {
+abstract class ESPBDao {
     @Insert
-    suspend fun insert(user: ESPBEntity)
+    abstract fun insert(espb: List<ESPBEntity>)
 
     @Update
-    suspend fun update(user: ESPBEntity)
+    abstract fun update(espb: List<ESPBEntity>)
 
     @Delete
-    suspend fun delete(user: ESPBEntity)
-
-    @Query("SELECT * FROM espb_table")
-    suspend fun getAllEntries(): List<ESPBEntity>
+    abstract fun deleteAll(espb: List<ESPBEntity>)
 
     @Query("SELECT * FROM espb_table WHERE id = :id")
-    suspend fun getEntryById(id: Int): ESPBEntity?
+    abstract fun getById(id: Int): ESPBEntity?
+
+    @Query("SELECT * FROM espb_table")
+    abstract fun getAll(): List<ESPBEntity>
+
+    @Query("SELECT * FROM espb_table WHERE archive = 1")
+    abstract fun getAllArchived(): List<ESPBEntity>
+
+    @Query("SELECT * FROM espb_table WHERE archive = 0")
+    abstract fun getAllActive(): List<ESPBEntity>
 
     @Query("DELETE FROM espb_table WHERE id = :id")
-    suspend fun deleteById(id: Int)
+    abstract fun deleteByID(id: Int): Int
+
+    @Query("DELETE FROM espb_table WHERE id IN (:id)")
+    abstract fun deleteByListID(id: List<Int>): Int
+
+    @Query("UPDATE espb_table SET archive = 1 WHERE id = :id")
+    abstract fun archiveByID(id: Int): Int
+
+    @Query("UPDATE espb_table SET archive = 1 WHERE id IN (:id)")
+    abstract fun archiveByListID(id: List<Int>): Int
+
+    @Transaction
+    open fun updateOrInsert(espb: List<ESPBEntity>) {
+        deleteAll(espb)
+        insert(espb)
+    }
 }

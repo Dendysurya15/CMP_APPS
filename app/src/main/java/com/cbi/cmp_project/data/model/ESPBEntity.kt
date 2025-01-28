@@ -2,6 +2,7 @@ package com.cbi.cmp_project.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.github.junrar.Archive
 
 @Entity(tableName = "espb_table")
 data class ESPBEntity(
@@ -14,5 +15,6 @@ data class ESPBEntity(
     val driver: String,
     val transporter_id: Int,
     val mill_id: Int,
-    val flags: String
+    val flags: String,
+    val archive: Int
 )

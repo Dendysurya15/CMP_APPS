@@ -1,23 +1,48 @@
 package com.cbi.cmp_project.data.database
 
 import androidx.room.*
+import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.PanenEntity
 
 @Dao
-interface PanenDao {
+abstract class PanenDao {
 
     @Insert
-    suspend fun insert(panen: PanenEntity)
+    abstract fun insert(panen: List<PanenEntity>)
 
     @Update
-    suspend fun update(panen: PanenEntity)
+    abstract fun update(panen: List<PanenEntity>)
 
     @Delete
-    suspend fun delete(panen: PanenEntity)
+    abstract fun deleteAll(panen: List<PanenEntity>)
 
     @Query("SELECT * FROM panen_table WHERE id = :id")
-    suspend fun getById(id: Int): PanenEntity?
+    abstract fun getById(id: Int): PanenEntity?
 
     @Query("SELECT * FROM panen_table")
-    suspend fun getAll(): List<PanenEntity>
+    abstract fun getAll(): List<PanenEntity>
+
+    @Query("SELECT * FROM panen_table WHERE archive = 1")
+    abstract fun getAllArchived(): List<PanenEntity>
+
+    @Query("SELECT * FROM panen_table WHERE archive = 0")
+    abstract fun getAllActive(): List<PanenEntity>
+
+    @Query("DELETE FROM panen_table WHERE id = :id")
+    abstract fun deleteByID(id: Int): Int
+
+    @Query("DELETE FROM panen_table WHERE id IN (:id)")
+    abstract fun deleteByListID(id: List<Int>): Int
+
+    @Query("UPDATE panen_table SET archive = 1 WHERE id = :id")
+    abstract fun archiveByID(id: Int): Int
+
+    @Query("UPDATE panen_table SET archive = 1 WHERE id IN (:id)")
+    abstract fun archiveByListID(id: List<Int>): Int
+
+    @Transaction
+    open fun updateOrInsert(panen: List<PanenEntity>) {
+        deleteAll(panen)
+        insert(panen)
+    }
 }
