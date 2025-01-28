@@ -5,21 +5,21 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
-import com.cbi.markertph.data.model.DeptModel
-import com.cbi.markertph.data.model.DivisiModel
+import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.markertph.data.model.WilayahModel
 
 @Dao
-abstract class DivisiDao {
+abstract class TPHDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    abstract fun insertAll(divisi: List<DivisiModel>)
+    abstract fun insertAll(tph: List<TPHNewModel>)
 
-    @Query("DELETE FROM divisi")
+    @Query("DELETE FROM wilayah")
     abstract fun deleteAll()
 
     @Transaction
-    open fun updateOrInsertDivisi(divisi: List<DivisiModel>) {
+    open fun updateOrInsertTPH(tph: List<TPHNewModel>) {
         deleteAll()
-        insertAll(divisi)
+        insertAll(tph)
     }
 }

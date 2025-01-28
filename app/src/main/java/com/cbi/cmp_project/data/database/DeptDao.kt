@@ -12,7 +12,7 @@ import com.cbi.markertph.data.model.WilayahModel
 abstract class DeptDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    abstract fun insertAll(wilayah: List<DeptModel>)
+    abstract fun insertAll(dept: List<DeptModel>)
 
     @Query("DELETE FROM dept")
     abstract fun deleteAll()

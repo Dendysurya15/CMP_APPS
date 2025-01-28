@@ -37,6 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
     abstract fun kemandoranDetailDao(): KemandoranDetailDao
     abstract fun karyawanDao(): KaryawanDao
+    abstract fun tphDao(): TPHDao
 
 
 

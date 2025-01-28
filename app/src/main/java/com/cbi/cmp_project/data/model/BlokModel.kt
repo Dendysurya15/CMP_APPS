@@ -7,31 +7,31 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "blok",
-    foreignKeys = [
-        ForeignKey(
-            entity = RegionalModel::class, // Reference the RegionalModel table
-            parentColumns = ["id"], // Column in RegionalModel
-            childColumns = ["regional"], // Column in DeptModel
-            onDelete = ForeignKey.CASCADE // Optional: Behavior on delete
-        ),
-        ForeignKey(
-            entity = DeptModel::class, // Reference the WilayahModel table
-            parentColumns = ["id"], // Column in WilayahModel
-            childColumns = ["dept"], // Column in DeptModel
-            onDelete = ForeignKey.CASCADE // Optional: Behavior on delete
-        ),
-        ForeignKey(
-            entity = DivisiModel::class, // Reference the WilayahModel table
-            parentColumns = ["id"], // Column in WilayahModel
-            childColumns = ["divisi"], // Column in DeptModel
-            onDelete = ForeignKey.CASCADE // Optional: Behavior on delete
-        )
-    ],
-    indices = [
-        Index(value = ["regional"]), // Index for regional column
-        Index(value = ["dept"]) , // Index for wilayah column
-                Index(value = ["divisi"])  // Index for wilayah column
-    ]
+//    foreignKeys = [
+//        ForeignKey(
+//            entity = RegionalModel::class, // Reference the RegionalModel table
+//            parentColumns = ["id"], // Column in RegionalModel
+//            childColumns = ["regional"], // Column in DeptModel
+//            onDelete = ForeignKey.CASCADE // Optional: Behavior on delete
+//        ),
+//        ForeignKey(
+//            entity = DeptModel::class, // Reference the WilayahModel table
+//            parentColumns = ["id"], // Column in WilayahModel
+//            childColumns = ["dept"], // Column in DeptModel
+//            onDelete = ForeignKey.CASCADE // Optional: Behavior on delete
+//        ),
+//        ForeignKey(
+//            entity = DivisiModel::class, // Reference the WilayahModel table
+//            parentColumns = ["id"], // Column in WilayahModel
+//            childColumns = ["divisi"], // Column in DeptModel
+//            onDelete = ForeignKey.CASCADE // Optional: Behavior on delete
+//        )
+//    ],
+//    indices = [
+//        Index(value = ["regional"]), // Index for regional column
+//        Index(value = ["dept"]) , // Index for wilayah column
+//                Index(value = ["divisi"])  // Index for wilayah column
+//    ]
 )
 data class BlokModel (
     @PrimaryKey val id:Int,

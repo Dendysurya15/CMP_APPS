@@ -7,18 +7,18 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "divisi",
-    foreignKeys = [
-        ForeignKey(
-            entity = DeptModel::class, // Reference the RegionalModel table
-            parentColumns = ["id"], // Column in RegionalModel
-            childColumns = ["dept"], // Column in DeptModel
-            onDelete = ForeignKey.CASCADE // Optional: Behavior on delete
-        ),
-
-    ],
-    indices = [
-        Index(value = ["dept"]), // Index for regional column
-    ]
+//    foreignKeys = [
+//        ForeignKey(
+//            entity = DeptModel::class, // Reference the RegionalModel table
+//            parentColumns = ["id"], // Column in RegionalModel
+//            childColumns = ["dept"], // Column in DeptModel
+//            onDelete = ForeignKey.CASCADE // Optional: Behavior on delete
+//        ),
+//
+//    ],
+//    indices = [
+//        Index(value = ["dept"]), // Index for regional column
+//    ]
 )
 data class DivisiModel (
     @PrimaryKey val id:Int,

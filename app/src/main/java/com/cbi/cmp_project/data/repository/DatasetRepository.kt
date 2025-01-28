@@ -10,12 +10,12 @@ import com.cbi.markertph.data.model.BlokModel
 import com.cbi.markertph.data.model.DeptModel
 import com.cbi.markertph.data.model.DivisiModel
 import com.cbi.markertph.data.model.RegionalModel
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.markertph.data.model.WilayahModel
 
 class DatasetRepository(context: Context) {
 
     private val database = AppDatabase.getDatabase(context)
-
     private val regionalDao = database.regionalDao()
     private val wilayahDao = database.wilayahDao()
     private val deptDao = database.deptDao()
@@ -24,36 +24,15 @@ class DatasetRepository(context: Context) {
     private val karyawanDao = database.karyawanDao()
     private val kemandoranDao = database.kemandoranDao()
     private val kemandoranDetailDao = database.kemandoranDetailDao()
+    private val tphDao = database.tphDao()
 
-    suspend fun updateOrInsertRegional(regionals: List<RegionalModel>) {
-        regionalDao.updateOrInsertRegional(regionals)
-    }
-
-    suspend fun updateOrInsertWilayah(wilayah: List<WilayahModel>) {
-        wilayahDao.updateOrInsertWilayah(wilayah)
-    }
-
-    suspend fun updateOrInsertDept(depts: List<DeptModel>) {
-        deptDao.updateOrInsertDept(depts)
-    }
-
-    suspend fun updateOrInsertDivisi(divisions: List<DivisiModel>) {
-        divisiDao.updateOrInsertDivisi(divisions)
-    }
-
-    suspend fun updateOrInsertBlok(bloks: List<BlokModel>) {
-        blokDao.updateOrInsertBlok(bloks)
-    }
-
-    suspend fun updateOrInsertKaryawan(karyawans: List<KaryawanModel>) {
-        karyawanDao.updateOrInsertKaryawan(karyawans)
-    }
-
-    suspend fun updateOrInsertKemandoran(kemandorans: List<KemandoranModel>) {
-        kemandoranDao.updateOrInsertKemandoran(kemandorans)
-    }
-
-    suspend fun updateOrInsertKemandoranDetail(kemandoran_detail: List<KemandoranDetailModel>) {
-        kemandoranDetailDao.updateOrInsertKemandoranDetail(kemandoran_detail)
-    }
+    suspend fun updateOrInsertRegional(regionals: List<RegionalModel>) = regionalDao.updateOrInsertRegional(regionals)
+    suspend fun updateOrInsertWilayah(wilayah: List<WilayahModel>) = wilayahDao.updateOrInsertWilayah(wilayah)
+    suspend fun updateOrInsertDept(depts: List<DeptModel>) = deptDao.updateOrInsertDept(depts)
+    suspend fun updateOrInsertDivisi(divisions: List<DivisiModel>) = divisiDao.updateOrInsertDivisi(divisions)
+    suspend fun updateOrInsertBlok(bloks: List<BlokModel>) = blokDao.updateOrInsertBlok(bloks)
+    suspend fun updateOrInsertKaryawan(karyawans: List<KaryawanModel>) = karyawanDao.updateOrInsertKaryawan(karyawans)
+    suspend fun updateOrInsertKemandoran(kemandorans: List<KemandoranModel>) = kemandoranDao.updateOrInsertKemandoran(kemandorans)
+    suspend fun updateOrInsertKemandoranDetail(kemandoran_detail: List<KemandoranDetailModel>) = kemandoranDetailDao.updateOrInsertKemandoranDetail(kemandoran_detail)
+    suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) = tphDao.updateOrInsertTPH(tph)
 }

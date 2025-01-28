@@ -7,24 +7,24 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "dept",
-    foreignKeys = [
-        ForeignKey(
-            entity = RegionalModel::class, // Reference the RegionalModel table
-            parentColumns = ["id"], // Column in RegionalModel
-            childColumns = ["regional"], // Column in DeptModel
-            onDelete = ForeignKey.CASCADE // Optional: Behavior on delete
-        ),
-        ForeignKey(
-            entity = WilayahModel::class, // Reference the WilayahModel table
-            parentColumns = ["id"], // Column in WilayahModel
-            childColumns = ["wilayah"], // Column in DeptModel
-            onDelete = ForeignKey.CASCADE // Optional: Behavior on delete
-        )
-    ],
-    indices = [
-        Index(value = ["regional"]), // Index for regional column
-        Index(value = ["wilayah"])  // Index for wilayah column
-    ]
+//    foreignKeys = [
+//        ForeignKey(
+//            entity = RegionalModel::class, // Reference the RegionalModel table
+//            parentColumns = ["id"], // Column in RegionalModel
+//            childColumns = ["regional"], // Column in DeptModel
+//            onDelete = ForeignKey.CASCADE // Optional: Behavior on delete
+//        ),
+//        ForeignKey(
+//            entity = WilayahModel::class, // Reference the WilayahModel table
+//            parentColumns = ["id"], // Column in WilayahModel
+//            childColumns = ["wilayah"], // Column in DeptModel
+//            onDelete = ForeignKey.CASCADE // Optional: Behavior on delete
+//        )
+//    ],
+//    indices = [
+//        Index(value = ["regional"]), // Index for regional column
+//        Index(value = ["wilayah"])  // Index for wilayah column
+//    ]
 )
 data class DeptModel(
     @PrimaryKey val id: Int,

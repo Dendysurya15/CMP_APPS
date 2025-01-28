@@ -54,9 +54,14 @@ import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.markertph.data.model.WilayahModel
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
@@ -113,6 +118,7 @@ class HomePageActivity : AppCompatActivity() {
         prefManager = PrefManager(this)
         loadingDialog = LoadingDialog(this)
         initViewModel()
+        setupStatusObservers()
         dataCacheManager = DataCacheManager(this)
         checkPermissions()
 
@@ -282,6 +288,45 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
+    private suspend fun trackInsertionStatus(): Result<Unit> = coroutineScope {
+        try {
+            // Create pairs of dataset name and its deferred result
+            val statusFlows = listOf(
+                "Regional" to async { datasetViewModel.regionalStatus.first() },
+                "Wilayah" to async { datasetViewModel.wilayahStatus.first() },
+                "Department" to async { datasetViewModel.deptStatus.first() },
+                "Divisi" to async { datasetViewModel.divisiStatus.first() },
+                "Blok" to async { datasetViewModel.blokStatus.first() },
+                "Kemandoran" to async { datasetViewModel.kemandoranStatus.first() },
+                "Kemandoran Detail" to async { datasetViewModel.kemandoranDetailStatus.first() },
+                "Karyawan" to async { datasetViewModel.karyawanStatus.first() },
+                "TPH" to async { datasetViewModel.tphStatus.first() }
+            )
+
+            // Wait for all insertions to complete
+            val results = statusFlows.map { (datasetName, deferred) ->
+                datasetName to deferred.await()
+            }
+
+            // Check if any insertion failed
+            val failures = results.mapNotNull { (datasetName, result) ->
+                result.fold(
+                    onSuccess = { null },
+                    onFailure = { "- ${datasetName}: ${it.message} \n" }
+                )
+            }
+
+            if (failures.isNotEmpty()) {
+                val errorMessage = failures.joinToString("\n")
+                throw Exception(errorMessage)
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     private fun loadAllFilesAsync() {
         val filesToDownload = AppUtils.ApiCallManager.apiCallList.map { it.first }
         Log.d("LoadFiles", "Starting to load files: ${filesToDownload.joinToString()}")
@@ -298,6 +343,7 @@ class HomePageActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
+                // Process files
                 withContext(Dispatchers.IO) {
                     filesToDownload.forEachIndexed { index, fileName ->
                         Log.d("LoadFiles", "Processing file $fileName (${index + 1}/${filesToDownload.size})")
@@ -311,40 +357,68 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
 
-                Log.d("LoadFiles", """
-                Data loaded:
-                - Regionals: ${regionalList.size}
-                - Wilayah: ${wilayahList.size}
-                - Dept: ${deptList.size}
-                - Divisi: ${divisiList.size}
-                - Blok: ${blokList.size}
-                - TPH: ${tphList?.size ?: 0}
-            """.trimIndent())
+                // Wait for all insertions to complete and check for errors
+                val insertionResult = trackInsertionStatus()
 
-                dataCacheManager.saveDatasets(
-                    regionalList,
-                    wilayahList,
-                    deptList,
-                    divisiList,
-                    blokList,
-                    tphList!!,
-                    karyawanList,
-                    kemandoranList,
-                    kemandoranDetailList
+                insertionResult.fold(
+                    onSuccess = {
+                        Log.d("LoadFiles", """
+                        Data loaded:
+                        - Regionals: ${regionalList.size}
+                        - Wilayah: ${wilayahList.size}
+                        - Dept: ${deptList.size}
+                        - Divisi: ${divisiList.size}
+                        - Blok: ${blokList.size}
+                        - TPH: ${tphList?.size ?: 0}
+                    """.trimIndent())
+
+//                        dataCacheManager.saveDatasets(
+//                            regionalList,
+//                            wilayahList,
+//                            deptList,
+//                            divisiList,
+//                            blokList,
+//                            tphList!!,
+//                            karyawanList,
+//                            kemandoranList,
+//                            kemandoranDetailList
+//                        )
+                    },
+                    onFailure = { error ->
+                        withContext(Dispatchers.Main) {
+                            AlertDialogUtility.withSingleAction(
+                                this@HomePageActivity,
+                                stringXML(R.string.al_back),
+                                "Dataset gagal di simpan!",
+                                error.message ?: "Error Terjadi Saat proses penyimpanan ke database",
+                                "warning.json",
+                                R.color.colorRedDark
+                            ) {}
+                        }
+                    }
                 )
             } catch (e: Exception) {
                 Log.e("LoadFiles", "Error loading files", e)
+                withContext(Dispatchers.Main) {
+                    AlertDialogUtility.withSingleAction(
+                        this@HomePageActivity,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_no_internet_connection),
+                        "Error loading files: ${e.message}",
+                        "network_error.json",
+                        R.color.colorRedDark
+                    ) {}
+                }
             } finally {
                 withContext(Dispatchers.Main) {
                     loadingDialog.dismiss()
                     progressJob.cancel()
-
                 }
             }
         }
     }
 
-    private fun decompressFile(file: File, isLastFile: Boolean) {
+    private suspend fun decompressFile(file: File, isLastFile: Boolean) {
         try {
             Log.d("Decompress", "Starting decompression of ${file.name}")
 
@@ -354,11 +428,13 @@ class HomePageActivity : AppCompatActivity() {
                     handleLargeFileChunked(file, isLastFile)
                 }
                 else -> {
-                    GZIPInputStream(file.inputStream()).use { gzipInputStream ->
-                        val decompressedData = gzipInputStream.readBytes()
-                        Log.d("Decompress", "Decompressed ${file.name}: ${decompressedData.size} bytes")
-                        val jsonString = String(decompressedData, Charsets.UTF_8)
-                        parseJsonData(jsonString, isLastFile)
+                    withContext(Dispatchers.IO) {
+                        GZIPInputStream(file.inputStream()).use { gzipInputStream ->
+                            val decompressedData = gzipInputStream.readBytes()
+                            Log.d("Decompress", "Decompressed ${file.name}: ${decompressedData.size} bytes")
+                            val jsonString = String(decompressedData, Charsets.UTF_8)
+                            parseJsonData(jsonString, isLastFile)
+                        }
                     }
                 }
             }
@@ -368,155 +444,218 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("SuspiciousIndentation")
+    private fun setupStatusObservers() {
+        lifecycleScope.launch {
+            launch {
+                datasetViewModel.regionalStatus.collect { result ->
+                    result.fold(
+                        onSuccess = { if(it) Log.d("testing", "Regional inserted") },
+                        onFailure = { Log.e("testing", "Regional error: ${it.message}") }
+                    )
+                }
+            }
+
+            launch {
+                datasetViewModel.wilayahStatus.collect { result ->
+                    result.fold(
+                        onSuccess = { if(it) Log.d("testing", "Wilayah inserted") },
+                        onFailure = { Log.e("testing", "Wilayah error: ${it.message}") }
+                    )
+                }
+            }
+
+            launch {
+                datasetViewModel.deptStatus.collect { result ->
+                    result.fold(
+                        onSuccess = { if(it) Log.d("testing", "Dept inserted") },
+                        onFailure = { Log.e("testing", "Dept error: ${it.message}") }
+                    )
+                }
+            }
+
+            launch {
+                datasetViewModel.divisiStatus.collect { result ->
+                    result.fold(
+                        onSuccess = { if(it) Log.d("testing", "Divisi inserted") },
+                        onFailure = { Log.e("testing", "Divisi error: ${it.message}") }
+                    )
+                }
+            }
+
+            launch {
+                datasetViewModel.blokStatus.collect { result ->
+                    result.fold(
+                        onSuccess = { if(it) Log.d("testing", "Blok inserted") },
+                        onFailure = { Log.e("testing", "Blok error: ${it.message}") }
+                    )
+                }
+            }
+
+            launch {
+                datasetViewModel.kemandoranStatus.collect { result ->
+                    result.fold(
+                        onSuccess = { if(it) Log.d("testing", "Kemandoran inserted") },
+                        onFailure = { Log.e("testing", "Kemandoran error: ${it.message}") }
+                    )
+                }
+            }
+
+            launch {
+                datasetViewModel.kemandoranDetailStatus.collect { result ->
+                    result.fold(
+                        onSuccess = { if(it) Log.d("testing", "KemandoranDetail inserted") },
+                        onFailure = { Log.e("testing", "KemandoranDetail error: ${it.message}") }
+                    )
+                }
+            }
+
+            launch {
+                datasetViewModel.karyawanStatus.collect { result ->
+                    result.fold(
+                        onSuccess = { if(it) Log.d("testing", "Karyawan inserted") },
+                        onFailure = { Log.e("testing", "Karyawan error: ${it.message}") }
+                    )
+                }
+            }
+
+            launch {
+                datasetViewModel.tphStatus.collect { result ->
+                    result.fold(
+                        onSuccess = { if(it) Log.d("testing", "TPH inserted") },
+                        onFailure = { Log.e("testing", "TPH error: ${it.message}") }
+                    )
+                }
+            }
+        }
+    }
+
     private fun parseJsonData(jsonString: String, isLastFile: Boolean) {
-        try {
-            val jsonObject = JSONObject(jsonString)
-            val gson = Gson()
-
-            val keyObject = jsonObject.getJSONObject("key")
-            val dateModified = jsonObject.getString("date_modified")
-
-            // Parse CompanyCodeDB
-            if (jsonObject.has("RegionalDB")) {
-                val companyCodeArray = jsonObject.getJSONArray("RegionalDB")
-
+        lifecycleScope.launch {
+            try {
+                val jsonObject = JSONObject(jsonString)
+                val gson = Gson()
+                val keyObject = jsonObject.getJSONObject("key")
                 val dateModified = jsonObject.getString("date_modified")
-                val transformedCompanyCodeArray = transformJsonArray(companyCodeArray, keyObject)
-                val regionalList: List<RegionalModel> = gson.fromJson(
-                    transformedCompanyCodeArray.toString(),
-                    object : TypeToken<List<RegionalModel>>() {}.type
-                )
 
-                prefManager?.setDateModified("RegionalDB", dateModified)
-                datasetViewModel.updateOrInsertRegional(regionalList)
-                this.regionalList = regionalList
-            } else {
-                Log.e("ParseJsonData", "RegionalDB key is missing")
+                coroutineScope {
+                    // Regional
+                    val regionalJob = async {
+                        jsonObject.optJSONArray("RegionalDB")?.let { array ->
+                            val transformedArray = transformJsonArray(array, keyObject)
+                            val regionalList: List<RegionalModel> = gson.fromJson(
+                                transformedArray.toString(),
+                                object : TypeToken<List<RegionalModel>>() {}.type
+                            )
+//                            Log.d("testing", "Regional Data: $transformedArray")
+//                            Log.d("testing", "Regional IDs: ${regionalList.map { it.id }}")
+                            datasetViewModel.updateOrInsertRegional(regionalList)
+                        }
+                    }
+                    regionalJob.await()
+
+    // Wilayah
+                    val wilayahJob = async {
+                        jsonObject.optJSONArray("WilayahDB")?.let { array ->
+                            val transformedArray = transformJsonArray(array, keyObject)
+//                            Log.d("testing", "Wilayah Data: $transformedArray")
+                            val wilayahList: List<WilayahModel> = gson.fromJson(
+                                transformedArray.toString(),
+                                object : TypeToken<List<WilayahModel>>() {}.type
+                            )
+                            Log.d("testing", "Wilayah IDs: ${wilayahList.map { it.id }}")
+                            datasetViewModel.updateOrInsertWilayah(wilayahList)
+                        }
+                    }
+                    wilayahJob.await()
+
+                    // Dept
+                    // Dept insertion with debugging
+                    val deptJob = async {
+                        jsonObject.optJSONArray("DeptDB")?.let { array ->
+                            val transformedArray = transformJsonArrayInChunks(array, keyObject)
+//                            Log.d("TESTING", "Dept Raw Data: $transformedArray")
+                            val deptList: List<DeptModel> = gson.fromJson(
+                                transformedArray.toString(),
+                                object : TypeToken<List<DeptModel>>() {}.type
+                            )
+                            datasetViewModel.updateOrInsertDept(deptList)
+                        }
+                    }
+                    deptJob.await()
+
+                    // Divisi
+                    val divisiJob = async {
+                        jsonObject.optJSONArray("DivisiDB")?.let { array ->
+                            val transformedArray = transformJsonArrayInChunks(array, keyObject)
+                            val divisiList: List<DivisiModel> = gson.fromJson(
+                                transformedArray.toString(),
+                                object : TypeToken<List<DivisiModel>>() {}.type
+                            )
+                            datasetViewModel.updateOrInsertDivisi(divisiList)
+                            prefManager?.setDateModified("DivisiDB", dateModified)
+                        }
+                    }
+                    divisiJob.await()
+
+                    // Blok
+                    val blokJob = async {
+                        jsonObject.optJSONArray("BlokDB")?.let { array ->
+                            val transformedArray = transformJsonArrayInChunks(array, keyObject)
+                            val blokList: List<BlokModel> = gson.fromJson(
+                                transformedArray.toString(),
+                                object : TypeToken<List<BlokModel>>() {}.type
+                            )
+                            datasetViewModel.updateOrInsertBlok(blokList)
+                            prefManager?.setDateModified("BlokDB", dateModified)
+                        }
+                    }
+                    blokJob.await()
+
+                    // Karyawan
+                    val karyawanJob = async {
+                        jsonObject.optJSONArray("KaryawanDB")?.let { array ->
+                            val transformedArray = transformJsonArrayInChunks(array, keyObject)
+                            val karyawanList: List<KaryawanModel> = gson.fromJson(
+                                transformedArray.toString(),
+                                object : TypeToken<List<KaryawanModel>>() {}.type
+                            )
+                            datasetViewModel.updateOrInsertKaryawan(karyawanList)
+                            prefManager?.setDateModified("KaryawanDB", dateModified)
+                        }
+                    }
+                    karyawanJob.await()
+
+                    // Kemandoran
+                    val kemandoranJob = async {
+                        jsonObject.optJSONArray("KemandoranDB")?.let { array ->
+                            val transformedArray = transformJsonArrayInChunks(array, keyObject)
+                            val kemandoranList: List<KemandoranModel> = gson.fromJson(
+                                transformedArray.toString(),
+                                object : TypeToken<List<KemandoranModel>>() {}.type
+                            )
+                            datasetViewModel.updateOrInsertKemandoran(kemandoranList)
+                            prefManager?.setDateModified("KemandoranDB", dateModified)
+                        }
+                    }
+                    kemandoranJob.await()
+
+                    // KemandoranDetail
+                    val kemandoranDetailJob = async {
+                        jsonObject.optJSONArray("KemandoranDetailDB")?.let { array ->
+                            val transformedArray = transformJsonArrayInChunks(array, keyObject)
+                            val kemandoranDetailList: List<KemandoranDetailModel> = gson.fromJson(
+                                transformedArray.toString(),
+                                object : TypeToken<List<KemandoranDetailModel>>() {}.type
+                            )
+                            datasetViewModel.updateOrInsertKemandoranDetail(kemandoranDetailList)
+                            prefManager?.setDateModified("KemandoranDetailDB", dateModified)
+                        }
+                    }
+                    kemandoranDetailJob.await()
+                }
+            } catch (e: JSONException) {
+                Log.e("ParseJsonData", "Error parsing JSON: ${e.message}")
             }
-
-
-            if (jsonObject.has("WilayahDB")) {
-                val companyCodeArray = jsonObject.getJSONArray("WilayahDB")
-                val transformedCompanyCodeArray = transformJsonArray(companyCodeArray, keyObject)
-                val wilayahList: List<WilayahModel> = gson.fromJson(
-                    transformedCompanyCodeArray.toString(),
-                    object : TypeToken<List<WilayahModel>>() {}.type
-                )
-                Log.d("ParsedData", "WilayahDB: $wilayahList")
-                this.wilayahList = wilayahList
-//                datasetViewModel.updateOrInsertWilayah(wilayahList)
-                prefManager?.setDateModified("WilayahDB", dateModified) // Store dynamically
-            } else {
-                Log.e("ParseJsonData", "WilayahDB key is missing")
-            }
-
-            if (jsonObject.has("DeptDB")) {
-                val bUnitCodeArray = jsonObject.getJSONArray("DeptDB")
-                val transformedBUnitCodeArray = transformJsonArray(bUnitCodeArray, keyObject)
-                val deptList: List<DeptModel> = gson.fromJson(
-                    transformedBUnitCodeArray.toString(),
-                    object : TypeToken<List<DeptModel>>() {}.type
-                )
-                Log.d("ParsedData", "BUnitCode: $deptList")
-                this.deptList = deptList
-//                datasetViewModel.updateOrInsertDept(deptList)
-                prefManager?.setDateModified("DeptDB", dateModified) // Store dynamically
-            } else {
-                Log.e("ParseJsonData", "DeptDB key is missing")
-            }
-
-            // Parse DivisionCodeDB
-            if (jsonObject.has("DivisiDB")) {
-                val divisionCodeArray = jsonObject.getJSONArray("DivisiDB")
-                val transformedDivisionCodeArray = transformJsonArray(divisionCodeArray, keyObject)
-                val divisiList: List<DivisiModel> = gson.fromJson(
-                    transformedDivisionCodeArray.toString(),
-                    object : TypeToken<List<DivisiModel>>() {}.type
-                )
-                Log.d("ParsedData", "DivisionCode: $divisiList")
-                this.divisiList = divisiList
-//                datasetViewModel.updateOrInsertDivisi(divisiList)
-                prefManager?.setDateModified("DivisiDB", dateModified) // Store dynamically
-            } else {
-                Log.e("ParseJsonData", "DivisiDB key is missing")
-            }
-
-            // Parse FieldCodeDB
-            if (jsonObject.has("BlokDB")) {
-                val fieldCodeArray = jsonObject.getJSONArray("BlokDB")
-                val transformedFieldCodeArray = transformJsonArray(fieldCodeArray, keyObject)
-                val blokList: List<BlokModel> = gson.fromJson(
-                    transformedFieldCodeArray.toString(),
-                    object : TypeToken<List<BlokModel>>() {}.type
-                )
-                Log.d("ParsedData", "FieldCode: $blokList")
-                this.blokList = blokList
-//                datasetViewModel.updateOrInsertBlok(blokList)
-                prefManager?.setDateModified("BlokDB", dateModified) // Store dynamically
-            } else {
-                Log.e("ParseJsonData", "BlokDB key is missing")
-            }
-
-            // Parse KaryawanDB
-            if (jsonObject.has("KaryawanDB")) {
-                val fieldCodeArray = jsonObject.getJSONArray("KaryawanDB")
-                val transformedFieldCodeArray = transformJsonArrayInChunks(fieldCodeArray, keyObject)
-                val karyawanList: List<KaryawanModel> = gson.fromJson(
-                    transformedFieldCodeArray.toString(),
-                    object : TypeToken<List<KaryawanModel>>() {}.type
-                )
-                Log.d("ParsedData", "KaryawanDB: $karyawanList")
-                this.karyawanList = karyawanList
-//                datasetViewModel.updateOrInsertKaryawan(karyawanList)
-                prefManager?.setDateModified("KaryawanDB", dateModified) // Store dynamically
-            } else {
-                Log.e("ParseJsonData", "KaryawanDB key is missing")
-            }
-
-            // Parse KemandoranDB
-            if (jsonObject.has("KemandoranDB")) {
-                val fieldCodeArray = jsonObject.getJSONArray("KemandoranDB")
-                val transformedFieldCodeArray = transformJsonArrayInChunks(fieldCodeArray, keyObject)
-                val kemandoranList: List<KemandoranModel> = gson.fromJson(
-                    transformedFieldCodeArray.toString(),
-                    object : TypeToken<List<KemandoranModel>>() {}.type
-                )
-                Log.d("ParsedData", "KemandoranDB: $kemandoranList")
-                this.kemandoranList = kemandoranList
-//                datasetViewModel.updateOrInsertKemandoran(kemandoranList)
-                prefManager?.setDateModified("KemandoranDB", dateModified) // Store dynamically
-            } else {
-                Log.e("ParseJsonData", "KemandoranDB key is missing")
-            }
-
-            // Parse KemandoranDetailDB
-            if (jsonObject.has("KemandoranDetailDB")) {
-                val fieldCodeArray = jsonObject.getJSONArray("KemandoranDetailDB")
-                val transformedFieldCodeArray = transformJsonArray(fieldCodeArray, keyObject)
-                val kemandoranDetailList: List<KemandoranDetailModel> = gson.fromJson(
-                    transformedFieldCodeArray.toString(),
-                    object : TypeToken<List<KemandoranDetailModel>>() {}.type
-                )
-                Log.d("ParsedData", "KemandoranDetailDB: $kemandoranDetailList")
-                this.kemandoranDetailList = kemandoranDetailList
-//                datasetViewModel.updateOrInsertKemandoranDetail(kemandoranDetailList)
-                prefManager?.setDateModified("KemandoranDetailDB", dateModified) // Store dynamically
-            } else {
-                Log.e("ParseJsonData", "KemandoranDetailDB key is missing")
-            }
-
-            this.regionalList = regionalList
-            this.wilayahList = wilayahList
-            this.deptList = deptList
-            this.divisiList = divisiList
-            this.blokList = blokList
-            this.karyawanList = karyawanList
-            this.kemandoranList = kemandoranList
-            this.kemandoranDetailList = kemandoranDetailList
-
-        } catch (e: JSONException) {
-            Log.e("ParseJsonData", "Error parsing JSON: ${e.message}")
         }
     }
 
@@ -541,7 +680,7 @@ class HomePageActivity : AppCompatActivity() {
 
     fun transformJsonArrayInChunks(jsonArray: JSONArray, keyObject: JSONObject): JSONArray {
         val transformedArray = JSONArray()
-        val chunkSize = 100 // Adjust this based on your needs
+        val chunkSize = 50
 
         try {
             for (i in 0 until jsonArray.length()) {
@@ -550,13 +689,22 @@ class HomePageActivity : AppCompatActivity() {
 
                 keyObject.keys().forEach { key ->
                     val fieldName = keyObject.getString(key)
-                    val fieldValue = item.get(key)
-                    transformedItem.put(fieldName, fieldValue)
+                    // Handle different types with appropriate defaults
+                    val fieldValue = when (val value = item.opt(key)) {
+                        JSONObject.NULL, null -> when {
+                            // Adjust defaults based on your model's needs
+                            fieldName == "nonNullableStringField" -> ""
+                            else -> null // or other defaults
+                        }
+                        else -> value
+                    }
+                    if (fieldValue != null) {
+                        transformedItem.put(fieldName, fieldValue)
+                    }
                 }
 
                 transformedArray.put(transformedItem)
 
-                // After each chunk is processed, suggest garbage collection
                 if (i % chunkSize == 0) {
                     System.gc()
                 }
@@ -568,118 +716,118 @@ class HomePageActivity : AppCompatActivity() {
         return transformedArray
     }
 
-    private fun loadTPHData(jsonObject: JSONObject) {
-        try {
-            if (jsonObject.has("TPHDB")) {
-                Log.d("testing", "masuk sini ges")
-                val tphArray = jsonObject.getJSONArray("TPHDB")
-                val keyObject = jsonObject.getJSONObject("key")
-                val chunkSize = 50 // Adjust the chunk size as needed
+    private suspend fun loadTPHData(jsonObject: JSONObject) = coroutineScope {
+        async {
+            try {
+                if (jsonObject.has("TPHDB")) {
+                    Log.d("testing", "masuk sini ges")
+                    val tphArray = jsonObject.getJSONArray("TPHDB")
+                    val keyObject = jsonObject.getJSONObject("key")
+                    val chunkSize = 100
 
-                // Create a mutable list to accumulate all TPHNewModel objects
-                val accumulatedTPHList = mutableListOf<TPHNewModel>()
+                    val accumulatedTPHList = mutableListOf<TPHNewModel>()
 
-                // Process the TPHDB array in chunks
-                for (i in 0 until tphArray.length() step chunkSize) {
-                    val chunk = JSONArray()
-                    for (j in i until (i + chunkSize).coerceAtMost(tphArray.length())) {
-                        chunk.put(tphArray.getJSONObject(j))
+                    for (i in 0 until tphArray.length() step chunkSize) {
+                        val chunk = JSONArray()
+                        for (j in i until (i + chunkSize).coerceAtMost(tphArray.length())) {
+                            chunk.put(tphArray.getJSONObject(j))
+                        }
+
+                        val transformedChunk = transformJsonArray(chunk, keyObject)
+                        val chunkList: List<TPHNewModel> = Gson().fromJson(
+                            transformedChunk.toString(),
+                            object : TypeToken<List<TPHNewModel>>() {}.type
+                        )
+
+                        accumulatedTPHList.addAll(chunkList)
+                        Log.d("LoadTPHData", "Processed chunk: $i to ${(i + chunkSize - 1).coerceAtMost(tphArray.length() - 1)}")
                     }
 
-                    // Transform the current chunk
-                    val transformedChunk = transformJsonArray(chunk, keyObject)
-
-                    // Parse the transformed chunk into a list of TPHNewModel
-                    val chunkList: List<TPHNewModel> = Gson().fromJson(
-                        transformedChunk.toString(),
-                        object : TypeToken<List<TPHNewModel>>() {}.type
-                    )
-
-                    accumulatedTPHList.addAll(chunkList)
-
-                    Log.d("LoadTPHData", "Processed chunk: $i to ${(i + chunkSize - 1).coerceAtMost(tphArray.length() - 1)}")
+                    this@HomePageActivity.tphList = accumulatedTPHList
+                    datasetViewModel.updateOrInsertTPH(accumulatedTPHList)
+                    val dateModified = jsonObject.getString("date_modified")
+                    prefManager?.setDateModified("TPHDB", dateModified)
+                    Log.d("ParsedData", "Total TPHDB items: ${tphList?.size ?: 0}")
+                } else {
+                    Log.e("LoadTPHData", "TPHDB key is missing")
                 }
-
-                this.tphList = accumulatedTPHList
-                val dateModified = jsonObject.getString("date_modified")
-
-                prefManager?.setDateModified("TPHDB", dateModified) // Store dynamically
-                Log.d("ParsedData", "Total TPHDB items: ${tphList?.size ?: 0}")
-            } else {
-                Log.e("LoadTPHData", "TPHDB key is missing")
+            } catch (e: JSONException) {
+                Log.e("LoadTPHData", "Error processing TPH data: ${e.message}")
             }
-        } catch (e: JSONException) {
-            Log.e("LoadTPHData", "Error processing TPH data: ${e.message}")
         }
     }
 
 
-    private fun handleLargeFileChunked(file: File, isLastFile: Boolean) {
+    private suspend fun handleLargeFileChunked(file: File, isLastFile: Boolean) {
+        var tempFile: File? = null
         try {
             Log.d("HandleLargeFile", "Starting chunked processing of: ${file.name}")
             val startTime = System.currentTimeMillis()
 
-            // Create a temporary file to store decompressed data
-            val tempFile = File(file.parent, "temp_decompressed.json")
+            tempFile = File(file.parent, "temp_decompressed.json")
 
             // Step 1: Decompress the file
-            GZIPInputStream(file.inputStream().buffered(DEFAULT_BUFFER_SIZE)).use { gzipInputStream ->
-                FileOutputStream(tempFile).use { outputStream ->
-                    val buffer = ByteArray(CHUNK_SIZE)
-                    var totalBytes = 0L
-                    var bytesRead: Int
+            withContext(Dispatchers.IO) {
+                GZIPInputStream(file.inputStream().buffered(DEFAULT_BUFFER_SIZE)).use { gzipInputStream ->
+                    FileOutputStream(tempFile).use { outputStream ->
+                        val buffer = ByteArray(CHUNK_SIZE)
+                        var totalBytes = 0L
+                        var bytesRead: Int
 
-                    while (gzipInputStream.read(buffer).also { bytesRead = it } != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
-                        totalBytes += bytesRead
-                        if (totalBytes % (10 * 1024 * 1024) == 0L) {
-                            Log.d("HandleLargeFile", "Decompressed: ${totalBytes / (1024 * 1024)} MB")
+                        while (gzipInputStream.read(buffer).also { bytesRead = it } != -1) {
+                            outputStream.write(buffer, 0, bytesRead)
+                            totalBytes += bytesRead
+                            if (totalBytes % (10 * 1024 * 1024) == 0L) {
+                                Log.d("HandleLargeFile", "Decompressed: ${totalBytes / (1024 * 1024)} MB")
+                            }
                         }
+                        Log.d("HandleLargeFile", "Total decompressed size: ${totalBytes / (1024 * 1024)} MB")
                     }
-                    Log.d("HandleLargeFile", "Total decompressed size: ${totalBytes / (1024 * 1024)} MB")
                 }
             }
 
-            // Step 2: Read and parse in a controlled way
+            // Step 2: Read and parse
             try {
-                tempFile.inputStream().bufferedReader().use { reader ->
-                    val jsonContent = reader.readText()
-                    Log.d("HandleLargeFile", "JSON loaded into memory, size: ${jsonContent.length} chars")
-
-                    val jsonObject = JSONObject(jsonContent)
-                    Log.d("HandleLargeFile", "JSON successfully parsed")
-
-                    // Check if this is TPH data
-                    if (jsonObject.has("TPHDB")) {
-                        Log.d("HandleLargeFile", "Found TPHDB")
-                        // Process TPH data directly
-                        loadTPHData(jsonObject)
-                    } else {
-                        // Process other data
-                        Log.d("HandleLargeFile", "Processing regular data")
-                        parseJsonData(jsonContent, isLastFile)
-                    }
+                val jsonContent = withContext(Dispatchers.IO) {
+                    tempFile.inputStream().bufferedReader().use { it.readText() }
                 }
+                Log.d("HandleLargeFile", "JSON loaded into memory, size: ${jsonContent.length} chars")
+
+                val jsonObject = JSONObject(jsonContent)
+                Log.d("HandleLargeFile", "JSON successfully parsed")
+
+                if (jsonObject.has("TPHDB")) {
+                    Log.d("HandleLargeFile", "Found TPHDB")
+                    val tphJob = loadTPHData(jsonObject)
+                    tphJob.await() // Wait for TPH processing to complete
+                }
+//                else {
+//                    Log.d("HandleLargeFile", "Processing regular data")
+//                    parseJsonData(jsonContent, isLastFile)
+//                }
             } catch (e: OutOfMemoryError) {
                 Log.e("HandleLargeFile", "OutOfMemoryError: ${e.message}")
-                System.gc() // Request garbage collection
+                System.gc()
                 e.printStackTrace()
             } catch (e: JSONException) {
                 Log.e("HandleLargeFile", "JSON parsing error: ${e.message}")
                 e.printStackTrace()
             }
 
-            // Clean up
-            tempFile.delete()
-
-            val endTime = System.currentTimeMillis()
-            Log.d("HandleLargeFile", "Total processing time: ${endTime - startTime} ms")
-
         } catch (e: Exception) {
             Log.e("HandleLargeFile", "Error in processing: ${e.message}")
             e.printStackTrace()
+        } finally {
+            // Clean up
+            tempFile?.let {
+                if (it.exists()) {
+                    val isDeleted = withContext(Dispatchers.IO) { it.delete() }
+                    Log.d("HandleLargeFile", "Temporary file deleted: $isDeleted")
+                }
+            }
         }
     }
+
     private suspend fun downloadFile(
         fileName: String,
         apiCall: suspend () -> Response<ResponseBody>,

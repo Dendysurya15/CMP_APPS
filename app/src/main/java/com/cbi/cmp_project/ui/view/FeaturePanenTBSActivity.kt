@@ -873,103 +873,103 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
 
                 }
-                R.id.layoutAfdeling -> {
-                    resetViewsBelow(R.id.layoutAfdeling)
-                    selectedAfdeling = item.toString()
-
-                    // Get the selected division ID
-                    val selectedDivisiId = divisiList.find { it.abbr == selectedAfdeling && it.dept == selectedEstateValue }?.id
-                    selectedDivisionSpinnerIndex = position
-                    selectedDivisiValue = selectedDivisiId
-
-                    val layoutTahunTanam = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
-                    val layoutKemandoran = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoran)
-                    val layoutKemandoranLain = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoranLain)
-
-                    if (selectedDivisiId != null) {
-
-                        val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
-                        // Filter the Blok list for Tahun Tanam
-                        val filteredBlokList = blokList.filter {
-                            it.regional == selectedRegionalValue &&
-                                    it.dept == selectedEstateValue &&
-                                    it.divisi == selectedDivisiId
-                            (it.divisi == selectedDivisiId || it.dept_abbr == estateAbbr)
-                        }
-
-                        val tahunTanamList = filteredBlokList.map { it.tahun }.distinct().sorted()
-
-                        if (tahunTanamList.isNotEmpty()) {
-                            setupSpinnerView(layoutTahunTanam, tahunTanamList)
-                            layoutTahunTanam.visibility = View.VISIBLE
-                        } else {
-                            layoutTahunTanam.visibility = View.GONE
-                        }
-                    } else {
-                        layoutTahunTanam.visibility = View.GONE
-                    }
-                    val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
-
-                    val filteredKemandoranList = kemandoranList.filter {
-                        (it.dept == selectedEstateValue  || it.dept_abbr == estateAbbr)&&
-                                it.divisi == selectedDivisiValue
-                    }
-                    val kemandoranNames = filteredKemandoranList.map { it.nama }
-
-                    if (kemandoranNames.isNotEmpty()) {
-                        setupSpinnerView(layoutKemandoran, kemandoranNames)
-                        layoutKemandoran.visibility = View.VISIBLE
-                    } else {
-                        layoutKemandoran.visibility = View.GONE
-                    }
-
-
-                    val nonSelectedAfdelingKemandoran = divisiList.filter { it.abbr != selectedAfdeling && it.dept == selectedEstateValue}
-
-                    val nonSelectedIdAfdeling = nonSelectedAfdelingKemandoran.map{it.id}
-
-                    val existingDivisiIds = kemandoranList.map { it.divisi }.toSet()
-
-                    val missingIds = nonSelectedIdAfdeling.filterNot { it in existingDivisiIds }
-                    val validNonSelectedIdAfdeling = nonSelectedIdAfdeling.filter { it !in missingIds }
-
-                    val filteredKemandoranLainList = kemandoranList.filter { kemandoran ->
-                        (kemandoran.dept == selectedEstateValue || kemandoran.dept_abbr == estateAbbr) &&
-                                kemandoran.divisi in validNonSelectedIdAfdeling
-                    }
-
-
-                    val kemandoranLainListNames = filteredKemandoranLainList.map { it.nama }
-
-                    AppLogger.d(kemandoranLainListNames.toString())
-                    if (nonSelectedAfdelingKemandoran.isNotEmpty()) {
-                        setupSpinnerView(layoutKemandoranLain, kemandoranLainListNames)
-                    } else {
-                        setupSpinnerView(layoutKemandoranLain, emptyList())
-                    }
-
-                }
-                R.id.layoutTahunTanam->{
-                    val selectedTahunTanam = item.toString()
-                    resetViewsBelow(R.id.layoutTahunTanam)
-                    selectedTahunTanamValue = selectedTahunTanam
-                    val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
-
-                    val filteredBlokCodes = blokList.filter {
-                        it.regional == selectedRegionalValue &&
-                                it.dept == selectedEstateValue &&
-                                (it.divisi == selectedDivisiValue || it.dept_abbr == estateAbbr) &&
-                                it.tahun == selectedTahunTanamValue
-                    }
-                    val layoutBlok = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutBlok)
-                    if (filteredBlokCodes.isNotEmpty()) {
-                        val blokNames = filteredBlokCodes.map { it.kode }
-                        setupSpinnerView(layoutBlok, blokNames)
-                        layoutBlok.visibility = View.VISIBLE
-                    } else {
-                        layoutBlok.visibility = View.GONE
-                    }
-                }
+//                R.id.layoutAfdeling -> {
+//                    resetViewsBelow(R.id.layoutAfdeling)
+//                    selectedAfdeling = item.toString()
+//
+//                    // Get the selected division ID
+//                    val selectedDivisiId = divisiList.find { it.abbr == selectedAfdeling && it.dept == selectedEstateValue }?.id
+//                    selectedDivisionSpinnerIndex = position
+//                    selectedDivisiValue = selectedDivisiId
+//
+//                    val layoutTahunTanam = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
+//                    val layoutKemandoran = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoran)
+//                    val layoutKemandoranLain = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoranLain)
+//
+//                    if (selectedDivisiId != null) {
+//
+//                        val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
+//                        // Filter the Blok list for Tahun Tanam
+//                        val filteredBlokList = blokList.filter {
+//                            it.regional == selectedRegionalValue &&
+//                                    it.dept == selectedEstateValue &&
+//                                    it.divisi == selectedDivisiId
+//                            (it.divisi == selectedDivisiId || it.dept_abbr == estateAbbr)
+//                        }
+//
+//                        val tahunTanamList = filteredBlokList.map { it.tahun }.distinct().sorted()
+//
+//                        if (tahunTanamList.isNotEmpty()) {
+//                            setupSpinnerView(layoutTahunTanam, tahunTanamList)
+//                            layoutTahunTanam.visibility = View.VISIBLE
+//                        } else {
+//                            layoutTahunTanam.visibility = View.GONE
+//                        }
+//                    } else {
+//                        layoutTahunTanam.visibility = View.GONE
+//                    }
+//                    val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
+//
+//                    val filteredKemandoranList = kemandoranList.filter {
+//                        (it.dept == selectedEstateValue  || it.dept_abbr == estateAbbr)&&
+//                                it.divisi == selectedDivisiValue
+//                    }
+//                    val kemandoranNames = filteredKemandoranList.map { it.nama }
+//
+//                    if (kemandoranNames.isNotEmpty()) {
+//                        setupSpinnerView(layoutKemandoran, kemandoranNames)
+//                        layoutKemandoran.visibility = View.VISIBLE
+//                    } else {
+//                        layoutKemandoran.visibility = View.GONE
+//                    }
+//
+//
+//                    val nonSelectedAfdelingKemandoran = divisiList.filter { it.abbr != selectedAfdeling && it.dept == selectedEstateValue}
+//
+//                    val nonSelectedIdAfdeling = nonSelectedAfdelingKemandoran.map{it.id}
+//
+//                    val existingDivisiIds = kemandoranList.map { it.divisi }.toSet()
+//
+//                    val missingIds = nonSelectedIdAfdeling.filterNot { it in existingDivisiIds }
+//                    val validNonSelectedIdAfdeling = nonSelectedIdAfdeling.filter { it !in missingIds }
+//
+//                    val filteredKemandoranLainList = kemandoranList.filter { kemandoran ->
+//                        (kemandoran.dept == selectedEstateValue || kemandoran.dept_abbr == estateAbbr) &&
+//                                kemandoran.divisi in validNonSelectedIdAfdeling
+//                    }
+//
+//
+//                    val kemandoranLainListNames = filteredKemandoranLainList.map { it.nama }
+//
+//                    AppLogger.d(kemandoranLainListNames.toString())
+//                    if (nonSelectedAfdelingKemandoran.isNotEmpty()) {
+//                        setupSpinnerView(layoutKemandoranLain, kemandoranLainListNames)
+//                    } else {
+//                        setupSpinnerView(layoutKemandoranLain, emptyList())
+//                    }
+//
+//                }
+//                R.id.layoutTahunTanam->{
+//                    val selectedTahunTanam = item.toString()
+//                    resetViewsBelow(R.id.layoutTahunTanam)
+//                    selectedTahunTanamValue = selectedTahunTanam
+//                    val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
+//
+//                    val filteredBlokCodes = blokList.filter {
+//                        it.regional == selectedRegionalValue &&
+//                                it.dept == selectedEstateValue &&
+//                                (it.divisi == selectedDivisiValue || it.dept_abbr == estateAbbr) &&
+//                                it.tahun == selectedTahunTanamValue
+//                    }
+//                    val layoutBlok = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutBlok)
+//                    if (filteredBlokCodes.isNotEmpty()) {
+//                        val blokNames = filteredBlokCodes.map { it.kode }
+//                        setupSpinnerView(layoutBlok, blokNames)
+//                        layoutBlok.visibility = View.VISIBLE
+//                    } else {
+//                        layoutBlok.visibility = View.GONE
+//                    }
+//                }
                 R.id.layoutBlok -> {
                     resetViewsBelow(R.id.layoutBlok)
 
@@ -1003,7 +1003,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         if (!filteredTPH.isNullOrEmpty()) {
                             val tphNumbers = filteredTPH.map { it.nomor }
-                            setupSpinnerView(layoutNoTPH, tphNumbers)
+//                            setupSpinnerView(layoutNoTPH, tphNumbers)
 
                         }else{
                             setupSpinnerView(layoutNoTPH, emptyList())
@@ -1033,97 +1033,97 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
                 }
-                R.id.layoutKemandoran -> {
-//                    selectedPemanenAdapter.clearAllWorkers()
-                    val selectedKemandoran = item.toString()
-                    val filteredKemandoranId = kemandoranList.find {
-                        it.dept == selectedEstateValue &&
-                                it.divisi == selectedDivisiValue
-                                it.nama == selectedKemandoran
-                    }?.id
-
-
-                    val filteredKemandoranDetails  = kemandoranDetailList.filter { it ->
-                        it.header == filteredKemandoranId
-                    }
-
-                    val matchingKaryawanList = karyawanList.filter { karyawan ->
-                        filteredKemandoranDetails.any { detail ->
-                            detail.header == karyawan.id // Assuming `header` is a field in KaryawanModel
-                        }
-                    }
-                    val layoutPemanen = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
-                    if (matchingKaryawanList.isNotEmpty()) {
-                        val karyawanNames = matchingKaryawanList.map { it.nama }
-                        setupSpinnerView(layoutPemanen, karyawanNames)
-                        layoutPemanen.visibility = View.VISIBLE
-                    } else {
-                        AppLogger.d("No matching karyawan found for the given filters.")
-                        setupSpinnerView(layoutPemanen, emptyList())
-
-                    }
-
-                }
-                R.id.layoutPemanen -> {
-                    val selectedPemanen = item.toString()
-                    selectedPemanenAdapter.addWorker(selectedPemanen)
-
-                    // Get the updated list of available workers
-                    val availableWorkers = selectedPemanenAdapter.getAvailableWorkers()
-
-                    // Only update the spinner if there are still available workers
-                    if (availableWorkers.isNotEmpty()) {
-                        setupSpinnerView(linearLayout, availableWorkers)
-                    }
-
-                    val asistensiLayoutView = findViewById<LinearLayout>(R.id.layoutSelAsistensi)
-                    asistensiLayoutView.visibility = View.VISIBLE
-                }
-
-                R.id.layoutKemandoranLain -> {
-//                    selectedPemanenLainAdapter.clearAllWorkers()
-                    selectedKemandoranLain = item.toString()
-                    selectedKemandoranLainSpinnerIndex = position
-                    val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
-
-                    val selectedIdKemandoranLain = kemandoranList.find{
-                        (it.divisi == selectedDivisiValue || it.dept_abbr == estateAbbr) &&
-                        it.nama == selectedKemandoranLain
-                    }?.id
-
-                    val filteredKemandoranDetails  = kemandoranDetailList.filter { it ->
-                        it.header == selectedIdKemandoranLain
-                    }
-
-                    val allKaryawanIdInKemandoranDetail = filteredKemandoranDetails.map{it.id}
-
-
-                    AppLogger.d(allKaryawanIdInKemandoranDetail.toString())
-                    val listKaryawanKemandoranLain = karyawanList.filter{it.id in allKaryawanIdInKemandoranDetail}
-                    AppLogger.d(listKaryawanKemandoranLain.toString())
-                    val namaKaryawanKemandoranLain = listKaryawanKemandoranLain.map{it.nama}
-
-                    AppLogger.d(namaKaryawanKemandoranLain.toString())
-                    val layoutPemanenLain = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
-                    if (namaKaryawanKemandoranLain.isNotEmpty()) {
-                        setupSpinnerView(layoutPemanenLain, namaKaryawanKemandoranLain)
-                        layoutPemanenLain.visibility = View.VISIBLE
-                    }else{
-                        layoutPemanenLain.visibility = View.GONE
-                    }
-
-                }
-
-                R.id.layoutPemanenLain->{
-                    val selectedPemanenLain = item.toString()
-                    selectedPemanenLainAdapter.addWorker(selectedPemanenLain)
-                    val availableWorkers = selectedPemanenLainAdapter.getAvailableWorkers()
-
-                    // Only update the spinner if there are still available workers
-                    if (availableWorkers.isNotEmpty()) {
-                        setupSpinnerView(linearLayout, availableWorkers)
-                    }
-                }
+//                R.id.layoutKemandoran -> {
+////                    selectedPemanenAdapter.clearAllWorkers()
+//                    val selectedKemandoran = item.toString()
+//                    val filteredKemandoranId = kemandoranList.find {
+//                        it.dept == selectedEstateValue &&
+//                                it.divisi == selectedDivisiValue
+//                                it.nama == selectedKemandoran
+//                    }?.id
+//
+//
+//                    val filteredKemandoranDetails  = kemandoranDetailList.filter { it ->
+//                        it.header == filteredKemandoranId
+//                    }
+//
+//                    val matchingKaryawanList = karyawanList.filter { karyawan ->
+//                        filteredKemandoranDetails.any { detail ->
+//                            detail.header == karyawan.id // Assuming `header` is a field in KaryawanModel
+//                        }
+//                    }
+//                    val layoutPemanen = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+//                    if (matchingKaryawanList.isNotEmpty()) {
+//                        val karyawanNames = matchingKaryawanList.map { it.nama }
+//                        setupSpinnerView(layoutPemanen, karyawanNames)
+//                        layoutPemanen.visibility = View.VISIBLE
+//                    } else {
+//                        AppLogger.d("No matching karyawan found for the given filters.")
+//                        setupSpinnerView(layoutPemanen, emptyList())
+//
+//                    }
+//
+//                }
+//                R.id.layoutPemanen -> {
+//                    val selectedPemanen = item.toString()
+//                    selectedPemanenAdapter.addWorker(selectedPemanen)
+//
+//                    // Get the updated list of available workers
+//                    val availableWorkers = selectedPemanenAdapter.getAvailableWorkers()
+//
+//                    // Only update the spinner if there are still available workers
+//                    if (availableWorkers.isNotEmpty()) {
+//                        setupSpinnerView(linearLayout, availableWorkers)
+//                    }
+//
+//                    val asistensiLayoutView = findViewById<LinearLayout>(R.id.layoutSelAsistensi)
+//                    asistensiLayoutView.visibility = View.VISIBLE
+//                }
+//
+//                R.id.layoutKemandoranLain -> {
+////                    selectedPemanenLainAdapter.clearAllWorkers()
+//                    selectedKemandoranLain = item.toString()
+//                    selectedKemandoranLainSpinnerIndex = position
+//                    val estateAbbr = deptList.find { it.id == selectedEstateValue }?.abbr
+//
+//                    val selectedIdKemandoranLain = kemandoranList.find{
+//                        (it.divisi == selectedDivisiValue || it.dept_abbr == estateAbbr) &&
+//                        it.nama == selectedKemandoranLain
+//                    }?.id
+//
+//                    val filteredKemandoranDetails  = kemandoranDetailList.filter { it ->
+//                        it.header == selectedIdKemandoranLain
+//                    }
+//
+//                    val allKaryawanIdInKemandoranDetail = filteredKemandoranDetails.map{it.id}
+//
+//
+//                    AppLogger.d(allKaryawanIdInKemandoranDetail.toString())
+//                    val listKaryawanKemandoranLain = karyawanList.filter{it.id in allKaryawanIdInKemandoranDetail}
+//                    AppLogger.d(listKaryawanKemandoranLain.toString())
+//                    val namaKaryawanKemandoranLain = listKaryawanKemandoranLain.map{it.nama}
+//
+//                    AppLogger.d(namaKaryawanKemandoranLain.toString())
+//                    val layoutPemanenLain = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+//                    if (namaKaryawanKemandoranLain.isNotEmpty()) {
+//                        setupSpinnerView(layoutPemanenLain, namaKaryawanKemandoranLain)
+//                        layoutPemanenLain.visibility = View.VISIBLE
+//                    }else{
+//                        layoutPemanenLain.visibility = View.GONE
+//                    }
+//
+//                }
+//
+//                R.id.layoutPemanenLain->{
+//                    val selectedPemanenLain = item.toString()
+//                    selectedPemanenLainAdapter.addWorker(selectedPemanenLain)
+//                    val availableWorkers = selectedPemanenLainAdapter.getAvailableWorkers()
+//
+//                    // Only update the spinner if there are still available workers
+//                    if (availableWorkers.isNotEmpty()) {
+//                        setupSpinnerView(linearLayout, availableWorkers)
+//                    }
+//                }
 
 
                 }
