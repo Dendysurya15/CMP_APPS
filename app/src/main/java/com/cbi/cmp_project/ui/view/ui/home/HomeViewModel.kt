@@ -18,10 +18,16 @@ class HomeViewModel : ViewModel() {
                     _navigationEvent.value = FeatureCardEvent.NavigateToPanenTBS(context, feature.featureName)
                 }
             }
+            "Generate eSPB" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    _navigationEvent.value = FeatureCardEvent.NavigateToGenerateESPB(context, feature.featureName)
+                }
+            }
         }
     }
 }
 
 sealed class FeatureCardEvent(val context: Context? = null, val featureName: String? = null) {
     class NavigateToPanenTBS(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
+    class NavigateToGenerateESPB(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
 }

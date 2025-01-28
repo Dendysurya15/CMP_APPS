@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.markertph.data.model.BlokModel
 import com.cbi.markertph.data.model.DeptModel
 import com.cbi.markertph.data.model.DivisiModel
@@ -37,6 +39,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
     abstract fun kemandoranDetailDao(): KemandoranDetailDao
     abstract fun karyawanDao(): KaryawanDao
+    abstract fun panenDao(): PanenDao
+    abstract fun espbDao(): ESPBDao
     abstract fun tphDao(): TPHDao
 
 

@@ -15,7 +15,7 @@
     <string name="confirmation_dialog_description">Pastikan Anda telah memeriksa dengan teliti sebelum melanjutkan.</string>
 
 
-<!--    form panen tbs-->
+    <!--    form panen tbs-->
     <string name="field_regional">Regional</string>
     <string name="field_wilayah">Wilayah</string>
     <string name="field_estate">Estate</string>

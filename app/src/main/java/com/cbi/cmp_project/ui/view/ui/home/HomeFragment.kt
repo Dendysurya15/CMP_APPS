@@ -1,6 +1,5 @@
 package com.cbi.cmp_project.ui.view.ui.home
 
-import android.content.Context
 import android.content.Intent
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
@@ -13,33 +12,20 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
-import com.cbi.cmp_project.data.network.RetrofitClient
 import com.cbi.cmp_project.databinding.FragmentHomeBinding
 import com.cbi.cmp_project.ui.view.FeaturePanenTBSActivity
-import com.cbi.cmp_project.utils.LoadingDialog
-import com.google.android.material.card.MaterialCardView
-import okhttp3.ResponseBody
+import com.cbi.cmp_project.ui.view.ui.generate_espb.GenerateEspbActivity
 import org.json.JSONObject
-import retrofit2.Response
 import java.io.ByteArrayInputStream
 import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
 import java.util.zip.GZIPInputStream
-import javax.crypto.Cipher
-import javax.crypto.spec.IvParameterSpec
-import javax.crypto.spec.SecretKeySpec
 
 class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
@@ -106,6 +92,16 @@ class HomeFragment : Fragment() {
                         startActivity(intent)
                     }
                 }
+                is FeatureCardEvent.NavigateToGenerateESPB -> {
+                    event.context?.let {
+                        val intent = Intent(it, GenerateEspbActivity::class.java)
+                        // Pass the feature name to the intent
+                        event.featureName?.let { featureName ->
+                            intent.putExtra("FEATURE_NAME", featureName)
+                        }
+                        startActivity(intent)
+                    }
+                }
             }
         }
     }
@@ -143,7 +139,7 @@ class HomeFragment : Fragment() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Pengangkutan TBS",
+                featureName = "Generate eSPB",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
                 functionName = "e-SPB PANEN",
@@ -152,7 +148,7 @@ class HomeFragment : Fragment() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Pengangkutan TBS",
+                featureName = "Generate eSPB",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
                 count = "0",
