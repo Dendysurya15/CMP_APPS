@@ -20,7 +20,7 @@ class ListTPHFromQRActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.textViewResult).text = jsonStr
     }
 
-    fun readJsonFromEncryptedBase64Rar(base64String: String, password: String = "CBI@2025"): String? {
+    fun readJsonFromEncryptedBase64Rar(base64String: String): String? {
         return try {
             // Remove header if present
             val base64Data = if (base64String.contains(",")) {
@@ -29,12 +29,14 @@ class ListTPHFromQRActivity : AppCompatActivity() {
                 base64String
             }
 
+            val base64Decode = base64Data.replace("5nqHzPKdlILxS9ABpClq","")
+
             // Decode base64 to bytes
-            val decodedBytes = Base64.decode(base64Data, Base64.DEFAULT)
+            val decodedBytes = Base64.decode(base64Decode, Base64.DEFAULT)
 
             // Create RAR archive from bytes
             ByteArrayInputStream(decodedBytes).use { byteStream ->
-                Archive(byteStream, password).use { archive ->
+                Archive(byteStream).use { archive ->
                     // Look for file.json
                     val fileHeader: FileHeader? = archive.fileHeaders.find { it.fileName == "output.json" }
 
