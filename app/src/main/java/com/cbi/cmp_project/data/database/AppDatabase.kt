@@ -26,7 +26,9 @@ import com.cbi.markertph.data.model.WilayahModel
         TPHNewModel::class,
         KemandoranModel::class,
         KemandoranDetailModel::class,
-        KaryawanModel::class
+        KaryawanModel::class,
+        PanenEntity::class,
+        ESPBEntity::class
     ],
     version = 1
 )
