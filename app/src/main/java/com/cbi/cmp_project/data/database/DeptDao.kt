@@ -17,9 +17,14 @@ abstract class DeptDao {
     @Query("DELETE FROM dept")
     abstract fun deleteAll()
 
+    @Query("SELECT * FROM dept WHERE regional = :regionalId AND nama = :estateName")
+    abstract fun getDeptByCriteria(regionalId: String, estateName: String): List<DeptModel>
+
     @Transaction
     open fun updateOrInsertDept(dept: List<DeptModel>) {
-        deleteAll()
+
         insertAll(dept)
     }
+
+
 }

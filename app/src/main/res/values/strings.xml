@@ -13,7 +13,8 @@
     <string name="confirmation_dialog_accept">Ya</string>
     <string name="confirmation_dialog_title">Konfirmasi Pilihan Anda!</string>
     <string name="confirmation_dialog_description">Pastikan Anda telah memeriksa dengan teliti sebelum melanjutkan.</string>
-
+    <string name="al_yes">Ya</string>
+    <string name="al_confirm_out">Apakah anda yakin untuk keluar dari aplikasi MobilePro?</string>
 
     <!--    form panen tbs-->
     <string name="field_regional">Regional</string>

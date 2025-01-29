@@ -12,6 +12,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.activity.addCallback
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -19,9 +20,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.databinding.FragmentHomeBinding
 import com.cbi.cmp_project.ui.view.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.ui.generate_espb.GenerateEspbActivity
+import com.cbi.cmp_project.utils.AlertDialogUtility
+import com.cbi.cmp_project.utils.AppUtils.stringXML
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -46,36 +50,28 @@ class HomeFragment : Fragment() {
 
         setupRecyclerView()
         observeViewModel()
-
-        val downloadedFile = File(requireContext().getExternalFilesDir(null), "dataset_tph.txt")
-//        decompressFile(downloadedFile)
+        handleOnBackPressed()
         return root
+
+
     }
 
+    private fun handleOnBackPressed() {
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
+            showExitConfirmationDialog()
+        }
+    }
 
-    private fun decompressFile(file: File) {
-        try {
-            // Read the entire content as a Base64-encoded string
-            val base64String = file.readText()
-
-            // Decode the Base64 string
-            val compressedData = Base64.decode(base64String, Base64.DEFAULT)
-
-            // Decompress using GZIP
-            val gzipInputStream = GZIPInputStream(ByteArrayInputStream(compressedData))
-            val decompressedData = gzipInputStream.readBytes()
-
-            // Convert the decompressed bytes to a JSON string
-            val jsonString = String(decompressedData)
-            Log.d("DecompressedJSON", "Decompressed JSON: $jsonString")
-
-            // Now you can log or process the JSON data
-            val jsonObject = JSONObject(jsonString)
-            Log.d("DecompressedJSON", "Available keys: ${jsonObject.keys().asSequence().toList()}")
-
-        } catch (e: Exception) {
-            Log.e("DecompressFile", "Error decompressing file: ${e.message}")
-            e.printStackTrace()
+    private fun showExitConfirmationDialog(){
+        AlertDialogUtility.withTwoActions(
+            requireActivity(),
+            requireContext().stringXML(R.string.al_yes),
+            requireContext().stringXML(R.string.confirmation_dialog_title),
+            requireContext().stringXML(R.string.al_confirm_out),
+            "warning.json"
+        ) {
+            AppDatabase.closeDatabase()
+            requireActivity().finishAffinity()
         }
     }
 
@@ -287,6 +283,8 @@ class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit)  : Rec
             onFeatureClicked(feature)
         }
     }
+
+
 
     override fun getItemCount() = features.size
 

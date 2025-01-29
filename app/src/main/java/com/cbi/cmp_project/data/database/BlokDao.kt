@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.markertph.data.model.BlokModel
 import com.cbi.markertph.data.model.DeptModel
+import com.cbi.markertph.data.model.DivisiModel
 
 @Dao
 abstract class BlokDao {
@@ -19,7 +20,26 @@ abstract class BlokDao {
 
     @Transaction
     open fun updateOrInsertBlok(blok: List<BlokModel>) {
-        deleteAll()
         insertAll(blok)
     }
+
+    @Query(
+        """
+    SELECT * FROM blok 
+    WHERE regional = :idRegional 
+    AND dept = :idEstate 
+    AND (
+        (divisi IS NOT NULL AND divisi != '' AND divisi = :idDivisi)
+        OR 
+        (divisi IS NULL OR divisi = '') AND dept_abbr = :estateAbbr
+    )
+    """
+    )
+    abstract fun getBlokByCriteria(
+        idRegional: Int,
+        idEstate: Int,
+        idDivisi: Int,
+        estateAbbr: String
+    ): List<BlokModel>
+
 }

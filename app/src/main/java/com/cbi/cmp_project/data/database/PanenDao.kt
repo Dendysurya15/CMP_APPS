@@ -42,7 +42,7 @@ abstract class PanenDao {
 
     @Transaction
     open fun updateOrInsert(panen: List<PanenEntity>) {
-        deleteAll(panen)
+
         insert(panen)
     }
 }

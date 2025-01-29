@@ -28,6 +28,7 @@ import androidx.navigation.ui.setupWithNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
@@ -41,9 +42,9 @@ import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.LocationViewModel
 import com.cbi.cmp_project.ui.viewModel.PanenTBSViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
+import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.stringXML
-import com.cbi.cmp_project.utils.DataCacheManager
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
 import com.cbi.markertph.data.model.BlokModel
@@ -84,7 +85,6 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var loadingDialog: LoadingDialog
     private var prefManager: PrefManager? = null
 
-    private lateinit var dataCacheManager: DataCacheManager
     data class ErrorResponse(
         val statusCode: Int,
         val message: String,
@@ -118,8 +118,16 @@ class HomePageActivity : AppCompatActivity() {
         prefManager = PrefManager(this)
         loadingDialog = LoadingDialog(this)
         initViewModel()
+
+        prefManager!!.setRegionalUserLogin("regional_id", "1")
+        prefManager!!.setRegionalUserLogin("regional_name", "REGIONAL I")
+
+        prefManager!!.setEstateUserLogin("estate_id", "101")
+        prefManager!!.setEstateUserLogin("estate_name", "SULUNG ESTATE")
+
+
+
         setupStatusObservers()
-        dataCacheManager = DataCacheManager(this)
         checkPermissions()
 
         val navView: BottomNavigationView = binding.navView
@@ -148,6 +156,8 @@ class HomePageActivity : AppCompatActivity() {
 //            return
 //        }
 
+
+        Log.d("testing", "gassss")
         lifecycleScope.launch {
             // Inflate dialog layout
             val dialogView = layoutInflater.inflate(R.layout.list_card_upload, null)
@@ -272,6 +282,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
+            AppLogger.d(cleanedList.toString())
             prefManager!!.saveFileList(cleanedList)
             val closeText = dialogView.findViewById<TextView>(R.id.close_progress_statement)
             closeText.visibility = View.VISIBLE
@@ -372,17 +383,6 @@ class HomePageActivity : AppCompatActivity() {
                         - TPH: ${tphList?.size ?: 0}
                     """.trimIndent())
 
-//                        dataCacheManager.saveDatasets(
-//                            regionalList,
-//                            wilayahList,
-//                            deptList,
-//                            divisiList,
-//                            blokList,
-//                            tphList!!,
-//                            karyawanList,
-//                            kemandoranList,
-//                            kemandoranDetailList
-//                        )
                     },
                     onFailure = { error ->
                         withContext(Dispatchers.Main) {
@@ -546,9 +546,9 @@ class HomePageActivity : AppCompatActivity() {
                                 transformedArray.toString(),
                                 object : TypeToken<List<RegionalModel>>() {}.type
                             )
-//                            Log.d("testing", "Regional Data: $transformedArray")
-//                            Log.d("testing", "Regional IDs: ${regionalList.map { it.id }}")
+
                             datasetViewModel.updateOrInsertRegional(regionalList)
+                            prefManager?.setDateModified("RegionalDB", dateModified)
                         }
                     }
                     regionalJob.await()
@@ -562,8 +562,8 @@ class HomePageActivity : AppCompatActivity() {
                                 transformedArray.toString(),
                                 object : TypeToken<List<WilayahModel>>() {}.type
                             )
-                            Log.d("testing", "Wilayah IDs: ${wilayahList.map { it.id }}")
                             datasetViewModel.updateOrInsertWilayah(wilayahList)
+                            prefManager?.setDateModified("WilayahDB", dateModified)
                         }
                     }
                     wilayahJob.await()
@@ -579,6 +579,7 @@ class HomePageActivity : AppCompatActivity() {
                                 object : TypeToken<List<DeptModel>>() {}.type
                             )
                             datasetViewModel.updateOrInsertDept(deptList)
+                            prefManager?.setDateModified("DeptDB", dateModified)
                         }
                     }
                     deptJob.await()
@@ -592,6 +593,7 @@ class HomePageActivity : AppCompatActivity() {
                                 object : TypeToken<List<DivisiModel>>() {}.type
                             )
                             datasetViewModel.updateOrInsertDivisi(divisiList)
+                            Log.d("testing", dateModified)
                             prefManager?.setDateModified("DivisiDB", dateModified)
                         }
                     }
@@ -606,6 +608,8 @@ class HomePageActivity : AppCompatActivity() {
                                 object : TypeToken<List<BlokModel>>() {}.type
                             )
                             datasetViewModel.updateOrInsertBlok(blokList)
+
+                            Log.d("testing", dateModified)
                             prefManager?.setDateModified("BlokDB", dateModified)
                         }
                     }
@@ -925,6 +929,7 @@ class HomePageActivity : AppCompatActivity() {
             return true
         }
 
+        AppLogger.d(prefManager!!.isFirstTimeLaunch.toString())
         if (savedFileList.isNotEmpty()) {
             if (savedFileList.contains(null)) {
                 Log.e("FileCheck", "Null entries found in savedFileList.")
@@ -942,6 +947,7 @@ class HomePageActivity : AppCompatActivity() {
                 Log.e("FileCheck", "Missing files detected: $missingFiles")
                 return true
             }
+
         } else {
             Log.d("FileCheck", "Saved file list is empty.")
             return true
@@ -954,9 +960,10 @@ class HomePageActivity : AppCompatActivity() {
 //            return false
 //        }
 
+        val dateModifiedMap = prefManager!!.getAllDateModified()
+
+
         val shouldDownload = checkServerDates()
-        Log.d("testing", filesToUpdate.toString())
-        Log.d("testing", shouldDownload.toString())
 
         return shouldDownload
     }
@@ -1086,4 +1093,7 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
     }
+
+
+
 }

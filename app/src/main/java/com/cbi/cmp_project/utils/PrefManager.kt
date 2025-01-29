@@ -65,6 +65,27 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    fun setRegionalUserLogin(key: String, value: String?) {
+        editor.putString(key, value)
+        editor.commit() // Immediately save changes
+    }
+
+    // Save estate user login
+    fun setEstateUserLogin(key: String, value: String?) {
+        editor.putString(key, value)
+        editor.commit()
+    }
+
+    fun getRegionalUserLogin(key: String): String? {
+        return pref.getString(key, null)
+    }
+
+    // Get estate user login
+    fun getEstateUserLogin(key: String): String? {
+        return pref.getString(key, null)
+    }
+
+
     var user_input: String?
         get() = pref.getString("user_input", "")
         set(hexDataWl) {

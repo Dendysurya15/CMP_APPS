@@ -54,59 +54,59 @@
                 android:orientation="vertical"
                 tools:ignore="RtlHardcoded">
 
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-                    android:id="@+id/layoutRegional"/>
+<!--                <include-->
+<!--                    layout="@layout/pertanyaan_spinner_layout"-->
+<!--                    android:id="@+id/layoutRegional"/>-->
+
+<!--                <include-->
+<!--                    layout="@layout/pertanyaan_spinner_layout"-->
+<!--                    android:visibility="gone"-->
+<!--                    android:id="@+id/layoutWilayah"/>-->
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
-                    android:visibility="gone"
-                    android:id="@+id/layoutWilayah"/>
 
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-                    android:visibility="gone"
                     android:id="@+id/layoutEstate"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
-                    android:visibility="gone"
+
                     android:id="@+id/layoutAfdeling"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
-                    android:visibility="gone"
+
                     android:id="@+id/layoutTahunTanam"/>
 
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
-                    android:visibility="gone"
+
                     android:id="@+id/layoutBlok"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
-                    android:visibility="gone"
+
                     android:id="@+id/layoutAncak"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
-                    android:visibility="gone"
+
                     android:id="@+id/layoutTipePanen"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
-                    android:visibility="gone"
+
                     android:id="@+id/layoutNoTPH"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
-                    android:visibility="gone"
+
                     android:id="@+id/layoutKemandoran"/>
 
                 <include
                     layout="@layout/pertanyaan_spinner_layout"
-                    android:visibility="gone"
+
                     android:id="@+id/layoutPemanen"/>
 
 
@@ -114,7 +114,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:visibility="gone"
+
                     android:layout_marginTop="10dp"
                     android:id="@+id/layoutSelAsistensi">
                     <TextView
