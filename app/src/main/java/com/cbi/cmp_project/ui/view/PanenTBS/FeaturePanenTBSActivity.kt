@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.ui.view
+package com.cbi.cmp_project.ui.view.PanenTBS
 
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
@@ -7,42 +7,28 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Base64
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.BounceInterpolator
-import android.view.animation.OvershootInterpolator
 import android.view.inputmethod.InputMethodManager
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.AutoCompleteTextView
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.cbi.cmp_project.R
@@ -51,10 +37,8 @@ import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.repository.CameraRepository
 import com.cbi.cmp_project.data.repository.PanenTBSRepository
-import com.cbi.cmp_project.databinding.PertanyaanSpinnerLayoutBinding
 import com.cbi.cmp_project.ui.adapter.SelectedWorkerAdapter
 import com.cbi.cmp_project.ui.adapter.TakeFotoPreviewAdapter
-import com.cbi.cmp_project.ui.view.ui.home.HomeFragment
 import com.cbi.cmp_project.ui.viewModel.CameraViewModel
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.LocationViewModel
@@ -80,26 +64,19 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.switchmaterial.SwitchMaterial
-import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textfield.TextInputLayout
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.jaredrummler.materialspinner.MaterialSpinner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONException
 import org.json.JSONObject
-import java.io.ByteArrayInputStream
 import java.io.File
-import java.util.zip.GZIPInputStream
 import kotlin.reflect.KMutableProperty0
 import android.text.InputType as AndroidInputType
 import android.view.inputmethod.EditorInfo
 import com.cbi.cmp_project.ui.adapter.Worker
+import com.cbi.cmp_project.ui.view.HomePageActivity
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.ui.viewModel.SaveDataPanenState
 import java.text.SimpleDateFormat
@@ -318,7 +295,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                 lon = lon!!,
                                 jenis_panen = selectedTipePanen.toInt(),
                                 ancakInput = ancakInput,
-                                archive = 1,
+                                archive = 0,
                             )
 
                             panenViewModel.saveDataPanenState.collect { state ->
@@ -335,7 +312,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             stringXML(R.string.al_success_save_local),
                                             stringXML(R.string.al_description_success_save_local),
                                             "success.json",
-                                            R.color.greenDarker
+                                            R.color.greenDefault
                                         ) {
                                             finish()
                                         }
@@ -1645,9 +1622,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             else -> {
                 vibrate()
-                val intent = Intent(this, HomePageActivity::class.java)
-                startActivity(intent)
-                finishAffinity()
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Simpan",
+                    getString(R.string.confirmation_dialog_title),
+                    getString(R.string.al_confirm_feature),
+                    "warning.json"
+                ) {
+                    val intent = Intent(this, HomePageActivity::class.java)
+                    startActivity(intent)
+                    finishAffinity()
+                }
+
             }
         }
 

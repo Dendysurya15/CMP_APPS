@@ -158,7 +158,7 @@ class HomePageActivity : AppCompatActivity() {
 //            ) {}
 //            return
 //        }
-        
+
         lifecycleScope.launch {
             // Inflate dialog layout
             val dialogView = layoutInflater.inflate(R.layout.list_card_upload, null)
@@ -985,7 +985,10 @@ class HomePageActivity : AppCompatActivity() {
                     AppUtils.ApiCallManager.apiCallList[2].first to Pair("dept", "DeptDB"),
                     AppUtils.ApiCallManager.apiCallList[3].first to Pair("divisi", "DivisiDB"),
                     AppUtils.ApiCallManager.apiCallList[4].first to Pair("blok", "BlokDB"),
-                    AppUtils.ApiCallManager.apiCallList[5].first to Pair("tph", "TPHDB")
+                    AppUtils.ApiCallManager.apiCallList[5].first to Pair("karyawan", "KaryawanDB"),
+                    AppUtils.ApiCallManager.apiCallList[6].first to Pair("kemandoran", "KemandoranDB"),
+                    AppUtils.ApiCallManager.apiCallList[7].first to Pair("kemandoran_detail", "KemandoranDetailDB"),
+                    AppUtils.ApiCallManager.apiCallList[8].first to Pair("tph", "TPHDB")
                 )
 
                 keyMapping.forEach { (filename, keys) ->

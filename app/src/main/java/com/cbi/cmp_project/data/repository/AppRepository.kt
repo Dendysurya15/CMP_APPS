@@ -67,12 +67,22 @@ class AppRepository(context: Context) {
         panenDao.getAll()
     }
 
-    suspend fun getActivePanen(): List<PanenEntity> = withContext(Dispatchers.IO) {
-        panenDao.getAllActive()
+    suspend fun getActivePanen(): Result<List<PanenEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val data = panenDao.getAllActive()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
-    suspend fun getArchivedPanen(): List<PanenEntity> = withContext(Dispatchers.IO) {
-        panenDao.getAllArchived()
+    suspend fun getArchivedPanen(): Result<List<PanenEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val data = panenDao.getAllArchived()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun deletePanenById(id: Int) = withContext(Dispatchers.IO) {

@@ -14,7 +14,8 @@
     <string name="confirmation_dialog_title">Konfirmasi Pilihan Anda!</string>
     <string name="confirmation_dialog_description">Pastikan Anda telah memeriksa dengan teliti sebelum melanjutkan.</string>
     <string name="al_yes">Ya</string>
-    <string name="al_confirm_out">Apakah anda yakin untuk keluar dari aplikasi MobilePro?</string>
+    <string name="al_confirm_out">Apakah anda yakin untuk keluar dari aplikasi ini?</string>
+    <string name="al_confirm_feature">Apakah anda yakin untuk keluar dari Menu ini?</string>
     <string name="al_location_not_ready">GPS Tidak terdeteksi!</string>
     <string name="al_location_description_failed"> Perangkat tidak dapat mendeteksi lokasi Anda saat ini. Pastikan layanan lokasi di perangkat Anda aktif!</string>
     <string name="al_data_not_completed">Data Belum Lengkap!</string>
@@ -24,6 +25,13 @@
     <string name="al_total_tbs">Total TBS 0</string>
     <string name="al_total_tbs_description">Jumlah TBS harus lebih dari 0</string>
     <string name="al_photo_minimal_one">Minimal 1 foto yang terlampir</string>
+
+    <string name="al_failed_fetch_data_desc">Gagal Mengambil Data!</string>
+    <string name="al_failed_fetch_data">Terjadi Kesalahan!</string>
+
+    <string name="dial_unselect_item">Batalkan Pilihan</string>
+    <string name="dial_upload_item">Upload Item Terpilih</string>
+    <string name="dial_delete_item">Hapus Item Pilihan</string>
 
     <!--    form panen tbs-->
     <string name="field_regional">Regional</string>

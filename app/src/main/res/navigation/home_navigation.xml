@@ -16,6 +16,6 @@
 
     <activity
         android:id="@+id/FeaturePanenTBSActivityId"
-        android:name="com.cbi.cmp_project.ui.view.FeaturePanenTBSActivity"
+        android:name="com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity"
         android:label="Panen TBS" />
 </navigation>

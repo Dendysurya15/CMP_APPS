@@ -30,13 +30,17 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     val panenList: LiveData<List<PanenEntity>> get() = _panenList
 
     private val _archivedPanenList = MutableLiveData<List<PanenEntity>>()
-    val archivedPanenList: LiveData<List<PanenEntity>> get() = _archivedPanenList
+    val archivedPanenList: LiveData<List<PanenEntity>> = _archivedPanenList
 
     private val _activePanenList = MutableLiveData<List<PanenEntity>>()
-    val activePanenList: LiveData<List<PanenEntity>> get() = _activePanenList
+    val activePanenList: LiveData<List<PanenEntity>> = _activePanenList
 
     private val _panenCount = MutableStateFlow(0)
     val panenCount: StateFlow<Int> = _panenCount.asStateFlow()
+
+    private val _error = MutableLiveData<String>()
+    val error: LiveData<String> = _error
+
 
 
     private val _saveDataPanenState = MutableStateFlow<SaveDataPanenState>(SaveDataPanenState.Loading)
@@ -56,13 +60,25 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadActivePanen() {
         viewModelScope.launch {
-            _activePanenList.value = repository.getActivePanen()
+            repository.getActivePanen()
+                .onSuccess { panenList ->
+                    _activePanenList.postValue(panenList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
         }
     }
 
     fun loadArchivedPanen() {
         viewModelScope.launch {
-            _archivedPanenList.value = repository.getArchivedPanen()
+            repository.getArchivedPanen()
+                .onSuccess { panenList ->
+                    _archivedPanenList.postValue(panenList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load archived data")
+                }
         }
     }
 

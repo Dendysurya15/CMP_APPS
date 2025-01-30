@@ -5,8 +5,6 @@ import android.content.Intent
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.util.Base64
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -25,9 +23,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.databinding.FragmentHomeBinding
-import com.cbi.cmp_project.ui.view.FeaturePanenTBSActivity
+import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity
+import com.cbi.cmp_project.ui.view.PanenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.view.ui.generate_espb.GenerateEspbActivity
-import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
@@ -38,10 +36,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.util.zip.GZIPInputStream
 
 class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
@@ -82,21 +76,21 @@ class HomeFragment : Fragment() {
         if (this::featureAdapter.isInitialized) {  // Changed to positive condition
             lifecycleScope.launch(Dispatchers.IO) {
                 withContext(Dispatchers.Main) {
-                    featureAdapter.showLoadingForFeature("Panen TBS")
-                    delay(1000)
+                    featureAdapter.showLoadingForFeature("List History Panen TBS")
+                    delay(300)
                 }
 
                 try {
                     val countDeferred = async { panenViewModel.loadPanenCount() }
                     countPanenTPH = countDeferred.await()
                     withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount("Panen TBS", countPanenTPH.toString())
-                        featureAdapter.hideLoadingForFeature("Panen TBS")
+                        featureAdapter.updateCount("List History Panen TBS", countPanenTPH.toString())
+                        featureAdapter.hideLoadingForFeature("List History Panen TBS")
                     }
                 } catch (e: Exception) {
                     AppLogger.e("Error fetching data: ${e.message}")
                     withContext(Dispatchers.Main) {
-                        featureAdapter.hideLoadingForFeature("Panen TBS")
+                        featureAdapter.hideLoadingForFeature("List History Panen TBS")
                     }
                 }
             }
@@ -130,8 +124,19 @@ class HomeFragment : Fragment() {
             when (event) {
                 is FeatureCardEvent.NavigateToPanenTBS -> {
                     event.context?.let {
+
                         val intent = Intent(it, FeaturePanenTBSActivity::class.java)
                         // Pass the feature name to the intent
+                        event.featureName?.let { featureName ->
+                            intent.putExtra("FEATURE_NAME", featureName)
+                        }
+                        startActivity(intent)
+                    }
+                }
+                is FeatureCardEvent.NavigateToListPanenTBS -> {
+                    event.context?.let {
+
+                        val intent = Intent(it, ListPanenTBSActivity::class.java)
                         event.featureName?.let { featureName ->
                             intent.putExtra("FEATURE_NAME", featureName)
                         }
@@ -175,7 +180,7 @@ class HomeFragment : Fragment() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
-                featureName = "Panen TBS",
+                featureName = "List History Panen TBS",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
                 count = countPanenTPH.toString(),
