@@ -25,42 +25,97 @@ android:layout_marginTop="10dp"
         android:layout_height="match_parent">
 
 
-    <com.google.android.material.card.MaterialCardView
-        android:layout_width="match_parent"
-        android:id="@+id/MCVSpinner"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="5dp"
-
-        >
-
-        <com.jaredrummler.materialspinner.MaterialSpinner
-
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/spPanenTBS"
-            app:ms_text_color="@color/black"
-            app:ms_hint="Pilih Kategori Yang Sesuai"
-            />
-
-
-
-        <EditText
-            android:id="@+id/etHomeMarkerTPH"
-            android:visibility="gone"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:id="@+id/MCVSpinner"
             android:background="@color/white"
-            android:imeOptions="actionDone"
-            android:singleLine="true"
-            android:maxLines="1"
-            android:textColor="@color/black"
-            android:inputType="number"
-            android:padding="16dp"
-            android:textSize="15dp" />
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="5dp">
 
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:background="@color/white"
+                android:layout_height="wrap_content">
 
+                <com.jaredrummler.materialspinner.MaterialSpinner
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/spPanenTBS"
+                    app:ms_text_color="@color/black"
+                    app:ms_hint="Pilih Kategori Yang Sesuai" />
 
-    </com.google.android.material.card.MaterialCardView>
+                <!-- Loading Dots Container -->
+                <LinearLayout
+                    android:id="@+id/loadingDotsContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:background="@color/white"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/dot1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="."
+                        android:textColor="@color/greendarkerbutton"
+                        android:textSize="25dp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/dot1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="."
+                        android:textColor="@color/greendarkerbutton"
+                        android:textSize="25dp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/dot2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="."
+                        android:textSize="25dp"
+                        android:textColor="@color/greendarkerbutton"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/dot3"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="."
+                        android:textSize="25dp"
+                        android:textColor="@color/greendarkerbutton"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/dot4"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="."
+                        android:textSize="25dp"
+                        android:textColor="@color/greendarkerbutton"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <EditText
+                    android:id="@+id/etHomeMarkerTPH"
+                    android:visibility="gone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@color/white"
+                    android:imeOptions="actionDone"
+                    android:singleLine="true"
+                    android:maxLines="1"
+                    android:textColor="@color/black"
+                    android:inputType="number"
+                    android:padding="16dp"
+                    android:textSize="15dp" />
+
+            </FrameLayout>
+
+        </com.google.android.material.card.MaterialCardView>
 
         <TextView
             android:id="@+id/tvErrorFormPanenTBS"

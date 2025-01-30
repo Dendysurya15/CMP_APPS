@@ -888,6 +888,39 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         selectedTPHValue = null
     }
 
+    private fun animateLoadingDots(linearLayout: LinearLayout) {
+        val loadingContainer = linearLayout.findViewById<LinearLayout>(R.id.loadingDotsContainer)
+        val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+        val dots = listOf(
+            loadingContainer.findViewById<TextView>(R.id.dot1),
+            loadingContainer.findViewById<TextView>(R.id.dot2),
+            loadingContainer.findViewById<TextView>(R.id.dot3),
+            loadingContainer.findViewById<TextView>(R.id.dot4)
+        )
+
+        // Show loading animation
+        spinner.visibility = View.INVISIBLE
+        loadingContainer.visibility = View.VISIBLE
+
+        // Animate each dot
+        dots.forEachIndexed { index, dot ->
+            val animation = ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
+            animation.duration = 500
+            animation.repeatCount = ObjectAnimator.INFINITE
+            animation.repeatMode = ObjectAnimator.REVERSE
+            animation.startDelay = (index * 100).toLong() // Stagger the animations
+            animation.start()
+        }
+    }
+
+    private fun hideLoadingDots(linearLayout: LinearLayout) {
+        val loadingContainer = linearLayout.findViewById<LinearLayout>(R.id.loadingDotsContainer)
+        val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+        loadingContainer.visibility = View.GONE
+        spinner.visibility = View.VISIBLE
+    }
+
     private fun setupSpinnerView(
         linearLayout: LinearLayout,
         data: List<String>,
@@ -926,8 +959,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
-                            loadingDialog.show()
-                            loadingDialog.setMessage("Loading afdeling data...")
+//                            loadingDialog.show()
+//                            loadingDialog.setMessage("Loading afdeling data...")
+                            animateLoadingDots(linearLayout)
+
+                            // Add artificial delay if needed
+                            delay(1000) // 1 second delay
                         }
 
 
@@ -1017,7 +1054,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }
                         } finally {
                             withContext(Dispatchers.Main) {
-                                loadingDialog.dismiss()
+//                                loadingDialog.dismiss()
+                                hideLoadingDots(linearLayout)
                             }
                         }
                     }
@@ -1073,8 +1111,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
-                            loadingDialog.show()
-                            loadingDialog.setMessage("Loading afdeling data...")
+                            animateLoadingDots(linearLayout)
+
+                            // Add artificial delay if needed
+                            delay(1000) // 1 second delay
                         }
 
 //
@@ -1116,7 +1156,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }
                         } finally {
                             withContext(Dispatchers.Main) {
-                                loadingDialog.dismiss()
+                                hideLoadingDots(linearLayout)
                             }
                         }
                     }
@@ -1150,8 +1190,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
-                            loadingDialog.show()
-                            loadingDialog.setMessage("Loading karyawan data...")
+                            animateLoadingDots(linearLayout)
+
+                            delay(1000) // 1 second delay
                         }
 
                         try {
@@ -1196,7 +1237,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }
                         } finally {
                             withContext(Dispatchers.Main) {
-                                loadingDialog.dismiss()
+//                                loadingDialog.dismiss()
+                                hideLoadingDots(linearLayout)
                             }
                         }
                     }
@@ -1239,8 +1281,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
-                            loadingDialog.show()
-                            loadingDialog.setMessage("Loading karyawan data...")
+                            animateLoadingDots(linearLayout)
+
+                            // Add artificial delay if needed
+                            delay(1000) // 1 second delay
                         }
 
                         try {
@@ -1289,7 +1333,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }
                         } finally {
                             withContext(Dispatchers.Main) {
-                                loadingDialog.dismiss()
+//                                loadingDialog.dismiss()
+                                hideLoadingDots(linearLayout)
                             }
                         }
                     }
@@ -1351,7 +1396,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val missingFields = mutableListOf<String>()
         val errorMessages = mutableListOf<String>()
 
-        // Check location first
         if (!locationEnable || lat == 0.0 || lon == 0.0) {
             isValid = false
             this.vibrate()

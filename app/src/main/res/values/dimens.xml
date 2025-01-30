@@ -7,6 +7,6 @@
     <dimen name="corner_radius">3dp</dimen>
     <dimen name="item_width">120dp</dimen>
     <dimen name="top_margin">10dp</dimen>
-    <dimen name="dialog_max_height">100dp</dimen>
+    <dimen name="max_dialog_height">200dp</dimen>
 
 </resources>
