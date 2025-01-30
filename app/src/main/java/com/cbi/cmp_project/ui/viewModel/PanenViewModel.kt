@@ -12,6 +12,7 @@ import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.data.repository.DatasetRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -34,6 +35,10 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _activePanenList = MutableLiveData<List<PanenEntity>>()
     val activePanenList: LiveData<List<PanenEntity>> get() = _activePanenList
 
+    private val _panenCount = MutableStateFlow(0)
+    val panenCount: StateFlow<Int> = _panenCount.asStateFlow()
+
+
     private val _saveDataPanenState = MutableStateFlow<SaveDataPanenState>(SaveDataPanenState.Loading)
     val saveDataPanenState = _saveDataPanenState.asStateFlow()
 
@@ -41,6 +46,12 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _panenList.value = repository.getAllPanen()
         }
+    }
+
+    suspend fun loadPanenCount(): Int {
+        val count = repository.getPanenCount()
+        _panenCount.value = count
+        return count
     }
 
     fun loadActivePanen() {

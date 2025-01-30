@@ -29,6 +29,9 @@ abstract class PanenDao {
     @Query("SELECT * FROM panen_table WHERE id = :id")
     abstract fun getById(id: Int): PanenEntity?
 
+    @Query("SELECT COUNT(*) FROM panen_table")
+    abstract suspend fun getCount(): Int
+
     @Query("SELECT * FROM panen_table")
     abstract fun getAll(): List<PanenEntity>
 

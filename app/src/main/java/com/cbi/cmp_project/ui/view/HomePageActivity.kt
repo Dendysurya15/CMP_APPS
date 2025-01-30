@@ -158,9 +158,7 @@ class HomePageActivity : AppCompatActivity() {
 //            ) {}
 //            return
 //        }
-
-
-        Log.d("testing", "gassss")
+        
         lifecycleScope.launch {
             // Inflate dialog layout
             val dialogView = layoutInflater.inflate(R.layout.list_card_upload, null)

@@ -59,6 +59,10 @@ class AppRepository(context: Context) {
         panenDao.getById(id)
     }
 
+    suspend fun getPanenCount(): Int {
+        return panenDao.getCount()
+    }
+
     suspend fun getAllPanen(): List<PanenEntity> = withContext(Dispatchers.IO) {
         panenDao.getAll()
     }

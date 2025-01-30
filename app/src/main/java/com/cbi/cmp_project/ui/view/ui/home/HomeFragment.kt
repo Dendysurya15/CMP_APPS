@@ -1,5 +1,6 @@
 package com.cbi.cmp_project.ui.view.ui.home
 
+import android.animation.ObjectAnimator
 import android.content.Intent
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
@@ -11,12 +12,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.addCallback
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
@@ -24,8 +27,17 @@ import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.databinding.FragmentHomeBinding
 import com.cbi.cmp_project.ui.view.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.ui.generate_espb.GenerateEspbActivity
+import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
+import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
+import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils.stringXML
+import com.cbi.cmp_project.utils.LoadingDialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -36,8 +48,10 @@ class HomeFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var featureAdapter: FeatureAdapter
     private lateinit var homeViewModel: HomeViewModel
+    private lateinit var panenViewModel: PanenViewModel
+    private lateinit var loadingDialog: LoadingDialog
 
-
+    private var countPanenTPH: Int = 0  // Global variable for count
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -47,14 +61,50 @@ class HomeFragment : Fragment() {
         homeViewModel = ViewModelProvider(this).get(HomeViewModel::class.java)
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         val root: View = binding.root
-
+        initViewModel()
         setupRecyclerView()
+
         observeViewModel()
+//        fetchDataEachCard()
         handleOnBackPressed()
         return root
 
 
     }
+
+    private fun initViewModel() {
+        val factory = PanenViewModel.PanenViewModelFactory(requireActivity().application)
+        panenViewModel = ViewModelProvider(this, factory)[PanenViewModel::class.java]
+    }
+
+    private fun fetchDataEachCard() {
+
+        if (this::featureAdapter.isInitialized) {  // Changed to positive condition
+            lifecycleScope.launch(Dispatchers.IO) {
+                withContext(Dispatchers.Main) {
+                    featureAdapter.showLoadingForFeature("Panen TBS")
+                    delay(1000)
+                }
+
+                try {
+                    val countDeferred = async { panenViewModel.loadPanenCount() }
+                    countPanenTPH = countDeferred.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount("Panen TBS", countPanenTPH.toString())
+                        featureAdapter.hideLoadingForFeature("Panen TBS")
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature("Panen TBS")
+                    }
+                }
+            }
+        } else {
+            AppLogger.e("Feature adapter not initialized yet")
+        }
+    }
+
 
     private fun handleOnBackPressed() {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
@@ -128,7 +178,7 @@ class HomeFragment : Fragment() {
                 featureName = "Panen TBS",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
-                count = "0",
+                count = countPanenTPH.toString(),
                 functionName = "Data Tersimpan",
                 functionDescription = "Jumlah Data Panen Yang Sudah dibuat!",
                 displayType = DisplayType.COUNT
@@ -174,11 +224,18 @@ class HomeFragment : Fragment() {
 
         binding.featuresRecyclerView.apply {
             layoutManager = gridLayoutManager
-            adapter = FeatureAdapter { featureCard ->
-                // Pass the context to the ViewModel for navigation handling
+            featureAdapter = FeatureAdapter { featureCard ->
                 homeViewModel.onFeatureCardClicked(featureCard, requireContext())
-            }.also {
-                it.setFeatures(features)
+            }
+
+            // Set the adapter
+            adapter = featureAdapter
+
+            // Set features
+            featureAdapter.setFeatures(features)
+
+            post {
+                fetchDataEachCard()
             }
             addItemDecoration(object : RecyclerView.ItemDecoration() {
                 override fun getItemOffsets(
@@ -220,13 +277,42 @@ enum class DisplayType {
 }
 
 
-class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit)  : RecyclerView.Adapter<FeatureAdapter.FeatureViewHolder>() {
+class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) : RecyclerView.Adapter<FeatureAdapter.FeatureViewHolder>() {
 
-    private var features = listOf<FeatureCard>()
+    private var features = ArrayList<FeatureCard>()  // Changed to ArrayList for mutability
 
     fun setFeatures(newFeatures: List<FeatureCard>) {
-        features = newFeatures
+        features = ArrayList(newFeatures)  // Simply create new ArrayList from input
         notifyDataSetChanged()
+    }
+
+    fun updateCount(featureName: String, newCount: String) {
+        val position = features.indexOfFirst {
+            it.featureName == featureName && it.displayType == DisplayType.COUNT
+        }
+        if (position != -1) {
+            val updatedFeature = features[position].copy(count = newCount)
+            features[position] = updatedFeature  // Now this will work because ArrayList is mutable
+            notifyItemChanged(position)
+        }
+    }
+
+    fun showLoadingForFeature(featureName: String) {
+        val position = features.indexOfFirst {
+            it.featureName == featureName && it.displayType == DisplayType.COUNT
+        }
+        if (position != -1) {
+            notifyItemChanged(position, "show_loading")
+        }
+    }
+
+    fun hideLoadingForFeature(featureName: String) {
+        val position = features.indexOfFirst {
+            it.featureName == featureName && it.displayType == DisplayType.COUNT
+        }
+        if (position != -1) {
+            notifyItemChanged(position, "hide_loading")
+        }
     }
 
     class FeatureViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -237,6 +323,31 @@ class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit)  : Rec
         val countFeature: TextView = itemView.findViewById(R.id.count_feature_data)
         val functionName: TextView = itemView.findViewById(R.id.feature_function_name)
         val functionDescription: TextView = itemView.findViewById(R.id.feature_function_description)
+        val loadingDotsContainer: LinearLayout = itemView.findViewById(R.id.countLoadingDotsContainer)
+        val dot1: TextView = itemView.findViewById(R.id.countDot1)
+        val dot2: TextView = itemView.findViewById(R.id.countDot2)
+        val dot3: TextView = itemView.findViewById(R.id.countDot3)
+        val dot4: TextView = itemView.findViewById(R.id.countDot4)
+
+        fun showLoadingAnimation() {
+            val dots = listOf(dot1, dot2, dot3, dot4)
+            countFeature.visibility = View.INVISIBLE
+            loadingDotsContainer.visibility = View.VISIBLE
+
+            dots.forEachIndexed { index, dot ->
+                val animation = ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
+                animation.duration = 500
+                animation.repeatCount = ObjectAnimator.INFINITE
+                animation.repeatMode = ObjectAnimator.REVERSE
+                animation.startDelay = (index * 100).toLong()
+                animation.start()
+            }
+        }
+
+        fun hideLoadingAnimation() {
+            loadingDotsContainer.visibility = View.GONE
+            countFeature.visibility = View.VISIBLE
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FeatureViewHolder {
@@ -245,23 +356,16 @@ class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit)  : Rec
         return FeatureViewHolder(view)
     }
 
-
-
     override fun onBindViewHolder(holder: FeatureViewHolder, position: Int) {
         val feature = features[position]
         val context = holder.itemView.context
 
-        // Set card background color
         holder.cardView.setCardBackgroundColor(ContextCompat.getColor(context, feature.cardBackgroundColor))
-
-        // Set feature name and its background
         holder.featureName.text = feature.featureName
         (holder.featureNameBackground.background as GradientDrawable).setColor(
             ContextCompat.getColor(context, feature.featureNameBackgroundColor)
         )
 
-
-        // Handle icon/count display
         when (feature.displayType) {
             DisplayType.ICON -> {
                 holder.iconFeature.visibility = View.VISIBLE
@@ -275,19 +379,28 @@ class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit)  : Rec
             }
         }
 
-        // Set function name and description
         holder.functionName.text = feature.functionName
         holder.functionDescription.text = feature.functionDescription
-
         holder.cardView.setOnClickListener {
             onFeatureClicked(feature)
         }
     }
 
-
+    override fun onBindViewHolder(
+        holder: FeatureViewHolder,
+        position: Int,
+        payloads: MutableList<Any>
+    ) {
+        if (payloads.isNotEmpty()) {
+            when (payloads[0]) {
+                "show_loading" -> holder.showLoadingAnimation()
+                "hide_loading" -> holder.hideLoadingAnimation()
+                else -> super.onBindViewHolder(holder, position, payloads)
+            }
+            return
+        }
+        onBindViewHolder(holder, position)
+    }
 
     override fun getItemCount() = features.size
-
-
-
 }
