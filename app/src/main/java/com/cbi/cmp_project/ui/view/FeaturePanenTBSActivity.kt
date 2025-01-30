@@ -1,11 +1,13 @@
 package com.cbi.cmp_project.ui.view
 
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
@@ -16,6 +18,8 @@ import android.util.Base64
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.BounceInterpolator
+import android.view.animation.OvershootInterpolator
 import android.view.inputmethod.InputMethodManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -95,35 +99,45 @@ import java.util.zip.GZIPInputStream
 import kotlin.reflect.KMutableProperty0
 import android.text.InputType as AndroidInputType
 import android.view.inputmethod.EditorInfo
+import com.cbi.cmp_project.ui.adapter.Worker
+import com.cbi.cmp_project.ui.viewModel.PanenViewModel
+import com.cbi.cmp_project.ui.viewModel.SaveDataPanenState
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.PhotoCallback {
 
+    private var photoCount = 0
+    private val photoFiles = mutableListOf<String>() // Store filenames
+    private val komentarFoto = mutableListOf<String>() // Store filenames
     private var jumTBS = 0
-
     private var bMentah = 0
     private var bLewatMasak = 0
     private var jjgKosong = 0
     private var abnormal = 0
     private var seranganTikus = 0
     private var tangkaiPanjang = 0
-    private var vCut = 0
+    private var tidakVCut = 0
     private var lat: Double? = null
     private var lon: Double? = null
-    var currentAccuracy : Float = 0F
+    var currentAccuracy: Float = 0F
     private var prefManager: PrefManager? = null
 
     private var featureName: String? = null
     private lateinit var cameraViewModel: CameraViewModel
     private lateinit var locationViewModel: LocationViewModel
     private lateinit var panenTBSViewModel: PanenTBSViewModel
-    private var locationEnable:Boolean = false
+    private var locationEnable: Boolean = false
     private var isPermissionRationaleShown = false
-
+    private lateinit var takeFotoPreviewAdapter: TakeFotoPreviewAdapter
     private var regionalList: List<RegionalModel> = emptyList()
     private var wilayahList: List<WilayahModel> = emptyList()
     private var deptList: List<DeptModel> = emptyList()
     private var divisiList: List<DivisiModel> = emptyList()
     private var blokList: List<BlokModel> = emptyList()
     private var karyawanList: List<KaryawanModel> = emptyList()
+    private var karyawanLainList: List<KaryawanModel> = emptyList()
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var kemandoranLainList: List<KemandoranModel> = emptyList()
     private var kemandoranDetailList: List<KemandoranDetailModel> = emptyList()
@@ -141,23 +155,23 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         SPINNER,
         EDITTEXT
     }
-    private var selectedRegional: String = ""
-    private var selectedWilayah: String = ""
+
+    private var ancakInput: String = ""
     private var selectedEstate: String = ""
+    private var asistensi: Int = 0
+    private var selectedTipePanen: String = ""
     private var selectedAfdeling: String = ""
     private var selectedBlok: String = ""
     private var selectedTPH: String = ""
+    private var selectedKemandoran: String = ""
     private var selectedKemandoranLain: String = ""
+    private var selectedPemanen: String = ""
+    private var selectedPemanenLain: String = ""
 
 
-    private var selectedRegionalValue: Int? = null
-    private var selectedWilayahValue: Int? = null
-    private var selectedEstateValue: Int? = null
     private var selectedDivisiValue: Int? = null
     private var selectedBlokValue: Int? = null
-    private var selectedDivisionCodeValue: Int? = null
     private var selectedTahunTanamValue: String? = null
-    private var selectedFieldCodeValue: Int? = null
     private var selectedTPHValue: Int? = null
 
     private var selectedDivisionSpinnerIndex: Int? = null
@@ -177,13 +191,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     var persenJjgKosong = 0f
     var persenMasak = 0f
 
+    private lateinit var jjg_json: String
 
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private lateinit var datasetViewModel: DatasetViewModel
+    private lateinit var panenViewModel: PanenViewModel
     private var regionalId: String? = null
     private var regionalName: String? = null
     private var estateId: String? = null
     private var estateName: String? = null
+    private var userName: String? = null
+    private var userId: String? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -193,11 +211,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         dataCacheManager = DataCacheManager(this)
         prefManager = PrefManager(this)
         initViewModel()
-
+        initializeJjgJson()
         regionalId = prefManager!!.getRegionalUserLogin("regional_id")
         regionalName = prefManager!!.getRegionalUserLogin("regional_name")
         estateId = prefManager!!.getEstateUserLogin("estate_id")
         estateName = prefManager!!.getEstateUserLogin("estate_name")
+        userName = prefManager!!.getUserNameLogin("user_name")
+        userId = prefManager!!.getUserIdLogin("user_id")
 
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
@@ -212,11 +232,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             try {
 
-                val deptDeferred = async { datasetViewModel.getDeptList(regionalId!!, estateName!!) }
+                val deptDeferred =
+                    async { datasetViewModel.getDeptList(regionalId!!, estateName!!) }
                 val divisiDeferred = async { datasetViewModel.getDivisiList(estateId!!.toInt()) }
                 deptList = deptDeferred.await()
                 divisiList = divisiDeferred.await()
 
+                AppLogger.d(deptList.toString())
                 withContext(Dispatchers.Main) {
                     setupLayout()
                 }
@@ -230,95 +252,143 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
 
-
         val mbSaveDataPanenTBS = findViewById<MaterialButton>(R.id.mbSaveDataPanenTBS)
 
-        mbSaveDataPanenTBS.setOnClickListener{
+        mbSaveDataPanenTBS.setOnClickListener {
+            if (validateAndShowErrors()) {
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Simpan",
+                    getString(R.string.confirmation_dialog_title),
+                    getString(R.string.confirmation_dialog_description),
+                    "warning.json"
+                ) {
+                    lifecycleScope.launch {
+                        try {
+                            val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
+                            val selectedPemanenLain =
+                                selectedPemanenLainAdapter.getSelectedWorkers()
+                            val selectedPemanenIds = selectedPemanen.map { it.id }
+                            val selectedPemanenLainIds = selectedPemanenLain.map { it.id }
 
-            AlertDialogUtility.withTwoActions(
-                this,
-                "Simpan",
-                getString(R.string.confirmation_dialog_title),
-                getString(R.string.confirmation_dialog_description),
-                "warning.json"
-            ) {
+                            val photoFilesString = photoFiles.joinToString(";")
+                            val komentarFotoString = komentarFoto.joinToString(";")
+                            AppLogger.d("tph_id: $selectedTPH")
+                            AppLogger.d(
+                                "date_created: ${
+                                    SimpleDateFormat(
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        Locale.getDefault()
+                                    ).format(Date())
+                                }"
+                            )
+                            AppLogger.d("created_by: $userId")
+                            AppLogger.d("jjgJson: $jjg_json")
+                            AppLogger.d("foto: $photoFiles")
+                            AppLogger.d("komentar: $komentarFoto")
+                            AppLogger.d("asistensi: $asistensi")
+                            AppLogger.d("lat: $lat")
+                            AppLogger.d("lon: $lon")
+                            AppLogger.d("jenis_panen: $selectedTipePanen")
+                            AppLogger.d("ancak: $ancakInput")
+                            AppLogger.d("archive: 1")
+                            AppLogger.d(
+                                "karyawan_id: ${
+                                    (selectedPemanenIds + selectedPemanenLainIds).joinToString(
+                                        ", "
+                                    )
+                                }"
+                            )
 
-//                panenTBSViewModel.insertPanenTBSVM(
-//                    user_id = 1,
-//                    tanggal = "2024-12-26",
-//                    name = "John Doe",
-//                    estate = "Estate 1",
-//                    id_estate = 101,
-//                    afdeling = "Afdeling A",
-//                    id_afdeling = 202,
-//                    blok = "Blok X",
-//                    id_blok = 303,
-//                    tahun_tanam = 2020,
-//                    id_tt = 404,
-//                    ancak = "No",
-//                    id_ancak = 505,
-//                    tph = "TPH-1",
-//                    id_tph = 606,
-//                    jenis_panen = "Harvest Type A",
-//                    list_pemanen = "John, Alice, Bob",
-//                    list_idpemanen = "1,2,3",
-//                    tbs = 1000,
-//                    tbs_mentah = 200,
-//                    tbs_lewatmasak = 100,
-//                    tks = 50,
-//                    abnormal = 10,
-//                    tikus = 5,
-//                    tangkai_panjang = 30,
-//                    vcut = 5,
-//                    tbs_masak = 900,
-//                    tbs_dibayar = 800,
-//                    tbs_kirim = 750,
-//                    latitude = "1.234567",
-//                    longitude = "103.456789",
-//                    foto = "image_url.jpg"
-//                )
-//
-//                panenTBSViewModel.insertDBPanenTBS.observe(this) { isInserted ->
-//
-//                    Log.d("testing", isInserted.toString())
-//                    if (isInserted){
-//                        AlertDialogUtility.alertDialogAction(
-//                            this,
-//                            "Sukses",
-//                            "Data berhasil disimpan!",
-//                            "success.json"
-//                        ) {
-//                            Toast.makeText(
-//                                this,
-//                                "sukses bro",
-//                                Toast.LENGTH_LONG
-//                            ).show()
-//                        }
-//                    }else{
-//                        Toast.makeText(
-//                            this,
-//                            "Gagal bro",
-//                            Toast.LENGTH_LONG
-//                        ).show()
-//                    }
-//                }
+                            panenViewModel.saveDataPanen(
+                                tph_id = selectedTPH,
+                                date_created = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                ).format(Date()),
+                                created_by = userId!!.toInt(),
+                                karyawan_id = (selectedPemanenIds + selectedPemanenLainIds).joinToString(
+                                    ","
+                                ),
+                                jjg_json = jjg_json,
+                                foto = "$photoFilesString",
+                                komentar = "$komentarFotoString",
+                                asistensi = asistensi,
+                                lat = lat!!,
+                                lon = lon!!,
+                                jenis_panen = selectedTipePanen.toInt(),
+                                ancakInput = ancakInput,
+                                archive = 1,
+                            )
 
+                            panenViewModel.saveDataPanenState.collect { state ->
+                                when (state) {
+                                    is SaveDataPanenState.Loading -> {
+                                        loadingDialog.show()
+                                    }
 
+                                    is SaveDataPanenState.Success -> {
+                                        loadingDialog.dismiss()
+                                        AlertDialogUtility.withSingleAction(
+                                            this@FeaturePanenTBSActivity,
+                                            stringXML(R.string.al_back),
+                                            stringXML(R.string.al_success_save_local),
+                                            stringXML(R.string.al_description_success_save_local),
+                                            "success.json",
+                                            R.color.greenDarker
+                                        ) {
+                                            finish()
+                                        }
+                                    }
+
+                                    is SaveDataPanenState.Error -> {
+                                        loadingDialog.dismiss()
+                                        AlertDialogUtility.withSingleAction(
+                                            this@FeaturePanenTBSActivity,
+                                            stringXML(R.string.al_back),
+                                            stringXML(R.string.al_failed_save_local),
+                                            "${stringXML(R.string.al_description_failed_save_local)} : ${state.message ?: "Unknown error"}",
+                                            "warning.json",
+                                            R.color.colorRedDark
+                                        ) {
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(
+                                this@FeaturePanenTBSActivity,
+                                "Terjadi kesalahan: ${e.message}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
             }
-
         }
     }
 
+    fun initializeJjgJson() {
+        jjg_json = JSONObject().apply {
+            put("TO", jumTBS)
+            put("UN", bMentah)
+            put("OV", bLewatMasak)
+            put("EM", jjgKosong)
+            put("AB", abnormal)
+            put("RA", seranganTikus)
+            put("LO", tangkaiPanjang)
+            put("TI", tidakVCut)
+            put("RI", buahMasak)
+            put("KP", kirimPabrik)
+            put("PA", tbsDibayar)
+        }.toString() // Convert JSON object to string and store in jjg_json
+    }
 
 
     private fun setupHeader() {
         featureName = intent.getStringExtra("FEATURE_NAME")
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
         AppUtils.setupFeatureHeader(featureName, tvFeatureName)
-    }
-
-    private fun initializeCounters() {
-        updateCounterTextViews() // This will set all counters to "0 Buah" initially
     }
 
     private fun updateCounterTextViews() {
@@ -328,7 +398,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         findViewById<TextView>(R.id.tvPercentBuahMasak).text = "($persenMasak)%"
     }
 
-    private fun updateDependentCounters(layoutId: Int, change: Int, counterVar: KMutableProperty0<Int>,  tvPercent: TextView?) {
+    private fun updateDependentCounters(
+        layoutId: Int,
+        change: Int,
+        counterVar: KMutableProperty0<Int>,
+        tvPercent: TextView?
+    ) {
         when (layoutId) {
             R.id.layoutJumTBS -> {
                 if (change > 0) { // When change is positive (Increment)
@@ -338,7 +413,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     if (buahMasak > 0) {  // Prevent going negative
                         jumTBS += change
                         counterVar.set(jumTBS)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 }
@@ -346,17 +421,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutBMentah -> {
                 if (change > 0) {
-                    if (buahMasak > 0 ) {
+                    if (buahMasak > 0) {
                         bMentah += change
                         counterVar.set(bMentah)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 } else if (change < 0) { // When change is negative (Decrement)
                     if (bMentah > 0) { // Prevent going negative
                         bMentah += change
                         counterVar.set(bMentah)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 }
@@ -367,14 +442,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     if (buahMasak > 0) {
                         bLewatMasak += change
                         counterVar.set(bLewatMasak)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 } else if (change < 0) { // When change is negative (Decrement)
                     if (bLewatMasak > 0) { // Prevent going negative
                         bLewatMasak += change
                         counterVar.set(bLewatMasak)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 }
@@ -385,14 +460,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     if (buahMasak > 0) {
                         jjgKosong += change
                         counterVar.set(jjgKosong)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 } else if (change < 0) { // When change is negative (Decrement)
                     if (jjgKosong > 0) { // Prevent going negative
                         jjgKosong += change
                         counterVar.set(jjgKosong)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 }
@@ -403,65 +478,68 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     if (jumTBS > abnormal) { // Prevent abnormal from exceeding tbs
                         abnormal += change
                         counterVar.set(abnormal)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 } else if (change < 0) { // When change is negative (Decrement)
                     if (abnormal > 0) { // Prevent going negative
                         abnormal += change
                         counterVar.set(abnormal)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 }
             }
+
             R.id.layoutSeranganTikus -> {
                 if (change > 0) {
                     if (jumTBS > seranganTikus) {
                         seranganTikus += change
                         counterVar.set(seranganTikus)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 } else if (change < 0) { // When change is negative (Decrement)
                     if (seranganTikus > 0) { // Prevent going negative
                         seranganTikus += change
                         counterVar.set(seranganTikus)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 }
             }
+
             R.id.layoutTangkaiPanjang -> {
                 if (change > 0) {
                     if (jumTBS > tangkaiPanjang) {
                         tangkaiPanjang += change
                         counterVar.set(tangkaiPanjang)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 } else if (change < 0) { // When change is negative (Decrement)
                     if (tangkaiPanjang > 0) { // Prevent going negative
                         tangkaiPanjang += change
                         counterVar.set(tangkaiPanjang)
-                    }else{
+                    } else {
                         vibrate()
                     }
                 }
             }
+
             R.id.layoutVcut -> {
                 if (change > 0) {
-                    if (jumTBS > vCut) {
-                        vCut += change
-                        counterVar.set(vCut)
-                    }else{
+                    if (jumTBS > tidakVCut) {
+                        tidakVCut += change
+                        counterVar.set(tidakVCut)
+                    } else {
                         vibrate()
                     }
                 } else if (change < 0) {
                     if (jumTBS > 0) {
-                        vCut += change
-                        counterVar.set(vCut)
-                    }else{
+                        tidakVCut += change
+                        counterVar.set(tidakVCut)
+                    } else {
                         vibrate()
                     }
                 }
@@ -475,30 +553,30 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             tvPercent?.let {
                 it.setText("${persenMentah}%")
             }
-        }
-        else if (layoutId == R.id.layoutBLewatMasak) {
+        } else if (layoutId == R.id.layoutBLewatMasak) {
             tvPercent?.let {
                 it.setText("${persenLewatMasak}%")
             }
-        }
-        else if(layoutId == R.id.layoutJjgKosong){
+        } else if (layoutId == R.id.layoutJjgKosong) {
             tvPercent?.let {
                 it.setText("${persenJjgKosong}%")
             }
         }
     }
 
-    private fun formulas(){
+    private fun formulas() {
         buahMasak = jumTBS - jjgKosong - bMentah - bLewatMasak
         bMentah = jumTBS - bLewatMasak - jjgKosong - buahMasak
         bLewatMasak = jumTBS - bMentah - buahMasak - jjgKosong
         jjgKosong = jumTBS - bMentah - buahMasak - bLewatMasak
         tbsDibayar = jumTBS - bMentah - jjgKosong
         kirimPabrik = jumTBS - jjgKosong - abnormal
-        persenMentah = MathFun().round((bMentah.toFloat()/jumTBS.toFloat()*100), 2)!!
-        persenMasak = MathFun().round((bMentah.toFloat()/jumTBS.toFloat()*100), 2)!!
-        persenLewatMasak = MathFun().round((bLewatMasak.toFloat()/jumTBS.toFloat()*100), 2)!!
-        persenJjgKosong = MathFun().round((jjgKosong.toFloat()/jumTBS.toFloat()*100), 2)!!
+        persenMentah = MathFun().round((bMentah.toFloat() / jumTBS.toFloat() * 100), 2)!!
+        persenMasak = MathFun().round((bMentah.toFloat() / jumTBS.toFloat() * 100), 2)!!
+        persenLewatMasak = MathFun().round((bLewatMasak.toFloat() / jumTBS.toFloat() * 100), 2)!!
+        persenJjgKosong = MathFun().round((jjgKosong.toFloat() / jumTBS.toFloat() * 100), 2)!!
+
+        initializeJjgJson()
     }
 
     private fun initViewModel() {
@@ -520,11 +598,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val status_location = findViewById<ImageView>(R.id.statusLocation)
         locationViewModel = ViewModelProvider(
             this,
-            LocationViewModel.Factory(application,status_location, this)
+            LocationViewModel.Factory(application, status_location, this)
         )[LocationViewModel::class.java]
 
         val factory = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
+
+        val factoryPanenViewModel = PanenViewModel.PanenViewModelFactory(application)
+        panenViewModel = ViewModelProvider(this, factoryPanenViewModel)[PanenViewModel::class.java]
     }
 
 
@@ -560,17 +641,61 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private fun setupLayout() {
 
         inputMappings = listOf(
-            Triple(findViewById<LinearLayout>(R.id.layoutEstate), getString(R.string.field_estate), InputType.SPINNER),
-            Triple(findViewById<LinearLayout>(R.id.layoutAfdeling), getString(R.string.field_afdeling), InputType.SPINNER),
-            Triple(findViewById<LinearLayout>(R.id.layoutTahunTanam), getString(R.string.field_tahun_tanam), InputType.SPINNER),
-            Triple(findViewById<LinearLayout>(R.id.layoutBlok), getString(R.string.field_blok), InputType.SPINNER),
-            Triple(findViewById<LinearLayout>(R.id.layoutTipePanen), getString(R.string.field_tipe_panen), InputType.SPINNER),
-            Triple(findViewById<LinearLayout>(R.id.layoutNoTPH), getString(R.string.field_no_tph), InputType.SPINNER),
-            Triple(findViewById<LinearLayout>(R.id.layoutAncak), getString(R.string.field_ancak), InputType.EDITTEXT),
-            Triple(findViewById<LinearLayout>(R.id.layoutKemandoran), getString(R.string.field_kemandoran), InputType.SPINNER),
-            Triple(findViewById<LinearLayout>(R.id.layoutPemanen), getString(R.string.field_pemanen), InputType.SPINNER),
-            Triple(findViewById<LinearLayout>(R.id.layoutKemandoranLain), getString(R.string.field_kemandoran_lain), InputType.SPINNER),
-            Triple(findViewById<LinearLayout>(R.id.layoutPemanenLain), getString(R.string.field_pemanen_lain), InputType.SPINNER)
+            Triple(
+                findViewById<LinearLayout>(R.id.layoutEstate),
+                getString(R.string.field_estate),
+                InputType.SPINNER
+            ),
+            Triple(
+                findViewById<LinearLayout>(R.id.layoutAfdeling),
+                getString(R.string.field_afdeling),
+                InputType.SPINNER
+            ),
+            Triple(
+                findViewById<LinearLayout>(R.id.layoutTahunTanam),
+                getString(R.string.field_tahun_tanam),
+                InputType.SPINNER
+            ),
+            Triple(
+                findViewById<LinearLayout>(R.id.layoutBlok),
+                getString(R.string.field_blok),
+                InputType.SPINNER
+            ),
+            Triple(
+                findViewById<LinearLayout>(R.id.layoutTipePanen),
+                getString(R.string.field_tipe_panen),
+                InputType.SPINNER
+            ),
+            Triple(
+                findViewById<LinearLayout>(R.id.layoutNoTPH),
+                getString(R.string.field_no_tph),
+                InputType.SPINNER
+            ),
+            Triple(
+                findViewById<LinearLayout>(R.id.layoutAncak),
+                getString(R.string.field_ancak),
+                InputType.EDITTEXT
+            ),
+            Triple(
+                findViewById<LinearLayout>(R.id.layoutKemandoran),
+                getString(R.string.field_kemandoran),
+                InputType.SPINNER
+            ),
+            Triple(
+                findViewById<LinearLayout>(R.id.layoutPemanen),
+                getString(R.string.field_pemanen),
+                InputType.SPINNER
+            ),
+            Triple(
+                findViewById<LinearLayout>(R.id.layoutKemandoranLain),
+                getString(R.string.field_kemandoran_lain),
+                InputType.SPINNER
+            ),
+            Triple(
+                findViewById<LinearLayout>(R.id.layoutPemanenLain),
+                getString(R.string.field_pemanen_lain),
+                InputType.SPINNER
+            )
         )
 
         inputMappings.forEach { (layoutView, key, inputType) ->
@@ -583,14 +708,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             setupSpinnerView(layoutView, namaEstate)
                             findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
                         }
+
                         R.id.layoutAfdeling -> {
                             val divisiNames = divisiList.map { it.abbr }
                             setupSpinnerView(layoutView, divisiNames)
                         }
-                        R.id.layoutTipePanen->{
-                            val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
+
+                        R.id.layoutTipePanen -> {
+                            val tipePanenOptions =
+                                resources.getStringArray(R.array.tipe_panen_options).toList()
                             setupSpinnerView(layoutView, tipePanenOptions)
                         }
+
                         else -> {
                             setupSpinnerView(layoutView, emptyList())
                         }
@@ -612,7 +741,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Triple(R.id.layoutAbnormal, "Abnormal", ::abnormal),
             Triple(R.id.layoutSeranganTikus, "Serangan Tikus", ::seranganTikus),
             Triple(R.id.layoutTangkaiPanjang, "Tangkai Panjang", ::tangkaiPanjang),
-            Triple(R.id.layoutVcut, "Tidak V-Cut", ::vCut)
+            Triple(R.id.layoutVcut, "Tidak V-Cut", ::tidakVCut)
         )
         counterMappings.forEach { (layoutId, labelText, counterVar) ->
             setupPaneWithButtons(layoutId, R.id.tvNumberPanen, labelText, counterVar)
@@ -680,7 +809,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         etHomeMarkerTPH.setOnEditorActionListener { v, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) {
-                val imm = application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                val imm =
+                    application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.hideSoftInputFromWindow(v.windowToken, 0)
                 findViewById<MaterialSpinner>(R.id.spPanenTBS)?.requestFocus()
                 true
@@ -693,8 +823,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 tvError.visibility = View.GONE
-                MCVSpinner.setBackgroundColor(ContextCompat.getColor(layoutView.context, R.color.graytextdark))
+                MCVSpinner.setBackgroundColor(
+                    ContextCompat.getColor(
+                        layoutView.context,
+                        R.color.graytextdark
+                    )
+                )
+
+                if (layoutView.id == R.id.layoutAncak) {
+                    ancakInput = s?.toString()?.trim() ?: ""
+                }
             }
+
             override fun afterTextChanged(s: Editable?) {}
         })
     }
@@ -724,6 +864,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         kemandoranLainList = emptyList()
         tphList = emptyList()
         karyawanList = emptyList()
+        karyawanLainList = emptyList()
         kemandoranDetailList = emptyList()
 
         // Reset selected values
@@ -747,7 +888,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         selectedTPHValue = null
     }
 
-    private fun setupSpinnerView(linearLayout: LinearLayout, data: List<String>, onItemSelected: (Int) -> Unit = {}) {
+    private fun setupSpinnerView(
+        linearLayout: LinearLayout,
+        data: List<String>,
+        onItemSelected: (Int) -> Unit = {}
+    ) {
         val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
         val tvError = linearLayout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
 
@@ -760,7 +905,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         spinner.setOnItemSelectedListener { _, position, _, item ->
             tvError.visibility = View.GONE
 
-            when(linearLayout.id){
+            when (linearLayout.id) {
                 R.id.layoutAfdeling -> {
                     resetDependentSpinners(linearLayout.rootView)
                     selectedAfdeling = item.toString()
@@ -774,9 +919,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     selectedDivisiValue = selectedDivisiId
                     val estateAbbr = deptList.firstOrNull()?.abbr
 
-                    val nonSelectedAfdelingKemandoran = divisiList.filter { it.abbr != selectedAfdeling && it.dept == estateId!!.toInt()}
+                    val nonSelectedAfdelingKemandoran =
+                        divisiList.filter { it.abbr != selectedAfdeling && it.dept == estateId!!.toInt() }
 
-                    val nonSelectedIdAfdeling = nonSelectedAfdelingKemandoran.map{it.id}
+                    val nonSelectedIdAfdeling = nonSelectedAfdelingKemandoran.map { it.id }
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
@@ -811,7 +957,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }
 
                             blokList = blokDeferred.await()
-                            val tahunTanamList = blokList.map { it.tahun }.distinct().sortedBy { it!!.toInt() }
+                            val tahunTanamList =
+                                blokList.map { it.tahun }.distinct().sortedBy { it!!.toInt() }
                             kemandoranList = kemandoranDeferred.await()
 
                             kemandoranLainList = kemandoranLainDeferred.await()
@@ -820,11 +967,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             withContext(Dispatchers.Main) {
 
 
-                                val layoutTahunTanam = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
-                                val layoutKemandoran = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoran)
-                                val layoutKemandoranLain = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoranLain)
+                                val layoutTahunTanam =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
+                                val layoutKemandoran =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoran)
+                                val layoutKemandoranLain =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoranLain)
                                 if (tahunTanamList.isNotEmpty()) {
-                                    setupSpinnerView(layoutTahunTanam, tahunTanamList as List<String>)
+                                    setupSpinnerView(
+                                        layoutTahunTanam,
+                                        tahunTanamList as List<String>
+                                    )
                                 } else {
                                     setupSpinnerView(layoutTahunTanam, emptyList())
                                 }
@@ -832,7 +985,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                 val kemandoranNames = kemandoranList.map { it.nama }
                                 if (kemandoranNames.isNotEmpty()) {
-                                    setupSpinnerView(layoutKemandoran, kemandoranNames as List<String>)
+                                    setupSpinnerView(
+                                        layoutKemandoran,
+                                        kemandoranNames as List<String>
+                                    )
 
                                 } else {
                                     setupSpinnerView(layoutKemandoran, emptyList())
@@ -840,9 +996,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                 val kemandoranLainListNames = kemandoranLainList.map { it.nama }
 
-                                AppLogger.d(kemandoranLainList.toString())
+
                                 if (nonSelectedAfdelingKemandoran.isNotEmpty()) {
-                                    setupSpinnerView(layoutKemandoranLain,
+                                    setupSpinnerView(
+                                        layoutKemandoranLain,
                                         kemandoranLainListNames as List<String>
                                     )
                                 } else {
@@ -866,7 +1023,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
 
                 }
-                R.id.layoutTahunTanam->{
+
+                R.id.layoutTahunTanam -> {
                     resetTPHSpinner(linearLayout.rootView)
                     val selectedTahunTanam = item.toString()
                     selectedTahunTanamValue = selectedTahunTanam
@@ -874,11 +1032,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     val filteredBlokCodes = blokList.filter {
                         it.regional == regionalId!!.toInt() &&
                                 it.dept == estateId!!.toInt() &&
-                                ((it.divisi != null && it.divisi.toString().isNotEmpty() && it.divisi == selectedDivisiValue) || it.dept_abbr == estateAbbr) &&
+                                ((it.divisi != null && it.divisi.toString()
+                                    .isNotEmpty() && it.divisi == selectedDivisiValue) || it.dept_abbr == estateAbbr) &&
                                 it.tahun == selectedTahunTanamValue
                     }
 
-                    val layoutBlok = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutBlok)
+                    val layoutBlok =
+                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutBlok)
                     if (filteredBlokCodes.isNotEmpty()) {
                         val blokNames = filteredBlokCodes.map { it.kode }
                         setupSpinnerView(layoutBlok, blokNames as List<String>)
@@ -887,6 +1047,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         layoutBlok.visibility = View.GONE
                     }
                 }
+
+                R.id.layoutTipePanen -> {
+//                    selectedTipePanen = item.toString()
+                    selectedTipePanen = position.toString()
+
+                }
+
                 R.id.layoutBlok -> {
                     resetTPHSpinner(linearLayout.rootView)
                     selectedBlok = item.toString()
@@ -895,7 +1062,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     val selectedFieldId = blokList.find { blok ->
                         blok.regional == regionalId!!.toInt() &&
                                 blok.dept == estateId!!.toInt() &&
-                                ((blok.divisi != null && blok.divisi.toString().isNotEmpty() && blok.divisi == selectedDivisiValue) || blok.dept_abbr == estateAbbr) &&
+                                ((blok.divisi != null && blok.divisi.toString()
+                                    .isNotEmpty() && blok.divisi == selectedDivisiValue) || blok.dept_abbr == estateAbbr) &&
                                 blok.tahun == selectedTahunTanamValue &&
                                 blok.kode == selectedBlok
                     }?.id
@@ -927,7 +1095,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
                             withContext(Dispatchers.Main) {
-                                val layoutNoTPH = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
+                                val layoutNoTPH =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
 
                                 if (noTPHList.isNotEmpty()) {
                                     setupSpinnerView(layoutNoTPH, noTPHList as List<String>)
@@ -953,14 +1122,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
                 }
 
-                R.id.layoutNoTPH ->{
+                R.id.layoutNoTPH -> {
                     selectedTPH = item.toString()
                     selectedTPHSpinnerIndex = position
                     val estateAbbr = deptList.find { it.id == estateId!!.toInt() }?.abbr
                     val selectedTPHId = tphList!!.find {
                         it.regional == regionalId!!.toInt() &&
                                 it.dept == estateId!!.toInt() &&
-                                ((it.divisi != null && it.divisi.toString().isNotEmpty() && it.divisi == selectedDivisiValue) || it.dept_abbr == estateAbbr) &&
+                                ((it.divisi != null && it.divisi.toString()
+                                    .isNotEmpty() && it.divisi == selectedDivisiValue) || it.dept_abbr == estateAbbr) &&
                                 it.blok == selectedBlokValue &&
                                 it.tahun == selectedTahunTanamValue &&
                                 it.nomor == selectedTPH
@@ -968,13 +1138,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     selectedTPHValue = selectedTPHId?.id
                 }
+
                 R.id.layoutKemandoran -> {
-//                    selectedPemanenAdapter.clearAllWorkers()
-                    val selectedKemandoran = item.toString()
+
+                    selectedKemandoran = item.toString()
                     val filteredKemandoranId = kemandoranList.find {
                         it.dept == estateId!!.toInt() &&
                                 it.divisi == selectedDivisiValue
-                                it.nama == selectedKemandoran
+                        it.nama == selectedKemandoran
                     }?.id
 
                     lifecycleScope.launch(Dispatchers.IO) {
@@ -992,7 +1163,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             kemandoranDetailList = kemandoranDetailDeferred.await()
 
-                            val filteredKemandoranDetails = kemandoranDetailList.mapNotNull {it.nik}
+                            val filteredKemandoranDetails =
+                                kemandoranDetailList.mapNotNull { it.nik }
 
                             val karyawanDeferred = async {
                                 datasetViewModel.getKaryawanList(
@@ -1005,7 +1177,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             val karyawanNames = karyawanList.map { it.nama }
 
                             withContext(Dispatchers.Main) {
-                                val layoutPemanen = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                val layoutPemanen =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
                                 if (karyawanNames.isNotEmpty()) {
                                     setupSpinnerView(layoutPemanen, karyawanNames as List<String>)
                                 } else {
@@ -1028,19 +1201,28 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
                     }
                 }
+
                 R.id.layoutPemanen -> {
-                    val selectedPemanen = item.toString()
-                    selectedPemanenAdapter.addWorker(selectedPemanen)
+                    selectedPemanen = item.toString()
+                    val karyawanMap = karyawanList.associateBy({ it.nama }, { it.id })
+                    val selectedPemanenId = karyawanMap[selectedPemanen]  // Get the ID from a map
 
-                    // Get the updated list of available workers
-                    val availableWorkers = selectedPemanenAdapter.getAvailableWorkers()
+                    if (selectedPemanenId != null) {
+                        val worker = Worker(selectedPemanenId.toString(), selectedPemanen)
+                        selectedPemanenAdapter.addWorker(worker)
 
-                    // Only update the spinner if there are still available workers
-                    if (availableWorkers.isNotEmpty()) {
-                        setupSpinnerView(linearLayout, availableWorkers)
+                        val availableWorkers = selectedPemanenAdapter.getAvailableWorkers()
+
+                        if (availableWorkers.isNotEmpty()) {
+                            setupSpinnerView(
+                                linearLayout,
+                                availableWorkers.map { it.name })  // Extract names
+                        }
+
+                        AppLogger.d("Selected Worker: $selectedPemanen, ID: $selectedPemanenId")
                     }
-
                 }
+
 
                 R.id.layoutKemandoranLain -> {
 //                    selectedPemanenLainAdapter.clearAllWorkers()
@@ -1050,13 +1232,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     val selectedIdKemandoranLain = kemandoranLainList.find {
                         it.dept == estateId!!.toInt() &&
-                                (it.divisi != null && it.divisi.toString().isNotEmpty() && it.divisi == selectedDivisiValue || it.dept_abbr == estateAbbr) &&
+                                (it.divisi != null && it.divisi.toString()
+                                    .isNotEmpty() && it.divisi == selectedDivisiValue || it.dept_abbr == estateAbbr) &&
                                 it.nama == selectedKemandoranLain
                     }?.id
 
-
-
-                    AppLogger.d(selectedIdKemandoranLain.toString())
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
                             loadingDialog.show()
@@ -1072,7 +1252,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             val kemandoranDetailList = kemandoranDetailDeferred.await()
 
-                            val allKaryawanIdInKemandoranDetail = kemandoranDetailList.mapNotNull {it.nik}
+                            val allKaryawanIdInKemandoranDetail =
+                                kemandoranDetailList.mapNotNull { it.nik }
 
                             val karyawanDeferred = async {
                                 datasetViewModel.getKaryawanList(
@@ -1080,14 +1261,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                 )
                             }
 
-                            val listKaryawanKemandoranLain = karyawanDeferred.await()
+                            karyawanLainList = karyawanDeferred.await()
 
-                            val namaKaryawanKemandoranLain = listKaryawanKemandoranLain.map { it.nama }
+                            val namaKaryawanKemandoranLain =
+                                karyawanLainList.map { it.nama }
 
                             withContext(Dispatchers.Main) {
-                                val layoutPemanenLain = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                                val layoutPemanenLain =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
                                 if (namaKaryawanKemandoranLain.isNotEmpty()) {
-                                    setupSpinnerView(layoutPemanenLain, namaKaryawanKemandoranLain as List<String>)
+                                    setupSpinnerView(
+                                        layoutPemanenLain,
+                                        namaKaryawanKemandoranLain as List<String>
+                                    )
                                 } else {
                                     setupSpinnerView(layoutPemanenLain, emptyList())
                                 }
@@ -1109,19 +1295,29 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
                 }
 
-                R.id.layoutPemanenLain->{
-                    val selectedPemanenLain = item.toString()
-                    selectedPemanenLainAdapter.addWorker(selectedPemanenLain)
-                    val availableWorkers = selectedPemanenLainAdapter.getAvailableWorkers()
+                R.id.layoutPemanenLain -> {
+                    selectedPemanenLain = item.toString()
+                    val karyawanMap = karyawanLainList.associateBy({ it.nama }, { it.id })
+                    val selectedPemanenLainId = karyawanMap[selectedPemanenLain]  // Get the ID
 
-                    // Only update the spinner if there are still available workers
-                    if (availableWorkers.isNotEmpty()) {
-                        setupSpinnerView(linearLayout, availableWorkers)
+                    if (selectedPemanenLainId != null) {
+                        val worker = Worker(selectedPemanenLainId.toString(), selectedPemanenLain)
+                        selectedPemanenLainAdapter.addWorker(worker)
+
+                        val availableWorkers = selectedPemanenLainAdapter.getAvailableWorkers()
+
+                        if (availableWorkers.isNotEmpty()) {
+                            setupSpinnerView(
+                                linearLayout,
+                                availableWorkers.map { it.name })  // Extract names
+                        }
+
+                        AppLogger.d("Selected Worker: $selectedPemanenLain, ID: $selectedPemanenLainId")
                     }
                 }
 
 
-                }
+            }
         }
     }
 
@@ -1136,10 +1332,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 layoutKemandoranLain.visibility = View.VISIBLE
                 layoutPemanenLain.visibility = View.VISIBLE
 
+                asistensi = 1
                 // Setup spinner for KemandoranLain if needed
 //                setupSpinnerView(layoutKemandoranLain, workerGroupList.map { it.name })
             } else {
                 // Hide layouts when switch is OFF
+                asistensi = 0
                 selectedPemanenLainAdapter.clearAllWorkers()
                 layoutKemandoranLain.visibility = View.GONE
                 layoutPemanenLain.visibility = View.GONE
@@ -1148,9 +1346,151 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
-    /**
-     * Configures the RecyclerView to repeat the layout 3 times.
-     */
+    private fun validateAndShowErrors(): Boolean {
+        var isValid = true
+        val missingFields = mutableListOf<String>()
+        val errorMessages = mutableListOf<String>()
+
+        // Check location first
+        if (!locationEnable || lat == 0.0 || lon == 0.0) {
+            isValid = false
+            this.vibrate()
+            errorMessages.add(stringXML(R.string.al_location_description_failed))
+            missingFields.add("Location")
+            return false
+        }
+
+//        if (currentAccuracy == null || currentAccuracy > 10.0f) {
+//            AppLogger.d("belum bisa ges")
+//            isValid = false
+//            errorMessages.add(stringXML(R.string.al_location_under_ten_meter))
+//        }
+
+        val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
+        val isAsistensiEnabled = switchAsistensi.isChecked
+
+        inputMappings.forEach { (layout, key, inputType) ->
+            if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
+
+                val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
+                val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
+
+                val isEmpty = when (inputType) {
+                    InputType.SPINNER -> {
+                        when (layout.id) {
+                            R.id.layoutEstate -> estateName!!.isEmpty()
+                            R.id.layoutAfdeling -> selectedAfdeling.isEmpty()
+                            R.id.layoutTahunTanam -> selectedTahunTanamValue?.isEmpty() ?: true
+                            R.id.layoutBlok -> selectedBlok.isEmpty()
+                            R.id.layoutNoTPH -> selectedTPH.isEmpty()
+                            R.id.layoutTipePanen -> selectedTipePanen.isEmpty()
+                            R.id.layoutKemandoran -> selectedKemandoran.isEmpty()
+                            R.id.layoutPemanen -> selectedPemanen.isEmpty()
+                            else -> spinner.selectedIndex == -1
+                        }
+                    }
+
+                    InputType.EDITTEXT -> {
+                        when (key) {
+                            getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
+                            else -> editText.text.toString().trim().isEmpty()
+                        }
+                    }
+                }
+
+                if (isEmpty) {
+                    tvError.visibility = View.VISIBLE
+                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+                    missingFields.add(key)
+                    isValid = false
+                } else {
+                    tvError.visibility = View.GONE
+                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+                }
+            }
+        }
+
+        // Check asistensi fields
+        if (isAsistensiEnabled) {
+            val layoutKemandoranLain = findViewById<LinearLayout>(R.id.layoutKemandoranLain)
+            val layoutPemanenLain = findViewById<LinearLayout>(R.id.layoutPemanenLain)
+
+            val isKemandoranLainEmpty = selectedKemandoranLain.isEmpty()
+            val isPemanenLainEmpty = selectedPemanenLainAdapter.itemCount == 0
+
+            if (isKemandoranLainEmpty || isPemanenLainEmpty) {
+                if (isKemandoranLainEmpty) {
+                    layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                        View.VISIBLE
+                    layoutKemandoranLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                        ContextCompat.getColor(this, R.color.colorRedDark)
+                    missingFields.add(getString(R.string.field_kemandoran_lain))
+                }
+
+                if (isPemanenLainEmpty) {
+                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                        View.VISIBLE
+                    layoutPemanenLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                        ContextCompat.getColor(this, R.color.colorRedDark)
+                    missingFields.add(getString(R.string.field_pemanen_lain))
+                }
+                isValid = false
+            }
+        }
+
+        // Check jumTBS
+        if (jumTBS <= 0) {
+            isValid = false
+            val layoutJumTBS = findViewById<LinearLayout>(R.id.layoutJumTBS)
+            layoutJumTBS.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
+                text = stringXML(R.string.al_total_tbs_description)
+                visibility = View.VISIBLE
+            }
+            errorMessages.add(stringXML(R.string.al_total_tbs_description))
+        } else {
+            val layoutJumTBS = findViewById<LinearLayout>(R.id.layoutJumTBS)
+            layoutJumTBS.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
+                visibility = View.GONE
+            }
+        }
+
+        // Check photo count
+        if (photoCount == 0) {
+            isValid = false
+            errorMessages.add(stringXML(R.string.al_photo_minimal_one))
+        }
+
+        if (!isValid) {
+            vibrate()
+            // Create combined error message
+            val combinedErrorMessage = buildString {
+                val allMessages = mutableListOf<String>()
+                if (missingFields.isNotEmpty()) {
+                    allMessages.add(stringXML(R.string.al_pls_complete_data))
+                }
+
+                allMessages.addAll(errorMessages)
+                allMessages.forEachIndexed { index, message ->
+                    append("${index + 1}. $message")
+                    if (index < allMessages.size - 1) append("\n")
+                }
+            }
+
+            AlertDialogUtility.withSingleAction(
+                this,
+                stringXML(R.string.al_back),
+                stringXML(R.string.al_data_not_completed),
+                combinedErrorMessage,
+                "warning.json",
+                R.color.colorRedDark
+            ) {}
+        }
+
+        return isValid
+    }
+
     private fun setupRecyclerViewTakePreviewFoto() {
         val recyclerView: RecyclerView = findViewById(R.id.recyclerViewFotoPreview)
 
@@ -1164,8 +1504,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val layoutManager = GridLayoutManager(this, spanCount)
         recyclerView.layoutManager = layoutManager
 
-        val adapter = TakeFotoPreviewAdapter(3, cameraViewModel, this, featureName)
-        recyclerView.adapter = adapter
+        takeFotoPreviewAdapter = TakeFotoPreviewAdapter(3, cameraViewModel, this, featureName)
+        recyclerView.adapter = takeFotoPreviewAdapter
     }
 
     /**
@@ -1181,7 +1521,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     /**
      * Sets up a layout with increment and decrement buttons for counters.
      */
-    private fun setupPaneWithButtons(layoutId: Int, textViewId: Int, labelText: String, counterVar: KMutableProperty0<Int>) {
+    private fun setupPaneWithButtons(
+        layoutId: Int,
+        textViewId: Int,
+        labelText: String,
+        counterVar: KMutableProperty0<Int>
+    ) {
         val includedLayout = findViewById<View>(layoutId)
         val textView = includedLayout.findViewById<TextView>(textViewId)
         val etNumber = includedLayout.findViewById<EditText>(R.id.etNumber)
@@ -1195,7 +1540,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         fun vibrate() {
             val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                vibrator.vibrate(
+                    VibrationEffect.createOneShot(
+                        50,
+                        VibrationEffect.DEFAULT_AMPLITUDE
+                    )
+                )
             } else {
                 vibrator.vibrate(50)
             }
@@ -1214,7 +1564,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         btDec.setOnClickListener {
             if (counterVar.get() > 0) {
-                updateDependentCounters(layoutId, -1, counterVar,  tvPercent)  // Decrement through dependent counter
+                updateDependentCounters(
+                    layoutId,
+                    -1,
+                    counterVar,
+                    tvPercent
+                )  // Decrement through dependent counter
                 etNumber.setText(counterVar.get().toString())
             } else {
                 vibrate()
@@ -1224,7 +1579,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
         btInc.setOnClickListener {
-            updateDependentCounters(layoutId, 1, counterVar,  tvPercent)  // Increment through dependent counter
+            updateDependentCounters(
+                layoutId,
+                1,
+                counterVar,
+                tvPercent
+            )  // Increment through dependent counter
             etNumber.setText(counterVar.get().toString())
             changeEditTextStyle(counterVar.get() <= 0)
         }
@@ -1238,7 +1598,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 // If in camera mode, close camera and return to previous screen
                 cameraViewModel.closeCamera()
             }
+
             else -> {
+                vibrate()
                 val intent = Intent(this, HomePageActivity::class.java)
                 startActivity(intent)
                 finishAffinity()
@@ -1290,16 +1652,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         resultCode: String,
         deletePhoto: View?,
         position: Int,
+        komentar: String?
     ) {
 
-        // Update the RecyclerView item with the new photo
+
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewFotoPreview)
         val adapter = recyclerView.adapter as? TakeFotoPreviewAdapter
 
         adapter?.addPhotoFile("${position}", photoFile)
 
-        // Find the specific ImageView in the RecyclerView item
-        val viewHolder = recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder
+        photoCount++
+        photoFiles.add(fname)
+        komentarFoto.add(komentar!!)
+        val viewHolder =
+            recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder
         viewHolder?.let {
             // Load the image using Glide or your preferred image loading library
             Glide.with(this)

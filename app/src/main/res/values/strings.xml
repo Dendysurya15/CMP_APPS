@@ -15,6 +15,15 @@
     <string name="confirmation_dialog_description">Pastikan Anda telah memeriksa dengan teliti sebelum melanjutkan.</string>
     <string name="al_yes">Ya</string>
     <string name="al_confirm_out">Apakah anda yakin untuk keluar dari aplikasi MobilePro?</string>
+    <string name="al_location_not_ready">GPS Tidak terdeteksi!</string>
+    <string name="al_location_description_failed"> Perangkat tidak dapat mendeteksi lokasi Anda saat ini. Pastikan layanan lokasi di perangkat Anda aktif!</string>
+    <string name="al_data_not_completed">Data Belum Lengkap!</string>
+    <string name="al_pls_complete_data">Mohon lengkapi data yang belum diisi!</string>
+    <string name="al_location_not_accurate">Akurasi GPS Kurang Akurat</string>
+    <string name="al_location_under_ten_meter">Harap tunggu hingga akurasi GPS dibawah 10 meter!</string>
+    <string name="al_total_tbs">Total TBS 0</string>
+    <string name="al_total_tbs_description">Jumlah TBS harus lebih dari 0</string>
+    <string name="al_photo_minimal_one">Minimal 1 foto yang terlampir</string>
 
     <!--    form panen tbs-->
     <string name="field_regional">Regional</string>
@@ -36,7 +45,10 @@
     <string name="al_no_internet_connection_description_download_dataset">Pastikan perangkat terhubung agar dapat mengunduh dataset aplikasi!</string>
     <string name="al_success_download_dataset">Berhasil unduh data</string>
     <string name="al_success_download_dataset_description">Dataset aplikasi berhasil diunduh!</string>
-
+    <string name="al_description_success_save_local">Data berhasil disimpan!</string>
+    <string name="al_success_save_local">Sukses Simpan</string>
+    <string name="al_failed_save_local">Gagal Simpan</string>
+    <string name="al_description_failed_save_local">Data gagal disimpan!</string>
     <string name="download_dataset">Sedang mengunduh dataset</string>
     <string name="fetching_dataset">Sedang mengambil dataset</string>
 

@@ -125,6 +125,9 @@ class HomePageActivity : AppCompatActivity() {
         prefManager!!.setEstateUserLogin("estate_id", "101")
         prefManager!!.setEstateUserLogin("estate_name", "SULUNG ESTATE")
 
+        prefManager!!.setUserIdLogin("user_id", "238")
+        prefManager!!.setUserNameLogin("user_name", "Ahmad Waluyo")
+
 
 
         setupStatusObservers()
@@ -1093,7 +1096,5 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
     }
-
-
 
 }

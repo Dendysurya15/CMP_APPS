@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 data class PanenEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val tph_id: String,
-    val date_created: Int,
+    val date_created: String,
     val created_by: Int,
     val karyawan_id: String,
     val jjg_json: String,

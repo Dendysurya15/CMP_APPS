@@ -76,12 +76,30 @@ class PrefManager(_context: Context) {
         editor.commit()
     }
 
+    fun setUserNameLogin(key: String, value: String?) {
+        editor.putString(key, value)
+        editor.commit()
+    }
+
+    fun setUserIdLogin(key: String, value: String?) {
+        editor.putString(key, value)
+        editor.commit()
+    }
+
     fun getRegionalUserLogin(key: String): String? {
         return pref.getString(key, null)
     }
 
     // Get estate user login
     fun getEstateUserLogin(key: String): String? {
+        return pref.getString(key, null)
+    }
+
+    fun getUserNameLogin(key: String): String? {
+        return pref.getString(key, null)
+    }
+
+    fun getUserIdLogin(key: String): String? {
         return pref.getString(key, null)
     }
 

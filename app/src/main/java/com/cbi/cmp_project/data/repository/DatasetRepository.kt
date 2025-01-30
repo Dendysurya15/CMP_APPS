@@ -65,4 +65,6 @@ class DatasetRepository(context: Context) {
     suspend fun getKaryawanList(filteredId: Array<String>): List<KaryawanModel> {
         return karyawanDao.getKaryawanByCriteria(filteredId)
     }
+
+
 }

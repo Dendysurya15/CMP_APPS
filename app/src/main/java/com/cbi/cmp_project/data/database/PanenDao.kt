@@ -7,8 +7,18 @@ import com.cbi.cmp_project.data.model.PanenEntity
 @Dao
 abstract class PanenDao {
 
-    @Insert
-    abstract fun insert(panen: List<PanenEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insert(panen: PanenEntity): Long // Returns row ID of inserted item
+
+    @Transaction
+    open suspend fun insertWithTransaction(panen: PanenEntity): Result<Long> {
+        return try {
+            val id = insert(panen)
+            Result.success(id)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     @Update
     abstract fun update(panen: List<PanenEntity>)
@@ -40,9 +50,9 @@ abstract class PanenDao {
     @Query("UPDATE panen_table SET archive = 1 WHERE id IN (:id)")
     abstract fun archiveByListID(id: List<Int>): Int
 
-    @Transaction
-    open fun updateOrInsert(panen: List<PanenEntity>) {
-
-        insert(panen)
-    }
+//    @Transaction
+//    open fun updateOrInsert(panen: List<PanenEntity>) {
+//
+//        insert(panen)
+//    }
 }

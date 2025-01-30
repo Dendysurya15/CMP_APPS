@@ -188,7 +188,7 @@
 
                         android:layout_width="wrap_content"
                         android:layout_height="match_parent"
-                        android:text=""
+                        android:text="0 Buah"
                         android:fontFamily="@font/manrope_semibold"
                         android:textSize="17dp"
                         android:textColor="@color/black"
@@ -227,7 +227,7 @@
 
                         android:layout_width="wrap_content"
                         android:layout_height="match_parent"
-
+android:text="0 buah"
                         android:textColor="@color/black"
                         android:gravity="center|left"
                         android:fontFamily="@font/manrope_semibold"
@@ -265,6 +265,7 @@
                         android:textColor="@color/black"
                         android:fontFamily="@font/manrope_semibold"
                         android:textSize="17dp"
+                        android:text="0 buah"
                         android:gravity="center|left"
                         android:id="@+id/tvCounterTBSDibayar"/>
                     <TextView
@@ -293,7 +294,6 @@
 
                 <include
                     layout="@layout/pane_number_layout"
-                    android:visibility="gone"
                     android:id="@+id/layoutVcut"/>
 
                 <TextView
@@ -333,6 +333,49 @@
                     tools:itemCount="3"
                 />
 
+<!--                <com.google.android.material.card.MaterialCardView-->
+<!--                    android:layout_width="match_parent"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    app:cardCornerRadius="10dp"-->
+<!--                    android:id="@+id/testBro"-->
+<!--                    app:cardElevation="1dp"-->
+<!--                    app:strokeWidth="0dp"-->
+<!--                    app:cardBackgroundColor="@color/bgSelectWorkerGreen"-->
+<!--                    android:layout_margin="0dp"-->
+<!--                    android:padding="0dp">-->
+
+<!--                    <LinearLayout-->
+<!--                        android:layout_width="match_parent"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:orientation="horizontal"-->
+<!--                        android:gravity="center_vertical"-->
+<!--                        android:padding="8dp">-->
+
+<!--                        <TextView-->
+<!--                            android:id="@+id/tvRoundedError"-->
+<!--                            android:layout_width="match_parent"-->
+<!--                            android:layout_height="wrap_content"-->
+<!--                            android:layout_weight="1"-->
+<!--                            android:text="- Semua data sudah lengkap\n- GPS sudah Akurat!"-->
+<!--                            android:textColor="@color/black"-->
+<!--                            android:textSize="14dp"-->
+<!--                            android:fontFamily="@font/manrope_semibold"-->
+<!--                            android:layout_marginEnd="8dp" />-->
+
+<!--                        <ImageView-->
+<!--                            android:layout_width="28dp"-->
+<!--                            android:layout_height="28dp"-->
+<!--                            android:src="@drawable/baseline_check_24"-->
+<!--                            android:tint="@color/greendarkerbutton"-->
+<!--                            android:layout_marginEnd="10dp"-->
+<!--                            tools:ignore="UseAppTint" />-->
+<!--                    </LinearLayout>-->
+
+<!--                </com.google.android.material.card.MaterialCardView>-->
+
+
+
+
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
@@ -350,7 +393,7 @@
                         android:text="Simpan Data"
                         android:textSize="16dp"
                         android:fontFamily="@font/manrope_semibold"
-                        app:backgroundTint="@color/greenDefault"
+                        app:backgroundTint="@color/bluedarklight"
                         app:cornerRadius="10dp"
                         app:elevation="10dp"
                         app:icon="@drawable/baseline_save_24"

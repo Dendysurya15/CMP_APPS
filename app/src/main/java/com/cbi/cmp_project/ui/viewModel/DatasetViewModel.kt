@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.data.repository.DatasetRepository
 import com.cbi.markertph.data.model.BlokModel
 import com.cbi.markertph.data.model.DeptModel
@@ -15,11 +16,14 @@ import com.cbi.markertph.data.model.DivisiModel
 import com.cbi.markertph.data.model.RegionalModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.markertph.data.model.WilayahModel
+import com.github.junrar.Archive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+
 
 class DatasetViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: DatasetRepository = DatasetRepository(application)
@@ -50,6 +54,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _tphStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val tphStatus: StateFlow<Result<Boolean>> = _tphStatus.asStateFlow()
+
+
 
     fun updateOrInsertRegional(regionals: List<RegionalModel>) = viewModelScope.launch(Dispatchers.IO) {
         try {

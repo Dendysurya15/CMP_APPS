@@ -58,7 +58,7 @@
                     <!-- Description with fixed height ScrollView -->
                     <androidx.core.widget.NestedScrollView
                         android:layout_width="match_parent"
-                        android:layout_height="100dp"
+                        android:layout_height="150dp"
                         android:layout_marginTop="8dp"
                         android:scrollbars="vertical"
                         android:fadeScrollbars="false"
@@ -70,7 +70,7 @@
                             android:layout_height="wrap_content"
                             android:fontFamily="@font/manrope_medium"
                             android:textColor="@color/black"
-                            android:textSize="15dp"
+                            android:textSize="16dp"
                             android:paddingEnd="8dp" />
 
                     </androidx.core.widget.NestedScrollView>
@@ -101,7 +101,7 @@
                     android:layout_weight="1"
                     android:backgroundTint="@color/graylight"
                     android:fontFamily="@font/manrope_semibold"
-                    android:gravity="center"
+                    android:layout_gravity="center_vertical"
                     android:text="Batal"
                     android:textAllCaps="false"
                     android:textColor="@color/black"
@@ -114,9 +114,10 @@
                     android:layout_width="0dp"
                     android:layout_height="70dp"
                     android:layout_weight="1"
+                    android:text="sakdjflksdjf"
                     android:backgroundTint="@color/greenDefault"
                     android:fontFamily="@font/manrope_semibold"
-                    android:gravity="center"
+                    android:layout_gravity="center_vertical"
                     android:textAllCaps="false"
                     android:textColor="@color/white"
                     android:textSize="15dp"

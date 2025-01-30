@@ -14,9 +14,37 @@ class AppRepository(context: Context) {
     private val panenDao = database.panenDao()
     private val espbDao = database.espbDao()
 
-    // PanenEntity Methods
-    suspend fun insertPanen(panen: List<PanenEntity>) = withContext(Dispatchers.IO) {
-        panenDao.insert(panen)
+    suspend fun saveDataPanen(
+        tph_id: String,
+        date_created: String,
+        created_by: Int,
+        karyawan_id: String,
+        jjg_json: String,
+        foto: String,
+        komentar: String,
+        asistensi: Int,
+        lat: Double,
+        lon: Double,
+        jenis_panen: Int,
+        ancakInput: String,
+        archive: Int,
+    ): Result<Long> {
+        val panenEntity = PanenEntity(
+            tph_id = tph_id,
+            date_created = date_created,
+            created_by = created_by,
+            karyawan_id = karyawan_id,
+            jjg_json = jjg_json,
+            foto = foto,
+            komentar = komentar,
+            asistensi = asistensi,
+            lat = lat,
+            lon = lon,
+            jenis_panen = jenis_panen,
+            ancak = ancakInput.toIntOrNull() ?: 0,
+            archive = archive
+        )
+        return panenDao.insertWithTransaction(panenEntity)
     }
 
     suspend fun updatePanen(panen: List<PanenEntity>) = withContext(Dispatchers.IO) {
@@ -59,9 +87,6 @@ class AppRepository(context: Context) {
         panenDao.archiveByListID(ids)
     }
 
-    suspend fun updateOrInsertPanen(panen: List<PanenEntity>) = withContext(Dispatchers.IO) {
-        panenDao.updateOrInsert(panen)
-    }
 
     // ESPBEntity Methods
     suspend fun insertESPB(espb: List<ESPBEntity>) = withContext(Dispatchers.IO) {

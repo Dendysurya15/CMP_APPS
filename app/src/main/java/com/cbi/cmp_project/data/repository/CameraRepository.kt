@@ -61,7 +61,7 @@ import java.util.Locale
 class CameraRepository(private val context: Context, private val window: Window, private val view: View, private val zoomView: View) {
 
     interface PhotoCallback {
-        fun onPhotoTaken(photoFile: File, fname: String, resultCode: String, deletePhoto: View?, pageForm: Int)
+        fun onPhotoTaken(photoFile: File, fname: String, resultCode: String, deletePhoto: View?, pageForm: Int, komentar: String?)
     }
     private var photoCallback: PhotoCallback? = null
 
@@ -447,9 +447,6 @@ class CameraRepository(private val context: Context, private val window: Window,
                                         }
 
 
-                                        Log.d("testing", fileName.toString())
-                                        Log.d("testing", resultCode.toString())
-                                        Log.d("testing", pageForm.toString())
                                         mainHandler.post {
                                             rotatedCam = false
                                             closeCamera()
@@ -462,7 +459,7 @@ class CameraRepository(private val context: Context, private val window: Window,
 
 
 
-                                            photoCallback?.onPhotoTaken(file, fileName, resultCode,deletePhoto, pageForm)
+                                            photoCallback?.onPhotoTaken(file, fileName, resultCode,deletePhoto, pageForm, komentar)
                                         }
                                     }, handler)
 
