@@ -60,6 +60,8 @@ dependencies {
     implementation libs.androidx.activity
     implementation libs.androidx.constraintlayout
     implementation libs.androidx.room.runtime
+    implementation libs.androidx.legacy.support.v4
+    implementation libs.androidx.recyclerview
     ksp libs.androidx.room.compiler
     implementation libs.androidx.room.ktx
 //    def room_version = "2.6.1"
@@ -103,4 +105,5 @@ dependencies {
     implementation 'com.github.junrar:junrar:7.5.5'  // Use the latest version
 
     implementation "androidx.room:room-runtime:2.6.1"
+
 }

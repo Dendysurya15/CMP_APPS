@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.PanenEntity
+import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.data.repository.DatasetRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,8 +33,8 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _archivedPanenList = MutableLiveData<List<PanenEntity>>()
     val archivedPanenList: LiveData<List<PanenEntity>> = _archivedPanenList
 
-    private val _activePanenList = MutableLiveData<List<PanenEntity>>()
-    val activePanenList: LiveData<List<PanenEntity>> = _activePanenList
+    private val _activePanenList = MutableLiveData<List<PanenEntityWithRelations>>()
+    val activePanenList: LiveData<List<PanenEntityWithRelations>> = _activePanenList
 
     private val _panenCount = MutableStateFlow(0)
     val panenCount: StateFlow<Int> = _panenCount.asStateFlow()

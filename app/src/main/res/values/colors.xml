@@ -22,6 +22,12 @@
     <color name="graylightDarker">#d3d3d3</color>
     <color name="bgSelectWorkerGreen">#daedd5</color>
     <color name="strokeSelectWorkerGreen">#a7c79f</color>
+    <color name="bgLightOrange">#ffd7b5</color>
+    <color name="borderOrange">#ff9248</color>
+    <color name="bgLightYellow">#fef6e2</color>
+    <color name="borderYellow">#fbddbd</color>
+
+
 
 
 

@@ -29,6 +29,7 @@
     <string name="al_failed_fetch_data_desc">Gagal Mengambil Data!</string>
     <string name="al_failed_fetch_data">Terjadi Kesalahan!</string>
 
+    <string name="generate_qr">Generate QR Panen TPH</string>
     <string name="dial_unselect_item">Batalkan Pilihan</string>
     <string name="dial_upload_item">Upload Item Terpilih</string>
     <string name="dial_delete_item">Hapus Item Pilihan</string>

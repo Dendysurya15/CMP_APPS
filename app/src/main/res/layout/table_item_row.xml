@@ -42,33 +42,33 @@
 
         </FrameLayout>
 
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:id="@+id/tvItemTgl"
-            android:fontFamily="@font/manrope_semibold"
-            android:text="28 Jan 2025\n17:26"
-            android:padding="5dp"
-            android:textSize="14dp"
-            android:textStyle="bold" />
+<!--        <TextView-->
+<!--            android:layout_width="0dp"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_weight="1"-->
+<!--            android:gravity="center"-->
+<!--            android:id="@+id/tvItemTgl"-->
+<!--            android:fontFamily="@font/manrope_semibold"-->
+<!--            android:text="28 Jan 2025\n17:26"-->
+<!--            android:padding="5dp"-->
+<!--            android:textSize="14dp"-->
+<!--            android:textStyle="bold" />-->
 
         <TextView
+            android:id="@+id/tvItemBlok"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:id="@+id/tvItemBlok"
             android:text="NBE OC A034"
             android:fontFamily="@font/manrope_semibold"
             android:padding="5dp"
             android:gravity="center"
-            android:textSize="14dp"
+            android:textSize="14sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="0dp"
-            android:id="@+id/tvItemTPH"
+            android:id="@+id/tvItemGrading"
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:gravity="center"

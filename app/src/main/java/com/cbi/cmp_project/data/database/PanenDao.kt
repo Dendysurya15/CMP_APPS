@@ -3,6 +3,7 @@ package com.cbi.cmp_project.data.database
 import androidx.room.*
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.PanenEntity
+import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 
 @Dao
 abstract class PanenDao {
@@ -52,6 +53,10 @@ abstract class PanenDao {
 
     @Query("UPDATE panen_table SET archive = 1 WHERE id IN (:id)")
     abstract fun archiveByListID(id: List<Int>): Int
+
+    @Transaction
+    @Query("SELECT * FROM panen_table WHERE archive = 0")
+    abstract  fun getAllActiveWithRelations(): List<PanenEntityWithRelations>
 
 //    @Transaction
 //    open fun updateOrInsert(panen: List<PanenEntity>) {

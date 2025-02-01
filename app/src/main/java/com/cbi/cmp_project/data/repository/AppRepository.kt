@@ -4,6 +4,7 @@ import android.content.Context
 import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.PanenEntity
+import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -67,14 +68,15 @@ class AppRepository(context: Context) {
         panenDao.getAll()
     }
 
-    suspend fun getActivePanen(): Result<List<PanenEntity>> = withContext(Dispatchers.IO) {
+    suspend fun getActivePanen(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
         try {
-            val data = panenDao.getAllActive()
+            val data = panenDao.getAllActiveWithRelations()
             Result.success(data)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
 
     suspend fun getArchivedPanen(): Result<List<PanenEntity>> = withContext(Dispatchers.IO) {
         try {
