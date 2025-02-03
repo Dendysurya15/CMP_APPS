@@ -37,5 +37,5 @@ class HomeViewModel : ViewModel() {
 sealed class FeatureCardEvent(val context: Context? = null, val featureName: String? = null) {
     class NavigateToPanenTBS(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
     class NavigateToListPanenTBS(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
-    class NavigateToGenerateESPB(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
+    class NavigateToScanPanen(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
 }

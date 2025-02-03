@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -26,7 +27,6 @@ import com.cbi.cmp_project.databinding.FragmentHomeBinding
 
 import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.PanenTBS.ListPanenTBSActivity
-import com.cbi.cmp_project.ui.view.ui.generate_espb.GenerateEspbActivity
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
@@ -37,13 +37,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-import com.cbi.cmp_project.ui.view.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.ScanQR
-import org.json.JSONObject
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.util.zip.GZIPInputStream
 
 
 class HomeFragment : Fragment() {
@@ -153,10 +147,8 @@ class HomeFragment : Fragment() {
                         startActivity(intent)
                     }
                 }
-                is FeatureCardEvent.NavigateToGenerateESPB -> {
 
                 is FeatureCardEvent.NavigateToScanPanen -> {
-
                     event.context?.let {
                         val intent = Intent(it, ScanQR::class.java)
                         // Pass the feature name to the intent
@@ -186,10 +178,7 @@ class HomeFragment : Fragment() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
-
                 featureName = "List History Panen TBS",
-
-                featureName = "List Panen TBS",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
                 count = "0",
