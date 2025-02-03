@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.ui.view.ui.generate_espb
+package com.cbi.cmp_project.ui.view
 
 import android.Manifest
 import android.content.Intent
@@ -10,19 +10,25 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.ui.view.ListTPHFromQRActivity.Companion.EXTRA_QR_RESULT
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 
-class GenerateEspbActivity : AppCompatActivity() {
+class ScanQR : AppCompatActivity() {
 
+    var menuString = ""
+    var subTitleString = ""
 
     private val qrCodeLauncher = registerForActivityResult(
         ScanContract()
     ) { result ->
         if (result.contents != null) {
             // Launch result activity with scanned content
-            val intent = Intent(this, ListTPHFromQRActivity::class.java).apply {
-                putExtra(ListTPHFromQRActivity.EXTRA_QR_RESULT, result.contents)
+            var intent = Intent(this, ListTPHFromQRActivity::class.java).apply {
+                putExtra(EXTRA_QR_RESULT, result.contents) }
+            when (menuString) {
+                "Generate eSPB" -> intent = Intent(this, ListTPHFromQRActivity::class.java).apply {
+                putExtra(EXTRA_QR_RESULT, result.contents) }
             }
             startActivity(intent)
             finish()
@@ -38,6 +44,8 @@ class GenerateEspbActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        menuString = intent.getStringExtra("FEATURE_NAME") ?: ""
+        subTitleString = intent.getStringExtra("SUBTITLE") ?: ""
         setContentView(R.layout.activity_generate_espb)
         checkPermissionAndStartScanning()
     }
@@ -62,7 +70,7 @@ class GenerateEspbActivity : AppCompatActivity() {
             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
             setOrientationLocked(false)
             setBeepEnabled(true)
-            setPrompt("Align QR code within the frame")
+            setPrompt(subTitleString)
             setTimeout(60000)  // 60 second timeout
             setCameraId(0)  // Use back camera
             setBarcodeImageEnabled(true)  // Save scanned barcode image
@@ -86,4 +94,3 @@ class GenerateEspbActivity : AppCompatActivity() {
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 }
-
