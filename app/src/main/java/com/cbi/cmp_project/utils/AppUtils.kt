@@ -73,7 +73,7 @@ object AppUtils {
     fun setupFeatureHeader(featureName: String?, tvFeatureName: TextView) {
         val context = tvFeatureName.context  // Get the context from the TextView
         val appVersion = getAppVersion(context)
-        val headerText = "${featureName ?: "Default Feature Name"} ($appVersion)"
+        val headerText = "${featureName ?: "Default Feature Name"}"
         tvFeatureName.text = headerText
     }
 

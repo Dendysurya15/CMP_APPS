@@ -42,7 +42,9 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
     private val _locationAccuracy = MutableLiveData<Float>()
     val locationAccuracy: LiveData<Float>
         get() = _locationAccuracy
-
+    private val _locationIconState = MutableLiveData<Boolean>()
+    val locationIconState: LiveData<Boolean>
+        get() = _locationIconState
 
     private var isStartLocations = false
     private val mFusedLocationClient: FusedLocationProviderClient =
@@ -141,6 +143,24 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
                     }
                 }
             }
+    }
+
+    private fun updateLocationIcon(isEnabled: Boolean) {
+        _locationIconState.value = isEnabled
+        imageView.setImageResource(R.drawable.baseline_location_pin_24)
+        imageView.imageTintList = ColorStateList.valueOf(
+            activity.resources.getColor(
+                if (isEnabled) R.color.greenbutton else R.color.colorRed
+            )
+        )
+    }
+
+    fun refreshLocationStatus() {
+        if (checkLocationPermission() && isStartLocations) {
+            updateLocationIcon(true)
+        } else {
+            updateLocationIcon(false)
+        }
     }
 
     fun stopLocationUpdates() {

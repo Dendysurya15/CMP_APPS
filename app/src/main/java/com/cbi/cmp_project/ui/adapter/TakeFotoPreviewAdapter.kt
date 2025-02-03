@@ -36,14 +36,10 @@ class TakeFotoPreviewAdapter(
 ) : RecyclerView.Adapter<TakeFotoPreviewAdapter.FotoViewHolder>(), CameraRepository.PhotoCallback {
 
     var onItemClick: ((Int) -> Unit)? = null
-
-    // Store the comment text for each item in the adapter
     private val comments = mutableListOf<String>()
-
     private val listFileFoto = mutableMapOf<String, File>()
 
     init {
-        // Initialize comments list with empty strings
         for (i in 0 until itemCount) {
             comments.add("")
         }
@@ -51,8 +47,8 @@ class TakeFotoPreviewAdapter(
 
     class FotoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val imageView: ImageView = itemView.findViewById(R.id.ivAddFoto)
-        val commentTextView: TextView = itemView.findViewById(R.id.etPhotoComment) // Comment TextView
-        val titleCommentTextView: TextView = itemView.findViewById(R.id.titleComment) // Title TextView
+        val commentTextView: TextView = itemView.findViewById(R.id.etPhotoComment)
+        val titleCommentTextView: TextView = itemView.findViewById(R.id.titleComment)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FotoViewHolder {
@@ -62,25 +58,24 @@ class TakeFotoPreviewAdapter(
 
     override fun onBindViewHolder(holder: FotoViewHolder, position: Int) {
         holder.titleCommentTextView.text = "Komentar Foto ${position + 1}"
+        holder.commentTextView.text = comments[position]
 
-        holder.commentTextView.text = comments[position] // Set the current comment to the TextView
+//
+//        // Show comment fields if photo exists (except for first position)
+//        if (listFileFoto.containsKey(position.toString())) {
+//            if (position > 0) {
+//                holder.titleCommentTextView.visibility = View.VISIBLE
+//                holder.commentTextView.visibility = View.VISIBLE
+//            }
+//        }
 
         holder.commentTextView.setOnClickListener {
             showCommentDialog(position, holder.commentTextView, position + 1)
         }
 
         holder.itemView.setOnClickListener {
-            if (comments[position].isEmpty()) {
-
-                val background = holder.commentTextView.background as GradientDrawable
-                if (comments[position].isNotEmpty()) {
-                    background.setStroke(6, ContextCompat.getColor(context, R.color.greytext)) // Use your neutral color
-                } else {
-                    background.setStroke(6, ContextCompat.getColor(context, android.R.color.holo_red_dark))
-                }
-
-                Toast.makeText(context, "Harap Mengisi Komentar Terlebih Dahulu!", Toast.LENGTH_SHORT).show()
-
+            if (position > 0 && comments[position].isEmpty()) {
+                // For positions 1 and 2, require comment first
                 val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     vibrator.vibrate(VibrationEffect.createOneShot(80, VibrationEffect.DEFAULT_AMPLITUDE))
@@ -88,9 +83,49 @@ class TakeFotoPreviewAdapter(
                     @Suppress("DEPRECATION")
                     vibrator.vibrate(80)
                 }
+
+                Toast.makeText(context, "Harap Mengisi Komentar Terlebih Dahulu!", Toast.LENGTH_SHORT).show()
+
+                val background = holder.commentTextView.background as GradientDrawable
+                background.setStroke(6, ContextCompat.getColor(context, android.R.color.holo_red_dark))
             } else {
                 checkCameraPermission(position, holder)
             }
+        }
+    }
+
+
+    private fun handleCameraAction(position: Int, holder: FotoViewHolder) {
+        val uniqueKodeFoto = "${position + 1}"
+
+        if (listFileFoto.containsKey(position.toString())) {
+            Log.d("TakeFotoAdapter", "Opening existing photo for position $position")
+            val existingFile = listFileFoto[position.toString()]!!
+
+            cameraViewModel.openZoomPhotos(existingFile) {
+                Log.d("TakeFotoAdapter", "Opening camera to retake photo for position $position")
+                cameraViewModel.takeCameraPhotos(
+                    uniqueKodeFoto,
+                    holder.imageView,
+                    position,
+                    null,
+                    comments[position],
+                    uniqueKodeFoto,
+                    featureName
+                )
+                listFileFoto[position.toString()] = existingFile
+            }
+        } else {
+            Log.d("TakeFotoAdapter", "Taking new photo for position $position")
+            cameraViewModel.takeCameraPhotos(
+                uniqueKodeFoto,
+                holder.imageView,
+                position,
+                null,
+                comments[position],
+                uniqueKodeFoto,
+                featureName
+            )
         }
     }
 
@@ -120,45 +155,45 @@ class TakeFotoPreviewAdapter(
         }
     }
 
-    private fun handleCameraAction(position: Int, holder: FotoViewHolder) {
-        val uniqueKodeFoto = "${position + 1}"
-
-        if (listFileFoto.containsKey(position.toString())) {
-            Log.d("TakeFotoAdapter", "Opening existing photo for position $position")
-            val existingFile = listFileFoto[position.toString()]!!
-
-            // Open the zoom view
-            cameraViewModel.openZoomPhotos(existingFile) {
-                Log.d("TakeFotoAdapter", "Opening camera to retake photo for position $position")
-
-                // Retake the photo without deleting the existing one
-                cameraViewModel.takeCameraPhotos(
-                    uniqueKodeFoto,
-                    holder.imageView,
-                    position,
-                    null,
-                    comments[position],
-                    uniqueKodeFoto,
-                    featureName
-                )
-
-                // After taking a new photo, update the map only if successful
-                // (this assumes `takeCameraPhotos` handles file creation internally)
-                listFileFoto[position.toString()] = existingFile
-            }
-        } else {
-            Log.d("TakeFotoAdapter", "Taking new photo for position $position")
-            cameraViewModel.takeCameraPhotos(
-                uniqueKodeFoto,
-                holder.imageView,
-                position,
-                null,
-                comments[position],
-                uniqueKodeFoto,
-                featureName
-            )
-        }
-    }
+//    private fun handleCameraAction(position: Int, holder: FotoViewHolder) {
+//        val uniqueKodeFoto = "${position + 1}"
+//
+//        if (listFileFoto.containsKey(position.toString())) {
+//            Log.d("TakeFotoAdapter", "Opening existing photo for position $position")
+//            val existingFile = listFileFoto[position.toString()]!!
+//
+//            // Open the zoom view
+//            cameraViewModel.openZoomPhotos(existingFile) {
+//                Log.d("TakeFotoAdapter", "Opening camera to retake photo for position $position")
+//
+//                // Retake the photo without deleting the existing one
+//                cameraViewModel.takeCameraPhotos(
+//                    uniqueKodeFoto,
+//                    holder.imageView,
+//                    position,
+//                    null,
+//                    comments[position],
+//                    uniqueKodeFoto,
+//                    featureName
+//                )
+//
+//                // After taking a new photo, update the map only if successful
+//                // (this assumes `takeCameraPhotos` handles file creation internally)
+//                listFileFoto[position.toString()] = existingFile
+//            }
+//        } else {
+//            Log.d("TakeFotoAdapter", "Taking new photo for position $position")
+//            cameraViewModel.takeCameraPhotos(
+//                uniqueKodeFoto,
+//                holder.imageView,
+//                position,
+//                null,
+//                comments[position],
+//                uniqueKodeFoto,
+//                featureName
+//            )
+//        }
+//    }
 
 
     companion object {
@@ -223,9 +258,10 @@ class TakeFotoPreviewAdapter(
         builder.show()
     }
 
-    override fun onPhotoTaken(photoFile: File, fname: String, resultCode: String, deletePhoto: View?, position: Int) {
+    override fun onPhotoTaken(photoFile: File, fname: String, resultCode: String, deletePhoto: View?, position: Int, komentar : String?) {
         listFileFoto[position.toString()] = photoFile
         notifyDataSetChanged()
+
     }
 }
 

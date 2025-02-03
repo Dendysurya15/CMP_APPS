@@ -41,7 +41,7 @@ abstract class ESPBDao {
 
     @Transaction
     open fun updateOrInsert(espb: List<ESPBEntity>) {
-        deleteAll(espb)
+
         insert(espb)
     }
 }

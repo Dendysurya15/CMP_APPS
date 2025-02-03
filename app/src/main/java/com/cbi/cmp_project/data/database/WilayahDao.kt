@@ -18,7 +18,7 @@ abstract class WilayahDao {
 
     @Transaction
     open fun updateOrInsertWilayah(wilayah: List<WilayahModel>) {
-        deleteAll()
+
         insertAll(wilayah)
     }
 }

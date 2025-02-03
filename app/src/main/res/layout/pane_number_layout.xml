@@ -12,6 +12,11 @@
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
+        >
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:gravity="center"
         android:orientation="horizontal">
         <TextView
@@ -61,53 +66,72 @@
 <!--            android:hint="0"/>-->
 
     </LinearLayout>
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="right|center">
-        <androidx.cardview.widget.CardView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:id="@+id/btDec"
-            app:cardCornerRadius="5dp"
-            android:backgroundTint="@color/white"
-            app:strokeColor="@color/black"
-            android:layout_marginRight="10dp"
-            android:layout_marginLeft="10dp"
-            android:foreground="?attr/selectableItemBackground"
+
+        <TextView
+            android:id="@+id/tvErrorFormPanenTBS"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+
+            android:textColor="@color/colorRedDark"
+            android:visibility="gone"
             android:layout_marginTop="5dp"
-            android:layout_marginBottom="5dp">
-            <ImageView
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:src="@drawable/baseline_remove_24"
-                android:layout_gravity="center"
-                android:tint="@color/colorRedDark"
-                tools:ignore="UseAppTint" />
 
-        </androidx.cardview.widget.CardView>
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:id="@+id/btInc"
-            app:cardCornerRadius="5dp"
-            android:backgroundTint="@color/white"
-            android:foreground="?attr/selectableItemBackground"
-            app:strokeColor="@color/black"
-
-            android:layout_marginRight="10dp"
-            android:layout_marginTop="5dp"
-            android:layout_marginBottom="5dp">
-            <ImageView
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:src="@drawable/baseline_add_24"
-                android:layout_gravity="center"
-                android:tint="@color/greenDefault"
-                tools:ignore="UseAppTint" />
-        </androidx.cardview.widget.CardView>
-
+            android:paddingBottom="4dp"
+            android:textSize="13dp" />
     </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="right|center">
+            <androidx.cardview.widget.CardView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:id="@+id/btDec"
+                app:cardCornerRadius="5dp"
+                android:backgroundTint="@color/white"
+                app:strokeColor="@color/black"
+                android:layout_marginRight="10dp"
+                android:layout_marginLeft="10dp"
+                android:foreground="?attr/selectableItemBackground"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp">
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/baseline_remove_24"
+                    android:layout_gravity="center"
+                    android:tint="@color/colorRedDark"
+                    tools:ignore="UseAppTint" />
+
+            </androidx.cardview.widget.CardView>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:id="@+id/btInc"
+                app:cardCornerRadius="5dp"
+                android:backgroundTint="@color/white"
+                android:foreground="?attr/selectableItemBackground"
+                app:strokeColor="@color/black"
+
+                android:layout_marginRight="10dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp">
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/baseline_add_24"
+                    android:layout_gravity="center"
+                    android:tint="@color/greenDefault"
+                    tools:ignore="UseAppTint" />
+            </androidx.cardview.widget.CardView>
+
+        </LinearLayout>
+
+
+
+
+
 </LinearLayout>

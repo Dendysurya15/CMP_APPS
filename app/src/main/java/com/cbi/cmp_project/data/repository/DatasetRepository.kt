@@ -2,7 +2,6 @@ package com.cbi.cmp_project.data.repository
 
 import android.content.Context
 import com.cbi.cmp_project.data.database.AppDatabase
-import com.cbi.cmp_project.data.database.DatabaseHelper
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranDetailModel
@@ -37,4 +36,35 @@ class DatasetRepository(context: Context) {
     suspend fun updateOrInsertKemandoran(kemandorans: List<KemandoranModel>) = kemandoranDao.updateOrInsertKemandoran(kemandorans)
     suspend fun updateOrInsertKemandoranDetail(kemandoran_detail: List<KemandoranDetailModel>) = kemandoranDetailDao.updateOrInsertKemandoranDetail(kemandoran_detail)
     suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) = tphDao.updateOrInsertTPH(tph)
+
+    suspend fun getDeptByRegionalAndEstate(regionalId: String, estateName: String): List<DeptModel> {
+        // Fetch dept data by regionalId and estateId
+        return deptDao.getDeptByCriteria(regionalId, estateName)
+    }
+
+    suspend fun getDivisiList( idEstate: Int): List<DivisiModel> {
+        return divisiDao.getDivisiByCriteria(idEstate)
+    }
+
+    suspend fun getBlokList( idRegional :Int,idEstate: Int, idDivisi:Int, estateAbbr :String): List<BlokModel> {
+        return blokDao.getBlokByCriteria(idRegional,idEstate, idDivisi, estateAbbr)
+    }
+
+    suspend fun getKemandoranList(idEstate: Int, idDivisiArray: List<Int>, estateAbbr: String): List<KemandoranModel> {
+        return kemandoranDao.getKemandoranByCriteria(idEstate, idDivisiArray, estateAbbr)
+    }
+
+    suspend fun getTPHList(idRegional:Int, idEstate: Int, idDivisi:Int, estateAbbr :String,tahunTanam : String,  idBlok :Int): List<TPHNewModel> {
+        return tphDao.getTPHByCriteria(idRegional, idEstate, idDivisi, estateAbbr,tahunTanam, idBlok)
+    }
+
+    suspend fun getKemandoranDetailList(idHeader:Int): List<KemandoranDetailModel> {
+        return kemandoranDetailDao.getKemandoranDetailListByCriteria(idHeader)
+    }
+
+    suspend fun getKaryawanList(filteredId: Array<String>): List<KaryawanModel> {
+        return karyawanDao.getKaryawanByCriteria(filteredId)
+    }
+
+
 }

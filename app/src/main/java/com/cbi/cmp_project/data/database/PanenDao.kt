@@ -3,12 +3,23 @@ package com.cbi.cmp_project.data.database
 import androidx.room.*
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.PanenEntity
+import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 
 @Dao
 abstract class PanenDao {
 
-    @Insert
-    abstract fun insert(panen: List<PanenEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insert(panen: PanenEntity): Long // Returns row ID of inserted item
+
+    @Transaction
+    open suspend fun insertWithTransaction(panen: PanenEntity): Result<Long> {
+        return try {
+            val id = insert(panen)
+            Result.success(id)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     @Update
     abstract fun update(panen: List<PanenEntity>)
@@ -18,6 +29,9 @@ abstract class PanenDao {
 
     @Query("SELECT * FROM panen_table WHERE id = :id")
     abstract fun getById(id: Int): PanenEntity?
+
+    @Query("SELECT COUNT(*) FROM panen_table")
+    abstract suspend fun getCount(): Int
 
     @Query("SELECT * FROM panen_table")
     abstract fun getAll(): List<PanenEntity>
@@ -41,8 +55,12 @@ abstract class PanenDao {
     abstract fun archiveByListID(id: List<Int>): Int
 
     @Transaction
-    open fun updateOrInsert(panen: List<PanenEntity>) {
-        deleteAll(panen)
-        insert(panen)
-    }
+    @Query("SELECT * FROM panen_table WHERE archive = 0")
+    abstract  fun getAllActiveWithRelations(): List<PanenEntityWithRelations>
+
+//    @Transaction
+//    open fun updateOrInsert(panen: List<PanenEntity>) {
+//
+//        insert(panen)
+//    }
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="deleteSelected" type="id" />
+    <item name="uploadSelected" type="id" />
+    <item name="cancelSelection" type="id" />
+    <item name="scan_qr" type="id" />
+</resources>

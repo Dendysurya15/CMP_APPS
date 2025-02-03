@@ -1,6 +1,7 @@
 package com.cbi.cmp_project.data.database
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -15,6 +16,7 @@ import com.cbi.markertph.data.model.DivisiModel
 import com.cbi.markertph.data.model.RegionalModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.markertph.data.model.WilayahModel
+import java.util.concurrent.Executors
 
 @Database(
     entities = [
@@ -63,6 +65,11 @@ abstract class AppDatabase : RoomDatabase() {
                 INSTANCE = instance
                 instance
             }
+        }
+
+        fun closeDatabase() {
+            INSTANCE?.close()
+            INSTANCE = null
         }
     }
 }

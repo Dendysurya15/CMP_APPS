@@ -19,7 +19,11 @@ abstract class DivisiDao {
 
     @Transaction
     open fun updateOrInsertDivisi(divisi: List<DivisiModel>) {
-        deleteAll()
+
         insertAll(divisi)
     }
+
+    @Query("SELECT * FROM divisi WHERE dept = :idEstate")
+    abstract fun getDivisiByCriteria(idEstate: Int): List<DivisiModel>
+
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.PanenEntity
+import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -14,9 +15,37 @@ class AppRepository(context: Context) {
     private val panenDao = database.panenDao()
     private val espbDao = database.espbDao()
 
-    // PanenEntity Methods
-    suspend fun insertPanen(panen: List<PanenEntity>) = withContext(Dispatchers.IO) {
-        panenDao.insert(panen)
+    suspend fun saveDataPanen(
+        tph_id: String,
+        date_created: String,
+        created_by: Int,
+        karyawan_id: String,
+        jjg_json: String,
+        foto: String,
+        komentar: String,
+        asistensi: Int,
+        lat: Double,
+        lon: Double,
+        jenis_panen: Int,
+        ancakInput: String,
+        archive: Int,
+    ): Result<Long> {
+        val panenEntity = PanenEntity(
+            tph_id = tph_id,
+            date_created = date_created,
+            created_by = created_by,
+            karyawan_id = karyawan_id,
+            jjg_json = jjg_json,
+            foto = foto,
+            komentar = komentar,
+            asistensi = asistensi,
+            lat = lat,
+            lon = lon,
+            jenis_panen = jenis_panen,
+            ancak = ancakInput.toIntOrNull() ?: 0,
+            archive = archive
+        )
+        return panenDao.insertWithTransaction(panenEntity)
     }
 
     suspend fun updatePanen(panen: List<PanenEntity>) = withContext(Dispatchers.IO) {
@@ -31,16 +60,31 @@ class AppRepository(context: Context) {
         panenDao.getById(id)
     }
 
+    suspend fun getPanenCount(): Int {
+        return panenDao.getCount()
+    }
+
     suspend fun getAllPanen(): List<PanenEntity> = withContext(Dispatchers.IO) {
         panenDao.getAll()
     }
 
-    suspend fun getActivePanen(): List<PanenEntity> = withContext(Dispatchers.IO) {
-        panenDao.getAllActive()
+    suspend fun getActivePanen(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
+        try {
+            val data = panenDao.getAllActiveWithRelations()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
-    suspend fun getArchivedPanen(): List<PanenEntity> = withContext(Dispatchers.IO) {
-        panenDao.getAllArchived()
+
+    suspend fun getArchivedPanen(): Result<List<PanenEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val data = panenDao.getAllArchived()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun deletePanenById(id: Int) = withContext(Dispatchers.IO) {
@@ -59,9 +103,6 @@ class AppRepository(context: Context) {
         panenDao.archiveByListID(ids)
     }
 
-    suspend fun updateOrInsertPanen(panen: List<PanenEntity>) = withContext(Dispatchers.IO) {
-        panenDao.updateOrInsert(panen)
-    }
 
     // ESPBEntity Methods
     suspend fun insertESPB(espb: List<ESPBEntity>) = withContext(Dispatchers.IO) {

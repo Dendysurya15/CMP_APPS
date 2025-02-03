@@ -22,7 +22,7 @@ abstract class RegionalDao {
     @Transaction
     open fun updateOrInsertRegional(regionals: List<RegionalModel>) {
         // Ensure the delete and insert operations run in a single transaction
-        deleteAll()
+
         insertAll(regionals)
     }
 }

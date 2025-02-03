@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.data.repository.DatasetRepository
 import com.cbi.markertph.data.model.BlokModel
 import com.cbi.markertph.data.model.DeptModel
@@ -15,11 +16,14 @@ import com.cbi.markertph.data.model.DivisiModel
 import com.cbi.markertph.data.model.RegionalModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.markertph.data.model.WilayahModel
+import com.github.junrar.Archive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+
 
 class DatasetViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: DatasetRepository = DatasetRepository(application)
@@ -50,6 +54,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _tphStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val tphStatus: StateFlow<Result<Boolean>> = _tphStatus.asStateFlow()
+
+
 
     fun updateOrInsertRegional(regionals: List<RegionalModel>) = viewModelScope.launch(Dispatchers.IO) {
         try {
@@ -132,8 +138,33 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    suspend fun getDeptList(regionalId: String,  estateName: String): List<DeptModel> {
+        return repository.getDeptByRegionalAndEstate(regionalId,  estateName)
+    }
 
+    suspend fun getDivisiList(idEstate: Int): List<DivisiModel> {
+        return repository.getDivisiList( idEstate)
+    }
 
+    suspend fun getBlokList(idRegional :Int,idEstate: Int, idDivisi:Int, estateAbbr :String): List<BlokModel> {
+        return repository.getBlokList(idRegional,idEstate, idDivisi,estateAbbr)
+    }
+
+    suspend fun getKemandoranList(idEstate: Int, idDivisiArray: List<Int>, estateAbbr: String): List<KemandoranModel> {
+        return repository.getKemandoranList(idEstate, idDivisiArray, estateAbbr)
+    }
+
+    suspend fun getTPHList(idRegional:Int, idEstate: Int, idDivisi:Int, estateAbbr :String, tahunTanam : String, idBlok :Int): List<TPHNewModel> {
+        return repository.getTPHList(idRegional, idEstate, idDivisi, estateAbbr,tahunTanam,  idBlok)
+    }
+
+    suspend fun getKemandoranDetailList(idHeader: Int): List<KemandoranDetailModel> {
+        return repository.getKemandoranDetailList(idHeader)
+    }
+
+    suspend fun getKaryawanList(filteredId: Array<String>): List<KaryawanModel> {
+        return repository.getKaryawanList(filteredId)
+    }
 
     class DatasetViewModelFactory(
         private val application: Application

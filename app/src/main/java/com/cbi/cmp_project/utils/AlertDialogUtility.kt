@@ -11,12 +11,15 @@ import android.os.Handler
 import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
+import androidx.core.widget.NestedScrollView
 import com.airbnb.lottie.LottieAnimationView
 import com.cbi.cmp_project.R
 import com.google.android.material.button.MaterialButton
@@ -162,39 +165,54 @@ class AlertDialogUtility {
         }
 
         @SuppressLint("InflateParams")
-        fun withSingleAction(context: Context, actionText: String, titleText: String, alertText: String, animAsset: String,color: Int = R.color.greendarkerbutton,  function: () -> Unit) {
+        fun withSingleAction(context: Context, actionText: String, titleText: String, alertText: String, animAsset: String, color: Int = R.color.greendarkerbutton, function: () -> Unit) {
             if (context is Activity && !context.isFinishing) {
                 val rootView = context.findViewById<View>(android.R.id.content)
                 val parentLayout = rootView.findViewById<ConstraintLayout>(R.id.clParentAlertDialog)
-                val layoutBuilder =
-                    LayoutInflater.from(context).inflate(R.layout.confirmation_dialog, parentLayout)
+                val layoutBuilder = LayoutInflater.from(context).inflate(R.layout.confirmation_dialog, parentLayout)
 
-                val builder: AlertDialog.Builder =
-                    AlertDialog.Builder(context).setView(layoutBuilder)
+                val builder: AlertDialog.Builder = AlertDialog.Builder(context).setView(layoutBuilder)
                 val alertDialog: AlertDialog = builder.create()
 
                 val mbCancelDialog = layoutBuilder.findViewById<MaterialButton>(R.id.mbCancelDialog)
-
                 mbCancelDialog.visibility = View.GONE
 
                 val tvTitleDialog = layoutBuilder.findViewById<TextView>(R.id.tvTitleDialog)
                 tvTitleDialog.visibility = View.VISIBLE
 
                 val tvDescDialog = layoutBuilder.findViewById<TextView>(R.id.tvDescDialog)
+                val scrollView = layoutBuilder.findViewById<NestedScrollView>(R.id.scrollView)
                 tvDescDialog.visibility = View.VISIBLE
                 tvTitleDialog.text = titleText
                 tvDescDialog.text = alertText
 
-                // Set the button color, using the provided color parameter or default color if not provided
+                // Handle dynamic height
+                tvDescDialog.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+                    override fun onGlobalLayout() {
+                        val maxHeight = context.resources.getDimensionPixelSize(R.dimen.max_dialog_height) // Make sure to add this dimension (150dp)
+                        val params = scrollView.layoutParams
+
+                        if (tvDescDialog.height > maxHeight) {
+                            params.height = maxHeight
+                        } else {
+                            params.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                        }
+
+                        scrollView.layoutParams = params
+                        tvDescDialog.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                    }
+                })
 
                 val mbSuccessDialog = layoutBuilder.findViewById<MaterialButton>(R.id.mbSuccessDialog)
                 val colorStateList = ColorStateList.valueOf(ContextCompat.getColor(context, color))
                 mbSuccessDialog.backgroundTintList = colorStateList
                 mbSuccessDialog.text = actionText
+
                 val lottieAnim = layoutBuilder.findViewById<LottieAnimationView>(R.id.lottie_anim)
                 lottieAnim.setAnimation(animAsset)
                 lottieAnim.loop(true)
                 lottieAnim.playAnimation()
+
                 mbSuccessDialog.setOnClickListener {
                     alertDialog.dismiss()
                     function()

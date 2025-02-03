@@ -12,13 +12,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
-import com.cbi.cmp_project.data.database.DatabaseHelper
+import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.network.RetrofitClient
 import com.cbi.cmp_project.ui.view.LoginActivity
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.LoadingDialog
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
 import retrofit2.Response
 import java.io.File
@@ -29,59 +31,70 @@ import java.io.OutputStream
 
 class MainActivity : AppCompatActivity() {
     private var showingSplash = true
+    private lateinit var database: AppDatabase
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Show splash screen layout first
         setContentView(R.layout.activity_splash_screen)
 
-        // Set app version dynamically in the splash screen
         setAppVersion()
-        val dbHelper = DatabaseHelper(this)
-        val db = dbHelper.writableDatabase // Initialize the database
 
-        if (db.isOpen) {
-            Log.d("DatabaseCheck", "Database is open and accessible!")
-        } else {
-            Log.e("DatabaseCheck", "Database is closed!")
+        // Initialize database
+        lifecycleScope.launch(Dispatchers.IO) {
+            initializeDatabase()
+
+            // After database initialization, wait for splash screen
+            withContext(Dispatchers.Main) {
+                delay(1500) // Wait for 1.5 seconds
+                showMainContent()
+            }
         }
+    }
 
+    private suspend fun initializeDatabase() {
+        try {
+            database = AppDatabase.getDatabase(applicationContext)
 
-        // Start a coroutine to handle splash screen timing
-        lifecycleScope.launch {
-            delay(1500) // Wait for 1.5
-            showMainContent()
+            database.regionalDao()
+            database.wilayahDao()
+            database.deptDao()
+            database.divisiDao()
+            database.blokDao()
+            database.karyawanDao()
+            database.kemandoranDao()
+            database.kemandoranDetailDao()
+            database.tphDao()
+
+            Log.d("Database", "Database and tables initialized successfully")
+        } catch (e: Exception) {
+            Log.e("Database", "Error initializing database: ${e.message}")
+            withContext(Dispatchers.Main) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Error initializing database: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
         }
     }
 
     private fun setAppVersion() {
         val versionTextView: TextView = findViewById(R.id.version_app)
-        val appVersion = AppUtils.getAppVersion(this) // Use AppUtils here
-        versionTextView.text = "$appVersion"
+        val appVersion = AppUtils.getAppVersion(this)
+        versionTextView.text = appVersion
     }
 
-    @SuppressLint("SuspiciousIndentation")
     private fun showMainContent() {
         if (!showingSplash) return
         showingSplash = false
 
-//        // Check login status and navigate accordingly
-//        if (isUserLoggedIn()) {
-//            setContentView(R.layout.activity_main) // Switch to main layout
-//            setupMainUI()
-//        } else {
-            startActivity(Intent(this, LoginActivity::class.java))
-            finish() // Remove MainActivity from the back stack
-//        }
+        startActivity(Intent(this, LoginActivity::class.java))
+        finish()
     }
 
-    private fun isUserLoggedIn(): Boolean {
-        // Replace with your logic to check if the user is logged in
-        val sharedPreferences = getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE)
-        return sharedPreferences.getBoolean("isLoggedIn", false)
-    }
-
-    private fun setupMainUI() {
-        // Initialize main content views here
+    override fun onDestroy() {
+        super.onDestroy()
+        // Close database when activity is destroyed
+        AppDatabase.closeDatabase()
     }
 }
