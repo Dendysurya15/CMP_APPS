@@ -4,10 +4,18 @@ import android.content.Context
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.util.Base64
 import android.widget.TextView
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.data.network.RetrofitClient
+import com.github.junrar.Archive
+import com.github.junrar.rarfile.FileHeader
 import com.jaredrummler.materialspinner.BuildConfig
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 
 object AppUtils {
 
@@ -75,6 +83,45 @@ object AppUtils {
             input.replace(Regex(regex), "$1-\n")
         } else {
             input
+        }
+    }
+
+    fun readJsonFromEncryptedBase64Zip(base64String: String): String? {
+        return try {
+            // Remove header if present
+            val base64Data = if (base64String.contains(",")) {
+                base64String.substring(base64String.indexOf(",") + 1)
+            } else {
+                base64String
+            }
+
+            val base64Decode = base64Data.replace("5nqHzPKdlILxS9ABpClq", "")
+
+            // Decode base64 to bytes
+            val decodedBytes = Base64.decode(base64Decode, Base64.DEFAULT)
+
+            // Create ZIP archive from bytes
+            ByteArrayInputStream(decodedBytes).use { byteStream ->
+                ZipInputStream(byteStream).use { zipStream ->
+                    var entry: ZipEntry? = zipStream.nextEntry
+
+                    // Iterate through all entries in the ZIP
+                    while (entry != null) {
+                        if (entry.name == "output.json") {
+                            // Read the JSON content
+                            val content = zipStream.readBytes()
+                            return String(content, StandardCharsets.UTF_8)
+                        }
+                        zipStream.closeEntry()
+                        entry = zipStream.nextEntry
+                    }
+                }
+            }
+
+            null // Return null if file.json was not found
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 }

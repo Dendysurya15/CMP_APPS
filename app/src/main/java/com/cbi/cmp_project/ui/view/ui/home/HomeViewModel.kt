@@ -25,9 +25,9 @@ class HomeViewModel : ViewModel() {
                     _navigationEvent.value = FeatureCardEvent.NavigateToListPanenTBS(context, feature.featureName)
                 }
             }
-            "Generate eSPB" -> {
+            "Scan Hasil Panen" -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    _navigationEvent.value = FeatureCardEvent.NavigateToGenerateESPB(context, feature.featureName)
+                    _navigationEvent.value = FeatureCardEvent.NavigateToScanPanen(context, feature.featureName)
                 }
             }
         }

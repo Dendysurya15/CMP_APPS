@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.databinding.FragmentHomeBinding
+
 import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.PanenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.view.ui.generate_espb.GenerateEspbActivity
@@ -36,6 +37,14 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+import com.cbi.cmp_project.ui.view.FeaturePanenTBSActivity
+import com.cbi.cmp_project.ui.view.ScanQR
+import org.json.JSONObject
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.util.zip.GZIPInputStream
+
 
 class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
@@ -133,6 +142,7 @@ class HomeFragment : Fragment() {
                         startActivity(intent)
                     }
                 }
+
                 is FeatureCardEvent.NavigateToListPanenTBS -> {
                     event.context?.let {
 
@@ -144,11 +154,16 @@ class HomeFragment : Fragment() {
                     }
                 }
                 is FeatureCardEvent.NavigateToGenerateESPB -> {
+
+                is FeatureCardEvent.NavigateToScanPanen -> {
+
                     event.context?.let {
-                        val intent = Intent(it, GenerateEspbActivity::class.java)
+                        val intent = Intent(it, ScanQR::class.java)
                         // Pass the feature name to the intent
                         event.featureName?.let { featureName ->
+                            Log.d("testing","masuk: ${event.featureName}")
                             intent.putExtra("FEATURE_NAME", featureName)
+                            intent.putExtra("SUBTITLE", featureName)
                         }
                         startActivity(intent)
                     }
@@ -159,15 +174,6 @@ class HomeFragment : Fragment() {
 
     private fun setupRecyclerView() {
         val features = listOf(
-//            FeatureCard(
-//                cardBackgroundColor = R.color.orange,
-//                featureName = "Absensi",
-//                featureNameBackgroundColor = R.color.yellowdarker,
-//                iconResource = R.drawable.baseline_check_24,
-//                functionName = "Lapor Absensi Anda",
-//                functionDescription = "Harap Absensi Untuk Memulai Mengerjakan Pekerjaan Anda!",
-//                displayType = DisplayType.ICON
-//            ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
                 featureName = "Panen TBS",
@@ -180,7 +186,30 @@ class HomeFragment : Fragment() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
+
                 featureName = "List History Panen TBS",
+
+                featureName = "List Panen TBS",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = null,
+                count = "0",
+                functionName = "Data Tersimpan",
+                functionDescription = "Jumlah Data Panen Yang Sudah dibuat!",
+                displayType = DisplayType.COUNT
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDefault,
+                featureName = "Scan Hasil Panen",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                count = null,
+                functionName = "Tambah Lapor Panen",
+                functionDescription = "Catat & Lapor Hasil\nPanen TPH anda disini!",
+                displayType = DisplayType.ICON
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDefault,
+                featureName = "Verifikasi Panen",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
                 count = countPanenTPH.toString(),
@@ -190,12 +219,13 @@ class HomeFragment : Fragment() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Generate eSPB",
+                featureName = "Scan Pemuatan TPH",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
                 functionName = "e-SPB PANEN",
                 functionDescription = "Buat Laporan e-SPB & Transfer dengan NFC/QR Code",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                subTitle = "Scan QR Code eSPB"
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -215,9 +245,7 @@ class HomeFragment : Fragment() {
                 functionName = "Pemeriksaan Ancak",
                 functionDescription = "Buat Catatan Sidak Path anda disini!",
                 displayType = DisplayType.ICON
-            ),
-
-
+            )
         )
 
         val gridLayoutManager = GridLayoutManager(context, 2)
@@ -273,7 +301,8 @@ data class FeatureCard(
     val count: String? = null,      // Add count parameter
     val functionName: String,
     val functionDescription: String,
-    val displayType: DisplayType
+    val displayType: DisplayType,
+    val subTitle: String? = ""
 )
 
 enum class DisplayType {
