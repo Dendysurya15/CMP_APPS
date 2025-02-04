@@ -81,6 +81,11 @@ class PrefManager(_context: Context) {
         editor.commit()
     }
 
+    fun setJabatanUserLogin(key: String, value: String?) {
+        editor.putString(key, value)
+        editor.commit()
+    }
+
     fun setUserIdLogin(key: String, value: String?) {
         editor.putString(key, value)
         editor.commit()
@@ -100,6 +105,10 @@ class PrefManager(_context: Context) {
     }
 
     fun getUserIdLogin(key: String): String? {
+        return pref.getString(key, null)
+    }
+
+    fun getJabatanUserLogin(key: String): String? {
         return pref.getString(key, null)
     }
 

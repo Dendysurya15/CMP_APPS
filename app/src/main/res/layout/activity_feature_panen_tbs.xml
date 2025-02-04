@@ -303,7 +303,6 @@ android:text="0 buah"
                     android:text="Lampiran Foto"
                     android:layout_marginTop="10dp"
                     android:fontFamily="@font/manrope_extrabold"
-
                     android:textSize="19dp"
                     android:gravity="center|left"
                     tools:ignore="HardcodedText,RtlHardcoded"/>
@@ -328,10 +327,10 @@ android:text="0 buah"
                     tools:listitem="@layout/take_and_preview_foto_layout"
                     android:padding="10dp"
                     android:clipToPadding="false"
-                    tools:spanCount="3"
-                    tools:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
-                    tools:itemCount="3"
-                />
+                    android:orientation="vertical"
+                    tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                    tools:itemCount="1"
+                    />
 
 <!--                <com.google.android.material.card.MaterialCardView-->
 <!--                    android:layout_width="match_parent"-->

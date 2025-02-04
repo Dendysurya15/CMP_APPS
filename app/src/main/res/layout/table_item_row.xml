@@ -59,11 +59,21 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="NBE OC A034"
             android:fontFamily="@font/manrope_semibold"
             android:padding="5dp"
             android:gravity="center"
-            android:textSize="14sp"
+            android:textSize="14dp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:id="@+id/tvItemTPH"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:fontFamily="@font/manrope_semibold"
+            android:padding="5dp"
+            android:textSize="14dp"
             android:textStyle="bold" />
 
         <TextView
@@ -72,12 +82,22 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:text="37"
+
             android:fontFamily="@font/manrope_semibold"
             android:padding="5dp"
             android:textSize="14dp"
             android:textStyle="bold" />
 
+        <TextView
+            android:layout_width="0dp"
+            android:id="@+id/tvItemJam"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:fontFamily="@font/manrope_semibold"
+            android:padding="5dp"
+            android:textSize="14dp"
+            android:textStyle="bold" />
 
     </LinearLayout>
 

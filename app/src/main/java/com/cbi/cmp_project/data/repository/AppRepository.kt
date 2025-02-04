@@ -28,6 +28,7 @@ class AppRepository(context: Context) {
         lon: Double,
         jenis_panen: Int,
         ancakInput: String,
+        info : String,
         archive: Int,
     ): Result<Long> {
         val panenEntity = PanenEntity(
@@ -43,6 +44,7 @@ class AppRepository(context: Context) {
             lon = lon,
             jenis_panen = jenis_panen,
             ancak = ancakInput.toIntOrNull() ?: 0,
+            info = info,
             archive = archive
         )
         return panenDao.insertWithTransaction(panenEntity)
@@ -78,9 +80,9 @@ class AppRepository(context: Context) {
     }
 
 
-    suspend fun getArchivedPanen(): Result<List<PanenEntity>> = withContext(Dispatchers.IO) {
+    suspend fun getArchivedPanen(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
         try {
-            val data = panenDao.getAllArchived()
+            val data = panenDao.getAllArchivedWithRelations()
             Result.success(data)
         } catch (e: Exception) {
             Result.failure(e)

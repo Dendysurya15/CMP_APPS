@@ -126,7 +126,9 @@ class HomePageActivity : AppCompatActivity() {
         prefManager!!.setEstateUserLogin("estate_name", "SULUNG ESTATE")
 
         prefManager!!.setUserIdLogin("user_id", "238")
-        prefManager!!.setUserNameLogin("user_name", "Ahmad Waluyo")
+        prefManager!!.setUserNameLogin("user_name", "Soerya Subardjo")
+
+        prefManager!!.setJabatanUserLogin("jabatan_name", "Mandor Panen OA2")
 
 
 

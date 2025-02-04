@@ -39,6 +39,10 @@ abstract class PanenDao {
     @Query("SELECT * FROM panen_table WHERE archive = 1")
     abstract fun getAllArchived(): List<PanenEntity>
 
+    @Transaction
+    @Query("SELECT * FROM panen_table WHERE archive = 1")
+    abstract  fun getAllArchivedWithRelations(): List<PanenEntityWithRelations>
+
     @Query("SELECT * FROM panen_table WHERE archive = 0")
     abstract fun getAllActive(): List<PanenEntity>
 

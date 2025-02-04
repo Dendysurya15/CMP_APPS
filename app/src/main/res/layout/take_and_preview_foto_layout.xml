@@ -5,19 +5,19 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:layout_gravity="center_horizontal"
     android:layout_margin="5dp">
 
     <ImageView
         android:id="@+id/ivAddFoto"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
         android:padding="8dp"
         android:foreground="?attr/selectableItemBackground"
         android:layout_gravity="center"
-        android:scaleType="centerCrop"
+        android:scaleType="fitCenter"
         android:src="@drawable/baseline_add_a_photo_24"
         android:background="@drawable/dashed_border_radius"
-        app:layout_constraintDimensionRatio="1:1"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -26,12 +26,12 @@
         android:id="@+id/titleComment"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
+        android:layout_marginTop="8dp"
         android:layout_marginStart="5dp"
         android:layout_marginEnd="5dp"
         android:textStyle="italic"
         android:fontFamily="@font/manrope_semibold"
-        android:textSize="11dp"
+        android:textSize="15dp"
         app:layout_constraintTop_toBottomOf="@id/ivAddFoto"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -43,6 +43,7 @@
         android:layout_marginTop="5dp"
         android:layout_marginStart="5dp"
         android:layout_marginEnd="5dp"
+        android:layout_marginBottom="8dp"
         android:hint="Tambah Komentar disini!"
         android:inputType="text"
         android:maxLines="3"
@@ -50,9 +51,10 @@
         android:background="@drawable/border_radius"
         android:padding="8dp"
         android:foreground="?attr/selectableItemBackground"
-        android:textSize="13dp"
+        android:textSize="15dp"
         app:layout_constraintTop_toBottomOf="@id/titleComment"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

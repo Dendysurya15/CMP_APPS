@@ -39,6 +39,7 @@ import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.AppUtils.vibrate
 import com.cbi.cmp_project.utils.LoadingDialog
+import com.cbi.cmp_project.utils.PrefManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.card.MaterialCardView
@@ -48,6 +49,7 @@ import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.leinardi.android.speeddial.SpeedDialActionItem
 import com.leinardi.android.speeddial.SpeedDialView
+import org.json.JSONObject
 
 class ListPanenTBSActivity : AppCompatActivity() {
     private var featureName: String? = null
@@ -55,7 +57,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private lateinit var listAdapter: ListPanenTPHAdapter
     private lateinit var loadingDialog: LoadingDialog
     private var currentState = 0 // 0 for tersimpan, 1 for terscan
-
+    private var prefManager: PrefManager? = null
     private var isSettingUpCheckbox = false
 
     // Add views for buttons and counters
@@ -76,11 +78,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private lateinit var removeFilter: ImageView
     private var originalData: List<Map<String, Any>> = emptyList() // Store original data order
 
+    private var userName: String? = null
+    private var estateName: String? = null
+    private var jabatanUser: String? = null
+    private var afdelingUser: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list_panen_tbs)
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
+        prefManager = PrefManager(this)
+        userName = prefManager!!.getUserNameLogin("user_name")
+        estateName = prefManager!!.getEstateUserLogin("estate_name")
+        jabatanUser = prefManager!!.getJabatanUserLogin("jabatan_name")
         setupHeader()
         initViewModel()
         initializeViews()
@@ -156,6 +167,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
     private fun setupObservers() {
+        val listBlok = findViewById<TextView>(R.id.listBlok)
+        val totalJjg = findViewById<TextView>(R.id.totalJjg)
+        val totalTPH = findViewById<TextView>(R.id.totalTPH)
+        val blokSection = findViewById<LinearLayout>(R.id.blok_section)
+        val totalSection = findViewById<LinearLayout>(R.id.total_section)
+
         loadingDialog.show()
         loadingDialog.setMessage("Loading data...")
 
@@ -171,10 +188,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             mapOf<String, Any>(
                                 "id" to (panenWithRelations.panen.id as Any),
                                 "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                "tph_name" to (panenWithRelations.tphges?.nomor ?: "-") as Any,
-                                "dept_name" to (panenWithRelations.department?.abbr ?: "-") as Any,  // Updated to 'department'
-                                "divisi_name" to (panenWithRelations.division?.abbr ?: "-") as Any,  // Updated to 'division'
-                                "blok_name" to (panenWithRelations.block?.kode ?: "-") as Any,  // Updated to 'block'
+                                "tph_name" to (panenWithRelations.tphWithBlok?.tph?.nomor ?: "-") as Any,
+                                "blok_name" to (panenWithRelations.tphWithBlok?.block?.kode ?: "-") as Any,
                                 "date_created" to (panenWithRelations.panen.date_created as Any),
                                 "created_by" to (panenWithRelations.panen.created_by as Any),
                                 "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
@@ -190,6 +205,38 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             )
                         }
 
+                        val distinctBlokNames = mappedData
+                            .map { it["blok_name"].toString() }
+                            .distinct()
+                            .filter { it != "-" }
+                            .sorted()
+                            .joinToString(", ")
+
+                        var totalJjgCount = 0
+                        mappedData.forEach { data ->
+                            try {
+                                val jjgJsonString = data["jjg_json"].toString()
+                                val jjgJson = JSONObject(jjgJsonString)
+                                totalJjgCount += jjgJson.optInt("TO", 0)
+                            } catch (e: Exception) {
+                                AppLogger.e("Error parsing jjg_json: ${e.message}")
+                            }
+                        }
+
+                        // Calculate distinct TPH count
+                        val distinctTphCount = mappedData
+                            .mapNotNull { it["tph_id"].toString().toIntOrNull() }
+                            .distinct()
+                            .count()
+
+                        // Update TextViews
+
+                        blokSection.visibility = View.VISIBLE
+                        totalSection.visibility = View.VISIBLE
+                        listBlok.text = distinctBlokNames.ifEmpty { "-" }
+                        totalJjg.text = totalJjgCount.toString()
+                        totalTPH.text = distinctTphCount.toString()
+
                         listAdapter.updateData(mappedData)
                         originalData = emptyList() // Reset original data when new data is loaded
                         filterSection.visibility = View.GONE // Hide filter section for new data
@@ -197,6 +244,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         tvEmptyState.text = "No saved data available"
                         tvEmptyState.visibility = View.VISIBLE
                         recyclerView.visibility = View.GONE
+                        blokSection.visibility = View.GONE
+                        totalSection.visibility = View.GONE
                     }
                     counterTersimpan.text = panenList.size.toString()
                 }, 500)
@@ -211,24 +260,59 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     if (panenList.isNotEmpty()) {
                         tvEmptyState.visibility = View.GONE
                         recyclerView.visibility = View.VISIBLE
-                        val mappedData = panenList.map { entity ->
-                            mapOf(
-                                "id" to entity.id,
-                                "tph_id" to entity.tph_id,
-                                "date_created" to entity.date_created,
-                                "created_by" to entity.created_by,
-                                "karyawan_id" to entity.karyawan_id,
-                                "jjg_json" to entity.jjg_json,
-                                "foto" to entity.foto,
-                                "komentar" to entity.komentar,
-                                "asistensi" to entity.asistensi,
-                                "lat" to entity.lat,
-                                "lon" to entity.lon,
-                                "jenis_panen" to entity.jenis_panen,
-                                "ancak" to entity.ancak,
-                                "archive" to entity.archive
+                        val mappedData = panenList.map { panenWithRelations ->
+                            mapOf<String, Any>(
+                                "id" to (panenWithRelations.panen.id as Any),
+                                "tph_id" to (panenWithRelations.panen.tph_id as Any),
+                                "tph_name" to (panenWithRelations.tphWithBlok?.tph?.nomor ?: "-") as Any,
+                                "blok_name" to (panenWithRelations.tphWithBlok?.block?.kode ?: "-") as Any,
+                                "date_created" to (panenWithRelations.panen.date_created as Any),
+                                "created_by" to (panenWithRelations.panen.created_by as Any),
+                                "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
+                                "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
+                                "foto" to (panenWithRelations.panen.foto as Any),
+                                "komentar" to (panenWithRelations.panen.komentar as Any),
+                                "asistensi" to (panenWithRelations.panen.asistensi as Any),
+                                "lat" to (panenWithRelations.panen.lat as Any),
+                                "lon" to (panenWithRelations.panen.lon as Any),
+                                "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
+                                "ancak" to (panenWithRelations.panen.ancak as Any),
+                                "archive" to (panenWithRelations.panen.archive as Any)
                             )
                         }
+
+                        val distinctBlokNames = mappedData
+                            .map { it["blok_name"]?.toString() ?: "-" }
+                            .distinct()
+                            .filter { it != "-" }
+                            .sorted()
+                            .joinToString(", ")
+
+                        // Calculate total JJG by parsing JSON and summing TO values
+                        var totalJjgCount = 0
+                        mappedData.forEach { data ->
+                            try {
+                                val jjgJsonString = data["jjg_json"].toString()
+                                val jjgJson = JSONObject(jjgJsonString)
+                                totalJjgCount += jjgJson.optInt("TO", 0)
+                            } catch (e: Exception) {
+                                AppLogger.e("Error parsing jjg_json: ${e.message}")
+                            }
+                        }
+
+                        // Calculate distinct TPH count
+                        val distinctTphCount = mappedData
+                            .mapNotNull { it["tph_id"].toString().toIntOrNull() }
+                            .distinct()
+                            .count()
+
+                        // Update TextViews
+                        blokSection.visibility = View.VISIBLE
+                        totalSection.visibility = View.VISIBLE
+                        listBlok.text = distinctBlokNames.ifEmpty { "-" }
+                        totalJjg.text = totalJjgCount.toString()
+                        totalTPH.text = distinctTphCount.toString()
+
                         listAdapter.updateData(mappedData)
                         originalData = emptyList() // Reset original data when new data is loaded
                         filterSection.visibility = View.GONE // Hide filter section for new data
@@ -236,6 +320,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         tvEmptyState.text = "No scanned data available"
                         tvEmptyState.visibility = View.VISIBLE
                         recyclerView.visibility = View.GONE
+                        blokSection.visibility = View.GONE
+                        totalSection.visibility = View.GONE
                     }
                     counterTerscan.text = panenList.size.toString()
                 }, 500)
@@ -324,9 +410,62 @@ class ListPanenTBSActivity : AppCompatActivity() {
         listAdapter.setOnSelectionChangedListener { selectedCount ->
             isSettingUpCheckbox = true
             headerCheckBox.isChecked = listAdapter.isAllSelected()
-
             speedDial.visibility = if (selectedCount > 0) View.VISIBLE else View.GONE
             isSettingUpCheckbox = false
+        }
+    }
+
+    private fun handleDelete(selectedItems: List<Map<String, Any>>) {
+        this.vibrate()
+        AlertDialogUtility.withTwoActions(
+            this,
+            getString(R.string.al_delete),
+            getString(R.string.confirmation_dialog_title),
+            "${getString(R.string.al_make_sure_delete)} ${selectedItems.size} data?",
+            "warning.json",
+            ContextCompat.getColor(this, R.color.colorRedDark)
+        ) {
+            loadingDialog.show()
+            loadingDialog.setMessage("Deleting items...")
+
+            panenViewModel.deleteMultipleItems(selectedItems)
+
+            // Observe delete result
+            panenViewModel.deleteItemsResult.observe(this) { isSuccess ->
+                loadingDialog.dismiss()
+                if (isSuccess) {
+                    Toast.makeText(
+                        this,
+                        "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    // Reload data based on current state
+                    if (currentState == 0) {
+                        panenViewModel.loadActivePanen()
+                    } else {
+                        panenViewModel.loadArchivedPanen()
+                    }
+                } else {
+                    Toast.makeText(
+                        this,
+                        "${getString(R.string.al_failed_delete)} data",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                // Reset UI state
+                val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                    .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                headerCheckBox.isChecked = false
+                listAdapter.clearSelections()
+                speedDial.visibility = View.GONE
+            }
+
+            // Observe errors
+            panenViewModel.error.observe(this) { errorMessage ->
+                loadingDialog.dismiss()
+                Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -392,6 +531,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
             )
 
             addActionItem(
+                SpeedDialActionItem.Builder(R.id.deleteSelected, R.drawable.baseline_remove_24)
+                    .setLabel(getString(R.string.dial_delete_item))
+                    .setFabBackgroundColor(
+                        ContextCompat.getColor(
+                            this@ListPanenTBSActivity,
+                            R.color.colorRedDark
+                        )
+                    )
+                    .create()
+            )
+
+            addActionItem(
                 SpeedDialActionItem.Builder(R.id.uploadSelected, R.drawable.baseline_file_upload_24)
                     .setLabel(getString(R.string.dial_upload_item))
                     .setFabBackgroundColor(
@@ -432,26 +583,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
 //                        listAdapter.clearSelections()
 //                        true
 //                    }
-//                    R.id.deleteSelected -> {
-//                        val selectedItems = listAdapter.getSelectedItems()
-////                        handleDelete(selectedItems)
-//                        true
-//                    }
+                    R.id.deleteSelected -> {
+                        val selectedItems = listAdapter.getSelectedItems()
+                        handleDelete(selectedItems)
+                        true
+                    }
                     R.id.uploadSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()
 
-//                        if (AppUtils.isInternetAvailable(this@ListPanenTBSActivity)) {
-//                            handleUpload(selectedItems)
-//                        } else {
-//                            AlertDialogUtility.withSingleAction(
-//                                this@ListPanenTBSActivity,
-//                                getString(R.string.al_back),
-//                                getString(R.string.al_no_internet_connection),
-//                                getString(R.string.al_no_internet_connection_description),
-//                                "network_error.json",
-//                                R.color.colorRedDark
-//                            ) {}
-//                        }
                         true
                     }
 
@@ -478,18 +617,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun setupSortButton() {
         sortButton = findViewById(R.id.btn_sort)
-        updateSortIcon() // Set initial icon state
+        updateSortIcon()
 
         sortButton.setOnClickListener {
-            // Store original data order if this is the first sort
             if (originalData.isEmpty()) {
                 originalData = listAdapter.getCurrentData()
             }
 
             isAscendingOrder = !isAscendingOrder
-            updateSortIcon() // Update icon on click
+            updateSortIcon()
 
-            listAdapter.sortData(isAscendingOrder)
+            // Use the TPH field for sorting
+            listAdapter.sortData(ListPanenTPHAdapter.SortField.TPH, isAscendingOrder)
             updateFilterDisplay()
         }
 
@@ -499,21 +638,21 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun updateFilterDisplay() {
         filterSection.visibility = View.VISIBLE
-        filterName.text = if (isAscendingOrder) "Urutan Nomor TPH Kecil - Besar" else "Urutan Nomor TPH Besar - Kecil"
+        filterName.text = if (isAscendingOrder)
+            "Urutan TPH: Kecil ke Besar"
+        else
+            "Urutan TPH: Besar ke Kecil"
     }
 
 
     private fun setupRemoveFilter() {
         removeFilter.setOnClickListener {
-            // Get current search query
             val currentSearchQuery = searchEditText.text.toString().trim()
 
-            // Reset sort state
             isAscendingOrder = true
             updateSortIcon()
 
             if (originalData.isNotEmpty()) {
-                // Reset the sort but maintain the filter
                 listAdapter.resetSort()
                 if (currentSearchQuery.isNotEmpty()) {
                     listAdapter.filterData(currentSearchQuery)
@@ -521,7 +660,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 originalData = emptyList()
             }
 
-            // Hide filter section
             filterSection.visibility = View.GONE
         }
     }
@@ -555,7 +693,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private fun setupHeader() {
         featureName = intent.getStringExtra("FEATURE_NAME")
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
-        AppUtils.setupFeatureHeader(featureName, tvFeatureName)
+        val userSection = findViewById<TextView>(R.id.userSection)
+
+        AppUtils.setupUserHeader(
+            userName = userName,
+            jabatanUser = jabatanUser,
+            estateName = estateName,
+            afdelingUser = afdelingUser,
+            userSection = userSection,
+            featureName = featureName,
+            tvFeatureName = tvFeatureName
+        )
     }
 
     private fun setupRecyclerView() {

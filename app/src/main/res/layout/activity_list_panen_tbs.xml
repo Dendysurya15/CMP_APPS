@@ -23,6 +23,7 @@
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
+        android:visibility="gone"
         android:padding="8dp"
         android:weightSum="10"
         app:layout_constraintTop_toBottomOf="@+id/navbar">
@@ -92,6 +93,89 @@
             android:padding="8dp"
             android:src="@drawable/baseline_sort_24" />
     </LinearLayout>
+    
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal"
+        android:layout_marginHorizontal="10dp"
+        android:visibility="gone"
+        android:id="@+id/blok_section"
+        app:layout_constraintTop_toBottomOf="@id/navbar"
+        tools:ignore="MissingConstraints">
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:text="Blok: "
+            android:textSize="16dp"
+            android:fontFamily="@font/manrope_bold"
+            android:layout_height="wrap_content"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:id="@+id/listBlok"
+            android:fontFamily="@font/manrope_medium"
+            android:textSize="15dp"
+
+            android:textStyle="italic"
+
+            android:layout_height="wrap_content"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginHorizontal="10dp"
+        android:weightSum="2"
+        android:visibility="gone"
+        android:paddingBottom="10dp"
+        android:id="@+id/total_section"
+        app:layout_constraintTop_toBottomOf="@id/blok_section"
+        tools:ignore="MissingConstraints">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:orientation="horizontal"
+            android:layout_weight="1"
+            android:layout_height="match_parent">
+            <TextView
+                android:layout_width="wrap_content"
+                android:text="Total Jjg: "
+                android:textSize="16dp"
+                android:fontFamily="@font/manrope_bold"
+                android:layout_height="wrap_content"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:id="@+id/totalJjg"
+                android:text="0"
+                android:fontFamily="@font/manrope_medium"
+                android:textSize="15dp"
+                android:layout_height="wrap_content"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:orientation="horizontal"
+            android:layout_weight="1"
+            android:layout_height="match_parent">
+            <TextView
+                android:layout_width="wrap_content"
+                android:text="Total TPH: "
+                android:textSize="16dp"
+                android:fontFamily="@font/manrope_bold"
+                android:layout_height="wrap_content"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:id="@+id/totalTPH"
+                android:fontFamily="@font/manrope_medium"
+                android:textSize="15dp"
+                android:layout_height="wrap_content"/>
+        </LinearLayout>
+
+
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/list_menu_upload_data"
@@ -100,7 +184,7 @@
         android:layout_marginHorizontal="10dp"
         android:layout_marginVertical="5dp"
         android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/search_section">
+        app:layout_constraintTop_toBottomOf="@id/total_section">
 
         <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:app="http://schemas.android.com/apk/res-auto"

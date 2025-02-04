@@ -2,7 +2,6 @@ package com.cbi.cmp_project.data.repository
 
 import android.content.ContentValues
 import android.content.Context
-import com.cbi.cmp_project.data.model.PanenTBSModel
 
 class PanenTBSRepository(context: Context) {
 
