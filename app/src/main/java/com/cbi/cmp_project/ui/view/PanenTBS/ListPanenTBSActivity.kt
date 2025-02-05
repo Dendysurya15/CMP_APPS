@@ -16,12 +16,14 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Base64
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AnimationUtils
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -292,14 +294,38 @@ class ListPanenTBSActivity : AppCompatActivity() {
             lifecycleScope.launch(Dispatchers.Default) {
                 delay(1500)
                 try {
+                    val dataQR: TextView? = view.findViewById(R.id.dataQR)
+                    val dataQRTitle: TextView? = view.findViewById(R.id.dataQRTitle)
+
+
+
+                    val qrText = mappedData.joinToString("•", prefix = "•") { panen ->
+                        val blokName = panen["blok_name"] ?: "-"
+                        val tphName = panen["tph_name"] ?: "-"
+                        val jjgJson = panen["jjg_json"] as? String ?: "{}"
+
+                        // Parse the jjg_json and extract the "TO" value
+                        val toValue = try {
+                            val json = JSONObject(jjgJson)
+                            json.optInt("TO", 0) // Default to 0 if "TO" key is missing
+                        } catch (e: Exception) {
+                            0 // Default to 0 if parsing fails
+                        }
+
+                        " Blok $blokName TPH $tphName ($toValue Jjg)\n"
+                    }
+
+
+
+
                     val jsonData = formatPanenDataForQR(mappedData)
                     val encodedData = encodeJsonToBase64ZipQR(jsonData) ?: throw Exception("Encoding failed")
 
                     withContext(Dispatchers.Main) {
                         try {
-                            generateHighQualityQRCode(encodedData, qrCodeImageView)
 
-                            // Create fade-out animation for loading elements
+                            generateHighQualityQRCode(encodedData, qrCodeImageView)
+                            // Fade-out the loading elements
                             val fadeOut = ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f).apply {
                                 duration = 250
                             }
@@ -321,7 +347,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 startDelay = 150
                             }
 
-                            // Run animations in parallel
+                            // Create fade-in for the dataQR text as well
+                            val fadeInText = ObjectAnimator.ofFloat(dataQR, "alpha", 0f, 1f).apply {
+                                duration = 250
+                                startDelay = 150
+                            }
+
+                            // Now run the animations together
                             AnimatorSet().apply {
                                 playTogether(fadeOut, fadeOutDots)
                                 addListener(object : AnimatorListenerAdapter() {
@@ -330,13 +362,26 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         loadingLogo.visibility = View.GONE
                                         loadingContainer.visibility = View.GONE
 
-                                        // Make QR code & dashed line visible only when fading in
+                                        // Update the QR code text and show the QR code and dashed line
+                                        dataQR?.text = qrText
+                                        val scrollViewDataQRTPH = view.findViewById<ScrollView>(R.id.scrollViewDataQRTPH)
+                                        scrollViewDataQRTPH.visibility = View.VISIBLE
+                                        scrollViewDataQRTPH.viewTreeObserver.addOnGlobalLayoutListener {
+                                            val maxHeight = 300 // Adjust this to your needs (in pixels)
+                                            if (scrollViewDataQRTPH.height > maxHeight) {
+                                                scrollViewDataQRTPH.layoutParams.height = maxHeight
+                                                scrollViewDataQRTPH.requestLayout()
+                                            }
+                                        }
+
                                         qrCodeImageView.visibility = View.VISIBLE
                                         dashedLine.visibility = View.VISIBLE
+                                        dataQRTitle?.visibility = View.VISIBLE
 
-                                        // Start fade-in animations
+                                        // Start the fade-in animation for QR code, dashed line, and text
                                         fadeIn.start()
                                         fadeInDashed.start()
+                                        fadeInText.start()
                                     }
                                 })
                                 start()
@@ -354,6 +399,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
 
+
                 } catch (e: Exception) {
                     AppLogger.e("Error in QR process: ${e.message}")
                     withContext(Dispatchers.Main) {
@@ -363,6 +409,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    // Utility function to convert dp to px
+    fun dpToPx(dp: Float): Int {
+        return (dp * resources.displayMetrics.density).toInt()
     }
 
     // Helper function to stop the loading animation and hide UI
