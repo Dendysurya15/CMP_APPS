@@ -1,5 +1,8 @@
 package com.cbi.cmp_project.ui.view.PanenTBS
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -55,11 +58,14 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.leinardi.android.speeddial.SpeedDialActionItem
 import com.leinardi.android.speeddial.SpeedDialView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable.start
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.util.zip.Deflater
 import java.util.zip.ZipEntry
@@ -183,32 +189,49 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
-    private fun formatPanenDataForQR(mappedData: List<Map<String, Any>>): String {
+    private fun formatPanenDataForQR(mappedData: List<Map<String, Any?>>): String {
+
         return try {
+            if (mappedData.isEmpty()) {
+                throw IllegalArgumentException("Data TPH is empty.")
+            }
+
             val formattedData = buildString {
                 mappedData.forEach { data ->
-                    val tphId = data["tph_id"].toString()
+                    try {
+                        val tphId = data["tph_id"]?.toString() ?: throw IllegalArgumentException("Missing tph_id.")
+                        val dateCreated = data["date_created"]?.toString() ?: throw IllegalArgumentException("Missing date_created.")
 
-                    val dateCreated = data["date_created"].toString()
+                        val jjgJsonString = data["jjg_json"]?.toString() ?: throw IllegalArgumentException("Missing jjg_json.")
+                        val jjgJson = try {
+                            JSONObject(jjgJsonString)
+                        } catch (e: JSONException) {
+                            throw IllegalArgumentException("Invalid JSON format in jjg_json: $jjgJsonString")
+                        }
 
-                    val jjgJsonString = data["jjg_json"].toString()
-                    val jjgJson = JSONObject(jjgJsonString)
-                    val toValue = jjgJson.optInt("TO", 0)
+                        val toValue = if (jjgJson.has("TO")) {
+                            jjgJson.getInt("TO") // Throws JSONException if "TO" is not an int
+                        } else {
+                            throw IllegalArgumentException("Missing 'TO' key in jjg_json: $jjgJsonString")
+                        }
 
-                    // Append in format: tphId,dateCreated,toValue;
-                    append("$tphId,$dateCreated,$toValue;")
+                        append("$tphId,$dateCreated,$toValue;")
+                    } catch (e: Exception) {
+                        throw IllegalArgumentException("Error processing data entry: ${e.message}")
+                    }
                 }
             }
 
-            // Create final JSON format
-            JSONObject().apply {
+            return JSONObject().apply {
                 put("tph_0", formattedData)
             }.toString()
         } catch (e: Exception) {
-            e.printStackTrace()
-            "{\"tph_0\":\"\"}" // Return empty data in case of error
+            AppLogger.e("formatPanenDataForQR Error: ${e.message}")
+            throw e
         }
     }
+
+
 
     private fun setupButtonGenerateQR() {
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
@@ -226,7 +249,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val dashedLine: View = view.findViewById(R.id.dashedLine)
             val loadingContainer: LinearLayout = view.findViewById(R.id.loadingDotsContainerBottomSheet)
 
-            // Initially hide QR code view and dashed line, show loading logo
+            // Initially hide QR code and dashed line, show loading
             qrCodeImageView.visibility = View.GONE
             dashedLine.visibility = View.GONE
             loadingLogo.visibility = View.VISIBLE
@@ -244,29 +267,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 loadingContainer.findViewById<View>(R.id.dot4)
             )
 
-            // Animate each dot
             dots.forEachIndexed { index, dot ->
                 val translateAnimation = ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
-                translateAnimation.duration = 500
-                translateAnimation.repeatCount = ObjectAnimator.INFINITE
-                translateAnimation.repeatMode = ObjectAnimator.REVERSE
-                translateAnimation.startDelay = (index * 100).toLong()
+                val scaleXAnimation = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 0.8f, 1f)
+                val scaleYAnimation = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 0.8f, 1f)
 
-                val scaleAnimation = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 0.8f, 1f)
-                scaleAnimation.duration = 500
-                scaleAnimation.repeatCount = ObjectAnimator.INFINITE
-                scaleAnimation.repeatMode = ObjectAnimator.REVERSE
-                scaleAnimation.startDelay = (index * 100).toLong()
-
-                val scaleAnimationY = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 0.8f, 1f)
-                scaleAnimationY.duration = 500
-                scaleAnimationY.repeatCount = ObjectAnimator.INFINITE
-                scaleAnimationY.repeatMode = ObjectAnimator.REVERSE
-                scaleAnimationY.startDelay = (index * 100).toLong()
-
-                translateAnimation.start()
-                scaleAnimation.start()
-                scaleAnimationY.start()
+                listOf(translateAnimation, scaleXAnimation, scaleYAnimation).forEach { animation ->
+                    animation.duration = 500
+                    animation.repeatCount = ObjectAnimator.INFINITE
+                    animation.repeatMode = ObjectAnimator.REVERSE
+                    animation.startDelay = (index * 100).toLong()
+                    animation.start()
+                }
             }
 
             dialog.setOnShowListener {
@@ -281,86 +293,142 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 delay(1500)
                 try {
                     val jsonData = formatPanenDataForQR(mappedData)
-                    if (jsonData == "{\"tph_0\":\"\"}") {
-                        throw Exception("Failed to format data")
-                    }
-
-                    // Encode the JSON data
-                    val encodedData = encodeJsonToBase64ZipQR(jsonData)
-                    if (encodedData == null) {
-                        throw Exception("Failed to encode data")
-                    }
-
-                    AppLogger.d("Encoded QR Data: $encodedData")
+                    val encodedData = encodeJsonToBase64ZipQR(jsonData) ?: throw Exception("Encoding failed")
 
                     withContext(Dispatchers.Main) {
                         try {
-                            // Use encodedData instead of "test"
                             generateHighQualityQRCode(encodedData, qrCodeImageView)
 
+                            // Create fade-out animation for loading elements
+                            val fadeOut = ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f).apply {
+                                duration = 250
+                            }
+                            val fadeOutDots = ObjectAnimator.ofFloat(loadingContainer, "alpha", 1f, 0f).apply {
+                                duration = 250
+                            }
+
+                            // Ensure QR code starts fully invisible before fading in
+                            qrCodeImageView.alpha = 0f
+                            dashedLine.alpha = 0f
+
+                            // Create fade-in animation for QR code and dashed line
+                            val fadeIn = ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f).apply {
+                                duration = 250
+                                startDelay = 150
+                            }
+                            val fadeInDashed = ObjectAnimator.ofFloat(dashedLine, "alpha", 0f, 1f).apply {
+                                duration = 250
+                                startDelay = 150
+                            }
+
+                            // Run animations in parallel
+                            AnimatorSet().apply {
+                                playTogether(fadeOut, fadeOutDots)
+                                addListener(object : AnimatorListenerAdapter() {
+                                    override fun onAnimationEnd(animation: Animator) {
+                                        // Hide loading elements
+                                        loadingLogo.visibility = View.GONE
+                                        loadingContainer.visibility = View.GONE
+
+                                        // Make QR code & dashed line visible only when fading in
+                                        qrCodeImageView.visibility = View.VISIBLE
+                                        dashedLine.visibility = View.VISIBLE
+
+                                        // Start fade-in animations
+                                        fadeIn.start()
+                                        fadeInDashed.start()
+                                    }
+                                })
+                                start()
+                            }
+
+                        } catch (e: Exception) {
+                            loadingLogo.animation?.cancel()
                             loadingLogo.clearAnimation()
                             loadingLogo.visibility = View.GONE
                             loadingContainer.visibility = View.GONE
-                            qrCodeImageView.visibility = View.VISIBLE
-                            dashedLine.visibility = View.VISIBLE
-                        } catch (e: Exception) {
                             AppLogger.e("QR Generation Error: ${e.message}")
-                            throw Exception("Failed to generate QR code: ${e.message}")
+                            showErrorMessageGenerateQR(view, "Error Generating QR code: ${e.message}")
                         }
                     }
+
+
+
                 } catch (e: Exception) {
                     AppLogger.e("Error in QR process: ${e.message}")
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            this@ListPanenTBSActivity,
-                            "Error generating QR code: ${e.message}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        dialog.dismiss()
+                        stopLoadingAnimation(loadingLogo, loadingContainer)
+                        showErrorMessageGenerateQR(view, "Error Processing QR code: ${e.message}")
                     }
                 }
             }
         }
+    }
+
+    // Helper function to stop the loading animation and hide UI
+    private fun stopLoadingAnimation(loadingLogo: ImageView, loadingContainer: LinearLayout) {
+        loadingLogo.animation?.cancel()
+        loadingLogo.clearAnimation()
+        loadingLogo.visibility = View.GONE
+        loadingContainer.visibility = View.GONE
+    }
+
+
+    // Helper function to show errors
+    fun showErrorMessageGenerateQR(view: View, message: String) {
+        val errorCard = view.findViewById<MaterialCardView>(R.id.errorCard)
+        val errorText = view.findViewById<TextView>(R.id.errorText)
+        errorText.text = message
+        errorCard.visibility = View.VISIBLE
     }
 
 
     fun encodeJsonToBase64ZipQR(jsonData: String): String? {
         return try {
+            if (jsonData.isBlank()) throw IllegalArgumentException("JSON data is empty")
+
             // Minify JSON first
             val minifiedJson = JSONObject(jsonData).toString()
 
+            // Reject empty JSON
+            if (minifiedJson == "{}") {
+                AppLogger.e("Empty JSON detected, returning null")
+                throw IllegalArgumentException("Empty JSON detected")
+            }
+
             // Create a byte array output stream to hold the zip data
             ByteArrayOutputStream().use { byteArrayOutputStream ->
-                // Create a zip output stream with maximum compression
                 ZipOutputStream(byteArrayOutputStream).apply {
                     setLevel(Deflater.BEST_COMPRESSION)
                 }.use { zipOutputStream ->
-                    // Create a new entry in the ZIP for output.json
                     val entry = ZipEntry("output.json")
                     zipOutputStream.putNextEntry(entry)
-
-                    // Write the minified JSON data to the zip entry
                     zipOutputStream.write(minifiedJson.toByteArray(StandardCharsets.UTF_8))
                     zipOutputStream.closeEntry()
                 }
 
-                // Get the zipped bytes and encode to base64
                 val zipBytes = byteArrayOutputStream.toByteArray()
                 val base64Encoded = Base64.encodeToString(zipBytes, Base64.NO_WRAP)
 
-                // Split the base64 string in half
                 val midPoint = base64Encoded.length / 2
                 val firstHalf = base64Encoded.substring(0, midPoint)
                 val secondHalf = base64Encoded.substring(midPoint)
 
-                // Combine with encryption key in the middle
                 firstHalf + "5nqHzPKdlILxS9ABpClq" + secondHalf
             }
+        } catch (e: JSONException) {
+            AppLogger.e("JSON Processing Error: ${e.message}")
+            throw IllegalArgumentException(e.message.toString())
+        } catch (e: IOException) {
+            AppLogger.e("IO Error: ${e.message}")
+            throw IllegalArgumentException("${e.message}")
         } catch (e: Exception) {
-            e.printStackTrace()
-            null
+            AppLogger.e("Encoding Error: ${e.message}")
+            throw IllegalArgumentException("${e.message}")
         }
     }
+
+
 
     private fun setupObservers() {
         val listBlok = findViewById<TextView>(R.id.listBlok)
@@ -693,14 +761,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val height = bitMatrix.height
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
 
-            // Fill the bitmap
             for (x in 0 until width) {
                 for (y in 0 until height) {
                     bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
                 }
             }
 
-            // Set the bitmap to ImageView with high quality scaling
             imageView.apply {
                 setImageBitmap(bitmap)
                 scaleType = ImageView.ScaleType.FIT_CENTER
@@ -708,7 +774,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         } catch (e: Exception) {
             AppLogger.e("QR Generation Error: ${e.message}")
-            throw e  // Re-throw the exception to be caught by the caller
+            throw IllegalArgumentException("${e.message}")
         }
     }
 
@@ -746,31 +812,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
             setOnActionSelectedListener { actionItem ->
                 when (actionItem.id) {
-//                    R.id.scan_qr -> {
-//                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
-//
-//                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
-//
-//                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
-//                        dialog.setContentView(view)
-////                        view.layoutParams.height = 500.toPx()
-////
-//                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-//                        val data = "test"
-//                        generateHighQualityQRCode(data, qrCodeImageView)
-//                        dialog.setOnShowListener {
-//                            val bottomSheet =
-//                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-//                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
-//                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
-//                        }
-//                        dialog.show()
-//                        true
-//                    }
-//                    R.id.cancelSelection -> {
-//                        listAdapter.clearSelections()
-//                        true
-//                    }
                     R.id.deleteSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()
                         handleDelete(selectedItems)
