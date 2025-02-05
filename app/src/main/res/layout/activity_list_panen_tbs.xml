@@ -398,41 +398,41 @@
 
     </LinearLayout>
 
-    <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:app="http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!--        <com.google.android.material.floatingactionbutton.FloatingActionButton-->
-        <!--            android:id="@+id/menu_back"-->
-        <!--            android:layout_width="wrap_content"-->
-        <!--            android:layout_height="wrap_content"-->
-        <!--            android:src="@drawable/arrow_back"-->
-        <!--            app:layout_constraintBottom_toBottomOf="parent"-->
-        <!--            app:layout_constraintEnd_toEndOf="parent"-->
-        <!--            android:layout_marginBottom="100dp"-->
-        <!--            app:maxImageSize="50dp"-->
-        <!--            android:layout_marginRight="30dp"-->
-        <!--            app:backgroundTint="@color/bluedarklight"-->
-        <!--            app:tint="@color/white"-->
-        <!--            app:rippleColor="@color/bluedark"-->
-        <!--            android:tooltipText="Input Koordinat TPH" />-->
+        <!-- Floating Action Button -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btnGenerateQRTPH"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/baseline_qr_code_scanner_24"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginBottom="100dp"
+            app:maxImageSize="30dp"
+            android:layout_marginRight="40dp"
+            app:backgroundTint="@color/bluedarklight"
+            app:tint="@color/white"
+            app:rippleColor="@color/bgLightOrange"
+            android:tooltipText="Generate QR TPH" />
 
         <com.leinardi.android.speeddial.SpeedDialView
             android:id="@+id/dial_tph_list"
             android:layout_width="wrap_content"
+            android:layout_marginRight="25dp"
             android:layout_height="wrap_content"
-            android:layout_marginRight="15dp"
-            android:layout_marginBottom="50dp"
             android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/btnGenerateQRTPH"
             app:layout_constraintEnd_toEndOf="parent"
-            app:sdMainFabClosedBackgroundColor="@color/bluedarklight"
+            app:sdMainFabClosedBackgroundColor="@color/greenDarker"
             app:sdMainFabClosedIconColor="@color/white"
-            app:sdMainFabClosedSrc="@drawable/baseline_checklist_24"
-            app:sdMainFabOpenedBackgroundColor="@color/bluedarklight"
-            app:sdMainFabOpenedSrc="@drawable/baseline_check_24" />
-
+            app:sdMainFabOpenedSrc="@drawable/baseline_close_24"
+            app:sdMainFabClosedSrc="@drawable/list_solid"
+            app:sdMainFabOpenedBackgroundColor="@color/greenDarker" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

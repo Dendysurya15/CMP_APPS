@@ -377,6 +377,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         featureName = intent.getStringExtra("FEATURE_NAME")
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
         val userSection = findViewById<TextView>(R.id.userSection)
+        val locationSection = findViewById<LinearLayout>(R.id.locationSection)
+        locationSection.visibility = View.VISIBLE
 
         AppUtils.setupUserHeader(
             userName = userName,
@@ -896,14 +898,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             loadingContainer.findViewById<TextView>(R.id.dot4)
         )
 
-        // Show loading animation
         spinner.visibility = View.INVISIBLE
         loadingContainer.visibility = View.VISIBLE
 
         // Animate each dot
         dots.forEachIndexed { index, dot ->
             val animation = ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
-            animation.duration = 500
+            animation.duration = 600
             animation.repeatCount = ObjectAnimator.INFINITE
             animation.repeatMode = ObjectAnimator.REVERSE
             animation.startDelay = (index * 100).toLong() // Stagger the animations

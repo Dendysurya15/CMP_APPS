@@ -40,8 +40,8 @@ abstract class PanenDao {
     abstract fun getAllArchived(): List<PanenEntity>
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE archive = 1")
-    abstract  fun getAllArchivedWithRelations(): List<PanenEntityWithRelations>
+    @Query("SELECT * FROM panen_table WHERE archive = 1 AND date(date_created) = date('now', 'localtime')")
+    abstract fun getAllArchivedWithRelations(): List<PanenEntityWithRelations>
 
     @Query("SELECT * FROM panen_table WHERE archive = 0")
     abstract fun getAllActive(): List<PanenEntity>
@@ -59,8 +59,8 @@ abstract class PanenDao {
     abstract fun archiveByListID(id: List<Int>): Int
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE archive = 0")
-    abstract  fun getAllActiveWithRelations(): List<PanenEntityWithRelations>
+    @Query("SELECT * FROM panen_table WHERE archive = 0 AND date(date_created) = date('now', 'localtime')")
+    abstract fun getAllActiveWithRelations(): List<PanenEntityWithRelations>
 
 //    @Transaction
 //    open fun updateOrInsert(panen: List<PanenEntity>) {

@@ -73,7 +73,7 @@ class TakeFotoPreviewAdapter(
     }
 
     override fun onBindViewHolder(holder: FotoViewHolder, position: Int) {
-        holder.titleCommentTextView.text = "Komentar Foto"
+        holder.titleCommentTextView.text = "Komentar Foto (Opsional)"
         holder.commentTextView.text = comments[position]
 
         // Show comment section always

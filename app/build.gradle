@@ -11,7 +11,7 @@ android {
     def versionPatch = 0
 
     namespace 'com.cbi.cmp_project'
-    compileSdk 34  // Changed from 35 to 34
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.cbi.cmp_project"
