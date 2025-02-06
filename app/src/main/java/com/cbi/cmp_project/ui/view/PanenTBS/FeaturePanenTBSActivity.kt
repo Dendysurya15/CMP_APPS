@@ -576,6 +576,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         persenLewatMasak = MathFun().round((bLewatMasak.toFloat() / jumTBS.toFloat() * 100), 2)!!
         persenJjgKosong = MathFun().round((jjgKosong.toFloat() / jumTBS.toFloat() * 100), 2)!!
 
+
         initializeJjgJson()
     }
 
