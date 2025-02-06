@@ -1,8 +1,11 @@
 package com.cbi.cmp_project.data.api
 
+import com.cbi.cmp_project.data.model.LoginResponse
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.Field
+import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Headers
 import retrofit2.http.POST
@@ -55,4 +58,12 @@ interface ApiService {
         val message: String,
         val data: Map<String, String?>
     )
+
+    data class LoginRequest(
+        val username: String,
+        val password: String
+    )
+
+    @POST("auth/login")
+    suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
 }

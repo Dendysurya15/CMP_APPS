@@ -113,9 +113,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
         prefManager = PrefManager(this)
-        userName = prefManager!!.getUserNameLogin("user_name")
+        userName = prefManager!!.nameUserLogin
         estateName = prefManager!!.getEstateUserLogin("estate_name")
-        jabatanUser = prefManager!!.getJabatanUserLogin("jabatan_name")
+        jabatanUser = prefManager!!.jabatanUserLogin
         setupHeader()
         initViewModel()
         initializeViews()

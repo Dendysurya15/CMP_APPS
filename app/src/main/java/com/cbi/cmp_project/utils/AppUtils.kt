@@ -2,11 +2,16 @@ package com.cbi.cmp_project.utils
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Base64
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.data.network.RetrofitClient
 import com.github.junrar.Archive
@@ -16,6 +21,8 @@ import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
+import java.util.Locale
+import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
@@ -112,26 +119,32 @@ object AppUtils {
         tvFeatureName: TextView
     ) {
         val userInfo = buildString {
-            userName?.let { append(it) }
-            jabatanUser?.let { jabatan ->
-                if (isNotEmpty()) append("\n")
-                append(jabatan)
+            // Append userName if it's not null or empty
+            userName?.takeIf { it.isNotEmpty() }?.let { append(it) }
+
+            // Append jabatanUser if it's not null or empty
+            jabatanUser?.takeIf { it.isNotEmpty() }?.let {
+                if (isNotEmpty()) append("\n") // Add \n only if previous content exists
+                append(it)
             }
-            // Only add estate and afdeling if at least one is non-null
-            if (estateName != null || afdelingUser != null) {
-                if (isNotEmpty()) append("\n")
-                estateName?.let { estate ->
-                    append(estate)
-                    // Only add hyphen if both estate and afdeling exist
-                    if (afdelingUser != null) append(" - ")
+
+            // Append estateName and afdelingUser if not both are null or empty
+            if (!estateName.isNullOrEmpty() || !afdelingUser.isNullOrEmpty()) {
+                if (isNotEmpty()) append("\n") // Add \n only if previous content exists
+                estateName?.takeIf { it.isNotEmpty() }?.let {
+                    append(it)
+                    if (!afdelingUser.isNullOrEmpty()) append(" - ")
                 }
-                afdelingUser?.let { append(it) }
+                afdelingUser?.takeIf { it.isNotEmpty() }?.let {
+                    append(it)
+                }
             }
         }
 
         userSection.text = userInfo
         AppUtils.setupFeatureHeader(featureName, tvFeatureName)
     }
+
 
     fun readJsonFromEncryptedBase64Zip(base64String: String): String? {
         return try {
@@ -171,4 +184,98 @@ object AppUtils {
             null
         }
     }
+
+    fun isNetworkAvailable(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        // if the android version is equal to M
+        // or greater we need to use the
+        // NetworkCapabilities to check what type of
+        // network has the internet connection
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+
+            // Returns a Network object corresponding to
+            // the currently active default data network.
+            val network = connectivityManager.activeNetwork ?: return false
+
+            // Representation of the capabilities of an active network.
+            val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
+
+            return when {
+                // Indicates this network uses a Wi-Fi transport,
+                // or WiFi has network connectivity
+                activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+
+                // Indicates this network uses a Cellular transport. or
+                // Cellular has network connectivity
+                activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+
+                // else return false
+                else -> false
+            }
+        } else {
+            // if the android version is below M
+            @Suppress("DEPRECATION") val networkInfo =
+                connectivityManager.activeNetworkInfo ?: return false
+            @Suppress("DEPRECATION")
+            return networkInfo.isConnected
+        }
+    }
+
+    fun showBiometricPrompt(context: Context, nameUser: String, successCallback: () -> Unit) {
+        val executor = Executors.newSingleThreadExecutor()
+
+        val biometricPrompt = BiometricPrompt(
+            context as AppCompatActivity,
+            executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    super.onAuthenticationSucceeded(result)
+                    successCallback.invoke()
+                }
+            })
+
+        val textWelcome = context.getString(R.string.welcome_back)
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(
+                "${
+                    textWelcome.substring(0, 1)
+                        .toUpperCase(Locale.getDefault()) + textWelcome.substring(1).toLowerCase(
+                        Locale.getDefault()
+                    )
+                } $nameUser."
+            )
+            .setSubtitle(context.getString(R.string.subtitle_prompt))
+            .setNegativeButtonText(context.getString(R.string.confirmation_dialog_cancel))
+            .build()
+
+        biometricPrompt.authenticate(promptInfo)
+    }
+
+    fun checkBiometricSupport(context: Context): Boolean {
+        when (BiometricManager.from(context).canAuthenticate()) {
+            BiometricManager.BIOMETRIC_SUCCESS -> {
+                return BiometricManager.from(context)
+                    .canAuthenticate() == BiometricManager.BIOMETRIC_SUCCESS
+            }
+
+            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> {
+                return false
+            }
+
+            BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> {
+                return false
+            }
+
+            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> {
+                return false
+            }
+
+            else -> {
+                return false
+            }
+        }
+    }
+
+
 }

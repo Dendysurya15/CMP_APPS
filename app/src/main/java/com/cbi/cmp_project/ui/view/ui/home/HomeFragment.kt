@@ -62,7 +62,6 @@ class HomeFragment : Fragment() {
         setupRecyclerView()
 
         observeViewModel()
-//        fetchDataEachCard()
         handleOnBackPressed()
         return root
 

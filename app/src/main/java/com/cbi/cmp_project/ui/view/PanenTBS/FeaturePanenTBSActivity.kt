@@ -197,9 +197,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         regionalName = prefManager!!.getRegionalUserLogin("regional_name")
         estateId = prefManager!!.getEstateUserLogin("estate_id")
         estateName = prefManager!!.getEstateUserLogin("estate_name")
-        userName = prefManager!!.getUserNameLogin("user_name")
+        userName = prefManager!!.nameUserLogin
         userId = prefManager!!.getUserIdLogin("user_id")
-        jabatanUser = prefManager!!.getJabatanUserLogin("jabatan_name")
+        jabatanUser = prefManager!!.jabatanUserLogin
 
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }

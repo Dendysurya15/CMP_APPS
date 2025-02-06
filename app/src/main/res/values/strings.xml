@@ -29,6 +29,12 @@
     <string name="al_failed_fetch_data_desc">Gagal Mengambil Data!</string>
     <string name="al_failed_fetch_data">Terjadi Kesalahan!</string>
 
+    <string name="alert_login_username_field_empty">Username Tidak Boleh Kosong!</string>
+    <string name="alert_login_password_field_empty">Password Tidak Boleh Kosong!</string>
+
+    <string name="al_failed_login">Gagal Login</string>
+
+
     <string name="generate_qr">Generate QR Panen TPH</string>
     <string name="dial_unselect_item">Batalkan Pilihan</string>
     <string name="dial_upload_item">Upload Item Terpilih</string>
@@ -36,7 +42,8 @@
 
     <string name="al_delete">Hapus</string>
     <string name="al_make_sure_delete">Apakah anda yakin untuk menghapus</string>
-
+    <string name="welcome_back">Selamat Datang</string>
+    <string name="subtitle_prompt">Gunakan sidik jari untuk melanjutkan</string>
     <!--    form panen tbs-->
     <string name="field_regional">Regional</string>
     <string name="field_wilayah">Wilayah</string>
@@ -54,7 +61,8 @@
 
     <string name="al_back">Kembali</string>
     <string name="al_no_internet_connection">Tidak Ada Internet!</string>
-    <string name="al_no_internet_connection_description_download_dataset">Pastikan perangkat terhubung agar dapat mengunduh dataset aplikasi!</string>
+    <string name="al_no_internet_connection_description_download_dataset">Pastikan perangkat terhubung agar dapat mengunduh dataset sistem!</string>
+    <string name="al_no_internet_connection_description_login">Pastikan perangkat terhubung agar dapat Login ke sistem!</string>
     <string name="al_success_download_dataset">Berhasil unduh data</string>
     <string name="al_success_download_dataset_description">Dataset aplikasi berhasil diunduh!</string>
     <string name="al_description_success_save_local">Data berhasil disimpan!</string>
