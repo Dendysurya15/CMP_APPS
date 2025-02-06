@@ -24,6 +24,7 @@
 
             <FrameLayout
                 android:layout_width="0dp"
+                android:id="@+id/flCheckBoxTableHeaderLayout"
                 android:layout_height="match_parent"
                 android:layout_weight="0.4">
 
@@ -48,16 +49,16 @@
                     android:textStyle="bold"/>
             </FrameLayout>
 
-<!--            <TextView-->
-<!--                android:layout_width="0dp"-->
-<!--                android:layout_height="match_parent"-->
-<!--                android:layout_weight="1"-->
-<!--                android:text="Tanggal"-->
-<!--                android:fontFamily="@font/manrope_semibold"-->
-<!--                android:gravity="center"-->
-<!--                android:padding="5dp"-->
-<!--                android:textSize="15dp"-->
-<!--                android:textStyle="bold"/>-->
+            <!--            <TextView-->
+            <!--                android:layout_width="0dp"-->
+            <!--                android:layout_height="match_parent"-->
+            <!--                android:layout_weight="1"-->
+            <!--                android:text="Tanggal"-->
+            <!--                android:fontFamily="@font/manrope_semibold"-->
+            <!--                android:gravity="center"-->
+            <!--                android:padding="5dp"-->
+            <!--                android:textSize="15dp"-->
+            <!--                android:textStyle="bold"/>-->
 
 
             <TextView
@@ -65,8 +66,8 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:gravity="center"
-                android:text="Blok"
-                android:fontFamily="@font/manrope_semibold"
+                android:text="BLOK"
+                android:fontFamily="@font/manrope_extrabold"
                 android:padding="5dp"
                 android:textSize="15dp"
                 android:background="@drawable/rounded_radius_background"
@@ -76,8 +77,32 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:text="Data Grading"
-                android:fontFamily="@font/manrope_semibold"
+                android:text="NO TPH"
+                android:fontFamily="@font/manrope_extrabold"
+                android:gravity="center"
+                android:padding="5dp"
+                android:textSize="13dp"
+                android:background="@drawable/rounded_radius_background"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="TOTAL JJG"
+                android:fontFamily="@font/manrope_extrabold"
+                android:gravity="center"
+                android:padding="5dp"
+                android:textSize="13dp"
+                android:background="@drawable/rounded_radius_background"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="JAM"
+                android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"
                 android:padding="5dp"
                 android:textSize="13dp"

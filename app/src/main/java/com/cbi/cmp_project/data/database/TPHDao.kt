@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.data.model.TPHBlokInfo
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.markertph.data.model.WilayahModel
 
@@ -23,6 +24,23 @@ abstract class TPHDao {
 
         insertAll(tph)
     }
+
+    @Query("""
+        SELECT 
+            t.nomor as tphNomor,
+            b.kode as blokKode
+        FROM tph t
+        LEFT JOIN blok b ON t.blok = b.id
+        WHERE t.id = :id
+    """)
+    abstract suspend fun getTPHAndBlokInfo(id: Int): TPHBlokInfo?
+
+    // If you need the values separately, keep these queries as well
+    @Query("SELECT nomor FROM tph WHERE id = :id")
+    abstract suspend fun getTPHNomor(id: Int): String?
+
+    @Query("SELECT b.kode FROM tph t LEFT JOIN blok b ON t.blok = b.id WHERE t.id = :id")
+    abstract suspend fun getBlokKode(id: Int): String?
 
     @Query(
         """

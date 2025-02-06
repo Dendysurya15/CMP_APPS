@@ -18,5 +18,6 @@ data class PanenEntity(
     val lon: Double,
     val jenis_panen: Int,
     val ancak: Int,
-    val archive: Int
+    val archive: Int,
+    val status_espb: Int
 )

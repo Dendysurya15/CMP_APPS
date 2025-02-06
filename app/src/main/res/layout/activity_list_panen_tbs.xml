@@ -2,14 +2,13 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
+    android:id="@+id/clParentListPanen"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
-    tools:context=".ui.view.PanenTBS.ListPanenTBSActivity">
+    android:background="@color/white">
 
     <include
-        android:id="@+id/navbar"
+        android:id="@+id/navbarPanenList"
         layout="@layout/header_feature_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -23,9 +22,10 @@
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
+        android:visibility="gone"
         android:padding="8dp"
         android:weightSum="10"
-        app:layout_constraintTop_toBottomOf="@+id/navbar">
+        app:layout_constraintTop_toBottomOf="@+id/navbarPanenList">
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="0dp"
@@ -93,6 +93,89 @@
             android:src="@drawable/baseline_sort_24" />
     </LinearLayout>
 
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal"
+        android:layout_marginHorizontal="10dp"
+        android:visibility="gone"
+        android:id="@+id/blok_section"
+        app:layout_constraintTop_toBottomOf="@id/navbarPanenList"
+        tools:ignore="MissingConstraints">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:text="Blok: "
+            android:textSize="16dp"
+            android:fontFamily="@font/manrope_bold"
+            android:layout_height="wrap_content"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:id="@+id/listBlok"
+            android:fontFamily="@font/manrope_medium"
+            android:textSize="15dp"
+
+            android:textStyle="italic"
+
+            android:layout_height="wrap_content"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginHorizontal="10dp"
+        android:weightSum="2"
+        android:visibility="gone"
+        android:paddingBottom="10dp"
+        android:id="@+id/total_section"
+        app:layout_constraintTop_toBottomOf="@id/blok_section"
+        tools:ignore="MissingConstraints">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:orientation="horizontal"
+            android:layout_weight="1"
+            android:layout_height="match_parent">
+            <TextView
+                android:layout_width="wrap_content"
+                android:text="Total Jjg: "
+                android:textSize="16dp"
+                android:fontFamily="@font/manrope_bold"
+                android:layout_height="wrap_content"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:id="@+id/totalJjg"
+                android:text="0"
+                android:fontFamily="@font/manrope_medium"
+                android:textSize="15dp"
+                android:layout_height="wrap_content"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:orientation="horizontal"
+            android:layout_weight="1"
+            android:layout_height="match_parent">
+            <TextView
+                android:layout_width="wrap_content"
+                android:text="Total TPH: "
+                android:textSize="16dp"
+                android:fontFamily="@font/manrope_bold"
+                android:layout_height="wrap_content"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:id="@+id/totalTPH"
+                android:fontFamily="@font/manrope_medium"
+                android:textSize="15dp"
+                android:layout_height="wrap_content"/>
+        </LinearLayout>
+
+
+    </LinearLayout>
+
     <LinearLayout
         android:id="@+id/list_menu_upload_data"
         android:layout_width="match_parent"
@@ -100,7 +183,7 @@
         android:layout_marginHorizontal="10dp"
         android:layout_marginVertical="5dp"
         android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/search_section">
+        app:layout_constraintTop_toBottomOf="@id/total_section">
 
         <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -314,42 +397,35 @@
 
     </LinearLayout>
 
-    <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <!--        <com.google.android.material.floatingactionbutton.FloatingActionButton-->
-        <!--            android:id="@+id/menu_back"-->
-        <!--            android:layout_width="wrap_content"-->
-        <!--            android:layout_height="wrap_content"-->
-        <!--            android:src="@drawable/arrow_back"-->
-        <!--            app:layout_constraintBottom_toBottomOf="parent"-->
-        <!--            app:layout_constraintEnd_toEndOf="parent"-->
-        <!--            android:layout_marginBottom="100dp"-->
-        <!--            app:maxImageSize="50dp"-->
-        <!--            android:layout_marginRight="30dp"-->
-        <!--            app:backgroundTint="@color/bluedarklight"-->
-        <!--            app:tint="@color/white"-->
-        <!--            app:rippleColor="@color/bluedark"-->
-        <!--            android:tooltipText="Input Koordinat TPH" />-->
+        <!-- Floating Action Button -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btnGenerateQRTPH"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/baseline_qr_code_scanner_24"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginBottom="100dp"
+            app:maxImageSize="30dp"
+            android:layout_marginRight="40dp"
+            app:backgroundTint="@color/bluedarklight"
+            app:tint="@color/white"
+            app:rippleColor="@color/bgLightOrange"
+            android:tooltipText="Generate QR TPH" />
 
         <com.leinardi.android.speeddial.SpeedDialView
             android:id="@+id/dial_tph_list"
             android:layout_width="wrap_content"
+            android:layout_marginRight="25dp"
             android:layout_height="wrap_content"
-            android:layout_marginRight="15dp"
-            android:layout_marginBottom="50dp"
             android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/btnGenerateQRTPH"
             app:layout_constraintEnd_toEndOf="parent"
-            app:sdMainFabClosedBackgroundColor="@color/bluedarklight"
+            app:sdMainFabClosedBackgroundColor="@color/greenDarker"
             app:sdMainFabClosedIconColor="@color/white"
-            app:sdMainFabClosedSrc="@drawable/baseline_checklist_24"
-            app:sdMainFabOpenedBackgroundColor="@color/bluedarklight"
-            app:sdMainFabOpenedSrc="@drawable/baseline_check_24" />
+            app:sdMainFabOpenedSrc="@drawable/baseline_close_24"
+            app:sdMainFabClosedSrc="@drawable/list_solid"
+            app:sdMainFabOpenedBackgroundColor="@color/greenDarker" />
 
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

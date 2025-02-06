@@ -2,18 +2,18 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
-        android:layout_height="85dp"
+        android:layout_height="100dp"
         android:backgroundTint="@color/white"
         app:cardCornerRadius="0dp"
         android:id="@+id/navbar"
-        app:cardElevation="50dp"
+        app:cardElevation="10dp"
         tools:ignore="MissingConstraints">
-<!--        <FrameLayout&ndash;&gt;-->
+        <!--        <FrameLayout&ndash;&gt;-->
         <!--            android:layout_width="match_parent"-->
         <!--            android:layout_height="match_parent">-->
 
@@ -61,65 +61,87 @@
                 />
 
             <!--            <ImageView-->
-<!--                android:layout_width="10dp"-->
-<!--                android:layout_weight="1"-->
-<!--                android:layout_height="match_parent"-->
-<!--                android:layout_gravity="center_vertical"-->
-<!--                android:foreground="?attr/selectableItemBackground"-->
-<!--                android:src="@drawable/cbi"-->
-<!--                />-->
+            <!--                android:layout_width="10dp"-->
+            <!--                android:layout_weight="1"-->
+            <!--                android:layout_height="match_parent"-->
+            <!--                android:layout_gravity="center_vertical"-->
+            <!--                android:foreground="?attr/selectableItemBackground"-->
+            <!--                android:src="@drawable/cbi"-->
+            <!--                />-->
+
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:orientation="vertical"
                 android:paddingLeft="10dp"
                 android:layout_height="match_parent"
+                android:weightSum="2"
                 android:layout_weight="2.5">
 
                 <TextView
                     android:id="@+id/tvFeatureName"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:fontFamily="@font/montserrat_semibold"
-                    android:textColor="@color/black"
-                    android:textSize="14dp"
-                    android:gravity="bottom"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:fontFamily="@font/manrope_extrabold"
+                    android:textColor="@color/black"
+                    android:textSize="17dp"
+                    android:gravity="bottom"
                     android:lineSpacingExtra="2dp" />
 
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:fontFamily="@font/montserrat_mediumitalic"
-                    android:textSize="13dp"
-                    android:gravity="top"
-                    android:text="Muhammad Arifin Ilham"
-                    android:layout_weight="1"
-                    android:lineSpacingExtra="2dp" /> <!-- Tighter line spacing -->
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <!--                    <ImageView-->
+                    <!--                        android:layout_width="35dp"-->
+                    <!--                        android:layout_height="match_parent"-->
+                    <!--                        android:foregroundGravity="center"-->
+                    <!--                        android:layout_marginRight="5dp"-->
+                    <!--                        android:src="@drawable/circle_user_solid"-->
+                    <!--                        app:tint="@color/graytextdark" />-->
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="@font/manrope_bold"
+                        android:textStyle="italic"
+                        android:textSize="13dp"
+
+                        android:id="@+id/userSection"
+                        android:gravity="center_vertical"
+                        android:lineSpacingExtra="2dp" />
+                </LinearLayout>
+
+
             </LinearLayout>
 
 
-        <LinearLayout
-            android:layout_width="60dp"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:layout_height="match_parent"
-            android:layout_weight="0.5">
-            <ImageView
-                android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:id="@+id/statusLocation"
-                android:src="@drawable/baseline_wrong_location_24"
-                app:tint="@color/colorRedDark" />
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:id="@+id/accuracyLocation"
-                android:fontFamily="@font/montserrat_bold"
-                android:textColor="@color/black"
-                android:textSize="14dp"
-                android:gravity="center" />
-        </LinearLayout>
+            <LinearLayout
+                android:layout_width="60dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:id="@+id/locationSection"
+                android:visibility="gone"
+                android:layout_height="match_parent"
+                android:layout_weight="0.5">
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:id="@+id/statusLocation"
+                    android:src="@drawable/baseline_wrong_location_24"
+                    app:tint="@color/colorRedDark" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:id="@+id/accuracyLocation"
+                    android:fontFamily="@font/montserrat_bold"
+                    android:textColor="@color/black"
+                    android:textSize="14dp"
+                    android:gravity="center" />
+            </LinearLayout>
         </LinearLayout>
 
 

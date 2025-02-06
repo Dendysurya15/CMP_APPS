@@ -1,5 +1,6 @@
 package com.cbi.cmp_project.utils
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.os.VibrationEffect
@@ -8,11 +9,8 @@ import android.util.Base64
 import android.widget.TextView
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.data.network.RetrofitClient
-import com.github.junrar.Archive
-import com.github.junrar.rarfile.FileHeader
-import com.jaredrummler.materialspinner.BuildConfig
+import org.json.JSONObject
 import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -46,9 +44,21 @@ object AppUtils {
      * @return The app version as a string.
      */
     fun getAppVersion(context: Context): String {
-        return "Versi ${context.getString(R.string.app_version)}"
+        return context.getString(R.string.app_version)
     }
 
+
+    fun getDeviceInfo(context: Context): JSONObject {
+        val json = JSONObject()
+
+        val appVersion = getAppVersion(context)
+
+        json.put("app_version", appVersion)
+        json.put("os_version", Build.VERSION.RELEASE)
+        json.put("device_model", Build.MODEL)
+
+        return json
+    }
 
     fun Context.stringXML(field: Int): String {
         return getString(field)
@@ -73,7 +83,7 @@ object AppUtils {
     fun setupFeatureHeader(featureName: String?, tvFeatureName: TextView) {
         val context = tvFeatureName.context  // Get the context from the TextView
         val appVersion = getAppVersion(context)
-        val headerText = "${featureName ?: "Default Feature Name"}"
+        val headerText = "Menu - ${featureName ?: "Default Feature Name"}"
         tvFeatureName.text = headerText
     }
 
@@ -84,6 +94,39 @@ object AppUtils {
         } else {
             input
         }
+    }
+
+
+    @SuppressLint("SetTextI18n")
+    fun setupUserHeader(
+        userName: String?,
+        jabatanUser: String?,
+        estateName: String?,
+        afdelingUser: String?,
+        userSection: TextView,
+        featureName: String?,
+        tvFeatureName: TextView
+    ) {
+        val userInfo = buildString {
+            userName?.let { append(it) }
+            jabatanUser?.let { jabatan ->
+                if (isNotEmpty()) append("\n")
+                append(jabatan)
+            }
+            // Only add estate and afdeling if at least one is non-null
+            if (estateName != null || afdelingUser != null) {
+                if (isNotEmpty()) append("\n")
+                estateName?.let { estate ->
+                    append(estate)
+                    // Only add hyphen if both estate and afdeling exist
+                    if (afdelingUser != null) append(" - ")
+                }
+                afdelingUser?.let { append(it) }
+            }
+        }
+
+        userSection.text = userInfo
+        AppUtils.setupFeatureHeader(featureName, tvFeatureName)
     }
 
     fun readJsonFromEncryptedBase64Zip(base64String: String): String? {

@@ -2,7 +2,6 @@ package com.cbi.cmp_project.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.github.junrar.Archive
 
 @Entity(tableName = "espb_table")
 data class ESPBEntity(

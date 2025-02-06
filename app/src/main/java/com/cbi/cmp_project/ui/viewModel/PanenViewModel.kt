@@ -39,6 +39,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _panenCount = MutableStateFlow(0)
     val panenCount: StateFlow<Int> = _panenCount.asStateFlow()
 
+    private val _panenCountApproval = MutableStateFlow(0)
+    val panenCountApproval: StateFlow<Int> = _panenCountApproval.asStateFlow()
+
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
 
@@ -55,6 +58,12 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun loadPanenCount(): Int {
         val count = repository.getPanenCount()
+        _panenCount.value = count
+        return count
+    }
+
+    suspend fun loadPanenCountApproval(): Int {
+        val count = repository.getPanenCountApproval()
         _panenCount.value = count
         return count
     }

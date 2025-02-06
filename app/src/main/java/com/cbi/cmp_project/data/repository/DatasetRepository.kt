@@ -1,7 +1,9 @@
 package com.cbi.cmp_project.data.repository
 
 import android.content.Context
+import androidx.room.Query
 import com.cbi.cmp_project.data.database.AppDatabase
+import com.cbi.cmp_project.data.database.TPHDao
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranDetailModel
@@ -65,6 +67,4 @@ class DatasetRepository(context: Context) {
     suspend fun getKaryawanList(filteredId: Array<String>): List<KaryawanModel> {
         return karyawanDao.getKaryawanByCriteria(filteredId)
     }
-
-
 }
