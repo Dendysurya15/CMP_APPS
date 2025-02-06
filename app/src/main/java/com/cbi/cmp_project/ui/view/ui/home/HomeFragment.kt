@@ -26,7 +26,6 @@ import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.databinding.FragmentHomeBinding
 
 import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity
-import com.cbi.cmp_project.ui.view.PanenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
@@ -49,6 +48,7 @@ class HomeFragment : Fragment() {
     private lateinit var loadingDialog: LoadingDialog
 
     private var countPanenTPH: Int = 0  // Global variable for count
+    private var countPanenTPHApproval: Int = 0  // Global variable for count
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -95,6 +95,19 @@ class HomeFragment : Fragment() {
                         featureAdapter.hideLoadingForFeature("List History Panen TBS")
                     }
                 }
+                try {
+                    val countDeferred = async { panenViewModel.loadPanenCountApproval() }
+                    countPanenTPHApproval = countDeferred.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount("Verifikasi Panen", countPanenTPHApproval.toString())
+                        featureAdapter.hideLoadingForFeature("Verifikasi Panen")
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature("Verifikasi Panen")
+                    }
+                }
             }
         } else {
             AppLogger.e("Feature adapter not initialized yet")
@@ -138,12 +151,12 @@ class HomeFragment : Fragment() {
 
                 is FeatureCardEvent.NavigateToListPanenTBS -> {
                     event.context?.let {
-
-                        val intent = Intent(it, ListPanenTBSActivity::class.java)
-                        event.featureName?.let { featureName ->
-                            intent.putExtra("FEATURE_NAME", featureName)
-                        }
-                        startActivity(intent)
+//
+//                        val intent = Intent(it, ListPanenTBSActivity::class.java)
+//                        event.featureName?.let { featureName ->
+//                            intent.putExtra("FEATURE_NAME", featureName)
+//                        }
+//                        startActivity(intent)
                     }
                 }
 
@@ -180,7 +193,7 @@ class HomeFragment : Fragment() {
                 featureName = "List History Panen TBS",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
-                count = "0",
+                count = countPanenTPH.toString(),
                 functionName = "Data Tersimpan",
                 functionDescription = "Jumlah Data Panen Yang Sudah dibuat!",
                 displayType = DisplayType.COUNT
@@ -200,7 +213,7 @@ class HomeFragment : Fragment() {
                 featureName = "Verifikasi Panen",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
-                count = countPanenTPH.toString(),
+                count = countPanenTPHApproval.toString(),
                 functionName = "Data Tersimpan",
                 functionDescription = "Jumlah Data Panen Yang Sudah dibuat!",
                 displayType = DisplayType.COUNT

@@ -21,6 +21,9 @@ abstract class PanenDao {
         }
     }
 
+    @Query("SELECT EXISTS(SELECT 1 FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated)")
+    abstract suspend fun exists(tphId: String, dateCreated: String): Boolean
+
     @Update
     abstract fun update(panen: List<PanenEntity>)
 
@@ -30,8 +33,11 @@ abstract class PanenDao {
     @Query("SELECT * FROM panen_table WHERE id = :id")
     abstract fun getById(id: Int): PanenEntity?
 
-    @Query("SELECT COUNT(*) FROM panen_table")
+    @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 0 AND status_espb = 2")
     abstract suspend fun getCount(): Int
+
+    @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 0 AND status_espb = 0")
+    abstract suspend fun getCountApproval(): Int
 
     @Query("SELECT * FROM panen_table")
     abstract fun getAll(): List<PanenEntity>

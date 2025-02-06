@@ -23,7 +23,6 @@
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:visibility="gone"
         android:padding="8dp"
         android:weightSum="10"
         app:layout_constraintTop_toBottomOf="@+id/navbar">
@@ -93,8 +92,8 @@
             android:padding="8dp"
             android:src="@drawable/baseline_sort_24" />
     </LinearLayout>
-    
-    
+
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -105,7 +104,7 @@
         android:id="@+id/blok_section"
         app:layout_constraintTop_toBottomOf="@id/navbar"
         tools:ignore="MissingConstraints">
-        
+
         <TextView
             android:layout_width="wrap_content"
             android:text="Blok: "
@@ -184,7 +183,7 @@
         android:layout_marginHorizontal="10dp"
         android:layout_marginVertical="5dp"
         android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/total_section">
+        app:layout_constraintTop_toBottomOf="@id/search_section">
 
         <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:app="http://schemas.android.com/apk/res-auto"

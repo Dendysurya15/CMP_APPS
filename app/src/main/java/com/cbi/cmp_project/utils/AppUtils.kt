@@ -19,7 +19,6 @@ import com.github.junrar.rarfile.FileHeader
 import com.jaredrummler.materialspinner.BuildConfig
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -106,7 +105,6 @@ object AppUtils {
             input
         }
     }
-
 
     @SuppressLint("SetTextI18n")
     fun setupUserHeader(

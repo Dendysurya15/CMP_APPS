@@ -725,76 +725,21 @@ class ListPanenTBSActivity : AppCompatActivity() {
         listAdapter.setOnSelectionChangedListener { selectedCount ->
             isSettingUpCheckbox = true
             headerCheckBox.isChecked = listAdapter.isAllSelected()
+
             speedDial.visibility = if (selectedCount > 0) View.VISIBLE else View.GONE
             isSettingUpCheckbox = false
-        }
-    }
-
-    private fun handleDelete(selectedItems: List<Map<String, Any>>) {
-        this.vibrate()
-        AlertDialogUtility.withTwoActions(
-            this,
-            getString(R.string.al_delete),
-            getString(R.string.confirmation_dialog_title),
-            "${getString(R.string.al_make_sure_delete)} ${selectedItems.size} data?",
-            "warning.json",
-            ContextCompat.getColor(this, R.color.colorRedDark)
-        ) {
-            loadingDialog.show()
-            loadingDialog.setMessage("Deleting items...")
-
-            panenViewModel.deleteMultipleItems(selectedItems)
-
-            // Observe delete result
-            panenViewModel.deleteItemsResult.observe(this) { isSuccess ->
-                loadingDialog.dismiss()
-                if (isSuccess) {
-                    Toast.makeText(
-                        this,
-                        "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    // Reload data based on current state
-                    if (currentState == 0) {
-                        panenViewModel.loadActivePanen()
-                    } else {
-                        panenViewModel.loadArchivedPanen()
-                    }
-                } else {
-                    Toast.makeText(
-                        this,
-                        "${getString(R.string.al_failed_delete)} data",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-
-                // Reset UI state
-                val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
-                    .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
-                headerCheckBox.isChecked = false
-                listAdapter.clearSelections()
-                speedDial.visibility = View.GONE
-            }
-
-            // Observe errors
-            panenViewModel.error.observe(this) { errorMessage ->
-                loadingDialog.dismiss()
-                Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
-            }
         }
     }
 
 
     fun generateHighQualityQRCode(content: String, imageView: ImageView, sizePx: Int = 1000) {
         try {
-            AppLogger.d("QR Content Length: ${content.length}")  // Log content length
-
             // Create encoding hints for better quality
             val hints = hashMapOf<EncodeHintType, Any>().apply {
-                put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M) // Change to M for balance
-                put(EncodeHintType.MARGIN, 1) // Smaller margin
+                put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H) // Highest error correction
+                put(EncodeHintType.MARGIN, 2) // Margin size
                 put(EncodeHintType.CHARACTER_SET, "UTF-8")
-                // Remove fixed QR version to allow automatic scaling
+                put(EncodeHintType.QR_VERSION, 8) // Larger QR version for more data and better quality
             }
 
             // Create QR code writer with hints
@@ -812,20 +757,21 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val height = bitMatrix.height
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
 
+            // Fill the bitmap
             for (x in 0 until width) {
                 for (y in 0 until height) {
                     bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
                 }
             }
 
+            // Set the bitmap to ImageView with high quality scaling
             imageView.apply {
                 setImageBitmap(bitmap)
                 scaleType = ImageView.ScaleType.FIT_CENTER
             }
 
         } catch (e: Exception) {
-            AppLogger.e("QR Generation Error: ${e.message}")
-            throw IllegalArgumentException("${e.message}")
+            e.printStackTrace()
         }
     }
 
@@ -834,14 +780,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
         speedDial = findViewById(R.id.dial_tph_list)
 
         speedDial.apply {
-
             addActionItem(
-                SpeedDialActionItem.Builder(R.id.deleteSelected, R.drawable.baseline_remove_24)
-                    .setLabel(getString(R.string.dial_delete_item))
+                SpeedDialActionItem.Builder(R.id.scan_qr, R.drawable.baseline_qr_code_scanner_24)
+                    .setLabel(getString(R.string.generate_qr))
                     .setFabBackgroundColor(
                         ContextCompat.getColor(
                             this@ListPanenTBSActivity,
-                            R.color.colorRedDark
+                            R.color.yellowbutton
                         )
                     )
                     .create()
@@ -853,7 +798,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     .setFabBackgroundColor(
                         ContextCompat.getColor(
                             this@ListPanenTBSActivity,
-                            R.color.orange
+                            R.color.colorRedDark
                         )
                     )
                     .create()
@@ -863,14 +808,51 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
             setOnActionSelectedListener { actionItem ->
                 when (actionItem.id) {
-                    R.id.deleteSelected -> {
-                        val selectedItems = listAdapter.getSelectedItems()
-                        handleDelete(selectedItems)
+                    R.id.scan_qr -> {
+                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
+
+                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
+
+                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
+                        dialog.setContentView(view)
+//                        view.layoutParams.height = 500.toPx()
+
+                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
+                        val data = "test"
+                        generateHighQualityQRCode(data, qrCodeImageView)
+                        dialog.setOnShowListener {
+                            val bottomSheet =
+                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
+                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                        }
+                        dialog.show()
                         true
                     }
+//                    R.id.cancelSelection -> {
+//                        listAdapter.clearSelections()
+//                        true
+//                    }
+//                    R.id.deleteSelected -> {
+//                        val selectedItems = listAdapter.getSelectedItems()
+////                        handleDelete(selectedItems)
+//                        true
+//                    }
                     R.id.uploadSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()
 
+//                        if (AppUtils.isInternetAvailable(this@ListPanenTBSActivity)) {
+//                            handleUpload(selectedItems)
+//                        } else {
+//                            AlertDialogUtility.withSingleAction(
+//                                this@ListPanenTBSActivity,
+//                                getString(R.string.al_back),
+//                                getString(R.string.al_no_internet_connection),
+//                                getString(R.string.al_no_internet_connection_description),
+//                                "network_error.json",
+//                                R.color.colorRedDark
+//                            ) {}
+//                        }
                         true
                     }
 
@@ -897,18 +879,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun setupSortButton() {
         sortButton = findViewById(R.id.btn_sort)
-        updateSortIcon()
+        updateSortIcon() // Set initial icon state
 
         sortButton.setOnClickListener {
+            // Store original data order if this is the first sort
             if (originalData.isEmpty()) {
                 originalData = listAdapter.getCurrentData()
             }
 
             isAscendingOrder = !isAscendingOrder
-            updateSortIcon()
+            updateSortIcon() // Update icon on click
 
-            // Use the TPH field for sorting
-            listAdapter.sortData(ListPanenTPHAdapter.SortField.TPH, isAscendingOrder)
+            listAdapter.sortData(isAscendingOrder)
             updateFilterDisplay()
         }
 
@@ -918,21 +900,21 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun updateFilterDisplay() {
         filterSection.visibility = View.VISIBLE
-        filterName.text = if (isAscendingOrder)
-            "Urutan TPH: Kecil ke Besar"
-        else
-            "Urutan TPH: Besar ke Kecil"
+        filterName.text = if (isAscendingOrder) "Urutan Nomor TPH Kecil - Besar" else "Urutan Nomor TPH Besar - Kecil"
     }
 
 
     private fun setupRemoveFilter() {
         removeFilter.setOnClickListener {
+            // Get current search query
             val currentSearchQuery = searchEditText.text.toString().trim()
 
+            // Reset sort state
             isAscendingOrder = true
             updateSortIcon()
 
             if (originalData.isNotEmpty()) {
+                // Reset the sort but maintain the filter
                 listAdapter.resetSort()
                 if (currentSearchQuery.isNotEmpty()) {
                     listAdapter.filterData(currentSearchQuery)
@@ -940,6 +922,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 originalData = emptyList()
             }
 
+            // Hide filter section
             filterSection.visibility = View.GONE
         }
     }
@@ -973,17 +956,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private fun setupHeader() {
         featureName = intent.getStringExtra("FEATURE_NAME")
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
-        val userSection = findViewById<TextView>(R.id.userSection)
-
-        AppUtils.setupUserHeader(
-            userName = userName,
-            jabatanUser = jabatanUser,
-            estateName = estateName,
-            afdelingUser = afdelingUser,
-            userSection = userSection,
-            featureName = featureName,
-            tvFeatureName = tvFeatureName
-        )
+        AppUtils.setupFeatureHeader(featureName, tvFeatureName)
     }
 
     private fun setupRecyclerView() {
