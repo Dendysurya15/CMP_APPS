@@ -43,7 +43,7 @@
             android:layout_height="wrap_content"
             android:textSize="30dp"
             android:fontFamily="@font/manrope_extrabold"
-            android:textColor="@color/greenDefault"
+            android:textColor="@color/greenDarker"
             android:layout_marginHorizontal="30dp"
             android:gravity="left"
             android:layout_marginBottom="5dp"

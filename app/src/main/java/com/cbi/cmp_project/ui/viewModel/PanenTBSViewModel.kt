@@ -7,7 +7,6 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.cbi.cmp_project.data.model.PanenTBSModel
 import com.cbi.cmp_project.data.repository.PanenTBSRepository
 import kotlinx.coroutines.launch
 

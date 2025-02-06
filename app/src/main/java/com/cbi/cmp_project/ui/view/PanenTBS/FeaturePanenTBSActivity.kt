@@ -75,6 +75,7 @@ import java.io.File
 import kotlin.reflect.KMutableProperty0
 import android.text.InputType as AndroidInputType
 import android.view.inputmethod.EditorInfo
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.cbi.cmp_project.ui.adapter.Worker
 import com.cbi.cmp_project.ui.view.HomePageActivity
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
@@ -144,6 +145,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var selectedKemandoranLain: String = ""
     private var selectedPemanen: String = ""
     private var selectedPemanenLain: String = ""
+    private var infoApp: String = ""
 
 
     private var selectedDivisiValue: Int? = null
@@ -179,6 +181,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var estateName: String? = null
     private var userName: String? = null
     private var userId: String? = null
+    private var jabatanUser: String? = null
+    private var afdelingUser: String? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -193,13 +197,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         regionalName = prefManager!!.getRegionalUserLogin("regional_name")
         estateId = prefManager!!.getEstateUserLogin("estate_id")
         estateName = prefManager!!.getEstateUserLogin("estate_name")
-        userName = prefManager!!.getUserNameLogin("user_name")
+        userName = prefManager!!.nameUserLogin
         userId = prefManager!!.getUserIdLogin("user_id")
+        jabatanUser = prefManager!!.jabatanUserLogin
 
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
 
         setupHeader()
+
+        infoApp = AppUtils.getDeviceInfo(this@FeaturePanenTBSActivity).toString()
+
 
         lifecycleScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
@@ -215,7 +223,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 deptList = deptDeferred.await()
                 divisiList = divisiDeferred.await()
 
-                AppLogger.d(deptList.toString())
                 withContext(Dispatchers.Main) {
                     setupLayout()
                 }
@@ -232,6 +239,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val mbSaveDataPanenTBS = findViewById<MaterialButton>(R.id.mbSaveDataPanenTBS)
 
         mbSaveDataPanenTBS.setOnClickListener {
+
             if (validateAndShowErrors()) {
                 AlertDialogUtility.withTwoActions(
                     this,
@@ -250,35 +258,37 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             val photoFilesString = photoFiles.joinToString(";")
                             val komentarFotoString = komentarFoto.joinToString(";")
-                            AppLogger.d("tph_id: $selectedTPH")
-                            AppLogger.d(
-                                "date_created: ${
-                                    SimpleDateFormat(
-                                        "yyyy-MM-dd HH:mm:ss",
-                                        Locale.getDefault()
-                                    ).format(Date())
-                                }"
-                            )
-                            AppLogger.d("created_by: $userId")
-                            AppLogger.d("jjgJson: $jjg_json")
-                            AppLogger.d("foto: $photoFiles")
-                            AppLogger.d("komentar: $komentarFoto")
-                            AppLogger.d("asistensi: $asistensi")
-                            AppLogger.d("lat: $lat")
-                            AppLogger.d("lon: $lon")
-                            AppLogger.d("jenis_panen: $selectedTipePanen")
-                            AppLogger.d("ancak: $ancakInput")
-                            AppLogger.d("archive: 1")
-                            AppLogger.d(
-                                "karyawan_id: ${
-                                    (selectedPemanenIds + selectedPemanenLainIds).joinToString(
-                                        ", "
-                                    )
-                                }"
-                            )
+//                            AppLogger.d("tph_id: $selectedTPHValue")
+//                            AppLogger.d(
+//                                "date_created: ${
+//                                    SimpleDateFormat(
+//                                        "yyyy-MM-dd HH:mm:ss",
+//                                        Locale.getDefault()
+//                                    ).format(Date())
+//                                }"
+//                            )
+//                            AppLogger.d("created_by: $userId")
+//                            AppLogger.d("jjgJson: $jjg_json")
+//                            AppLogger.d("foto: $photoFiles")
+//                            AppLogger.d("komentar: $komentarFoto")
+//                            AppLogger.d("asistensi: $asistensi")
+//                            AppLogger.d("lat: $lat")
+//                            AppLogger.d("lon: $lon")
+//                            AppLogger.d("jenis_panen: $selectedTipePanen")
+//                            AppLogger.d("ancak: $ancakInput")
+//                            AppLogger.d("archive: 1")
+//                            AppLogger.d(
+//                                "karyawan_id: ${
+//                                    (selectedPemanenIds + selectedPemanenLainIds).joinToString(
+//                                        ", "
+//                                    )
+//                                }"
+//                            )
+
+
 
                             panenViewModel.saveDataPanen(
-                                tph_id = selectedTPH,
+                                tph_id = selectedTPHValue.toString(),
                                 date_created = SimpleDateFormat(
                                     "yyyy-MM-dd HH:mm:ss",
                                     Locale.getDefault()
@@ -295,6 +305,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                 lon = lon!!,
                                 jenis_panen = selectedTipePanen.toInt(),
                                 ancakInput = ancakInput,
+                                info = infoApp,
                                 archive = 0,
                             )
 
@@ -365,7 +376,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private fun setupHeader() {
         featureName = intent.getStringExtra("FEATURE_NAME")
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
-        AppUtils.setupFeatureHeader(featureName, tvFeatureName)
+        val userSection = findViewById<TextView>(R.id.userSection)
+        val locationSection = findViewById<LinearLayout>(R.id.locationSection)
+        locationSection.visibility = View.VISIBLE
+
+        AppUtils.setupUserHeader(
+            userName = userName,
+            jabatanUser = jabatanUser,
+            estateName = estateName,
+            afdelingUser = afdelingUser,
+            userSection = userSection,
+            featureName = featureName,
+            tvFeatureName = tvFeatureName
+        )
     }
 
     private fun updateCounterTextViews() {
@@ -552,6 +575,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         persenMasak = MathFun().round((bMentah.toFloat() / jumTBS.toFloat() * 100), 2)!!
         persenLewatMasak = MathFun().round((bLewatMasak.toFloat() / jumTBS.toFloat() * 100), 2)!!
         persenJjgKosong = MathFun().round((jjgKosong.toFloat() / jumTBS.toFloat() * 100), 2)!!
+
 
         initializeJjgJson()
     }
@@ -875,14 +899,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             loadingContainer.findViewById<TextView>(R.id.dot4)
         )
 
-        // Show loading animation
         spinner.visibility = View.INVISIBLE
         loadingContainer.visibility = View.VISIBLE
 
         // Animate each dot
         dots.forEachIndexed { index, dot ->
             val animation = ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
-            animation.duration = 500
+            animation.duration = 600
             animation.repeatCount = ObjectAnimator.INFINITE
             animation.repeatMode = ObjectAnimator.REVERSE
             animation.startDelay = (index * 100).toLong() // Stagger the animations
@@ -1515,20 +1538,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private fun setupRecyclerViewTakePreviewFoto() {
         val recyclerView: RecyclerView = findViewById(R.id.recyclerViewFotoPreview)
 
-        val displayMetrics = resources.displayMetrics
-        val screenWidth = displayMetrics.widthPixels
-
-        val itemWidth = resources.getDimensionPixelSize(R.dimen.item_width)
-
-        val spanCount = if (itemWidth > 0) (screenWidth / itemWidth).coerceAtLeast(1) else 1
-
-        val layoutManager = GridLayoutManager(this, spanCount)
-        recyclerView.layoutManager = layoutManager
+        recyclerView.layoutManager = LinearLayoutManager(this)
 
         takeFotoPreviewAdapter = TakeFotoPreviewAdapter(3, cameraViewModel, this, featureName)
         recyclerView.adapter = takeFotoPreviewAdapter
     }
-
     /**
      * Updates the text of a spinner's label in the included layout.
      */
@@ -1684,20 +1698,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         position: Int,
         komentar: String?
     ) {
-
-
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewFotoPreview)
         val adapter = recyclerView.adapter as? TakeFotoPreviewAdapter
 
-        adapter?.addPhotoFile("${position}", photoFile)
+        adapter?.addPhotoFile("$position", photoFile)
 
         photoCount++
         photoFiles.add(fname)
         komentarFoto.add(komentar!!)
+
         val viewHolder =
             recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder
         viewHolder?.let {
-            // Load the image using Glide or your preferred image loading library
             Glide.with(this)
                 .load(photoFile)
                 .into(it.imageView)

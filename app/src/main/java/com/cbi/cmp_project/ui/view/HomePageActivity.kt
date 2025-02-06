@@ -119,6 +119,12 @@ class HomePageActivity : AppCompatActivity() {
         loadingDialog = LoadingDialog(this)
         initViewModel()
 
+        val tvUserNameLogin = findViewById<TextView>(R.id.userNameLogin)
+        tvUserNameLogin.text = prefManager!!.nameUserLogin
+
+        val jabatanUserLogin = findViewById<TextView>(R.id.jabatanUserLogin)
+        jabatanUserLogin.text = prefManager!!.jabatanUserLogin
+
         prefManager!!.setRegionalUserLogin("regional_id", "1")
         prefManager!!.setRegionalUserLogin("regional_name", "REGIONAL I")
 
@@ -126,7 +132,8 @@ class HomePageActivity : AppCompatActivity() {
         prefManager!!.setEstateUserLogin("estate_name", "SULUNG ESTATE")
 
         prefManager!!.setUserIdLogin("user_id", "238")
-        prefManager!!.setUserNameLogin("user_name", "Ahmad Waluyo")
+
+        prefManager!!.setJabatanUserLogin("jabatan_name", "Mandor Panen OA2")
 
 
 

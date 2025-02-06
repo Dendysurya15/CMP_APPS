@@ -16,7 +16,6 @@
 
         <FrameLayout
             android:layout_width="0dp"
-            android:id="@+id/flCheckBoxItemTph"
             android:layout_height="match_parent"
             android:layout_weight="0.4">
 
@@ -43,22 +42,21 @@
 
         </FrameLayout>
 
-        <!--        <TextView-->
-        <!--            android:layout_width="0dp"-->
-        <!--            android:layout_height="wrap_content"-->
-        <!--            android:layout_weight="1"-->
-        <!--            android:gravity="center"-->
-        <!--            android:id="@+id/tvItemTgl"-->
-        <!--            android:fontFamily="@font/manrope_semibold"-->
-        <!--            android:text="28 Jan 2025\n17:26"-->
-        <!--            android:padding="5dp"-->
-        <!--            android:textSize="14dp"-->
-        <!--            android:textStyle="bold" />-->
+<!--        <TextView-->
+<!--            android:layout_width="0dp"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_weight="1"-->
+<!--            android:gravity="center"-->
+<!--            android:id="@+id/tvItemTgl"-->
+<!--            android:fontFamily="@font/manrope_semibold"-->
+<!--            android:text="28 Jan 2025\n17:26"-->
+<!--            android:padding="5dp"-->
+<!--            android:textSize="14dp"-->
+<!--            android:textStyle="bold" />-->
 
         <TextView
             android:id="@+id/tvItemBlok"
             android:layout_width="0dp"
-            android:text="A003"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:fontFamily="@font/manrope_semibold"
@@ -71,7 +69,6 @@
             android:layout_width="0dp"
             android:id="@+id/tvItemTPH"
             android:layout_weight="1"
-            android:text="42"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:fontFamily="@font/manrope_semibold"
@@ -85,7 +82,7 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:text="20"
+
             android:fontFamily="@font/manrope_semibold"
             android:padding="5dp"
             android:textSize="14dp"
@@ -95,13 +92,13 @@
             android:layout_width="0dp"
             android:id="@+id/tvItemJam"
             android:layout_weight="1"
-            android:text="07:12"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:fontFamily="@font/manrope_semibold"
             android:padding="5dp"
             android:textSize="14dp"
             android:textStyle="bold" />
+
 
     </LinearLayout>
 

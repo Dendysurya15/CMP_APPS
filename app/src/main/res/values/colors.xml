@@ -24,8 +24,12 @@
     <color name="strokeSelectWorkerGreen">#a7c79f</color>
     <color name="bgLightOrange">#ffd7b5</color>
     <color name="borderOrange">#ff9248</color>
+    <color name="bgPinkRed">#fcf4f3</color>
     <color name="bgLightYellow">#fef6e2</color>
+    <color name="bgpinkBrown">#e7d0cb</color>
     <color name="borderYellow">#fbddbd</color>
+    <color name="graydarker">#A1A1A1</color>
+
 
 
 

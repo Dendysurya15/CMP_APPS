@@ -30,11 +30,14 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _panenList = MutableLiveData<List<PanenEntity>>()
     val panenList: LiveData<List<PanenEntity>> get() = _panenList
 
-    private val _archivedPanenList = MutableLiveData<List<PanenEntity>>()
-    val archivedPanenList: LiveData<List<PanenEntity>> = _archivedPanenList
+    private val _archivedPanenList = MutableLiveData<List<PanenEntityWithRelations>>()
+    val archivedPanenList: LiveData<List<PanenEntityWithRelations>> = _archivedPanenList
 
     private val _activePanenList = MutableLiveData<List<PanenEntityWithRelations>>()
     val activePanenList: LiveData<List<PanenEntityWithRelations>> = _activePanenList
+
+    private val _deleteItemsResult = MutableLiveData<Boolean>()
+    val deleteItemsResult: LiveData<Boolean> = _deleteItemsResult
 
     private val _panenCount = MutableStateFlow(0)
     val panenCount: StateFlow<Int> = _panenCount.asStateFlow()
@@ -92,6 +95,37 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun deleteMultipleItems(items: List<Map<String, Any>>) {
+        viewModelScope.launch {
+            try {
+                // Extract IDs from the items
+                val ids = items.mapNotNull { item ->
+                    (item["id"] as? Number)?.toInt()
+                }
+
+                if (ids.isEmpty()) {
+                    _deleteItemsResult.postValue(false)
+                    _error.postValue("No valid IDs found to delete")
+                    return@launch
+                }
+
+                val result = repository.deletePanenByIds(ids)
+
+                // Check if the number of deleted items matches the number of IDs
+                val isSuccess = result == ids.size
+                _deleteItemsResult.postValue(isSuccess)
+
+                if (!isSuccess) {
+                    _error.postValue("Failed to delete all items")
+                }
+
+            } catch (e: Exception) {
+                _deleteItemsResult.postValue(false)
+                _error.postValue("Error deleting items: ${e.message}")
+            }
+        }
+    }
+
 
     fun archivePanenById(id: Int) {
         viewModelScope.launch {
@@ -113,6 +147,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         lon: Double,
         jenis_panen: Int,
         ancakInput: String,
+        info:String,
         archive: Int,
     ) {
         _saveDataPanenState.value = SaveDataPanenState.Loading
@@ -132,6 +167,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                     lon,
                     jenis_panen,
                     ancakInput,
+                    info,
                     archive
                 )
 

@@ -2,13 +2,14 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/clParentListPanen"
+    android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white">
+    android:background="@color/white"
+    tools:context=".ui.view.PanenTBS.ListPanenTBSActivity">
 
     <include
-        android:id="@+id/navbarPanenList"
+        android:id="@+id/navbar"
         layout="@layout/header_feature_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -22,10 +23,9 @@
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:visibility="gone"
         android:padding="8dp"
         android:weightSum="10"
-        app:layout_constraintTop_toBottomOf="@+id/navbarPanenList">
+        app:layout_constraintTop_toBottomOf="@+id/navbar">
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="0dp"
@@ -102,7 +102,7 @@
         android:layout_marginHorizontal="10dp"
         android:visibility="gone"
         android:id="@+id/blok_section"
-        app:layout_constraintTop_toBottomOf="@id/navbarPanenList"
+        app:layout_constraintTop_toBottomOf="@id/navbar"
         tools:ignore="MissingConstraints">
 
         <TextView
@@ -183,7 +183,7 @@
         android:layout_marginHorizontal="10dp"
         android:layout_marginVertical="5dp"
         android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/total_section">
+        app:layout_constraintTop_toBottomOf="@id/search_section">
 
         <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -397,6 +397,12 @@
 
     </LinearLayout>
 
+    <androidx.constraintlayout.widget.ConstraintLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
         <!-- Floating Action Button -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/btnGenerateQRTPH"
@@ -427,5 +433,6 @@
             app:sdMainFabClosedSrc="@drawable/list_solid"
             app:sdMainFabOpenedBackgroundColor="@color/greenDarker" />
 
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

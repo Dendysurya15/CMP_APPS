@@ -13,36 +13,35 @@
         android:id="@+id/navbar"
         app:cardElevation="10dp"
         tools:ignore="MissingConstraints">
-        <!--        <FrameLayout&ndash;&gt;-->
-        <!--            android:layout_width="match_parent"-->
-        <!--            android:layout_height="match_parent">-->
 
-        <!--            &lt;!&ndash; ImageView with fitXY scaleType &ndash;&gt;-->
-        <!--            <ImageView-->
-        <!--                android:layout_width="300dp"-->
-        <!--                android:layout_height="300dp"-->
-        <!--                android:src="@drawable/cbi"-->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
 
-        <!--                android:scaleType="fitXY"-->
-        <!--                android:layout_gravity="right"-->
-        <!--                android:layout_centerInParent="true" />-->
+            <!-- ImageView with fitXY scaleType -->
+            <ImageView
+                android:layout_width="250dp"
+                android:layout_height="250dp"
+                android:layout_marginLeft="290dp"
 
-        <!--            &lt;!&ndash; Semi-transparent overlay (Light opacity) &ndash;&gt;-->
-        <!--            <View-->
-        <!--                android:layout_width="match_parent"-->
-        <!--                android:layout_height="match_parent"-->
-        <!--                android:background="@android:color/white"-->
-        <!--                android:alpha="0.8" /> &lt;!&ndash; Adjust alpha for opacity &ndash;&gt;-->
+                android:src="@drawable/cbi"
 
-        <!--        </FrameLayout>-->
-        <!--        <ImageView-->
-        <!--            android:layout_width="wrap_content"-->
-        <!--            android:layout_height="200dp"-->
-        <!--            android:src="@drawable/cbi"-->
-        <!--            android:layout_marginRight="30dp"-->
-        <!--            android:scaleType="fitXY"-->
-        <!--            android:layout_gravity="right"-->
-        <!--            android:layout_centerInParent="true"/>-->
+                 />
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/white"
+                android:alpha="0.8" />
+
+        </FrameLayout>
+<!--                <ImageView-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="200dp"-->
+<!--                    android:src="@drawable/cbi"-->
+<!--                    android:layout_marginRight="0dp"-->
+<!--                    android:scaleType="fitXY"-->
+<!--                    android:layout_gravity="right"-->
+<!--                    android:layout_centerInParent="true"/>-->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -61,13 +60,13 @@
                 />
 
             <!--            <ImageView-->
-            <!--                android:layout_width="10dp"-->
-            <!--                android:layout_weight="1"-->
-            <!--                android:layout_height="match_parent"-->
-            <!--                android:layout_gravity="center_vertical"-->
-            <!--                android:foreground="?attr/selectableItemBackground"-->
-            <!--                android:src="@drawable/cbi"-->
-            <!--                />-->
+<!--                android:layout_width="10dp"-->
+<!--                android:layout_weight="1"-->
+<!--                android:layout_height="match_parent"-->
+<!--                android:layout_gravity="center_vertical"-->
+<!--                android:foreground="?attr/selectableItemBackground"-->
+<!--                android:src="@drawable/cbi"-->
+<!--                />-->
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -85,6 +84,7 @@
                     android:fontFamily="@font/manrope_extrabold"
                     android:textColor="@color/black"
                     android:textSize="17dp"
+                    android:text="Menuy - List History Panen TBS"
                     android:gravity="bottom"
                     android:lineSpacingExtra="2dp" />
 
@@ -93,13 +93,13 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal">
 
-                    <!--                    <ImageView-->
-                    <!--                        android:layout_width="35dp"-->
-                    <!--                        android:layout_height="match_parent"-->
-                    <!--                        android:foregroundGravity="center"-->
-                    <!--                        android:layout_marginRight="5dp"-->
-                    <!--                        android:src="@drawable/circle_user_solid"-->
-                    <!--                        app:tint="@color/graytextdark" />-->
+<!--                    <ImageView-->
+<!--                        android:layout_width="35dp"-->
+<!--                        android:layout_height="match_parent"-->
+<!--                        android:foregroundGravity="center"-->
+<!--                        android:layout_marginRight="5dp"-->
+<!--                        android:src="@drawable/circle_user_solid"-->
+<!--                        app:tint="@color/graytextdark" />-->
 
                     <TextView
                         android:layout_width="match_parent"
@@ -108,7 +108,7 @@
                         android:fontFamily="@font/manrope_bold"
                         android:textStyle="italic"
                         android:textSize="13dp"
-
+                        android:text="Admin IT\nMandor Panen\nSulung Estate"
                         android:id="@+id/userSection"
                         android:gravity="center_vertical"
                         android:lineSpacingExtra="2dp" />
@@ -118,30 +118,30 @@
             </LinearLayout>
 
 
-            <LinearLayout
-                android:layout_width="60dp"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:id="@+id/locationSection"
-                android:visibility="gone"
-                android:layout_height="match_parent"
-                android:layout_weight="0.5">
-                <ImageView
-                    android:layout_width="match_parent"
-                    android:layout_height="40dp"
-                    android:id="@+id/statusLocation"
-                    android:src="@drawable/baseline_wrong_location_24"
-                    app:tint="@color/colorRedDark" />
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text=""
-                    android:id="@+id/accuracyLocation"
-                    android:fontFamily="@font/montserrat_bold"
-                    android:textColor="@color/black"
-                    android:textSize="14dp"
-                    android:gravity="center" />
-            </LinearLayout>
+        <LinearLayout
+            android:layout_width="60dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:id="@+id/locationSection"
+            android:visibility="gone"
+            android:layout_height="match_parent"
+            android:layout_weight="0.5">
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:id="@+id/statusLocation"
+                android:src="@drawable/baseline_wrong_location_24"
+                app:tint="@color/colorRedDark" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:id="@+id/accuracyLocation"
+                android:fontFamily="@font/montserrat_bold"
+                android:textColor="@color/black"
+                android:textSize="14dp"
+                android:gravity="center" />
+        </LinearLayout>
         </LinearLayout>
 
 

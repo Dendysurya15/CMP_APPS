@@ -27,6 +27,48 @@ class PrefManager(_context: Context) {
         }
     }
 
+    var rememberLogin: Boolean
+        get() = pref.getBoolean(REMEMBERME, false)
+        set(rememberLogin) {
+            editor.putBoolean(REMEMBERME, rememberLogin)
+            editor.commit()
+        }
+
+    var username: String?
+        get() = pref.getString(USERNAME, "")
+        set(username) {
+            editor.putString(USERNAME, username)
+            editor.commit()
+        }
+
+    var nameUserLogin: String?
+        get() = pref.getString("nameUserLogin", "")
+        set(nameUserLogin) {
+            editor.putString("nameUserLogin", nameUserLogin)
+            editor.commit()
+        }
+
+    var jabatanUserLogin: String?
+        get() = pref.getString("jabatanUserLogin", "")
+        set(jabatanUserLogin) {
+            editor.putString("jabatanUserLogin", jabatanUserLogin)
+            editor.commit()
+        }
+
+    var password: String?
+        get() = pref.getString(PASSWORD, "")
+        set(password) {
+            editor.putString(PASSWORD, password)
+            editor.commit()
+        }
+
+    var token: String?
+        get() = pref.getString("token", "")
+        set(token) {
+            editor.putString("token", token)
+            editor.commit()
+        }
+
     fun setDateModified(key: String, value: String?) {
         editor.putString(key, value)
         editor.commit()
@@ -52,7 +94,7 @@ class PrefManager(_context: Context) {
     }
 
     var isFirstTimeLaunch: Boolean
-        get() = pref.getBoolean("IsFirstTimeLaunch", true)  // Default is true
+        get() = pref.getBoolean("IsFirstTimeLaunch", false)  // Default is true
         set(isFirstTime) {
             editor.putBoolean("IsFirstTimeLaunch", isFirstTime)
             editor.apply()  // Use apply() instead of commit() for async write
@@ -168,6 +210,9 @@ class PrefManager(_context: Context) {
         const val version_tag = "version"
 
         const val user_input = "user_input"
+        const val REMEMBERME = "remember_me"
+        const val USERNAME = "username"
+        const val PASSWORD = "password"
     }
 
     init {

@@ -14,6 +14,15 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTPHViewHolder>() {
+
+    enum class SortField {
+        TPH,
+        BLOK,
+        GRADING,
+        TIME
+    }
+
+    private var currentSortField: SortField = SortField.TPH
     private var tphList = mutableListOf<Map<String, Any>>()
     private var filteredList = mutableListOf<Map<String, Any>>()
     private var currentArchiveState: Int = 0
@@ -24,40 +33,62 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
     private var onSelectionChangeListener: ((Int) -> Unit)? = null
 
+    data class ExtractedData(
+        val gradingText: String,
+        val blokText: String,
+        val tanggalText: String,
+        val tphText: String,
+        val searchableText: String,
+    )
+
+    fun extractData(item: Map<String, Any>): ExtractedData {
+        val blokName = item["blok_name"] as? String ?: "-"
+        val noTPH = item["tph_name"] as? String ?: "-"
+        val dateCreated = item["date_created"] as? String ?: "-"
+
+        val jjgJsonString = item["jjg_json"] as? String ?: "{}"
+        val jjgJson = try {
+            JSONObject(jjgJsonString)
+        } catch (e: JSONException) {
+            JSONObject()
+        }
+
+        val totalJjg = jjgJson.optInt("TO", 0)
+
+
+        val formattedTime = try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
+            val outputFormat = SimpleDateFormat("HH:mm", Locale("id", "ID")) // Indonesian format
+            val date = inputFormat.parse(dateCreated)
+            outputFormat.format(date ?: "-")
+        } catch (e: Exception) {
+            "-"
+        }
+
+        val blokText = "$blokName"
+        val noTPHText = noTPH
+        val gradingText = "$totalJjg"
+        val searchableText = "$blokText $noTPHText $gradingText $formattedTime"
+
+        return ExtractedData(gradingText, blokText, formattedTime,noTPHText, searchableText)
+    }
+
+
+
     fun filterData(query: String) {
         // First apply the filter
         filteredList = if (query.isEmpty()) {
             tphList.toMutableList()
         } else {
             tphList.filter { item ->
-                val deptName = item["dept_name"] as? String ?: "-"
-                val divisiName = item["divisi_name"] as? String ?: "-"
-                val blokName = item["blok_name"] as? String ?: "-"
-                val tphName = item["tph_name"] as? String ?: "-"
-
-                // Extract jjg_json values
-                val jjgJsonString = item["jjg_json"] as? String ?: "{}"
-                val jjgJson = try {
-                    JSONObject(jjgJsonString)
-                } catch (e: JSONException) {
-                    JSONObject()
-                }
-                val ri = jjgJson.optInt("RI", 0)
-                val kp = jjgJson.optInt("KP", 0)
-                val pa = jjgJson.optInt("PA", 0)
-
-                val searchableText = "$deptName $divisiName $blokName Nomor $tphName Masak: $ri Kirim Pabrik: $kp TBS dibayar: $pa"
-                searchableText.contains(query, ignoreCase = true)
+                val extractedData = extractData(item)
+                extractedData.searchableText.contains(query, ignoreCase = true)
             }.toMutableList()
         }
 
-        // Then apply the sort if it exists
+        // Then reapply current sort if exists
         isSortAscending?.let { ascending ->
-            filteredList = if (ascending) {
-                filteredList.sortedBy { it["tph_name"] as? String ?: "-" }.toMutableList()
-            } else {
-                filteredList.sortedByDescending { it["tph_name"] as? String ?: "-" }.toMutableList()
-            }
+            sortData(currentSortField, ascending)
         }
 
         selectedItems.clear()
@@ -67,19 +98,32 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     }
 
     fun sortData(ascending: Boolean) {
+        sortData(SortField.TPH, ascending) // Default to TPH sorting for backward compatibility
+    }
+
+    fun sortData(field: SortField, ascending: Boolean) {
+        currentSortField = field
         isSortAscending = ascending
 
-        filteredList = if (ascending) {
-            filteredList.sortedBy { it["tph_name"] as? String ?: "-" }.toMutableList()
-        } else {
-            filteredList.sortedByDescending { it["tph_name"] as? String ?: "-" }.toMutableList()
-        }
+        filteredList = filteredList.sortedWith(compareBy<Map<String, Any>> { item ->
+            val extractedData = extractData(item)
+            when (field) {
+                SortField.TPH -> extractedData.tphText.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0
+                SortField.BLOK -> extractedData.blokText
+                SortField.GRADING -> extractedData.gradingText.toIntOrNull() ?: 0
+                SortField.TIME -> extractedData.tanggalText
+            }
+        }.let { comparator ->
+            if (!ascending) comparator.reversed() else comparator
+        }).toMutableList()
 
         notifyDataSetChanged()
     }
 
     fun resetSort() {
         isSortAscending = null
+        currentSortField = SortField.TPH
+        filteredList = tphList.toMutableList()
         notifyDataSetChanged()
     }
     class ListPanenTPHViewHolder(private val binding: TableItemRowBinding) :
@@ -89,33 +133,17 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             isSelected: Boolean,
             archiveState: Int,
             onCheckedChange: (Boolean) -> Unit,
-            checkboxEnabled: Boolean
+//            checkboxEnabled: Boolean,
+            extractData: (Map<String, Any>) -> ExtractedData
         ) {
 
 
-            AppLogger.d(data.toString())
+            val extractedData = extractData(data)
+            binding.tvItemBlok.text = extractedData.blokText
+            binding.tvItemTPH.text = extractedData.tphText
+            binding.tvItemGrading.text = extractedData.gradingText
+            binding.tvItemJam.text = extractedData.tanggalText
 
-            // Extract jjg_json and parse it
-            val jjgJsonString = data["jjg_json"] as? String ?: "{}"
-            val jjgJson = try {
-                JSONObject(jjgJsonString)
-            } catch (e: JSONException) {
-                JSONObject()
-            }
-
-            val ri = jjgJson.optInt("RI", 0)
-            val kp = jjgJson.optInt("KP", 0)
-            val pa = jjgJson.optInt("PA", 0)
-
-// Set the tvItemGrading text with the desired format
-            binding.tvItemGrading.text = "Masak: $ri\nKirim Pabrik: $kp\nTBS dibayar: $pa"
-
-            val deptName = data["dept_name"] as? String ?: "-"
-            val divisiName = data["divisi_name"] as? String ?: "-"
-            val blokName = data["blok_name"] as? String ?: "-"
-            val tphName = data["tph_name"] as? String ?: "-"
-
-            binding.tvItemBlok.text = "$deptName $divisiName\n$blokName\nNomor $tphName"
 
             if (archiveState == 1) {
                 binding.checkBoxPanen.visibility = View.GONE
@@ -125,11 +153,10 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 binding.checkBoxPanen.visibility = View.VISIBLE
                 binding.numListTerupload.visibility = View.GONE
                 binding.checkBoxPanen.isChecked = isSelected
-                binding.checkBoxPanen.isEnabled = checkboxEnabled
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
-                    if (checkboxEnabled) {  // Only trigger if enabled
+
                         onCheckedChange(isChecked)
-                    }
+
                 }
             }
         }
@@ -168,7 +195,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 }
             }
         }
-        areCheckboxesEnabled = !select  // Disable checkboxes when selecting all
+        // Remove this line
+        // areCheckboxesEnabled = !select  // Disable checkboxes when selecting all
         Handler(Looper.getMainLooper()).post {
             notifyDataSetChanged()
             onSelectionChangeListener?.invoke(selectedItems.size)
@@ -194,7 +222,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 }
                 onSelectionChangeListener?.invoke(selectedItems.size)
             },
-            areCheckboxesEnabled
+            extractData = ::extractData // Pass the function reference
         )
     }
 

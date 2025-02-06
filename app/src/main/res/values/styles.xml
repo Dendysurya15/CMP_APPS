@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="defaultBoxColor" parent="Widget.AppCompat.CompoundButton.CheckBox">
+        <item name="buttonTint">@color/greenDarker</item>
+    </style>
+
+    <style name="TextInputLayoutErrorStyle" parent="TextAppearance.AppCompat.Small">
+        <item name="android:textSize">17sp</item> <!-- Change this to your desired size -->
+        <item name="android:textColor">@color/colorRedDark</item> <!-- Change the color if needed -->
+        <item name="android:textStyle">italic</item> <!-- Change the color if needed -->
+    </style>
+
+</resources>

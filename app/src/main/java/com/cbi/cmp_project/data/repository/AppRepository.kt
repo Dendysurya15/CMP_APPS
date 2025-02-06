@@ -49,6 +49,7 @@ class AppRepository(context: Context) {
             lon = lon,
             jenis_panen = jenis_panen,
             ancak = ancakInput.toIntOrNull() ?: 0,
+            info = info,
             archive = archive,
             status_espb = 2
         )
@@ -87,6 +88,7 @@ class AppRepository(context: Context) {
                             lon = 0.0,
                             jenis_panen = 0,
                             ancak = 0,
+                            info = "",
                             archive = 0,
                             status_espb = 0
                         )
@@ -146,9 +148,9 @@ class AppRepository(context: Context) {
     }
 
 
-    suspend fun getArchivedPanen(): Result<List<PanenEntity>> = withContext(Dispatchers.IO) {
+    suspend fun getArchivedPanen(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
         try {
-            val data = panenDao.getAllArchived()
+            val data = panenDao.getAllArchivedWithRelations()
             Result.success(data)
         } catch (e: Exception) {
             Result.failure(e)
@@ -220,4 +222,5 @@ class AppRepository(context: Context) {
     suspend fun updateOrInsertESPB(espb: List<ESPBEntity>) = withContext(Dispatchers.IO) {
         espbDao.updateOrInsert(espb)
     }
+
 }
