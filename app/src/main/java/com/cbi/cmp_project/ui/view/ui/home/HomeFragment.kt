@@ -26,6 +26,7 @@ import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.databinding.FragmentHomeBinding
 
 import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity
+import com.cbi.cmp_project.ui.view.PanenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
@@ -151,12 +152,12 @@ class HomeFragment : Fragment() {
 
                 is FeatureCardEvent.NavigateToListPanenTBS -> {
                     event.context?.let {
-//
-//                        val intent = Intent(it, ListPanenTBSActivity::class.java)
-//                        event.featureName?.let { featureName ->
-//                            intent.putExtra("FEATURE_NAME", featureName)
-//                        }
-//                        startActivity(intent)
+
+                        val intent = Intent(it, ListPanenTBSActivity::class.java)
+                        event.featureName?.let { featureName ->
+                            intent.putExtra("FEATURE_NAME", featureName)
+                        }
+                        startActivity(intent)
                     }
                 }
 

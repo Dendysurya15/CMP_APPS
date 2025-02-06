@@ -16,6 +16,11 @@ data class User(
     val username: String,
     val nama: String,
     val jabatan : String,
+    val regional : String,
+    val wilayah : String,
+    val dept_id : String,
+    val dept_abbr : String,
+    val dept_nama : String,
     val create_date: String,
     val update_date: String
 )

@@ -29,6 +29,7 @@ import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputLayout
+import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -119,20 +120,19 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.password = passwordField.text.toString().trim()
                         prefManager!!.nameUserLogin = loginResponse.data?.user?.nama
                         prefManager!!.jabatanUserLogin = loginResponse.data?.user?.jabatan
-                        AppLogger.d(loginResponse.data?.user?.nama.toString())
-                        Toast.makeText(this, "Login Berhasil!", Toast.LENGTH_SHORT).show()
+                        AppLogger.d(loginResponse.data.toString())
+//
+                        Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()
                         navigateToHomePage()
                     } else {
                         AppLogger.d("Token not found in response")
-                        Toast.makeText(this, "Token not found", Toast.LENGTH_SHORT).show()
+//
+                        Toasty.error(this, "Token not found!", Toast.LENGTH_LONG, true).show()
                     }
                 } else {
                     AppLogger.d("Login Failed: ${loginResponse?.message}")
-                    Toast.makeText(
-                        this,
-                        loginResponse?.message ?: "Login failed",
-                        Toast.LENGTH_SHORT
-                    ).show()
+
+                    Toasty.error(this, loginResponse?.message ?: "Login failed", Toast.LENGTH_LONG, true).show()
 
                     lifecycleScope.launch {
                         delay(1000)
@@ -170,7 +170,8 @@ class LoginActivity : AppCompatActivity() {
                 ) {
 
                 }
-                Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show()
+
+                Toasty.error(this, errorMessage, Toast.LENGTH_SHORT, true).show()
             }
         }
 
@@ -213,7 +214,7 @@ class LoginActivity : AppCompatActivity() {
 
             showLoading()
 
-            if (prefManager!!.rememberLogin){
+            if (prefManager!!.nameUserLogin!!.isNotEmpty()){
                 navigateToHomePage()
             }else{
                 if (AppUtils.isNetworkAvailable(this)) {
@@ -236,6 +237,10 @@ class LoginActivity : AppCompatActivity() {
                     }
                 }
             }
+
+
+
+
         }
 
         if (prefManager!!.rememberLogin) {
@@ -257,7 +262,7 @@ class LoginActivity : AppCompatActivity() {
     private fun biometricPrompt() {
         AppUtils.showBiometricPrompt(this, prefManager!!.nameUserLogin.toString()) {
 
-            AppLogger.d("aklsldkfklsdf")
+
             runOnUiThread {
                 loadingDialog.show()
             }
@@ -272,6 +277,12 @@ class LoginActivity : AppCompatActivity() {
         val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
         val usernameField = findViewById<EditText>(R.id.usernameInput)
         val passwordField = findViewById<EditText>(R.id.passwordInput)
+
+
+
+//        AppLogger.d(prefManager!!.username.toString())
+//        AppLogger.d(prefManager!!.password.toString())
+//        AppLogger.d(prefManager!!.rememberLogin.toString())
         if (prefManager!!.rememberLogin) {
             checkRememberMe.isChecked = true
             if (prefManager!!.username.toString().isNotEmpty() && prefManager!!.password.toString()
@@ -279,8 +290,6 @@ class LoginActivity : AppCompatActivity() {
             ) {
 
 
-                AppLogger.d(prefManager!!.username.toString())
-                AppLogger.d(prefManager!!.password.toString())
                 usernameField.setText(prefManager!!.username, TextView.BufferType.SPANNABLE)
                 passwordField.setText(prefManager!!.password, TextView.BufferType.SPANNABLE)
                 username = prefManager!!.username.toString()
@@ -292,6 +301,14 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun navigateToHomePage() {
+        val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
+        if (!checkRememberMe.isChecked){
+            AppLogger.d("masuk sini ges")
+            prefManager!!.nameUserLogin = ""
+            prefManager!!.username = ""
+            prefManager!!.password = ""
+            prefManager!!.jabatanUserLogin = ""
+        }
         startActivity(Intent(this, HomePageActivity::class.java))
         finish()
     }

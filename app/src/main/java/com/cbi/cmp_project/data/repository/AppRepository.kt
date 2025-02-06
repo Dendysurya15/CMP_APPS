@@ -34,6 +34,7 @@ class AppRepository(context: Context) {
         lon: Double,
         jenis_panen: Int,
         ancakInput: String,
+        info:String,
         archive: Int,
     ): Result<Long> {
         val panenEntity = PanenEntity(
