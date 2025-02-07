@@ -114,15 +114,25 @@ android:paddingBottom="10dp"
             android:textStyle="bold" />
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/textTitleQRGenerate"
+        android:layout_marginTop="15dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Hasil Generate QR TPH"
+        android:visibility="gone"
+android:gravity="center"
+        android:fontFamily="@font/manrope_extrabold"
+        android:textSize="23sp"
+        tools:ignore="MissingConstraints" />
+
     <ImageView
         android:id="@+id/qrCodeImageView"
+        android:layout_marginTop="10dp"
         android:layout_width="match_parent"
         android:layout_height="280sp"
         tools:ignore="MissingConstraints"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/dataQRTitle" /> <!-- Center ImageView -->
+        app:layout_constraintTop_toBottomOf="@+id/textTitleQRGenerate" /> <!-- Center ImageView -->
 
     <View
         android:id="@+id/dashedLine"

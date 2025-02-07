@@ -248,6 +248,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             // Get references to views
             val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
             val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
+            val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
             val dashedLine: View = view.findViewById(R.id.dashedLine)
             val loadingContainer: LinearLayout = view.findViewById(R.id.loadingDotsContainerBottomSheet)
 
@@ -292,28 +293,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
             dialog.show()
 
             lifecycleScope.launch(Dispatchers.Default) {
-                delay(1500)
+                delay(1000)
                 try {
                     val dataQR: TextView? = view.findViewById(R.id.dataQR)
-                    val dataQRTitle: TextView? = view.findViewById(R.id.dataQRTitle)
-
-
-
-                    val qrText = mappedData.joinToString("•", prefix = "•") { panen ->
-                        val blokName = panen["blok_name"] ?: "-"
-                        val tphName = panen["tph_name"] ?: "-"
-                        val jjgJson = panen["jjg_json"] as? String ?: "{}"
-
-                        // Parse the jjg_json and extract the "TO" value
-                        val toValue = try {
-                            val json = JSONObject(jjgJson)
-                            json.optInt("TO", 0) // Default to 0 if "TO" key is missing
-                        } catch (e: Exception) {
-                            0 // Default to 0 if parsing fails
-                        }
-
-                        " Blok $blokName TPH $tphName ($toValue Jjg)\n"
-                    }
 
 
 
@@ -342,10 +324,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 duration = 250
                                 startDelay = 150
                             }
-                            val fadeInDashed = ObjectAnimator.ofFloat(dashedLine, "alpha", 0f, 1f).apply {
+
+                            tvTitleQRGenerate.alpha = 0f  // Ensure title starts invisible
+                            val fadeInTitle = ObjectAnimator.ofFloat(tvTitleQRGenerate, "alpha", 0f, 1f).apply {
                                 duration = 250
                                 startDelay = 150
                             }
+
 
                             // Create fade-in for the dataQR text as well
                             val fadeInText = ObjectAnimator.ofFloat(dataQR, "alpha", 0f, 1f).apply {
@@ -362,26 +347,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         loadingLogo.visibility = View.GONE
                                         loadingContainer.visibility = View.GONE
 
-                                        // Update the QR code text and show the QR code and dashed line
-                                        dataQR?.text = qrText
-                                        val scrollViewDataQRTPH = view.findViewById<ScrollView>(R.id.scrollViewDataQRTPH)
-                                        scrollViewDataQRTPH.visibility = View.VISIBLE
-                                        scrollViewDataQRTPH.viewTreeObserver.addOnGlobalLayoutListener {
-                                            val maxHeight = 300 // Adjust this to your needs (in pixels)
-                                            if (scrollViewDataQRTPH.height > maxHeight) {
-                                                scrollViewDataQRTPH.layoutParams.height = maxHeight
-                                                scrollViewDataQRTPH.requestLayout()
-                                            }
-                                        }
-
+                                        tvTitleQRGenerate.visibility = View.VISIBLE
                                         qrCodeImageView.visibility = View.VISIBLE
-                                        dashedLine.visibility = View.VISIBLE
-                                        dataQRTitle?.visibility = View.VISIBLE
 
-                                        // Start the fade-in animation for QR code, dashed line, and text
                                         fadeIn.start()
-                                        fadeInDashed.start()
                                         fadeInText.start()
+                                        fadeInTitle.start()
+
                                     }
                                 })
                                 start()
@@ -736,10 +708,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
         try {
             // Create encoding hints for better quality
             val hints = hashMapOf<EncodeHintType, Any>().apply {
-                put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H) // Highest error correction
-                put(EncodeHintType.MARGIN, 2) // Margin size
+                put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M) // Change to M for balance
+                put(EncodeHintType.MARGIN, 1) // Smaller margin
                 put(EncodeHintType.CHARACTER_SET, "UTF-8")
-                put(EncodeHintType.QR_VERSION, 8) // Larger QR version for more data and better quality
+                // Remove fixed QR version to allow automatic scaling
             }
 
             // Create QR code writer with hints
