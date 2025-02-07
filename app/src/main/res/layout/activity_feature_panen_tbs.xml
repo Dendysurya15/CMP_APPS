@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mainPanenTBS"
@@ -10,14 +9,26 @@
     tools:context=".ui.view.PanenTBS.FeaturePanenTBSActivity">
 
     <!-- Header Section -->
+    <TextView
+        android:id="@+id/tvWithIcon2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:drawablePadding="8dp"
+        android:fontFamily="@font/manrope_medium"
+        android:gravity="end"
+        android:text="Info"
+        android:textColor="@color/black"
+        android:textSize="15sp"
+        app:drawableEndCompat="@drawable/ic_info_outline_white_24dp" />
+
     <include
         android:id="@+id/test"
         layout="@layout/header_feature_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <!-- ScrollView Section -->
     <ScrollView
@@ -25,20 +36,20 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
 
-        app:layout_constraintTop_toBottomOf="@id/test"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/test">
 
 
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:clickable="true"
             android:focusable="true"
             android:focusableInTouchMode="true"
-            android:clickable="true"
-            android:paddingRight="20dp"
-            android:paddingLeft="20dp">
+            android:paddingLeft="20dp"
+            android:paddingRight="20dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -47,369 +58,481 @@
                 android:orientation="vertical"
                 tools:ignore="RtlHardcoded,UselessParent">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="left"
-                android:orientation="vertical"
-                tools:ignore="RtlHardcoded">
-
-<!--                <include-->
-<!--                    layout="@layout/pertanyaan_spinner_layout"-->
-<!--                    android:id="@+id/layoutRegional"/>-->
-
-<!--                <include-->
-<!--                    layout="@layout/pertanyaan_spinner_layout"-->
-<!--                    android:visibility="gone"-->
-<!--                    android:id="@+id/layoutWilayah"/>-->
-
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-
-                    android:id="@+id/layoutEstate"/>
-
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-
-                    android:id="@+id/layoutAfdeling"/>
-
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-
-                    android:id="@+id/layoutTahunTanam"/>
-
-
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-
-                    android:id="@+id/layoutBlok"/>
-
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-
-                    android:id="@+id/layoutAncak"/>
-
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-
-                    android:id="@+id/layoutTipePanen"/>
-
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-
-                    android:id="@+id/layoutNoTPH"/>
-
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-
-                    android:id="@+id/layoutKemandoran"/>
-
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-
-                    android:id="@+id/layoutPemanen"/>
-
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-
-                    android:layout_marginTop="10dp"
-                    android:id="@+id/layoutSelAsistensi">
-                    <TextView
-                        android:layout_width="130dp"
-                        android:layout_height="match_parent"
-                        android:text="Asistensi"
-                        android:textSize="17dp"
-                        android:fontFamily="@font/manrope_semibold"
-                        android:gravity="center|left"/>
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        app:thumbTint="@color/switch_thumb_selector"
-                        app:trackTint="@color/switch_track_selector"
-                        android:id="@+id/selAsistensi"/>
-                </LinearLayout>
-
-
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-                    android:visibility="gone"
-                    android:id="@+id/layoutKemandoranLain"/>
-
-                <include
-                    layout="@layout/pertanyaan_spinner_layout"
-                    android:visibility="gone"
-                    android:id="@+id/layoutPemanenLain"/>
-
-                <include
-                    layout="@layout/pane_number_layout"
-                    android:visibility="visible"
-                    android:id="@+id/layoutJumTBS"/>
-
-                <include
-                    layout="@layout/pane_number_layout"
-                    android:visibility="visible"
-                    android:id="@+id/layoutBMentah"/>
-
-                <include
-                    layout="@layout/pane_number_layout"
-                    android:visibility="visible"
-                    android:id="@+id/layoutBLewatMasak"/>
-
-                <include
-                    layout="@layout/pane_number_layout"
-                    android:visibility="visible"
-                    android:id="@+id/layoutJjgKosong"/>
-
-
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:visibility="visible"
-                    android:id="@+id/layoutTBSMasak"
-                    android:background="@color/white"
-                    android:paddingBottom="10dp"
-                    android:paddingTop="10dp"
-
-                    android:layout_marginTop="10dp"
-                    android:paddingLeft="10dp">
-                    <TextView
-                        android:layout_width="120dp"
-                        android:fontFamily="@font/manrope_semibold"
-                        android:textSize="17dp"
-                        android:layout_height="wrap_content"
-                        android:text="Buah Masak"
-                        />
-                    <TextView
-
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:text="0 Buah"
-                        android:fontFamily="@font/manrope_semibold"
-                        android:textSize="17dp"
-                        android:textColor="@color/black"
-                        android:gravity="center|left"
-
-                        android:id="@+id/tvCounterBuahMasak"/>
-
-                    <TextView
-
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:fontFamily="@font/manrope_semibold"
-                        android:textSize="17dp"
-                        android:gravity="center|left"
-                        android:id="@+id/tvPercentBuahMasak" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:visibility="visible"
-                    android:id="@+id/layoutKirimPabrik"
-                    android:background="@color/white"
-                    android:paddingBottom="10dp"
-                    android:paddingLeft="10dp">
-                    <TextView
-                        android:layout_width="120dp"
-                        android:layout_height="wrap_content"
-                        android:text="Dikirim ke Pabrik"
-                        android:fontFamily="@font/manrope_semibold"
-                        android:textSize="17dp"
-                        />
-                    <TextView
-
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-android:text="0 buah"
-                        android:textColor="@color/black"
-                        android:gravity="center|left"
-                        android:fontFamily="@font/manrope_semibold"
-                        android:textSize="17dp"
-                        android:id="@+id/tvCounterKirimPabrik"/>
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:fontFamily="@font/manrope_semibold"
-                        android:textSize="17dp"
-                        android:gravity="center|left"
-                        android:id="@+id/tvPercentKirimPabrik" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:visibility="visible"
-                    android:id="@+id/layoutTBSDibayar"
-                    android:background="@color/white"
-                    android:paddingBottom="10dp"
-                    android:paddingLeft="10dp">
-                    <TextView
-                        android:layout_width="120dp"
-                        android:layout_height="wrap_content"
-                        android:text="Janjang Dibayar"
-                        android:fontFamily="@font/manrope_semibold"
-                        android:textSize="17dp"
-                       />
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:textColor="@color/black"
-                        android:fontFamily="@font/manrope_semibold"
-                        android:textSize="17dp"
-                        android:text="0 buah"
-                        android:gravity="center|left"
-                        android:id="@+id/tvCounterTBSDibayar"/>
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:fontFamily="@font/manrope_semibold"
-                        android:textSize="17dp"
-                        android:gravity="center|left"
-                        android:id="@+id/tvPercentTBSDibayar" />
-                </LinearLayout>
-
-                <include
-                    layout="@layout/pane_number_layout"
-                    android:visibility="visible"
-                    android:id="@+id/layoutAbnormal"/>
-
-                <include
-                    layout="@layout/pane_number_layout"
-                    android:visibility="visible"
-                    android:id="@+id/layoutSeranganTikus"/>
-
-                <include
-                    layout="@layout/pane_number_layout"
-                    android:visibility="visible"
-                    android:id="@+id/layoutTangkaiPanjang"/>
-
-                <include
-                    layout="@layout/pane_number_layout"
-                    android:id="@+id/layoutVcut"/>
-
-                <TextView
-                    android:layout_width="200dp"
-                    android:visibility="visible"
-                    android:layout_height="match_parent"
-                    android:text="Lampiran Foto"
-                    android:layout_marginTop="10dp"
-                    android:fontFamily="@font/manrope_extrabold"
-                    android:textSize="19dp"
-                    android:gravity="center|left"
-                    tools:ignore="HardcodedText,RtlHardcoded"/>
-
-                <TextView
-                    android:layout_width="200dp"
-                    android:layout_height="match_parent"
-                    android:text="Minimal Upload 1 Foto*"
-                    android:visibility="visible"
-                    android:textStyle="italic"
-                    android:fontFamily="@font/manrope_medium"
-                    android:textSize="13dp"
-                    android:gravity="center|left"
-                    tools:ignore="HardcodedText,RtlHardcoded"/>
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recyclerViewFotoPreview"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:visibility="visible"
-                    android:layout_below="@id/tvTitleFormPanenTBS"
-                    tools:listitem="@layout/take_and_preview_foto_layout"
-                    android:padding="10dp"
-                    android:clipToPadding="false"
+                    android:layout_gravity="left"
                     android:orientation="vertical"
-                    tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-                    tools:itemCount="1"
-                    />
+                    tools:ignore="RtlHardcoded">
 
-<!--                <com.google.android.material.card.MaterialCardView-->
-<!--                    android:layout_width="match_parent"-->
-<!--                    android:layout_height="wrap_content"-->
-<!--                    app:cardCornerRadius="10dp"-->
-<!--                    android:id="@+id/testBro"-->
-<!--                    app:cardElevation="1dp"-->
-<!--                    app:strokeWidth="0dp"-->
-<!--                    app:cardBackgroundColor="@color/bgSelectWorkerGreen"-->
-<!--                    android:layout_margin="0dp"-->
-<!--                    android:padding="0dp">-->
+                    <!--                <include-->
+                    <!--                    layout="@layout/pertanyaan_spinner_layout"-->
+                    <!--                    android:id="@+id/layoutRegional"/>-->
 
-<!--                    <LinearLayout-->
-<!--                        android:layout_width="match_parent"-->
-<!--                        android:layout_height="wrap_content"-->
-<!--                        android:orientation="horizontal"-->
-<!--                        android:gravity="center_vertical"-->
-<!--                        android:padding="8dp">-->
+                    <!--                <include-->
+                    <!--                    layout="@layout/pertanyaan_spinner_layout"-->
+                    <!--                    android:visibility="gone"-->
+                    <!--                    android:id="@+id/layoutWilayah"/>-->
 
-<!--                        <TextView-->
-<!--                            android:id="@+id/tvRoundedError"-->
-<!--                            android:layout_width="match_parent"-->
-<!--                            android:layout_height="wrap_content"-->
-<!--                            android:layout_weight="1"-->
-<!--                            android:text="- Semua data sudah lengkap\n- GPS sudah Akurat!"-->
-<!--                            android:textColor="@color/black"-->
-<!--                            android:textSize="14dp"-->
-<!--                            android:fontFamily="@font/manrope_semibold"-->
-<!--                            android:layout_marginEnd="8dp" />-->
+                    <TextView
+                        android:id="@+id/title_data_informasi_blok"
+                        android:layout_width="200dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginTop="10dp"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:gravity="center|left"
+                        android:textSize="23sp"
+                        android:visibility="visible"
+                        tools:ignore="HardcodedText,RtlHardcoded" />
 
-<!--                        <ImageView-->
-<!--                            android:layout_width="28dp"-->
-<!--                            android:layout_height="28dp"-->
-<!--                            android:src="@drawable/baseline_check_24"-->
-<!--                            android:tint="@color/greendarkerbutton"-->
-<!--                            android:layout_marginEnd="10dp"-->
-<!--                            tools:ignore="UseAppTint" />-->
-<!--                    </LinearLayout>-->
+                    <TextView
+                        android:layout_width="200dp"
+                        android:layout_height="match_parent"
+                        android:fontFamily="@font/manrope_medium"
+                        android:gravity="center|left"
+                        android:text="@string/desc_informasi_blok"
+                        android:textSize="16sp"
+                        android:textStyle="italic"
+                        android:visibility="visible"
+                        tools:ignore="HardcodedText,RtlHardcoded" />
 
-<!--                </com.google.android.material.card.MaterialCardView>-->
+                    <include
+                        android:id="@+id/layoutEstate"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/layoutAfdeling"
+
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/layoutTahunTanam"
+
+                        layout="@layout/pertanyaan_spinner_layout" />
 
 
+                    <include
+                        android:id="@+id/layoutBlok"
+
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/layoutAncak"
+
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/layoutTipePanen"
+
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/layoutNoTPH"
+
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/layoutKemandoran"
+
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/layoutPemanen"
+
+                        layout="@layout/pertanyaan_spinner_layout" />
 
 
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:orientation="horizontal"
-                    android:layout_gravity="right"
-                    android:visibility="visible"
-                    android:layout_marginTop="30dp"
-                    android:layout_marginBottom="30dp"
-                    >
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/mbSaveDataPanenTBS"
+                    <LinearLayout
+                        android:id="@+id/layoutSelAsistensi"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Simpan Data"
-                        android:textSize="16dp"
-                        android:fontFamily="@font/manrope_semibold"
-                        app:backgroundTint="@color/bluedarklight"
-                        app:cornerRadius="10dp"
-                        app:elevation="10dp"
-                        app:icon="@drawable/baseline_save_24"
-                        app:iconGravity="start"
-                        app:iconTint="@color/white"
-                        app:iconPadding="8dp"/>
+
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="130dp"
+                            android:layout_height="match_parent"
+                            android:fontFamily="@font/manrope_semibold"
+                            android:gravity="center|left"
+                            android:text="Asistensi"
+                            android:textSize="17dp" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/selAsistensi"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/switch_thumb_selector"
+                            app:trackTint="@color/switch_track_selector" />
+                    </LinearLayout>
+
+
+                    <include
+                        android:id="@+id/layoutKemandoranLain"
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:visibility="gone" />
+
+                    <include
+                        android:id="@+id/layoutPemanenLain"
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/title_data_grading"
+                        android:layout_width="200dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginTop="10dp"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:gravity="center|left"
+                        android:textSize="23sp"
+                        android:visibility="visible"
+                        tools:ignore="HardcodedText,RtlHardcoded" />
+
+                    <TextView
+                        android:layout_width="200dp"
+                        android:layout_height="match_parent"
+                        android:fontFamily="@font/manrope_medium"
+
+                        android:gravity="center|left"
+                        android:text="@string/desc_data_grading"
+                        android:textSize="16sp"
+                        android:textStyle="italic"
+                        android:visibility="visible"
+                        tools:ignore="HardcodedText,RtlHardcoded" />
+
+                    <include
+                        android:id="@+id/layoutJumTBS"
+                        layout="@layout/pane_number_layout"
+                        android:visibility="visible" />
+
+                    <include
+                        android:id="@+id/layoutBMentah"
+                        layout="@layout/pane_number_layout"
+                        android:visibility="visible" />
+
+                    <include
+                        android:id="@+id/layoutBLewatMasak"
+                        layout="@layout/pane_number_layout"
+                        android:visibility="visible" />
+
+                    <include
+                        android:id="@+id/layoutJjgKosong"
+                        layout="@layout/pane_number_layout"
+                        android:visibility="visible" />
+
+                    <include
+                        android:id="@+id/layoutAbnormal"
+                        layout="@layout/pane_number_layout"
+                        android:visibility="visible" />
+
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/layoutTBSMasak"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:paddingBottom="10dp"
+                        android:visibility="visible"
+                        app:cardCornerRadius="8dp"
+                        android:layout_marginVertical="5dp"
+                        app:cardBackgroundColor="@color/white"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/grayBorder">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:paddingBottom="20dp"
+                            android:orientation="vertical">
+
+                            <LinearLayout
+                                android:id="@+id/title"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingHorizontal="20dp"
+                                android:paddingVertical="15dp"
+                                android:background="@color/darkGray"
+                                android:gravity="center_vertical">
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="Hasil Perhitungan"
+                                    android:textColor="@color/black"
+                                    android:fontFamily="@font/manrope_bold"
+                                    android:textSize="20sp"
+                                    android:layout_weight="1" />
+
+                                <TextView
+                                    android:id="@+id/tvFormulas"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Rumus"
+                                    android:textColor="@color/anotherYellow"
+                                    android:fontFamily="@font/manrope_bold"
+                                    android:textSize="17sp"
+                                    android:drawableStart="@drawable/ic_info_outline_white_24dp"
+                                    android:drawablePadding="5dp"
+                                    android:drawableTint="@color/anotherYellow"
+                                    />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="3dp"
+                                android:background="@drawable/border_bottom_light"
+                                android:layout_marginBottom="5dp"
+                                />
+
+
+
+                            <androidx.constraintlayout.widget.ConstraintLayout
+                                android:id="@+id/layoutKirimPabrik"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@color/white"
+                                android:paddingHorizontal="20dp"
+                                android:paddingVertical="5dp"
+                                android:visibility="visible">
+
+                                <TextView
+                                    android:id="@+id/tvDikirimPabrik"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/manrope_semibold"
+                                    android:text="Dikirim ke Pabrik"
+                                    android:textSize="19sp"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintEnd_toStartOf="@id/tvCounterKirimPabrik"
+                                    app:layout_constraintWidth_percent="0.5"
+                                    tools:ignore="MissingConstraints" />
+
+                                <TextView
+                                    android:id="@+id/tvCounterKirimPabrik"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/manrope_semibold"
+                                    android:text=": 0 buah"
+                                    android:textColor="@color/black"
+                                    android:textSize="19sp"
+                                    app:layout_constraintStart_toEndOf="@id/tvDikirimPabrik"
+                                    app:layout_constraintHorizontal_chainStyle="packed"
+                                    tools:ignore="MissingConstraints" />
+                            </androidx.constraintlayout.widget.ConstraintLayout>
+
+                            <androidx.constraintlayout.widget.ConstraintLayout
+                                android:id="@+id/layoutTBSDibayar"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@color/white"
+                                android:paddingHorizontal="20dp"
+                                android:paddingVertical="5dp"
+                                android:visibility="visible">
+
+                                <TextView
+                                    android:id="@+id/tvJanjangDibayar"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/manrope_semibold"
+                                    android:text="Janjang Dibayar"
+                                    android:textSize="19sp"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintEnd_toStartOf="@id/tvCounterTBSDibayar"
+                                    app:layout_constraintWidth_percent="0.5"
+                                    tools:ignore="MissingConstraints" />
+
+                                <TextView
+                                    android:id="@+id/tvCounterTBSDibayar"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/manrope_semibold"
+                                    android:text=": 0 buah"
+                                    android:textColor="@color/black"
+                                    android:textSize="19sp"
+                                    app:layout_constraintStart_toEndOf="@id/tvJanjangDibayar"
+                                    app:layout_constraintHorizontal_chainStyle="packed"
+                                    tools:ignore="MissingConstraints" />
+                            </androidx.constraintlayout.widget.ConstraintLayout>
+
+                            <androidx.constraintlayout.widget.ConstraintLayout
+                                android:id="@+id/gas"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@color/white"
+                                android:visibility="visible"
+                                android:paddingHorizontal="20dp"
+                                android:paddingVertical="5dp">
+
+                                <TextView
+                                    android:id="@+id/tvTotalJjg"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/manrope_bold"
+                                    android:text="Total Janjang"
+                                    android:textColor="@color/greenDefault"
+                                    android:textSize="19sp"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintEnd_toStartOf="@id/tvCounterBuahMasak"
+                                    app:layout_constraintWidth_percent="0.5"
+                                    tools:ignore="MissingConstraints" />
+
+                                <TextView
+                                    android:id="@+id/tvCounterBuahMasak"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/manrope_bold"
+                                    android:text=": 0 buah"
+                                    android:textColor="@color/greenDefault"
+                                    android:textSize="19sp"
+                                    app:layout_constraintStart_toEndOf="@id/tvTotalJjg"
+                                    app:layout_constraintHorizontal_chainStyle="packed"
+                                    tools:ignore="MissingConstraints" />
+                            </androidx.constraintlayout.widget.ConstraintLayout>
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        />
+
+
+                    <include
+                        android:id="@+id/layoutSeranganTikus"
+                        layout="@layout/pane_number_layout"
+                        android:visibility="visible" />
+
+                    <include
+                        android:id="@+id/layoutTangkaiPanjang"
+                        layout="@layout/pane_number_layout"
+                        android:visibility="visible" />
+
+                    <include
+                        android:id="@+id/layoutVcut"
+                        layout="@layout/pane_number_layout" />
+
+                    <TextView
+                        android:id="@+id/title_lampiran_foto"
+                        android:layout_width="200dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginTop="10dp"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:gravity="center|left"
+                        android:textSize="23sp"
+                        android:visibility="visible"
+                        tools:ignore="HardcodedText,RtlHardcoded" />
+
+                    <TextView
+
+                        android:layout_width="200dp"
+                        android:layout_height="match_parent"
+                        android:fontFamily="@font/manrope_medium"
+                        android:gravity="center|left"
+                        android:text="@string/desc_lampiran_foto"
+
+                        android:textSize="16sp"
+                        android:textStyle="italic"
+                        android:visibility="visible"
+                        tools:ignore="HardcodedText,RtlHardcoded" />
+
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerViewFotoPreview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/tvTitleFormPanenTBS"
+                        android:clipToPadding="false"
+                        android:orientation="vertical"
+                        android:padding="10dp"
+                        android:visibility="visible"
+                        tools:itemCount="1"
+                        tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                        tools:listitem="@layout/take_and_preview_foto_layout" />
+
+                    <!--                <com.google.android.material.card.MaterialCardView-->
+                    <!--                    android:layout_width="match_parent"-->
+                    <!--                    android:layout_height="wrap_content"-->
+                    <!--                    app:cardCornerRadius="10dp"-->
+                    <!--                    android:id="@+id/testBro"-->
+                    <!--                    app:cardElevation="1dp"-->
+                    <!--                    app:strokeWidth="0dp"-->
+                    <!--                    app:cardBackgroundColor="@color/bgSelectWorkerGreen"-->
+                    <!--                    android:layout_margin="0dp"-->
+                    <!--                    android:padding="0dp">-->
+
+                    <!--                    <LinearLayout-->
+                    <!--                        android:layout_width="match_parent"-->
+                    <!--                        android:layout_height="wrap_content"-->
+                    <!--                        android:orientation="horizontal"-->
+                    <!--                        android:gravity="center_vertical"-->
+                    <!--                        android:padding="8dp">-->
+
+                    <!--                        <TextView-->
+                    <!--                            android:id="@+id/tvRoundedError"-->
+                    <!--                            android:layout_width="match_parent"-->
+                    <!--                            android:layout_height="wrap_content"-->
+                    <!--                            android:layout_weight="1"-->
+                    <!--                            android:text="- Semua data sudah lengkap\n- GPS sudah Akurat!"-->
+                    <!--                            android:textColor="@color/black"-->
+                    <!--                            android:textSize="14dp"-->
+                    <!--                            android:fontFamily="@font/manrope_semibold"-->
+                    <!--                            android:layout_marginEnd="8dp" />-->
+
+                    <!--                        <ImageView-->
+                    <!--                            android:layout_width="28dp"-->
+                    <!--                            android:layout_height="28dp"-->
+                    <!--                            android:src="@drawable/baseline_check_24"-->
+                    <!--                            android:tint="@color/greendarkerbutton"-->
+                    <!--                            android:layout_marginEnd="10dp"-->
+                    <!--                            tools:ignore="UseAppTint" />-->
+                    <!--                    </LinearLayout>-->
+
+                    <!--                </com.google.android.material.card.MaterialCardView>-->
+
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="right"
+                        android:layout_marginTop="30dp"
+                        android:layout_marginBottom="30dp"
+                        android:orientation="horizontal"
+                        android:visibility="visible">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/mbSaveDataPanenTBS"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/manrope_semibold"
+                            android:text="Simpan Data"
+                            android:textSize="16dp"
+                            app:backgroundTint="@color/bluedarklight"
+                            app:cornerRadius="10dp"
+                            app:elevation="10dp"
+                            app:icon="@drawable/baseline_save_24"
+                            app:iconGravity="start"
+                            app:iconPadding="8dp"
+                            app:iconTint="@color/white" />
+
+                    </LinearLayout>
+
 
                 </LinearLayout>
-
-
-
-            </LinearLayout>
 
             </LinearLayout>
         </RelativeLayout>
-
-
 
 
     </ScrollView>
@@ -417,15 +540,15 @@ android:text="0 buah"
     <include
         android:id="@+id/id_take_foto_layout"
         layout="@layout/camera_view"
-        android:visibility="gone"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 
     <include
         android:id="@+id/id_editable_foto_layout"
         layout="@layout/camera_edit"
-        android:visibility="gone"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

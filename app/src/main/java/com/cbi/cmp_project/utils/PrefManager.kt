@@ -55,6 +55,20 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var estateUserLogin: String?
+        get() = pref.getString("estateUserLogin", "")
+        set(estateUserLogin) {
+            editor.putString("estateUserLogin", estateUserLogin)
+            editor.commit()
+        }
+
+    var estateUserIdLogin: String?
+        get() = pref.getString("estateUserIdLogin", "")
+        set(estateUserIdLogin) {
+            editor.putString("estateUserIdLogin", estateUserIdLogin)
+            editor.commit()
+        }
+
     var password: String?
         get() = pref.getString(PASSWORD, "")
         set(password) {

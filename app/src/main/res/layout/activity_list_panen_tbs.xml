@@ -103,7 +103,7 @@
         android:layout_marginHorizontal="10dp"
         android:visibility="gone"
         android:id="@+id/blok_section"
-        app:layout_constraintTop_toBottomOf="@id/navbar"
+        app:layout_constraintTop_toBottomOf="@id/navbarPanenList"
         tools:ignore="MissingConstraints">
 
         <TextView
@@ -184,7 +184,7 @@
         android:layout_marginHorizontal="10dp"
         android:layout_marginVertical="5dp"
         android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/search_section">
+        app:layout_constraintTop_toBottomOf="@id/total_section">
 
         <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:app="http://schemas.android.com/apk/res-auto"

@@ -18,12 +18,10 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <!-- ImageView with fitXY scaleType -->
             <ImageView
-                android:layout_width="250dp"
-                android:layout_height="250dp"
-                android:layout_marginLeft="290dp"
-
+                android:layout_width="150dp"
+                android:layout_height="150dp"
+                android:layout_marginLeft="270dp"
                 android:src="@drawable/cbi"
 
                  />
@@ -31,7 +29,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@android:color/white"
-                android:alpha="0.8" />
+                android:alpha="0.7" />
 
         </FrameLayout>
 <!--                <ImageView-->

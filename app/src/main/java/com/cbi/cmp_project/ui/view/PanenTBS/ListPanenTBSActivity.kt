@@ -114,7 +114,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         backButton.setOnClickListener { onBackPressed() }
         prefManager = PrefManager(this)
         userName = prefManager!!.nameUserLogin
-        estateName = prefManager!!.getEstateUserLogin("estate_name")
+        estateName = prefManager!!.estateUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
         setupHeader()
         initViewModel()
@@ -956,9 +956,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private fun setupHeader() {
         featureName = intent.getStringExtra("FEATURE_NAME")
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
-        AppUtils.setupFeatureHeader(featureName, tvFeatureName)
-    }
+        val userSection = findViewById<TextView>(R.id.userSection)
+        val locationSection = findViewById<LinearLayout>(R.id.locationSection)
+        locationSection.visibility = View.VISIBLE
 
+        AppUtils.setupUserHeader(
+            userName = userName,
+            jabatanUser = jabatanUser,
+            estateName = estateName,
+            afdelingUser = afdelingUser,
+            userSection = userSection,
+            featureName = featureName,
+            tvFeatureName = tvFeatureName
+        )
+    }
     private fun setupRecyclerView() {
         listAdapter = ListPanenTPHAdapter()
         recyclerView.apply {

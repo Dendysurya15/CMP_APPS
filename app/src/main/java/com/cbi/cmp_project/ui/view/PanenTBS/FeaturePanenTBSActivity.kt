@@ -9,12 +9,19 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.text.Editable
+import android.text.Spannable
+import android.text.SpannableString
 import android.text.TextWatcher
+import android.text.style.ForegroundColorSpan
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.ImageView
@@ -80,6 +87,8 @@ import com.cbi.cmp_project.ui.adapter.Worker
 import com.cbi.cmp_project.ui.view.HomePageActivity
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.ui.viewModel.SaveDataPanenState
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -196,7 +205,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         regionalId = prefManager!!.getRegionalUserLogin("regional_id")
         regionalName = prefManager!!.getRegionalUserLogin("regional_name")
         estateId = prefManager!!.getEstateUserLogin("estate_id")
-        estateName = prefManager!!.getEstateUserLogin("estate_name")
+        estateName = prefManager!!.estateUserLogin
         userName = prefManager!!.nameUserLogin
         userId = prefManager!!.getUserIdLogin("user_id")
         jabatanUser = prefManager!!.jabatanUserLogin
@@ -325,7 +334,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             "success.json",
                                             R.color.greenDefault
                                         ) {
-                                            finish()
+
                                         }
                                     }
 
@@ -392,10 +401,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
     private fun updateCounterTextViews() {
-        findViewById<TextView>(R.id.tvCounterBuahMasak).text = "$buahMasak Buah"
+        findViewById<TextView>(R.id.tvCounterBuahMasak).text = "$jumTBS Buah"
         findViewById<TextView>(R.id.tvCounterKirimPabrik).text = "$kirimPabrik Buah"
         findViewById<TextView>(R.id.tvCounterTBSDibayar).text = "$tbsDibayar Buah"
-        findViewById<TextView>(R.id.tvPercentBuahMasak).text = "($persenMasak)%"
+//        findViewById<TextView>(R.id.tvPercentBuahMasak).text = "($persenMasak)%"
     }
 
     private fun updateDependentCounters(
@@ -404,15 +413,39 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         counterVar: KMutableProperty0<Int>,
         tvPercent: TextView?
     ) {
+        val sisa = jumTBS - abnormal - bLewatMasak - bMentah - jjgKosong
         when (layoutId) {
+
             R.id.layoutJumTBS -> {
                 if (change > 0) { // When change is positive (Increment)
                     jumTBS += change
                     counterVar.set(jumTBS)
-                } else if (change < 0) { // When change is negative (Decrement)
-                    if (buahMasak > 0) {  // Prevent going negative
+                } else if (change < 0) {
+                    if (jumTBS > 0 && sisa > 0 ) {
                         jumTBS += change
                         counterVar.set(jumTBS)
+
+                        val updates = listOf(
+                            Pair(::bMentah, R.id.layoutBMentah),
+                            Pair(::bLewatMasak, R.id.layoutBLewatMasak),
+                            Pair(::jjgKosong, R.id.layoutJjgKosong),
+                            Pair(::abnormal, R.id.layoutAbnormal),
+                            Pair(::seranganTikus, R.id.layoutSeranganTikus),
+                            Pair(::tangkaiPanjang, R.id.layoutTangkaiPanjang),
+                            Pair(::tidakVCut, R.id.layoutVcut)
+                        )
+
+
+                        Handler(Looper.getMainLooper()).post {
+                            for ((counter, layout) in updates) {
+                                if (counter.get() > jumTBS) {
+                                    updateDependentCounters(layout, -1, counter, null)
+                                    updateEditText(layout, counter.get())
+                                }
+                            }
+                        }
+
+
                     } else {
                         vibrate()
                     }
@@ -421,14 +454,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutBMentah -> {
                 if (change > 0) {
-                    if (buahMasak > 0) {
+                    if (jumTBS > 0 && bMentah < jumTBS  && sisa > 0) {
                         bMentah += change
                         counterVar.set(bMentah)
                     } else {
                         vibrate()
                     }
-                } else if (change < 0) { // When change is negative (Decrement)
-                    if (bMentah > 0) { // Prevent going negative
+                } else if (change < 0) {
+                    if (bMentah > 0) {
                         bMentah += change
                         counterVar.set(bMentah)
                     } else {
@@ -438,15 +471,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
 
             R.id.layoutBLewatMasak -> {
-                if (change > 0) { // When change is positive (Increment)
-                    if (buahMasak > 0) {
+                if (change > 0) {
+                    if (jumTBS > 0 && bLewatMasak < jumTBS  && sisa > 0) {
                         bLewatMasak += change
                         counterVar.set(bLewatMasak)
                     } else {
                         vibrate()
                     }
-                } else if (change < 0) { // When change is negative (Decrement)
-                    if (bLewatMasak > 0) { // Prevent going negative
+                } else if (change < 0) {
+                    if (bLewatMasak > 0) {
                         bLewatMasak += change
                         counterVar.set(bLewatMasak)
                     } else {
@@ -457,7 +490,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutJjgKosong -> {
                 if (change > 0) { // When change is positive (Increment)
-                    if (buahMasak > 0) {
+                    if (jumTBS > 0 && jjgKosong < jumTBS && sisa > 0) {
                         jjgKosong += change
                         counterVar.set(jjgKosong)
                     } else {
@@ -475,7 +508,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutAbnormal -> {
                 if (change > 0) { // When change is positive (Increment)
-                    if (jumTBS > abnormal) { // Prevent abnormal from exceeding tbs
+                    AppLogger.d(jumTBS.toString())
+                    AppLogger.d(abnormal.toString())
+                    AppLogger.d(bLewatMasak.toString())
+                    AppLogger.d(bMentah.toString())
+                    AppLogger.d(jjgKosong.toString())
+
+
+
+                    if (jumTBS > 0 && abnormal < jumTBS && sisa > 0) { // Prevent abnormal from exceeding tbs
                         abnormal += change
                         counterVar.set(abnormal)
                     } else {
@@ -493,7 +534,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutSeranganTikus -> {
                 if (change > 0) {
-                    if (jumTBS > seranganTikus) {
+                    if (jumTBS > 0 && seranganTikus < jumTBS) {
                         seranganTikus += change
                         counterVar.set(seranganTikus)
                     } else {
@@ -511,7 +552,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutTangkaiPanjang -> {
                 if (change > 0) {
-                    if (jumTBS > tangkaiPanjang) {
+                    if (jumTBS > 0 && tangkaiPanjang < jumTBS) {
                         tangkaiPanjang += change
                         counterVar.set(tangkaiPanjang)
                     } else {
@@ -529,14 +570,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutVcut -> {
                 if (change > 0) {
-                    if (jumTBS > tidakVCut) {
+                    if (jumTBS > 0 && tidakVCut < jumTBS) {
                         tidakVCut += change
                         counterVar.set(tidakVCut)
                     } else {
                         vibrate()
                     }
                 } else if (change < 0) {
-                    if (jumTBS > 0) {
+                    if (tidakVCut > 0) {
                         tidakVCut += change
                         counterVar.set(tidakVCut)
                     } else {
@@ -549,28 +590,39 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         formulas()
         updateCounterTextViews()
 
-        if (layoutId == R.id.layoutBMentah) {
-            tvPercent?.let {
-                it.setText("${persenMentah}%")
-            }
-        } else if (layoutId == R.id.layoutBLewatMasak) {
-            tvPercent?.let {
-                it.setText("${persenLewatMasak}%")
-            }
-        } else if (layoutId == R.id.layoutJjgKosong) {
-            tvPercent?.let {
-                it.setText("${persenJjgKosong}%")
-            }
-        }
+//        if (layoutId == R.id.layoutBMentah) {
+//            tvPercent?.let {
+//                it.setText("${persenMentah}%")
+//            }
+//        } else if (layoutId == R.id.layoutBLewatMasak) {
+//            tvPercent?.let {
+//                it.setText("${persenLewatMasak}%")
+//            }
+//        } else if (layoutId == R.id.layoutJjgKosong) {
+//            tvPercent?.let {
+//                it.setText("${persenJjgKosong}%")
+//            }
+//        }
+    }
+
+    private fun updateEditText(layoutId: Int, value: Int) {
+        val includedLayout = findViewById<View>(layoutId)
+        val etNumber = includedLayout?.findViewById<EditText>(R.id.etNumber)
+        etNumber?.setText(value.toString())
     }
 
     private fun formulas() {
-        buahMasak = jumTBS - jjgKosong - bMentah - bLewatMasak
-        bMentah = jumTBS - bLewatMasak - jjgKosong - buahMasak
-        bLewatMasak = jumTBS - bMentah - buahMasak - jjgKosong
-        jjgKosong = jumTBS - bMentah - buahMasak - bLewatMasak
+//        buahMasak = jumTBS - jjgKosong - bMentah - bLewatMasak
+//        bMentah = jumTBS - bLewatMasak - jjgKosong - buahMasak
+//        bLewatMasak = jumTBS - bMentah - buahMasak - jjgKosong
+//        jjgKosong = jumTBS - bMentah - buahMasak - bLewatMasak
+//        tbsDibayar = jumTBS - bMentah - jjgKosong
+//        kirimPabrik = jumTBS - jjgKosong - abnormal
+
         tbsDibayar = jumTBS - bMentah - jjgKosong
-        kirimPabrik = jumTBS - jjgKosong - abnormal
+        kirimPabrik = jumTBS - jjgKosong
+        buahMasak = jumTBS - abnormal - bMentah - jjgKosong - bLewatMasak
+
         persenMentah = MathFun().round((bMentah.toFloat() / jumTBS.toFloat() * 100), 2)!!
         persenMasak = MathFun().round((bMentah.toFloat() / jumTBS.toFloat() * 100), 2)!!
         persenLewatMasak = MathFun().round((bLewatMasak.toFloat() / jumTBS.toFloat() * 100), 2)!!
@@ -789,8 +841,82 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val index2 = parentLayoutLain.indexOfChild(layoutPemanenLain)
         parentLayoutLain.addView(rvSelectedPemanenLain, index2 + 1)
 
+        val tvDescDatagrading: TextView = findViewById(R.id.title_data_grading)
+        val tvDescLampiran: TextView = findViewById(R.id.title_lampiran_foto)
+        val tvDescInformasiBlok: TextView = findViewById(R.id.title_data_informasi_blok)
+        val textGrading = "Data Grading*"
+        val textLampiran = "Lampiran Foto*"
+        val textBlok = "Informasi Blok*"
+        val spannable = SpannableString(textGrading)
+        val spannable2 = SpannableString(textLampiran)
+        val spannable3 = SpannableString(textBlok)
+
+        val starColor = ContextCompat.getColor(this, R.color.colorRedDark) //
+        spannable.setSpan(
+            ForegroundColorSpan(starColor),
+            textGrading.length - 1,
+            textGrading.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
+        spannable2.setSpan(
+            ForegroundColorSpan(starColor),
+            textLampiran.length - 1,
+            textLampiran.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
+        spannable3.setSpan(
+            ForegroundColorSpan(starColor),
+            textBlok.length - 1,
+            textBlok.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
+        tvDescDatagrading.text = spannable
+        tvDescLampiran.text = spannable2
+        tvDescInformasiBlok.text = spannable3
+
+
+
         setupRecyclerViewTakePreviewFoto()
         setupSwitch()
+        setupFormulasView()
+    }
+
+
+    private fun setupFormulasView(){
+        val tvFormulas = findViewById<TextView>(R.id.tvFormulas)
+
+        tvFormulas.setOnClickListener{
+            val view = LayoutInflater.from(this).inflate(R.layout.dialog_formulas_grading, null)
+
+            view.background = ContextCompat.getDrawable(this, R.drawable.rounded_top_right_left)
+
+            val dialog = BottomSheetDialog(this)
+            dialog.setContentView(view)
+
+            // Get screen width
+            val displayMetrics = resources.displayMetrics
+            val width = displayMetrics.widthPixels
+
+            // Set bottom sheet width to 80% of screen width
+            dialog.window?.apply {
+                setLayout(
+                    (width * 0.8).toInt(),
+                    WindowManager.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            // Set expanded state when showing
+            dialog.setOnShowListener {
+                val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                val behavior = BottomSheetBehavior.from(bottomSheet!!)
+                behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            }
+
+            dialog.show()
+        }
     }
 
     private fun setupEditTextView(layoutView: LinearLayout) {
@@ -1539,6 +1665,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val recyclerView: RecyclerView = findViewById(R.id.recyclerViewFotoPreview)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
         takeFotoPreviewAdapter = TakeFotoPreviewAdapter(3, cameraViewModel, this, featureName)
         recyclerView.adapter = takeFotoPreviewAdapter
@@ -1569,6 +1696,83 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         textView.text = labelText
         etNumber.setText(counterVar.get().toString())
+
+        etNumber.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+            override fun afterTextChanged(s: Editable?) {
+                etNumber.removeTextChangedListener(this)
+
+                try {
+                    val newValue = if (s.isNullOrEmpty()) 0 else s.toString().toInt()
+
+                    if (layoutId == R.id.layoutJumTBS) {
+                        val oldValue = jumTBS
+                        val sisa = oldValue - abnormal - bLewatMasak - bMentah - jjgKosong
+
+                        if (newValue >= oldValue || (newValue > 0 && sisa > 0)) {
+                            jumTBS = newValue
+                            counterVar.set(jumTBS)
+
+                            // Update dependent counters if needed
+                            val updates = listOf(
+                                Pair(::bMentah, R.id.layoutBMentah),
+                                Pair(::bLewatMasak, R.id.layoutBLewatMasak),
+                                Pair(::jjgKosong, R.id.layoutJjgKosong),
+                                Pair(::abnormal, R.id.layoutAbnormal),
+                                Pair(::seranganTikus, R.id.layoutSeranganTikus),
+                                Pair(::tangkaiPanjang, R.id.layoutTangkaiPanjang),
+                                Pair(::tidakVCut, R.id.layoutVcut)
+                            )
+
+                            Handler(Looper.getMainLooper()).post {
+                                for ((counter, layout) in updates) {
+                                    if (counter.get() > newValue) {
+                                        updateDependentCounters(layout, -1, counter, null)
+                                        updateEditText(layout, counter.get())
+                                    }
+                                }
+                            }
+
+                            formulas()
+                            updateCounterTextViews()
+                        } else {
+                            // Reset to old value if conditions not met
+                            etNumber.setText(oldValue.toString())
+                            vibrate()
+                        }
+                    } else {
+                        // For other layouts (bMentah, bLewatMasak, etc.)
+                        val currentValue = counterVar.get()
+                        val totalOthers = when (layoutId) {
+                            R.id.layoutBMentah -> abnormal + bLewatMasak + newValue + jjgKosong
+                            R.id.layoutBLewatMasak -> abnormal + newValue + bMentah + jjgKosong
+                            R.id.layoutJjgKosong -> abnormal + bLewatMasak + bMentah + newValue
+                            R.id.layoutAbnormal -> newValue + bLewatMasak + bMentah + jjgKosong
+                            else -> abnormal + bLewatMasak + bMentah + jjgKosong
+                        }
+
+                        if (jumTBS > 0 && newValue <= jumTBS && totalOthers <= jumTBS) {
+                            counterVar.set(newValue)
+                            formulas()
+                            updateCounterTextViews()
+                        } else {
+                            // Reset to previous value
+                            etNumber.setText(counterVar.get().toString())
+                            vibrate()
+                        }
+                    }
+
+                } catch (e: NumberFormatException) {
+                    etNumber.setText(counterVar.get().toString())
+                    vibrate()
+                }
+
+                etNumber.addTextChangedListener(this)
+            }
+        })
 
         val btDec = includedLayout.findViewById<CardView>(R.id.btDec)
         val btInc = includedLayout.findViewById<CardView>(R.id.btInc)
@@ -1608,7 +1812,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 etNumber.setText(counterVar.get().toString())
             } else {
                 vibrate()
-                changeEditTextStyle(true)
+//                changeEditTextStyle(true)
             }
         }
 
@@ -1621,7 +1825,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 tvPercent
             )  // Increment through dependent counter
             etNumber.setText(counterVar.get().toString())
-            changeEditTextStyle(counterVar.get() <= 0)
+//            changeEditTextStyle(counterVar.get() <= 0)
         }
     }
 

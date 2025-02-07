@@ -119,11 +119,7 @@ class HomePageActivity : AppCompatActivity() {
         loadingDialog = LoadingDialog(this)
         initViewModel()
 
-        val tvUserNameLogin = findViewById<TextView>(R.id.userNameLogin)
-        tvUserNameLogin.text = prefManager!!.nameUserLogin
-
-        val jabatanUserLogin = findViewById<TextView>(R.id.jabatanUserLogin)
-        jabatanUserLogin.text = prefManager!!.jabatanUserLogin
+        setupName()
 
         prefManager!!.setRegionalUserLogin("regional_id", "1")
         prefManager!!.setRegionalUserLogin("regional_name", "REGIONAL I")
@@ -144,6 +140,28 @@ class HomePageActivity : AppCompatActivity() {
         val navController = findNavController(R.id.nav_host_fragment_activity_home_page)
 
         navView.setupWithNavController(navController)
+    }
+
+
+    private fun setupName(){
+        val tvUserNameLogin = findViewById<TextView>(R.id.userNameLogin)
+        tvUserNameLogin.text = prefManager!!.nameUserLogin
+
+        val jabatanUserLogin = findViewById<TextView>(R.id.jabatanUserLogin)
+        jabatanUserLogin.text = "${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
+
+        val fullName = prefManager!!.nameUserLogin!!.trim()
+        val nameParts = fullName.split(" ")
+
+        val initials = when (nameParts.size) {
+            0 -> "" // No name provided
+            1 -> nameParts[0].take(1).uppercase() // Only one name, take the first letter
+            else -> (nameParts[0].take(1) + nameParts[1].take(1)).uppercase() // Take first letter from first two names
+        }
+
+        val initalName = findViewById<TextView>(R.id.initalName)
+        initalName.text = initials
+
     }
 
     private fun initViewModel() {
