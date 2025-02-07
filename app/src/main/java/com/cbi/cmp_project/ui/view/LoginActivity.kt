@@ -121,15 +121,13 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.nameUserLogin = loginResponse.data?.user?.nama
                         prefManager!!.jabatanUserLogin = loginResponse.data?.user?.jabatan
                         prefManager!!.estateUserLogin = loginResponse.data?.user?.dept_abbr
-                        prefManager!!.estateUserIdLogin = loginResponse.data?.user?.dept_id
-                        AppLogger.d(loginResponse.data.user!!.dept_id.toString())
-                        AppLogger.d(loginResponse.data.user!!.dept_abbr.toString())
-//
+                        prefManager!!.estateIdUserLogin = loginResponse.data?.user?.dept_id
+                        prefManager!!.regionalIdUserLogin = loginResponse.data?.user?.regional
+
                         Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()
                         navigateToHomePage()
                     } else {
                         AppLogger.d("Token not found in response")
-//
                         Toasty.error(this, "Token not found!", Toast.LENGTH_LONG, true).show()
                     }
                 } else {
@@ -306,12 +304,15 @@ class LoginActivity : AppCompatActivity() {
     private fun navigateToHomePage() {
         val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
         if (!checkRememberMe.isChecked){
+            prefManager!!.isFirstTimeLaunch = false
+            prefManager!!.token = ""
             prefManager!!.nameUserLogin = ""
             prefManager!!.username = ""
             prefManager!!.password = ""
             prefManager!!.jabatanUserLogin = ""
             prefManager!!.estateUserLogin = ""
-            prefManager!!.estateUserIdLogin = ""
+            prefManager!!.estateIdUserLogin = ""
+            prefManager!!.regionalIdUserLogin = ""
         }
         startActivity(Intent(this, HomePageActivity::class.java))
         finish()

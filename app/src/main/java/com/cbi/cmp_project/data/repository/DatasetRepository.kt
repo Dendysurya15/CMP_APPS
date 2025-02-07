@@ -39,9 +39,9 @@ class DatasetRepository(context: Context) {
     suspend fun updateOrInsertKemandoranDetail(kemandoran_detail: List<KemandoranDetailModel>) = kemandoranDetailDao.updateOrInsertKemandoranDetail(kemandoran_detail)
     suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) = tphDao.updateOrInsertTPH(tph)
 
-    suspend fun getDeptByRegionalAndEstate(regionalId: String, estateName: String): List<DeptModel> {
+    suspend fun getDeptByRegionalAndEstate(estateId: String): List<DeptModel> {
         // Fetch dept data by regionalId and estateId
-        return deptDao.getDeptByCriteria(regionalId, estateName)
+        return deptDao.getDeptByCriteria(estateId)
     }
 
     suspend fun getDivisiList( idEstate: Int): List<DivisiModel> {

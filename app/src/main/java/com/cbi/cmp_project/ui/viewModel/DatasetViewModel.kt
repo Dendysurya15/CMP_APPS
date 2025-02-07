@@ -137,8 +137,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    suspend fun getDeptList(regionalId: String,  estateName: String): List<DeptModel> {
-        return repository.getDeptByRegionalAndEstate(regionalId,  estateName)
+    suspend fun getDeptList(estateId: String): List<DeptModel> {
+        return repository.getDeptByRegionalAndEstate(estateId)
     }
 
     suspend fun getDivisiList(idEstate: Int): List<DivisiModel> {

@@ -18,6 +18,7 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -185,7 +186,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var panenViewModel: PanenViewModel
     private var regionalId: String? = null
-    private var regionalName: String? = null
     private var estateId: String? = null
     private var estateName: String? = null
     private var userName: String? = null
@@ -202,9 +202,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         prefManager = PrefManager(this)
         initViewModel()
         initializeJjgJson()
-        regionalId = prefManager!!.getRegionalUserLogin("regional_id")
-        regionalName = prefManager!!.getRegionalUserLogin("regional_name")
-        estateId = prefManager!!.getEstateUserLogin("estate_id")
+        regionalId = prefManager!!.regionalIdUserLogin
+        estateId = prefManager!!.estateIdUserLogin
         estateName = prefManager!!.estateUserLogin
         userName = prefManager!!.nameUserLogin
         userId = prefManager!!.getUserIdLogin("user_id")
@@ -225,24 +224,40 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
 
             try {
+                val estateIdStr = estateId?.trim()
 
-                val deptDeferred =
-                    async { datasetViewModel.getDeptList(regionalId!!, estateName!!) }
-                val divisiDeferred = async { datasetViewModel.getDivisiList(estateId!!.toInt()) }
-                deptList = deptDeferred.await()
-                divisiList = divisiDeferred.await()
+                if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
+                    val estateIdInt = estateIdStr.toInt()
+
+                    val deptDeferred = async { datasetViewModel.getDeptList(estateIdStr) }
+                    val divisiDeferred = async { datasetViewModel.getDivisiList(estateIdInt) }
+
+                    divisiList = divisiDeferred.await()
+                    deptList = deptDeferred.await()
+                }
 
                 withContext(Dispatchers.Main) {
+                    loadingDialog.dismiss()
                     setupLayout()
                 }
             } catch (e: Exception) {
-                AppLogger.e("Error fetching data: ${e.message}")
-            } finally {
-                withContext(Dispatchers.Main) {
-                    loadingDialog.dismiss()
+                withContext(Dispatchers.Main) {  // Ensure dialog is shown on Main thread
+                    AppLogger.e("Error fetching data: ${e.message}")
+
+                    AlertDialogUtility.withSingleAction(
+                        this@FeaturePanenTBSActivity,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_failed_fetch_data),
+                        "${stringXML(R.string.al_failed_fetch_data_desc)},  ${e.message} penyebab ID Estate User Login: \"$estateId\"",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {
+                        finish()
+                    }
                 }
             }
         }
+
 
 
         val mbSaveDataPanenTBS = findViewById<MaterialButton>(R.id.mbSaveDataPanenTBS)
