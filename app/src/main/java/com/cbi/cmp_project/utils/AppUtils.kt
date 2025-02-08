@@ -58,6 +58,8 @@ object AppUtils {
     }
 
 
+
+
     fun getDeviceInfo(context: Context): JSONObject {
         val json = JSONObject()
 
