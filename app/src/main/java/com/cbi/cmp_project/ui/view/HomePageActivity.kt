@@ -184,35 +184,61 @@ class HomePageActivity : AppCompatActivity() {
             val downloadItems = statusMap.map { (dataset, resource) ->
                 when (resource) {
                     is DatasetViewModel.Resource.Success -> {
-                        AppLogger.d("Download Status: $dataset completed successfully")
-                        DownloadItem(dataset = dataset, progress = 100, isCompleted = true)
+                        AppLogger.d("Download Status: $dataset completed and stored successfully")
+                        DownloadItem(
+                            dataset = dataset,
+                            progress = 100,
+                            isCompleted = false,
+                            isExtractionCompleted = false,
+                            isStoringCompleted = true  // Final state is storage complete
+                        )
                     }
                     is DatasetViewModel.Resource.Error -> {
                         AppLogger.d("Download Status: $dataset failed with error: ${resource.message}")
-                        // Only show error dialog for the first error
                         if (!hasShownErrorDialog) {
-                            showErrorDialog(resource.message ?: "Unknown error occurred")
+//                            showErrorDialog(resource.message ?: "Unknown error occurred")
                             hasShownErrorDialog = true
                         }
                         DownloadItem(dataset = dataset, error = resource.message)
                     }
                     is DatasetViewModel.Resource.Loading -> {
                         AppLogger.d("Download Status: $dataset loading")
-                        DownloadItem(dataset = dataset, isLoading = true)
+                        DownloadItem(dataset = dataset, progress = resource.progress, isLoading = true)
+                    }
+                    is DatasetViewModel.Resource.Extracting -> {
+                        AppLogger.d("Download Status: $dataset is being extracted")
+                        DownloadItem(
+                            dataset = dataset,
+                            progress = 100,
+                            isLoading = false,
+                            isExtracting = true
+                        )
+                    }
+                    is DatasetViewModel.Resource.Storing -> {
+                        AppLogger.d("Download Status: $dataset is being stored")
+                        DownloadItem(
+                            dataset = dataset,
+                            progress = 100,
+                            isLoading = false,
+                            isExtracting = false,
+                            isStoring = true
+                        )
                     }
                 }
             }
             adapter.updateItems(downloadItems)
 
-            val completedCount = downloadItems.count { it.isCompleted }
-            AppLogger.d("Download Progress: $completedCount/${downloadItems.size} completed")
+            // Count all completed processes (including storage)
+            val completedCount = downloadItems.count { it.isStoringCompleted || it.error != null }
+            AppLogger.d("Progress: $completedCount/${downloadItems.size} completed")
             counterTV.text = "$completedCount/${downloadItems.size}"
 
-            if (downloadItems.all { it.isCompleted || it.error != null }) {
-                AppLogger.d("Download Status: All downloads finished")
+            // Show completion UI when all items are either stored or failed
+            if (downloadItems.all { it.isStoringCompleted || it.error != null }) {
+                AppLogger.d("Status: All files processed and stored")
                 closeBtn.visibility = View.VISIBLE
                 closeStatement.visibility = View.VISIBLE
-                closeStatement.text = "All downloads completed"
+                closeStatement.text = "All files processed and stored"
             }
         }
         AppLogger.d("Download Dialog: Setup completed")
@@ -245,6 +271,8 @@ class HomePageActivity : AppCompatActivity() {
             val requests = listOf(
                 DatasetRequest(estate = estateId, lastModified = null, dataset = "tph"),
                 DatasetRequest(estate = estateId, lastModified = null, dataset = "blok"),
+                DatasetRequest(estate = estateId, lastModified = null, dataset = "pemanen"),
+                DatasetRequest(estate = estateId, lastModified = null, dataset = "kemandoran"),
             )
 //            AppLogger.d("Downloads: Created ${requests.size} download requests")
 

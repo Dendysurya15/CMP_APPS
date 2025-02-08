@@ -83,6 +83,34 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var lastModifiedDatasetTPH: String?
+        get() = pref.getString("lastModifiedDatasetTPH", "")
+        set(lastModifiedDatasetTPH) {
+            editor.putString("lastModifiedDatasetTPH", lastModifiedDatasetTPH)
+            editor.commit()
+        }
+
+    var lastModifiedDatasetBlok: String?
+        get() = pref.getString("lastModifiedDatasetBlok", "")
+        set(lastModifiedDatasetBlok) {
+            editor.putString("lastModifiedDatasetBlok", lastModifiedDatasetBlok)
+            editor.commit()
+        }
+
+    var lastModifiedDatasetKemandoran: String?
+        get() = pref.getString("lastModifiedDatasetKemandoran", "")
+        set(lastModifiedDatasetKemandoran) {
+            editor.putString("lastModifiedDatasetKemandoran", lastModifiedDatasetKemandoran)
+            editor.commit()
+        }
+
+    var lastModifiedDatasetPemanen: String?
+        get() = pref.getString("lastModifiedDatasetPemanen", "")
+        set(lastModifiedDatasetPemanen) {
+            editor.putString("lastModifiedDatasetPemanen", lastModifiedDatasetPemanen)
+            editor.commit()
+        }
+
     var token: String?
         get() = pref.getString("token", "")
         set(token) {
@@ -90,29 +118,7 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
-    fun setDateModified(key: String, value: String?) {
-        editor.putString(key, value)
-        editor.commit()
-    }
 
-    fun getAllDateModified(): Map<String, String?> {
-        val allEntries = pref.all
-        val dateModifiedMap = mutableMapOf<String, String?>()
-
-        for ((key, value) in allEntries) {
-            // Check if the key matches your convention for date_modified keys
-            if (key.endsWith("DB") && value is String) {
-                dateModifiedMap[key] = value
-            }
-        }
-
-        return dateModifiedMap
-    }
-
-    // Clear the file list
-    fun clearFileList() {
-        editor.remove("downloaded_file_list").apply()
-    }
 
     var isFirstTimeLaunch: Boolean
         get() = pref.getBoolean("IsFirstTimeLaunch", false)  // Default is true

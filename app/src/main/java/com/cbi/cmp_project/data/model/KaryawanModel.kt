@@ -39,6 +39,7 @@ data class KaryawanModel(
     val nik: String?,
     val nama: String?,
     val jabatan: String?,
+    val kemandoran_id: Int?,
     val date_absen: String?,
     val status_absen: String?,
     val status: Int?

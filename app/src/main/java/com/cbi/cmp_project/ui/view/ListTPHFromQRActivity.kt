@@ -175,7 +175,7 @@ class ListTPHFromQRActivity : AppCompatActivity() {
                             e.message ?: "Unknown error occurred"
                         )
                     }
-                    }
+                }
             }
         }
 

@@ -39,6 +39,5 @@ data class KemandoranModel(
     val kode: String?,
     val nama: String?,
     val type: String?,
-    val history: String?,
     val status: Int?
 )
