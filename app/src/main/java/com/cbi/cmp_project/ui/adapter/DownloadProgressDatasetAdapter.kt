@@ -19,6 +19,7 @@ data class DownloadItem(
     var isExtractionCompleted: Boolean = false,
     var isStoring: Boolean = false,  // Add this
     var isStoringCompleted: Boolean = false,  // Add this
+    var isUpToDate: Boolean = false,
     var error: String? = null
 )
 
@@ -49,13 +50,26 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
             percentage.text = "${item.progress}%"
 
             when {
+
                 item.error != null -> {
                     statusProgress.visibility = View.VISIBLE
                     statusProgress.text = item.error
+                    statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.colorRedDark))
+
                     iconStatus.visibility = View.VISIBLE
                     iconStatus.setImageResource(es.dmoral.toasty.R.drawable.ic_error_outline_white_24dp)
                     iconStatus.setColorFilter(ContextCompat.getColor(itemView.context, R.color.colorRedDark))
                     loadingCircular.visibility = View.GONE
+                }
+                item.isUpToDate -> {  // Add this condition
+                    statusProgress.visibility = View.VISIBLE
+                    statusProgress.text = "Database is already up to date"
+                    statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.greendarkerbutton))
+                    iconStatus.visibility = View.VISIBLE
+                    iconStatus.setImageResource(R.drawable.baseline_check_24)
+                    iconStatus.setColorFilter(ContextCompat.getColor(itemView.context, R.color.greendarkerbutton))
+                    loadingCircular.visibility = View.GONE
+                    progressBar.isIndeterminate = false
                 }
                 item.isStoring -> {
                     statusProgress.visibility = View.VISIBLE
@@ -66,7 +80,7 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                 }
                 item.isStoringCompleted -> {
                     statusProgress.visibility = View.VISIBLE
-                    statusProgress.text = "Storage complete"
+                    statusProgress.text = "Database successfully stored"
                     iconStatus.visibility = View.VISIBLE
                     iconStatus.setImageResource(R.drawable.baseline_check_24)
                     iconStatus.setColorFilter(ContextCompat.getColor(itemView.context, R.color.greendarkerbutton))
@@ -80,7 +94,7 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                     loadingCircular.visibility = View.VISIBLE
                     progressBar.isIndeterminate = true
                 }
-                item.isExtractionCompleted -> {  // New state
+                item.isExtractionCompleted -> {
                     statusProgress.visibility = View.VISIBLE
                     statusProgress.text = "Extraction complete"
                     iconStatus.visibility = View.VISIBLE
@@ -105,7 +119,8 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                     progressBar.isIndeterminate = false
                 }
                 else -> {
-                    statusProgress.visibility = View.GONE
+                    statusProgress.visibility = View.VISIBLE
+                    statusProgress.text = "Pending"
                     iconStatus.visibility = View.GONE
                     loadingCircular.visibility = View.GONE
                     progressBar.isIndeterminate = false

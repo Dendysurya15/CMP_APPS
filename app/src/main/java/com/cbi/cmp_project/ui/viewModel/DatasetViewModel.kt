@@ -83,13 +83,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val message: String? = null,
         val progress: Int = 0,
         val isExtracting: Boolean = false,
-        val isStoring: Boolean = false  // Add this
+        val isStoring: Boolean = false ,  // Add this
+        val isUpToDate: Boolean = false
     ) {
         class Success<T>(data: T) : Resource<T>(data)
         class Error<T>(message: String, data: T? = null) : Resource<T>(data, message)
         class Loading<T>(progress: Int = 0) : Resource<T>(progress = progress)
         class Extracting<T>(dataset: String) : Resource<T>(message = "Extracting $dataset", isExtracting = true)
         class Storing<T>(dataset: String) : Resource<T>(message = "Storing $dataset", isStoring = true)  // Add this
+        class UpToDate<T>(dataset: String) : Resource<T>(message = "Dataset $dataset is up to date", isUpToDate = true)  // Add this
     }
 
     fun updateOrInsertRegional(regionals: List<RegionalModel>) =
@@ -229,7 +231,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         response: Response<ResponseBody>,
         updateOperation: suspend (List<T>) -> Job,
         statusFlow: StateFlow<Result<Boolean>>,
-        hasShownError: Boolean // Add as reference
+        hasShownError: Boolean, // Add as reference
+        lastModifiedTimestamp: String,
     ): Boolean {  // Return updated hasShownError value
         var updatedHasShownError = hasShownError
         try {
@@ -240,6 +243,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
             if (statusFlow.value.isSuccess) {
                 results[dataset] = Resource.Success(response)
+                when (dataset) {
+                    "tph" -> prefManager.lastModifiedDatasetTPH = lastModifiedTimestamp
+                    "blok" -> prefManager.lastModifiedDatasetBlok = lastModifiedTimestamp
+                    "kemandoran" -> prefManager.lastModifiedDatasetKemandoran = lastModifiedTimestamp
+                    "pemanen" -> prefManager.lastModifiedDatasetPemanen = lastModifiedTimestamp
+                }
+                prefManager!!.addDataset(dataset)
             } else {
                 val error = statusFlow.value.exceptionOrNull()
                 throw error ?: Exception("Unknown database error")
@@ -326,7 +336,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         response = response,
                                                         updateOperation = ::updateOrInsertTPH,
                                                         statusFlow = tphStatus,
-                                                        hasShownError = hasShownError
+                                                        hasShownError = hasShownError,
+                                                       lastModifiedTimestamp = lastModified ?: ""
                                                     )
                                                     "blok" -> hasShownError = processDataset(
                                                         jsonContent = jsonContent,
@@ -336,7 +347,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         response = response,
                                                         updateOperation = ::updateOrInsertBlok,
                                                         statusFlow = blokStatus,
-                                                        hasShownError = hasShownError
+                                                        hasShownError = hasShownError,
+                                                       lastModifiedTimestamp = lastModified ?: ""
                                                     )
                                                     "kemandoran" -> hasShownError = processDataset(
                                                         jsonContent = jsonContent,
@@ -346,7 +358,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         response = response,
                                                         updateOperation = ::updateOrInsertKemandoran,
                                                         statusFlow = kemandoranStatus,
-                                                        hasShownError = hasShownError
+                                                        hasShownError = hasShownError,
+                                                       lastModifiedTimestamp = lastModified ?: ""
                                                     )
                                                     "pemanen" -> hasShownError = processDataset(
                                                         jsonContent = jsonContent,
@@ -356,7 +369,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         response = response,
                                                         updateOperation = ::updateOrInsertKaryawan,
                                                         statusFlow = karyawanStatus,
-                                                        hasShownError = hasShownError
+                                                        hasShownError = hasShownError,
+                                                       lastModifiedTimestamp = lastModified ?: ""
                                                     )
                                                     else -> {
 
@@ -394,7 +408,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             } else if (contentType?.contains("application/json") == true) {
                                 val responseBodyString = response.body()?.string() ?: "Empty Response"
                                 Log.d("DownloadResponse", "Received JSON: $responseBodyString")
-                                results[request.dataset] = Resource.Success(response)
+
+                                if (responseBodyString.contains("\"success\":false") && responseBodyString.contains("\"message\":\"Dataset is up to date\"")) {
+                                    results[request.dataset] = Resource.UpToDate(request.dataset)
+                                } else {
+                                    results[request.dataset] = Resource.Success(response)
+                                }
                             } else {
                                 Log.d("DownloadResponse", "Unknown response type: $contentType")
                                 results[request.dataset] = Resource.Error("Unknown response type: $contentType")
@@ -426,15 +445,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     _downloadStatuses.postValue(results.toMap())
 
                 } catch (e: Exception) {
-                    if (!hasShownError) {
+//                    if (!hasShownError) {
                         results[request.dataset] = Resource.Error(
                             "Network error: ${e.message ?: "Unknown error"}",
                             null
                         )
                         hasShownError = true
-                    } else {
-                        results[request.dataset] = Resource.Error("Download failed", null)
-                    }
+//                    } else {
+//                        results[request.dataset] = Resource.Error("Download failed", null)
+//                    }
                     _downloadStatuses.postValue(results.toMap())
                 }
                 _downloadStatuses.postValue(results.toMap())

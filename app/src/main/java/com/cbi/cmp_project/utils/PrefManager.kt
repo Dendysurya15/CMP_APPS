@@ -127,6 +127,22 @@ class PrefManager(_context: Context) {
             editor.apply()  // Use apply() instead of commit() for async write
         }
 
+    var datasetMustUpdate: MutableList<String>
+        get() = pref.getStringSet("datasetMustUpdate", emptySet())?.toMutableList() ?: mutableListOf()
+        set(value) {
+            editor.putStringSet("datasetMustUpdate", value.toSet()).apply()
+        }
+
+    fun addDataset(dataset: String) {
+        val currentList = datasetMustUpdate.toMutableSet()
+        currentList.add(dataset)
+        datasetMustUpdate = currentList.toMutableList()
+    }
+
+    fun clearDatasetMustUpdate() {
+        datasetMustUpdate = mutableListOf()
+    }
+
     var version: Int
         get() = pref.getInt(version_tag, 0)
         set(versionCount) {

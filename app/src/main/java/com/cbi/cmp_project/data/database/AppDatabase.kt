@@ -6,6 +6,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.cbi.cmp_project.data.model.ESPBEntity
+import com.cbi.cmp_project.data.model.FlagESPBModel
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
@@ -30,7 +31,8 @@ import java.util.concurrent.Executors
         KemandoranDetailModel::class,
         KaryawanModel::class,
         PanenEntity::class,
-        ESPBEntity::class
+        ESPBEntity::class,
+    FlagESPBModel::class,
     ],
     version = 1
 )
@@ -46,6 +48,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun panenDao(): PanenDao
     abstract fun espbDao(): ESPBDao
     abstract fun tphDao(): TPHDao
+    abstract fun flagESPBModelDao(): FlagESPBDao // ✅ Add DAO
 
 
 

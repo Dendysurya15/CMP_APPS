@@ -9,10 +9,13 @@ import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -57,6 +60,7 @@ import com.cbi.markertph.data.model.DivisiModel
 import com.cbi.markertph.data.model.RegionalModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.markertph.data.model.WilayahModel
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -99,7 +103,7 @@ class HomePageActivity : AppCompatActivity() {
     private val permissionRequestCode = 1001
     private lateinit var adapter: DownloadProgressDatasetAdapter
 
-    private var filesToUpdate = mutableListOf<String>()
+    private var datasetMustUpdate = mutableListOf<String>()
     private var regionalList: List<RegionalModel> = emptyList()
     private var wilayahList: List<WilayahModel> = emptyList()
     private var deptList: List<DeptModel> = emptyList()
@@ -114,8 +118,6 @@ class HomePageActivity : AppCompatActivity() {
 
 
 
-
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AppLogger.d("HomePage: onCreate started")
@@ -123,23 +125,13 @@ class HomePageActivity : AppCompatActivity() {
         binding = ActivityHomePageBinding.inflate(layoutInflater)
         setContentView(binding.root)
         prefManager = PrefManager(this)
-        AppLogger.d("HomePage: PrefManager initialized")
 
         loadingDialog = LoadingDialog(this)
         initViewModel()
-        AppLogger.d("HomePage: ViewModel initialized")
-
         setupName()
-        AppLogger.d("HomePage: Name setup completed")
-
-        checkPermissions()
-        AppLogger.d("HomePage: Permissions checked")
-
         setupDownloadDialog()
-        AppLogger.d("HomePage: Download dialog setup completed")
+        checkPermissions()
 
-        startDownloads()
-        AppLogger.d("HomePage: Downloads initiated")
 
         val navView: BottomNavigationView = binding.navView
         val navController = findNavController(R.id.nav_host_fragment_activity_home_page)
@@ -148,43 +140,58 @@ class HomePageActivity : AppCompatActivity() {
     }
 
     private fun setupDownloadDialog() {
-        AppLogger.d("Download Dialog: Setup started")
+
         dialog = Dialog(this)
 
         val view = layoutInflater.inflate(R.layout.list_card_upload, null)
         dialog.setContentView(view)
-        AppLogger.d("Download Dialog: Layout inflated")
 
+        dialog.setCancelable(false)
+        dialog.setCanceledOnTouchOutside(false)
         dialog.window?.setLayout(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        AppLogger.d("Download Dialog: Window size set")
+
 
         val recyclerView = view.findViewById<RecyclerView>(R.id.features_recycler_view)
         adapter = DownloadProgressDatasetAdapter()
         recyclerView.adapter = adapter
         recyclerView.layoutManager = LinearLayoutManager(this)
-        AppLogger.d("Download Dialog: RecyclerView setup completed")
+
 
         val titleTV = view.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-        titleTV.text = "Download Progress"
+        titleTV.text = "Progress Import Dataset..."
         val counterTV = view.findViewById<TextView>(R.id.counter_dataset)
-        val closeBtn = view.findViewById<FloatingActionButton>(R.id.close_progress_bar)
-        val closeStatement = view.findViewById<TextView>(R.id.close_progress_statement)
-        AppLogger.d("Download Dialog: Views initialized")
 
-        closeBtn.setOnClickListener {
-            AppLogger.d("Download Dialog: Close button clicked")
+        val closeStatement = view.findViewById<TextView>(R.id.close_progress_statement)
+
+        val retryDownloadDataset = view.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
+        val cancelDownloadDataset = view.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+        val containerDownloadDataset = view.findViewById<LinearLayout>(R.id.containerDownloadDataset)
+        cancelDownloadDataset.setOnClickListener {
             dialog.dismiss()
+        }
+        retryDownloadDataset.setOnClickListener{
+
+
+
+            val storedList = prefManager!!.datasetMustUpdate // Retrieve list
+
+            AppLogger.d(storedList.toString())
+            containerDownloadDataset.visibility = View.GONE
+            cancelDownloadDataset.visibility = View.GONE
+            retryDownloadDataset.visibility = View.GONE
+            closeStatement.visibility = View.GONE
+            startDownloads()
         }
 
         datasetViewModel.downloadStatuses.observe(this) { statusMap ->
-            AppLogger.d("Download Status: Received update with ${statusMap.size} items")
+
             val downloadItems = statusMap.map { (dataset, resource) ->
                 when (resource) {
                     is DatasetViewModel.Resource.Success -> {
-                        AppLogger.d("Download Status: $dataset completed and stored successfully")
+                        AppLogger.d("Download Status: $dataset completed")
                         DownloadItem(
                             dataset = dataset,
                             progress = 100,
@@ -195,8 +202,14 @@ class HomePageActivity : AppCompatActivity() {
                     }
                     is DatasetViewModel.Resource.Error -> {
                         AppLogger.d("Download Status: $dataset failed with error: ${resource.message}")
+
                         if (!hasShownErrorDialog) {
-//                            showErrorDialog(resource.message ?: "Unknown error occurred")
+                            val errorMessage = resource.message ?: "Unknown error occurred"
+                            if (errorMessage.contains("host", ignoreCase = true)) {
+                                showErrorDialog("Mohon cek koneksi Internet Smartphone anda!")
+                            } else {
+                                showErrorDialog(errorMessage)
+                            }
                             hasShownErrorDialog = true
                         }
                         DownloadItem(dataset = dataset, error = resource.message)
@@ -223,33 +236,68 @@ class HomePageActivity : AppCompatActivity() {
                             isExtracting = false,
                             isStoring = true
                         )
+
+                    }
+                    is DatasetViewModel.Resource.UpToDate -> {
+
+                        DownloadItem(
+                            dataset = dataset,
+                            progress = 100,
+                            isUpToDate = true  // Set isUpToDate to true
+                        )
                     }
                 }
             }
+
             adapter.updateItems(downloadItems)
 
-            // Count all completed processes (including storage)
             val completedCount = downloadItems.count { it.isStoringCompleted || it.error != null }
             AppLogger.d("Progress: $completedCount/${downloadItems.size} completed")
             counterTV.text = "$completedCount/${downloadItems.size}"
 
-            // Show completion UI when all items are either stored or failed
-            if (downloadItems.all { it.isStoringCompleted || it.error != null }) {
-                AppLogger.d("Status: All files processed and stored")
-                closeBtn.visibility = View.VISIBLE
-                closeStatement.visibility = View.VISIBLE
-                closeStatement.text = "All files processed and stored"
+
+            if (downloadItems.all { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
+                containerDownloadDataset.visibility = View.VISIBLE
+
+                if (prefManager!!.isFirstTimeLaunch && downloadItems.any { it.isStoringCompleted || it.isUpToDate || it.error != null}) {
+                    prefManager!!.isFirstTimeLaunch = false
+                    AppLogger.d("First-time launch flag updated to false")
+                }
+
+                if (downloadItems.any { it.error != null }) {
+
+                    retryDownloadDataset.visibility = View.VISIBLE
+                    cancelDownloadDataset.visibility = View.VISIBLE
+
+                }
+                else {
+                    var countdown =3
+                    closeStatement.visibility = View.VISIBLE
+                    val handler = Handler(Looper.getMainLooper())
+
+                    handler.postDelayed(object : Runnable {
+                        override fun run() {
+                            if (countdown > 0) {
+                                closeStatement.text = "Dialog tertutup dalam $countdown detik"
+                                countdown--
+                                handler.postDelayed(this, 1000)
+                            } else dialog.dismiss()
+                        }
+                    }, 0)
+
+
+                }
+
             }
         }
-        AppLogger.d("Download Dialog: Setup completed")
     }
 
     private fun startDownloads() {
-        AppLogger.d("Downloads: Starting download process")
-
-        // Check if estateId exists and is valid
         val estateIdString = prefManager!!.estateIdUserLogin
-//        AppLogger.d("Downloads: Estate ID from prefManager: $estateIdString")
+        val lastModifiedDatasetTPH = prefManager!!.lastModifiedDatasetTPH
+        val lastModifiedDatasetBlok = prefManager!!.lastModifiedDatasetBlok
+        val lastModifiedDatasetKemandoran = prefManager!!.lastModifiedDatasetKemandoran
+        val lastModifiedDatasetPemanen = prefManager!!.lastModifiedDatasetPemanen
 
         if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
             AppLogger.d("Downloads: Estate ID is null or empty, aborting download")
@@ -265,29 +313,44 @@ class HomePageActivity : AppCompatActivity() {
                 return
             }
 
-            val regionalId = prefManager!!.regionalIdUserLogin!!.toInt()
-//            AppLogger.d("Downloads: Estate ID: $estateId, Regional ID: $regionalId")
+            val filteredRequests = getDatasetsToDownload(estateId, lastModifiedDatasetTPH, lastModifiedDatasetBlok, lastModifiedDatasetPemanen, lastModifiedDatasetKemandoran)
 
-            val requests = listOf(
-                DatasetRequest(estate = estateId, lastModified = null, dataset = "tph"),
-                DatasetRequest(estate = estateId, lastModified = null, dataset = "blok"),
-                DatasetRequest(estate = estateId, lastModified = null, dataset = "pemanen"),
-                DatasetRequest(estate = estateId, lastModified = null, dataset = "kemandoran"),
-            )
-//            AppLogger.d("Downloads: Created ${requests.size} download requests")
-
-            dialog.show()
-//            AppLogger.d("Downloads: Dialog shown")
-
-            datasetViewModel.downloadMultipleDatasets(requests)
-//            AppLogger.d("Downloads: Download requests sent to ViewModel")
+            if (filteredRequests.isNotEmpty()) {
+                dialog.show()
+                datasetViewModel.downloadMultipleDatasets(filteredRequests)
+            } else {
+                AppLogger.d("All datasets are up-to-date, no download needed.")
+            }
 
         } catch (e: NumberFormatException) {
             AppLogger.d("Downloads: Failed to parse Estate ID to integer: ${e.message}")
             showErrorDialog("Invalid Estate ID format: ${e.message}")
-            return
         }
     }
+
+    // Function to determine datasets that need downloading
+    private fun getDatasetsToDownload(
+        estateId: Int,
+        lastModifiedDatasetTPH: String?,
+        lastModifiedDatasetBlok: String?,
+        lastModifiedDatasetPemanen: String?,
+        lastModifiedDatasetKemandoran: String?
+    ): List<DatasetRequest> {
+        val datasets = listOf(
+            DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetTPH, dataset = "tph"),
+            DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetBlok, dataset = "blok"),
+            DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetPemanen, dataset = "pemanen"),
+            DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetKemandoran, dataset = "kemandoran")
+        )
+
+        return if (prefManager!!.isFirstTimeLaunch) {
+            datasets
+        } else {
+            datasets.filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
+        }
+    }
+
+
 
     private fun showErrorDialog(errorMessage: String) {
         AppLogger.d("Showing error dialog with message: $errorMessage")
@@ -299,7 +362,7 @@ class HomePageActivity : AppCompatActivity() {
             "warning.json",
             R.color.colorRedDark
         ) {
-            dialog.dismiss()  // Dismiss the download progress dialog
+//            dialog.dismiss()  // Dismiss the download progress dialog
         }
     }
 
@@ -359,7 +422,7 @@ class HomePageActivity : AppCompatActivity() {
                 permissionRequestCode
             )
         }else{
-
+            startDownloads()
         }
     }
 
@@ -383,7 +446,7 @@ class HomePageActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }else {
-
+                startDownloads()
             }
         }
     }
