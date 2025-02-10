@@ -16,14 +16,20 @@ abstract class TPHDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract fun insertAll(tph: List<TPHNewModel>)
 
-    @Query("DELETE FROM wilayah")
+    @Query("DELETE FROM tph")
     abstract fun deleteAll()
 
     @Transaction
-    open fun updateOrInsertTPH(tph: List<TPHNewModel>) {
-
+    open suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) {
+        val count = getCount()
+        if (count > 0) {
+            deleteAll()
+        }
         insertAll(tph)
     }
+
+    @Query("SELECT COUNT(*) FROM tph")
+    abstract suspend fun getCount(): Int
 
     @Query("""
         SELECT 

@@ -74,6 +74,7 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                 item.isStoring -> {
                     statusProgress.visibility = View.VISIBLE
                     statusProgress.text = "Storing ${item.dataset} to database..."
+                    statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
                     iconStatus.visibility = View.GONE
                     loadingCircular.visibility = View.VISIBLE
                     progressBar.isIndeterminate = true
@@ -81,6 +82,7 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                 item.isStoringCompleted -> {
                     statusProgress.visibility = View.VISIBLE
                     statusProgress.text = "Database successfully stored"
+                    statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
                     iconStatus.visibility = View.VISIBLE
                     iconStatus.setImageResource(R.drawable.baseline_check_24)
                     iconStatus.setColorFilter(ContextCompat.getColor(itemView.context, R.color.greendarkerbutton))
@@ -90,6 +92,7 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                 item.isExtracting -> {
                     statusProgress.visibility = View.VISIBLE
                     statusProgress.text = "Extracting ${item.dataset}..."
+                    statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
                     iconStatus.visibility = View.GONE
                     loadingCircular.visibility = View.VISIBLE
                     progressBar.isIndeterminate = true

@@ -19,10 +19,16 @@ abstract class KemandoranDao {
     abstract fun deleteAll()
 
     @Transaction
-    open fun updateOrInsertKemandoran(kemandoran: List<KemandoranModel>) {
-
+    open suspend fun updateOrInsertKemandoran(kemandoran: List<KemandoranModel>) {
+        val count = getCount()
+        if (count > 0) {
+            deleteAll()
+        }
         insertAll(kemandoran)
     }
+
+    @Query("SELECT COUNT(*) FROM kemandoran")
+    abstract suspend fun getCount(): Int
 
     @Query(
         """

@@ -11,6 +11,15 @@ class HomeViewModel : ViewModel() {
     private val _navigationEvent = MutableLiveData<FeatureCardEvent>()
     val navigationEvent: LiveData<FeatureCardEvent> = _navigationEvent
 
+    private val _startSinkronisasiData = MutableLiveData<Boolean>()
+    val startSinkronisasiData: LiveData<Boolean> get() = _startSinkronisasiData
+
+    fun triggerDownload() {
+        AppLogger.d("HomeViewModel: Triggering download event")
+        _startSinkronisasiData.value = true
+        AppLogger.d("HomeViewModel: Start download event value set")
+    }
+
     fun onFeatureCardClicked(feature: FeatureCard, context: Context) {
         when (feature.featureName) {
 
@@ -30,6 +39,11 @@ class HomeViewModel : ViewModel() {
                     _navigationEvent.value = FeatureCardEvent.NavigateToScanPanen(context, feature.featureName)
                 }
             }
+            "Sinkronisasi Data" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    _navigationEvent.value = FeatureCardEvent.SinkronisasiData(context, feature.featureName)
+                }
+            }
         }
     }
 }
@@ -38,4 +52,5 @@ sealed class FeatureCardEvent(val context: Context? = null, val featureName: Str
     class NavigateToPanenTBS(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
     class NavigateToListPanenTBS(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
     class NavigateToScanPanen(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
+    class SinkronisasiData(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
 }

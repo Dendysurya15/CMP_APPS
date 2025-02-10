@@ -19,9 +19,16 @@ abstract class BlokDao {
     abstract fun deleteAll()
 
     @Transaction
-    open fun updateOrInsertBlok(blok: List<BlokModel>) {
+    open suspend fun updateOrInsertBlok(blok: List<BlokModel>) {
+        val count = getCount()
+        if (count > 0) {
+            deleteAll()
+        }
         insertAll(blok)
     }
+
+    @Query("SELECT COUNT(*) FROM blok")
+    abstract suspend fun getCount(): Int
 
     @Query(
         """

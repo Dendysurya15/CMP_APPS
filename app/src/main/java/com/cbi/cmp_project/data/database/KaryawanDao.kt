@@ -15,14 +15,21 @@ abstract class KaryawanDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract fun insertAll(karyawan: List<KaryawanModel>)
 
-    @Query("DELETE FROM kemandoran")
+    @Query("DELETE FROM karyawan")
     abstract fun deleteAll()
 
     @Transaction
-    open fun updateOrInsertKaryawan(karyawan: List<KaryawanModel>) {
+    open suspend fun updateOrInsertKaryawan(karyawan: List<KaryawanModel>) {
 
+        val count = getCount()
+        if (count > 0) {
+            deleteAll()
+        }
         insertAll(karyawan)
     }
+
+    @Query("SELECT COUNT(*) FROM blok")
+    abstract suspend fun getCount(): Int
 
     @Query("SELECT * FROM karyawan WHERE nik IN (:filteredId)")
     abstract fun getKaryawanByCriteria(

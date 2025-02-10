@@ -2,6 +2,8 @@ package com.cbi.cmp_project.ui.view.ui.home
 
 import android.animation.ObjectAnimator
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.PorterDuff
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -13,10 +15,12 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -38,13 +42,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.cbi.cmp_project.ui.view.ScanQR
+import es.dmoral.toasty.Toasty
 
 
 class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private lateinit var featureAdapter: FeatureAdapter
-    private lateinit var homeViewModel: HomeViewModel
+    private val homeViewModel: HomeViewModel by activityViewModels()
     private lateinit var panenViewModel: PanenViewModel
     private lateinit var loadingDialog: LoadingDialog
 
@@ -56,7 +61,7 @@ class HomeFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        homeViewModel = ViewModelProvider(this).get(HomeViewModel::class.java)
+//        homeViewModel = ViewModelProvider(this).get(HomeViewModel::class.java)
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         val root: View = binding.root
         initViewModel()
@@ -173,6 +178,13 @@ class HomeFragment : Fragment() {
                         startActivity(intent)
                     }
                 }
+
+                is FeatureCardEvent.SinkronisasiData -> {
+                    event.context?.let {
+                        AppLogger.d("HomeFragment: Triggering download event")
+                        homeViewModel.triggerDownload()
+                    }
+                }
             }
         }
     }
@@ -246,6 +258,15 @@ class HomeFragment : Fragment() {
                 iconResource = R.drawable.cbi,
                 functionName = "Pemeriksaan Ancak",
                 functionDescription = "Buat Catatan Sidak Path anda disini!",
+                displayType = DisplayType.ICON
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.orange,
+                featureName = "Sinkronisasi Data",
+                featureNameBackgroundColor = R.color.borderOrange,
+                iconResource = R.drawable.baseline_refresh_24,
+                functionName = "Update Data",
+                functionDescription = "Fitur untuk melakukan sinkronisasi data master",
                 displayType = DisplayType.ICON
             )
         )
@@ -406,7 +427,10 @@ class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) : Recy
             DisplayType.ICON -> {
                 holder.iconFeature.visibility = View.VISIBLE
                 holder.countFeature.visibility = View.GONE
-                feature.iconResource?.let { holder.iconFeature.setImageResource(it) }
+                feature.iconResource?.let {
+                    holder.iconFeature.setImageResource(it)
+                    holder.iconFeature.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN) // Change color to white
+                }
             }
             DisplayType.COUNT -> {
                 holder.iconFeature.visibility = View.GONE

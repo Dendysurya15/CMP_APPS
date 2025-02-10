@@ -44,11 +44,12 @@
                 android:layout_weight="0.9">
                 <TextView
                     android:layout_width="wrap_content"
-                    android:layout_height="20dp"
+                    android:layout_height="wrap_content"
                     android:textColor="@color/black"
                     android:textStyle="bold"
                     android:id="@+id/tv_name_progress"
-                    android:textSize="14dp"/>
+                    android:fontFamily="@font/manrope_extrabold"
+                    android:textSize="19sp"/>
 
 
 
@@ -77,9 +78,10 @@
                         android:text="0%"
                         android:id="@+id/percentageProgressBarCard"
                         android:layout_weight="0.1"
+                        android:fontFamily="@font/manrope_bold"
                         android:gravity="center_vertical|center"
                         android:textStyle="italic"
-                        android:textSize="11dp"/>
+                        android:textSize="15sp"/>
                 </LinearLayout>
 
                 <androidx.constraintlayout.widget.ConstraintLayout
@@ -90,11 +92,12 @@
                         android:id="@+id/status_progress"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:maxLines="2"
+                        android:maxLines="3"
                         android:ellipsize="end"
                         android:gravity="center_vertical"
                         android:textColor="@color/black"
-                        android:textSize="11dp"
+                        android:textSize="17sp"
+                        android:fontFamily="@font/manrope_medium"
                         android:visibility="gone"
                         android:textStyle="italic"
                         app:layout_constraintStart_toStartOf="parent"

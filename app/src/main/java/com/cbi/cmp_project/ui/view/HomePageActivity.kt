@@ -44,6 +44,7 @@ import com.cbi.cmp_project.databinding.ActivityHomePageBinding
 import com.cbi.cmp_project.ui.adapter.DownloadItem
 import com.cbi.cmp_project.ui.adapter.DownloadProgressDatasetAdapter
 import com.cbi.cmp_project.ui.adapter.ProgressUploadAdapter
+import com.cbi.cmp_project.ui.view.ui.home.HomeViewModel
 import com.cbi.cmp_project.ui.viewModel.CameraViewModel
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.LocationViewModel
@@ -93,6 +94,7 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var binding: ActivityHomePageBinding
     private lateinit var loadingDialog: LoadingDialog
     private var prefManager: PrefManager? = null
+    private var isTriggerButton: Boolean = false
     private lateinit var dialog: Dialog
     data class ErrorResponse(
         val statusCode: Int,
@@ -115,7 +117,7 @@ class HomePageActivity : AppCompatActivity() {
     private var tphList: List<TPHNewModel>? = null
 
     private lateinit var datasetViewModel: DatasetViewModel
-
+    private lateinit var homeViewModel: HomeViewModel
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -136,7 +138,6 @@ class HomePageActivity : AppCompatActivity() {
         val navView: BottomNavigationView = binding.navView
         val navController = findNavController(R.id.nav_host_fragment_activity_home_page)
         navView.setupWithNavController(navController)
-        AppLogger.d("HomePage: Navigation setup completed")
     }
 
     private fun setupDownloadDialog() {
@@ -170,6 +171,7 @@ class HomePageActivity : AppCompatActivity() {
         val cancelDownloadDataset = view.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
         val containerDownloadDataset = view.findViewById<LinearLayout>(R.id.containerDownloadDataset)
         cancelDownloadDataset.setOnClickListener {
+            isTriggerButton = false
             dialog.dismiss()
         }
         retryDownloadDataset.setOnClickListener{
@@ -251,13 +253,13 @@ class HomePageActivity : AppCompatActivity() {
 
             adapter.updateItems(downloadItems)
 
-            val completedCount = downloadItems.count { it.isStoringCompleted || it.error != null }
+            val completedCount = downloadItems.count { it.isStoringCompleted || it.isUpToDate || it.error != null }
             AppLogger.d("Progress: $completedCount/${downloadItems.size} completed")
             counterTV.text = "$completedCount/${downloadItems.size}"
 
 
             if (downloadItems.all { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
-                containerDownloadDataset.visibility = View.VISIBLE
+
 
                 if (prefManager!!.isFirstTimeLaunch && downloadItems.any { it.isStoringCompleted || it.isUpToDate || it.error != null}) {
                     prefManager!!.isFirstTimeLaunch = false
@@ -265,25 +267,28 @@ class HomePageActivity : AppCompatActivity() {
                 }
 
                 if (downloadItems.any { it.error != null }) {
-
+                    containerDownloadDataset.visibility = View.VISIBLE
                     retryDownloadDataset.visibility = View.VISIBLE
                     cancelDownloadDataset.visibility = View.VISIBLE
 
                 }
                 else {
-                    var countdown =3
-                    closeStatement.visibility = View.VISIBLE
-                    val handler = Handler(Looper.getMainLooper())
+                    containerDownloadDataset.visibility = View.VISIBLE
+//                    var countdown =5
+//                    closeStatement.visibility = View.VISIBLE
+//                    val handler = Handler(Looper.getMainLooper())
+//
+//                    handler.postDelayed(object : Runnable {
+//                        override fun run() {
+//                            if (countdown > 0) {
+//                                closeStatement.text = "Dialog tertutup dalam $countdown detik"
+//                                countdown--
+//                                handler.postDelayed(this, 1000)
+//                            } else dialog.dismiss()
+//                        }
+//                    }, 0)
 
-                    handler.postDelayed(object : Runnable {
-                        override fun run() {
-                            if (countdown > 0) {
-                                closeStatement.text = "Dialog tertutup dalam $countdown detik"
-                                countdown--
-                                handler.postDelayed(this, 1000)
-                            } else dialog.dismiss()
-                        }
-                    }, 0)
+                    cancelDownloadDataset.visibility = View.VISIBLE
 
 
                 }
@@ -313,7 +318,15 @@ class HomePageActivity : AppCompatActivity() {
                 return
             }
 
-            val filteredRequests = getDatasetsToDownload(estateId, lastModifiedDatasetTPH, lastModifiedDatasetBlok, lastModifiedDatasetPemanen, lastModifiedDatasetKemandoran)
+            AppLogger.d(isTriggerButton.toString())
+            val filteredRequests = if (isTriggerButton) {
+
+                getDatasetsToDownload(estateId, lastModifiedDatasetTPH, lastModifiedDatasetBlok, lastModifiedDatasetPemanen, lastModifiedDatasetKemandoran)
+            } else {
+                AppLogger.d("xixidi")
+                getDatasetsToDownload(estateId, lastModifiedDatasetTPH, lastModifiedDatasetBlok, lastModifiedDatasetPemanen, lastModifiedDatasetKemandoran)
+                    .filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
+            }
 
             if (filteredRequests.isNotEmpty()) {
                 dialog.show()
@@ -322,13 +335,13 @@ class HomePageActivity : AppCompatActivity() {
                 AppLogger.d("All datasets are up-to-date, no download needed.")
             }
 
+
         } catch (e: NumberFormatException) {
             AppLogger.d("Downloads: Failed to parse Estate ID to integer: ${e.message}")
             showErrorDialog("Invalid Estate ID format: ${e.message}")
         }
     }
 
-    // Function to determine datasets that need downloading
     private fun getDatasetsToDownload(
         estateId: Int,
         lastModifiedDatasetTPH: String?,
@@ -336,18 +349,12 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedDatasetPemanen: String?,
         lastModifiedDatasetKemandoran: String?
     ): List<DatasetRequest> {
-        val datasets = listOf(
+        return listOf(
             DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetTPH, dataset = "tph"),
             DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetBlok, dataset = "blok"),
             DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetPemanen, dataset = "pemanen"),
             DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetKemandoran, dataset = "kemandoran")
         )
-
-        return if (prefManager!!.isFirstTimeLaunch) {
-            datasets
-        } else {
-            datasets.filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
-        }
     }
 
 
@@ -371,6 +378,14 @@ class HomePageActivity : AppCompatActivity() {
     private fun initViewModel() {
         val factory = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
+        homeViewModel = ViewModelProvider(this)[HomeViewModel::class.java]
+
+        homeViewModel.startSinkronisasiData.observe(this) { shouldStart ->
+            if (shouldStart) {
+                isTriggerButton = true
+                startDownloads()
+            }
+        }
     }
     private fun setupName(){
         val tvUserNameLogin = findViewById<TextView>(R.id.userNameLogin)

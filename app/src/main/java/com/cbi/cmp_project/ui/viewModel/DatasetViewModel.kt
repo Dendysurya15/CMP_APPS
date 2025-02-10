@@ -170,14 +170,14 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
-        fun updateOrInsertTPH(tph: List<TPHNewModel>) = viewModelScope.launch(Dispatchers.IO) {
-            try {
-                repository.updateOrInsertTPH(tph)
-                _tphStatus.value = Result.success(true)
-            } catch (e: Exception) {
-                _tphStatus.value = Result.failure(e)
-            }
+    fun updateOrInsertTPH(tph: List<TPHNewModel>) = viewModelScope.launch(Dispatchers.IO) {
+        try {
+            repository.updateOrInsertTPH(tph)
+            _tphStatus.value = Result.success(true)
+        } catch (e: Exception) {
+            _tphStatus.value = Result.failure(e)
         }
+    }
 
     suspend fun getDeptList(estateId: String): List<DeptModel> {
         return repository.getDeptByRegionalAndEstate(estateId)
