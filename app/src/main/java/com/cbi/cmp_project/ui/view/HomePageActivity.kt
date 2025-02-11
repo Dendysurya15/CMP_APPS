@@ -561,7 +561,7 @@ class HomePageActivity : AppCompatActivity() {
                     }
                     regionalJob.await()
 
-    // Wilayah
+                    // Wilayah
                     val wilayahJob = async {
                         jsonObject.optJSONArray("WilayahDB")?.let { array ->
                             val transformedArray = transformJsonArray(array, keyObject)

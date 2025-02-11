@@ -1,13 +1,15 @@
 package com.cbi.cmp_project.ui.adapter
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.databinding.TableItemRowBinding
-import com.cbi.cmp_project.utils.AppLogger
 import org.json.JSONException
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -31,6 +33,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     private var isSortAscending: Boolean? = null // null means no sorting applied
     private var selectAllState = false
 
+    private var featureName: String = ""
+    private var tphListScan: List<String> = emptyList()
+
     private var onSelectionChangeListener: ((Int) -> Unit)? = null
 
     data class ExtractedData(
@@ -39,9 +44,30 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         val tanggalText: String,
         val tphText: String,
         val searchableText: String,
+        val tphId: Int
     )
 
+    fun setFeatureAndScanned(feature: String, scannedResult: String) {
+        featureName = feature
+        Log.d("ListPanenTPHAdapterTest", "featureName: $featureName")
+
+        tphListScan = try {
+            val tphString = scannedResult
+                .removePrefix("""{"tph":"""")
+                .removeSuffix(""""}""")
+            tphString.split(";")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+        Log.d("ListPanenTPHAdapterTest", "tphListScan: $tphListScan")
+        notifyDataSetChanged() // Only call this if you need to refresh the views
+    }
+
+
     fun extractData(item: Map<String, Any>): ExtractedData {
+        Log.d("ListPanenTPHAdapterTest", "extractData: $item")
+        val tphId = item["tph_id"] as? String ?: "0"
         val blokName = item["blok_name"] as? String ?: "-"
         val noTPH = item["tph_name"] as? String ?: "-"
         val dateCreated = item["date_created"] as? String ?: "-"
@@ -53,8 +79,11 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             JSONObject()
         }
 
-        val totalJjg = jjgJson.optInt("TO", 0)
-
+        val totalJjg =   if (featureName=="Buat eSPB"){
+            jjgJson.optInt("KP", 0)
+        }else{
+            jjgJson.optInt("TO", 0) //diganti KP
+        }
 
         val formattedTime = try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
@@ -70,7 +99,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         val gradingText = "$totalJjg"
         val searchableText = "$blokText $noTPHText $gradingText $formattedTime"
 
-        return ExtractedData(gradingText, blokText, formattedTime,noTPHText, searchableText)
+        return ExtractedData(gradingText, blokText, formattedTime,noTPHText, searchableText, tphId.toInt())
     }
 
 
@@ -134,29 +163,42 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             archiveState: Int,
             onCheckedChange: (Boolean) -> Unit,
 //            checkboxEnabled: Boolean,
-            extractData: (Map<String, Any>) -> ExtractedData
+            extractData: (Map<String, Any>) -> ExtractedData,
+            featureName: String = "",
+            tphListScan: List<String> = emptyList()
         ) {
-
-
             val extractedData = extractData(data)
+            Log.d("ListPanenTPHAdapterTest", "bind: $extractedData")
             binding.tvItemBlok.text = extractedData.blokText
             binding.tvItemTPH.text = extractedData.tphText
             binding.tvItemGrading.text = extractedData.gradingText
             binding.tvItemJam.text = extractedData.tanggalText
 
-
             if (archiveState == 1) {
+                Log.d("ListPanenTPHAdapterTest", "archiveState == 1")
+
                 binding.checkBoxPanen.visibility = View.GONE
                 binding.numListTerupload.visibility = View.VISIBLE
                 binding.numListTerupload.text = "${adapterPosition + 1}."
             } else {
+                Log.d("ListPanenTPHAdapterTest", "archiveState == else")
                 binding.checkBoxPanen.visibility = View.VISIBLE
                 binding.numListTerupload.visibility = View.GONE
-                binding.checkBoxPanen.isChecked = isSelected
+                if (tphListScan.isNotEmpty()){
+                    Log.d("ListPanenTPHAdapterTest", "tphListScan.isNotEmpty()")
+                    tphListScan.forEach { scan ->
+                        Log.d("ListPanenTPHAdapterTest", "scan: $scan")
+                        Log.d("ListPanenTPHAdapterTest", "tphId: ${extractedData.tphId}")
+                        if (extractedData.tphId.toString() == scan) {
+                            Log.d("ListPanenTPHAdapterTest", "scan: COCOK")
+                            binding.checkBoxPanen.isChecked = true
+                            binding.checkBoxPanen.isEnabled = false
+                        }
+                    }
+                }
+//                binding.checkBoxPanen.isChecked = isSelected
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
-
                         onCheckedChange(isChecked)
-
                 }
             }
         }
@@ -222,7 +264,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 }
                 onSelectionChangeListener?.invoke(selectedItems.size)
             },
-            extractData = ::extractData // Pass the function reference
+            extractData = ::extractData, // Pass the function reference
+            featureName = featureName,
+            tphListScan = tphListScan
         )
     }
 

@@ -2,14 +2,13 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
+    android:id="@+id/clParentListPanen"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
-    tools:context=".ui.view.PanenTBS.ListPanenTBSActivity">
+    android:background="@color/white">
 
     <include
-            android:id="@+id/navbarPanenList"
+        android:id="@+id/navbarPanenList"
         layout="@layout/header_feature_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -103,7 +102,7 @@
         android:layout_marginHorizontal="10dp"
         android:visibility="gone"
         android:id="@+id/blok_section"
-        app:layout_constraintTop_toBottomOf="@id/navbar"
+        app:layout_constraintTop_toBottomOf="@id/navbarPanenList"
         tools:ignore="MissingConstraints">
 
         <TextView
@@ -184,7 +183,7 @@
         android:layout_marginHorizontal="10dp"
         android:layout_marginVertical="5dp"
         android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/search_section">
+        app:layout_constraintTop_toBottomOf="@id/total_section">
 
         <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -398,42 +397,35 @@
 
     </LinearLayout>
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
+    <!-- Floating Action Button -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnGenerateQRTPH"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/baseline_qr_code_scanner_24"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="30dp"
+        app:maxImageSize="30dp"
+        android:layout_marginRight="30dp"
+        app:backgroundTint="@color/bluedarklight"
+        app:tint="@color/white"
+        app:rippleColor="@color/bgLightOrange"
+        android:tooltipText="Generate QR TPH" />
 
-        <!-- Floating Action Button -->
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/btnGenerateQRTPH"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/baseline_qr_code_scanner_24"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginBottom="100dp"
-            app:maxImageSize="30dp"
-            android:layout_marginRight="40dp"
-            app:backgroundTint="@color/bluedarklight"
-            app:tint="@color/white"
-            app:rippleColor="@color/bgLightOrange"
-            android:tooltipText="Generate QR TPH" />
+    <com.leinardi.android.speeddial.SpeedDialView
+        android:id="@+id/dial_tph_list"
+        android:layout_width="wrap_content"
+        android:layout_marginRight="25dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/btnGenerateQRTPH"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:sdMainFabClosedBackgroundColor="@color/greenDarker"
+        app:sdMainFabClosedIconColor="@color/white"
+        app:sdMainFabOpenedSrc="@drawable/baseline_close_24"
+        app:sdMainFabClosedSrc="@drawable/list_solid"
+        app:sdMainFabOpenedBackgroundColor="@color/greenDarker" />
 
-        <com.leinardi.android.speeddial.SpeedDialView
-            android:id="@+id/dial_tph_list"
-            android:layout_width="wrap_content"
-            android:layout_marginRight="25dp"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            app:layout_constraintBottom_toTopOf="@id/btnGenerateQRTPH"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:sdMainFabClosedBackgroundColor="@color/greenDarker"
-            app:sdMainFabClosedIconColor="@color/white"
-            app:sdMainFabOpenedSrc="@drawable/baseline_close_24"
-            app:sdMainFabClosedSrc="@drawable/list_solid"
-            app:sdMainFabOpenedBackgroundColor="@color/greenDarker" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
