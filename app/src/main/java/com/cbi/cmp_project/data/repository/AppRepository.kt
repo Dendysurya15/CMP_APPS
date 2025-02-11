@@ -148,6 +148,24 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getActivePanenESPB(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
+        try {
+            val data = panenDao.getAllActivePanenESPBWithRelations()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getActivePanenRestan(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
+        try {
+            val data = panenDao.getAllAPanenRestan()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
 
     suspend fun getArchivedPanen(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
         try {

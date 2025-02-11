@@ -83,6 +83,30 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadActivePanenESPB() {
+        viewModelScope.launch {
+            repository.getActivePanenESPB()
+                .onSuccess { panenList ->
+                    _activePanenList.postValue(panenList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
+    fun loadActivePanenRestan() {
+        viewModelScope.launch {
+            repository.getActivePanenRestan()
+                .onSuccess { panenList ->
+                    _activePanenList.postValue(panenList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
     fun loadArchivedPanen() {
         viewModelScope.launch {
             repository.getArchivedPanen()

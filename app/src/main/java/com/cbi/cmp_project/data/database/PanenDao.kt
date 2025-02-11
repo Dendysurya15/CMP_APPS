@@ -65,8 +65,16 @@ abstract class PanenDao {
     abstract fun archiveByListID(id: List<Int>): Int
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE archive = 0 AND date(date_created) = date('now', 'localtime')")
+    @Query("SELECT * FROM panen_table WHERE archive = 0 AND date(date_created) = date('now', 'localtime') AND status_espb = 2")
     abstract fun getAllActiveWithRelations(): List<PanenEntityWithRelations>
+
+    @Transaction
+    @Query("SELECT * FROM panen_table WHERE archive = 0 AND status_espb = 0")
+    abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
+
+    @Transaction
+    @Query("SELECT * FROM panen_table")
+    abstract fun getAllAPanenRestan(): List<PanenEntityWithRelations>
 
 //    @Transaction
 //    open fun updateOrInsert(panen: List<PanenEntity>) {
