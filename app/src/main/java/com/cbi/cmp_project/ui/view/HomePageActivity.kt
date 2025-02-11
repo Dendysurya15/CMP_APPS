@@ -350,7 +350,7 @@ class HomePageActivity : AppCompatActivity() {
     ): List<DatasetRequest> {
         return listOf(
             DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetTPH, dataset = "tph"),
-            DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetBlok, dataset = "blok"),
+//            DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetBlok, dataset = "blok"),
             DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetPemanen, dataset = "pemanen"),
             DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetKemandoran, dataset = "kemandoran")
         )

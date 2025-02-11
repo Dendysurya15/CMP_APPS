@@ -15,7 +15,7 @@ android:layout_marginTop="10dp"
         android:text="Loading.."
         android:fontFamily="@font/manrope_semibold"
         android:id="@+id/tvTitleFormPanenTBS"
-        android:textSize="17dp"
+        android:textSize="20sp"
         android:gravity="center|left"
         tools:ignore="HardcodedText,RtlHardcoded"/>
 

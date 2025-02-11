@@ -86,12 +86,12 @@
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
                     <TextView
-                        android:layout_width="200dp"
+                        android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:fontFamily="@font/manrope_medium"
                         android:gravity="center|left"
                         android:text="@string/desc_informasi_blok"
-                        android:textSize="16sp"
+                        android:textSize="19sp"
                         android:textStyle="italic"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
@@ -189,13 +189,13 @@
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
                     <TextView
-                        android:layout_width="200dp"
+                        android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:fontFamily="@font/manrope_medium"
 
                         android:gravity="center|left"
                         android:text="@string/desc_data_grading"
-                        android:textSize="16sp"
+                        android:textSize="19sp"
                         android:textStyle="italic"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
@@ -267,7 +267,7 @@
                                     android:text="Hasil Perhitungan"
                                     android:textColor="@color/black"
                                     android:fontFamily="@font/manrope_bold"
-                                    android:textSize="20sp"
+                                    android:textSize="22sp"
                                     android:layout_weight="1" />
 
                                 <TextView
@@ -309,7 +309,7 @@
                                     android:layout_height="wrap_content"
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text="Dikirim ke Pabrik"
-                                    android:textSize="19sp"
+                                    android:textSize="21sp"
                                     app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterKirimPabrik"
                                     app:layout_constraintWidth_percent="0.5"
@@ -322,7 +322,7 @@
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text=": 0 buah"
                                     android:textColor="@color/black"
-                                    android:textSize="19sp"
+                                    android:textSize="21sp"
                                     app:layout_constraintStart_toEndOf="@id/tvDikirimPabrik"
                                     app:layout_constraintHorizontal_chainStyle="packed"
                                     tools:ignore="MissingConstraints" />
@@ -343,7 +343,7 @@
                                     android:layout_height="wrap_content"
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text="Janjang Dibayar"
-                                    android:textSize="19sp"
+                                    android:textSize="21sp"
                                     app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterTBSDibayar"
                                     app:layout_constraintWidth_percent="0.5"
@@ -356,7 +356,7 @@
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text=": 0 buah"
                                     android:textColor="@color/black"
-                                    android:textSize="19sp"
+                                    android:textSize="21sp"
                                     app:layout_constraintStart_toEndOf="@id/tvJanjangDibayar"
                                     app:layout_constraintHorizontal_chainStyle="packed"
                                     tools:ignore="MissingConstraints" />
@@ -378,7 +378,7 @@
                                     android:fontFamily="@font/manrope_bold"
                                     android:text="Total Janjang"
                                     android:textColor="@color/greenDefault"
-                                    android:textSize="19sp"
+                                    android:textSize="21sp"
                                     app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterBuahMasak"
                                     app:layout_constraintWidth_percent="0.5"
@@ -391,7 +391,7 @@
                                     android:fontFamily="@font/manrope_bold"
                                     android:text=": 0 buah"
                                     android:textColor="@color/greenDefault"
-                                    android:textSize="19sp"
+                                    android:textSize="21sp"
                                     app:layout_constraintStart_toEndOf="@id/tvTotalJjg"
                                     app:layout_constraintHorizontal_chainStyle="packed"
                                     tools:ignore="MissingConstraints" />
@@ -436,13 +436,13 @@
 
                     <TextView
 
-                        android:layout_width="200dp"
+                        android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:fontFamily="@font/manrope_medium"
                         android:gravity="center|left"
                         android:text="@string/desc_lampiran_foto"
 
-                        android:textSize="16sp"
+                        android:textSize="19sp"
                         android:textStyle="italic"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />

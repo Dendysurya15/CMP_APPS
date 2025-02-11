@@ -34,17 +34,12 @@ abstract class KemandoranDao {
         """
     SELECT * FROM kemandoran 
     WHERE dept = :idEstate 
-    AND (
-        (divisi IS NOT NULL AND divisi != '' AND divisi IN (:idDivisiArray))
-        OR 
-        (divisi IS NULL OR divisi = '') AND dept_abbr = :estateAbbr
-    )
+    AND divisi IN (:idDivisiArray)
     """
     )
     abstract fun getKemandoranByCriteria(
         idEstate: Int,
-        idDivisiArray: List<Int>,
-        estateAbbr: String
+        idDivisiArray: List<Int>
     ): List<KemandoranModel>
 
 }

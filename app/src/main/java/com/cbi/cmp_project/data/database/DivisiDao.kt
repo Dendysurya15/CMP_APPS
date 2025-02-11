@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import com.cbi.markertph.data.model.BlokModel
 import com.cbi.markertph.data.model.DeptModel
 import com.cbi.markertph.data.model.DivisiModel
 
@@ -23,7 +24,7 @@ abstract class DivisiDao {
         insertAll(divisi)
     }
 
-    @Query("SELECT * FROM divisi WHERE dept = :idEstate")
-    abstract fun getDivisiByCriteria(idEstate: Int): List<DivisiModel>
+//    @Query("SELECT * FROM blok WHERE dept = :idEstate GROUP BY divisi")
+//    abstract fun getDivisiByCriteria(idEstate: Int): List<BlokModel>
 
 }

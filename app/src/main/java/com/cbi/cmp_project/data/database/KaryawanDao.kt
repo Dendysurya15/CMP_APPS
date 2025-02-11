@@ -31,8 +31,8 @@ abstract class KaryawanDao {
     @Query("SELECT COUNT(*) FROM blok")
     abstract suspend fun getCount(): Int
 
-    @Query("SELECT * FROM karyawan WHERE nik IN (:filteredId)")
+    @Query("SELECT * FROM karyawan WHERE kemandoran_id = :filteredId")
     abstract fun getKaryawanByCriteria(
-        filteredId: Array<String>
+        filteredId: Int
     ): List<KaryawanModel>
 }

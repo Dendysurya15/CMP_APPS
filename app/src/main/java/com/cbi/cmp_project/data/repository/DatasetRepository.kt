@@ -49,27 +49,27 @@ class DatasetRepository(context: Context,  private val apiService: ApiService = 
         return deptDao.getDeptByCriteria(estateId)
     }
 
-    suspend fun getDivisiList( idEstate: Int): List<DivisiModel> {
-        return divisiDao.getDivisiByCriteria(idEstate)
+    suspend fun getDivisiList( idEstate: Int): List<TPHNewModel> {
+        return tphDao.getDivisiByCriteria(idEstate)
     }
 
-    suspend fun getBlokList( idRegional :Int,idEstate: Int, idDivisi:Int, estateAbbr :String): List<BlokModel> {
-        return blokDao.getBlokByCriteria(idRegional,idEstate, idDivisi, estateAbbr)
+    suspend fun getBlokList( idEstate: Int, idDivisi:Int): List<TPHNewModel> {
+        return tphDao.getBlokByCriteria(idEstate, idDivisi)
     }
 
-    suspend fun getKemandoranList(idEstate: Int, idDivisiArray: List<Int>, estateAbbr: String): List<KemandoranModel> {
-        return kemandoranDao.getKemandoranByCriteria(idEstate, idDivisiArray, estateAbbr)
+    suspend fun getKemandoranList(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
+        return kemandoranDao.getKemandoranByCriteria(idEstate, idDivisiArray)
     }
 
-    suspend fun getTPHList(idRegional:Int, idEstate: Int, idDivisi:Int, estateAbbr :String,tahunTanam : String,  idBlok :Int): List<TPHNewModel> {
-        return tphDao.getTPHByCriteria(idRegional, idEstate, idDivisi, estateAbbr,tahunTanam, idBlok)
+    suspend fun getTPHList(idEstate: Int, idDivisi:Int, tahunTanam : String,  idBlok :Int): List<TPHNewModel> {
+        return tphDao.getTPHByCriteria(idEstate, idDivisi, tahunTanam, idBlok)
     }
 
     suspend fun getKemandoranDetailList(idHeader:Int): List<KemandoranDetailModel> {
         return kemandoranDetailDao.getKemandoranDetailListByCriteria(idHeader)
     }
 
-    suspend fun getKaryawanList(filteredId: Array<String>): List<KaryawanModel> {
+    suspend fun getKaryawanList(filteredId:Int): List<KaryawanModel> {
         return karyawanDao.getKaryawanByCriteria(filteredId)
     }
 

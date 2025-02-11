@@ -42,8 +42,11 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     )
 
     fun extractData(item: Map<String, Any>): ExtractedData {
+
+
+        AppLogger.d(item.toString())
         val blokName = item["blok_name"] as? String ?: "-"
-        val noTPH = item["tph_name"] as? String ?: "-"
+        val noTPH = item["nomor"] as? String ?: "-"
         val dateCreated = item["date_created"] as? String ?: "-"
 
         val jjgJsonString = item["jjg_json"] as? String ?: "{}"

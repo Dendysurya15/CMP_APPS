@@ -194,9 +194,14 @@ class HomeFragment : Fragment() {
 
                 is FeatureCardEvent.SinkronisasiData -> {
                     event.context?.let {
-                        AppLogger.d("HomeFragment: Checking if download trigger is needed")
+                        // Safer null checking
 
-                        if (homeViewModel.startSinkronisasiData.value != true) { // Prevent duplicate trigger
+                        AppLogger.d("askldflskdf")
+
+
+                        val currentValue = homeViewModel.startSinkronisasiData.value
+                        AppLogger.d(currentValue.toString())
+                        if (currentValue == null || !currentValue) {
                             homeViewModel.triggerDownload()
                         }
                     }

@@ -475,9 +475,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             mapOf<String, Any>(
                                 "id" to (panenWithRelations.panen.id as Any),
                                 "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                "tph_name" to (panenWithRelations.tphWithBlok?.tph?.nomor ?: "-") as Any,
-                                "blok_name" to (panenWithRelations.tphWithBlok?.block?.kode ?: "-") as Any,
                                 "date_created" to (panenWithRelations.panen.date_created as Any),
+                                "blok_name" to (panenWithRelations.tph?.blok_kode ?: "Unknown"), // Handle null safely
+                                "nomor" to (panenWithRelations.tph!!.nomor as Any),
                                 "created_by" to (panenWithRelations.panen.created_by as Any),
                                 "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
                                 "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
@@ -492,6 +492,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             )
                         }
 
+
+                        AppLogger.d(mappedData.toString())
                         val distinctBlokNames = mappedData
                             .map { it["blok_name"].toString() }
                             .distinct()
@@ -551,8 +553,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             mapOf<String, Any>(
                                 "id" to (panenWithRelations.panen.id as Any),
                                 "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                "tph_name" to (panenWithRelations.tphWithBlok?.tph?.nomor ?: "-") as Any,
-                                "blok_name" to (panenWithRelations.tphWithBlok?.block?.kode ?: "-") as Any,
+                                "blok_name" to (panenWithRelations.tph!!.blok_nama as Any),
+                                "nomor" to (panenWithRelations.tph!!.nomor as Any),
                                 "date_created" to (panenWithRelations.panen.date_created as Any),
                                 "created_by" to (panenWithRelations.panen.created_by as Any),
                                 "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
@@ -747,25 +749,79 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
+    private fun handleDelete(selectedItems: List<Map<String, Any>>) {
+        this.vibrate()
+        AlertDialogUtility.withTwoActions(
+            this,
+            getString(R.string.al_delete),
+            getString(R.string.confirmation_dialog_title),
+            "${getString(R.string.al_make_sure_delete)} ${selectedItems.size} data?",
+            "warning.json",
+            ContextCompat.getColor(this, R.color.colorRedDark)
+        ) {
+            loadingDialog.show()
+            loadingDialog.setMessage("Deleting items...")
+
+            panenViewModel.deleteMultipleItems(selectedItems)
+
+            // Observe delete result
+            panenViewModel.deleteItemsResult.observe(this) { isSuccess ->
+                loadingDialog.dismiss()
+                if (isSuccess) {
+                    Toast.makeText(
+                        this,
+                        "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    // Reload data based on current state
+                    if (currentState == 0) {
+                        panenViewModel.loadActivePanen()
+                    } else {
+                        panenViewModel.loadArchivedPanen()
+                    }
+                } else {
+                    Toast.makeText(
+                        this,
+                        "${getString(R.string.al_failed_delete)} data",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                // Reset UI state
+                val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                    .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                headerCheckBox.isChecked = false
+                listAdapter.clearSelections()
+                speedDial.visibility = View.GONE
+            }
+
+            // Observe errors
+            panenViewModel.error.observe(this) { errorMessage ->
+                loadingDialog.dismiss()
+                Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
 
     private fun setupSpeedDial() {
         speedDial = findViewById(R.id.dial_tph_list)
 
         speedDial.apply {
-            addActionItem(
-                SpeedDialActionItem.Builder(R.id.scan_qr, R.drawable.baseline_qr_code_scanner_24)
-                    .setLabel(getString(R.string.generate_qr))
-                    .setFabBackgroundColor(
-                        ContextCompat.getColor(
-                            this@ListPanenTBSActivity,
-                            R.color.yellowbutton
-                        )
-                    )
-                    .create()
-            )
+//            addActionItem(
+//                SpeedDialActionItem.Builder(R.id.scan_qr, R.drawable.baseline_qr_code_scanner_24)
+//                    .setLabel(getString(R.string.generate_qr))
+//                    .setFabBackgroundColor(
+//                        ContextCompat.getColor(
+//                            this@ListPanenTBSActivity,
+//                            R.color.yellowbutton
+//                        )
+//                    )
+//                    .create()
+//            )
 
             addActionItem(
-                SpeedDialActionItem.Builder(R.id.uploadSelected, R.drawable.baseline_file_upload_24)
+                SpeedDialActionItem.Builder(R.id.deleteSelected, R.drawable.baseline_delete_forever_24)
                     .setLabel(getString(R.string.dial_upload_item))
                     .setFabBackgroundColor(
                         ContextCompat.getColor(
@@ -781,35 +837,35 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setOnActionSelectedListener { actionItem ->
                 when (actionItem.id) {
                     R.id.scan_qr -> {
-                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
-
-                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
-
-                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
-                        dialog.setContentView(view)
-//                        view.layoutParams.height = 500.toPx()
-
-                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-                        val data = "test"
-                        generateHighQualityQRCode(data, qrCodeImageView)
-                        dialog.setOnShowListener {
-                            val bottomSheet =
-                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
-                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
-                        }
-                        dialog.show()
+//                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
+//
+//                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
+//
+//                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
+//                        dialog.setContentView(view)
+////                        view.layoutParams.height = 500.toPx()
+//
+//                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
+//                        val data = "test"
+//                        generateHighQualityQRCode(data, qrCodeImageView)
+//                        dialog.setOnShowListener {
+//                            val bottomSheet =
+//                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+//                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
+//                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+//                        }
+//                        dialog.show()
                         true
                     }
 //                    R.id.cancelSelection -> {
 //                        listAdapter.clearSelections()
 //                        true
 //                    }
-//                    R.id.deleteSelected -> {
-//                        val selectedItems = listAdapter.getSelectedItems()
-////                        handleDelete(selectedItems)
-//                        true
-//                    }
+                    R.id.deleteSelected -> {
+                        val selectedItems = listAdapter.getSelectedItems()
+                        handleDelete(selectedItems)
+                        true
+                    }
                     R.id.uploadSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()
 
@@ -930,7 +986,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
         val userSection = findViewById<TextView>(R.id.userSection)
         val locationSection = findViewById<LinearLayout>(R.id.locationSection)
-        locationSection.visibility = View.VISIBLE
+        locationSection.visibility = View.GONE
 
         AppUtils.setupUserHeader(
             userName = userName,

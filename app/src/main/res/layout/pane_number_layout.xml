@@ -23,7 +23,7 @@
             android:layout_width="130dp"
             android:layout_height="wrap_content"
             android:text="Loading..."
-            android:textSize="17dp"
+            android:textSize="20sp"
             android:fontFamily="@font/manrope_semibold"
             android:id="@+id/tvNumberPanen"
             android:ellipsize="end"
@@ -36,14 +36,16 @@
             android:layout_height="wrap_content"
             android:gravity="center|left"
             android:layout_marginLeft="10dp"
-            android:textSize="17dp"
+            android:textSize="25sp"
             android:fontFamily="@font/manrope_regular"
             android:id="@+id/etNumber"
             android:inputType="number"
             android:selectAllOnFocus="true"
             android:hint="0"
+            android:textColorHint="@color/black"
             android:textColor="@color/black"
             android:textColorHighlight="@color/greenDarkerLight"/>
+
 
         <TextView
             android:layout_width="wrap_content"

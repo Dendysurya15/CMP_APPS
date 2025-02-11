@@ -48,6 +48,13 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var idUserLogin: Int?
+        get() = pref.getInt("idUserLogin", 0)
+        set(idUserLogin) {
+            editor.putInt("idUserLogin", idUserLogin!!)
+            editor.commit()
+        }
+
     var jabatanUserLogin: String?
         get() = pref.getString("jabatanUserLogin", "")
         set(jabatanUserLogin) {
@@ -59,6 +66,13 @@ class PrefManager(_context: Context) {
         get() = pref.getString("estateUserLogin", "")
         set(estateUserLogin) {
             editor.putString("estateUserLogin", estateUserLogin)
+            editor.commit()
+        }
+
+    var estateUserLengkapLogin: String?
+        get() = pref.getString("estateUserLengkapLogin", "")
+        set(estateUserLengkapLogin) {
+            editor.putString("estateUserLengkapLogin", estateUserLengkapLogin)
             editor.commit()
         }
 

@@ -183,43 +183,39 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return repository.getDeptByRegionalAndEstate(estateId)
     }
 
-    suspend fun getDivisiList(idEstate: Int): List<DivisiModel> {
+    suspend fun getDivisiList(idEstate: Int): List<TPHNewModel> {
         return repository.getDivisiList(idEstate)
     }
 
     suspend fun getBlokList(
-        idRegional: Int,
         idEstate: Int,
         idDivisi: Int,
-        estateAbbr: String
-    ): List<BlokModel> {
-        return repository.getBlokList(idRegional, idEstate, idDivisi, estateAbbr)
+    ): List<TPHNewModel> {
+        return repository.getBlokList( idEstate, idDivisi)
     }
 
     suspend fun getKemandoranList(
         idEstate: Int,
-        idDivisiArray: List<Int>,
-        estateAbbr: String
+        idDivisiArray: List<Int>
     ): List<KemandoranModel> {
-        return repository.getKemandoranList(idEstate, idDivisiArray, estateAbbr)
+        return repository.getKemandoranList(idEstate, idDivisiArray)
     }
 
     suspend fun getTPHList(
-        idRegional: Int,
+
         idEstate: Int,
         idDivisi: Int,
-        estateAbbr: String,
         tahunTanam: String,
         idBlok: Int
     ): List<TPHNewModel> {
-        return repository.getTPHList(idRegional, idEstate, idDivisi, estateAbbr, tahunTanam, idBlok)
+        return repository.getTPHList( idEstate, idDivisi, tahunTanam, idBlok)
     }
 
     suspend fun getKemandoranDetailList(idHeader: Int): List<KemandoranDetailModel> {
         return repository.getKemandoranDetailList(idHeader)
     }
 
-    suspend fun getKaryawanList(filteredId: Array<String>): List<KaryawanModel> {
+    suspend fun getKaryawanList(filteredId: Int): List<KaryawanModel> {
         return repository.getKaryawanList(filteredId)
     }
 

@@ -42,6 +42,7 @@ data class BlokModel (
     val dept_ppro:String?,
     val dept_abbr:String?,
     val divisi:Int?,
+    val divisi_abbr:String?,
     val divisi_ppro:Int?,
     val nama:String?,
     val kode:String?,

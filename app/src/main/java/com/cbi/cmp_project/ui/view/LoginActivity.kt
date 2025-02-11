@@ -119,8 +119,10 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.username = usernameField.text.toString().trim()
                         prefManager!!.password = passwordField.text.toString().trim()
                         prefManager!!.nameUserLogin = loginResponse.data?.user?.nama
+                        prefManager!!.idUserLogin = loginResponse.data?.user?.id!!
                         prefManager!!.jabatanUserLogin = loginResponse.data?.user?.jabatan
                         prefManager!!.estateUserLogin = loginResponse.data?.user?.dept_abbr
+                        prefManager!!.estateUserLengkapLogin = loginResponse.data?.user?.dept_nama
                         prefManager!!.estateIdUserLogin = loginResponse.data?.user?.dept_id
                         prefManager!!.regionalIdUserLogin = loginResponse.data?.user?.regional
 
@@ -191,7 +193,6 @@ class LoginActivity : AppCompatActivity() {
             val usernameInputLayout = findViewById<TextInputLayout>(R.id.etUsernameLayout)
             val passwordInputLayout = findViewById<TextInputLayout>(R.id.etPasswordLayout)
 
-            // Reset both layouts to their default state
             usernameInputLayout.error = null
             usernameInputLayout.isErrorEnabled = false
             passwordInputLayout.error = null
@@ -279,11 +280,6 @@ class LoginActivity : AppCompatActivity() {
         val usernameField = findViewById<EditText>(R.id.usernameInput)
         val passwordField = findViewById<EditText>(R.id.passwordInput)
 
-
-
-//        AppLogger.d(prefManager!!.username.toString())
-//        AppLogger.d(prefManager!!.password.toString())
-//        AppLogger.d(prefManager!!.rememberLogin.toString())
         if (prefManager!!.rememberLogin) {
             checkRememberMe.isChecked = true
             if (prefManager!!.username.toString().isNotEmpty() && prefManager!!.password.toString()
@@ -304,15 +300,18 @@ class LoginActivity : AppCompatActivity() {
     private fun navigateToHomePage() {
         val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
         if (!checkRememberMe.isChecked){
-            prefManager!!.isFirstTimeLaunch = false
-            prefManager!!.token = ""
-            prefManager!!.nameUserLogin = ""
+//            prefManager!!.isFirstTimeLaunch = false
+//            prefManager!!.token = ""
+//            prefManager!!.idUserLogin = 0
+//            prefManager!!.nameUserLogin = ""
             prefManager!!.username = ""
             prefManager!!.password = ""
-            prefManager!!.jabatanUserLogin = ""
-            prefManager!!.estateUserLogin = ""
-            prefManager!!.estateIdUserLogin = ""
-            prefManager!!.regionalIdUserLogin = ""
+            prefManager!!.rememberLogin = false
+//            prefManager!!.jabatanUserLogin = ""
+//            prefManager!!.estateUserLogin = ""
+//            prefManager!!.estateUserLengkapLogin = ""
+//            prefManager!!.estateIdUserLogin = ""
+//            prefManager!!.regionalIdUserLogin = ""
         }
         startActivity(Intent(this, HomePageActivity::class.java))
         finish()
