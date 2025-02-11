@@ -328,28 +328,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                 dialog.show()
 
-                lifecycleScope.launch(Dispatchers.Default) {
-                    delay(1500)
-                    try {
-                        val dataQR: TextView? = view.findViewById(R.id.dataQR)
-                        val dataQRTitle: TextView? = view.findViewById(R.id.dataQRTitle)
-
-
-                        val qrText = mappedData.joinToString("•", prefix = "•") { panen ->
-                            val blokName = panen["blok_name"] ?: "-"
-                            val tphName = panen["tph_name"] ?: "-"
-                            val jjgJson = panen["jjg_json"] as? String ?: "{}"
-
-                            // Parse the jjg_json and extract the "TO" value
-                            val toValue = try {
-                                val json = JSONObject(jjgJson)
-                                json.optInt("TO", 0) // Default to 0 if "TO" key is missing
-                            } catch (e: Exception) {
-                                0 // Default to 0 if parsing fails
-                            }
-
-                            " Blok $blokName TPH $tphName ($toValue Jjg)\n"
-                        }
+            lifecycleScope.launch(Dispatchers.Default) {
+                delay(1000)
+                try {
+                    val dataQR: TextView? = view.findViewById(R.id.dataQR)
 
 
                         val jsonData = formatPanenDataForQR(mappedData)
@@ -375,17 +357,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 qrCodeImageView.alpha = 0f
                                 dashedLine.alpha = 0f
 
-                                // Create fade-in animation for QR code and dashed line
-                                val fadeIn =
-                                    ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f).apply {
-                                        duration = 250
-                                        startDelay = 150
-                                    }
-                                val fadeInDashed =
-                                    ObjectAnimator.ofFloat(dashedLine, "alpha", 0f, 1f).apply {
-                                        duration = 250
-                                        startDelay = 150
-                                    }
+                            // Create fade-in animation for QR code and dashed line
+                            val fadeIn = ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f).apply {
+                                duration = 250
+                                startDelay = 150
+                            }
+
+                            tvTitleQRGenerate.alpha = 0f  // Ensure title starts invisible
+                            val fadeInTitle = ObjectAnimator.ofFloat(tvTitleQRGenerate, "alpha", 0f, 1f).apply {
+                                duration = 250
+                                startDelay = 150
+                            }
+
 
                                 // Create fade-in for the dataQR text as well
                                 val fadeInText =
@@ -403,33 +386,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             loadingLogo.visibility = View.GONE
                                             loadingContainer.visibility = View.GONE
 
-                                            // Update the QR code text and show the QR code and dashed line
-                                            dataQR?.text = qrText
-                                            val scrollViewDataQRTPH =
-                                                view.findViewById<ScrollView>(R.id.scrollViewDataQRTPH)
-                                            scrollViewDataQRTPH.visibility = View.VISIBLE
-                                            scrollViewDataQRTPH.viewTreeObserver.addOnGlobalLayoutListener {
-                                                val maxHeight =
-                                                    300 // Adjust this to your needs (in pixels)
-                                                if (scrollViewDataQRTPH.height > maxHeight) {
-                                                    scrollViewDataQRTPH.layoutParams.height =
-                                                        maxHeight
-                                                    scrollViewDataQRTPH.requestLayout()
-                                                }
-                                            }
+                                        tvTitleQRGenerate.visibility = View.VISIBLE
+                                        qrCodeImageView.visibility = View.VISIBLE
 
-                                            qrCodeImageView.visibility = View.VISIBLE
-                                            dashedLine.visibility = View.VISIBLE
-                                            dataQRTitle?.visibility = View.VISIBLE
+                                        fadeIn.start()
+                                        fadeInText.start()
+                                        fadeInTitle.start()
 
-                                            // Start the fade-in animation for QR code, dashed line, and text
-                                            fadeIn.start()
-                                            fadeInDashed.start()
-                                            fadeInText.start()
-                                        }
-                                    })
-                                    start()
-                                }
+                                    }
+                                })
+                                start()
+                            }
 
                             } catch (e: Exception) {
                                 loadingLogo.animation?.cancel()
@@ -787,16 +754,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
         try {
             // Create encoding hints for better quality
             val hints = hashMapOf<EncodeHintType, Any>().apply {
-                put(
-                    EncodeHintType.ERROR_CORRECTION,
-                    ErrorCorrectionLevel.H
-                ) // Highest error correction
-                put(EncodeHintType.MARGIN, 2) // Margin size
+                put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M) // Change to M for balance
+                put(EncodeHintType.MARGIN, 1) // Smaller margin
                 put(EncodeHintType.CHARACTER_SET, "UTF-8")
-                put(
-                    EncodeHintType.QR_VERSION,
-                    8
-                ) // Larger QR version for more data and better quality
+                // Remove fixed QR version to allow automatic scaling
             }
 
             // Create QR code writer with hints
