@@ -5,7 +5,23 @@ import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.cbi.cmp_project.ui.viewModel.SingleLiveEvent
 import com.cbi.cmp_project.utils.AppLogger
+
+class EventWrapper<out T>(private val content: T) {
+    private var hasBeenHandled = false
+
+    fun getContentIfNotHandled(): T? {
+        return if (hasBeenHandled) {
+            null
+        } else {
+            hasBeenHandled = true
+            content
+        }
+    }
+}
+
+
 
 class HomeViewModel : ViewModel() {
     private val _navigationEvent = MutableLiveData<FeatureCardEvent>()
@@ -14,11 +30,29 @@ class HomeViewModel : ViewModel() {
     private val _startSinkronisasiData = MutableLiveData<Boolean>()
     val startSinkronisasiData: LiveData<Boolean> get() = _startSinkronisasiData
 
+    private var isTriggered = false // Prevent re-triggering
+
     fun triggerDownload() {
-        AppLogger.d("HomeViewModel: Triggering download event")
-        _startSinkronisasiData.value = true
-        AppLogger.d("HomeViewModel: Start download event value set")
+        if (!isTriggered) {
+            isTriggered = true
+            _startSinkronisasiData.value = true
+            AppLogger.d("HomeViewModel: Download triggered")
+        }
     }
+
+    fun resetTrigger() {
+        isTriggered = false // Allow triggering again when needed
+    }
+
+//    fun clearDownloadTrigger() {
+//
+//
+//
+//        _startSinkronisasiData.value = false // Reset event after handling
+//
+//        AppLogger.d( _startSinkronisasiData.value.toString())
+//    }
+
 
     fun onFeatureCardClicked(feature: FeatureCard, context: Context) {
         when (feature.featureName) {

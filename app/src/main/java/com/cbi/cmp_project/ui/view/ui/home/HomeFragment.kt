@@ -42,6 +42,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.cbi.cmp_project.ui.view.ScanQR
+import com.cbi.cmp_project.utils.PrefManager
 import es.dmoral.toasty.Toasty
 
 
@@ -50,8 +51,8 @@ class HomeFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var featureAdapter: FeatureAdapter
     private val homeViewModel: HomeViewModel by activityViewModels()
+    private var prefManager: PrefManager? = null
     private lateinit var panenViewModel: PanenViewModel
-    private lateinit var loadingDialog: LoadingDialog
 
     private var countPanenTPH: Int = 0  // Global variable for count
     private var countPanenTPHApproval: Int = 0  // Global variable for count
@@ -61,18 +62,30 @@ class HomeFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-//        homeViewModel = ViewModelProvider(this).get(HomeViewModel::class.java)
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         val root: View = binding.root
+        prefManager = PrefManager(requireContext())
         initViewModel()
         setupRecyclerView()
-
+        setupName()
         observeViewModel()
         handleOnBackPressed()
         return root
 
 
     }
+
+    private fun setupName() {
+        val userName = prefManager!!.nameUserLogin ?: "Unknown"
+        val jobTitle = "${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
+
+        binding.userNameLogin.text = userName
+        binding.jabatanUserLogin.text = jobTitle
+
+        val initials = userName.split(" ").take(2).joinToString("") { it.take(1).uppercase() }
+        binding.initalName.text = initials
+    }
+
 
     private fun initViewModel() {
         val factory = PanenViewModel.PanenViewModelFactory(requireActivity().application)
@@ -181,10 +194,14 @@ class HomeFragment : Fragment() {
 
                 is FeatureCardEvent.SinkronisasiData -> {
                     event.context?.let {
-                        AppLogger.d("HomeFragment: Triggering download event")
-                        homeViewModel.triggerDownload()
+                        AppLogger.d("HomeFragment: Checking if download trigger is needed")
+
+                        if (homeViewModel.startSinkronisasiData.value != true) { // Prevent duplicate trigger
+                            homeViewModel.triggerDownload()
+                        }
                     }
                 }
+
             }
         }
     }
@@ -264,7 +281,7 @@ class HomeFragment : Fragment() {
                 cardBackgroundColor = R.color.orange,
                 featureName = "Sinkronisasi Data",
                 featureNameBackgroundColor = R.color.borderOrange,
-                iconResource = R.drawable.baseline_refresh_24,
+                iconResource = R.drawable.rotate_solid,
                 functionName = "Update Data",
                 functionDescription = "Fitur untuk melakukan sinkronisasi data master",
                 displayType = DisplayType.ICON

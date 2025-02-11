@@ -94,7 +94,7 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var binding: ActivityHomePageBinding
     private lateinit var loadingDialog: LoadingDialog
     private var prefManager: PrefManager? = null
-    private var isTriggerButton: Boolean = false
+    private var isTriggerButtonSinkronisasiData: Boolean = false
     private lateinit var dialog: Dialog
     data class ErrorResponse(
         val statusCode: Int,
@@ -130,7 +130,6 @@ class HomePageActivity : AppCompatActivity() {
 
         loadingDialog = LoadingDialog(this)
         initViewModel()
-        setupName()
         setupDownloadDialog()
         checkPermissions()
 
@@ -171,7 +170,7 @@ class HomePageActivity : AppCompatActivity() {
         val cancelDownloadDataset = view.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
         val containerDownloadDataset = view.findViewById<LinearLayout>(R.id.containerDownloadDataset)
         cancelDownloadDataset.setOnClickListener {
-            isTriggerButton = false
+            isTriggerButtonSinkronisasiData = false
             dialog.dismiss()
         }
         retryDownloadDataset.setOnClickListener{
@@ -318,8 +317,8 @@ class HomePageActivity : AppCompatActivity() {
                 return
             }
 
-            AppLogger.d(isTriggerButton.toString())
-            val filteredRequests = if (isTriggerButton) {
+            AppLogger.d(isTriggerButtonSinkronisasiData.toString())
+            val filteredRequests = if (isTriggerButtonSinkronisasiData) {
 
                 getDatasetsToDownload(estateId, lastModifiedDatasetTPH, lastModifiedDatasetBlok, lastModifiedDatasetPemanen, lastModifiedDatasetKemandoran)
             } else {
@@ -382,31 +381,13 @@ class HomePageActivity : AppCompatActivity() {
 
         homeViewModel.startSinkronisasiData.observe(this) { shouldStart ->
             if (shouldStart) {
-                isTriggerButton = true
+                isTriggerButtonSinkronisasiData = true
                 startDownloads()
+                homeViewModel.resetTrigger() // Reset flag after handling
             }
         }
     }
-    private fun setupName(){
-        val tvUserNameLogin = findViewById<TextView>(R.id.userNameLogin)
-        tvUserNameLogin.text = prefManager!!.nameUserLogin
 
-        val jabatanUserLogin = findViewById<TextView>(R.id.jabatanUserLogin)
-        jabatanUserLogin.text = "${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
-
-        val fullName = prefManager!!.nameUserLogin!!.trim()
-        val nameParts = fullName.split(" ")
-
-        val initials = when (nameParts.size) {
-            0 -> "" // No name provided
-            1 -> nameParts[0].take(1).uppercase() // Only one name, take the first letter
-            else -> (nameParts[0].take(1) + nameParts[1].take(1)).uppercase() // Take first letter from first two names
-        }
-
-        val initalName = findViewById<TextView>(R.id.initalName)
-        initalName.text = initials
-
-    }
 
     private fun checkPermissions() {
         val permissionsToRequest = mutableListOf<String>()
@@ -440,6 +421,8 @@ class HomePageActivity : AppCompatActivity() {
             startDownloads()
         }
     }
+
+
 
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray

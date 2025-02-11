@@ -11,4 +11,10 @@
         <item name="android:textStyle">italic</item> <!-- Change the color if needed -->
     </style>
 
+    <style name="CustomBottomNavStyle" parent="Widget.MaterialComponents.BottomNavigationView">
+        <item name="android:minHeight">70dp</item>
+        <item name="android:background">@color/white</item>
+    </style>
+
+
 </resources>
