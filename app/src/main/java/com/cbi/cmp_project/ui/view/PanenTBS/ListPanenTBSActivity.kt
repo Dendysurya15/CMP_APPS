@@ -120,7 +120,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
         prefManager = PrefManager(this)
         userName = prefManager!!.nameUserLogin
-        estateName = prefManager!!.getEstateUserLogin("estate_name")
+        estateName = prefManager!!.estateUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
         setupHeader()
         initViewModel()
@@ -332,6 +332,27 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 delay(1000)
                 try {
                     val dataQR: TextView? = view.findViewById(R.id.dataQR)
+                    val dataQRTitle: TextView? = view.findViewById(R.id.dataQRTitle)
+
+
+
+                    val qrText = mappedData.joinToString("•", prefix = "•") { panen ->
+                        val blokName = panen["blok_name"] ?: "-"
+                        val tphName = panen["tph_name"] ?: "-"
+                        val jjgJson = panen["jjg_json"] as? String ?: "{}"
+
+                        // Parse the jjg_json and extract the "TO" value
+                        val toValue = try {
+                            val json = JSONObject(jjgJson)
+                            json.optInt("TO", 0) // Default to 0 if "TO" key is missing
+                        } catch (e: Exception) {
+                            0 // Default to 0 if parsing fails
+                        }
+
+                        " Blok $blokName TPH $tphName ($toValue Jjg)\n"
+                    }
+
+
 
 
                         val jsonData = formatPanenDataForQR(mappedData)
@@ -518,11 +539,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             mapOf<String, Any>(
                                 "id" to (panenWithRelations.panen.id as Any),
                                 "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                "tph_name" to (panenWithRelations.tphWithBlok?.tph?.nomor
-                                    ?: "-") as Any,
-                                "blok_name" to (panenWithRelations.tphWithBlok?.block?.kode
-                                    ?: "-") as Any,
                                 "date_created" to (panenWithRelations.panen.date_created as Any),
+                                "blok_name" to (panenWithRelations.tph?.blok_kode ?: "Unknown"), // Handle null safely
+                                "nomor" to (panenWithRelations.tph!!.nomor as Any),
                                 "created_by" to (panenWithRelations.panen.created_by as Any),
                                 "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
                                 "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
@@ -537,6 +556,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             )
                         }
 
+
+                        AppLogger.d(mappedData.toString())
                         val distinctBlokNames = mappedData
                             .map { it["blok_name"].toString() }
                             .distinct()
@@ -596,10 +617,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             mapOf<String, Any>(
                                 "id" to (panenWithRelations.panen.id as Any),
                                 "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                "tph_name" to (panenWithRelations.tphWithBlok?.tph?.nomor
-                                    ?: "-") as Any,
-                                "blok_name" to (panenWithRelations.tphWithBlok?.block?.kode
-                                    ?: "-") as Any,
+                                "blok_name" to (panenWithRelations.tph!!.blok_nama as Any),
+                                "nomor" to (panenWithRelations.tph!!.nomor as Any),
                                 "date_created" to (panenWithRelations.panen.date_created as Any),
                                 "created_by" to (panenWithRelations.panen.created_by as Any),
                                 "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
@@ -793,6 +812,60 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
+    private fun handleDelete(selectedItems: List<Map<String, Any>>) {
+        this.vibrate()
+        AlertDialogUtility.withTwoActions(
+            this,
+            getString(R.string.al_delete),
+            getString(R.string.confirmation_dialog_title),
+            "${getString(R.string.al_make_sure_delete)} ${selectedItems.size} data?",
+            "warning.json",
+            ContextCompat.getColor(this, R.color.colorRedDark)
+        ) {
+            loadingDialog.show()
+            loadingDialog.setMessage("Deleting items...")
+
+            panenViewModel.deleteMultipleItems(selectedItems)
+
+            // Observe delete result
+            panenViewModel.deleteItemsResult.observe(this) { isSuccess ->
+                loadingDialog.dismiss()
+                if (isSuccess) {
+                    Toast.makeText(
+                        this,
+                        "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    // Reload data based on current state
+                    if (currentState == 0) {
+                        panenViewModel.loadActivePanen()
+                    } else {
+                        panenViewModel.loadArchivedPanen()
+                    }
+                } else {
+                    Toast.makeText(
+                        this,
+                        "${getString(R.string.al_failed_delete)} data",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                // Reset UI state
+                val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                    .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                headerCheckBox.isChecked = false
+                listAdapter.clearSelections()
+                speedDial.visibility = View.GONE
+            }
+
+            // Observe errors
+            panenViewModel.error.observe(this) { errorMessage ->
+                loadingDialog.dismiss()
+                Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
 
     private fun setupSpeedDial() {
         speedDial = findViewById(R.id.dial_tph_list)
@@ -811,7 +884,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             )
 
             addActionItem(
-                SpeedDialActionItem.Builder(R.id.uploadSelected, R.drawable.baseline_file_upload_24)
+                SpeedDialActionItem.Builder(R.id.deleteSelected, R.drawable.baseline_delete_forever_24)
                     .setLabel(getString(R.string.dial_upload_item))
                     .setFabBackgroundColor(
                         ContextCompat.getColor(
@@ -829,10 +902,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     R.id.scan_qr -> {
                         val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
 
-                        view.background = ContextCompat.getDrawable(
-                            this@ListPanenTBSActivity,
-                            R.drawable.rounded_top_right_left
-                        )
+                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
 
                         val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
                         dialog.setContentView(view)
@@ -853,12 +923,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
 //                    R.id.cancelSelection -> {
 //                        listAdapter.clearSelections()
 //                        true
-////                    }
-//                    R.id.deleteSelected -> {
-//                        val selectedItems = listAdapter.getSelectedItems()
-////                        handleDelete(selectedItems)
-//                        true
 //                    }
+                    R.id.deleteSelected -> {
+                        val selectedItems = listAdapter.getSelectedItems()
+                        handleDelete(selectedItems)
+                        true
+                    }
                     R.id.uploadSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()
 
@@ -978,9 +1048,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private fun setupHeader() {
         featureName = intent.getStringExtra("FEATURE_NAME").toString()
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
-        AppUtils.setupFeatureHeader(featureName, tvFeatureName)
-    }
+        val userSection = findViewById<TextView>(R.id.userSection)
+        val locationSection = findViewById<LinearLayout>(R.id.locationSection)
+        locationSection.visibility = View.GONE
 
+        AppUtils.setupUserHeader(
+            userName = userName,
+            jabatanUser = jabatanUser,
+            estateName = estateName,
+            afdelingUser = afdelingUser,
+            userSection = userSection,
+            featureName = featureName,
+            tvFeatureName = tvFeatureName
+        )
+    }
     private fun setupRecyclerView() {
         listAdapter = ListPanenTPHAdapter()
         recyclerView.apply {

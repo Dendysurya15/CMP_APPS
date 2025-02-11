@@ -13,8 +13,11 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.cbi.cmp_project.data.database.AppDatabase
+import com.cbi.cmp_project.data.model.FlagESPBModel
 import com.cbi.cmp_project.data.network.RetrofitClient
+import com.cbi.cmp_project.ui.view.HomePageActivity
 import com.cbi.cmp_project.ui.view.LoginActivity
+import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.LoadingDialog
 import kotlinx.coroutines.Dispatchers
@@ -64,6 +67,8 @@ class MainActivity : AppCompatActivity() {
             database.kemandoranDao()
             database.kemandoranDetailDao()
             database.tphDao()
+            database.flagESPBModelDao()
+            insertDefaultFlags()
 
             Log.d("Database", "Database and tables initialized successfully")
         } catch (e: Exception) {
@@ -96,5 +101,26 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         // Close database when activity is destroyed
         AppDatabase.closeDatabase()
+    }
+
+
+    private suspend fun insertDefaultFlags() {
+        val dao = database.flagESPBModelDao()
+
+        val count = dao.getCount()
+        if (count > 0) {
+            Log.d("Database", "FlagESPBModel already initialized, skipping insertion.")
+            return
+        }
+
+        val defaultFlags = listOf(
+            FlagESPBModel(id = 0, flag = "Normal"),
+            FlagESPBModel(id = 1, flag = "Addition"),
+            FlagESPBModel(id = 2, flag = "Manual"),
+            FlagESPBModel(id = 3, flag = "Restan")
+        )
+
+        defaultFlags.forEach { dao.insert(it) }
+        Log.d("Database", "Default flags inserted successfully")
     }
 }

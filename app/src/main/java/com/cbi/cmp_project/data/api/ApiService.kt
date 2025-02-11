@@ -1,6 +1,7 @@
 package com.cbi.cmp_project.data.api
 
 import com.cbi.cmp_project.data.model.LoginResponse
+import com.cbi.cmp_project.data.model.dataset.DatasetRequest
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -67,6 +68,8 @@ interface ApiService {
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
 
-//    @POST("dataset/check-and-download")
-//    suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
+    @Streaming
+    @POST("dataset/check-and-download")
+    @Headers("Accept: application/json")
+    suspend fun downloadDataset(@Body request: DatasetRequest): Response<ResponseBody>
 }

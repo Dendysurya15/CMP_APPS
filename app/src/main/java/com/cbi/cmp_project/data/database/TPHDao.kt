@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.TPHBlokInfo
+import com.cbi.markertph.data.model.BlokModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.markertph.data.model.WilayahModel
 
@@ -16,14 +17,24 @@ abstract class TPHDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract fun insertAll(tph: List<TPHNewModel>)
 
-    @Query("DELETE FROM wilayah")
+    @Query("DELETE FROM tph")
     abstract fun deleteAll()
 
     @Transaction
-    open fun updateOrInsertTPH(tph: List<TPHNewModel>) {
-
+    open suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) {
+        val count = getCount()
+        if (count > 0) {
+            deleteAll()
+        }
         insertAll(tph)
     }
+
+    @Query("SELECT * FROM tph WHERE dept = :idEstate GROUP BY divisi")
+    abstract fun getDivisiByCriteria(idEstate: Int): List<TPHNewModel>
+
+
+    @Query("SELECT COUNT(*) FROM tph")
+    abstract suspend fun getCount(): Int
 
     @Query("""
         SELECT 
@@ -45,18 +56,26 @@ abstract class TPHDao {
     @Query(
         """
     SELECT * FROM tph 
-    WHERE regional = :idRegional 
-    AND dept = :idEstate 
-    AND (
-        (divisi IS NOT NULL AND divisi != '' AND divisi = :idDivisi)
-        OR 
-        (divisi IS NULL OR divisi = '') AND dept_abbr = :estateAbbr
-    )
+    WHERE dept = :idEstate 
+    AND  divisi = :idDivisi
     AND tahun = :tahunTanam 
     AND blok = :idBlok
     """
     )
     abstract fun getTPHByCriteria(
-        idRegional:Int, idEstate: Int, idDivisi:Int, estateAbbr :String,tahunTanam : String,  idBlok :Int
+        idEstate: Int, idDivisi:Int, tahunTanam : String,  idBlok :Int
+    ): List<TPHNewModel>
+
+    @Query(
+        """
+    SELECT * FROM tph 
+    WHERE dept = :idEstate 
+    AND divisi = :idDivisi
+    GROUP BY blok
+    """
+    )
+    abstract fun getBlokByCriteria(
+        idEstate: Int,
+        idDivisi: Int,
     ): List<TPHNewModel>
 }

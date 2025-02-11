@@ -19,26 +19,27 @@ abstract class KemandoranDao {
     abstract fun deleteAll()
 
     @Transaction
-    open fun updateOrInsertKemandoran(kemandoran: List<KemandoranModel>) {
-
+    open suspend fun updateOrInsertKemandoran(kemandoran: List<KemandoranModel>) {
+        val count = getCount()
+        if (count > 0) {
+            deleteAll()
+        }
         insertAll(kemandoran)
     }
+
+    @Query("SELECT COUNT(*) FROM kemandoran")
+    abstract suspend fun getCount(): Int
 
     @Query(
         """
     SELECT * FROM kemandoran 
     WHERE dept = :idEstate 
-    AND (
-        (divisi IS NOT NULL AND divisi != '' AND divisi IN (:idDivisiArray))
-        OR 
-        (divisi IS NULL OR divisi = '') AND dept_abbr = :estateAbbr
-    )
+    AND divisi IN (:idDivisiArray)
     """
     )
     abstract fun getKemandoranByCriteria(
         idEstate: Int,
-        idDivisiArray: List<Int>,
-        estateAbbr: String
+        idDivisiArray: List<Int>
     ): List<KemandoranModel>
 
 }

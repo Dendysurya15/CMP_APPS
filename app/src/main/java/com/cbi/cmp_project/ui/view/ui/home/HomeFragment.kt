@@ -2,6 +2,8 @@ package com.cbi.cmp_project.ui.view.ui.home
 
 import android.animation.ObjectAnimator
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.PorterDuff
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -13,10 +15,12 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -39,13 +43,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.cbi.cmp_project.ui.view.ScanQR
 import es.dmoral.toasty.Toasty
+import com.cbi.cmp_project.utils.PrefManager
 
 
 class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private lateinit var featureAdapter: FeatureAdapter
-    private lateinit var homeViewModel: HomeViewModel
+    private val homeViewModel: HomeViewModel by activityViewModels()
+    private var prefManager: PrefManager? = null
     private lateinit var panenViewModel: PanenViewModel
     private lateinit var loadingDialog: LoadingDialog
 
@@ -57,15 +63,30 @@ class HomeFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        homeViewModel = ViewModelProvider(this).get(HomeViewModel::class.java)
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         val root: View = binding.root
+        prefManager = PrefManager(requireContext())
         initViewModel()
         setupRecyclerView()
+        setupName()
         observeViewModel()
         handleOnBackPressed()
         return root
+
+
     }
+
+    private fun setupName() {
+        val userName = prefManager!!.nameUserLogin ?: "Unknown"
+        val jobTitle = "${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
+
+        binding.userNameLogin.text = userName
+        binding.jabatanUserLogin.text = jobTitle
+
+        val initials = userName.split(" ").take(2).joinToString("") { it.take(1).uppercase() }
+        binding.initalName.text = initials
+    }
+
 
     private fun initViewModel() {
         val factory = PanenViewModel.PanenViewModelFactory(requireActivity().application)
@@ -190,6 +211,22 @@ class HomeFragment : Fragment() {
                         startActivity(intent)
                     }
                 }
+
+                is FeatureCardEvent.SinkronisasiData -> {
+                    event.context?.let {
+                        // Safer null checking
+
+                        AppLogger.d("askldflskdf")
+
+
+                        val currentValue = homeViewModel.startSinkronisasiData.value
+                        AppLogger.d(currentValue.toString())
+                        if (currentValue == null || !currentValue) {
+                            homeViewModel.triggerDownload()
+                        }
+                    }
+                }
+
 
             }
         }
@@ -322,6 +359,18 @@ class HomeFragment : Fragment() {
                 functionDescription = "",
                 displayType = DisplayType.ICON,
                 subTitle = "Panen TBS khusus asistensi dari estate lain"
+                functionName = "Pemeriksaan Ancak",
+                functionDescription = "Buat Catatan Sidak Path anda disini!",
+                displayType = DisplayType.ICON
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.orange,
+                featureName = "Sinkronisasi Data",
+                featureNameBackgroundColor = R.color.borderOrange,
+                iconResource = R.drawable.rotate_solid,
+                functionName = "Update Data",
+                functionDescription = "Fitur untuk melakukan sinkronisasi data master",
+                displayType = DisplayType.ICON
             )
         )
 
@@ -376,6 +425,7 @@ data class FeatureCard(
     val featureNameBackgroundColor: Int,
     val iconResource: Int? = null,  // Make it nullable
     val count: String? = null,      // Add count parameter
+    val functionName: String,
     val functionDescription: String,
     val displayType: DisplayType,
     val subTitle: String? = ""
@@ -478,7 +528,10 @@ class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) : Recy
             DisplayType.ICON -> {
                 holder.iconFeature.visibility = View.VISIBLE
                 holder.countFeature.visibility = View.GONE
-                feature.iconResource?.let { holder.iconFeature.setImageResource(it) }
+                feature.iconResource?.let {
+                    holder.iconFeature.setImageResource(it)
+                    holder.iconFeature.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN) // Change color to white
+                }
             }
             DisplayType.COUNT -> {
                 holder.iconFeature.visibility = View.GONE

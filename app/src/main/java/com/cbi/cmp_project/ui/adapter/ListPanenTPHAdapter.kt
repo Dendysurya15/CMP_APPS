@@ -69,7 +69,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         Log.d("ListPanenTPHAdapterTest", "extractData: $item")
         val tphId = item["tph_id"] as? String ?: "0"
         val blokName = item["blok_name"] as? String ?: "-"
-        val noTPH = item["tph_name"] as? String ?: "-"
+        val noTPH = item["nomor"] as? String ?: "-"
         val dateCreated = item["date_created"] as? String ?: "-"
 
         val jjgJsonString = item["jjg_json"] as? String ?: "{}"

@@ -56,15 +56,15 @@ class LoginActivity : AppCompatActivity() {
 
 
         val loginButton = findViewById<MaterialButton>(R.id.btn_login_submit)
-        val emailField = findViewById<EditText>(R.id.usernameInput)
+        val usernameField = findViewById<EditText>(R.id.usernameInput)
         val passwordField = findViewById<EditText>(R.id.passwordInput)
 
-        emailField.addTextChangedListener(object : TextWatcher {
+        usernameField.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                val emailInputLayout = findViewById<TextInputLayout>(R.id.etUsernameLayout)
-                emailInputLayout.error = null
-                emailInputLayout.isErrorEnabled = false
+                val usernameInputLayout = findViewById<TextInputLayout>(R.id.etUsernameLayout)
+                usernameInputLayout.error = null
+                usernameInputLayout.isErrorEnabled = false
             }
             override fun afterTextChanged(s: Editable?) {}
         })
@@ -116,17 +116,20 @@ class LoginActivity : AppCompatActivity() {
                     if (token != null) {
                         prefManager!!.isFirstTimeLaunch = true
                         prefManager!!.token = token
-                        prefManager!!.username = emailField.text.toString().trim()
+                        prefManager!!.username = usernameField.text.toString().trim()
                         prefManager!!.password = passwordField.text.toString().trim()
                         prefManager!!.nameUserLogin = loginResponse.data?.user?.nama
+                        prefManager!!.idUserLogin = loginResponse.data?.user?.id!!
                         prefManager!!.jabatanUserLogin = loginResponse.data?.user?.jabatan
-                        AppLogger.d(loginResponse.data.toString())
-//
+                        prefManager!!.estateUserLogin = loginResponse.data?.user?.dept_abbr
+                        prefManager!!.estateUserLengkapLogin = loginResponse.data?.user?.dept_nama
+                        prefManager!!.estateIdUserLogin = loginResponse.data?.user?.dept_id
+                        prefManager!!.regionalIdUserLogin = loginResponse.data?.user?.regional
+
                         Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()
                         navigateToHomePage()
                     } else {
                         AppLogger.d("Token not found in response")
-//
                         Toasty.error(this, "Token not found!", Toast.LENGTH_LONG, true).show()
                     }
                 } else {
@@ -184,23 +187,22 @@ class LoginActivity : AppCompatActivity() {
         setTampilan()
 
         loginButton.setOnClickListener {
-            val email = emailField.text.toString().trim()
+            val username = usernameField.text.toString().trim()
             val password = passwordField.text.toString().trim()
 
-            val emailInputLayout = findViewById<TextInputLayout>(R.id.etUsernameLayout)
+            val usernameInputLayout = findViewById<TextInputLayout>(R.id.etUsernameLayout)
             val passwordInputLayout = findViewById<TextInputLayout>(R.id.etPasswordLayout)
 
-            // Reset both layouts to their default state
-            emailInputLayout.error = null
-            emailInputLayout.isErrorEnabled = false
+            usernameInputLayout.error = null
+            usernameInputLayout.isErrorEnabled = false
             passwordInputLayout.error = null
             passwordInputLayout.isErrorEnabled = false
 
-            if (email.isEmpty() || password.isEmpty()) {
-                // Show error for the email field if empty
-                if (email.isEmpty()) {
-                    emailInputLayout.isErrorEnabled = true
-                    emailInputLayout.error = stringXML(R.string.alert_login_username_field_empty)
+            if (username.isEmpty() || password.isEmpty()) {
+                // Show error for the username field if empty
+                if (username.isEmpty()) {
+                    usernameInputLayout.isErrorEnabled = true
+                    usernameInputLayout.error = stringXML(R.string.alert_login_username_field_empty)
                 }
 
                 // Show error for the password field if empty
@@ -214,11 +216,11 @@ class LoginActivity : AppCompatActivity() {
 
             showLoading()
 
-            if (prefManager!!.nameUserLogin!!.isNotEmpty()){
+            if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() && prefManager?.username == username && prefManager?.password == password){
                 navigateToHomePage()
             }else{
                 if (AppUtils.isNetworkAvailable(this)) {
-                    authViewModel.login(email, password)
+                    authViewModel.login(username, password)
                 } else {
                     lifecycleScope.launch {
                         delay(500)
@@ -278,11 +280,6 @@ class LoginActivity : AppCompatActivity() {
         val usernameField = findViewById<EditText>(R.id.usernameInput)
         val passwordField = findViewById<EditText>(R.id.passwordInput)
 
-
-
-//        AppLogger.d(prefManager!!.username.toString())
-//        AppLogger.d(prefManager!!.password.toString())
-//        AppLogger.d(prefManager!!.rememberLogin.toString())
         if (prefManager!!.rememberLogin) {
             checkRememberMe.isChecked = true
             if (prefManager!!.username.toString().isNotEmpty() && prefManager!!.password.toString()
@@ -303,11 +300,18 @@ class LoginActivity : AppCompatActivity() {
     private fun navigateToHomePage() {
         val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
         if (!checkRememberMe.isChecked){
-            AppLogger.d("masuk sini ges")
-            prefManager!!.nameUserLogin = ""
+//            prefManager!!.isFirstTimeLaunch = false
+//            prefManager!!.token = ""
+//            prefManager!!.idUserLogin = 0
+//            prefManager!!.nameUserLogin = ""
             prefManager!!.username = ""
             prefManager!!.password = ""
-            prefManager!!.jabatanUserLogin = ""
+            prefManager!!.rememberLogin = false
+//            prefManager!!.jabatanUserLogin = ""
+//            prefManager!!.estateUserLogin = ""
+//            prefManager!!.estateUserLengkapLogin = ""
+//            prefManager!!.estateIdUserLogin = ""
+//            prefManager!!.regionalIdUserLogin = ""
         }
         startActivity(Intent(this, HomePageActivity::class.java))
         finish()

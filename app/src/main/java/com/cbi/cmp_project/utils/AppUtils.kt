@@ -58,6 +58,8 @@ object AppUtils {
     }
 
 
+
+
     fun getDeviceInfo(context: Context): JSONObject {
         val json = JSONObject()
 
@@ -241,7 +243,7 @@ object AppUtils {
                         .toUpperCase(Locale.getDefault()) + textWelcome.substring(1).toLowerCase(
                         Locale.getDefault()
                     )
-                } $nameUser."
+                } $nameUser"
             )
             .setSubtitle(context.getString(R.string.subtitle_prompt))
             .setNegativeButtonText(context.getString(R.string.confirmation_dialog_cancel))

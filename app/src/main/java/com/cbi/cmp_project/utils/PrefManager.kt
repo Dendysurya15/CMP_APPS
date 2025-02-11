@@ -48,10 +48,45 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var idUserLogin: Int?
+        get() = pref.getInt("idUserLogin", 0)
+        set(idUserLogin) {
+            editor.putInt("idUserLogin", idUserLogin!!)
+            editor.commit()
+        }
+
     var jabatanUserLogin: String?
         get() = pref.getString("jabatanUserLogin", "")
         set(jabatanUserLogin) {
             editor.putString("jabatanUserLogin", jabatanUserLogin)
+            editor.commit()
+        }
+
+    var estateUserLogin: String?
+        get() = pref.getString("estateUserLogin", "")
+        set(estateUserLogin) {
+            editor.putString("estateUserLogin", estateUserLogin)
+            editor.commit()
+        }
+
+    var estateUserLengkapLogin: String?
+        get() = pref.getString("estateUserLengkapLogin", "")
+        set(estateUserLengkapLogin) {
+            editor.putString("estateUserLengkapLogin", estateUserLengkapLogin)
+            editor.commit()
+        }
+
+    var estateIdUserLogin: String?
+        get() = pref.getString("estateIdUserLogin", "")
+        set(estateIdUserLogin) {
+            editor.putString("estateIdUserLogin", estateIdUserLogin)
+            editor.commit()
+        }
+
+    var regionalIdUserLogin: String?
+        get() = pref.getString("regionalIdUserLogin", "")
+        set(regionalIdUserLogin) {
+            editor.putString("regionalIdUserLogin", regionalIdUserLogin)
             editor.commit()
         }
 
@@ -62,6 +97,34 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var lastModifiedDatasetTPH: String?
+        get() = pref.getString("lastModifiedDatasetTPH", "")
+        set(lastModifiedDatasetTPH) {
+            editor.putString("lastModifiedDatasetTPH", lastModifiedDatasetTPH)
+            editor.commit()
+        }
+
+    var lastModifiedDatasetBlok: String?
+        get() = pref.getString("lastModifiedDatasetBlok", "")
+        set(lastModifiedDatasetBlok) {
+            editor.putString("lastModifiedDatasetBlok", lastModifiedDatasetBlok)
+            editor.commit()
+        }
+
+    var lastModifiedDatasetKemandoran: String?
+        get() = pref.getString("lastModifiedDatasetKemandoran", "")
+        set(lastModifiedDatasetKemandoran) {
+            editor.putString("lastModifiedDatasetKemandoran", lastModifiedDatasetKemandoran)
+            editor.commit()
+        }
+
+    var lastModifiedDatasetPemanen: String?
+        get() = pref.getString("lastModifiedDatasetPemanen", "")
+        set(lastModifiedDatasetPemanen) {
+            editor.putString("lastModifiedDatasetPemanen", lastModifiedDatasetPemanen)
+            editor.commit()
+        }
+
     var token: String?
         get() = pref.getString("token", "")
         set(token) {
@@ -69,29 +132,7 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
-    fun setDateModified(key: String, value: String?) {
-        editor.putString(key, value)
-        editor.commit()
-    }
 
-    fun getAllDateModified(): Map<String, String?> {
-        val allEntries = pref.all
-        val dateModifiedMap = mutableMapOf<String, String?>()
-
-        for ((key, value) in allEntries) {
-            // Check if the key matches your convention for date_modified keys
-            if (key.endsWith("DB") && value is String) {
-                dateModifiedMap[key] = value
-            }
-        }
-
-        return dateModifiedMap
-    }
-
-    // Clear the file list
-    fun clearFileList() {
-        editor.remove("downloaded_file_list").apply()
-    }
 
     var isFirstTimeLaunch: Boolean
         get() = pref.getBoolean("IsFirstTimeLaunch", false)  // Default is true
@@ -99,6 +140,22 @@ class PrefManager(_context: Context) {
             editor.putBoolean("IsFirstTimeLaunch", isFirstTime)
             editor.apply()  // Use apply() instead of commit() for async write
         }
+
+    var datasetMustUpdate: MutableList<String>
+        get() = pref.getStringSet("datasetMustUpdate", emptySet())?.toMutableList() ?: mutableListOf()
+        set(value) {
+            editor.putStringSet("datasetMustUpdate", value.toSet()).apply()
+        }
+
+    fun addDataset(dataset: String) {
+        val currentList = datasetMustUpdate.toMutableSet()
+        currentList.add(dataset)
+        datasetMustUpdate = currentList.toMutableList()
+    }
+
+    fun clearDatasetMustUpdate() {
+        datasetMustUpdate = mutableListOf()
+    }
 
     var version: Int
         get() = pref.getInt(version_tag, 0)

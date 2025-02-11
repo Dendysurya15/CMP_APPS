@@ -9,12 +9,20 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.text.Editable
+import android.text.Spannable
+import android.text.SpannableString
 import android.text.TextWatcher
+import android.text.style.ForegroundColorSpan
+import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.ImageView
@@ -80,6 +88,8 @@ import com.cbi.cmp_project.ui.adapter.Worker
 import com.cbi.cmp_project.ui.view.HomePageActivity
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.ui.viewModel.SaveDataPanenState
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -111,9 +121,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var takeFotoPreviewAdapter: TakeFotoPreviewAdapter
     private var regionalList: List<RegionalModel> = emptyList()
     private var wilayahList: List<WilayahModel> = emptyList()
-    private var deptList: List<DeptModel> = emptyList()
-    private var divisiList: List<DivisiModel> = emptyList()
-    private var blokList: List<BlokModel> = emptyList()
+
+    //    private var deptList: List<DeptModel> = emptyList()
+    private var divisiList: List<TPHNewModel> = emptyList()
+    private var blokList: List<TPHNewModel> = emptyList()
     private var karyawanList: List<KaryawanModel> = emptyList()
     private var karyawanLainList: List<KaryawanModel> = emptyList()
     private var kemandoranList: List<KemandoranModel> = emptyList()
@@ -176,11 +187,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var panenViewModel: PanenViewModel
     private var regionalId: String? = null
-    private var regionalName: String? = null
     private var estateId: String? = null
     private var estateName: String? = null
     private var userName: String? = null
-    private var userId: String? = null
+    private var userId: Int? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
 
@@ -193,12 +203,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         prefManager = PrefManager(this)
         initViewModel()
         initializeJjgJson()
-        regionalId = prefManager!!.getRegionalUserLogin("regional_id")
-        regionalName = prefManager!!.getRegionalUserLogin("regional_name")
-        estateId = prefManager!!.getEstateUserLogin("estate_id")
-        estateName = prefManager!!.getEstateUserLogin("estate_name")
+        regionalId = prefManager!!.regionalIdUserLogin
+        estateId = prefManager!!.estateIdUserLogin
+        estateName = prefManager!!.estateUserLogin
         userName = prefManager!!.nameUserLogin
-        userId = prefManager!!.getUserIdLogin("user_id")
+        userId = prefManager!!.idUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
 
         val backButton = findViewById<ImageView>(R.id.btn_back)
@@ -216,21 +225,38 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
 
             try {
+                val estateIdStr = estateId?.trim()
 
-                val deptDeferred =
-                    async { datasetViewModel.getDeptList(regionalId!!, estateName!!) }
-                val divisiDeferred = async { datasetViewModel.getDivisiList(estateId!!.toInt()) }
-                deptList = deptDeferred.await()
-                divisiList = divisiDeferred.await()
+                if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
+                    val estateIdInt = estateIdStr.toInt()
+
+//                    val deptDeferred = async { datasetViewModel.getDeptList(estateIdStr) }
+                    val divisiDeferred = async { datasetViewModel.getDivisiList(estateIdInt) }
+
+                    divisiList = divisiDeferred.await()
+
+                    AppLogger.d(divisiList.toString())
+//                    deptList = deptDeferred.await()
+                }
 
                 withContext(Dispatchers.Main) {
+                    loadingDialog.dismiss()
                     setupLayout()
                 }
             } catch (e: Exception) {
-                AppLogger.e("Error fetching data: ${e.message}")
-            } finally {
-                withContext(Dispatchers.Main) {
-                    loadingDialog.dismiss()
+                withContext(Dispatchers.Main) {  // Ensure dialog is shown on Main thread
+                    AppLogger.e("Error fetching data: ${e.message}")
+
+                    AlertDialogUtility.withSingleAction(
+                        this@FeaturePanenTBSActivity,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_failed_fetch_data),
+                        "${stringXML(R.string.al_failed_fetch_data_desc)},  ${e.message} penyebab ID Estate User Login: \"$estateId\"",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {
+                        finish()
+                    }
                 }
             }
         }
@@ -258,56 +284,57 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             val photoFilesString = photoFiles.joinToString(";")
                             val komentarFotoString = komentarFoto.joinToString(";")
-//                            AppLogger.d("tph_id: $selectedTPHValue")
-//                            AppLogger.d(
-//                                "date_created: ${
-//                                    SimpleDateFormat(
-//                                        "yyyy-MM-dd HH:mm:ss",
-//                                        Locale.getDefault()
-//                                    ).format(Date())
-//                                }"
-//                            )
-//                            AppLogger.d("created_by: $userId")
-//                            AppLogger.d("jjgJson: $jjg_json")
-//                            AppLogger.d("foto: $photoFiles")
-//                            AppLogger.d("komentar: $komentarFoto")
-//                            AppLogger.d("asistensi: $asistensi")
-//                            AppLogger.d("lat: $lat")
-//                            AppLogger.d("lon: $lon")
-//                            AppLogger.d("jenis_panen: $selectedTipePanen")
-//                            AppLogger.d("ancak: $ancakInput")
-//                            AppLogger.d("archive: 1")
-//                            AppLogger.d(
-//                                "karyawan_id: ${
-//                                    (selectedPemanenIds + selectedPemanenLainIds).joinToString(
-//                                        ", "
-//                                    )
-//                                }"
-//                            )
+                            AppLogger.d("tph_id: $selectedTPHValue")
+                            AppLogger.d(
+                                "date_created: ${
+                                    SimpleDateFormat(
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        Locale.getDefault()
+                                    ).format(Date())
+                                }"
+                            )
+                            AppLogger.d("created_by: $userId")
+                            AppLogger.d("jjgJson: $jjg_json")
+                            AppLogger.d("foto: $photoFiles")
+                            AppLogger.d("komentar: $komentarFoto")
+                            AppLogger.d("asistensi: $asistensi")
+                            AppLogger.d("lat: $lat")
+                            AppLogger.d("lon: $lon")
+                            AppLogger.d("jenis_panen: $selectedTipePanen")
+                            AppLogger.d("ancak: $ancakInput")
+                            AppLogger.d(
+                                "karyawan_id: ${
+                                    (selectedPemanenIds + selectedPemanenLainIds).joinToString(
+                                        ", "
+                                    )
+                                }"
+                            )
 
 
 
                             panenViewModel.saveDataPanen(
-                                tph_id = selectedTPHValue.toString(),
+                                tph_id = selectedTPHValue?.toString() ?: "",
                                 date_created = SimpleDateFormat(
                                     "yyyy-MM-dd HH:mm:ss",
                                     Locale.getDefault()
                                 ).format(Date()),
-                                created_by = userId!!.toInt(),
+                                created_by = userId!!,  // Prevent crash if userId is null
                                 karyawan_id = (selectedPemanenIds + selectedPemanenLainIds).joinToString(
                                     ","
                                 ),
                                 jjg_json = jjg_json,
-                                foto = "$photoFilesString",
-                                komentar = "$komentarFotoString",
-                                asistensi = asistensi,
-                                lat = lat!!,
-                                lon = lon!!,
-                                jenis_panen = selectedTipePanen.toInt(),
-                                ancakInput = ancakInput,
-                                info = infoApp,
-                                archive = 0,
+                                foto = photoFilesString,
+                                komentar = komentarFotoString,
+                                asistensi = asistensi ?: 0, // Default to 0 if null
+                                lat = lat ?: 0.0, // Default to 0.0 if null
+                                lon = lon ?: 0.0, // Default to 0.0 if null
+                                jenis_panen = selectedTipePanen?.toIntOrNull()
+                                    ?: 0, // Avoid NumberFormatException
+                                ancakInput = ancakInput ?: "0", // Default to "0" if null
+                                info = infoApp ?: "",
+                                archive = 0
                             )
+
 
                             panenViewModel.saveDataPanenState.collect { state ->
                                 when (state) {
@@ -325,7 +352,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             "success.json",
                                             R.color.greenDefault
                                         ) {
-                                            finish()
+
                                         }
                                     }
 
@@ -344,11 +371,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                 }
                             }
                         } catch (e: Exception) {
-                            Toast.makeText(
+
+                            AppLogger.e("Error in saveDataPanen", e.toString())
+                            AlertDialogUtility.withSingleAction(
                                 this@FeaturePanenTBSActivity,
-                                "Terjadi kesalahan: ${e.message}",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                                stringXML(R.string.al_back),
+                                stringXML(R.string.al_failed_save_local),
+                                "${stringXML(R.string.al_description_failed_save_local)} : ${e.message ?: "Unknown error"}",
+                                "warning.json",
+                                R.color.colorRedDark
+                            ) {
+                            }
                         }
                     }
                 }
@@ -392,10 +425,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
     private fun updateCounterTextViews() {
-        findViewById<TextView>(R.id.tvCounterBuahMasak).text = "$buahMasak Buah"
+        findViewById<TextView>(R.id.tvCounterBuahMasak).text = "$jumTBS Buah"
         findViewById<TextView>(R.id.tvCounterKirimPabrik).text = "$kirimPabrik Buah"
         findViewById<TextView>(R.id.tvCounterTBSDibayar).text = "$tbsDibayar Buah"
-        findViewById<TextView>(R.id.tvPercentBuahMasak).text = "($persenMasak)%"
+//        findViewById<TextView>(R.id.tvPercentBuahMasak).text = "($persenMasak)%"
     }
 
     private fun updateDependentCounters(
@@ -404,15 +437,39 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         counterVar: KMutableProperty0<Int>,
         tvPercent: TextView?
     ) {
+        val sisa = jumTBS - abnormal - bLewatMasak - bMentah - jjgKosong
         when (layoutId) {
+
             R.id.layoutJumTBS -> {
                 if (change > 0) { // When change is positive (Increment)
                     jumTBS += change
                     counterVar.set(jumTBS)
-                } else if (change < 0) { // When change is negative (Decrement)
-                    if (buahMasak > 0) {  // Prevent going negative
+                } else if (change < 0) {
+                    if (jumTBS > 0 && sisa > 0) {
                         jumTBS += change
                         counterVar.set(jumTBS)
+
+                        val updates = listOf(
+                            Pair(::bMentah, R.id.layoutBMentah),
+                            Pair(::bLewatMasak, R.id.layoutBLewatMasak),
+                            Pair(::jjgKosong, R.id.layoutJjgKosong),
+                            Pair(::abnormal, R.id.layoutAbnormal),
+                            Pair(::seranganTikus, R.id.layoutSeranganTikus),
+                            Pair(::tangkaiPanjang, R.id.layoutTangkaiPanjang),
+                            Pair(::tidakVCut, R.id.layoutVcut)
+                        )
+
+
+                        Handler(Looper.getMainLooper()).post {
+                            for ((counter, layout) in updates) {
+                                if (counter.get() > jumTBS) {
+                                    updateDependentCounters(layout, -1, counter, null)
+                                    updateEditText(layout, counter.get())
+                                }
+                            }
+                        }
+
+
                     } else {
                         vibrate()
                     }
@@ -421,14 +478,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutBMentah -> {
                 if (change > 0) {
-                    if (buahMasak > 0) {
+                    if (jumTBS > 0 && bMentah < jumTBS && sisa > 0) {
                         bMentah += change
                         counterVar.set(bMentah)
                     } else {
                         vibrate()
                     }
-                } else if (change < 0) { // When change is negative (Decrement)
-                    if (bMentah > 0) { // Prevent going negative
+                } else if (change < 0) {
+                    if (bMentah > 0) {
                         bMentah += change
                         counterVar.set(bMentah)
                     } else {
@@ -438,15 +495,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
 
             R.id.layoutBLewatMasak -> {
-                if (change > 0) { // When change is positive (Increment)
-                    if (buahMasak > 0) {
+                if (change > 0) {
+                    if (jumTBS > 0 && bLewatMasak < jumTBS && sisa > 0) {
                         bLewatMasak += change
                         counterVar.set(bLewatMasak)
                     } else {
                         vibrate()
                     }
-                } else if (change < 0) { // When change is negative (Decrement)
-                    if (bLewatMasak > 0) { // Prevent going negative
+                } else if (change < 0) {
+                    if (bLewatMasak > 0) {
                         bLewatMasak += change
                         counterVar.set(bLewatMasak)
                     } else {
@@ -457,7 +514,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutJjgKosong -> {
                 if (change > 0) { // When change is positive (Increment)
-                    if (buahMasak > 0) {
+                    if (jumTBS > 0 && jjgKosong < jumTBS && sisa > 0) {
                         jjgKosong += change
                         counterVar.set(jjgKosong)
                     } else {
@@ -475,7 +532,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutAbnormal -> {
                 if (change > 0) { // When change is positive (Increment)
-                    if (jumTBS > abnormal) { // Prevent abnormal from exceeding tbs
+                    AppLogger.d(jumTBS.toString())
+                    AppLogger.d(abnormal.toString())
+                    AppLogger.d(bLewatMasak.toString())
+                    AppLogger.d(bMentah.toString())
+                    AppLogger.d(jjgKosong.toString())
+
+
+
+                    if (jumTBS > 0 && abnormal < jumTBS && sisa > 0) { // Prevent abnormal from exceeding tbs
                         abnormal += change
                         counterVar.set(abnormal)
                     } else {
@@ -493,7 +558,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutSeranganTikus -> {
                 if (change > 0) {
-                    if (jumTBS > seranganTikus) {
+                    if (jumTBS > 0 && seranganTikus < jumTBS) {
                         seranganTikus += change
                         counterVar.set(seranganTikus)
                     } else {
@@ -511,7 +576,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutTangkaiPanjang -> {
                 if (change > 0) {
-                    if (jumTBS > tangkaiPanjang) {
+                    if (jumTBS > 0 && tangkaiPanjang < jumTBS) {
                         tangkaiPanjang += change
                         counterVar.set(tangkaiPanjang)
                     } else {
@@ -529,14 +594,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutVcut -> {
                 if (change > 0) {
-                    if (jumTBS > tidakVCut) {
+                    if (jumTBS > 0 && tidakVCut < jumTBS) {
                         tidakVCut += change
                         counterVar.set(tidakVCut)
                     } else {
                         vibrate()
                     }
                 } else if (change < 0) {
-                    if (jumTBS > 0) {
+                    if (tidakVCut > 0) {
                         tidakVCut += change
                         counterVar.set(tidakVCut)
                     } else {
@@ -549,28 +614,39 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         formulas()
         updateCounterTextViews()
 
-        if (layoutId == R.id.layoutBMentah) {
-            tvPercent?.let {
-                it.setText("${persenMentah}%")
-            }
-        } else if (layoutId == R.id.layoutBLewatMasak) {
-            tvPercent?.let {
-                it.setText("${persenLewatMasak}%")
-            }
-        } else if (layoutId == R.id.layoutJjgKosong) {
-            tvPercent?.let {
-                it.setText("${persenJjgKosong}%")
-            }
-        }
+//        if (layoutId == R.id.layoutBMentah) {
+//            tvPercent?.let {
+//                it.setText("${persenMentah}%")
+//            }
+//        } else if (layoutId == R.id.layoutBLewatMasak) {
+//            tvPercent?.let {
+//                it.setText("${persenLewatMasak}%")
+//            }
+//        } else if (layoutId == R.id.layoutJjgKosong) {
+//            tvPercent?.let {
+//                it.setText("${persenJjgKosong}%")
+//            }
+//        }
+    }
+
+    private fun updateEditText(layoutId: Int, value: Int) {
+        val includedLayout = findViewById<View>(layoutId)
+        val etNumber = includedLayout?.findViewById<EditText>(R.id.etNumber)
+        etNumber?.setText(value.toString())
     }
 
     private fun formulas() {
-        buahMasak = jumTBS - jjgKosong - bMentah - bLewatMasak
-        bMentah = jumTBS - bLewatMasak - jjgKosong - buahMasak
-        bLewatMasak = jumTBS - bMentah - buahMasak - jjgKosong
-        jjgKosong = jumTBS - bMentah - buahMasak - bLewatMasak
+//        buahMasak = jumTBS - jjgKosong - bMentah - bLewatMasak
+//        bMentah = jumTBS - bLewatMasak - jjgKosong - buahMasak
+//        bLewatMasak = jumTBS - bMentah - buahMasak - jjgKosong
+//        jjgKosong = jumTBS - bMentah - buahMasak - bLewatMasak
+//        tbsDibayar = jumTBS - bMentah - jjgKosong
+//        kirimPabrik = jumTBS - jjgKosong - abnormal
+
         tbsDibayar = jumTBS - bMentah - jjgKosong
-        kirimPabrik = jumTBS - jjgKosong - abnormal
+        kirimPabrik = jumTBS - jjgKosong
+        buahMasak = jumTBS - abnormal - bMentah - jjgKosong - bLewatMasak
+
         persenMentah = MathFun().round((bMentah.toFloat() / jumTBS.toFloat() * 100), 2)!!
         persenMasak = MathFun().round((bMentah.toFloat() / jumTBS.toFloat() * 100), 2)!!
         persenLewatMasak = MathFun().round((bLewatMasak.toFloat() / jumTBS.toFloat() * 100), 2)!!
@@ -705,14 +781,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 InputType.SPINNER -> {
                     when (layoutView.id) {
                         R.id.layoutEstate -> {
-                            val namaEstate = deptList!!.map { it.nama }
+                            val namaEstate = listOf(prefManager!!.estateUserLengkapLogin ?: "")
+                            AppLogger.d(namaEstate.toString())
                             setupSpinnerView(layoutView, namaEstate)
                             findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
                         }
 
                         R.id.layoutAfdeling -> {
-                            val divisiNames = divisiList.map { it.abbr }
+                            val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
                             setupSpinnerView(layoutView, divisiNames)
+
                         }
 
                         R.id.layoutTipePanen -> {
@@ -789,8 +867,83 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val index2 = parentLayoutLain.indexOfChild(layoutPemanenLain)
         parentLayoutLain.addView(rvSelectedPemanenLain, index2 + 1)
 
+        val tvDescDatagrading: TextView = findViewById(R.id.title_data_grading)
+        val tvDescLampiran: TextView = findViewById(R.id.title_lampiran_foto)
+        val tvDescInformasiBlok: TextView = findViewById(R.id.title_data_informasi_blok)
+        val textGrading = "Data Grading*"
+        val textLampiran = "Lampiran Foto*"
+        val textBlok = "Informasi Blok*"
+        val spannable = SpannableString(textGrading)
+        val spannable2 = SpannableString(textLampiran)
+        val spannable3 = SpannableString(textBlok)
+
+        val starColor = ContextCompat.getColor(this, R.color.colorRedDark) //
+        spannable.setSpan(
+            ForegroundColorSpan(starColor),
+            textGrading.length - 1,
+            textGrading.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
+        spannable2.setSpan(
+            ForegroundColorSpan(starColor),
+            textLampiran.length - 1,
+            textLampiran.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
+        spannable3.setSpan(
+            ForegroundColorSpan(starColor),
+            textBlok.length - 1,
+            textBlok.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
+        tvDescDatagrading.text = spannable
+        tvDescLampiran.text = spannable2
+        tvDescInformasiBlok.text = spannable3
+
+
+
         setupRecyclerViewTakePreviewFoto()
         setupSwitch()
+        setupFormulasView()
+    }
+
+
+    private fun setupFormulasView() {
+        val tvFormulas = findViewById<TextView>(R.id.tvFormulas)
+
+        tvFormulas.setOnClickListener {
+            val view = LayoutInflater.from(this).inflate(R.layout.dialog_formulas_grading, null)
+
+            view.background = ContextCompat.getDrawable(this, R.drawable.rounded_top_right_left)
+
+            val dialog = BottomSheetDialog(this)
+            dialog.setContentView(view)
+
+            // Get screen width
+            val displayMetrics = resources.displayMetrics
+            val width = displayMetrics.widthPixels
+
+            // Set bottom sheet width to 80% of screen width
+            dialog.window?.apply {
+                setLayout(
+                    (width * 0.8).toInt(),
+                    WindowManager.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            // Set expanded state when showing
+            dialog.setOnShowListener {
+                val bottomSheet =
+                    dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                val behavior = BottomSheetBehavior.from(bottomSheet!!)
+                behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            }
+
+            dialog.show()
+        }
     }
 
     private fun setupEditTextView(layoutView: LinearLayout) {
@@ -942,105 +1095,117 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 R.id.layoutAfdeling -> {
                     resetDependentSpinners(linearLayout.rootView)
                     selectedAfdeling = item.toString()
-                    val selectedDivisiId = divisiList.find {
-                        it.dept == estateId!!.toInt() && it.abbr == selectedAfdeling
-                    }?.id
+
+                    val selectedDivisiId = try {
+                        divisiList.find { it.divisi_abbr == selectedAfdeling }?.divisi
+                    } catch (e: Exception) {
+                        AppLogger.e("Error finding selectedDivisiId: ${e.message}")
+                        null
+                    }
 
                     val selectedDivisiIdList = selectedDivisiId?.let { listOf(it) } ?: emptyList()
-
                     selectedDivisionSpinnerIndex = position
                     selectedDivisiValue = selectedDivisiId
-                    val estateAbbr = deptList.firstOrNull()?.abbr
 
-                    val nonSelectedAfdelingKemandoran =
-                        divisiList.filter { it.abbr != selectedAfdeling && it.dept == estateId!!.toInt() }
+                    val nonSelectedAfdelingKemandoran = try {
+                        divisiList.filter { it.divisi_abbr != selectedAfdeling }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error filtering nonSelectedAfdelingKemandoran: ${e.message}")
+                        emptyList()
+                    }
 
-                    val nonSelectedIdAfdeling = nonSelectedAfdelingKemandoran.map { it.id }
+                    val nonSelectedIdAfdeling = try {
+                        nonSelectedAfdelingKemandoran.map { it.divisi }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error mapping nonSelectedIdAfdeling: ${e.message}")
+                        emptyList()
+                    }
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
-//                            loadingDialog.show()
-//                            loadingDialog.setMessage("Loading afdeling data...")
                             animateLoadingDots(linearLayout)
-
-                            // Add artificial delay if needed
                             delay(1000) // 1 second delay
                         }
 
-
                         try {
-                            val blokDeferred = async {
-                                datasetViewModel.getBlokList(
-                                    regionalId!!.toInt(),
-                                    estateId!!.toInt(),
-                                    selectedDivisiId!!,
-                                    estateAbbr!!
-                                )
+                            if (estateId == null || selectedDivisiId == null) {
+                                throw IllegalStateException("Estate ID or selectedDivisiId is null!")
                             }
+
+                            val blokDeferred = async {
+                                try {
+                                    datasetViewModel.getBlokList(
+                                        estateId!!.toInt(),
+                                        selectedDivisiId
+                                    )
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error fetching blokList: ${e.message}")
+                                    emptyList()
+                                }
+                            }
+
                             val kemandoranDeferred = async {
-                                datasetViewModel.getKemandoranList(
-                                    estateId!!.toInt(),
-                                    selectedDivisiIdList,
-                                    estateAbbr!!
-                                )
+                                try {
+                                    datasetViewModel.getKemandoranList(
+                                        estateId!!.toInt(),
+                                        selectedDivisiIdList
+                                    )
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error fetching kemandoranList: ${e.message}")
+                                    emptyList()
+                                }
                             }
 
                             val kemandoranLainDeferred = async {
-                                datasetViewModel.getKemandoranList(
-                                    estateId!!.toInt(),
-                                    nonSelectedIdAfdeling, // Already a List<Int>
-                                    estateAbbr!!
-                                )
+                                try {
+                                    datasetViewModel.getKemandoranList(
+                                        estateId!!.toInt(),
+                                        nonSelectedIdAfdeling as List<Int>
+                                    )
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error fetching kemandoranLainList: ${e.message}")
+                                    emptyList()
+                                }
                             }
 
                             blokList = blokDeferred.await()
-                            val tahunTanamList =
-                                blokList.map { it.tahun }.distinct().sortedBy { it!!.toInt() }
                             kemandoranList = kemandoranDeferred.await()
-
                             kemandoranLainList = kemandoranLainDeferred.await()
 
+                            val tahunTanamList = try {
+                                blokList.mapNotNull { it.tahun }.distinct().sortedBy { it.toIntOrNull() }
+                            } catch (e: Exception) {
+                                AppLogger.e("Error processing tahunTanamList: ${e.message}")
+                                emptyList()
+                            }
 
                             withContext(Dispatchers.Main) {
+                                try {
+                                    val layoutTahunTanam =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
+                                    val layoutKemandoran =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoran)
+                                    val layoutKemandoranLain =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoranLain)
 
-
-                                val layoutTahunTanam =
-                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
-                                val layoutKemandoran =
-                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoran)
-                                val layoutKemandoranLain =
-                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoranLain)
-                                if (tahunTanamList.isNotEmpty()) {
                                     setupSpinnerView(
                                         layoutTahunTanam,
-                                        tahunTanamList as List<String>
+                                        if (tahunTanamList.isNotEmpty()) tahunTanamList else emptyList()
                                     )
-                                } else {
-                                    setupSpinnerView(layoutTahunTanam, emptyList())
-                                }
 
-
-                                val kemandoranNames = kemandoranList.map { it.nama }
-                                if (kemandoranNames.isNotEmpty()) {
+                                    val kemandoranNames = kemandoranList.map { it.nama }
                                     setupSpinnerView(
                                         layoutKemandoran,
-                                        kemandoranNames as List<String>
+                                        if (kemandoranNames.isNotEmpty()) kemandoranNames as List<String> else emptyList()
                                     )
 
-                                } else {
-                                    setupSpinnerView(layoutKemandoran, emptyList())
-                                }
-
-                                val kemandoranLainListNames = kemandoranLainList.map { it.nama }
-
-
-                                if (nonSelectedAfdelingKemandoran.isNotEmpty()) {
+                                    val kemandoranLainListNames = kemandoranLainList.map { it.nama }
                                     setupSpinnerView(
                                         layoutKemandoranLain,
-                                        kemandoranLainListNames as List<String>
+                                        if (kemandoranLainListNames.isNotEmpty()) kemandoranLainListNames as List<String> else emptyList()
                                     )
-                                } else {
-                                    setupSpinnerView(layoutKemandoranLain, emptyList())
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error updating UI: ${e.message}")
                                 }
                             }
                         } catch (e: Exception) {
@@ -1054,40 +1219,42 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }
                         } finally {
                             withContext(Dispatchers.Main) {
-//                                loadingDialog.dismiss()
                                 hideLoadingDots(linearLayout)
                             }
                         }
                     }
-
                 }
+
 
                 R.id.layoutTahunTanam -> {
                     resetTPHSpinner(linearLayout.rootView)
                     val selectedTahunTanam = item.toString()
                     selectedTahunTanamValue = selectedTahunTanam
-                    val estateAbbr = deptList.find { it.id == estateId!!.toInt() }?.abbr
+
+
+                    AppLogger.d(estateId.toString())
+                    AppLogger.d(selectedDivisiValue.toString())
+                    AppLogger.d(selectedTahunTanamValue.toString())
+
                     val filteredBlokCodes = blokList.filter {
-                        it.regional == regionalId!!.toInt() &&
-                                it.dept == estateId!!.toInt() &&
-                                ((it.divisi != null && it.divisi.toString()
-                                    .isNotEmpty() && it.divisi == selectedDivisiValue) || it.dept_abbr == estateAbbr) &&
+
+                        it.dept == estateId!!.toInt() &&
+                                it.divisi == selectedDivisiValue &&
                                 it.tahun == selectedTahunTanamValue
                     }
 
                     val layoutBlok =
                         linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutBlok)
                     if (filteredBlokCodes.isNotEmpty()) {
-                        val blokNames = filteredBlokCodes.map { it.kode }
+                        val blokNames = filteredBlokCodes.map { it.blok_kode }
                         setupSpinnerView(layoutBlok, blokNames as List<String>)
                         layoutBlok.visibility = View.VISIBLE
                     } else {
-                        layoutBlok.visibility = View.GONE
+                        setupSpinnerView(layoutBlok, emptyList())
                     }
                 }
 
                 R.id.layoutTipePanen -> {
-//                    selectedTipePanen = item.toString()
                     selectedTipePanen = position.toString()
 
                 }
@@ -1096,43 +1263,52 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     resetTPHSpinner(linearLayout.rootView)
                     selectedBlok = item.toString()
                     selectedFieldCodeSpinnerIndex = position
-                    val estateAbbr = deptList.find { it.id == estateId!!.toInt() }?.abbr
-                    val selectedFieldId = blokList.find { blok ->
-                        blok.regional == regionalId!!.toInt() &&
-                                blok.dept == estateId!!.toInt() &&
-                                ((blok.divisi != null && blok.divisi.toString()
-                                    .isNotEmpty() && blok.divisi == selectedDivisiValue) || blok.dept_abbr == estateAbbr) &&
-                                blok.tahun == selectedTahunTanamValue &&
-                                blok.kode == selectedBlok
-                    }?.id
 
-                    selectedBlokValue = selectedFieldId
+                    val selectedFieldId = try {
+                        blokList.find { blok ->
+                            blok.dept == estateId?.toIntOrNull() && // Safe conversion
+                                    blok.divisi == selectedDivisiValue &&
+                                    blok.tahun == selectedTahunTanamValue &&
+                                    blok.blok_kode == selectedBlok
+                        }?.blok
+                    } catch (e: Exception) {
+                        AppLogger.e("Error finding selected Blok ID: ${e.message}")
+                        null
+                    }
 
+                    if (selectedFieldId != null) {
+                        selectedBlokValue = selectedFieldId
+                        AppLogger.d("Selected Blok ID: $selectedBlokValue")
+                    } else {
+                        selectedBlokValue = null
+                        AppLogger.e("Selected Blok ID is null, skipping processing.")
+                        return@setOnItemSelectedListener // Prevent further execution
+                    }
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
                             animateLoadingDots(linearLayout)
-
-                            // Add artificial delay if needed
                             delay(1000) // 1 second delay
                         }
 
-//
                         try {
+                            if (estateId == null || selectedDivisiValue == null || selectedTahunTanamValue == null || selectedBlokValue == null) {
+                                throw IllegalStateException("One or more required parameters are null!")
+                            }
+
                             val tphDeferred = async {
                                 datasetViewModel.getTPHList(
-                                    regionalId!!.toInt(),
                                     estateId!!.toInt(),
                                     selectedDivisiValue!!,
-                                    estateAbbr!!,
                                     selectedTahunTanamValue!!,
                                     selectedBlokValue!!
                                 )
                             }
 
                             tphList = tphDeferred.await()
-                            val noTPHList = tphList.map { it.nomor }
 
+                            AppLogger.d(tphList.toString())
+                            val noTPHList = tphList.map { it.nomor }
 
                             withContext(Dispatchers.Main) {
                                 val layoutNoTPH =
@@ -1143,7 +1319,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                 } else {
                                     setupSpinnerView(layoutNoTPH, emptyList())
                                 }
-
                             }
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching afdeling data: ${e.message}")
@@ -1161,88 +1336,99 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
                     }
                 }
+
 
                 R.id.layoutNoTPH -> {
                     selectedTPH = item.toString()
                     selectedTPHSpinnerIndex = position
-                    val estateAbbr = deptList.find { it.id == estateId!!.toInt() }?.abbr
-                    val selectedTPHId = tphList!!.find {
-                        it.regional == regionalId!!.toInt() &&
-                                it.dept == estateId!!.toInt() &&
-                                ((it.divisi != null && it.divisi.toString()
-                                    .isNotEmpty() && it.divisi == selectedDivisiValue) || it.dept_abbr == estateAbbr) &&
-                                it.blok == selectedBlokValue &&
-                                it.tahun == selectedTahunTanamValue &&
-                                it.nomor == selectedTPH
+
+                    val selectedTPHId = try {
+                        tphList?.find {
+                            it.dept == estateId?.toIntOrNull() && // Safe conversion to prevent crashes
+                                    it.divisi == selectedDivisiValue &&
+                                    it.blok == selectedBlokValue &&
+                                    it.tahun == selectedTahunTanamValue &&
+                                    it.nomor == selectedTPH
+                        }?.id
+                    } catch (e: Exception) {
+                        AppLogger.e("Error finding selected TPH ID: ${e.message}")
+                        null
                     }
 
-                    selectedTPHValue = selectedTPHId?.id
+                    if (selectedTPHId != null) {
+                        selectedTPHValue = selectedTPHId
+                        AppLogger.d("Selected TPH ID: $selectedTPHValue")
+                    } else {
+                        selectedTPHValue = null
+                        AppLogger.e("Selected TPH ID is null, skipping processing.")
+                    }
                 }
+
+
 
                 R.id.layoutKemandoran -> {
-
                     selectedKemandoran = item.toString()
-                    val filteredKemandoranId = kemandoranList.find {
-                        it.dept == estateId!!.toInt() &&
-                                it.divisi == selectedDivisiValue
-                        it.nama == selectedKemandoran
-                    }?.id
 
-                    lifecycleScope.launch(Dispatchers.IO) {
-                        withContext(Dispatchers.Main) {
-                            animateLoadingDots(linearLayout)
+                    val filteredKemandoranId: Int? = try {
+                        kemandoranList.find {
+                            it.dept == estateId?.toIntOrNull() && // Avoids force unwrap (!!)
+                                    it.divisi == selectedDivisiValue &&
+                                    it.nama == selectedKemandoran
+                        }?.id
+                    } catch (e: Exception) {
+                        AppLogger.e("Error finding Kemandoran ID: ${e.message}")
+                        null
+                    }
 
-                            delay(1000) // 1 second delay
-                        }
+                    if (filteredKemandoranId != null) {
+                        AppLogger.d("Filtered Kemandoran ID: $filteredKemandoranId")
 
-                        try {
-                            val kemandoranDetailDeferred = async {
-                                datasetViewModel.getKemandoranDetailList(
-                                    filteredKemandoranId!!,
-                                )
-                            }
-
-                            kemandoranDetailList = kemandoranDetailDeferred.await()
-
-                            val filteredKemandoranDetails =
-                                kemandoranDetailList.mapNotNull { it.nik }
-
-                            val karyawanDeferred = async {
-                                datasetViewModel.getKaryawanList(
-                                    filteredKemandoranDetails.toTypedArray()
-                                )
-                            }
-
-                            karyawanList = karyawanDeferred.await()
-
-                            val karyawanNames = karyawanList.map { it.nama }
-
+                        lifecycleScope.launch(Dispatchers.IO) {
                             withContext(Dispatchers.Main) {
-                                val layoutPemanen =
-                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
-                                if (karyawanNames.isNotEmpty()) {
-                                    setupSpinnerView(layoutPemanen, karyawanNames as List<String>)
-                                } else {
-                                    setupSpinnerView(layoutPemanen, emptyList())
+                                animateLoadingDots(linearLayout)
+                                delay(1000) // 1 second delay
+                            }
+
+                            try {
+                                val karyawanDeferred = async {
+                                    datasetViewModel.getKaryawanList(filteredKemandoranId)
+                                }
+
+                                karyawanList = karyawanDeferred.await()
+
+                                val karyawanNames = karyawanList.map { it.nama }
+
+                                withContext(Dispatchers.Main) {
+                                    val layoutPemanen =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                    if (karyawanNames.isNotEmpty()) {
+                                        setupSpinnerView(layoutPemanen,
+                                            karyawanNames as List<String>
+                                        )
+                                    } else {
+                                        setupSpinnerView(layoutPemanen, emptyList())
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("Error fetching afdeling data: ${e.message}")
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        this@FeaturePanenTBSActivity,
+                                        "Error loading afdeling data: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            } finally {
+                                withContext(Dispatchers.Main) {
+                                    hideLoadingDots(linearLayout)
                                 }
                             }
-                        } catch (e: Exception) {
-                            AppLogger.e("Error fetching afdeling data: ${e.message}")
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(
-                                    this@FeaturePanenTBSActivity,
-                                    "Error loading afdeling data: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        } finally {
-                            withContext(Dispatchers.Main) {
-//                                loadingDialog.dismiss()
-                                hideLoadingDots(linearLayout)
-                            }
                         }
+                    } else {
+                        AppLogger.e("Filtered Kemandoran ID is null, skipping data fetch.")
                     }
                 }
+
 
                 R.id.layoutPemanen -> {
                     selectedPemanen = item.toString()
@@ -1267,77 +1453,69 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
                 R.id.layoutKemandoranLain -> {
-//                    selectedPemanenLainAdapter.clearAllWorkers()
+                    selectedPemanenLainAdapter.clearAllWorkers()
                     selectedKemandoranLain = item.toString()
                     selectedKemandoranLainSpinnerIndex = position
-                    val estateAbbr = deptList.find { it.id == estateId!!.toInt() }?.abbr
 
-                    val selectedIdKemandoranLain = kemandoranLainList.find {
-                        it.dept == estateId!!.toInt() &&
-                                (it.divisi != null && it.divisi.toString()
-                                    .isNotEmpty() && it.divisi == selectedDivisiValue || it.dept_abbr == estateAbbr) &&
-                                it.nama == selectedKemandoranLain
-                    }?.id
+                    val selectedIdKemandoranLain: Int? = try {
+                        kemandoranLainList.find {
+                            it.nama == selectedKemandoranLain
+                        }?.id
+                    } catch (e: Exception) {
+                        AppLogger.e("Error finding selected Kemandoran: ${e.message}")
+                        null // Return null to prevent crashes
+                    }
 
-                    lifecycleScope.launch(Dispatchers.IO) {
-                        withContext(Dispatchers.Main) {
-                            animateLoadingDots(linearLayout)
 
-                            // Add artificial delay if needed
-                            delay(1000) // 1 second delay
-                        }
+                    if (selectedIdKemandoranLain != null) {
+                        AppLogger.d("Selected ID Kemandoran Lain: $selectedIdKemandoranLain")
 
-                        try {
-                            val kemandoranDetailDeferred = async {
-                                datasetViewModel.getKemandoranDetailList(
-                                    selectedIdKemandoranLain!!,
-                                )
-                            }
-
-                            val kemandoranDetailList = kemandoranDetailDeferred.await()
-
-                            val allKaryawanIdInKemandoranDetail =
-                                kemandoranDetailList.mapNotNull { it.nik }
-
-                            val karyawanDeferred = async {
-                                datasetViewModel.getKaryawanList(
-                                    allKaryawanIdInKemandoranDetail.toTypedArray()
-                                )
-                            }
-
-                            karyawanLainList = karyawanDeferred.await()
-
-                            val namaKaryawanKemandoranLain =
-                                karyawanLainList.map { it.nama }
-
+                        lifecycleScope.launch(Dispatchers.IO) {
                             withContext(Dispatchers.Main) {
-                                val layoutPemanenLain =
-                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
-                                if (namaKaryawanKemandoranLain.isNotEmpty()) {
-                                    setupSpinnerView(
-                                        layoutPemanenLain,
-                                        namaKaryawanKemandoranLain as List<String>
-                                    )
-                                } else {
-                                    setupSpinnerView(layoutPemanenLain, emptyList())
+                                animateLoadingDots(linearLayout)
+                                delay(1000) // 1 second delay
+                            }
+
+                            try {
+                                val karyawanDeferred = async {
+                                    datasetViewModel.getKaryawanList(selectedIdKemandoranLain)
+                                }
+
+                                karyawanLainList = karyawanDeferred.await()
+
+                                val namaKaryawanKemandoranLain = karyawanLainList.map { it.nama }
+
+                                withContext(Dispatchers.Main) {
+                                    val layoutPemanenLain =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                                    if (namaKaryawanKemandoranLain.isNotEmpty()) {
+                                        setupSpinnerView(
+                                            layoutPemanenLain,
+                                            namaKaryawanKemandoranLain as List<String>
+                                        )
+                                    } else {
+                                        setupSpinnerView(layoutPemanenLain, emptyList())
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("Error fetching kemandoran lain data: ${e.message}")
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        this@FeaturePanenTBSActivity,
+                                        "Error loading kemandoran lain data: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            } finally {
+                                withContext(Dispatchers.Main) {
+                                    hideLoadingDots(linearLayout)
                                 }
                             }
-                        } catch (e: Exception) {
-                            AppLogger.e("Error fetching kemandoran lain data: ${e.message}")
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(
-                                    this@FeaturePanenTBSActivity,
-                                    "Error loading kemandoran lain data: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        } finally {
-                            withContext(Dispatchers.Main) {
-//                                loadingDialog.dismiss()
-                                hideLoadingDots(linearLayout)
-                            }
                         }
+                    } else {
+                        AppLogger.e("Selected ID Kemandoran Lain is null, skipping data fetch.")
                     }
+
                 }
 
                 R.id.layoutPemanenLain -> {
@@ -1539,10 +1717,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val recyclerView: RecyclerView = findViewById(R.id.recyclerViewFotoPreview)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
         takeFotoPreviewAdapter = TakeFotoPreviewAdapter(3, cameraViewModel, this, featureName)
         recyclerView.adapter = takeFotoPreviewAdapter
     }
+
     /**
      * Updates the text of a spinner's label in the included layout.
      */
@@ -1569,6 +1749,83 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         textView.text = labelText
         etNumber.setText(counterVar.get().toString())
+
+        etNumber.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+            override fun afterTextChanged(s: Editable?) {
+                etNumber.removeTextChangedListener(this)
+
+                try {
+                    val newValue = if (s.isNullOrEmpty()) 0 else s.toString().toInt()
+
+                    if (layoutId == R.id.layoutJumTBS) {
+                        val oldValue = jumTBS
+                        val sisa = oldValue - abnormal - bLewatMasak - bMentah - jjgKosong
+
+                        if (newValue >= oldValue || (newValue > 0 && sisa > 0)) {
+                            jumTBS = newValue
+                            counterVar.set(jumTBS)
+
+                            // Update dependent counters if needed
+                            val updates = listOf(
+                                Pair(::bMentah, R.id.layoutBMentah),
+                                Pair(::bLewatMasak, R.id.layoutBLewatMasak),
+                                Pair(::jjgKosong, R.id.layoutJjgKosong),
+                                Pair(::abnormal, R.id.layoutAbnormal),
+                                Pair(::seranganTikus, R.id.layoutSeranganTikus),
+                                Pair(::tangkaiPanjang, R.id.layoutTangkaiPanjang),
+                                Pair(::tidakVCut, R.id.layoutVcut)
+                            )
+
+                            Handler(Looper.getMainLooper()).post {
+                                for ((counter, layout) in updates) {
+                                    if (counter.get() > newValue) {
+                                        updateDependentCounters(layout, -1, counter, null)
+                                        updateEditText(layout, counter.get())
+                                    }
+                                }
+                            }
+
+                            formulas()
+                            updateCounterTextViews()
+                        } else {
+                            // Reset to old value if conditions not met
+                            etNumber.setText(oldValue.toString())
+                            vibrate()
+                        }
+                    } else {
+                        // For other layouts (bMentah, bLewatMasak, etc.)
+                        val currentValue = counterVar.get()
+                        val totalOthers = when (layoutId) {
+                            R.id.layoutBMentah -> abnormal + bLewatMasak + newValue + jjgKosong
+                            R.id.layoutBLewatMasak -> abnormal + newValue + bMentah + jjgKosong
+                            R.id.layoutJjgKosong -> abnormal + bLewatMasak + bMentah + newValue
+                            R.id.layoutAbnormal -> newValue + bLewatMasak + bMentah + jjgKosong
+                            else -> abnormal + bLewatMasak + bMentah + jjgKosong
+                        }
+
+                        if (jumTBS > 0 && newValue <= jumTBS && totalOthers <= jumTBS) {
+                            counterVar.set(newValue)
+                            formulas()
+                            updateCounterTextViews()
+                        } else {
+                            // Reset to previous value
+                            etNumber.setText(counterVar.get().toString())
+                            vibrate()
+                        }
+                    }
+
+                } catch (e: NumberFormatException) {
+                    etNumber.setText(counterVar.get().toString())
+                    vibrate()
+                }
+
+                etNumber.addTextChangedListener(this)
+            }
+        })
 
         val btDec = includedLayout.findViewById<CardView>(R.id.btDec)
         val btInc = includedLayout.findViewById<CardView>(R.id.btInc)
@@ -1608,7 +1865,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 etNumber.setText(counterVar.get().toString())
             } else {
                 vibrate()
-                changeEditTextStyle(true)
+//                changeEditTextStyle(true)
             }
         }
 
@@ -1621,7 +1878,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 tvPercent
             )  // Increment through dependent counter
             etNumber.setText(counterVar.get().toString())
-            changeEditTextStyle(counterVar.get() <= 0)
+//            changeEditTextStyle(counterVar.get() <= 0)
         }
     }
 

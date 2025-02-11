@@ -18,28 +18,32 @@ abstract class BlokDao {
     @Query("DELETE FROM blok")
     abstract fun deleteAll()
 
+    @Query("SELECT * FROM blok WHERE dept = :idEstate GROUP BY divisi")
+    abstract fun getDivisiByCriteria(idEstate: Int): List<BlokModel>
+
+
     @Transaction
-    open fun updateOrInsertBlok(blok: List<BlokModel>) {
+    open suspend fun updateOrInsertBlok(blok: List<BlokModel>) {
+        val count = getCount()
+        if (count > 0) {
+            deleteAll()
+        }
         insertAll(blok)
     }
+
+    @Query("SELECT COUNT(*) FROM blok")
+    abstract suspend fun getCount(): Int
 
     @Query(
         """
     SELECT * FROM blok 
-    WHERE regional = :idRegional 
-    AND dept = :idEstate 
-    AND (
-        (divisi IS NOT NULL AND divisi != '' AND divisi = :idDivisi)
-        OR 
-        (divisi IS NULL OR divisi = '') AND dept_abbr = :estateAbbr
-    )
+    WHERE dept = :idEstate 
+    AND divisi = :idDivisi
     """
     )
     abstract fun getBlokByCriteria(
-        idRegional: Int,
         idEstate: Int,
         idDivisi: Int,
-        estateAbbr: String
     ): List<BlokModel>
 
 }

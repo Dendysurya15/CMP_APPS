@@ -4,6 +4,7 @@ import androidx.room.*
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.model.PanenEntityWithRelations
+import com.cbi.cmp_project.utils.AppLogger
 
 @Dao
 abstract class PanenDao {
@@ -15,11 +16,15 @@ abstract class PanenDao {
     open suspend fun insertWithTransaction(panen: PanenEntity): Result<Long> {
         return try {
             val id = insert(panen)
+            AppLogger.d("insertWithTransaction success: ID = $id") // Debug log
             Result.success(id)
         } catch (e: Exception) {
+            e.printStackTrace() // Print stack trace
+            AppLogger.e("insertWithTransaction failed", e.toString())
             Result.failure(e)
         }
     }
+
 
     @Query("SELECT EXISTS(SELECT 1 FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated)")
     abstract suspend fun exists(tphId: String, dateCreated: String): Boolean
