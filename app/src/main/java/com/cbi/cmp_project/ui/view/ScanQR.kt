@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +26,7 @@ class ScanQR : AppCompatActivity() {
         if (result.contents != null) {
             // Launch result activity with scanned content
             var intent = Intent(this, ListTPHApproval::class.java).apply {
+                Log.d("testing",result.contents)
                 putExtra(EXTRA_QR_RESULT, result.contents) }
             when (menuString) {
                 "Buat eSPB" -> intent = Intent(this, ListPanenTBSActivity::class.java).apply {

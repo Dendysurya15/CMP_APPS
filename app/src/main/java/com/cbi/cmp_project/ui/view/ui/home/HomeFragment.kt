@@ -350,27 +350,6 @@ class HomeFragment : Fragment() {
                 functionDescription = "",
                 displayType = DisplayType.ICON,
                 subTitle = "Sinkronisasi data manual"
-            ),
-            FeatureCard(
-                cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Asistensi estate",
-                featureNameBackgroundColor = R.color.greenDarker,
-                iconResource = R.drawable.cbi,
-                functionDescription = "",
-                displayType = DisplayType.ICON,
-                subTitle = "Panen TBS khusus asistensi dari estate lain"
-                functionName = "Pemeriksaan Ancak",
-                functionDescription = "Buat Catatan Sidak Path anda disini!",
-                displayType = DisplayType.ICON
-            ),
-            FeatureCard(
-                cardBackgroundColor = R.color.orange,
-                featureName = "Sinkronisasi Data",
-                featureNameBackgroundColor = R.color.borderOrange,
-                iconResource = R.drawable.rotate_solid,
-                functionName = "Update Data",
-                functionDescription = "Fitur untuk melakukan sinkronisasi data master",
-                displayType = DisplayType.ICON
             )
         )
 
@@ -425,7 +404,6 @@ data class FeatureCard(
     val featureNameBackgroundColor: Int,
     val iconResource: Int? = null,  // Make it nullable
     val count: String? = null,      // Add count parameter
-    val functionName: String,
     val functionDescription: String,
     val displayType: DisplayType,
     val subTitle: String? = ""

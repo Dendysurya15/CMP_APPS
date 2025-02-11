@@ -38,11 +38,11 @@ abstract class TPHDao {
 
     @Query("""
         SELECT 
-            t.nomor as tphNomor,
-            b.kode as blokKode
-        FROM tph t
-        LEFT JOIN blok b ON t.blok = b.id
-        WHERE t.id = :id
+            nomor as tphNomor,
+            blok_kode as blokKode
+        FROM tph
+        
+        WHERE id = :id
     """)
     abstract suspend fun getTPHAndBlokInfo(id: Int): TPHBlokInfo?
 

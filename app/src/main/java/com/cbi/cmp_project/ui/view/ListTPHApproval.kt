@@ -47,11 +47,12 @@ class ListTPHApproval : AppCompatActivity() {
         const val EXTRA_QR_RESULT = "scannedResult"
         private const val TAG = "ListTPHApproval"
     }
-
     private var userName: String? = null
     private var estateName: String? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
+    private var estateId: String? = null
+    private var userId: Int? = null
 
     private lateinit var data: List<TphRvData>
     private lateinit var saveData: List<TphRvData>
@@ -98,24 +99,12 @@ class ListTPHApproval : AppCompatActivity() {
         val userSection = findViewById<TextView>(R.id.userSection)
 
         val prefManager = PrefManager(this)
-        userName = try {
-            prefManager.getUserNameLogin("user_name")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting user_name", e)
-            "null"
-        }
-        estateName = try {
-            prefManager.getEstateUserLogin("estate_name")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting estate_name", e)
-            "null"
-        }
-        jabatanUser = try {
-            prefManager.getJabatanUserLogin("jabatan_name")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting jabatan_name", e)
-            "null"
-        }
+        estateId = prefManager!!.estateIdUserLogin
+        estateName = prefManager!!.estateUserLogin
+        userName = prefManager!!.nameUserLogin
+        userId = prefManager!!.idUserLogin
+        jabatanUser = prefManager!!.jabatanUserLogin
+
         AppUtils.setupUserHeader(
             userName = userName,
             jabatanUser = jabatanUser,

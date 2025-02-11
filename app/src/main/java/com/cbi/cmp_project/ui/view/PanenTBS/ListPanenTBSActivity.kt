@@ -278,6 +278,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 // Get references to views
                 val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
                 val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
+                val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
                 val dashedLine: View = view.findViewById(R.id.dashedLine)
                 val loadingContainer: LinearLayout =
                     view.findViewById(R.id.loadingDotsContainerBottomSheet)
