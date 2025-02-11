@@ -63,7 +63,7 @@ class HomeViewModel : ViewModel() {
                     _navigationEvent.value = FeatureCardEvent.NavigateToPanenTBS(context, feature.featureName)
                 }
             }
-            "List History Panen TBS" -> {
+            "Rekap Hasil Panen" -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     _navigationEvent.value = FeatureCardEvent.NavigateToListPanenTBS(context, feature.featureName)
                 }
@@ -71,6 +71,16 @@ class HomeViewModel : ViewModel() {
             "Scan Hasil Panen" -> {
                 if (feature.displayType == DisplayType.ICON) {
                     _navigationEvent.value = FeatureCardEvent.NavigateToScanPanen(context, feature.featureName)
+                }
+            }
+            "Buat eSPB" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    _navigationEvent.value = FeatureCardEvent.NavigateToBuatESPB(context, feature.featureName)
+                }
+            }
+            "Rekap panen dan restan" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    _navigationEvent.value = FeatureCardEvent.NavigateToRekapPanen(context, feature.featureName)
                 }
             }
             "Sinkronisasi Data" -> {
@@ -87,4 +97,6 @@ sealed class FeatureCardEvent(val context: Context? = null, val featureName: Str
     class NavigateToListPanenTBS(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
     class NavigateToScanPanen(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
     class SinkronisasiData(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
+    class NavigateToBuatESPB(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
+    class NavigateToRekapPanen(context: Context, featureName: String) : FeatureCardEvent(context, featureName)
 }

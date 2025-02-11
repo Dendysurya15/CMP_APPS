@@ -40,7 +40,10 @@
         android:theme="@style/Theme.Cmp_project"
         tools:targetApi="31">
         <activity
-            android:name=".ui.view.ListTPHFromQRActivity"
+            android:name=".ui.view.FormESPBActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.view.ListTPHApproval"
             android:exported="false" />
         <activity
             android:name=".ui.view.ScanQR"

@@ -15,8 +15,8 @@ import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Base64
+import android.util.Log
 import android.view.View
-import android.view.ViewTreeObserver
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AnimationUtils
 import android.widget.CheckBox
@@ -34,13 +34,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
-import com.cbi.cmp_project.data.repository.AppRepository
-import com.cbi.cmp_project.data.repository.PanenTBSRepository
 import com.cbi.cmp_project.ui.adapter.ListPanenTPHAdapter
 import com.cbi.cmp_project.ui.view.HomePageActivity
 
-import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
-import com.cbi.cmp_project.ui.viewModel.PanenTBSViewModel
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
@@ -59,8 +55,8 @@ import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.leinardi.android.speeddial.SpeedDialActionItem
 import com.leinardi.android.speeddial.SpeedDialView
+import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable.start
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -74,7 +70,8 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 class ListPanenTBSActivity : AppCompatActivity() {
-    private var featureName: String? = null
+    private var featureName = ""
+    private var listTPHDriver = ""
     private lateinit var panenViewModel: PanenViewModel
     private lateinit var listAdapter: ListPanenTPHAdapter
     private lateinit var loadingDialog: LoadingDialog
@@ -112,6 +109,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setContentView(R.layout.activity_list_panen_tbs)
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
+        listTPHDriver = try {
+            AppUtils.readJsonFromEncryptedBase64Zip(
+                intent.getStringExtra("scannedResult").toString()
+            )
+                .toString()
+        } catch (e: Exception) {
+            Toasty.error(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+            ""
+        }
         prefManager = PrefManager(this)
         userName = prefManager!!.nameUserLogin
         estateName = prefManager!!.estateUserLogin
@@ -130,7 +136,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupCheckboxControl()  // Add this
         currentState = 0
         setActiveCard(cardTersimpan)
-        panenViewModel.loadActivePanen()
+        if (featureName == "Buat eSPB") {
+            panenViewModel.loadActivePanenESPB()
+        } else if (featureName == "Rekap panen dan restan") {
+            panenViewModel.loadActivePanenRestan()
+        } else {
+            panenViewModel.loadActivePanen()
+        }
+
         setupButtonGenerateQR()
     }
 
@@ -146,7 +159,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
             listAdapter.updateArchiveState(0)
             speedDial.visibility =
                 if (listAdapter.getSelectedItems().isNotEmpty()) View.VISIBLE else View.GONE
-            panenViewModel.loadActivePanen()
+            if (featureName == "Buat eSPB") {
+                panenViewModel.loadActivePanenESPB()
+            } else if (featureName == "Rekap panen dan restan") {
+                panenViewModel.loadActivePanenRestan()
+            } else {
+                panenViewModel.loadActivePanen()
+            }
         }
 
         cardTerscan.setOnClickListener {
@@ -201,10 +220,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val formattedData = buildString {
                 mappedData.forEach { data ->
                     try {
-                        val tphId = data["tph_id"]?.toString() ?: throw IllegalArgumentException("Missing tph_id.")
-                        val dateCreated = data["date_created"]?.toString() ?: throw IllegalArgumentException("Missing date_created.")
+                        val tphId = data["tph_id"]?.toString()
+                            ?: throw IllegalArgumentException("Missing tph_id.")
+                        val dateCreated = data["date_created"]?.toString()
+                            ?: throw IllegalArgumentException("Missing date_created.")
 
-                        val jjgJsonString = data["jjg_json"]?.toString() ?: throw IllegalArgumentException("Missing jjg_json.")
+                        val jjgJsonString = data["jjg_json"]?.toString()
+                            ?: throw IllegalArgumentException("Missing jjg_json.")
                         val jjgJson = try {
                             JSONObject(jjgJsonString)
                         } catch (e: JSONException) {
@@ -234,90 +256,127 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
 
-
     private fun setupButtonGenerateQR() {
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
+        if (featureName == "Buat eSPB") {
+            btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
+            btnGenerateQRTPH.setOnClickListener {
+                val selectedItems = listAdapter.getSelectedItems()
+                Log.d("ListPanenTBSActivityESPB", "selectedItems: $selectedItems")
+            }
+        } else {
+            btnGenerateQRTPH.setOnClickListener {
+                val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
+                view.background = ContextCompat.getDrawable(
+                    this@ListPanenTBSActivity,
+                    R.drawable.rounded_top_right_left
+                )
 
-        btnGenerateQRTPH.setOnClickListener {
-            val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
-            view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
+                val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
+                dialog.setContentView(view)
 
-            val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
-            dialog.setContentView(view)
+                // Get references to views
+                val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
+                val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
+                val dashedLine: View = view.findViewById(R.id.dashedLine)
+                val loadingContainer: LinearLayout =
+                    view.findViewById(R.id.loadingDotsContainerBottomSheet)
 
-            // Get references to views
-            val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
-            val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-            val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
-            val dashedLine: View = view.findViewById(R.id.dashedLine)
-            val loadingContainer: LinearLayout = view.findViewById(R.id.loadingDotsContainerBottomSheet)
+                // Initially hide QR code and dashed line, show loading
+                qrCodeImageView.visibility = View.GONE
+                dashedLine.visibility = View.GONE
+                loadingLogo.visibility = View.VISIBLE
+                loadingContainer.visibility = View.VISIBLE
 
-            // Initially hide QR code and dashed line, show loading
-            qrCodeImageView.visibility = View.GONE
-            dashedLine.visibility = View.GONE
-            loadingLogo.visibility = View.VISIBLE
-            loadingContainer.visibility = View.VISIBLE
+                // Load and start bounce animation
+                val bounceAnimation = AnimationUtils.loadAnimation(this, R.anim.bounce)
+                loadingLogo.startAnimation(bounceAnimation)
 
-            // Load and start bounce animation
-            val bounceAnimation = AnimationUtils.loadAnimation(this, R.anim.bounce)
-            loadingLogo.startAnimation(bounceAnimation)
+                // Setup dots animation
+                val dots = listOf(
+                    loadingContainer.findViewById<View>(R.id.dot1),
+                    loadingContainer.findViewById<View>(R.id.dot2),
+                    loadingContainer.findViewById<View>(R.id.dot3),
+                    loadingContainer.findViewById<View>(R.id.dot4)
+                )
 
-            // Setup dots animation
-            val dots = listOf(
-                loadingContainer.findViewById<View>(R.id.dot1),
-                loadingContainer.findViewById<View>(R.id.dot2),
-                loadingContainer.findViewById<View>(R.id.dot3),
-                loadingContainer.findViewById<View>(R.id.dot4)
-            )
+                dots.forEachIndexed { index, dot ->
+                    val translateAnimation =
+                        ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
+                    val scaleXAnimation = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 0.8f, 1f)
+                    val scaleYAnimation = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 0.8f, 1f)
 
-            dots.forEachIndexed { index, dot ->
-                val translateAnimation = ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
-                val scaleXAnimation = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 0.8f, 1f)
-                val scaleYAnimation = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 0.8f, 1f)
-
-                listOf(translateAnimation, scaleXAnimation, scaleYAnimation).forEach { animation ->
-                    animation.duration = 500
-                    animation.repeatCount = ObjectAnimator.INFINITE
-                    animation.repeatMode = ObjectAnimator.REVERSE
-                    animation.startDelay = (index * 100).toLong()
-                    animation.start()
+                    listOf(
+                        translateAnimation,
+                        scaleXAnimation,
+                        scaleYAnimation
+                    ).forEach { animation ->
+                        animation.duration = 500
+                        animation.repeatCount = ObjectAnimator.INFINITE
+                        animation.repeatMode = ObjectAnimator.REVERSE
+                        animation.startDelay = (index * 100).toLong()
+                        animation.start()
+                    }
                 }
-            }
 
-            dialog.setOnShowListener {
-                val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                val behavior = BottomSheetBehavior.from(bottomSheet!!)
-                behavior.state = BottomSheetBehavior.STATE_EXPANDED
-            }
+                dialog.setOnShowListener {
+                    val bottomSheet =
+                        dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                    val behavior = BottomSheetBehavior.from(bottomSheet!!)
+                    behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                }
 
-            dialog.show()
+                dialog.show()
 
             lifecycleScope.launch(Dispatchers.Default) {
                 delay(1000)
                 try {
                     val dataQR: TextView? = view.findViewById(R.id.dataQR)
+                    val dataQRTitle: TextView? = view.findViewById(R.id.dataQRTitle)
+
+
+
+                    val qrText = mappedData.joinToString("•", prefix = "•") { panen ->
+                        val blokName = panen["blok_name"] ?: "-"
+                        val tphName = panen["tph_name"] ?: "-"
+                        val jjgJson = panen["jjg_json"] as? String ?: "{}"
+
+                        // Parse the jjg_json and extract the "TO" value
+                        val toValue = try {
+                            val json = JSONObject(jjgJson)
+                            json.optInt("TO", 0) // Default to 0 if "TO" key is missing
+                        } catch (e: Exception) {
+                            0 // Default to 0 if parsing fails
+                        }
+
+                        " Blok $blokName TPH $tphName ($toValue Jjg)\n"
+                    }
 
 
 
 
-                    val jsonData = formatPanenDataForQR(mappedData)
-                    val encodedData = encodeJsonToBase64ZipQR(jsonData) ?: throw Exception("Encoding failed")
+                        val jsonData = formatPanenDataForQR(mappedData)
+                        val encodedData =
+                            encodeJsonToBase64ZipQR(jsonData) ?: throw Exception("Encoding failed")
 
-                    withContext(Dispatchers.Main) {
-                        try {
+                        withContext(Dispatchers.Main) {
+                            try {
 
-                            generateHighQualityQRCode(encodedData, qrCodeImageView)
-                            // Fade-out the loading elements
-                            val fadeOut = ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f).apply {
-                                duration = 250
-                            }
-                            val fadeOutDots = ObjectAnimator.ofFloat(loadingContainer, "alpha", 1f, 0f).apply {
-                                duration = 250
-                            }
+                                generateHighQualityQRCode(encodedData, qrCodeImageView)
+                                // Fade-out the loading elements
+                                val fadeOut =
+                                    ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f).apply {
+                                        duration = 250
+                                    }
+                                val fadeOutDots =
+                                    ObjectAnimator.ofFloat(loadingContainer, "alpha", 1f, 0f)
+                                        .apply {
+                                            duration = 250
+                                        }
 
-                            // Ensure QR code starts fully invisible before fading in
-                            qrCodeImageView.alpha = 0f
-                            dashedLine.alpha = 0f
+                                // Ensure QR code starts fully invisible before fading in
+                                qrCodeImageView.alpha = 0f
+                                dashedLine.alpha = 0f
 
                             // Create fade-in animation for QR code and dashed line
                             val fadeIn = ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f).apply {
@@ -332,20 +391,21 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
 
 
-                            // Create fade-in for the dataQR text as well
-                            val fadeInText = ObjectAnimator.ofFloat(dataQR, "alpha", 0f, 1f).apply {
-                                duration = 250
-                                startDelay = 150
-                            }
+                                // Create fade-in for the dataQR text as well
+                                val fadeInText =
+                                    ObjectAnimator.ofFloat(dataQR, "alpha", 0f, 1f).apply {
+                                        duration = 250
+                                        startDelay = 150
+                                    }
 
-                            // Now run the animations together
-                            AnimatorSet().apply {
-                                playTogether(fadeOut, fadeOutDots)
-                                addListener(object : AnimatorListenerAdapter() {
-                                    override fun onAnimationEnd(animation: Animator) {
-                                        // Hide loading elements
-                                        loadingLogo.visibility = View.GONE
-                                        loadingContainer.visibility = View.GONE
+                                // Now run the animations together
+                                AnimatorSet().apply {
+                                    playTogether(fadeOut, fadeOutDots)
+                                    addListener(object : AnimatorListenerAdapter() {
+                                        override fun onAnimationEnd(animation: Animator) {
+                                            // Hide loading elements
+                                            loadingLogo.visibility = View.GONE
+                                            loadingContainer.visibility = View.GONE
 
                                         tvTitleQRGenerate.visibility = View.VISIBLE
                                         qrCodeImageView.visibility = View.VISIBLE
@@ -359,24 +419,29 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 start()
                             }
 
-                        } catch (e: Exception) {
-                            loadingLogo.animation?.cancel()
-                            loadingLogo.clearAnimation()
-                            loadingLogo.visibility = View.GONE
-                            loadingContainer.visibility = View.GONE
-                            AppLogger.e("QR Generation Error: ${e.message}")
-                            showErrorMessageGenerateQR(view, "Error Generating QR code: ${e.message}")
+                            } catch (e: Exception) {
+                                loadingLogo.animation?.cancel()
+                                loadingLogo.clearAnimation()
+                                loadingLogo.visibility = View.GONE
+                                loadingContainer.visibility = View.GONE
+                                AppLogger.e("QR Generation Error: ${e.message}")
+                                showErrorMessageGenerateQR(
+                                    view,
+                                    "Error Generating QR code: ${e.message}"
+                                )
+                            }
                         }
-                    }
 
 
-
-
-                } catch (e: Exception) {
-                    AppLogger.e("Error in QR process: ${e.message}")
-                    withContext(Dispatchers.Main) {
-                        stopLoadingAnimation(loadingLogo, loadingContainer)
-                        showErrorMessageGenerateQR(view, "Error Processing QR code: ${e.message}")
+                    } catch (e: Exception) {
+                        AppLogger.e("Error in QR process: ${e.message}")
+                        withContext(Dispatchers.Main) {
+                            stopLoadingAnimation(loadingLogo, loadingContainer)
+                            showErrorMessageGenerateQR(
+                                view,
+                                "Error Processing QR code: ${e.message}"
+                            )
+                        }
                     }
                 }
             }
@@ -450,7 +515,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
             throw IllegalArgumentException("${e.message}")
         }
     }
-
 
 
     private fun setupObservers() {
@@ -680,7 +744,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
-
     private fun setupCheckboxControl() {
         val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
             .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
@@ -808,17 +871,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
         speedDial = findViewById(R.id.dial_tph_list)
 
         speedDial.apply {
-//            addActionItem(
-//                SpeedDialActionItem.Builder(R.id.scan_qr, R.drawable.baseline_qr_code_scanner_24)
-//                    .setLabel(getString(R.string.generate_qr))
-//                    .setFabBackgroundColor(
-//                        ContextCompat.getColor(
-//                            this@ListPanenTBSActivity,
-//                            R.color.yellowbutton
-//                        )
-//                    )
-//                    .create()
-//            )
+            addActionItem(
+                SpeedDialActionItem.Builder(R.id.scan_qr, R.drawable.baseline_qr_code_scanner_24)
+                    .setLabel(getString(R.string.generate_qr))
+                    .setFabBackgroundColor(
+                        ContextCompat.getColor(
+                            this@ListPanenTBSActivity,
+                            R.color.yellowbutton
+                        )
+                    )
+                    .create()
+            )
 
             addActionItem(
                 SpeedDialActionItem.Builder(R.id.deleteSelected, R.drawable.baseline_delete_forever_24)
@@ -837,24 +900,24 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setOnActionSelectedListener { actionItem ->
                 when (actionItem.id) {
                     R.id.scan_qr -> {
-//                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
-//
-//                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
-//
-//                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
-//                        dialog.setContentView(view)
-////                        view.layoutParams.height = 500.toPx()
-//
-//                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-//                        val data = "test"
-//                        generateHighQualityQRCode(data, qrCodeImageView)
-//                        dialog.setOnShowListener {
-//                            val bottomSheet =
-//                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-//                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
-//                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
-//                        }
-//                        dialog.show()
+                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
+
+                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
+
+                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
+                        dialog.setContentView(view)
+//                        view.layoutParams.height = 500.toPx()
+
+                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
+                        val data = "test"
+                        generateHighQualityQRCode(data, qrCodeImageView)
+                        dialog.setOnShowListener {
+                            val bottomSheet =
+                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
+                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                        }
+                        dialog.show()
                         true
                     }
 //                    R.id.cancelSelection -> {
@@ -928,7 +991,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun updateFilterDisplay() {
         filterSection.visibility = View.VISIBLE
-        filterName.text = if (isAscendingOrder) "Urutan Nomor TPH Kecil - Besar" else "Urutan Nomor TPH Besar - Kecil"
+        filterName.text =
+            if (isAscendingOrder) "Urutan Nomor TPH Kecil - Besar" else "Urutan Nomor TPH Besar - Kecil"
     }
 
 
@@ -982,7 +1046,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
     private fun setupHeader() {
-        featureName = intent.getStringExtra("FEATURE_NAME")
+        featureName = intent.getStringExtra("FEATURE_NAME").toString()
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
         val userSection = findViewById<TextView>(R.id.userSection)
         val locationSection = findViewById<LinearLayout>(R.id.locationSection)
@@ -1004,5 +1068,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
             adapter = listAdapter
             layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
         }
+        listAdapter.setFeatureAndScanned(featureName, listTPHDriver)
     }
 }

@@ -10,25 +10,26 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.cbi.cmp_project.R
-import com.cbi.cmp_project.ui.view.ListTPHFromQRActivity.Companion.EXTRA_QR_RESULT
+import com.cbi.cmp_project.ui.view.ListTPHApproval.Companion.EXTRA_QR_RESULT
+import com.cbi.cmp_project.ui.view.PanenTBS.ListPanenTBSActivity
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 
 class ScanQR : AppCompatActivity() {
 
     var menuString = ""
-    var subTitleString = ""
 
     private val qrCodeLauncher = registerForActivityResult(
         ScanContract()
     ) { result ->
         if (result.contents != null) {
             // Launch result activity with scanned content
-            var intent = Intent(this, ListTPHFromQRActivity::class.java).apply {
+            var intent = Intent(this, ListTPHApproval::class.java).apply {
                 putExtra(EXTRA_QR_RESULT, result.contents) }
             when (menuString) {
-                "Generate eSPB" -> intent = Intent(this, ListTPHFromQRActivity::class.java).apply {
-                putExtra(EXTRA_QR_RESULT, result.contents) }
+                "Buat eSPB" -> intent = Intent(this, ListPanenTBSActivity::class.java).apply {
+                putExtra(EXTRA_QR_RESULT, result.contents)
+                putExtra("FEATURE_NAME", menuString)}
             }
             startActivity(intent)
             finish()
@@ -45,7 +46,6 @@ class ScanQR : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         menuString = intent.getStringExtra("FEATURE_NAME") ?: ""
-        subTitleString = intent.getStringExtra("SUBTITLE") ?: ""
         setContentView(R.layout.activity_generate_espb)
         checkPermissionAndStartScanning()
     }
@@ -70,7 +70,7 @@ class ScanQR : AppCompatActivity() {
             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
             setOrientationLocked(false)
             setBeepEnabled(true)
-            setPrompt(subTitleString)
+            setPrompt(menuString)
             setTimeout(60000)  // 60 second timeout
             setCameraId(0)  // Use back camera
             setBarcodeImageEnabled(true)  // Save scanned barcode image

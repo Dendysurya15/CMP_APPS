@@ -42,8 +42,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.cbi.cmp_project.ui.view.ScanQR
-import com.cbi.cmp_project.utils.PrefManager
 import es.dmoral.toasty.Toasty
+import com.cbi.cmp_project.utils.PrefManager
 
 
 class HomeFragment : Fragment() {
@@ -53,6 +53,7 @@ class HomeFragment : Fragment() {
     private val homeViewModel: HomeViewModel by activityViewModels()
     private var prefManager: PrefManager? = null
     private lateinit var panenViewModel: PanenViewModel
+    private lateinit var loadingDialog: LoadingDialog
 
     private var countPanenTPH: Int = 0  // Global variable for count
     private var countPanenTPHApproval: Int = 0  // Global variable for count
@@ -97,34 +98,33 @@ class HomeFragment : Fragment() {
         if (this::featureAdapter.isInitialized) {  // Changed to positive condition
             lifecycleScope.launch(Dispatchers.IO) {
                 withContext(Dispatchers.Main) {
-                    featureAdapter.showLoadingForFeature("List History Panen TBS")
+                    featureAdapter.showLoadingForFeature("Rekap Hasil Panen")
                     delay(300)
                 }
-
                 try {
                     val countDeferred = async { panenViewModel.loadPanenCount() }
                     countPanenTPH = countDeferred.await()
                     withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount("List History Panen TBS", countPanenTPH.toString())
-                        featureAdapter.hideLoadingForFeature("List History Panen TBS")
+                        featureAdapter.updateCount("Rekap Hasil Panen", countPanenTPH.toString())
+                        featureAdapter.hideLoadingForFeature("Rekap Hasil Panen")
                     }
                 } catch (e: Exception) {
                     AppLogger.e("Error fetching data: ${e.message}")
                     withContext(Dispatchers.Main) {
-                        featureAdapter.hideLoadingForFeature("List History Panen TBS")
+                        featureAdapter.hideLoadingForFeature("Rekap Hasil Panen")
                     }
                 }
                 try {
                     val countDeferred = async { panenViewModel.loadPanenCountApproval() }
                     countPanenTPHApproval = countDeferred.await()
                     withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount("Verifikasi Panen", countPanenTPHApproval.toString())
-                        featureAdapter.hideLoadingForFeature("Verifikasi Panen")
+                        featureAdapter.updateCount("Rekap panen dan restan", countPanenTPHApproval.toString())
+                        featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
                     }
                 } catch (e: Exception) {
                     AppLogger.e("Error fetching data: ${e.message}")
                     withContext(Dispatchers.Main) {
-                        featureAdapter.hideLoadingForFeature("Verifikasi Panen")
+                        featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
                     }
                 }
             }
@@ -186,7 +186,27 @@ class HomeFragment : Fragment() {
                         event.featureName?.let { featureName ->
                             Log.d("testing","masuk: ${event.featureName}")
                             intent.putExtra("FEATURE_NAME", featureName)
-                            intent.putExtra("SUBTITLE", featureName)
+                        }
+                        startActivity(intent)
+                    }
+                }
+
+                is FeatureCardEvent.NavigateToBuatESPB -> {
+                    event.context?.let {
+                        val intent = Intent(it, ScanQR::class.java)
+                        event.featureName?.let { featureName ->
+                            Log.d("testing","masuk: ${event.featureName}")
+                            intent.putExtra("FEATURE_NAME", featureName)
+                        }
+                        startActivity(intent)
+                    }
+                }
+                is FeatureCardEvent.NavigateToRekapPanen -> {
+                    Toasty.success(requireContext(), "Rekap Panen", Toasty.LENGTH_SHORT).show()
+                    event.context?.let {
+                        val intent = Intent(it, ListPanenTBSActivity::class.java)
+                        event.featureName?.let { featureName ->
+                            intent.putExtra("FEATURE_NAME", featureName)
                         }
                         startActivity(intent)
                     }
@@ -207,6 +227,7 @@ class HomeFragment : Fragment() {
                     }
                 }
 
+
             }
         }
     }
@@ -219,18 +240,16 @@ class HomeFragment : Fragment() {
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
                 count = null,
-                functionName = "Tambah Lapor Panen",
-                functionDescription = "Catat & Lapor Hasil\nPanen TPH anda disini!",
+                functionDescription = "Pencatatatan panen TBS di TPH oleh kerani panen",
                 displayType = DisplayType.ICON
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
-                featureName = "List History Panen TBS",
+                featureName = "Rekap Hasil Panen",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
                 count = countPanenTPH.toString(),
-                functionName = "Data Tersimpan",
-                functionDescription = "Jumlah Data Panen Yang Sudah dibuat!",
+                functionDescription = "Rekapitulasi panen TBS dan transfer data ke suoervisi",
                 displayType = DisplayType.COUNT
             ),
             FeatureCard(
@@ -239,45 +258,107 @@ class HomeFragment : Fragment() {
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
                 count = null,
-                functionName = "Tambah Lapor Panen",
-                functionDescription = "Catat & Lapor Hasil\nPanen TPH anda disini!",
+                functionDescription = "Transfer data dari kerani panen ke supervisi untuk pembuatan eSPB",
                 displayType = DisplayType.ICON
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
-                featureName = "Verifikasi Panen",
+                featureName = "Rekap panen dan restan",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
                 count = countPanenTPHApproval.toString(),
-                functionName = "Data Tersimpan",
-                functionDescription = "Jumlah Data Panen Yang Sudah dibuat!",
+                functionDescription = "Rekapitulsasi panen TBS dan restan dari kerani panen",
                 displayType = DisplayType.COUNT
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Scan Pemuatan TPH",
+                featureName = "Buat eSPB",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
-                functionName = "e-SPB PANEN",
-                functionDescription = "Buat Laporan e-SPB & Transfer dengan NFC/QR Code",
+                functionDescription = "Transfer data dari driver ke supervisi untuk pembuatan eSPB",
                 displayType = DisplayType.ICON,
                 subTitle = "Scan QR Code eSPB"
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Generate eSPB",
+                featureName = "Rekap eSPB",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
                 count = "0",
-                functionName = "e-SPB PANEN",
-                functionDescription = "Buat Laporan e-SPB & Transfer dengan NFC/QR Code",
+                functionDescription = "Rekapitulasi eSPB dan transfer data ke driver",
                 displayType = DisplayType.COUNT
             ),
             FeatureCard(
-                cardBackgroundColor = R.color.bluedarklight,
-                featureName = "Inspeksi Panen",
-                featureNameBackgroundColor = R.color.bluedark,
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Inspeksi panen",
+                featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
+                functionDescription = "............",
+                displayType = DisplayType.ICON,
+                subTitle = "Scan QR Code eSPB"
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Rekap inspeksi panen",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = null,
+                count = "0",
+                functionDescription = "............",
+                displayType = DisplayType.COUNT
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Absensi panen",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                functionDescription = "Absensi kehadiran karyawan panen oleh supervisi",
+                displayType = DisplayType.ICON,
+                subTitle = "Scan QR Code eSPB"
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Rekap absensi panen",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = null,
+                count = "0",
+                functionDescription = "Rekapitulasi absensi karyawan dan transfer data ke kerani panen",
+                displayType = DisplayType.COUNT
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Scan absensi panen",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                functionDescription = "Transfer data abseni dari supervisi ke kerani panen",
+                displayType = DisplayType.ICON,
+                subTitle = "Scan QR Code eSPB"
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Weight bridge",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                functionDescription = "",
+                displayType = DisplayType.ICON,
+                subTitle = "Transfer data eSPB dari driver"
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Sinkronisasi data",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                functionDescription = "",
+                displayType = DisplayType.ICON,
+                subTitle = "Sinkronisasi data manual"
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Asistensi estate",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                functionDescription = "",
+                displayType = DisplayType.ICON,
+                subTitle = "Panen TBS khusus asistensi dari estate lain"
                 functionName = "Pemeriksaan Ancak",
                 functionDescription = "Buat Catatan Sidak Path anda disini!",
                 displayType = DisplayType.ICON
@@ -397,10 +478,9 @@ class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) : Recy
     class FeatureViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val cardView: CardView = itemView.findViewById(R.id.card_panen_tbs)
         val featureName: TextView = itemView.findViewById(R.id.feature_name)
-        val featureNameBackground: FrameLayout = itemView.findViewById(R.id.bg_feature_name)
+        val featureNameBackground: CardView = itemView.findViewById(R.id.card_panen_tbs_border)
         val iconFeature: ImageView = itemView.findViewById(R.id.icon_feature)
         val countFeature: TextView = itemView.findViewById(R.id.count_feature_data)
-        val functionName: TextView = itemView.findViewById(R.id.feature_function_name)
         val functionDescription: TextView = itemView.findViewById(R.id.feature_function_description)
         val loadingDotsContainer: LinearLayout = itemView.findViewById(R.id.countLoadingDotsContainer)
         val dot1: TextView = itemView.findViewById(R.id.countDot1)
@@ -439,12 +519,11 @@ class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) : Recy
         val feature = features[position]
         val context = holder.itemView.context
 
-        holder.cardView.setCardBackgroundColor(ContextCompat.getColor(context, feature.cardBackgroundColor))
+//        holder.cardView.setCardBackgroundColor(ContextCompat.getColor(context, feature.cardBackgroundColor))
         holder.featureName.text = feature.featureName
-        (holder.featureNameBackground.background as GradientDrawable).setColor(
+        holder.featureNameBackground.setCardBackgroundColor(
             ContextCompat.getColor(context, feature.featureNameBackgroundColor)
         )
-
         when (feature.displayType) {
             DisplayType.ICON -> {
                 holder.iconFeature.visibility = View.VISIBLE
@@ -461,7 +540,6 @@ class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) : Recy
             }
         }
 
-        holder.functionName.text = feature.functionName
         holder.functionDescription.text = feature.functionDescription
         holder.cardView.setOnClickListener {
             onFeatureClicked(feature)
