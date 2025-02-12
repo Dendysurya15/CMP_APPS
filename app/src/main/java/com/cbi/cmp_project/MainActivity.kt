@@ -58,16 +58,11 @@ class MainActivity : AppCompatActivity() {
         try {
             database = AppDatabase.getDatabase(applicationContext)
 
-            database.regionalDao()
-            database.wilayahDao()
-            database.deptDao()
-            database.divisiDao()
-            database.blokDao()
             database.karyawanDao()
             database.kemandoranDao()
-            database.kemandoranDetailDao()
             database.tphDao()
             database.flagESPBModelDao()
+            database.millDao()
             insertDefaultFlags()
 
             Log.d("Database", "Database and tables initialized successfully")

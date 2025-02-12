@@ -10,20 +10,14 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.bumptech.glide.load.engine.Resource
 import com.cbi.cmp_project.data.model.KaryawanModel
-import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.data.model.MillModel
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
-import com.cbi.cmp_project.data.model.dataset.ProgressResponseBody
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.data.repository.DatasetRepository
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.PrefManager
-import com.cbi.markertph.data.model.BlokModel
-import com.cbi.markertph.data.model.DeptModel
-import com.cbi.markertph.data.model.DivisiModel
-import com.cbi.markertph.data.model.RegionalModel
 import com.cbi.markertph.data.model.TPHNewModel
-import com.cbi.markertph.data.model.WilayahModel
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
@@ -54,26 +48,14 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     val downloadStatuses: LiveData<Map<String, Resource<Response<ResponseBody>>>> =
         _downloadStatuses
 
-    private val _wilayahStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
-    val wilayahStatus: StateFlow<Result<Boolean>> = _wilayahStatus.asStateFlow()
-
-    private val _deptStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
-    val deptStatus: StateFlow<Result<Boolean>> = _deptStatus.asStateFlow()
-
-    private val _divisiStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
-    val divisiStatus: StateFlow<Result<Boolean>> = _divisiStatus.asStateFlow()
-
-    private val _blokStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
-    val blokStatus: StateFlow<Result<Boolean>> = _blokStatus.asStateFlow()
-
     private val _kemandoranStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val kemandoranStatus: StateFlow<Result<Boolean>> = _kemandoranStatus.asStateFlow()
 
-    private val _kemandoranDetailStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
-    val kemandoranDetailStatus: StateFlow<Result<Boolean>> = _kemandoranDetailStatus.asStateFlow()
-
     private val _karyawanStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val karyawanStatus: StateFlow<Result<Boolean>> = _karyawanStatus.asStateFlow()
+
+    private val _millStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
+    val millStatus: StateFlow<Result<Boolean>> = _millStatus.asStateFlow()
 
     private val _tphStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val tphStatus: StateFlow<Result<Boolean>> = _tphStatus.asStateFlow()
@@ -94,51 +76,51 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         class UpToDate<T>(dataset: String) : Resource<T>(message = "Dataset $dataset is up to date", isUpToDate = true)  // Add this
     }
 
-    fun updateOrInsertRegional(regionals: List<RegionalModel>) =
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                repository.updateOrInsertRegional(regionals)
-                _regionalStatus.value = Result.success(true)
-            } catch (e: Exception) {
-                _regionalStatus.value = Result.failure(e)
-            }
-        }
-
-    fun updateOrInsertWilayah(wilayah: List<WilayahModel>) = viewModelScope.launch(Dispatchers.IO) {
-        try {
-            repository.updateOrInsertWilayah(wilayah)
-            _wilayahStatus.value = Result.success(true)
-        } catch (e: Exception) {
-            _wilayahStatus.value = Result.failure(e)
-        }
-    }
-
-    fun updateOrInsertDept(dept: List<DeptModel>) = viewModelScope.launch(Dispatchers.IO) {
-        try {
-            repository.updateOrInsertDept(dept)
-            _deptStatus.value = Result.success(true)
-        } catch (e: Exception) {
-            _deptStatus.value = Result.failure(e)
-        }
-    }
-
-    fun updateOrInsertDivisi(divisions: List<DivisiModel>) = viewModelScope.launch(Dispatchers.IO) {
-        try {
-            repository.updateOrInsertDivisi(divisions)
-            _divisiStatus.value = Result.success(true)
-        } catch (e: Exception) {
-            _divisiStatus.value = Result.failure(e)
-        }
-    }
-
-    fun updateOrInsertBlok(blok: List<BlokModel>) = viewModelScope.launch(Dispatchers.IO) {
-        try {
-            repository.updateOrInsertBlok(blok)
-            _blokStatus.value = Result.success(true)
-        } catch (e: Exception) {
-            _blokStatus.value = Result.failure(e)
-        }
-    }
+//    fun updateOrInsertRegional(regionals: List<RegionalModel>) =
+//        viewModelScope.launch(Dispatchers.IO) {
+//            try {
+//                repository.updateOrInsertRegional(regionals)
+//                _regionalStatus.value = Result.success(true)
+//            } catch (e: Exception) {
+//                _regionalStatus.value = Result.failure(e)
+//            }
+//        }
+//
+//    fun updateOrInsertWilayah(wilayah: List<WilayahModel>) = viewModelScope.launch(Dispatchers.IO) {
+//        try {
+//            repository.updateOrInsertWilayah(wilayah)
+//            _wilayahStatus.value = Result.success(true)
+//        } catch (e: Exception) {
+//            _wilayahStatus.value = Result.failure(e)
+//        }
+//    }
+//
+//    fun updateOrInsertDept(dept: List<DeptModel>) = viewModelScope.launch(Dispatchers.IO) {
+//        try {
+//            repository.updateOrInsertDept(dept)
+//            _deptStatus.value = Result.success(true)
+//        } catch (e: Exception) {
+//            _deptStatus.value = Result.failure(e)
+//        }
+//    }
+//
+//    fun updateOrInsertDivisi(divisions: List<DivisiModel>) = viewModelScope.launch(Dispatchers.IO) {
+//        try {
+//            repository.updateOrInsertDivisi(divisions)
+//            _divisiStatus.value = Result.success(true)
+//        } catch (e: Exception) {
+//            _divisiStatus.value = Result.failure(e)
+//        }
+//    }
+//
+//    fun updateOrInsertBlok(blok: List<BlokModel>) = viewModelScope.launch(Dispatchers.IO) {
+//        try {
+//            repository.updateOrInsertBlok(blok)
+//            _blokStatus.value = Result.success(true)
+//        } catch (e: Exception) {
+//            _blokStatus.value = Result.failure(e)
+//        }
+//    }
 
     fun updateOrInsertKemandoran(kemandoran: List<KemandoranModel>) =
         viewModelScope.launch(Dispatchers.IO) {
@@ -150,20 +132,30 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
-    fun updateOrInsertKemandoranDetail(kemandoran_detail: List<KemandoranDetailModel>) =
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                repository.updateOrInsertKemandoranDetail(kemandoran_detail)
-                _kemandoranDetailStatus.value = Result.success(true)
-            } catch (e: Exception) {
-                _kemandoranDetailStatus.value = Result.failure(e)
-            }
-        }
-
+//    fun updateOrInsertKemandoranDetail(kemandoran_detail: List<KemandoranDetailModel>) =
+//        viewModelScope.launch(Dispatchers.IO) {
+//            try {
+//                repository.updateOrInsertKemandoranDetail(kemandoran_detail)
+//                _kemandoranDetailStatus.value = Result.success(true)
+//            } catch (e: Exception) {
+//                _kemandoranDetailStatus.value = Result.failure(e)
+//            }
+//        }
+//
     fun updateOrInsertKaryawan(karyawan: List<KaryawanModel>) =
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.updateOrInsertKaryawan(karyawan)
+                _karyawanStatus.value = Result.success(true)
+            } catch (e: Exception) {
+                _karyawanStatus.value = Result.failure(e)
+            }
+        }
+
+    fun updateOrInsertMill(mill: List<MillModel>) =
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.updateOrInsertMill(mill)
                 _karyawanStatus.value = Result.success(true)
             } catch (e: Exception) {
                 _karyawanStatus.value = Result.failure(e)
@@ -179,9 +171,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    suspend fun getDeptList(estateId: String): List<DeptModel> {
-        return repository.getDeptByRegionalAndEstate(estateId)
-    }
+//    suspend fun getDeptList(estateId: String): List<DeptModel> {
+//        return repository.getDeptByRegionalAndEstate(estateId)
+//    }
 
     suspend fun getDivisiList(idEstate: Int): List<TPHNewModel> {
         return repository.getDivisiList(idEstate)
@@ -211,9 +203,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return repository.getTPHList( idEstate, idDivisi, tahunTanam, idBlok)
     }
 
-    suspend fun getKemandoranDetailList(idHeader: Int): List<KemandoranDetailModel> {
-        return repository.getKemandoranDetailList(idHeader)
-    }
+//    suspend fun getKemandoranDetailList(idHeader: Int): List<KemandoranDetailModel> {
+//        return repository.getKemandoranDetailList(idHeader)
+//    }
 
     suspend fun getKaryawanList(filteredId: Int): List<KaryawanModel> {
         return repository.getKaryawanList(filteredId)
@@ -277,15 +269,24 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 _downloadStatuses.postValue(results.toMap())
 
                 try {
-                    val response = repository.downloadDataset(request)
+                    var response: Response<ResponseBody>? = null
+                    if (request.dataset == "mill") {
+                        response = repository.downloadSmallDataset(request.regional ?: 0)
+
+                        AppLogger.d("askjdflk")
+                        AppLogger.d(response.toString())
+                    } else {
+                        response = repository.downloadDataset(request)
+                    }
+
 
                     // Get headers
                     val contentType = response.headers()["Content-Type"]
                     val lastModified = response.headers()["Last-Modified-Dataset"]
-                    val contentDisposition = response.headers()["Content-Disposition"]
-
-                    Log.d("DownloadResponse", "Last-Updated: $lastModified")
-                    Log.d("DownloadResponse", "Content-Disposition: $contentDisposition")
+//                    val contentDisposition = response.headers()["Content-Disposition"]
+//
+//                    Log.d("DownloadResponse", "Last-Updated: $lastModified")
+//                    Log.d("DownloadResponse", "Content-Disposition: $contentDisposition")
 
                     when (response.code()) {
                         200 -> {
@@ -335,17 +336,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         hasShownError = hasShownError,
                                                        lastModifiedTimestamp = lastModified ?: ""
                                                     )
-                                                    "blok" -> hasShownError = processDataset(
-                                                        jsonContent = jsonContent,
-                                                        dataset = request.dataset,
-                                                        modelClass = BlokModel::class.java,
-                                                        results = results,
-                                                        response = response,
-                                                        updateOperation = ::updateOrInsertBlok,
-                                                        statusFlow = blokStatus,
-                                                        hasShownError = hasShownError,
-                                                       lastModifiedTimestamp = lastModified ?: ""
-                                                    )
+
                                                     "kemandoran" -> hasShownError = processDataset(
                                                         jsonContent = jsonContent,
                                                         dataset = request.dataset,
@@ -367,6 +358,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         statusFlow = karyawanStatus,
                                                         hasShownError = hasShownError,
                                                        lastModifiedTimestamp = lastModified ?: ""
+                                                    )
+                                                    "mill" -> hasShownError = processDataset(
+                                                        jsonContent = jsonContent,
+                                                        dataset = request.dataset,
+                                                        modelClass = MillModel::class.java,
+                                                        results = results,
+                                                        response = response,
+                                                        updateOperation = ::updateOrInsertMill,
+                                                        statusFlow = millStatus,
+                                                        hasShownError = hasShownError,
+                                                        lastModifiedTimestamp = lastModified ?: ""
                                                     )
                                                     else -> {
 
@@ -407,7 +409,48 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                 if (responseBodyString.contains("\"success\":false") && responseBodyString.contains("\"message\":\"Dataset is up to date\"")) {
                                     results[request.dataset] = Resource.UpToDate(request.dataset)
-                                } else {
+                                }
+                                else if (request.dataset == "mill") {
+
+                                    try {
+                                        // Create a new simpler parse function just for mill data
+                                        fun <T> parseMillJsonToList(jsonContent: String, classType: Class<T>): List<T> {
+                                            val gson = Gson()
+                                            val jsonObject = gson.fromJson(jsonContent, JsonObject::class.java)
+                                            val dataArray = jsonObject.getAsJsonArray("data")
+                                            return gson.fromJson(dataArray, TypeToken.getParameterized(List::class.java, classType).type)
+                                        }
+
+                                        // Use the new parse function
+                                        val millList = parseMillJsonToList(responseBodyString, MillModel::class.java)
+
+                                        // Update status to storing
+                                        results[request.dataset] = Resource.Storing(request.dataset)
+                                        _downloadStatuses.postValue(results.toMap())
+
+                                        // Store the data
+                                        updateOrInsertMill(millList).join()
+
+                                        if (millStatus.value.isSuccess) {
+                                            results[request.dataset] = Resource.Success(response)
+                                            prefManager!!.addDataset(request.dataset)
+                                        } else {
+                                            val error = millStatus.value.exceptionOrNull()
+                                            throw error ?: Exception("Unknown database error")
+                                        }
+
+                                        _downloadStatuses.postValue(results.toMap())
+
+                                    } catch (e: Exception) {
+                                        Log.e("DownloadResponse", "Error processing mill data: ${e.message}")
+                                        if (!hasShownError) {
+                                            results[request.dataset] = Resource.Error("Error processing mill data: ${e.message}")
+                                            hasShownError = true
+                                        }
+                                        _downloadStatuses.postValue(results.toMap())
+                                    }
+                                }
+                                else {
                                     results[request.dataset] = Resource.Success(response)
                                 }
                             } else {

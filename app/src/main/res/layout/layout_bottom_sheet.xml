@@ -50,7 +50,8 @@
                 android:layout_height="match_parent"
                 android:src="@drawable/circle_exclamation_solid"
                 android:tint="@color/colorRedDark"
-                android:layout_marginEnd="8dp"/>
+                android:layout_marginEnd="8dp"
+                tools:ignore="UseAppTint" />
 
             <TextView
                 android:id="@+id/errorText"
@@ -123,16 +124,21 @@ android:paddingBottom="10dp"
         android:visibility="gone"
 android:gravity="center"
         android:fontFamily="@font/manrope_extrabold"
-        android:textSize="23sp"
+        android:textSize="25sp"
         tools:ignore="MissingConstraints" />
 
     <ImageView
         android:id="@+id/qrCodeImageView"
         android:layout_marginTop="10dp"
         android:layout_width="match_parent"
-        android:layout_height="280sp"
+        android:layout_height="320sp"
+        android:visibility="gone"
         tools:ignore="MissingConstraints"
         app:layout_constraintTop_toBottomOf="@+id/textTitleQRGenerate" /> <!-- Center ImageView -->
+
+
+
+
 
     <View
         android:id="@+id/dashedLine"
@@ -140,10 +146,83 @@ android:gravity="center"
         android:layout_height="10dp"
         android:layout_marginVertical="16dp"
         android:layerType="software"
-        android:visibility="visible"
+        android:visibility="gone"
         android:background="@drawable/dashed_straight_line"
         app:layout_constraintTop_toBottomOf="@id/qrCodeImageView"
         app:layout_constraintBottom_toTopOf="@id/dataQRTitle"/>
+
+
+    <TextView
+        android:id="@+id/titleAfterScanQR"
+        android:layout_marginTop="10dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Konfirmasi Scan QR"
+        android:visibility="gone"
+        android:gravity="left"
+        app:layout_constraintTop_toBottomOf="@+id/dashedLine"
+        android:fontFamily="@font/manrope_bold"
+        android:textSize="21sp"
+        tools:ignore="MissingConstraints" />
+
+    <TextView
+        android:id="@+id/descAfterScanQR"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Jika sudah melakukan scan QR harap konfirmasi dengan tombol berikut!"
+        android:visibility="gone"
+        android:gravity="left"
+        app:layout_constraintTop_toBottomOf="@+id/titleAfterScanQR"
+        android:fontFamily="@font/manrope_medium"
+        android:textStyle="italic"
+        android:textSize="17sp"
+        tools:ignore="MissingConstraints" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        app:layout_constraintTop_toBottomOf="@id/descAfterScanQR"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal">
+
+
+<!--        <com.google.android.material.button.MaterialButton-->
+<!--            android:id="@+id/btnCancelScanPanenTPH"-->
+<!--            android:layout_width="0dp"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_weight="1"-->
+<!--            android:text="Sudah Scan"-->
+<!--            android:visibility="visible"-->
+<!--            android:textAllCaps="false"-->
+<!--            android:textSize="20sp"-->
+<!--            android:textColor="@color/black"-->
+<!--            android:backgroundTint="@color/graylight"-->
+<!--            app:cornerRadius="8dp"-->
+<!--            app:icon="@drawable/baseline_delete_forever_24"-->
+<!--            app:iconGravity="textStart"-->
+<!--            app:iconTint="@color/graytextdark"-->
+<!--            app:iconPadding="8dp"-->
+<!--            />-->
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnConfirmScanPanenTPH"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Sudah Scan"
+            android:visibility="gone"
+            android:textAllCaps="false"
+            android:textSize="20sp"
+            android:backgroundTint="@color/greenDarker"
+            app:cornerRadius="8dp"
+            app:icon="@drawable/baseline_qr_code_scanner_24"
+            app:iconGravity="textStart"
+            app:iconPadding="8dp"
+            />
+
+
+
+    </LinearLayout>
 
 
     <TextView

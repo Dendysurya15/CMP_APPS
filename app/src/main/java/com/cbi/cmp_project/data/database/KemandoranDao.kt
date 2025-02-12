@@ -6,8 +6,6 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.KemandoranModel
-import com.cbi.markertph.data.model.BlokModel
-import com.cbi.markertph.data.model.DeptModel
 
 @Dao
 abstract class KemandoranDao {

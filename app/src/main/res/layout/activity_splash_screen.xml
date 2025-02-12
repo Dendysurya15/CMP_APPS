@@ -16,7 +16,6 @@
         app:layout_constraintHeight_percent="0.6"
         app:layout_constraintTop_toTopOf="parent" />
 
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -29,7 +28,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="19dp"
+            android:textSize="19sp"
             android:gravity="left"
             android:textStyle="italic"
             android:fontFamily="@font/montserrat_semibolditalic"
@@ -41,7 +40,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="30dp"
+            android:textSize="25sp"
             android:fontFamily="@font/manrope_extrabold"
             android:textColor="@color/greenDarker"
             android:layout_marginHorizontal="30dp"
@@ -52,7 +51,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="15dp"
+            android:textSize="15sp"
             android:textColor="@color/black"
             android:layout_marginHorizontal="30dp"
             android:gravity="left"
@@ -63,23 +62,34 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1" />
+    </LinearLayout>
+
+    <!-- New LinearLayout for logo and version at the bottom -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_marginBottom="10dp"
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <ImageView
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="50dp"
             android:src="@drawable/cbi"
-            android:layout_marginBottom="10dp"
             android:scaleType="fitCenter" />
+
         <TextView
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="15sp"
             android:textColor="@color/black"
             android:gravity="center"
             android:id="@+id/version_app"
             android:fontFamily="@font/manrope_semibold"
-            android:layout_marginBottom="40dp"
-            android:text="Versi 1.5.73" />
+            android:text="Versi 1.5.73"
+            android:layout_marginBottom="30dp"
+            android:layout_marginTop="5dp" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

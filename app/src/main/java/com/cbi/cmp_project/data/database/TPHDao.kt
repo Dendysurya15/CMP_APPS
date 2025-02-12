@@ -7,9 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.TPHBlokInfo
-import com.cbi.markertph.data.model.BlokModel
 import com.cbi.markertph.data.model.TPHNewModel
-import com.cbi.markertph.data.model.WilayahModel
 
 @Dao
 abstract class TPHDao {
@@ -50,7 +48,7 @@ abstract class TPHDao {
     @Query("SELECT nomor FROM tph WHERE id = :id")
     abstract suspend fun getTPHNomor(id: Int): String?
 
-    @Query("SELECT b.kode FROM tph t LEFT JOIN blok b ON t.blok = b.id WHERE t.id = :id")
+    @Query("SELECT blok_kode FROM tph WHERE id = :id")
     abstract suspend fun getBlokKode(id: Int): String?
 
     @Query(
