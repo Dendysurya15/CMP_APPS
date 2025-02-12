@@ -255,7 +255,7 @@ class TakeFotoPreviewAdapter(
             comments[position] = commentEditText.text.toString()
             textView.text = comments[position]
             val background = textView.background as GradientDrawable
-            background.setStroke(6, ContextCompat.getColor(context, android.R.color.holo_green_light))
+
             dialog.dismiss()
         }
 

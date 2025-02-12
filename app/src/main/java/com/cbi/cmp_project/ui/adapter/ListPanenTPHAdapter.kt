@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.databinding.TableItemRowBinding
+import com.cbi.cmp_project.utils.AppLogger
 import org.json.JSONException
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -66,6 +67,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
     fun extractData(item: Map<String, Any>): ExtractedData {
         Log.d("ListPanenTPHAdapterTest", "extractData: $item")
+
+
+        AppLogger.d(item.toString())
         val tphId = item["tph_id"] as? String ?: "0"
         val blokName = item["blok_name"] as? String ?: "-"
         val noTPH = item["nomor"] as? String ?: "-"
