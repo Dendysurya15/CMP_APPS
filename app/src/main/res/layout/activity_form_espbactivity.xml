@@ -26,21 +26,55 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
         <LinearLayout
+            android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
             <include
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginVertical="10dp"
                 layout="@layout/pane_et_layout"
                 android:id="@+id/formEspbNopol"/>
             <include
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginVertical="10dp"
                 layout="@layout/pane_et_layout"
                 android:id="@+id/formEspbDriver"/>
             <include
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginVertical="10dp"
                 layout="@layout/pane_et_layout"
                 android:id="@+id/formEspbTransporter"/>
             <include
+                android:layout_marginTop="10dp"
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginHorizontal="20dp"
                 layout="@layout/pertanyaan_spinner_layout"
                 android:id="@+id/formEspbMill"/>
+
+            <ImageView
+                android:layout_width="250dp"
+                android:layout_height="250dp"
+                android:id="@+id/qrCodeImageViewESPB"/>
         </LinearLayout>
     </ScrollView>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnGenerateQRESPB"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/baseline_qr_code_scanner_24"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="30dp"
+        app:maxImageSize="50dp"
+        android:layout_marginRight="30dp"
+        app:backgroundTint="@color/greendarkerbutton"
+        app:tint="@color/white"
+        app:rippleColor="@color/bgLightOrange"
+        android:tooltipText="Generate QR TPH" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
