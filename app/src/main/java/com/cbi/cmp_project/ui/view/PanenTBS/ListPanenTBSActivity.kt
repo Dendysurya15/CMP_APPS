@@ -36,6 +36,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.ui.adapter.ListPanenTPHAdapter
+import com.cbi.cmp_project.ui.view.FormESPBActivity
 import com.cbi.cmp_project.ui.view.HomePageActivity
 
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
@@ -63,13 +64,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONException
-import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import org.json.JSONArray
+import org.json.JSONObject
 
 class ListPanenTBSActivity : AppCompatActivity() {
     private var featureName = ""
@@ -123,6 +125,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             ""
         }
 
+        Log.d("testing", listTPHDriver.toString())
         prefManager = PrefManager(this)
         userName = prefManager!!.nameUserLogin
         estateName = prefManager!!.estateUserLogin
@@ -152,8 +155,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
             }
 
         }
-
-
 
         setupButtonGenerateQR()
     }
@@ -266,19 +267,164 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
+    fun convertToFormattedString(input: String, int: Int=1): String {
+        try {
+            // Remove the outer brackets
+            val content = input.trim().removeSurrounding("[", "]")
+
+            // Split into individual objects
+            val objects = content.split("}, {")
+
+            return objects.joinToString(";") { objStr ->
+                // Clean up the object string
+                val cleanObj = objStr.trim()
+                    .removePrefix("{")
+                    .removeSuffix("}")
+
+                // Split into key-value pairs
+                val map = cleanObj.split(", ").associate { pair ->
+                    val (key, value) = pair.split("=", limit = 2)
+                    key to value
+                }
+
+                // Extract jjg_json value
+                val jjgJson = map["jjg_json"]?.trim() ?: "{}"
+
+                // Construct the formatted string
+                "${map["tph_id"]},${map["date_created"]},${jjgJson},$int"
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return ""
+        }
+    }
+
+    fun convertToFormattedString(input: String, tphFilter: String): String {
+        try {
+            // Parse TPH filter string into a list of IDs
+            val tphIds = tphFilter
+                .trim()
+                .removeSurrounding("{", "}")
+                .substringAfter("\"tph\":\"")  // Get content after "tph":"
+                .substringBefore("\"")         // Get content before the closing quote
+                .split(";")
+                .map { it.trim() }
+                .toSet()
+
+            Log.d("ListPanenTBSActivityESPB", "tphIds: $tphIds")
+
+            // Remove the outer brackets
+            val content = input.trim().removeSurrounding("[", "]")
+
+            // Split into individual objects
+            val objects = content.split("}, {")
+
+            return objects
+                .filter { objStr ->
+                    // Extract tph_id from each object and check if it's in our filter list
+                    val cleanObj = objStr.trim()
+                        .removePrefix("{")
+                        .removeSuffix("}")
+                    val map = cleanObj.split(", ").associate { pair ->
+                        val (key, value) = pair.split("=", limit = 2)
+                        key to value
+                    }
+                    tphIds.contains(map["tph_id"])
+                }
+                .joinToString(";") { objStr ->
+                    // Clean up the object string
+                    val cleanObj = objStr.trim()
+                        .removePrefix("{")
+                        .removeSuffix("}")
+
+                    // Split into key-value pairs
+                    val map = cleanObj.split(", ").associate { pair ->
+                        val (key, value) = pair.split("=", limit = 2)
+                        key to value
+                    }
+
+                    // Extract jjg_json value
+                    val jjgJson = map["jjg_json"]?.trim() ?: "{}"
+
+                    // Construct the formatted string
+                    "${map["tph_id"]},${map["date_created"]},${jjgJson},1"
+                }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return ""
+        }
+    }
+
+    data class Entry(
+        val id: String,
+        val timestamp: String,
+        val value: Int,
+        val type: Int
+    ) {
+        override fun toString(): String = "$id,$timestamp,$value,$type"
+    }
+
+    fun String.toEntries(): Set<Entry> {
+        if (this.isEmpty()) return emptySet()
+        return split(";").map { entry ->
+            val parts = entry.split(",")
+            Entry(
+                id = parts[0],
+                timestamp = parts[1],
+                value = parts[2].toInt(),
+                type = parts[3].toInt()
+            )
+        }.toSet()
+    }
+
+    fun Set<Entry>.toString(): String {
+        return if (isEmpty()) "" else joinToString(";")
+    }
 
     private fun setupButtonGenerateQR() {
-
-
-
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
-
-
         if (featureName == "Buat eSPB") {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
             btnGenerateQRTPH.setOnClickListener {
+                //get manually selected items
                 val selectedItems = listAdapter.getSelectedItems()
                 Log.d("ListPanenTBSActivityESPB", "selectedItems: $selectedItems")
+                val tph1AD0 = convertToFormattedString(selectedItems.toString(),0).replace("{\"KP\": ","").replace("},",",")
+                Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD0")
+                val tph1AD2 = convertToFormattedString(selectedItems.toString(),2).replace("{\"KP\": ","").replace("},",",")
+                Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD2")
+
+                //get automatically selected items
+                val selectedItems2 = listAdapter.getCurrentData()
+                Log.d("ListPanenTBSActivityESPB", selectedItems2.toString())
+                Log.d("ListPanenTBSActivityESPB", listTPHDriver)
+                val tph1NO = convertToFormattedString(selectedItems2.toString(), listTPHDriver).replace("{\"KP\": ","").replace("},",",")
+                Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsNO: $tph1NO")
+
+                //get item which is not selected
+                val tph0before = convertToFormattedString(selectedItems2.toString(),0).replace("{\"KP\": ","").replace("},",",")
+                Log.d("ListPanenTBSActivityESPB", "formatted selectedItems0: $tph0before")
+
+                val set1 = tph1AD0.toEntries()
+                val set2 = tph1AD2.toEntries()
+                val set3 = tph1NO.toEntries()
+                val set4 = tph0before.toEntries()
+
+                // Calculate string5 = string4 - string1 - string3
+                val tph0 = (set4 - set1 - set3).toString().replace("[","").replace("]","").replace(", ",";")
+                Log.d("ListPanenTBSActivityESPB", "tph0: $tph0")
+
+                // Calculate string6 = string2 + string3
+                val tph1 = (set2 + set3).toString().replace("[","").replace("]","").replace(", ",";")
+                Log.d("ListPanenTBSActivityESPB", "tph1: $tph1")
+                AlertDialogUtility.withTwoActions(this, "LANJUT","PERHATIAN!", "Apakah anda ingin membuat eSPB dengan data ini?", "warning.json"){
+                    val intent = Intent(this, FormESPBActivity::class.java)
+                    intent.putExtra("tph_1", tph1)
+                    intent.putExtra("tph_0", tph0)
+                    intent.putExtra("FEATURE_NAME", featureName)
+                    startActivity(intent)
+                    finishAffinity()
+                }
             }
         } else {
             btnGenerateQRTPH.setOnClickListener {
@@ -299,6 +445,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val loadingContainer: LinearLayout =
                     view.findViewById(R.id.loadingDotsContainerBottomSheet)
 
+                // Initially hide QR code and dashed line, show loading
                 qrCodeImageView.visibility = View.GONE
 
                 loadingLogo.visibility = View.VISIBLE
@@ -344,6 +491,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                 dialog.show()
 
+                lifecycleScope.launch(Dispatchers.Default) {
+                    delay(1000)
+                    try {
+                        val dataQR: TextView? = view.findViewById(R.id.dataQR)
+                        val dataQRTitle: TextView? = view.findViewById(R.id.dataQRTitle)
                 lifecycleScope.launch(Dispatchers.Default) {
                     delay(1000)
                     try {
@@ -500,8 +652,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             try {
 
                                 generateHighQualityQRCode(encodedData, qrCodeImageView)
-
-                                // Fade-out loading elements
+                                // Fade-out the loading elements
                                 val fadeOut =
                                     ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f).apply {
                                         duration = 250
@@ -537,6 +688,23 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             duration = 250
                                             startDelay = 150
                                         }
+                                // Create fade-in animation for QR code and dashed line
+                                val fadeIn =
+                                    ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f).apply {
+                                        duration = 250
+                                        startDelay = 150
+                                    }
+
+                                tvTitleQRGenerate.alpha = 0f  // Ensure title starts invisible
+                                val fadeInTitle =
+                                    ObjectAnimator.ofFloat(tvTitleQRGenerate, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
+
+                                // Create fade-in for the dataQR text as well
                                 val fadeInText =
                                     ObjectAnimator.ofFloat(dataQR, "alpha", 0f, 1f).apply {
                                         duration = 250
@@ -711,8 +879,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 "id" to (panenWithRelations.panen.id as Any),
                                 "tph_id" to (panenWithRelations.panen.tph_id as Any),
                                 "date_created" to (panenWithRelations.panen.date_created as Any),
-                                "blok_name" to (panenWithRelations.tph?.blok_kode
-                                    ?: "Unknown"), // Handle null safely
+                                "blok_name" to (panenWithRelations.tph?.blok_kode ?: "Unknown"), // Handle null safely
                                 "nomor" to (panenWithRelations.tph!!.nomor as Any),
                                 "created_by" to (panenWithRelations.panen.created_by as Any),
                                 "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
@@ -799,8 +966,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         tvEmptyState.visibility = View.GONE
                         recyclerView.visibility = View.VISIBLE
                         mappedData = panenList.map { panenWithRelations ->
-
-                            AppLogger.d(panenWithRelations.tph.toString())
                             mapOf<String, Any>(
                                 "id" to (panenWithRelations.panen.id as Any),
                                 "tph_id" to (panenWithRelations.panen.tph_id as Any),
@@ -821,7 +986,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             )
                         }
 
-                        AppLogger.d(mappedData.toString())
                         val distinctBlokNames = mappedData
                             .map { it["blok_name"]?.toString() ?: "-" }
                             .distinct()
@@ -1165,6 +1329,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             updateSortIcon() // Update icon on click
 
             listAdapter.sortData(isAscendingOrder)
+            listAdapter.sortByCheckedItems(false)
             updateFilterDisplay()
         }
 
