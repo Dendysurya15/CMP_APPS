@@ -1,5 +1,7 @@
 package com.cbi.cmp_project.data.api
 
+import android.graphics.Region
+import androidx.room.Query
 import com.cbi.cmp_project.data.model.LoginResponse
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
 import okhttp3.ResponseBody
@@ -72,4 +74,14 @@ interface ApiService {
     @POST("dataset/check-and-download")
     @Headers("Accept: application/json")
     suspend fun downloadDataset(@Body request: DatasetRequest): Response<ResponseBody>
+
+    @POST("org/fetch-mill")
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json"
+    )
+    suspend fun downloadSmallDataset(@Body body: Map<String, Int>): Response<ResponseBody>
+
+
+
 }

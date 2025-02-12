@@ -34,20 +34,7 @@ object AppUtils {
 
     const val REQUEST_CHECK_SETTINGS = 0x1
 
-    object ApiCallManager {
 
-        val apiCallList = listOf(
-            Pair("datasetRegional.zip", RetrofitClient.instance::downloadDatasetRegionalJson),
-            Pair("datasetWilayah.zip", RetrofitClient.instance::downloadDatasetWilayahJson),
-            Pair("datasetDept.zip", RetrofitClient.instance::downloadDatasetDeptJson),
-            Pair("datasetDivisi.zip", RetrofitClient.instance::downloadDatasetDivisiJson),
-            Pair("datasetBlok.zip", RetrofitClient.instance::downloadDatasetBlokJson),
-            Pair("datasetKaryawan.zip", RetrofitClient.instance::downloadDatasetKaryawanJson),
-            Pair("datasetKemandoran.zip", RetrofitClient.instance::downloadDatasetKemandoranJson),
-            Pair("datasetKemandoranDetail.zip", RetrofitClient.instance::downloadDatasetKemandoranDetailJson),
-            Pair("datasetTPH.zip", RetrofitClient.instance::downloadDatasetTPHNewJson),
-        )
-    }
     /**
      * Gets the current app version from BuildConfig or string resources.
      * @param context The context used to retrieve the string resource.

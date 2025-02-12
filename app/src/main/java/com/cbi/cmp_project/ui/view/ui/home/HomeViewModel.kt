@@ -5,21 +5,8 @@ import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.cbi.cmp_project.ui.viewModel.SingleLiveEvent
 import com.cbi.cmp_project.utils.AppLogger
 
-class EventWrapper<out T>(private val content: T) {
-    private var hasBeenHandled = false
-
-    fun getContentIfNotHandled(): T? {
-        return if (hasBeenHandled) {
-            null
-        } else {
-            hasBeenHandled = true
-            content
-        }
-    }
-}
 
 
 
@@ -79,11 +66,11 @@ class HomeViewModel : ViewModel() {
                 }
             }
             "Rekap panen dan restan" -> {
-                if (feature.displayType == DisplayType.ICON) {
+                if (feature.displayType == DisplayType.COUNT) {
                     _navigationEvent.value = FeatureCardEvent.NavigateToRekapPanen(context, feature.featureName)
                 }
             }
-            "Sinkronisasi Data" -> {
+            "Sinkronisasi data" -> {
                 if (feature.displayType == DisplayType.ICON) {
                     _navigationEvent.value = FeatureCardEvent.SinkronisasiData(context, feature.featureName)
                 }

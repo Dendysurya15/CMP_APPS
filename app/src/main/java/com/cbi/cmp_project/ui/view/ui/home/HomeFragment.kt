@@ -214,9 +214,6 @@ class HomeFragment : Fragment() {
 
                 is FeatureCardEvent.SinkronisasiData -> {
                     event.context?.let {
-                        // Safer null checking
-
-                        AppLogger.d("askldflskdf")
 
 
                         val currentValue = homeViewModel.startSinkronisasiData.value

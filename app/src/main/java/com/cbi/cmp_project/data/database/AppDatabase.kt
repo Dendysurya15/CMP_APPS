@@ -5,50 +5,57 @@ import android.util.Log
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.FlagESPBModel
 import com.cbi.cmp_project.data.model.KaryawanModel
-import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.data.model.MillModel
 import com.cbi.cmp_project.data.model.PanenEntity
-import com.cbi.markertph.data.model.BlokModel
-import com.cbi.markertph.data.model.DeptModel
-import com.cbi.markertph.data.model.DivisiModel
-import com.cbi.markertph.data.model.RegionalModel
 import com.cbi.markertph.data.model.TPHNewModel
-import com.cbi.markertph.data.model.WilayahModel
 import java.util.concurrent.Executors
+
+/**
+ * Database Version History
+ * Version 1 (Initial Release):
+ * - Initial database setup with tables:
+ *   - TPHNewModel
+ *   - KemandoranModel
+ *   - KaryawanModel
+ *   - PanenEntity
+ *   - ESPBEntity
+ *   - FlagESPBModel
+ *   - MillModel (columns: id, abbr, nama)
+ *
+ * Version 2:
+ * - TestingAdded column 'status' (nullable String) to MillModel table
+ * Version 3:
+ * - delete again the column 'status' from table mill
+ */
+
 
 @Database(
     entities = [
-        RegionalModel::class,
-        WilayahModel::class,
-        DeptModel::class,
-        DivisiModel::class,
-        BlokModel::class,
+
         TPHNewModel::class,
         KemandoranModel::class,
-        KemandoranDetailModel::class,
         KaryawanModel::class,
         PanenEntity::class,
         ESPBEntity::class,
     FlagESPBModel::class,
+    MillModel::class
     ],
-    version = 1
+    version = 3
 )
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun regionalDao(): RegionalDao
-    abstract fun wilayahDao(): WilayahDao
-    abstract fun deptDao(): DeptDao
-    abstract fun divisiDao(): DivisiDao
-    abstract fun blokDao(): BlokDao
     abstract fun kemandoranDao(): KemandoranDao
-    abstract fun kemandoranDetailDao(): KemandoranDetailDao
     abstract fun karyawanDao(): KaryawanDao
     abstract fun panenDao(): PanenDao
     abstract fun espbDao(): ESPBDao
     abstract fun tphDao(): TPHDao
     abstract fun flagESPBModelDao(): FlagESPBDao // ✅ Add DAO
+    abstract fun millDao():MillDao
 
 
 
@@ -63,10 +70,40 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "cbi_cmp"
                 )
+                    .addMigrations(MIGRATION_2_3)  // Add migration
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance
+            }
+        }
+
+//        private val MIGRATION_1_2 = object : Migration(1, 2) {
+//            override fun migrate(database: SupportSQLiteDatabase) {
+//                database.execSQL("ALTER TABLE mill ADD COLUMN status TEXT")
+//            }
+//        }
+
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Create temporary table
+                database.execSQL("""
+                    CREATE TABLE mill_temp (
+                        id INTEGER PRIMARY KEY,
+                        abbr TEXT,
+                        nama TEXT
+                    )
+                """)
+
+                // Copy data from old table to temp table (excluding status)
+                database.execSQL("""
+                    INSERT INTO mill_temp (id, abbr, nama)
+                    SELECT id, abbr, nama FROM mill
+                """)
+
+                database.execSQL("DROP TABLE mill")
+
+                database.execSQL("ALTER TABLE mill_temp RENAME TO mill")
             }
         }
 

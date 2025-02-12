@@ -24,12 +24,14 @@ class ScanQR : AppCompatActivity() {
         ScanContract()
     ) { result ->
         if (result.contents != null) {
+            Log.d("testing",result.contents)
             // Launch result activity with scanned content
             var intent = Intent(this, ListTPHApproval::class.java).apply {
-                Log.d("testing",result.contents)
+
                 putExtra(EXTRA_QR_RESULT, result.contents) }
             when (menuString) {
                 "Buat eSPB" -> intent = Intent(this, ListPanenTBSActivity::class.java).apply {
+                    Log.d("testing",result.contents)
                 putExtra(EXTRA_QR_RESULT, result.contents)
                 putExtra("FEATURE_NAME", menuString)}
             }
@@ -48,6 +50,7 @@ class ScanQR : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         menuString = intent.getStringExtra("FEATURE_NAME") ?: ""
+        Log.d("testing", "menu string $menuString ")
         setContentView(R.layout.activity_generate_espb)
         checkPermissionAndStartScanning()
     }

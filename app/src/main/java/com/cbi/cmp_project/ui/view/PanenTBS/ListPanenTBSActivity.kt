@@ -114,10 +114,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 intent.getStringExtra("scannedResult").toString()
             )
                 .toString()
+
+
         } catch (e: Exception) {
             Toasty.error(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             ""
         }
+
+        Log.d("testing", listTPHDriver.toString())
         prefManager = PrefManager(this)
         userName = prefManager!!.nameUserLogin
         estateName = prefManager!!.estateUserLogin
@@ -872,17 +876,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
         speedDial = findViewById(R.id.dial_tph_list)
 
         speedDial.apply {
-            addActionItem(
-                SpeedDialActionItem.Builder(R.id.scan_qr, R.drawable.baseline_qr_code_scanner_24)
-                    .setLabel(getString(R.string.generate_qr))
-                    .setFabBackgroundColor(
-                        ContextCompat.getColor(
-                            this@ListPanenTBSActivity,
-                            R.color.yellowbutton
-                        )
-                    )
-                    .create()
-            )
+//            addActionItem(
+//                SpeedDialActionItem.Builder(R.id.scan_qr, R.drawable.baseline_qr_code_scanner_24)
+//                    .setLabel(getString(R.string.generate_qr))
+//                    .setFabBackgroundColor(
+//                        ContextCompat.getColor(
+//                            this@ListPanenTBSActivity,
+//                            R.color.yellowbutton
+//                        )
+//                    )
+//                    .create()
+//            )
 
             addActionItem(
                 SpeedDialActionItem.Builder(R.id.deleteSelected, R.drawable.baseline_delete_forever_24)
@@ -901,24 +905,24 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setOnActionSelectedListener { actionItem ->
                 when (actionItem.id) {
                     R.id.scan_qr -> {
-                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
-
-                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
-
-                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
-                        dialog.setContentView(view)
-//                        view.layoutParams.height = 500.toPx()
-
-                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-                        val data = "test"
-                        generateHighQualityQRCode(data, qrCodeImageView)
-                        dialog.setOnShowListener {
-                            val bottomSheet =
-                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
-                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
-                        }
-                        dialog.show()
+//                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
+//
+//                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
+//
+//                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
+//                        dialog.setContentView(view)
+////                        view.layoutParams.height = 500.toPx()
+//
+//                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
+//                        val data = "test"
+//                        generateHighQualityQRCode(data, qrCodeImageView)
+//                        dialog.setOnShowListener {
+//                            val bottomSheet =
+//                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+//                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
+//                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+//                        }
+//                        dialog.show()
                         true
                     }
 //                    R.id.cancelSelection -> {

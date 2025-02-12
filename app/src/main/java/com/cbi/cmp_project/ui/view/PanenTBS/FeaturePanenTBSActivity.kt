@@ -41,7 +41,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.data.model.KaryawanModel
-import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.repository.CameraRepository
 import com.cbi.cmp_project.data.repository.PanenTBSRepository
@@ -56,16 +55,10 @@ import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.AppUtils.vibrate
-import com.cbi.cmp_project.utils.DataCacheManager
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.MathFun
 import com.cbi.cmp_project.utils.PrefManager
-import com.cbi.markertph.data.model.BlokModel
-import com.cbi.markertph.data.model.DeptModel
-import com.cbi.markertph.data.model.DivisiModel
-import com.cbi.markertph.data.model.RegionalModel
 import com.cbi.markertph.data.model.TPHNewModel
-import com.cbi.markertph.data.model.WilayahModel
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.google.android.material.button.MaterialButton
@@ -119,8 +112,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var locationEnable: Boolean = false
     private var isPermissionRationaleShown = false
     private lateinit var takeFotoPreviewAdapter: TakeFotoPreviewAdapter
-    private var regionalList: List<RegionalModel> = emptyList()
-    private var wilayahList: List<WilayahModel> = emptyList()
+//    private var regionalList: List<RegionalModel> = emptyList()
+//    private var wilayahList: List<WilayahModel> = emptyList()
 
     //    private var deptList: List<DeptModel> = emptyList()
     private var divisiList: List<TPHNewModel> = emptyList()
@@ -129,7 +122,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var karyawanLainList: List<KaryawanModel> = emptyList()
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var kemandoranLainList: List<KemandoranModel> = emptyList()
-    private var kemandoranDetailList: List<KemandoranDetailModel> = emptyList()
+//    private var kemandoranDetailList: List<KemandoranDetailModel> = emptyList()
     private var tphList: List<TPHNewModel> = emptyList()
 
     private lateinit var loadingDialog: LoadingDialog
@@ -137,7 +130,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var selectedPemanenLainAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
     private lateinit var rvSelectedPemanenLain: RecyclerView
-    private lateinit var dataCacheManager: DataCacheManager
     private var selectedKemandoranValue: Int? = null
 
     enum class InputType {
@@ -199,7 +191,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_panen_tbs)
         loadingDialog = LoadingDialog(this)
-        dataCacheManager = DataCacheManager(this)
+
         prefManager = PrefManager(this)
         initViewModel()
         initializeJjgJson()
@@ -1019,7 +1011,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         tphList = emptyList()
         karyawanList = emptyList()
         karyawanLainList = emptyList()
-        kemandoranDetailList = emptyList()
+//        kemandoranDetailList = emptyList()
 
         // Reset selected values
         selectedTahunTanamValue = null

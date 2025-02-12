@@ -34,7 +34,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.KaryawanModel
-import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
 import com.cbi.cmp_project.data.network.RetrofitClient
@@ -55,12 +54,7 @@ import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
-import com.cbi.markertph.data.model.BlokModel
-import com.cbi.markertph.data.model.DeptModel
-import com.cbi.markertph.data.model.DivisiModel
-import com.cbi.markertph.data.model.RegionalModel
 import com.cbi.markertph.data.model.TPHNewModel
-import com.cbi.markertph.data.model.WilayahModel
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.gson.Gson
@@ -105,16 +99,6 @@ class HomePageActivity : AppCompatActivity() {
     private val permissionRequestCode = 1001
     private lateinit var adapter: DownloadProgressDatasetAdapter
 
-    private var datasetMustUpdate = mutableListOf<String>()
-    private var regionalList: List<RegionalModel> = emptyList()
-    private var wilayahList: List<WilayahModel> = emptyList()
-    private var deptList: List<DeptModel> = emptyList()
-    private var divisiList: List<DivisiModel> = emptyList()
-    private var blokList: List<BlokModel> = emptyList()
-    private var karyawanList: List<KaryawanModel> = emptyList()
-    private var kemandoranList: List<KemandoranModel> = emptyList()
-    private var kemandoranDetailList: List<KemandoranDetailModel> = emptyList()
-    private var tphList: List<TPHNewModel>? = null
 
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var homeViewModel: HomeViewModel
@@ -273,20 +257,6 @@ class HomePageActivity : AppCompatActivity() {
                 }
                 else {
                     containerDownloadDataset.visibility = View.VISIBLE
-//                    var countdown =5
-//                    closeStatement.visibility = View.VISIBLE
-//                    val handler = Handler(Looper.getMainLooper())
-//
-//                    handler.postDelayed(object : Runnable {
-//                        override fun run() {
-//                            if (countdown > 0) {
-//                                closeStatement.text = "Dialog tertutup dalam $countdown detik"
-//                                countdown--
-//                                handler.postDelayed(this, 1000)
-//                            } else dialog.dismiss()
-//                        }
-//                    }, 0)
-
                     cancelDownloadDataset.visibility = View.VISIBLE
 
 
@@ -297,6 +267,7 @@ class HomePageActivity : AppCompatActivity() {
     }
 
     private fun startDownloads() {
+        val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
         val lastModifiedDatasetTPH = prefManager!!.lastModifiedDatasetTPH
         val lastModifiedDatasetBlok = prefManager!!.lastModifiedDatasetBlok
@@ -319,11 +290,9 @@ class HomePageActivity : AppCompatActivity() {
 
             AppLogger.d(isTriggerButtonSinkronisasiData.toString())
             val filteredRequests = if (isTriggerButtonSinkronisasiData) {
-
-                getDatasetsToDownload(estateId, lastModifiedDatasetTPH, lastModifiedDatasetBlok, lastModifiedDatasetPemanen, lastModifiedDatasetKemandoran)
+                getDatasetsToDownload(regionalIdString!!.toInt(),estateId, lastModifiedDatasetTPH, lastModifiedDatasetBlok, lastModifiedDatasetPemanen, lastModifiedDatasetKemandoran)
             } else {
-                AppLogger.d("xixidi")
-                getDatasetsToDownload(estateId, lastModifiedDatasetTPH, lastModifiedDatasetBlok, lastModifiedDatasetPemanen, lastModifiedDatasetKemandoran)
+                getDatasetsToDownload(regionalIdString!!.toInt(), estateId, lastModifiedDatasetTPH, lastModifiedDatasetBlok, lastModifiedDatasetPemanen, lastModifiedDatasetKemandoran)
                     .filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
             }
 
@@ -342,6 +311,7 @@ class HomePageActivity : AppCompatActivity() {
     }
 
     private fun getDatasetsToDownload(
+        regionalId:Int,
         estateId: Int,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetBlok: String?,
@@ -349,8 +319,10 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedDatasetKemandoran: String?
     ): List<DatasetRequest> {
         return listOf(
+            //khusus mill
+            DatasetRequest(regional = regionalId, lastModified = null, dataset = "mill"),
+            //khusus dataset
             DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetTPH, dataset = "tph"),
-//            DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetBlok, dataset = "blok"),
             DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetPemanen, dataset = "pemanen"),
             DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetKemandoran, dataset = "kemandoran")
         )

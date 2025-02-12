@@ -6,7 +6,6 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.KaryawanModel
-import com.cbi.cmp_project.data.model.KemandoranDetailModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 
 @Dao
@@ -28,7 +27,7 @@ abstract class KaryawanDao {
         insertAll(karyawan)
     }
 
-    @Query("SELECT COUNT(*) FROM blok")
+    @Query("SELECT COUNT(*) FROM karyawan")
     abstract suspend fun getCount(): Int
 
     @Query("SELECT * FROM karyawan WHERE kemandoran_id = :filteredId")
