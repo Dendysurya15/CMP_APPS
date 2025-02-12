@@ -1574,8 +1574,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             return false
         }
 
-        if (currentAccuracy == null || currentAccuracy > 10.0f) {
-            AppLogger.d("belum bisa ges")
+        if (currentAccuracy == null || currentAccuracy > 20.0f) {
             isValid = false
             errorMessages.add(stringXML(R.string.al_location_under_ten_meter))
         }

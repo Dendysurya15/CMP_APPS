@@ -21,7 +21,7 @@
     <string name="al_data_not_completed">Data Belum Lengkap!</string>
     <string name="al_pls_complete_data">Mohon lengkapi data yang belum diisi!</string>
     <string name="al_location_not_accurate">Akurasi GPS Kurang Akurat</string>
-    <string name="al_location_under_ten_meter">Harap tunggu hingga akurasi GPS dibawah 10 meter!</string>
+    <string name="al_location_under_ten_meter">Harap tunggu hingga akurasi GPS dibawah 20 meter!</string>
     <string name="al_total_tbs">Total TBS 0</string>
     <string name="al_total_tbs_description">Jumlah TBS harus lebih dari 0</string>
     <string name="al_photo_minimal_one">Minimal 1 foto yang terlampir</string>

@@ -1067,7 +1067,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     R.id.deleteSelected,
                     R.drawable.baseline_delete_forever_24
                 )
-                    .setLabel(getString(R.string.dial_upload_item))
+                    .setLabel(getString(R.string.dial_delete_item))
                     .setFabBackgroundColor(
                         ContextCompat.getColor(
                             this@ListPanenTBSActivity,

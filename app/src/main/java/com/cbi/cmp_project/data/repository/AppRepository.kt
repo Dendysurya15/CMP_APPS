@@ -52,7 +52,7 @@ class AppRepository(context: Context) {
             ancak = ancakInput.toIntOrNull() ?: 0,
             info = info,
             archive = archive,
-            status_espb = 2
+            status_espb = 0
         )
         return panenDao.insertWithTransaction(panenEntity)
     }

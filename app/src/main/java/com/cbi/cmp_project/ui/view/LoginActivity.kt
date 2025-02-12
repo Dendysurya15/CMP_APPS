@@ -50,7 +50,11 @@ class LoginActivity : AppCompatActivity() {
         if(prefManager!!.rememberLogin){
             if (AppUtils.checkBiometricSupport(this)) {
                 btn_finger.visibility = View.VISIBLE
+
                 biometricPrompt()
+            }else{
+                btn_finger.visibility = View.GONE
+
             }
         }
 
@@ -245,9 +249,7 @@ class LoginActivity : AppCompatActivity() {
 
         }
 
-        if (prefManager!!.rememberLogin) {
-            btn_finger.visibility = View.VISIBLE
-        }
+
         btn_finger.setOnClickListener {
             biometricPrompt()
         }

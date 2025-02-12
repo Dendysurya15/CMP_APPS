@@ -12,14 +12,12 @@ import retrofit2.Response
 
 class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
 
-    private val _loginResponse = MutableLiveData<Response<LoginResponse>>()
-    val loginResponse: LiveData<Response<LoginResponse>> get() = _loginResponse
+    private val _loginResponse = MutableLiveData<Response<LoginResponse>?>()
+    val loginResponse: LiveData<Response<LoginResponse>?> get() = _loginResponse
 
     fun login(email: String, password: String) {
         viewModelScope.launch {
             val response = repository.login(email, password)
-
-
             _loginResponse.postValue(response)
         }
     }
