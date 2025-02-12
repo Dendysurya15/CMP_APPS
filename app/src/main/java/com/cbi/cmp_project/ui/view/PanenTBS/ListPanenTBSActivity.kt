@@ -61,13 +61,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONException
-import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import org.json.JSONArray
+import org.json.JSONObject
 
 class ListPanenTBSActivity : AppCompatActivity() {
     private var featureName = ""
@@ -259,14 +260,54 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
+    fun convertToFormattedString(input: String): String {
+        try {
+            // Remove the outer brackets
+            val content = input.trim().removeSurrounding("[", "]")
+
+            // Split into individual objects
+            val objects = content.split("}, {")
+
+            return objects.joinToString(";") { objStr ->
+                // Clean up the object string
+                val cleanObj = objStr.trim()
+                    .removePrefix("{")
+                    .removeSuffix("}")
+
+                // Split into key-value pairs
+                val map = cleanObj.split(", ").associate { pair ->
+                    val (key, value) = pair.split("=", limit = 2)
+                    key to value
+                }
+
+                // Extract jjg_json value
+                val jjgJson = map["jjg_json"]?.trim() ?: "{}"
+
+                // Construct the formatted string
+                "${map["tph_id"]},${map["date_created"]},${jjgJson},1"
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return ""
+        }
+    }
+
 
     private fun setupButtonGenerateQR() {
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
         if (featureName == "Buat eSPB") {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
             btnGenerateQRTPH.setOnClickListener {
+                //get manually selected items
                 val selectedItems = listAdapter.getSelectedItems()
                 Log.d("ListPanenTBSActivityESPB", "selectedItems: $selectedItems")
+                val tph1AD = convertToFormattedString(selectedItems.toString())
+                Log.d("ListPanenTBSActivityESPB", "formatted selectedItems: $tph1AD")
+
+                //get automatically selected items
+
+                //get item which is not selected
+
             }
         } else {
             btnGenerateQRTPH.setOnClickListener {
@@ -987,6 +1028,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             updateSortIcon() // Update icon on click
 
             listAdapter.sortData(isAscendingOrder)
+            listAdapter.sortByCheckedItems(false)
             updateFilterDisplay()
         }
 

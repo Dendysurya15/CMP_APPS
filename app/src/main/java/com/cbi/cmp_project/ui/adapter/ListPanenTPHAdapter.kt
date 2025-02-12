@@ -1,7 +1,5 @@
 package com.cbi.cmp_project.ui.adapter
 
-import android.content.res.ColorStateList
-import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -21,7 +19,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         TPH,
         BLOK,
         GRADING,
-        TIME
+        TIME,
+        CHECKED
     }
 
     private var currentSortField: SortField = SortField.TPH
@@ -30,7 +29,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     private var currentArchiveState: Int = 0
     private var areCheckboxesEnabled = true
     private val selectedItems = mutableSetOf<Int>()
-    private var isSortAscending: Boolean? = null // null means no sorting applied
+    private var isSortAscending: Boolean? = null
     private var selectAllState = false
 
     private var featureName: String = ""
@@ -135,18 +134,26 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         isSortAscending = ascending
 
         filteredList = filteredList.sortedWith(compareBy<Map<String, Any>> { item ->
-            val extractedData = extractData(item)
             when (field) {
-                SortField.TPH -> extractedData.tphText.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0
-                SortField.BLOK -> extractedData.blokText
-                SortField.GRADING -> extractedData.gradingText.toIntOrNull() ?: 0
-                SortField.TIME -> extractedData.tanggalText
+                SortField.CHECKED -> {
+                    // Sort by checked status first
+                    val position = tphList.indexOf(item)
+                    if (!selectedItems.contains(position)) 1 else 0
+                }
+                SortField.TPH -> extractData(item).tphText.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0
+                SortField.BLOK -> extractData(item).blokText
+                SortField.GRADING -> extractData(item).gradingText.toIntOrNull() ?: 0
+                SortField.TIME -> extractData(item).tanggalText
             }
         }.let { comparator ->
             if (!ascending) comparator.reversed() else comparator
         }).toMutableList()
 
         notifyDataSetChanged()
+    }
+
+    fun sortByCheckedItems(ascending: Boolean = true) {
+        sortData(SortField.CHECKED, ascending)
     }
 
     fun resetSort() {
@@ -198,7 +205,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 }
 //                binding.checkBoxPanen.isChecked = isSelected
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
-                        onCheckedChange(isChecked)
+                    onCheckedChange(isChecked)
                 }
             }
         }
@@ -253,18 +260,23 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     override fun onBindViewHolder(holder: ListPanenTPHViewHolder, position: Int) {
         holder.bind(
             filteredList[position],
-            selectedItems.contains(position),
+            selectedItems.contains(tphList.indexOf(filteredList[position])), // Modified to handle filtered list
             currentArchiveState,
             { isChecked ->
+                val originalPosition = tphList.indexOf(filteredList[position])
                 if (isChecked) {
-                    selectedItems.add(position)
+                    selectedItems.add(originalPosition)
                 } else {
-                    selectedItems.remove(position)
+                    selectedItems.remove(originalPosition)
                     selectAllState = false
                 }
                 onSelectionChangeListener?.invoke(selectedItems.size)
+                // Optionally re-sort the list when selection changes
+                if (currentSortField == SortField.CHECKED) {
+                    sortByCheckedItems(isSortAscending ?: true)
+                }
             },
-            extractData = ::extractData, // Pass the function reference
+            extractData = ::extractData,
             featureName = featureName,
             tphListScan = tphListScan
         )

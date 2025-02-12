@@ -13,6 +13,7 @@ data class ESPBEntity(
     val driver: String,
     val transporter_id: Int,
     val mill_id: Int,
-    val info: String, // versi_app , os , device_name
-    val archive: Int
+    val archive: Int,
+    val tph0: String, // {tph_id,date_created,jjg,status_espb
+    val tph1: String //
 )

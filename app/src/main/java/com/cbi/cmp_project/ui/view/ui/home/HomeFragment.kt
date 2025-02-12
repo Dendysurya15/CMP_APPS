@@ -505,7 +505,7 @@ class FeatureAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) : Recy
                 holder.countFeature.visibility = View.GONE
                 feature.iconResource?.let {
                     holder.iconFeature.setImageResource(it)
-                    holder.iconFeature.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN) // Change color to white
+//                    holder.iconFeature.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN) // Change color to white
                 }
             }
             DisplayType.COUNT -> {
