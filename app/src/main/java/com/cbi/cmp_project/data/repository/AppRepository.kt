@@ -121,6 +121,9 @@ class AppRepository(context: Context) {
     suspend fun getPanenCount(): Int {
         return panenDao.getCount()
     }
+    suspend fun getPanenCountArchive(): Int {
+        return panenDao.getCountArchive()
+    }
 
     suspend fun getPanenCountApproval(): Int {
         return panenDao.getCountApproval()

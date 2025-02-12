@@ -12,6 +12,7 @@ import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.data.repository.DatasetRepository
+import com.cbi.cmp_project.utils.AppLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,6 +43,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _panenCount = MutableStateFlow(0)
     val panenCount: StateFlow<Int> = _panenCount.asStateFlow()
 
+    private val _archivedCount = MutableLiveData<Int>()
+    val archivedCount: LiveData<Int> = _archivedCount
+
     private val _panenCountApproval = MutableStateFlow(0)
     val panenCountApproval: StateFlow<Int> = _panenCountApproval.asStateFlow()
 
@@ -56,6 +60,16 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     fun loadAllPanen() {
         viewModelScope.launch {
             _panenList.value = repository.getAllPanen()
+        }
+    }
+
+    fun loadPanenCountArchive() = viewModelScope.launch {
+        try {
+            val count = repository.getPanenCountArchive()
+            _archivedCount.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error loading archive count: ${e.message}")
+            _archivedCount.value = 0  // Set to 0 if there's an error
         }
     }
 

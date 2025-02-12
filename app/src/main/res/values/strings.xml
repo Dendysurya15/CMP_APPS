@@ -46,6 +46,7 @@
 
     <string name="al_delete">Hapus</string>
     <string name="al_make_sure_delete">Apakah anda yakin untuk menghapus</string>
+    <string name="al_make_sure_scanned_qr">Apakah anda yakin sudah Scan QR?</string>
     <string name="welcome_back">Selamat Datang</string>
     <string name="subtitle_prompt">Gunakan sidik jari untuk melanjutkan</string>
     <!--    form panen tbs-->
@@ -72,6 +73,7 @@
     <string name="al_description_success_save_local">Data berhasil disimpan!</string>
     <string name="al_success_save_local">Sukses Simpan</string>
     <string name="al_success_delete">Berhasil Hapus</string>
+    <string name="al_success_update">Berhasil Update Data</string>
     <string name="al_failed_delete">Gagal Hapus</string>
     <string name="al_failed_save_local">Gagal Simpan</string>
     <string name="al_description_failed_save_local">Data gagal disimpan!</string>
