@@ -268,7 +268,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
     private fun setupButtonGenerateQR() {
+
+
+
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
+
+
         if (featureName == "Buat eSPB") {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
             btnGenerateQRTPH.setOnClickListener {
@@ -349,7 +354,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             view.findViewById(R.id.btnConfirmScanPanenTPH)
 
                         btnConfirmScanPanenTPH.setOnClickListener {
-                            AppLogger.d(mappedData.toString())
+
                             AlertDialogUtility.withTwoActions(
                                 this@ListPanenTBSActivity,
                                 getString(R.string.al_delete),
@@ -682,6 +687,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val totalTPH = findViewById<TextView>(R.id.totalTPH)
         val blokSection = findViewById<LinearLayout>(R.id.blok_section)
         val totalSection = findViewById<LinearLayout>(R.id.total_section)
+        val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
 
         loadingDialog.show()
         loadingDialog.setMessage("Loading data...")
@@ -693,6 +699,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         panenViewModel.activePanenList.observe(this) { panenList ->
             if (currentState == 0) {
+                listAdapter.updateData(emptyList())
                 Handler(Looper.getMainLooper()).postDelayed({
                     loadingDialog.dismiss()
                     if (panenList.isNotEmpty()) {
@@ -720,7 +727,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 "archive" to (panenWithRelations.panen.archive as Any)
                             )
                         }
-                        AppLogger.d(mappedData.toString())
+
 
                         val distinctBlokNames = mappedData
                             .map { it["blok_name"].toString() }
@@ -765,6 +772,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         totalSection.visibility = View.GONE
                     }
                     counterTersimpan.text = panenList.size.toString()
+
+                    if (panenList.size == 0){
+                        btnGenerateQRTPH.visibility = View.GONE
+                    }else{
+                        btnGenerateQRTPH.visibility = View.VISIBLE
+                    }
                 }, 500)
             }
         }
@@ -772,9 +785,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         panenViewModel.archivedPanenList.observe(this) { panenList ->
             if (currentState == 1) { // Only process if we're in terscan state
+                listAdapter.updateData(emptyList())
+                btnGenerateQRTPH.visibility = View.GONE
+                val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                    .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                headerCheckBox.visibility = View.GONE
                 Handler(Looper.getMainLooper()).postDelayed({
 
-                    AppLogger.d("masuk mungkin")
+
+
                     loadingDialog.dismiss()
                     if (panenList.isNotEmpty()) {
                         tvEmptyState.visibility = View.GONE
