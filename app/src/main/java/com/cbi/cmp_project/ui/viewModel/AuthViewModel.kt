@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.cmp_project.data.model.LoginResponse
 import com.cbi.cmp_project.data.repository.AuthRepository
+import com.cbi.cmp_project.utils.AppLogger
 import kotlinx.coroutines.launch
 import retrofit2.Response
 
@@ -18,6 +19,7 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
     fun login(email: String, password: String) {
         viewModelScope.launch {
             val response = repository.login(email, password)
+            AppLogger.d(response.toString())
             _loginResponse.postValue(response)
         }
     }

@@ -4,6 +4,7 @@ import android.graphics.Region
 import androidx.room.Query
 import com.cbi.cmp_project.data.model.LoginResponse
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
+import com.google.gson.annotations.SerializedName
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -62,10 +63,12 @@ interface ApiService {
         val data: Map<String, String?>
     )
 
+
     data class LoginRequest(
-        val username: String,
-        val password: String
+        @SerializedName("username") val username: String,
+        @SerializedName("password") val password: String
     )
+
 
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>

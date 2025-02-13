@@ -1574,10 +1574,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             return false
         }
 
-        if (currentAccuracy == null || currentAccuracy > 20.0f) {
-            isValid = false
-            errorMessages.add(stringXML(R.string.al_location_under_ten_meter))
-        }
+//        if (currentAccuracy == null || currentAccuracy > 20.0f) {
+//            isValid = false
+//            errorMessages.add(stringXML(R.string.al_location_under_ten_meter))
+//        }
 
         val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
         val isAsistensiEnabled = switchAsistensi.isChecked

@@ -3,6 +3,8 @@ package com.cbi.cmp_project.data.repository
 import com.cbi.cmp_project.data.api.ApiService
 import com.cbi.cmp_project.data.model.LoginResponse
 import com.cbi.cmp_project.data.network.CMPApiClient
+import com.cbi.cmp_project.utils.AppLogger
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType
@@ -16,16 +18,40 @@ class AuthRepository {
     suspend fun login(username: String, password: String): Response<LoginResponse>? {
         return try {
             withContext(Dispatchers.IO) {
-                CMPApiClient.instance.login(ApiService.LoginRequest(username, password))
+                val request = ApiService.LoginRequest(username, password)
+                AppLogger.d("Login Request Body: ${Gson().toJson(request)}")
+
+                val response = CMPApiClient.instance.login(request)
+
+                if (!response.isSuccessful) {
+                    val errorBody = response.errorBody()?.string()
+                    AppLogger.e("API Error: Code ${response.code()} - Body: $errorBody")
+
+                    Response.error(response.code(),
+                        ResponseBody.create("application/json".toMediaType(),
+                            errorBody ?: "{\"message\":\"Unknown server error\"}"))
+                } else {
+                    response
+                }
             }
         } catch (e: SocketTimeoutException) {
-            Response.error(408, ResponseBody.create("application/json".toMediaType(), "{\"message\":\"Request timed out\"}"))
+            AppLogger.e("Login Error: Request timed out")
+            Response.error(408, ResponseBody.create("application/json".toMediaType(),
+                "{\"message\":\"Request timed out\"}"))
         } catch (e: IOException) {
-            Response.error(500, ResponseBody.create("application/json".toMediaType(), "{\"message\":\"Network error\"}"))
+            AppLogger.e("Login Error: Network issue - ${e.message}")
+            Response.error(500, ResponseBody.create("application/json".toMediaType(),
+                "{\"message\":\"Network error\"}"))
         } catch (e: Exception) {
-            Response.error(500, ResponseBody.create("application/json".toMediaType(), "{\"message\":\"Unexpected error occurred\"}"))
+            AppLogger.e("Login Error: Unexpected issue - ${e.message}")
+            Response.error(500, ResponseBody.create("application/json".toMediaType(),
+                "{\"message\":\"${e.message}\"}"))
         }
     }
+
+
+
+
 }
 
 fun String.toMediaType(): MediaType {

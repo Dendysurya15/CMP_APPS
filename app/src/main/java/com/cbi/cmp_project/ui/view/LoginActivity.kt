@@ -224,6 +224,8 @@ class LoginActivity : AppCompatActivity() {
                 navigateToHomePage()
             }else{
                 if (AppUtils.isNetworkAvailable(this)) {
+                    AppLogger.d(username.toString())
+                    AppLogger.d(password.toString())
                     authViewModel.login(username, password)
                 } else {
                     lifecycleScope.launch {
