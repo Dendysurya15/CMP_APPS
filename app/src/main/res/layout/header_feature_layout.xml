@@ -106,6 +106,7 @@
                         android:fontFamily="@font/manrope_bold"
                         android:textStyle="italic"
                         android:textSize="13dp"
+                        android:textColor="@color/black"
                         android:text="Admin IT\nMandor Panen\nSulung Estate"
                         android:id="@+id/userSection"
                         android:gravity="center_vertical"

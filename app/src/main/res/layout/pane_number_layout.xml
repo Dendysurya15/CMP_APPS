@@ -27,6 +27,7 @@
             android:fontFamily="@font/manrope_semibold"
             android:id="@+id/tvNumberPanen"
             android:ellipsize="end"
+            android:textColor="@color/black"
             android:maxLines="2"
             android:singleLine="false"
             android:lineSpacingExtra="2dp"
@@ -79,7 +80,7 @@
             android:layout_marginTop="5dp"
 
             android:paddingBottom="4dp"
-            android:textSize="13dp" />
+            android:textSize="16sp" />
     </LinearLayout>
 
         <LinearLayout

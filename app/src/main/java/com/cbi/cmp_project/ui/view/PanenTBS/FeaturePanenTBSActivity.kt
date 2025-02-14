@@ -19,6 +19,7 @@ import android.text.SpannableString
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
 import android.util.Log
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -76,6 +77,8 @@ import java.io.File
 import kotlin.reflect.KMutableProperty0
 import android.text.InputType as AndroidInputType
 import android.view.inputmethod.EditorInfo
+import android.widget.ArrayAdapter
+import android.widget.ScrollView
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.cbi.cmp_project.ui.adapter.Worker
 import com.cbi.cmp_project.ui.view.HomePageActivity
@@ -142,6 +145,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var asistensi: Int = 0
     private var selectedTipePanen: String = ""
     private var selectedAfdeling: String = ""
+    private var selectedAfdelingIdSpinner: Int = 0
     private var selectedBlok: String = ""
     private var selectedTPH: String = ""
     private var selectedKemandoran: String = ""
@@ -155,15 +159,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var selectedBlokValue: Int? = null
     private var selectedTahunTanamValue: String? = null
     private var selectedTPHValue: Int? = null
-
-    private var selectedDivisionSpinnerIndex: Int? = null
-    private var selectedRegionalSpinnerIndex: Int? = null
-    private var selectedWilayahSpinnerIndex: Int? = null
-    private var selectedEstateSpinnerIndex: Int? = null
-    private var selectedBUnitSpinnerIndex: Int? = null
-    private var selectedFieldCodeSpinnerIndex: Int? = null
-    private var selectedKemandoranLainSpinnerIndex: Int? = null
-    private var selectedTPHSpinnerIndex: Int? = null
 
     private var buahMasak = 0
     private var kirimPabrik = 0
@@ -214,6 +209,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             withContext(Dispatchers.Main) {
                 loadingDialog.show()
                 loadingDialog.setMessage("Loading data...")
+                delay(1000)
             }
 
             try {
@@ -261,7 +257,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             if (validateAndShowErrors()) {
                 AlertDialogUtility.withTwoActions(
                     this,
-                    "Simpan",
+                    "Simpan Data",
                     getString(R.string.confirmation_dialog_title),
                     getString(R.string.confirmation_dialog_description),
                     "warning.json"
@@ -276,31 +272,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             val photoFilesString = photoFiles.joinToString(";")
                             val komentarFotoString = komentarFoto.joinToString(";")
-                            AppLogger.d("tph_id: $selectedTPHValue")
-                            AppLogger.d(
-                                "date_created: ${
-                                    SimpleDateFormat(
-                                        "yyyy-MM-dd HH:mm:ss",
-                                        Locale.getDefault()
-                                    ).format(Date())
-                                }"
-                            )
-                            AppLogger.d("created_by: $userId")
-                            AppLogger.d("jjgJson: $jjg_json")
-                            AppLogger.d("foto: $photoFiles")
-                            AppLogger.d("komentar: $komentarFoto")
-                            AppLogger.d("asistensi: $asistensi")
-                            AppLogger.d("lat: $lat")
-                            AppLogger.d("lon: $lon")
-                            AppLogger.d("jenis_panen: $selectedTipePanen")
-                            AppLogger.d("ancak: $ancakInput")
-                            AppLogger.d(
-                                "karyawan_id: ${
-                                    (selectedPemanenIds + selectedPemanenLainIds).joinToString(
-                                        ", "
-                                    )
-                                }"
-                            )
 
 
 
@@ -344,6 +315,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             "success.json",
                                             R.color.greenDefault
                                         ) {
+
+                                            resetFormAfterSaveData()
 
                                         }
                                     }
@@ -421,6 +394,69 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         findViewById<TextView>(R.id.tvCounterKirimPabrik).text = "$kirimPabrik Buah"
         findViewById<TextView>(R.id.tvCounterTBSDibayar).text = "$tbsDibayar Buah"
 //        findViewById<TextView>(R.id.tvPercentBuahMasak).text = "($persenMasak)%"
+    }
+
+
+    private fun resetFormAfterSaveData(){
+        selectedPemanenAdapter.clearAllWorkers()
+        selectedPemanenLainAdapter.clearAllWorkers()
+
+        val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
+        setupSpinnerView(findViewById(R.id.layoutAfdeling), divisiNames)
+        val layoutAfdeling = findViewById<View>(R.id.layoutAfdeling)
+        val tvUnderFormFieldAfdeling = layoutAfdeling.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+        tvUnderFormFieldAfdeling.text = "Pilih kembali Afdeling diatas!"
+        tvUnderFormFieldAfdeling.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+        tvUnderFormFieldAfdeling.setTextColor(Color.BLACK)
+        tvUnderFormFieldAfdeling.visibility = View.VISIBLE
+
+        setupSpinnerView(findViewById(R.id.layoutTahunTanam), emptyList())
+        setupSpinnerView(findViewById(R.id.layoutBlok), emptyList())
+        val tipePanenOptions =
+            resources.getStringArray(R.array.tipe_panen_options).toList()
+        setupSpinnerView(findViewById(R.id.layoutTipePanen), tipePanenOptions)
+        val layoutTipePanen = findViewById<View>(R.id.layoutTipePanen)
+        val tvUnderFormFieldTipePanen = layoutTipePanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+        tvUnderFormFieldTipePanen.text = "Pilih kembali Tipe Panen diatas!"
+        tvUnderFormFieldTipePanen.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+        tvUnderFormFieldTipePanen.setTextColor(Color.BLACK)
+        tvUnderFormFieldTipePanen.visibility = View.VISIBLE
+
+        setupSpinnerView(findViewById(R.id.layoutKemandoran), emptyList())
+        setupSpinnerView(findViewById(R.id.layoutPemanen), emptyList())
+        setupSpinnerView(findViewById(R.id.layoutNoTPH), emptyList())
+        setupSpinnerView(findViewById(R.id.layoutKemandoran), emptyList())
+        setupSpinnerView(findViewById(R.id.layoutPemanen), emptyList())
+        setupSpinnerView(findViewById(R.id.layoutKemandoranLain), emptyList())
+        setupSpinnerView(findViewById(R.id.layoutPemanenLain), emptyList())
+
+        val layoutAncak = findViewById<View>(R.id.layoutAncak)
+        val etHomeMarkerTPH = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
+        etHomeMarkerTPH.setText("")
+
+        blokList = emptyList()
+        kemandoranList = emptyList()
+        kemandoranLainList = emptyList()
+        tphList = emptyList()
+        karyawanList = emptyList()
+        karyawanLainList = emptyList()
+        ancakInput = ""
+
+
+        //scroll to up
+        val scPanen = findViewById<ScrollView>(R.id.scPanen)
+        scPanen.post {
+            scPanen.fullScroll(ScrollView.FOCUS_UP)
+        }
+
+        resetAllCounters()
+
+        //reset all image
+        photoCount = 0
+        photoFiles.clear()
+        komentarFoto.clear()
+        takeFotoPreviewAdapter?.resetAllSections()
+
     }
 
     private fun updateDependentCounters(
@@ -709,6 +745,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
      */
     private fun setupLayout() {
 
+
         inputMappings = listOf(
             Triple(
                 findViewById<LinearLayout>(R.id.layoutEstate),
@@ -773,6 +810,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 InputType.SPINNER -> {
                     when (layoutView.id) {
                         R.id.layoutEstate -> {
+                            AppLogger.d("nais")
                             val namaEstate = listOf(prefManager!!.estateUserLengkapLogin ?: "")
                             AppLogger.d(namaEstate.toString())
                             setupSpinnerView(layoutView, namaEstate)
@@ -1011,7 +1049,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         tphList = emptyList()
         karyawanList = emptyList()
         karyawanLainList = emptyList()
-//        kemandoranDetailList = emptyList()
+
 
         // Reset selected values
         selectedTahunTanamValue = null
@@ -1071,11 +1109,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         data: List<String>,
         onItemSelected: (Int) -> Unit = {}
     ) {
+
         val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
         val tvError = linearLayout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
 
         spinner.setItems(data)
-        spinner.setTextSize(18f)
+        spinner.setTextSize(16f)
 
         if (linearLayout.id == R.id.layoutEstate) {
             spinner.isEnabled = false // Disable the spinner
@@ -1087,6 +1126,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 R.id.layoutAfdeling -> {
                     resetDependentSpinners(linearLayout.rootView)
                     selectedAfdeling = item.toString()
+                    selectedAfdelingIdSpinner = position
 
                     val selectedDivisiId = try {
                         divisiList.find { it.divisi_abbr == selectedAfdeling }?.divisi
@@ -1096,7 +1136,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
 
                     val selectedDivisiIdList = selectedDivisiId?.let { listOf(it) } ?: emptyList()
-                    selectedDivisionSpinnerIndex = position
                     selectedDivisiValue = selectedDivisiId
 
                     val nonSelectedAfdelingKemandoran = try {
@@ -1254,7 +1293,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 R.id.layoutBlok -> {
                     resetTPHSpinner(linearLayout.rootView)
                     selectedBlok = item.toString()
-                    selectedFieldCodeSpinnerIndex = position
+
 
                     val selectedFieldId = try {
                         blokList.find { blok ->
@@ -1332,7 +1371,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 R.id.layoutNoTPH -> {
                     selectedTPH = item.toString()
-                    selectedTPHSpinnerIndex = position
 
                     val selectedTPHId = try {
                         tphList?.find {
@@ -1388,19 +1426,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                 karyawanList = karyawanDeferred.await()
 
-                                val karyawanNames = karyawanList.map { it.nama }
+                                val karyawanNames = karyawanList.map { "${it.nik} - ${it.nama}" }
 
                                 withContext(Dispatchers.Main) {
-                                    val layoutPemanen =
-                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                    val layoutPemanen = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
                                     if (karyawanNames.isNotEmpty()) {
-                                        setupSpinnerView(layoutPemanen,
-                                            karyawanNames as List<String>
-                                        )
+                                        setupSpinnerView(layoutPemanen, karyawanNames)
                                     } else {
                                         setupSpinnerView(layoutPemanen, emptyList())
                                     }
                                 }
+
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching afdeling data: ${e.message}")
                                 withContext(Dispatchers.Main) {
@@ -1424,9 +1460,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 R.id.layoutPemanen -> {
                     selectedPemanen = item.toString()
-                    val karyawanMap = karyawanList.associateBy({ it.nama }, { it.id })
-                    val selectedPemanenId = karyawanMap[selectedPemanen]  // Get the ID from a map
+                    val selectedNama = selectedPemanen.substringAfter(" - ")
 
+                    val karyawanMap = karyawanList.associateBy({ it.nama }, { it.id })
+
+                    val selectedPemanenId = karyawanMap[selectedNama]
                     if (selectedPemanenId != null) {
                         val worker = Worker(selectedPemanenId.toString(), selectedPemanen)
                         selectedPemanenAdapter.addWorker(worker)
@@ -1447,7 +1485,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 R.id.layoutKemandoranLain -> {
                     selectedPemanenLainAdapter.clearAllWorkers()
                     selectedKemandoranLain = item.toString()
-                    selectedKemandoranLainSpinnerIndex = position
+
 
                     val selectedIdKemandoranLain: Int? = try {
                         kemandoranLainList.find {
@@ -1475,7 +1513,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                 karyawanLainList = karyawanDeferred.await()
 
-                                val namaKaryawanKemandoranLain = karyawanLainList.map { it.nama }
+                                val namaKaryawanKemandoranLain = karyawanLainList.map { "${it.nik} - ${it.nama}" }
 
                                 withContext(Dispatchers.Main) {
                                     val layoutPemanenLain =
@@ -1512,8 +1550,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 R.id.layoutPemanenLain -> {
                     selectedPemanenLain = item.toString()
+                    val selectedNamaPemanenLain = selectedPemanenLain.substringAfter(" - ")
+
                     val karyawanMap = karyawanLainList.associateBy({ it.nama }, { it.id })
-                    val selectedPemanenLainId = karyawanMap[selectedPemanenLain]  // Get the ID
+
+                    val selectedPemanenLainId = karyawanMap[selectedNamaPemanenLain]
 
                     if (selectedPemanenLainId != null) {
                         val worker = Worker(selectedPemanenLainId.toString(), selectedPemanenLain)
@@ -1724,6 +1765,30 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         textView.text = text
     }
 
+
+    private fun resetAllCounters() {
+        val counterMappings = listOf(
+            Triple(R.id.layoutJumTBS, "Jumlah TBS", ::jumTBS),
+            Triple(R.id.layoutBMentah, "Buah Mentah", ::bMentah),
+            Triple(R.id.layoutBLewatMasak, "Buah Lewat Masak", ::bLewatMasak),
+            Triple(R.id.layoutJjgKosong, "Janjang Kosong", ::jjgKosong),
+            Triple(R.id.layoutAbnormal, "Abnormal", ::abnormal),
+            Triple(R.id.layoutSeranganTikus, "Serangan Tikus", ::seranganTikus),
+            Triple(R.id.layoutTangkaiPanjang, "Tangkai Panjang", ::tangkaiPanjang),
+            Triple(R.id.layoutVcut, "Tidak V-Cut", ::tidakVCut)
+        )
+        counterMappings.forEach { (_, _, counterVar) ->
+            counterVar.set(0)
+        }
+
+        counterMappings.forEach { (layoutId, _, counterVar) ->
+            updateEditText(layoutId, counterVar.get()) // Update UI
+        }
+
+        formulas()
+        updateCounterTextViews()
+    }
+
     /**
      * Sets up a layout with increment and decrement buttons for counters.
      */
@@ -1834,16 +1899,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
-        fun changeEditTextStyle(isNegativeOrZero: Boolean) {
-            if (isNegativeOrZero) {
-                val redColor = ContextCompat.getColor(this, R.color.colorRedDark)
-                etNumber.setTextColor(ColorStateList.valueOf(redColor))
-                etNumber.setTypeface(null, Typeface.BOLD)
-            } else {
-                etNumber.setTextColor(ColorStateList.valueOf(Color.BLACK))
-                etNumber.setTypeface(null, Typeface.NORMAL)
-            }
-        }
+
 
         btDec.setOnClickListener {
             if (counterVar.get() > 0) {
@@ -1856,7 +1912,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 etNumber.setText(counterVar.get().toString())
             } else {
                 vibrate()
-//                changeEditTextStyle(true)
             }
         }
 
@@ -1869,7 +1924,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 tvPercent
             )  // Increment through dependent counter
             etNumber.setText(counterVar.get().toString())
-//            changeEditTextStyle(counterVar.get() <= 0)
         }
     }
 
@@ -1886,10 +1940,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 vibrate()
                 AlertDialogUtility.withTwoActions(
                     this,
-                    "Simpan",
+                    "Keluar",
                     getString(R.string.confirmation_dialog_title),
                     getString(R.string.al_confirm_feature),
-                    "warning.json"
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight)
                 ) {
                     val intent = Intent(this, HomePageActivity::class.java)
                     startActivity(intent)

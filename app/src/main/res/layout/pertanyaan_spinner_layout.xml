@@ -4,26 +4,28 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center"
-android:layout_marginTop="10dp"
+    android:layout_marginTop="10dp"
     android:id="@+id/parentSpPanenTBS"
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <TextView
-        android:layout_width="130dp"
-        android:layout_height="match_parent"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.3"
         android:text="Loading.."
         android:fontFamily="@font/manrope_semibold"
         android:id="@+id/tvTitleFormPanenTBS"
-        android:textSize="20sp"
+        android:textSize="18sp"
+        android:textColor="@color/black"
         android:gravity="center|left"
         tools:ignore="HardcodedText,RtlHardcoded"/>
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
+        android:layout_weight="0.7"
         android:orientation="vertical"
-        android:layout_height="match_parent">
-
+        android:layout_height="wrap_content">
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
@@ -41,10 +43,11 @@ android:layout_marginTop="10dp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:id="@+id/spPanenTBS"
+                    app:ms_hint_color="@color/black"
                     app:ms_text_color="@color/black"
+
                     app:ms_hint="Pilih Kategori Yang Sesuai" />
 
-                <!-- Loading Dots Container -->
                 <LinearLayout
                     android:id="@+id/loadingDotsContainer"
                     android:layout_width="wrap_content"
@@ -54,12 +57,12 @@ android:layout_marginTop="10dp"
                     android:orientation="horizontal"
                     android:visibility="gone">
 
-
                     <TextView
                         android:id="@+id/dot1"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="."
+                        android:textColorHint="@color/black"
                         android:textColor="@color/greendarkerbutton"
                         android:textSize="25dp"
                         android:textStyle="bold" />
@@ -120,6 +123,6 @@ android:layout_marginTop="10dp"
             android:layout_marginTop="5dp"
             android:paddingStart="12dp"
             android:paddingBottom="4dp"
-            android:textSize="13dp" />
+            android:textSize="16sp" />
     </LinearLayout>
 </LinearLayout>
