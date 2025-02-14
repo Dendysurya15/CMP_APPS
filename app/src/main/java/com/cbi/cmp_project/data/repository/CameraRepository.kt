@@ -42,9 +42,11 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
 import com.daimajia.androidanimations.library.Techniques
 import com.daimajia.androidanimations.library.YoYo
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -364,9 +366,8 @@ class CameraRepository(private val context: Context, private val window: Window,
                                         var commentWm = komentar
                                         commentWm = commentWm?.replace("|", ",")?.replace("\n", "")
                                         commentWm = AppUtils.splitStringWatermark(commentWm!!, 60)
-                                        val watermarkText = if (resultCode == "0") {
+                                        val watermarkText = if (resultCode == "0" || commentWm.isEmpty()) {
                                             "CMP\n${dateWM}"
-
                                         } else {
                                             "CMP\n${commentWm}\n${dateWM}"
                                         }
@@ -559,9 +560,14 @@ class CameraRepository(private val context: Context, private val window: Window,
         }
     }
 
-    fun openZoomPhotos(file: File, onChangePhoto: () -> Unit) {
+    fun openZoomPhotos(file: File, position: String, onChangePhoto: () -> Unit, onDeletePhoto: (String) -> Unit) {
         val fotoZoom = zoomView.findViewById<ImageView>(R.id.fotoZoom)
+        val backgroundView = zoomView.findViewById<View>(R.id.backgroundOverlay) // Add this to your layout
+
+        // Make both visible
         zoomView.visibility = View.VISIBLE
+        backgroundView.visibility = View.VISIBLE
+
 
         Glide.with(context)
             .load(file)
@@ -569,15 +575,22 @@ class CameraRepository(private val context: Context, private val window: Window,
             .skipMemoryCache(true)
             .into(fotoZoom)
 
-        // Close button logic
-        zoomView.findViewById<ImageView>(R.id.closeZoom)?.setOnClickListener {
+        // Your existing click listeners...
+        zoomView.findViewById<MaterialCardView>(R.id.cardCloseZoom)?.setOnClickListener {
             zoomView.visibility = View.GONE
+            backgroundView.visibility = View.GONE
         }
 
-        // Change photo logic
-        zoomView.findViewById<ImageView>(R.id.changePhoto)?.setOnClickListener {
+        zoomView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)?.setOnClickListener {
+            onDeletePhoto.invoke(position)
             zoomView.visibility = View.GONE
-            onChangePhoto.invoke() // Just call the callback without deleting the file
+            backgroundView.visibility = View.GONE
+        }
+
+        zoomView.findViewById<MaterialCardView>(R.id.cardChangePhoto)?.setOnClickListener {
+            zoomView.visibility = View.GONE
+            backgroundView.visibility = View.GONE
+            onChangePhoto.invoke()
         }
     }
 
