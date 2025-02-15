@@ -165,6 +165,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var tbsDibayar = 0
     var persenMentah = 0f
     var persenLewatMasak = 0f
+    var persenAbnormal = 0f
     var persenJjgKosong = 0f
     var persenMasak = 0f
 
@@ -642,19 +643,24 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         formulas()
         updateCounterTextViews()
 
-//        if (layoutId == R.id.layoutBMentah) {
-//            tvPercent?.let {
-//                it.setText("${persenMentah}%")
-//            }
-//        } else if (layoutId == R.id.layoutBLewatMasak) {
-//            tvPercent?.let {
-//                it.setText("${persenLewatMasak}%")
-//            }
-//        } else if (layoutId == R.id.layoutJjgKosong) {
-//            tvPercent?.let {
-//                it.setText("${persenJjgKosong}%")
-//            }
-//        }
+        if (layoutId == R.id.layoutBMentah) {
+            tvPercent?.let {
+                it.setText("${persenMentah}%")
+            }
+        } else if (layoutId == R.id.layoutBLewatMasak) {
+            tvPercent?.let {
+                it.setText("${persenLewatMasak}%")
+            }
+        } else if (layoutId == R.id.layoutJjgKosong) {
+            tvPercent?.let {
+                it.setText("${persenJjgKosong}%")
+            }
+        }
+        else if (layoutId == R.id.layoutAbnormal) {
+            tvPercent?.let {
+                it.setText("${persenAbnormal}%")
+            }
+        }
     }
 
     private fun updateEditText(layoutId: Int, value: Int) {
@@ -678,6 +684,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         persenMentah = MathFun().round((bMentah.toFloat() / jumTBS.toFloat() * 100), 2)!!
         persenMasak = MathFun().round((bMentah.toFloat() / jumTBS.toFloat() * 100), 2)!!
         persenLewatMasak = MathFun().round((bLewatMasak.toFloat() / jumTBS.toFloat() * 100), 2)!!
+        persenAbnormal = MathFun().round((abnormal.toFloat() / jumTBS.toFloat() * 100), 2)!!
         persenJjgKosong = MathFun().round((jjgKosong.toFloat() / jumTBS.toFloat() * 100), 2)!!
 
 
@@ -1114,6 +1121,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val tvError = linearLayout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
 
         spinner.setItems(data)
+
         spinner.setTextSize(16f)
 
         if (linearLayout.id == R.id.layoutEstate) {
@@ -1615,6 +1623,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             return false
         }
 
+        // ✅ Check if lat or lon is empty or NaN
+        if (lat.toString().isBlank() || lat!!.isNaN()) {
+            isValid = false
+            this.vibrate()
+            errorMessages.add("Latitude must not be empty or null")
+            missingFields.add("Latitude")
+        }
+
+        if (lon.toString().isBlank() || lon!!.isNaN()) {
+            isValid = false
+            this.vibrate()
+            errorMessages.add("Longitude must not be empty or null")
+            missingFields.add("Longitude")
+        }
+
+
 //        if (currentAccuracy == null || currentAccuracy > 20.0f) {
 //            isValid = false
 //            errorMessages.add(stringXML(R.string.al_location_under_ten_meter))
@@ -1846,6 +1870,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }
 
                             formulas()
+
+                            findViewById<View>(R.id.layoutBMentah)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenMentah}%")
+                            findViewById<View>(R.id.layoutBLewatMasak)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenLewatMasak}%")
+                            findViewById<View>(R.id.layoutJjgKosong)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenJjgKosong}%")
+                            findViewById<View>(R.id.layoutAbnormal)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenAbnormal}%")
+
                             updateCounterTextViews()
                         } else {
                             // Reset to old value if conditions not met
@@ -1866,6 +1896,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         if (jumTBS > 0 && newValue <= jumTBS && totalOthers <= jumTBS) {
                             counterVar.set(newValue)
                             formulas()
+                            findViewById<View>(R.id.layoutBMentah)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenMentah}%")
+                            findViewById<View>(R.id.layoutBLewatMasak)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenLewatMasak}%")
+                            findViewById<View>(R.id.layoutJjgKosong)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenJjgKosong}%")
+                            findViewById<View>(R.id.layoutAbnormal)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenAbnormal}%")
+
                             updateCounterTextViews()
                         } else {
                             // Reset to previous value
