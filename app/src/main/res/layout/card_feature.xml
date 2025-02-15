@@ -113,7 +113,7 @@
             android:textColor="@color/black"
             android:text="Pencatatan panen TBS di TPH oleh kerani panen"
             android:textAlignment="center"
-            android:textSize="12sp" />
+            android:textSize="15sp" />
 
     </LinearLayout>
 

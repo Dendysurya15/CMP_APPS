@@ -5,7 +5,9 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Rect
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
@@ -23,85 +25,61 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
-import com.cbi.cmp_project.data.database.AppDatabase
-import com.cbi.cmp_project.data.model.KaryawanModel
-import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
-import com.cbi.cmp_project.data.network.RetrofitClient
-import com.cbi.cmp_project.data.repository.CameraRepository
-import com.cbi.cmp_project.data.repository.PanenTBSRepository
 import com.cbi.cmp_project.databinding.ActivityHomePageBinding
+import com.cbi.cmp_project.ui.adapter.DisplayType
 import com.cbi.cmp_project.ui.adapter.DownloadItem
 import com.cbi.cmp_project.ui.adapter.DownloadProgressDatasetAdapter
-import com.cbi.cmp_project.ui.adapter.ProgressUploadAdapter
-import com.cbi.cmp_project.ui.view.ui.home.HomeViewModel
-import com.cbi.cmp_project.ui.viewModel.CameraViewModel
+import com.cbi.cmp_project.ui.adapter.FeatureCard
+import com.cbi.cmp_project.ui.adapter.FeatureCardAdapter
+import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity
+import com.cbi.cmp_project.ui.view.PanenTBS.ListPanenTBSActivity
+
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
-import com.cbi.cmp_project.ui.viewModel.LocationViewModel
-import com.cbi.cmp_project.ui.viewModel.PanenTBSViewModel
+import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
-import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
-import com.cbi.markertph.data.model.TPHNewModel
+
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.ResponseBody
-import org.json.JSONArray
-import org.json.JSONException
-import org.json.JSONObject
-import retrofit2.Response
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
-import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.zip.GZIPInputStream
 
 class HomePageActivity : AppCompatActivity() {
 
+    private lateinit var featureAdapter: FeatureCardAdapter
     private lateinit var binding: ActivityHomePageBinding
     private lateinit var loadingDialog: LoadingDialog
     private var prefManager: PrefManager? = null
+    private lateinit var panenViewModel: PanenViewModel
     private var isTriggerButtonSinkronisasiData: Boolean = false
     private lateinit var dialog: Dialog
-    data class ErrorResponse(
-        val statusCode: Int,
-        val message: String,
-        val error: String? = null
-    )
+    private var countPanenTPH: Int = 0  // Global variable for count
+    private var countPanenTPHApproval: Int = 0  // Global variable for count
+
     private var hasShownErrorDialog = false  // Add this property
     private val permissionRequestCode = 1001
     private lateinit var adapter: DownloadProgressDatasetAdapter
 
 
     private lateinit var datasetViewModel: DatasetViewModel
-    private lateinit var homeViewModel: HomeViewModel
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -115,13 +93,266 @@ class HomePageActivity : AppCompatActivity() {
         loadingDialog = LoadingDialog(this)
         initViewModel()
         setupDownloadDialog()
+        setupName()
         checkPermissions()
+        setupRecyclerView()
 
 
-        val navView: BottomNavigationView = binding.navView
-        val navController = findNavController(R.id.nav_host_fragment_activity_home_page)
-        navView.setupWithNavController(navController)
     }
+
+
+    private fun fetchDataEachCard() {
+
+        if (this::featureAdapter.isInitialized) {  // Changed to positive condition
+            lifecycleScope.launch(Dispatchers.IO) {
+                withContext(Dispatchers.Main) {
+                    featureAdapter.showLoadingForFeature("Rekap Hasil Panen")
+                    delay(300)
+                }
+                try {
+                    val countDeferred = async { panenViewModel.loadPanenCount() }
+                    countPanenTPH = countDeferred.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount("Rekap Hasil Panen", countPanenTPH.toString())
+                        featureAdapter.hideLoadingForFeature("Rekap Hasil Panen")
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature("Rekap Hasil Panen")
+                    }
+                }
+                try {
+                    val countDeferred = async { panenViewModel.loadPanenCountApproval() }
+                    countPanenTPHApproval = countDeferred.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount("Rekap panen dan restan", countPanenTPHApproval.toString())
+                        featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
+                    }
+                }
+            }
+        } else {
+            AppLogger.e("Feature adapter not initialized yet")
+        }
+    }
+
+
+    private fun setupRecyclerView() {
+        val features = listOf(
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDefault,
+                featureName = "Panen TBS",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                count = null,
+                functionDescription = "Pencatatatan panen TBS di TPH oleh kerani panen",
+                displayType = DisplayType.ICON
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDefault,
+                featureName = "Rekap Hasil Panen",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = null,
+                count = countPanenTPH.toString(),
+                functionDescription = "Rekapitulasi panen TBS dan transfer data ke suoervisi",
+                displayType = DisplayType.COUNT
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDefault,
+                featureName = "Scan Hasil Panen",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                count = null,
+                functionDescription = "Transfer data dari kerani panen ke supervisi untuk pembuatan eSPB",
+                displayType = DisplayType.ICON
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDefault,
+                featureName = "Rekap panen dan restan",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = null,
+                count = countPanenTPHApproval.toString(),
+                functionDescription = "Rekapitulsasi panen TBS dan restan dari kerani panen",
+                displayType = DisplayType.COUNT
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Buat eSPB",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                functionDescription = "Transfer data dari driver ke supervisi untuk pembuatan eSPB",
+                displayType = DisplayType.ICON,
+                subTitle = "Scan QR Code eSPB"
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Rekap eSPB",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = null,
+                count = "0",
+                functionDescription = "Rekapitulasi eSPB dan transfer data ke driver",
+                displayType = DisplayType.COUNT
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Inspeksi panen",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                functionDescription = "............",
+                displayType = DisplayType.ICON,
+                subTitle = "Scan QR Code eSPB"
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Rekap inspeksi panen",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = null,
+                count = "0",
+                functionDescription = "............",
+                displayType = DisplayType.COUNT
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Absensi panen",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                functionDescription = "Absensi kehadiran karyawan panen oleh supervisi",
+                displayType = DisplayType.ICON,
+                subTitle = "Scan QR Code eSPB"
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Rekap absensi panen",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = null,
+                count = "0",
+                functionDescription = "Rekapitulasi absensi karyawan dan transfer data ke kerani panen",
+                displayType = DisplayType.COUNT
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Scan absensi panen",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                functionDescription = "Transfer data abseni dari supervisi ke kerani panen",
+                displayType = DisplayType.ICON,
+                subTitle = "Scan QR Code eSPB"
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Weight bridge",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                functionDescription = "",
+                displayType = DisplayType.ICON,
+                subTitle = "Transfer data eSPB dari driver"
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Sinkronisasi data",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                functionDescription = "",
+                displayType = DisplayType.ICON,
+                subTitle = "Sinkronisasi data manual"
+            )
+        )
+
+        val gridLayoutManager = GridLayoutManager(this, 2)
+        gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+            override fun getSpanSize(position: Int): Int {
+                return 1
+            }
+        }
+
+        binding.featuresRecyclerView.apply {
+            layoutManager = gridLayoutManager
+            featureAdapter = FeatureCardAdapter { featureCard ->
+                onFeatureCardClicked(featureCard)
+            }
+
+            adapter = featureAdapter
+            featureAdapter.setFeatures(features)
+
+            post {
+                fetchDataEachCard()
+            }
+
+            addItemDecoration(object : RecyclerView.ItemDecoration() {
+                override fun getItemOffsets(
+                    outRect: Rect,
+                    view: View,
+                    parent: RecyclerView,
+                    state: RecyclerView.State
+                ) {
+                    val spacing = resources.getDimensionPixelSize(R.dimen.grid_spacing)
+                    outRect.left = spacing
+                    outRect.right = spacing
+                    outRect.top = spacing
+                    outRect.bottom = spacing
+                }
+            })
+        }
+    }
+
+
+    private fun onFeatureCardClicked(feature: FeatureCard) {
+        when (feature.featureName) {
+            "Panen TBS" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, FeaturePanenTBSActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            "Rekap Hasil Panen" -> {
+                if (feature.displayType == DisplayType.COUNT) {
+                    val intent = Intent(this, ListPanenTBSActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            "Scan Hasil Panen" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, ScanQR::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            "Buat eSPB" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, ScanQR::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            "Rekap panen dan restan" -> {
+                if (feature.displayType == DisplayType.COUNT) {
+                    val intent = Intent(this, ListPanenTBSActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            "Sinkronisasi data" -> {
+                if (feature.displayType == DisplayType.ICON) {
+//AppLogger.d("askdfjaklsdf")
+                    isTriggerButtonSinkronisasiData = true
+                        startDownloads()
+                }
+            }
+        }
+    }
+
 
     private fun setupDownloadDialog() {
 
@@ -150,20 +381,21 @@ class HomePageActivity : AppCompatActivity() {
 
         val closeStatement = view.findViewById<TextView>(R.id.close_progress_statement)
 
-        val retryDownloadDataset = view.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
-        val cancelDownloadDataset = view.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
-        val containerDownloadDataset = view.findViewById<LinearLayout>(R.id.containerDownloadDataset)
+        val retryDownloadDataset =
+            view.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
+        val cancelDownloadDataset =
+            view.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+        val containerDownloadDataset =
+            view.findViewById<LinearLayout>(R.id.containerDownloadDataset)
         cancelDownloadDataset.setOnClickListener {
             isTriggerButtonSinkronisasiData = false
             dialog.dismiss()
         }
-        retryDownloadDataset.setOnClickListener{
+        retryDownloadDataset.setOnClickListener {
 
 
+//            val storedList = prefManager!!.datasetMustUpdate // Retrieve list
 
-            val storedList = prefManager!!.datasetMustUpdate // Retrieve list
-
-            AppLogger.d(storedList.toString())
             containerDownloadDataset.visibility = View.GONE
             cancelDownloadDataset.visibility = View.GONE
             retryDownloadDataset.visibility = View.GONE
@@ -185,6 +417,7 @@ class HomePageActivity : AppCompatActivity() {
                             isStoringCompleted = true  // Final state is storage complete
                         )
                     }
+
                     is DatasetViewModel.Resource.Error -> {
                         AppLogger.d("Download Status: $dataset failed with error: ${resource.message}")
 
@@ -199,10 +432,16 @@ class HomePageActivity : AppCompatActivity() {
                         }
                         DownloadItem(dataset = dataset, error = resource.message)
                     }
+
                     is DatasetViewModel.Resource.Loading -> {
                         AppLogger.d("Download Status: $dataset loading")
-                        DownloadItem(dataset = dataset, progress = resource.progress, isLoading = true)
+                        DownloadItem(
+                            dataset = dataset,
+                            progress = resource.progress,
+                            isLoading = true
+                        )
                     }
+
                     is DatasetViewModel.Resource.Extracting -> {
                         AppLogger.d("Download Status: $dataset is being extracted")
                         DownloadItem(
@@ -212,6 +451,7 @@ class HomePageActivity : AppCompatActivity() {
                             isExtracting = true
                         )
                     }
+
                     is DatasetViewModel.Resource.Storing -> {
                         AppLogger.d("Download Status: $dataset is being stored")
                         DownloadItem(
@@ -223,6 +463,7 @@ class HomePageActivity : AppCompatActivity() {
                         )
 
                     }
+
                     is DatasetViewModel.Resource.UpToDate -> {
 
                         DownloadItem(
@@ -236,7 +477,8 @@ class HomePageActivity : AppCompatActivity() {
 
             adapter.updateItems(downloadItems)
 
-            val completedCount = downloadItems.count { it.isStoringCompleted || it.isUpToDate || it.error != null }
+            val completedCount =
+                downloadItems.count { it.isStoringCompleted || it.isUpToDate || it.error != null }
             AppLogger.d("Progress: $completedCount/${downloadItems.size} completed")
             counterTV.text = "$completedCount/${downloadItems.size}"
 
@@ -244,7 +486,7 @@ class HomePageActivity : AppCompatActivity() {
             if (downloadItems.all { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
 
 
-                if (prefManager!!.isFirstTimeLaunch && downloadItems.any { it.isStoringCompleted || it.isUpToDate || it.error != null}) {
+                if (prefManager!!.isFirstTimeLaunch && downloadItems.any { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
                     prefManager!!.isFirstTimeLaunch = false
                     AppLogger.d("First-time launch flag updated to false")
                 }
@@ -254,8 +496,7 @@ class HomePageActivity : AppCompatActivity() {
                     retryDownloadDataset.visibility = View.VISIBLE
                     cancelDownloadDataset.visibility = View.VISIBLE
 
-                }
-                else {
+                } else {
                     containerDownloadDataset.visibility = View.VISIBLE
                     cancelDownloadDataset.visibility = View.VISIBLE
 
@@ -290,9 +531,23 @@ class HomePageActivity : AppCompatActivity() {
 
             AppLogger.d(isTriggerButtonSinkronisasiData.toString())
             val filteredRequests = if (isTriggerButtonSinkronisasiData) {
-                getDatasetsToDownload(regionalIdString!!.toInt(),estateId, lastModifiedDatasetTPH, lastModifiedDatasetBlok, lastModifiedDatasetPemanen, lastModifiedDatasetKemandoran)
+                getDatasetsToDownload(
+                    regionalIdString!!.toInt(),
+                    estateId,
+                    lastModifiedDatasetTPH,
+                    lastModifiedDatasetBlok,
+                    lastModifiedDatasetPemanen,
+                    lastModifiedDatasetKemandoran
+                )
             } else {
-                getDatasetsToDownload(regionalIdString!!.toInt(), estateId, lastModifiedDatasetTPH, lastModifiedDatasetBlok, lastModifiedDatasetPemanen, lastModifiedDatasetKemandoran)
+                getDatasetsToDownload(
+                    regionalIdString!!.toInt(),
+                    estateId,
+                    lastModifiedDatasetTPH,
+                    lastModifiedDatasetBlok,
+                    lastModifiedDatasetPemanen,
+                    lastModifiedDatasetKemandoran
+                )
                     .filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
             }
 
@@ -311,7 +566,7 @@ class HomePageActivity : AppCompatActivity() {
     }
 
     private fun getDatasetsToDownload(
-        regionalId:Int,
+        regionalId: Int,
         estateId: Int,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetBlok: String?,
@@ -322,12 +577,23 @@ class HomePageActivity : AppCompatActivity() {
             //khusus mill
             DatasetRequest(regional = regionalId, lastModified = null, dataset = "mill"),
             //khusus dataset
-            DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetTPH, dataset = "tph"),
-            DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetPemanen, dataset = "pemanen"),
-            DatasetRequest(estate = estateId, lastModified = lastModifiedDatasetKemandoran, dataset = "kemandoran")
+            DatasetRequest(
+                estate = estateId,
+                lastModified = lastModifiedDatasetTPH,
+                dataset = "tph"
+            ),
+            DatasetRequest(
+                estate = estateId,
+                lastModified = lastModifiedDatasetPemanen,
+                dataset = "pemanen"
+            ),
+            DatasetRequest(
+                estate = estateId,
+                lastModified = lastModifiedDatasetKemandoran,
+                dataset = "kemandoran"
+            )
         )
     }
-
 
 
     private fun showErrorDialog(errorMessage: String) {
@@ -345,19 +611,25 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
+    private fun setupName() {
+        val userName = prefManager!!.nameUserLogin ?: "Unknown"
+        val jobTitle = "${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
+        val initials = userName.split(" ").take(2).joinToString("") { it.take(1).uppercase() }
+
+        AppLogger.d(userName)
+        findViewById<TextView>(R.id.userNameLogin).text = userName
+        findViewById<TextView>(R.id.jabatanUserLogin).text = jobTitle
+        findViewById<TextView>(R.id.initalName).text = initials
+    }
+
 
     private fun initViewModel() {
         val factory = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
-        homeViewModel = ViewModelProvider(this)[HomeViewModel::class.java]
 
-        homeViewModel.startSinkronisasiData.observe(this) { shouldStart ->
-            if (shouldStart) {
-                isTriggerButtonSinkronisasiData = true
-                startDownloads()
-                homeViewModel.resetTrigger() // Reset flag after handling
-            }
-        }
+        val factory2 = PanenViewModel.PanenViewModelFactory(application)
+        panenViewModel = ViewModelProvider(this, factory2)[PanenViewModel::class.java]
+
     }
 
 
@@ -367,18 +639,27 @@ class HomePageActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             // Android 13 and above
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
-                != PackageManager.PERMISSION_GRANTED) {
+                != PackageManager.PERMISSION_GRANTED
+            ) {
                 permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
             }
         } else {
             // Android 12 and below
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                )
+                != PackageManager.PERMISSION_GRANTED
+            ) {
                 permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
             if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q &&
-                ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
+                != PackageManager.PERMISSION_GRANTED
+            ) {
                 permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
         }
@@ -389,11 +670,10 @@ class HomePageActivity : AppCompatActivity() {
                 permissionsToRequest.toTypedArray(),
                 permissionRequestCode
             )
-        }else{
+        } else {
             startDownloads()
         }
     }
-
 
 
     override fun onRequestPermissionsResult(
@@ -415,7 +695,7 @@ class HomePageActivity : AppCompatActivity() {
                     "The following permissions are required: ${deniedPermissions.joinToString()}",
                     Toast.LENGTH_LONG
                 ).show()
-            }else {
+            } else {
                 startDownloads()
             }
         }
