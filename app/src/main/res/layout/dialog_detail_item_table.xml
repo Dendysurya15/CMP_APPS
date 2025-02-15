@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/rounded_top_right_left"
+    android:orientation="vertical">
+
+    <!-- Top bar with handle and close button -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="12dp">
+
+        <!-- Handle -->
+        <View
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:layout_centerHorizontal="true"
+            android:background="@drawable/rounded_tiny_middle"
+            android:backgroundTint="#E0E0E0" />
+
+        <ImageView
+            android:id="@+id/btnClose"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_alignParentEnd="true"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="5dp"
+            android:background="@drawable/rounded_radius_background"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="3dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/baseline_close_24"
+            android:tint="@color/graytextdark" />
+    </RelativeLayout>
+
+    <!-- Scrollable Content -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Section 1 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+                <!-- Your content for section 1 -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Section 1"/>
+            </LinearLayout>
+
+            <!-- Dashed Line 1 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="10dp"
+                android:layout_marginVertical="16dp"
+                android:layerType="software"
+                android:background="@drawable/dashed_straight_line"/>
+
+            <!-- Section 2 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+                <!-- Your content for section 2 -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Section 2"/>
+            </LinearLayout>
+
+            <!-- Dashed Line 2 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="10dp"
+                android:layout_marginVertical="16dp"
+                android:layerType="software"
+                android:background="@drawable/dashed_straight_line"/>
+
+            <!-- Section 3 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+                <!-- Your content for section 3 -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Section 3"/>
+            </LinearLayout>
+
+            <!-- Space for bottom margin -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="16dp"/>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

@@ -1471,7 +1471,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         if (availableWorkers.isNotEmpty()) {
                             setupSpinnerView(
                                 linearLayout,
-                                availableWorkers.map { it.name })  // Extract names
+                                availableWorkers.map { it.name })
                         }
 
                         AppLogger.d("Selected Worker: $selectedPemanen, ID: $selectedPemanenId")
