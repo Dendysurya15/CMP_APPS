@@ -10,6 +10,9 @@ import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
+import android.provider.Settings
+
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -56,6 +59,7 @@ import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
 
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -345,7 +349,6 @@ class HomePageActivity : AppCompatActivity() {
 
             "Sinkronisasi data" -> {
                 if (feature.displayType == DisplayType.ICON) {
-//AppLogger.d("askdfjaklsdf")
                     isTriggerButtonSinkronisasiData = true
                         startDownloads()
                 }
@@ -636,69 +639,68 @@ class HomePageActivity : AppCompatActivity() {
     private fun checkPermissions() {
         val permissionsToRequest = mutableListOf<String>()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13 and above
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
-            }
+        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.CAMERA,
+                Manifest.permission.READ_MEDIA_IMAGES
+            )
         } else {
-            // Android 12 and below
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                )
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.CAMERA,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ).apply {
+                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
+                    permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                }
             }
-            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q &&
-                ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE
-                )
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+
+        permissions.forEach {
+            if (ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(it)
             }
         }
 
         if (permissionsToRequest.isNotEmpty()) {
-            ActivityCompat.requestPermissions(
-                this,
-                permissionsToRequest.toTypedArray(),
-                permissionRequestCode
-            )
+            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), permissionRequestCode)
         } else {
             startDownloads()
         }
     }
 
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
-    ) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
         if (requestCode == permissionRequestCode) {
-            val deniedPermissions = mutableListOf<String>()
-            for (i in permissions.indices) {
-                if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
-                    deniedPermissions.add(permissions[i])
-                }
-            }
+            val deniedPermissions = permissions.filterIndexed { i, _ -> grantResults[i] != PackageManager.PERMISSION_GRANTED }
 
             if (deniedPermissions.isNotEmpty()) {
-                Toast.makeText(
-                    this,
-                    "The following permissions are required: ${deniedPermissions.joinToString()}",
-                    Toast.LENGTH_LONG
-                ).show()
+                showStackedSnackbar(deniedPermissions)
             } else {
                 startDownloads()
             }
         }
     }
+
+    private fun showStackedSnackbar(deniedPermissions: List<String>) {
+        val message = buildString {
+            append("The app needs the following permissions for full functionality:\n")
+            deniedPermissions.forEach { append("- ${it.replace("android.permission.", "")}\n") }
+            append("\nPlease enable them in Settings.")
+        }
+
+        Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_INDEFINITE)
+            .setAction("Settings") {
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", packageName, null)
+                }
+                startActivity(intent)
+            }.apply {
+                view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text)?.maxLines = 7
+            }.show()
+    }
+
 
 }

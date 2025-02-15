@@ -1,18 +1,22 @@
 package com.cbi.cmp_project.ui.view.PanenTBS
 
+import android.Manifest
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.provider.Settings
 import android.text.Editable
 import android.text.Spannable
 import android.text.SpannableString
@@ -91,7 +95,7 @@ import java.util.Date
 import java.util.Locale
 
 open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.PhotoCallback {
-
+    private var isSnackbarShown = false
     private var photoCount = 0
     private val photoFiles = mutableListOf<String>() // Store filenames
     private val komentarFoto = mutableListOf<String>() // Store filenames
@@ -118,7 +122,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 //    private var regionalList: List<RegionalModel> = emptyList()
 //    private var wilayahList: List<WilayahModel> = emptyList()
 
-    //    private var deptList: List<DeptModel> = emptyList()
     private var divisiList: List<TPHNewModel> = emptyList()
     private var blokList: List<TPHNewModel> = emptyList()
     private var karyawanList: List<KaryawanModel> = emptyList()
@@ -219,13 +222,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
                     val estateIdInt = estateIdStr.toInt()
 
-//                    val deptDeferred = async { datasetViewModel.getDeptList(estateIdStr) }
                     val divisiDeferred = async { datasetViewModel.getDivisiList(estateIdInt) }
-
                     divisiList = divisiDeferred.await()
 
-                    AppLogger.d(divisiList.toString())
-//                    deptList = deptDeferred.await()
+                    if (divisiList.isNullOrEmpty()) {
+                        throw Exception("Periksa kembali dataset dengan melakukan Sinkronisasi Data!")
+                    }
                 }
 
                 withContext(Dispatchers.Main) {
@@ -233,21 +235,32 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     setupLayout()
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {  // Ensure dialog is shown on Main thread
+                withContext(Dispatchers.Main) {
+                    val errorMessage = e.message?.let { "1. $it" } ?: "1. Unknown error"
+
+                    val estateInfo = estateId?.takeIf { it.isBlank() }?.let { "2. ID Estate User Login: \"$it\"" }
+
+                    // Combine messages dynamically (avoid extra \n\n if estateInfo is null)
+                    val fullMessage = listOfNotNull(errorMessage, estateInfo).joinToString("\n\n")
+
                     AppLogger.e("Error fetching data: ${e.message}")
 
                     AlertDialogUtility.withSingleAction(
                         this@FeaturePanenTBSActivity,
                         stringXML(R.string.al_back),
                         stringXML(R.string.al_failed_fetch_data),
-                        "${stringXML(R.string.al_failed_fetch_data_desc)},  ${e.message} penyebab ID Estate User Login: \"$estateId\"",
+                        fullMessage,
                         "warning.json",
                         R.color.colorRedDark
                     ) {
                         finish()
                     }
                 }
+
             }
+
+
+
         }
 
 
@@ -721,31 +734,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
 
-    private fun showSnackbar(message: String) {
-        Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_LONG).show()
-    }
 
-    private fun requestLocationPermission() {
-        if (ActivityCompat.shouldShowRequestPermissionRationale(
-                this,
-                android.Manifest.permission.ACCESS_FINE_LOCATION
-            )
-        ) {
-            showSnackbar("Location permission is required for this app. Change in Settings App")
-            isPermissionRationaleShown = true
-        } else {
-            requestPermissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
-        }
-    }
-
-    private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                locationViewModel.startLocationUpdates()
-            } else {
-                showSnackbar("Location permission denied.")
-            }
-        }
 
     /**
      * Sets up all spinner mappings, counters, and the RecyclerView.
@@ -1993,14 +1982,23 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     override fun onResume() {
         super.onResume()
-        locationViewModel.locationPermissions.observe(this) { isLocationEnabled ->
-            if (!isLocationEnabled) {
-                requestLocationPermission()
-            } else {
-                locationViewModel.startLocationUpdates()
-            }
+
+        // Manually check location permission
+        val isLocationGranted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+
+        AppLogger.d(isLocationGranted.toString())
+        if (isLocationGranted) {
+            locationViewModel.startLocationUpdates()
+            isSnackbarShown = false // Reset snackbar flag
+        } else if (!isSnackbarShown) {
+            showSnackbarWithSettings("Location permission is required for this app. Enable it in Settings.")
+            isSnackbarShown = true // Prevent duplicate snackbars
         }
 
+        // Observe location updates
         locationViewModel.locationData.observe(this) { location ->
             locationEnable = true
             lat = location.latitude
@@ -2009,11 +2007,44 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
             findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
-
             currentAccuracy = accuracy
         }
-
     }
+
+
+    private fun showSnackbarWithSettings(message: String) {
+        Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_INDEFINITE)
+            .setAction("Settings") {
+                val intent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", packageName, null)
+                )
+                startActivity(intent)
+            }
+            .show()
+    }
+
+    private fun requestLocationPermission() {
+        if (ActivityCompat.shouldShowRequestPermissionRationale(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            )
+        ) {
+            showSnackbarWithSettings("Location permission is required for this app. Enable it in Settings.")
+        } else {
+            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    private val requestPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                locationViewModel.startLocationUpdates()
+                isSnackbarShown = false
+            } else {
+                showSnackbarWithSettings("Location permission denied. Enable it in Settings.")
+            }
+        }
 
     override fun onPause() {
         super.onPause()

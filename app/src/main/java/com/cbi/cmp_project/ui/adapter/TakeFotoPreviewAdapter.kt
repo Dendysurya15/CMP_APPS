@@ -184,23 +184,61 @@ class TakeFotoPreviewAdapter(
                 context,
                 android.Manifest.permission.CAMERA
             ) == PackageManager.PERMISSION_GRANTED -> {
+
                 handleCameraAction(position, holder)
             }
+
             ActivityCompat.shouldShowRequestPermissionRationale(
                 context as Activity,
                 android.Manifest.permission.CAMERA
             ) -> {
-                showPermissionRationale()
+                showSnackbarWithSettings("Camera permission required to take photos. Enable it in Settings.")
             }
+
             else -> {
-                ActivityCompat.requestPermissions(
-                    context as Activity,
-                    arrayOf(android.Manifest.permission.CAMERA),
-                    CAMERA_PERMISSION_REQUEST_CODE
-                )
+                // If permission is permanently denied, show settings option
+                if (isPermissionPermanentlyDenied()) {
+                    AppLogger.d("Permission permanently denied. Redirecting to settings.")
+                    showSnackbarWithSettings("Camera permission required to take photos. Enable it in Settings.")
+                } else {
+                    AppLogger.d("Requesting camera permission")
+                    ActivityCompat.requestPermissions(
+                        context as Activity,
+                        arrayOf(android.Manifest.permission.CAMERA),
+                        CAMERA_PERMISSION_REQUEST_CODE
+                    )
+                }
             }
         }
     }
+
+    // ✅ Check if the user permanently denied permission
+    private fun isPermissionPermanentlyDenied(): Boolean {
+        val activity = context as Activity
+        val sharedPref = activity.getSharedPreferences("permissions_prefs", Context.MODE_PRIVATE)
+        val firstRequest = sharedPref.getBoolean("first_camera_request", true)
+
+        if (firstRequest) {
+            sharedPref.edit().putBoolean("first_camera_request", false).apply()
+            return false
+        }
+
+        return !ActivityCompat.shouldShowRequestPermissionRationale(activity, android.Manifest.permission.CAMERA)
+    }
+
+    // ✅ Show Snackbar to open Settings if permanently denied
+    private fun showSnackbarWithSettings(message: String) {
+        Snackbar.make((context as Activity).findViewById(android.R.id.content), message, Snackbar.LENGTH_INDEFINITE)
+            .setAction("Settings") {
+                val intent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", context.packageName, null)
+                )
+                context.startActivity(intent)
+            }
+            .show()
+    }
+
 
     private fun showPermissionRationale() {
         if (context is Activity) {

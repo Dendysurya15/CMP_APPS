@@ -39,9 +39,11 @@ import android.widget.ImageView
 import android.widget.RelativeLayout
 import android.widget.Toast
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
 import com.daimajia.androidanimations.library.Techniques
@@ -582,9 +584,18 @@ class CameraRepository(private val context: Context, private val window: Window,
         }
 
         zoomView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)?.setOnClickListener {
-            onDeletePhoto.invoke(position)
-            zoomView.visibility = View.GONE
-            backgroundView.visibility = View.GONE
+            AlertDialogUtility.withTwoActions(
+                context,
+                "Hapus",
+                context.getString(R.string.confirmation_dialog_title),
+                context.getString(R.string.al_confirm_delete_photo),
+                "warning.json",
+                ContextCompat.getColor(context, R.color.greenDarker)
+            ) {
+                onDeletePhoto.invoke(position)
+                zoomView.visibility = View.GONE
+                backgroundView.visibility = View.GONE
+            }
         }
 
         zoomView.findViewById<MaterialCardView>(R.id.cardChangePhoto)?.setOnClickListener {
