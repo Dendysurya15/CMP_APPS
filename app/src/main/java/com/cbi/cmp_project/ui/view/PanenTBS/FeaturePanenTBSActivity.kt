@@ -222,7 +222,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
                     val estateIdInt = estateIdStr.toInt()
 
-                    val divisiDeferred = async { datasetViewModel.getDivisiList(estateIdInt) }
+                    val divisiDeferred = async {
+                        try {
+                            datasetViewModel.getDivisiList(estateIdInt)
+                        } catch (e: Exception) {
+                            AppLogger.e("Error fetching divisiList: ${e.message}")
+                            emptyList() // Return an empty list to prevent crash
+                        }
+                    }
+
                     divisiList = divisiDeferred.await()
 
                     if (divisiList.isNullOrEmpty()) {
@@ -806,9 +814,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 InputType.SPINNER -> {
                     when (layoutView.id) {
                         R.id.layoutEstate -> {
-                            AppLogger.d("nais")
                             val namaEstate = listOf(prefManager!!.estateUserLengkapLogin ?: "")
-                            AppLogger.d(namaEstate.toString())
                             setupSpinnerView(layoutView, namaEstate)
                             findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
                         }
