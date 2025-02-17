@@ -1986,6 +1986,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     }
 
+    @SuppressLint("DefaultLocale")
     override fun onResume() {
         super.onResume()
 
@@ -1994,8 +1995,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             this, Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
-
-        AppLogger.d(isLocationGranted.toString())
         if (isLocationGranted) {
             locationViewModel.startLocationUpdates()
             isSnackbarShown = false // Reset snackbar flag
@@ -2013,9 +2012,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
             findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
+            AppLogger.d(accuracy.toString())
             currentAccuracy = accuracy
         }
     }
+
+
 
 
     private fun showSnackbarWithSettings(message: String) {

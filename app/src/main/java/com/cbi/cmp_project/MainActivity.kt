@@ -78,10 +78,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun setAppVersion() {
         val versionTextView: TextView = findViewById(R.id.version_app)
         val appVersion = AppUtils.getAppVersion(this)
-        versionTextView.text = appVersion
+        versionTextView.text = "Versi $appVersion"
     }
 
     private fun showMainContent() {

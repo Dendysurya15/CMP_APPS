@@ -1,5 +1,6 @@
 package com.cbi.cmp_project.ui.view
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
@@ -258,10 +259,11 @@ class LoginActivity : AppCompatActivity() {
         setAppVersion()
     }
 
+    @SuppressLint("SetTextI18n")
     private fun setAppVersion() {
         val versionTextView: TextView = findViewById(R.id.version_app)
         val appVersion = AppUtils.getAppVersion(this)
-        versionTextView.text = appVersion
+        versionTextView.text = "Versi $appVersion"
     }
 
 

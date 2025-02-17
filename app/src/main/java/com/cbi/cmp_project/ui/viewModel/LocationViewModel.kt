@@ -2,7 +2,10 @@ package com.cbi.cmp_project.ui.viewModel
 
 import android.app.Activity
 import android.app.Application
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -26,8 +29,10 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.LocationSettingsResponse
 import com.google.android.gms.location.LocationSettingsStatusCodes
 import com.google.android.gms.location.SettingsClient
+import com.google.android.gms.tasks.Task
 
 class LocationViewModel(application: Application, private val imageView: ImageView, private val activity: Activity) : AndroidViewModel(application) {
 
@@ -56,8 +61,78 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
 
     init {
         _locationPermissions.value = checkLocationPermission()
+        registerLocationSettingsReceiver()
+    }
+    private var locationReceiver: BroadcastReceiver? = null  // Add this
+
+
+
+
+    private fun unregisterLocationSettingsReceiver() {
+        locationReceiver?.let {
+            try {
+                activity.unregisterReceiver(it)
+                locationReceiver = null
+            } catch (e: Exception) {
+                Log.e(AppUtils.LOG_LOC, "Error unregistering receiver: ${e.message}")
+            }
+        }
     }
 
+    override fun onCleared() {
+        super.onCleared()
+        unregisterLocationSettingsReceiver()
+        stopLocationUpdates()
+    }
+
+
+    private fun registerLocationSettingsReceiver() {
+        val filter = IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION)
+        locationReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val locationManager = getApplication<Application>()
+                    .getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+                val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                        locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+                if (!isLocationEnabled) {
+                    imageView.setImageResource(R.drawable.baseline_wrong_location_24)
+                    imageView.imageTintList = ColorStateList.valueOf(
+                        activity.resources.getColor(R.color.colorRedDark)
+                    )
+
+                    // Create location request
+                    val locationRequest = LocationRequest.create().apply {
+                        priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+                    }
+
+                    val builder = LocationSettingsRequest.Builder()
+                        .addLocationRequest(locationRequest)
+                        .setAlwaysShow(true)  // This forces the dialog to show
+
+                    // Show system location settings dialog
+                    val client: SettingsClient = LocationServices.getSettingsClient(activity)
+                    val task: Task<LocationSettingsResponse> = client.checkLocationSettings(builder.build())
+
+                    task.addOnFailureListener { exception ->
+                        if (exception is ResolvableApiException) {
+                            try {
+                                // Show the dialog by calling startResolutionForResult()
+                                exception.startResolutionForResult(
+                                    activity,
+                                    AppUtils.REQUEST_CHECK_SETTINGS
+                                )
+                            } catch (sendEx: IntentSender.SendIntentException) {
+                                // Ignore the error
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        activity.registerReceiver(locationReceiver, filter)
+    }
     private fun checkLocationPermission(): Boolean {
         val locationManager =
             getApplication<Application>().getSystemService(Context.LOCATION_SERVICE) as LocationManager
@@ -93,13 +168,29 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
                         Log.i(AppUtils.LOG_LOC, "All location settings are satisfied.")
                         val locationCallback = object : LocationCallback() {
                             override fun onLocationResult(locationResult: LocationResult) {
-                                locationResult.lastLocation?.let {
-                                    if (it.latitude.toString().isNotEmpty()) {
-                                        _locationData.value = it
-                                        _locationAccuracy.value = it.accuracy // Add this line
-                                        imageView.setImageResource(R.drawable.baseline_location_on_24)
-                                        imageView.imageTintList =
-                                            ColorStateList.valueOf(activity.resources.getColor(R.color.greenbutton))
+                                locationResult.lastLocation?.let { location ->
+                                    if (location.latitude.toString().isNotEmpty()) {
+                                        _locationData.value = location
+                                        _locationAccuracy.value = location.accuracy
+
+                                        // Check if location is enabled
+                                        val locationManager = getApplication<Application>()
+                                            .getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+                                        val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                                                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+                                        if (isLocationEnabled) {
+                                            imageView.setImageResource(R.drawable.baseline_location_on_24)
+                                            imageView.imageTintList = ColorStateList.valueOf(
+                                                activity.resources.getColor(R.color.greenbutton)
+                                            )
+                                        } else {
+                                            imageView.setImageResource(R.drawable.baseline_wrong_location_24)
+                                            imageView.imageTintList = ColorStateList.valueOf(
+                                                activity.resources.getColor(R.color.colorRedDark)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -116,14 +207,16 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
                 }
             }
             .addOnFailureListener { e ->
-                imageView.imageTintList =
-                    ColorStateList.valueOf(activity.resources.getColor(R.color.colorRed))
+                imageView.setImageResource(R.drawable.baseline_wrong_location_24)
+                imageView.imageTintList = ColorStateList.valueOf(
+                    activity.resources.getColor(R.color.colorRedDark)
+                )
+
                 when ((e as ApiException).statusCode) {
                     LocationSettingsStatusCodes.RESOLUTION_REQUIRED -> {
                         Log.i(
                             AppUtils.LOG_LOC,
-                            "Location settings are not satisfied. Attempting to upgrade " +
-                                    "location settings "
+                            "Location settings are not satisfied. Attempting to upgrade location settings"
                         )
                         try {
                             val rae = e as ResolvableApiException
@@ -135,10 +228,8 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
                             Log.i(AppUtils.LOG_LOC, "PendingIntent unable to execute request.")
                         }
                     }
-
                     LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE -> {
-                        val errorMessage =
-                            "Location settings are inadequate and cannot be fixed here. Fix in Settings."
+                        val errorMessage = "Location settings are inadequate and cannot be fixed here. Fix in Settings."
                         Log.e(AppUtils.LOG_LOC, errorMessage)
                     }
                 }
