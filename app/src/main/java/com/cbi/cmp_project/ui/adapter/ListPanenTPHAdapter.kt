@@ -1,21 +1,14 @@
 package com.cbi.cmp_project.ui.adapter
 
-import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.TextView
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.cbi.cmp_project.R
 import com.cbi.cmp_project.databinding.TableItemRowBinding
 import com.cbi.cmp_project.utils.AppLogger
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import org.json.JSONException
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -219,51 +212,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     onCheckedChange(isChecked)
                 }
             }
-
-            binding.root.setOnClickListener {
-                showDetailDialog(extractedData)
-            }
-        }
-
-
-        private fun showDetailDialog(data: ExtractedData) {
-            val view = LayoutInflater.from(itemView.context).inflate(R.layout.dialog_detail_item_table, null)
-            view.background = ContextCompat.getDrawable(itemView.context, R.drawable.rounded_top_right_left)
-
-            // Initialize dialog
-            val dialog = BottomSheetDialog(itemView.context)
-
-            // Set dialog height to 70% of screen height
-            val displayMetrics = itemView.context.resources.displayMetrics
-            val height = (displayMetrics.heightPixels * 0.7).toInt()
-
-            val params = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                height
-            )
-            view.layoutParams = params
-
-            // Find views in dialog layout
-//            val tvDetailBlok = view.findViewById<TextView>(R.id.tvDetailBlok)
-//            val tvDetailTPH = view.findViewById<TextView>(R.id.tvDetailTPH)
-//            val tvDetailGrading = view.findViewById<TextView>(R.id.tvDetailGrading)
-//            val tvDetailTime = view.findViewById<TextView>(R.id.tvDetailTime)
-            val btnClose = view.findViewById<ImageView>(R.id.btnClose)
-
-            // Set data to views
-//            tvDetailBlok.text = data.blokText
-//            tvDetailTPH.text = data.tphText
-//            tvDetailGrading.text = data.gradingText
-//            tvDetailTime.text = data.tanggalText
-
-            // Set close button click listener
-            btnClose.setOnClickListener {
-                dialog.dismiss()
-            }
-
-            // Set up dialog
-            dialog.setContentView(view)
-            dialog.show()
         }
     }
 
