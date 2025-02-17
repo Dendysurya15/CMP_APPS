@@ -2,40 +2,23 @@ package com.cbi.cmp_project.ui.view
 
 import android.os.Bundle
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Dialog
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Rect
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.net.Uri
 import android.provider.Settings
 
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.findNavController
-import androidx.navigation.ui.AppBarConfiguration
-import androidx.navigation.ui.setupActionBarWithNavController
-import androidx.navigation.ui.setupWithNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -130,7 +113,10 @@ class HomePageActivity : AppCompatActivity() {
                     val countDeferred = async { panenViewModel.loadPanenCountApproval() }
                     countPanenTPHApproval = countDeferred.await()
                     withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount("Rekap panen dan restan", countPanenTPHApproval.toString())
+                        featureAdapter.updateCount(
+                            "Rekap panen dan restan",
+                            countPanenTPHApproval.toString()
+                        )
                         featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
                     }
                 } catch (e: Exception) {
@@ -350,7 +336,7 @@ class HomePageActivity : AppCompatActivity() {
             "Sinkronisasi data" -> {
                 if (feature.displayType == DisplayType.ICON) {
                     isTriggerButtonSinkronisasiData = true
-                        startDownloads()
+                    startDownloads()
                 }
             }
         }
@@ -361,7 +347,7 @@ class HomePageActivity : AppCompatActivity() {
 
         dialog = Dialog(this)
 
-        val view = layoutInflater.inflate(R.layout.list_card_upload, null)
+        val view = layoutInflater.inflate(R.layout.dialog_download_progress, null)
         dialog.setContentView(view)
 
         dialog.setCancelable(false)
@@ -664,17 +650,26 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         if (permissionsToRequest.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), permissionRequestCode)
+            ActivityCompat.requestPermissions(
+                this,
+                permissionsToRequest.toTypedArray(),
+                permissionRequestCode
+            )
         } else {
             startDownloads()
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
         if (requestCode == permissionRequestCode) {
-            val deniedPermissions = permissions.filterIndexed { i, _ -> grantResults[i] != PackageManager.PERMISSION_GRANTED }
+            val deniedPermissions =
+                permissions.filterIndexed { i, _ -> grantResults[i] != PackageManager.PERMISSION_GRANTED }
 
             if (deniedPermissions.isNotEmpty()) {
                 showStackedSnackbar(deniedPermissions)
@@ -698,7 +693,8 @@ class HomePageActivity : AppCompatActivity() {
                 }
                 startActivity(intent)
             }.apply {
-                view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text)?.maxLines = 7
+                view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text)?.maxLines =
+                    7
             }.show()
     }
 

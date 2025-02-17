@@ -94,7 +94,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Close database when activity is destroyed
         AppDatabase.closeDatabase()
     }
 

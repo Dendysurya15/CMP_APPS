@@ -6,6 +6,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:gravity="center"
+    android:background="@android:color/white"
     android:padding="10dp">
 
 
@@ -86,6 +87,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:id="@+id/counter_dataset"
+            android:textColor="@color/black"
             android:layout_marginLeft="5dp"
             android:textSize="14dp"
             />
@@ -99,7 +101,7 @@
         android:clipToPadding="false"
         android:nestedScrollingEnabled="false"
         android:layout_marginTop="8dp"
-        tools:listitem="@layout/list_progress_upload"
+        tools:listitem="@layout/list_progress_download"
         tools:itemCount="7"
         tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 

@@ -18,7 +18,7 @@ class ProgressUploadAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.list_progress_upload, parent, false)
+            .inflate(R.layout.list_progress_download, parent, false)
         return ViewHolder(view)
     }
 

@@ -30,6 +30,7 @@
 
                 <CheckBox
                     android:id="@+id/headerCheckBoxPanen"
+                    style="@style/defaultBoxColor"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
@@ -69,7 +70,8 @@
                 android:text="BLOK"
                 android:fontFamily="@font/manrope_extrabold"
                 android:padding="5dp"
-                android:textSize="15dp"
+                android:textSize="16sp"
+                android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
 
@@ -81,7 +83,8 @@
                 android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"
                 android:padding="5dp"
-                android:textSize="13dp"
+                android:textSize="16sp"
+                android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
 
@@ -93,7 +96,8 @@
                 android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"
                 android:padding="5dp"
-                android:textSize="13dp"
+                android:textSize="16sp"
+                android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
 
@@ -105,7 +109,8 @@
                 android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"
                 android:padding="5dp"
-                android:textSize="13dp"
+                android:textSize="16sp"
+                android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
 
