@@ -2003,6 +2003,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             isSnackbarShown = true // Prevent duplicate snackbars
         }
 
+
+        locationViewModel.airplaneModeState.observe(this) { isAirplaneMode ->
+            if (isAirplaneMode) {
+                locationViewModel.stopLocationUpdates()
+            } else {
+                // Only restart if we have permission
+                if (ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    locationViewModel.startLocationUpdates()
+                }
+            }
+        }
+
         // Observe location updates
         locationViewModel.locationData.observe(this) { location ->
             locationEnable = true

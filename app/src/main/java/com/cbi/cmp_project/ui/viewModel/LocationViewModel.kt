@@ -11,6 +11,8 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.location.Location
 import android.location.LocationManager
+import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import android.widget.ImageView
 import androidx.core.content.ContextCompat
@@ -33,8 +35,13 @@ import com.google.android.gms.location.LocationSettingsResponse
 import com.google.android.gms.location.LocationSettingsStatusCodes
 import com.google.android.gms.location.SettingsClient
 import com.google.android.gms.tasks.Task
+import com.google.android.material.snackbar.Snackbar
 
-class LocationViewModel(application: Application, private val imageView: ImageView, private val activity: Activity) : AndroidViewModel(application) {
+class LocationViewModel(
+    application: Application,
+    private val imageView: ImageView,
+    private val activity: Activity
+) : AndroidViewModel(application) {
 
     private val _locationPermissions = MutableLiveData<Boolean>()
     val locationPermissions: LiveData<Boolean>
@@ -47,11 +54,19 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
     private val _locationAccuracy = MutableLiveData<Float>()
     val locationAccuracy: LiveData<Float>
         get() = _locationAccuracy
+
     private val _locationIconState = MutableLiveData<Boolean>()
     val locationIconState: LiveData<Boolean>
         get() = _locationIconState
 
+    private val _airplaneModeState = MutableLiveData<Boolean>()
+    val airplaneModeState: LiveData<Boolean>
+        get() = _airplaneModeState
+    private var currentSnackbar: Snackbar? = null
     private var isStartLocations = false
+    private var locationCallback: LocationCallback? = null
+    private var locationReceiver: BroadcastReceiver? = null
+
     private val mFusedLocationClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(application)
     private val mSettingsClient: SettingsClient =
@@ -61,12 +76,16 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
 
     init {
         _locationPermissions.value = checkLocationPermission()
+        _airplaneModeState.value = isAirplaneModeOn()
         registerLocationSettingsReceiver()
     }
-    private var locationReceiver: BroadcastReceiver? = null  // Add this
 
-
-
+    private fun isAirplaneModeOn(): Boolean {
+        return Settings.Global.getInt(
+            getApplication<Application>().contentResolver,
+            Settings.Global.AIRPLANE_MODE_ON, 0
+        ) != 0
+    }
 
     private fun unregisterLocationSettingsReceiver() {
         locationReceiver?.let {
@@ -79,60 +98,121 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
         }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        unregisterLocationSettingsReceiver()
-        stopLocationUpdates()
-    }
-
-
     private fun registerLocationSettingsReceiver() {
-        val filter = IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION)
+        val filter = IntentFilter().apply {
+            addAction(LocationManager.PROVIDERS_CHANGED_ACTION)
+            addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
+        }
+
         locationReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                val locationManager = getApplication<Application>()
-                    .getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                when (intent?.action) {
+                    Intent.ACTION_AIRPLANE_MODE_CHANGED -> {
+                        val isAirplaneMode = isAirplaneModeOn()
+                        _airplaneModeState.value = isAirplaneMode
 
-                val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-                        locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-
-                if (!isLocationEnabled) {
-                    imageView.setImageResource(R.drawable.baseline_wrong_location_24)
-                    imageView.imageTintList = ColorStateList.valueOf(
-                        activity.resources.getColor(R.color.colorRedDark)
-                    )
-
-                    // Create location request
-                    val locationRequest = LocationRequest.create().apply {
-                        priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-                    }
-
-                    val builder = LocationSettingsRequest.Builder()
-                        .addLocationRequest(locationRequest)
-                        .setAlwaysShow(true)  // This forces the dialog to show
-
-                    // Show system location settings dialog
-                    val client: SettingsClient = LocationServices.getSettingsClient(activity)
-                    val task: Task<LocationSettingsResponse> = client.checkLocationSettings(builder.build())
-
-                    task.addOnFailureListener { exception ->
-                        if (exception is ResolvableApiException) {
-                            try {
-                                // Show the dialog by calling startResolutionForResult()
-                                exception.startResolutionForResult(
-                                    activity,
-                                    AppUtils.REQUEST_CHECK_SETTINGS
-                                )
-                            } catch (sendEx: IntentSender.SendIntentException) {
-                                // Ignore the error
-                            }
+                        if (isAirplaneMode) {
+                            stopLocationUpdates()
+                            showAirplaneModeSnackbar()
+                            imageView.setImageResource(R.drawable.baseline_wrong_location_24)
+                            imageView.imageTintList = ColorStateList.valueOf(
+                                activity.resources.getColor(R.color.colorRedDark)
+                            )
+                        } else {
+                            dismissCurrentSnackbar()
+                            startLocationUpdates()
                         }
+                    }
+                    LocationManager.PROVIDERS_CHANGED_ACTION -> {
+                        handleLocationProvidersChange()
                     }
                 }
             }
         }
         activity.registerReceiver(locationReceiver, filter)
     }
+
+    private fun dismissCurrentSnackbar() {
+        currentSnackbar?.dismiss()
+        currentSnackbar = null
+    }
+
+    private fun showAirplaneModeSnackbar() {
+        // Dismiss any existing Snackbar first
+        dismissCurrentSnackbar()
+
+        currentSnackbar = Snackbar.make(
+            activity.findViewById(android.R.id.content),
+            "Please disable Airplane Mode to get location updates",
+            Snackbar.LENGTH_INDEFINITE
+        ).setAction("Settings") {
+            activity.startActivity(Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS))
+        }
+
+        currentSnackbar?.show()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        dismissCurrentSnackbar()
+        unregisterLocationSettingsReceiver()
+        stopLocationUpdates()
+    }
+
+    private fun handleLocationProvidersChange() {
+        val locationManager = getApplication<Application>()
+            .getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+        val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+        if (!isLocationEnabled) {
+            imageView.setImageResource(R.drawable.baseline_wrong_location_24)
+            imageView.imageTintList = ColorStateList.valueOf(
+                activity.resources.getColor(R.color.colorRedDark)
+            )
+            promptLocationSettings()
+        } else if (!isAirplaneModeOn()) {
+            startLocationUpdates()
+        }
+    }
+
+    private fun promptLocationSettings() {
+        val locationRequest = LocationRequest.create().apply {
+            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        }
+
+        val builder = LocationSettingsRequest.Builder()
+            .addLocationRequest(locationRequest)
+            .setAlwaysShow(true)
+
+        val client: SettingsClient = LocationServices.getSettingsClient(activity)
+        val task: Task<LocationSettingsResponse> = client.checkLocationSettings(builder.build())
+
+        task.addOnFailureListener { exception ->
+            if (exception is ResolvableApiException) {
+                try {
+                    exception.startResolutionForResult(
+                        activity,
+                        AppUtils.REQUEST_CHECK_SETTINGS
+                    )
+                } catch (sendEx: IntentSender.SendIntentException) {
+                    Log.e(AppUtils.LOG_LOC, "Error showing location settings dialog", sendEx)
+                }
+            }
+        }
+    }
+
+//    private fun showAirplaneModeSnackbar() {
+//        Snackbar.make(
+//            activity.findViewById(android.R.id.content),
+//            "Please disable Airplane Mode to get location updates",
+//            Snackbar.LENGTH_INDEFINITE
+//        ).setAction("Settings") {
+//            activity.startActivity(Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS))
+//        }.show()
+//    }
+
     private fun checkLocationPermission(): Boolean {
         val locationManager =
             getApplication<Application>().getSystemService(Context.LOCATION_SERVICE) as LocationManager
@@ -147,6 +227,11 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
     }
 
     fun startLocationUpdates() {
+        if (isAirplaneModeOn()) {
+            showAirplaneModeSnackbar()
+            return
+        }
+
         mLocationRequest = LocationRequest.create().apply {
             interval = AppUtils.UPDATE_INTERVAL_IN_MILLISECONDS
             fastestInterval = AppUtils.FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS
@@ -161,26 +246,30 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
     }
 
     private fun checkLocationSettings() {
+        if (isAirplaneModeOn()) {
+            showAirplaneModeSnackbar()
+            return
+        }
+
         mSettingsClient.checkLocationSettings(mLocationSettingsRequest!!)
             .addOnSuccessListener {
                 if (checkLocationPermission()) {
                     try {
                         Log.i(AppUtils.LOG_LOC, "All location settings are satisfied.")
-                        val locationCallback = object : LocationCallback() {
+                        locationCallback = object : LocationCallback() {
                             override fun onLocationResult(locationResult: LocationResult) {
                                 locationResult.lastLocation?.let { location ->
                                     if (location.latitude.toString().isNotEmpty()) {
                                         _locationData.value = location
                                         _locationAccuracy.value = location.accuracy
 
-                                        // Check if location is enabled
                                         val locationManager = getApplication<Application>()
                                             .getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
                                         val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
                                                 locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
 
-                                        if (isLocationEnabled) {
+                                        if (isLocationEnabled && !isAirplaneModeOn()) {
                                             imageView.setImageResource(R.drawable.baseline_location_on_24)
                                             imageView.imageTintList = ColorStateList.valueOf(
                                                 activity.resources.getColor(R.color.greenbutton)
@@ -198,11 +287,12 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
 
                         mFusedLocationClient.requestLocationUpdates(
                             mLocationRequest!!,
-                            locationCallback,
-                            null
+                            locationCallback!!,
+                            Looper.getMainLooper()
                         )
-                    } finally {
                         isStartLocations = true
+                    } catch (e: SecurityException) {
+                        Log.e(AppUtils.LOG_LOC, "Error requesting location updates", e)
                     }
                 }
             }
@@ -238,33 +328,41 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
 
     private fun updateLocationIcon(isEnabled: Boolean) {
         _locationIconState.value = isEnabled
-        imageView.setImageResource(R.drawable.baseline_location_pin_24)
+        imageView.setImageResource(
+            if (isEnabled) R.drawable.baseline_location_on_24
+            else R.drawable.baseline_wrong_location_24
+        )
         imageView.imageTintList = ColorStateList.valueOf(
             activity.resources.getColor(
-                if (isEnabled) R.color.greenbutton else R.color.colorRed
+                if (isEnabled) R.color.greenbutton else R.color.colorRedDark
             )
         )
     }
 
     fun refreshLocationStatus() {
-        if (checkLocationPermission() && isStartLocations) {
-            updateLocationIcon(true)
-        } else {
-            updateLocationIcon(false)
-        }
+        val isEnabled = checkLocationPermission() && isStartLocations && !isAirplaneModeOn()
+        updateLocationIcon(isEnabled)
     }
 
     fun stopLocationUpdates() {
         if (isStartLocations) {
             try {
-                mFusedLocationClient.removeLocationUpdates(
-                    object : LocationCallback() {})
-                Log.i(AppUtils.LOG_LOC, "Location stopped.")
+                locationCallback?.let {
+                    mFusedLocationClient.removeLocationUpdates(it)
+                    locationCallback = null
+                }
+                Log.i(AppUtils.LOG_LOC, "Location updates stopped.")
             } finally {
                 isStartLocations = false
             }
         }
     }
+
+//    override fun onCleared() {
+//        super.onCleared()
+//        unregisterLocationSettingsReceiver()
+//        stopLocationUpdates()
+//    }
 
     @Suppress("UNCHECKED_CAST")
     class Factory(
@@ -279,5 +377,4 @@ class LocationViewModel(application: Application, private val imageView: ImageVi
             throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
-
 }
