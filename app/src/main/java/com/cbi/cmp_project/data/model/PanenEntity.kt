@@ -20,5 +20,6 @@ data class PanenEntity(
     val ancak: Int,
     val info: String,
     val archive: Int,
-    val status_espb: Int //
+    val status_espb: Int, // default 0
+    val status_restan: Int // default 0
 )

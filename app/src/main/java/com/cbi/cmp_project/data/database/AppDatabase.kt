@@ -32,6 +32,8 @@ import java.util.concurrent.Executors
  * - TestingAdded column 'status' (nullable String) to MillModel table
  * Version 3:
  * - delete again the column 'status' from table mill
+ * Version 4:
+ * - added column status_restan Int to panen_table table
  */
 
 
@@ -46,7 +48,7 @@ import java.util.concurrent.Executors
     FlagESPBModel::class,
     MillModel::class
     ],
-    version = 3
+    version = 4
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -70,7 +72,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "cbi_cmp"
                 )
-                    .addMigrations(MIGRATION_2_3)  // Add migration
+                    .addMigrations(MIGRATION_2_3,MIGRATION_3_4)  // Add migration
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
@@ -106,6 +108,17 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE mill_temp RENAME TO mill")
             }
         }
+
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add the new column 'status_restan' with default value 0
+                database.execSQL("""
+            ALTER TABLE panen_table 
+            ADD COLUMN status_restan INTEGER NOT NULL DEFAULT 0
+        """)
+            }
+        }
+
 
         fun closeDatabase() {
             INSTANCE?.close()

@@ -44,8 +44,8 @@
                     android:layout_height="wrap_content"
                     android:id="@+id/spPanenTBS"
                     app:ms_hint_color="@color/black"
+                    app:ms_popup_padding_top="@dimen/cardview_compat_inset_shadow"
                     app:ms_text_color="@color/black"
-
                     app:ms_hint="Pilih Kategori Yang Sesuai" />
 
                 <LinearLayout
