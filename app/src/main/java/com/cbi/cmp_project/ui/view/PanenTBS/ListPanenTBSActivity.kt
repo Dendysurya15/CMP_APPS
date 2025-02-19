@@ -245,11 +245,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             throw IllegalArgumentException("Invalid JSON format in jjg_json: $jjgJsonString")
                         }
 
-                        val toValue = if (jjgJson.has("TO")) {
-                            jjgJson.getInt("TO") // Throws JSONException if "TO" is not an int
+                        val key = if (featureName == "Rekap panen dan restan") "KP" else "TO"
+
+                        val toValue = if (jjgJson.has(key)) {
+                            jjgJson.getInt(key) // Throws JSONException if the key is not an int
                         } else {
-                            throw IllegalArgumentException("Missing 'TO' key in jjg_json: $jjgJsonString")
+                            throw IllegalArgumentException("Missing '$key' key in jjg_json: $jjgJsonString")
                         }
+
 
                         append("$tphId,$dateCreated,$toValue;")
                     } catch (e: Exception) {

@@ -2169,35 +2169,50 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
     @Override
+    @SuppressLint("DefaultLocale")
     override fun onResume() {
         super.onResume()
 
-        Log.d("LocationActivity", "onResume called")
+        // Manually check location permission
+        val isLocationGranted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
 
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            // Only start if not already started
-            if (!locationViewModel.isStartLocations) {
-                Log.d("LocationActivity", "Starting location updates in onResume")
-                locationViewModel.startLocationUpdates()
+        if (isLocationGranted) {
+            locationViewModel.startLocationUpdates()
+            isSnackbarShown = false // Reset snackbar flag
+        } else if (!isSnackbarShown) {
+            showSnackbarWithSettings("Location permission is required for this app. Enable it in Settings.")
+            isSnackbarShown = true // Prevent duplicate snackbars
+        }
+
+
+        locationViewModel.airplaneModeState.observe(this) { isAirplaneMode ->
+            if (isAirplaneMode) {
+                locationViewModel.stopLocationUpdates()
+            } else {
+                // Only restart if we have permission
+                if (ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    locationViewModel.startLocationUpdates()
+                }
             }
         }
 
+        // Observe location updates
         locationViewModel.locationData.observe(this) { location ->
             locationEnable = true
             lat = location.latitude
             lon = location.longitude
-            Log.d("LocationActivity", "Location update received: $lat, $lon")
         }
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
-            findViewById<TextView>(R.id.accuracyLocation).text =
-                String.format("%.1f m", accuracy)
+            findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
+            AppLogger.d(accuracy.toString())
             currentAccuracy = accuracy
-            Log.d("LocationActivity", "Accuracy update: $accuracy")
         }
     }
 

@@ -12,6 +12,7 @@ import com.bumptech.glide.load.engine.Resource
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.MillModel
+import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.data.repository.DatasetRepository
@@ -59,6 +60,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val _millStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val millStatus: StateFlow<Result<Boolean>> = _millStatus.asStateFlow()
 
+    private val _transporterStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
+    val transporterStatus: StateFlow<Result<Boolean>> = _transporterStatus.asStateFlow()
+
     private val _tphStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val tphStatus: StateFlow<Result<Boolean>> = _tphStatus.asStateFlow()
 
@@ -102,6 +106,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.updateOrInsertMill(mill)
+                _karyawanStatus.value = Result.success(true)
+            } catch (e: Exception) {
+                _karyawanStatus.value = Result.failure(e)
+            }
+        }
+
+    fun InsertTransporter(transporter: List<TransporterModel>) =
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.InsertTransporter(transporter)
                 _karyawanStatus.value = Result.success(true)
             } catch (e: Exception) {
                 _karyawanStatus.value = Result.failure(e)
@@ -301,6 +315,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     "blok" -> prefManager.lastModifiedDatasetBlok = lastModifiedTimestamp
                     "kemandoran" -> prefManager.lastModifiedDatasetKemandoran = lastModifiedTimestamp
                     "pemanen" -> prefManager.lastModifiedDatasetPemanen = lastModifiedTimestamp
+                    "transporter" -> prefManager.lastModifiedDatasetTransporter = lastModifiedTimestamp
                 }
                 prefManager!!.addDataset(dataset)
             } else {
@@ -433,6 +448,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         response = response,
                                                         updateOperation = ::updateOrInsertMill,
                                                         statusFlow = millStatus,
+                                                        hasShownError = hasShownError,
+                                                        lastModifiedTimestamp = lastModified ?: ""
+                                                    )
+                                                    "transporter" -> hasShownError = processDataset(
+                                                        jsonContent = jsonContent,
+                                                        dataset = request.dataset,
+                                                        modelClass = TransporterModel::class.java,
+                                                        results = results,
+                                                        response = response,
+                                                        updateOperation = ::InsertTransporter,
+                                                        statusFlow = transporterStatus,
                                                         hasShownError = hasShownError,
                                                         lastModifiedTimestamp = lastModified ?: ""
                                                     )

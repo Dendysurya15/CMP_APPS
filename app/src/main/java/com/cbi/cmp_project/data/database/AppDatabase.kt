@@ -13,6 +13,7 @@ import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.MillModel
 import com.cbi.cmp_project.data.model.PanenEntity
+import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.markertph.data.model.TPHNewModel
 import java.util.concurrent.Executors
 
@@ -34,21 +35,23 @@ import java.util.concurrent.Executors
  * - delete again the column 'status' from table mill
  * Version 4:
  * - added column status_restan Int to panen_table table
+ * Version 5:
+ * - added new table named transporter
  */
 
 
 @Database(
     entities = [
-
         TPHNewModel::class,
         KemandoranModel::class,
         KaryawanModel::class,
         PanenEntity::class,
         ESPBEntity::class,
-    FlagESPBModel::class,
-    MillModel::class
+        FlagESPBModel::class,
+        MillModel::class,
+        TransporterModel::class
     ],
-    version = 4
+    version = 5
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -58,6 +61,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun tphDao(): TPHDao
     abstract fun flagESPBModelDao(): FlagESPBDao // ✅ Add DAO
     abstract fun millDao():MillDao
+    abstract fun transporterDao():TransporterDao
 
 
 
@@ -72,7 +76,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "cbi_cmp"
                 )
-                    .addMigrations(MIGRATION_2_3,MIGRATION_3_4)  // Add migration
+                    .addMigrations(MIGRATION_2_3,MIGRATION_3_4,MIGRATION_4_5)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
@@ -88,26 +92,20 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Create temporary table
+                // Drop the old table if it exists (to avoid conflicts)
+                database.execSQL("DROP TABLE IF EXISTS mill")
+
+                // Create the new mill table
                 database.execSQL("""
-                    CREATE TABLE mill_temp (
-                        id INTEGER PRIMARY KEY,
-                        abbr TEXT,
-                        nama TEXT
-                    )
-                """)
-
-                // Copy data from old table to temp table (excluding status)
-                database.execSQL("""
-                    INSERT INTO mill_temp (id, abbr, nama)
-                    SELECT id, abbr, nama FROM mill
-                """)
-
-                database.execSQL("DROP TABLE mill")
-
-                database.execSQL("ALTER TABLE mill_temp RENAME TO mill")
+            CREATE TABLE mill (
+                id INTEGER PRIMARY KEY,
+                abbr TEXT,
+                nama TEXT
+            )
+        """)
             }
         }
+
 
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -118,6 +116,21 @@ abstract class AppDatabase : RoomDatabase() {
         """)
             }
         }
+
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Create the new transporter table
+                database.execSQL("""
+            CREATE TABLE transporter (
+                id INTEGER PRIMARY KEY,
+                kode TEXT,
+                nama TEXT,
+                status INTEGER
+            )
+        """)
+            }
+        }
+
 
 
         fun closeDatabase() {

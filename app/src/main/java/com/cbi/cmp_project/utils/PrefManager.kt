@@ -125,6 +125,13 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var lastModifiedDatasetTransporter: String?
+        get() = pref.getString("lastModifiedDatasetTransporter", "")
+        set(lastModifiedDatasetTransporter) {
+            editor.putString("lastModifiedDatasetTransporter", lastModifiedDatasetTransporter)
+            editor.commit()
+        }
+
     var token: String?
         get() = pref.getString("token", "")
         set(token) {

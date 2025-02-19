@@ -503,6 +503,7 @@ class HomePageActivity : AppCompatActivity() {
         val lastModifiedDatasetBlok = prefManager!!.lastModifiedDatasetBlok
         val lastModifiedDatasetKemandoran = prefManager!!.lastModifiedDatasetKemandoran
         val lastModifiedDatasetPemanen = prefManager!!.lastModifiedDatasetPemanen
+        val lastModifiedDatasetTransporter = prefManager!!.lastModifiedDatasetTransporter
 
         if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
             AppLogger.d("Downloads: Estate ID is null or empty, aborting download")
@@ -526,7 +527,8 @@ class HomePageActivity : AppCompatActivity() {
                     lastModifiedDatasetTPH,
                     lastModifiedDatasetBlok,
                     lastModifiedDatasetPemanen,
-                    lastModifiedDatasetKemandoran
+                    lastModifiedDatasetKemandoran,
+                    lastModifiedDatasetTransporter
                 )
             } else {
                 getDatasetsToDownload(
@@ -535,7 +537,8 @@ class HomePageActivity : AppCompatActivity() {
                     lastModifiedDatasetTPH,
                     lastModifiedDatasetBlok,
                     lastModifiedDatasetPemanen,
-                    lastModifiedDatasetKemandoran
+                    lastModifiedDatasetKemandoran,
+                    lastModifiedDatasetTransporter
                 )
                     .filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
             }
@@ -560,7 +563,8 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetBlok: String?,
         lastModifiedDatasetPemanen: String?,
-        lastModifiedDatasetKemandoran: String?
+        lastModifiedDatasetKemandoran: String?,
+        lastModifiedDatasetTransporter: String?
     ): List<DatasetRequest> {
         return listOf(
             //khusus mill
@@ -580,6 +584,10 @@ class HomePageActivity : AppCompatActivity() {
                 estate = estateId,
                 lastModified = lastModifiedDatasetKemandoran,
                 dataset = "kemandoran"
+            ),
+            DatasetRequest(
+                lastModified = lastModifiedDatasetTransporter,
+                dataset = "transporter"
             )
         )
     }
