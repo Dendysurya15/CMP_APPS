@@ -20,14 +20,8 @@ import retrofit2.Response
 class DatasetRepository(context: Context,  private val apiService: ApiService = CMPApiClient.instance) {
 
     private val database = AppDatabase.getDatabase(context)
-//    private val regionalDao = database.regionalDao()
-//    private val wilayahDao = database.wilayahDao()
-//    private val deptDao = database.deptDao()
-//    private val divisiDao = database.divisiDao()
-//    private val blokDao = database.blokDao()
     private val karyawanDao = database.karyawanDao()
     private val kemandoranDao = database.kemandoranDao()
-//    private val kemandoranDetailDao = database.kemandoranDetailDao()
     private val tphDao = database.tphDao()
     private val millDao = database.millDao()
     private val transporterDao = database.transporterDao()

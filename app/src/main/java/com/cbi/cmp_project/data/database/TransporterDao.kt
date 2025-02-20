@@ -30,4 +30,14 @@ abstract class TransporterDao {
 
     @Query("SELECT COUNT(*) FROM transporter")
     abstract suspend fun getCount(): Int
+
+    @Query(
+        """
+    SELECT * FROM transporter 
+    WHERE id = :idTransporter
+    """
+    )
+    abstract fun getTransporterById(
+        idTransporter: Int,
+    ): List<TransporterModel>
 }

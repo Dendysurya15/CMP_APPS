@@ -1,36 +1,21 @@
 package com.cbi.cmp_project
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.FlagESPBModel
-import com.cbi.cmp_project.data.network.RetrofitClient
-import com.cbi.cmp_project.ui.view.HomePageActivity
 import com.cbi.cmp_project.ui.view.LoginActivity
-import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.utils.AppUtils
-import com.cbi.cmp_project.utils.LoadingDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.ResponseBody
-import retrofit2.Response
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
 
 class MainActivity : AppCompatActivity() {
     private var showingSplash = true

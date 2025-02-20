@@ -513,15 +513,19 @@ class CameraRepository(private val context: Context, private val window: Window,
 
             }
 
-//         Take Photos
-
         val captureCam = view.findViewById<FloatingActionButton>(R.id.captureCam)
         captureCam.apply {
             setOnClickListener {
-                capReq =
-                    cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
-                capReq.addTarget(imageReader!!.surface)
-                cameraCaptureSession?.capture(capReq.build(), null, null)
+                isEnabled = false
+                if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
+                    capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                    capReq.addTarget(imageReader!!.surface)
+                    cameraCaptureSession?.capture(capReq.build(), null, null)
+                    postDelayed({ isEnabled = true }, 2000)
+                } else {
+                    isEnabled = true
+                    Log.e("CameraError", "CameraDevice or ImageReader is null")
+                }
             }
         }
 

@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.ui.view.PanenTBS
+package com.cbi.cmp_project.ui.view.panenTBS
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
@@ -24,7 +24,6 @@ import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -70,7 +69,6 @@ import java.nio.charset.StandardCharsets
 import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
-import org.json.JSONArray
 import org.json.JSONObject
 
 class ListPanenTBSActivity : AppCompatActivity() {

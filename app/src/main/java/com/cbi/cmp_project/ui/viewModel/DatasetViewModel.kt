@@ -630,17 +630,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private fun <T> createCustomTypeAdapter(): JsonDeserializer<T> {
-        return JsonDeserializer { json, typeOfT, context ->
-            try {
-                val gson = Gson()
-                return@JsonDeserializer gson.fromJson<T>(json, typeOfT)
-            } catch (e: Exception) {
-                AppLogger.e("Error in custom type adapter: ${e.message}")
-                null
-            }
-        }
-    }
 
     class DatasetViewModelFactory(
         private val application: Application

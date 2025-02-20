@@ -30,8 +30,8 @@ import com.cbi.cmp_project.ui.adapter.DownloadItem
 import com.cbi.cmp_project.ui.adapter.DownloadProgressDatasetAdapter
 import com.cbi.cmp_project.ui.adapter.FeatureCard
 import com.cbi.cmp_project.ui.adapter.FeatureCardAdapter
-import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity
-import com.cbi.cmp_project.ui.view.PanenTBS.ListPanenTBSActivity
+import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
+import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
@@ -328,6 +328,14 @@ class HomePageActivity : AppCompatActivity() {
             "Rekap panen dan restan" -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListPanenTBSActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            "Weight bridge" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, ScanQR::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }

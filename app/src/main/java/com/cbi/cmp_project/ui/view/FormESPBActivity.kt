@@ -7,19 +7,13 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.ConstraintSet
 import com.cbi.cmp_project.R
-import com.cbi.cmp_project.ui.view.PanenTBS.ListPanenTBSActivity
+import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.utils.AppUtils
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import java.io.ByteArrayOutputStream
-import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.zip.Deflater
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
 
 class FormESPBActivity : AppCompatActivity() {
     var featureName = ""

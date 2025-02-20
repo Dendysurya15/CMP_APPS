@@ -16,5 +16,6 @@ data class ESPBEntity(
     val archive: Int,
     val tph0: String, // {tph_id,date_created,jjg,status_espb
     val tph1: String,
-    val noESPB: String //PT-EST/AFD/TGl/BLN/THN/JAM/MENIT_Detik_mili second "SSS-SLE/OC/02/01/25/140012000"
+    val noESPB: String, //PT-EST/AFD/TGl/BLN/THN/JAM/MENIT_Detik_mili second "SSS-SLE/OC/02/01/25/140012000"
+    val status_upload_cmp: Int?,
 )

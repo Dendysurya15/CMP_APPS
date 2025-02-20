@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    android:layout_height="wrap_content">
 
     <com.google.android.material.card.MaterialCardView
+        android:id="@+id/navbar"
         android:layout_width="match_parent"
         android:layout_height="100dp"
         android:backgroundTint="@color/white"
         app:cardCornerRadius="0dp"
-        android:id="@+id/navbar"
         app:cardElevation="10dp"
         tools:ignore="MissingConstraints">
 
@@ -24,55 +24,42 @@
                 android:layout_marginLeft="270dp"
                 android:src="@drawable/cbi"
 
-                 />
+                />
             <View
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@android:color/white"
-                android:alpha="0.7" />
+                android:alpha="0.7"
+                android:background="@android:color/white" />
 
         </FrameLayout>
-<!--                <ImageView-->
-<!--                    android:layout_width="wrap_content"-->
-<!--                    android:layout_height="200dp"-->
-<!--                    android:src="@drawable/cbi"-->
-<!--                    android:layout_marginRight="0dp"-->
-<!--                    android:scaleType="fitXY"-->
-<!--                    android:layout_gravity="right"-->
-<!--                    android:layout_centerInParent="true"/>-->
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="horizontal" android:weightSum="3">
+            android:orientation="horizontal"
+            android:weightSum="3">
 
             <ImageView
                 android:id="@+id/btn_back"
-                android:layout_width="40dp"
-                android:layout_height="match_parent"
-                android:layout_gravity="center_vertical"
-                android:paddingLeft="10dp"
-                android:layout_margin="10dp"
-                android:foreground="?attr/selectableItemBackground"
-                android:src="@drawable/baseline_arrow_back_ios_24"
+                android:layout_marginHorizontal="10dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/rounded_radius_background"
+                android:clickable="true"
+                android:layout_gravity="center"
+                android:focusable="true"
+                android:padding="6dp"
+                android:src="@drawable/angle_left_solid"
+                android:tint="@color/black"
+                tools:ignore="UseAppTint" />
 
-                />
-
-            <!--            <ImageView-->
-<!--                android:layout_width="10dp"-->
-<!--                android:layout_weight="1"-->
-<!--                android:layout_height="match_parent"-->
-<!--                android:layout_gravity="center_vertical"-->
-<!--                android:foreground="?attr/selectableItemBackground"-->
-<!--                android:src="@drawable/cbi"-->
-<!--                />-->
 
             <LinearLayout
                 android:layout_width="wrap_content"
-                android:orientation="vertical"
-                android:paddingLeft="10dp"
                 android:layout_height="match_parent"
-                android:weightSum="2"
-                android:layout_weight="2.5">
+                android:layout_weight="2.5"
+                android:orientation="vertical"
+                android:weightSum="2">
 
                 <TextView
                     android:id="@+id/tvFeatureName"
@@ -80,69 +67,70 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/manrope_extrabold"
-                    android:textColor="@color/black"
-                    android:textSize="17dp"
-                    android:text="Menuy - List History Panen TBS"
                     android:gravity="bottom"
-                    android:lineSpacingExtra="2dp" />
+                    android:lineSpacingExtra="2dp"
+                    android:text="Menuy - List History Panen TBS"
+                    android:textColor="@color/black"
+                    android:textSize="17dp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal">
 
-<!--                    <ImageView-->
-<!--                        android:layout_width="35dp"-->
-<!--                        android:layout_height="match_parent"-->
-<!--                        android:foregroundGravity="center"-->
-<!--                        android:layout_marginRight="5dp"-->
-<!--                        android:src="@drawable/circle_user_solid"-->
-<!--                        app:tint="@color/graytextdark" />-->
+                    <!--                    <ImageView-->
+                    <!--                        android:layout_width="35dp"-->
+                    <!--                        android:layout_height="match_parent"-->
+                    <!--                        android:foregroundGravity="center"-->
+                    <!--                        android:layout_marginRight="5dp"-->
+                    <!--                        android:src="@drawable/circle_user_solid"-->
+                    <!--                        app:tint="@color/graytextdark" />-->
 
                     <TextView
+                        android:id="@+id/userSection"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:fontFamily="@font/manrope_bold"
-                        android:textStyle="italic"
-                        android:textSize="13dp"
-                        android:textColor="@color/black"
-                        android:text="Admin IT\nMandor Panen\nSulung Estate"
-                        android:id="@+id/userSection"
                         android:gravity="center_vertical"
-                        android:lineSpacingExtra="2dp" />
+                        android:lineSpacingExtra="2dp"
+                        android:text="Admin IT\nMandor Panen\nSulung Estate"
+                        android:textColor="@color/black"
+                        android:textSize="13dp"
+                        android:textStyle="italic" />
                 </LinearLayout>
 
 
             </LinearLayout>
 
 
-        <LinearLayout
-            android:layout_width="60dp"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:id="@+id/locationSection"
-            android:visibility="gone"
-            android:layout_height="match_parent"
-            android:layout_weight="0.5">
-            <ImageView
-                android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:id="@+id/statusLocation"
-                android:src="@drawable/baseline_wrong_location_24"
-                app:tint="@color/colorRedDark" />
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:id="@+id/accuracyLocation"
-                android:fontFamily="@font/montserrat_bold"
-                android:textColor="@color/black"
-                android:textSize="14dp"
-                android:gravity="center" />
-        </LinearLayout>
-        </LinearLayout>
+            <LinearLayout
+                android:id="@+id/locationSection"
+                android:layout_width="60dp"
+                android:layout_height="match_parent"
+                android:layout_weight="0.5"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
 
+                <ImageView
+                    android:id="@+id/statusLocation"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:src="@drawable/baseline_wrong_location_24"
+                    app:tint="@color/colorRedDark" />
+
+                <TextView
+                    android:id="@+id/accuracyLocation"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserrat_bold"
+                    android:gravity="center"
+                    android:text=""
+                    android:textColor="@color/black"
+                    android:textSize="14dp" />
+            </LinearLayout>
+        </LinearLayout>
 
 
     </com.google.android.material.card.MaterialCardView>

@@ -20,6 +20,8 @@ import com.jaredrummler.materialspinner.BuildConfig
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
@@ -73,6 +75,19 @@ object AppUtils {
             vibrator.vibrate(100)
         }
     }
+
+    fun formatToIndonesianDate(dateString: String): String {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("EEEE, d MMMM YYYY 'Pukul' HH:mm:ss", Locale("id", "ID"))
+
+        return try {
+            val date = inputFormat.parse(dateString)
+            outputFormat.format(date ?: Date())
+        } catch (e: Exception) {
+            "Format tanggal tidak valid"
+        }
+    }
+
 
     /**
      * Alternative method to fetch the version name directly from BuildConfig with a "V" prefix.

@@ -8,7 +8,7 @@
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.CAMERA" />
@@ -41,6 +41,12 @@
         android:theme="@style/Theme.Cmp_project"
         tools:targetApi="31">
         <activity
+            android:name=".ui.view.weightBridge.ListHistoryWeightBridgeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.view.weightBridge.ScanWeightBridgeActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.view.FormESPBActivity"
             android:exported="false" />
         <activity
@@ -50,16 +56,15 @@
             android:name=".ui.view.ScanQR"
             android:exported="false" />
         <activity
-            android:name=".ui.view.PanenTBS.FeaturePanenTBSActivity"
+            android:name=".ui.view.panenTBS.FeaturePanenTBSActivity"
             android:exported="false" />
         <activity
-            android:name=".ui.view.PanenTBS.ListPanenTBSActivity"
+            android:name=".ui.view.panenTBS.ListPanenTBSActivity"
             android:exported="false" />
         <activity
             android:name=".ui.view.HomePageActivity"
             android:exported="false"
             android:label="@string/title_activity_home_page" />
-
         <activity
             android:name=".ui.view.LoginActivity"
             android:exported="false" />

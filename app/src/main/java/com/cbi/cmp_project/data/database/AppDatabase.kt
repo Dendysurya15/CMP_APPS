@@ -11,6 +11,7 @@ import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.FlagESPBModel
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
+
 import com.cbi.cmp_project.data.model.MillModel
 import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.model.TransporterModel
@@ -37,6 +38,8 @@ import java.util.concurrent.Executors
  * - added column status_restan Int to panen_table table
  * Version 5:
  * - added new table named transporter
+ * Version 6:
+ * -added new column named status_upload for ESPBEntity
  */
 
 
@@ -51,7 +54,7 @@ import java.util.concurrent.Executors
         MillModel::class,
         TransporterModel::class
     ],
-    version = 5
+    version = 6
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -76,7 +79,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "cbi_cmp"
                 )
-                    .addMigrations(MIGRATION_2_3,MIGRATION_3_4,MIGRATION_4_5)
+                    .addMigrations(MIGRATION_2_3,MIGRATION_3_4,MIGRATION_4_5, MIGRATION_5_6)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
@@ -130,6 +133,26 @@ abstract class AppDatabase : RoomDatabase() {
         """)
             }
         }
+
+        private val MIGRATION_5_6 = object : Migration(5, 6) { // ✅ Corrected version
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    ALTER TABLE espb_table 
+                    ADD COLUMN status_upload_cmp INTEGER NULL
+                    """
+                )
+                // Optional: Set default value for existing rows
+                database.execSQL(
+                    """
+                    UPDATE espb_table 
+                    SET status_upload = 0 
+                    WHERE status_upload_cmp IS NULL
+                    """
+                )
+            }
+        }
+
 
 
 

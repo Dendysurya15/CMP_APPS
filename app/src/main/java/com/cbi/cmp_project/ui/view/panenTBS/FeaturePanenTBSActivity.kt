@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.ui.view.PanenTBS
+package com.cbi.cmp_project.ui.view.panenTBS
 
 import android.Manifest
 import android.animation.ObjectAnimator
@@ -23,7 +23,6 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
-import android.util.Log
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -1344,9 +1343,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 selectedAfdeling = selectedItem.toString()
                 selectedAfdelingIdSpinner = position
-
-
-                AppLogger.d(selectedAfdeling.toString())
 
                 val selectedDivisiId = try {
                     divisiList.find { it.divisi_abbr == selectedAfdeling }?.divisi
