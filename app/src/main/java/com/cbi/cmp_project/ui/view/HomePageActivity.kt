@@ -32,6 +32,7 @@ import com.cbi.cmp_project.ui.adapter.FeatureCard
 import com.cbi.cmp_project.ui.adapter.FeatureCardAdapter
 import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
+import com.cbi.cmp_project.ui.view.weightBridge.ScanWeightBridgeActivity
 
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
@@ -335,7 +336,7 @@ class HomePageActivity : AppCompatActivity() {
 
             "Weight bridge" -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ScanQR::class.java)
+                    val intent = Intent(this, ScanWeightBridgeActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }

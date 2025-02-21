@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.data.model.TransporterModel
 
 @Dao
 abstract class KaryawanDao {
@@ -33,5 +34,15 @@ abstract class KaryawanDao {
     @Query("SELECT * FROM karyawan WHERE kemandoran_id = :filteredId")
     abstract fun getKaryawanByCriteria(
         filteredId: Int
+    ): List<KaryawanModel>
+
+    @Query(
+        """
+    SELECT * FROM karyawan 
+    WHERE id IN (:idKaryawan)
+    """
+    )
+    abstract fun getPemuatByIdList(
+        idKaryawan: List<String>,
     ): List<KaryawanModel>
 }

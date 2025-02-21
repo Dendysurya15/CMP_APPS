@@ -1,6 +1,7 @@
 package com.cbi.cmp_project.utils
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -8,6 +9,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Base64
+import android.view.WindowManager
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
@@ -88,6 +90,21 @@ object AppUtils {
         }
     }
 
+    fun setMaxBrightness(activity: Activity, isMax: Boolean) {
+        try {
+            val window = activity.window
+            val layoutParams = window.attributes
+
+            if (isMax) {
+                layoutParams.screenBrightness = 1f // 1.0 is maximum brightness
+            } else {
+                layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            }
+            window.attributes = layoutParams
+        } catch (e: Exception) {
+            AppLogger.e("Error setting brightness: ${e.message}")
+        }
+    }
 
     /**
      * Alternative method to fetch the version name directly from BuildConfig with a "V" prefix.

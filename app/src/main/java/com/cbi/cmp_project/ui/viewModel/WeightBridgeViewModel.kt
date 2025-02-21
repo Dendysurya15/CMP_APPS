@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.MillModel
 import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.repository.DatasetRepository
@@ -32,6 +33,9 @@ class WeightBridgeViewModel(application: Application) : AndroidViewModel(applica
         return repository.getBlokById(listBlokId)
     }
 
+    suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
+        return repository.getPemuatByIdList(idPemuat)
+    }
 
     class WeightBridgeViewModelFactory(
         private val application: Application

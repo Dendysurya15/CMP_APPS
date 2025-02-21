@@ -14,6 +14,7 @@ class WeightBridgeRepository(context: Context) {
     private val millDao = database.millDao()
     private val transporterDao = database.transporterDao()
     private val tphDao = database.tphDao()
+    private val karyawanDao = database.karyawanDao()
 
     suspend fun getMill( millId: Int): List<MillModel> {
         return millDao.getMillById(millId)
@@ -27,7 +28,9 @@ class WeightBridgeRepository(context: Context) {
         return tphDao.getBlokById(listBlokId)
     }
 
-
+    suspend fun getPemuatByIdList( idPemuat:List<String>): List<KaryawanModel> {
+        return karyawanDao.getPemuatByIdList(idPemuat)
+    }
 }
 
 // Fetch TPH by ID

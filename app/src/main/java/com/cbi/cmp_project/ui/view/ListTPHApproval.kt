@@ -71,7 +71,6 @@ class ListTPHApproval : AppCompatActivity() {
         val constraintLayout = findViewById<ConstraintLayout>(R.id.clParentListPanen)
         val constraintSet = ConstraintSet()
         constraintSet.clone(constraintLayout)
-//        val filterSection = findViewById<LinearLayout>(R.id.filterSection)
         constraintSet.connect(
             R.id.filterSection, ConstraintSet.TOP,
             R.id.navbarPanenList, ConstraintSet.BOTTOM
