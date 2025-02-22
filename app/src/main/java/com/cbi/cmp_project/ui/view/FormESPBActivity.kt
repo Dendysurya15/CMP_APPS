@@ -60,6 +60,23 @@ class FormESPBActivity : AppCompatActivity() {
                     "},"+
                     "\"tph_0\": \"$tph0\","+
                     "\"tph_1\": \"$tph1\"}"
+
+//            json = "{" +
+//                    "\"espb\": {" +
+//                    "\"blok_jjg\": \"$blok_jjg\"," + //"3567,232;23,23"
+//                    "\"nopol\": \"${nopol}\"," +
+//                    "\"driver\": \"${driver}\"," +
+//                    "\"pemuat_id\": \"1,3,4\"," + //"1,3,4"
+//                    "\"transporter_id\": 1," +
+//                    "\"mill_id\": $selectedMillId," +
+//                    "\"created_by_id\": $idPetugas," +
+//                    "\"update\": \"\"," +
+//                    "\"creator_info\": \"{\"app_version\":\"2.6.1\",\"os_version\":\"13\",\"device_model\":\"SM-A325F\"}\"," +
+//                    "\"no_espb\": \"SSS-SLE/OC/02/01/25/140012000\"," +
+//                    "\"created_at\": \"${getCurrentDateTime()}\"" +
+//                    "}," +
+//                    "\"tph_0\": \"$tph0\"," +
+//                    "\"tph_1\": \"$tph1\"}"
             val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
             val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
 

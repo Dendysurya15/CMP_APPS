@@ -5,7 +5,8 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.view.weightBridge.ListHistoryWeightBridgeActivity">
+    android:background="@color/white"
+    tools:context=".ui.view.weighBridge.ListHistoryWeighBridgeActivity">
     <include
         android:id="@+id/navbar"
         layout="@layout/header_feature_layout"

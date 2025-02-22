@@ -1,57 +1,56 @@
-package com.cbi.cmp_project.ui.view.weightBridge
+package com.cbi.cmp_project.ui.view.weighBridge
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cbi.cmp_project.R
-import com.cbi.cmp_project.data.model.weightBridge.wbQRData
+import com.cbi.cmp_project.data.model.weighBridge.wbQRData
+import com.cbi.cmp_project.ui.view.HomePageActivity
 
-import com.cbi.cmp_project.ui.viewModel.WeightBridgeViewModel
+import com.cbi.cmp_project.ui.viewModel.WeighBridgeViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.formatToIndonesianDate
 import com.cbi.cmp_project.utils.AppUtils.setMaxBrightness
+import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.card.MaterialCardView
 import com.google.gson.Gson
 import com.google.zxing.ResultPoint
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.BarcodeResult
 import com.journeyapps.barcodescanner.DecoratedBarcodeView
+import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class ScanWeightBridgeActivity : AppCompatActivity() {
-    private lateinit var weightBridgeViewModel: WeightBridgeViewModel
+@Suppress("UNREACHABLE_CODE")
+class ScanWeighBridgeActivity : AppCompatActivity() {
+    private lateinit var weightBridgeViewModel: WeighBridgeViewModel
     private var prefManager: PrefManager? = null
 
     private lateinit var barcodeView: DecoratedBarcodeView
     private lateinit var bottomSheetDialog: BottomSheetDialog
     private var isScanning = true
 
-    companion object {
-        const val EXTRA_QR_RESULT = "scannedResult"
-    }
-
     private lateinit var loadingDialog: LoadingDialog
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefManager = PrefManager(this)
-        setContentView(R.layout.activity_scan_weight_bridge)
+        setContentView(R.layout.activity_scan_weigh_bridge)
         loadingDialog = LoadingDialog(this)
         initViewModel()
         setupBottomSheet()
@@ -62,12 +61,9 @@ class ScanWeightBridgeActivity : AppCompatActivity() {
     private fun setupQRScanner() {
         barcodeView = findViewById(R.id.barcode_scanner_krani_timbang)
         barcodeView.visibility = View.VISIBLE
-        setMaxBrightness(this@ScanWeightBridgeActivity, true)
-        // Hide status view
-        barcodeView.findViewById<TextView>(com.google.zxing.client.android.R.id.zxing_status_view)?.visibility =
-            View.VISIBLE
-        barcodeView.findViewById<TextView>(com.google.zxing.client.android.R.id.zxing_status_view)?.text =
-            "Letakkan QR ke dalam kotak scan!"
+        setMaxBrightness(this@ScanWeighBridgeActivity, true)
+        barcodeView.findViewById<TextView>(com.google.zxing.client.android.R.id.zxing_status_view)?.visibility = View.VISIBLE
+        barcodeView.findViewById<TextView>(com.google.zxing.client.android.R.id.zxing_status_view)?.text = "Letakkan QR ke dalam kotak scan!"
 
         barcodeView.decodeContinuous(object : BarcodeCallback {
             override fun barcodeResult(result: BarcodeResult?) {
@@ -87,8 +83,6 @@ class ScanWeightBridgeActivity : AppCompatActivity() {
         resumeScanner()
     }
 
-
-
     private fun setupBottomSheet() {
         bottomSheetDialog = BottomSheetDialog(this)
         val bottomSheetView = layoutInflater.inflate(R.layout.layout_bottom_sheet_wb, null)
@@ -99,26 +93,77 @@ class ScanWeightBridgeActivity : AppCompatActivity() {
         bottomSheetDialog.behavior.apply {
             isDraggable = false
         }
-        bottomSheetView.findViewById<Button>(R.id.btnProcess)?.setOnClickListener {
+        bottomSheetView.findViewById<Button>(R.id.btnSaveUploadeSPB)?.setOnClickListener {
             isScanning = false
             pauseScanner()
 
-            AlertDialogUtility.withTwoActions(
-                this,
-                "Simpan Data",
-                getString(R.string.confirmation_dialog_title),
-                getString(R.string.al_submit_upload_data_espb_by_krani_timbang),
-                "warning.json"
-            ) {
-                lifecycleScope.launch {
-                    withContext(Dispatchers.Main) {
-                        loadingDialog.show()
-                        loadingDialog.setMessage("Sedang Simpan & Upload Data...")
-                        delay(500)
-                    }
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Simpan Data",
+                    getString(R.string.confirmation_dialog_title),
+                    getString(R.string.al_submit_upload_data_espb_by_krani_timbang),
+                    "warning.json"
+                ) {
+                    lifecycleScope.launch {
+                        withContext(Dispatchers.Main) {
+                            loadingDialog.show()
+                            loadingDialog.setMessage("Sedang Simpan & Upload Data...")
+                            delay(500)
+                        }
 
+                        try {
+                            // Simulate saving and uploading process
+                            withContext(Dispatchers.IO) {
+                                delay(2000) // Simulate processing time
+
+//                                throw Exception("Simulasi error saat upload data.")
+                            }
+
+
+                            withContext(Dispatchers.Main) {
+                                loadingDialog.dismiss()
+                                Toasty.success(
+                                    this@ScanWeighBridgeActivity,
+                                    "Data berhasil disimpan dan diupload!",
+                                    Toasty.LENGTH_SHORT,
+                                    true
+                                ).show()
+
+                                AlertDialogUtility.withSingleAction(
+                                    this@ScanWeighBridgeActivity,
+                                    stringXML(R.string.al_back),
+                                    stringXML(R.string.al_success_save_local),
+                                    stringXML(R.string.al_description_success_save_local_and_upload_to_server_cmp),
+                                    "success.json",
+                                    R.color.greenDefault
+                                ) {
+                                    val intent = Intent(this@ScanWeighBridgeActivity, HomePageActivity::class.java)
+                                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                    startActivity(intent)
+                                    finish()
+                                }
+
+                            }
+
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                loadingDialog.dismiss()
+
+                                AlertDialogUtility.withSingleAction(
+                                    this@ScanWeighBridgeActivity,
+                                    stringXML(R.string.al_back),
+                                    stringXML(R.string.al_failed_fetch_data),
+                                    "${stringXML(R.string.al_failed_save_local_and_upload_to_server_cmp)} ${e.message}",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ) {
+
+                                }
+                            }
+                        }
+                    }
                 }
-            }
+
 
 //            bottomSheetDialog.dismiss()
         }
@@ -153,7 +198,7 @@ class ScanWeightBridgeActivity : AppCompatActivity() {
             val errorCard = it.findViewById<LinearLayout>(R.id.errorCard)
             val dataContainer = it.findViewById<LinearLayout>(R.id.dataContainer)
             val errorText = it.findViewById<TextView>(R.id.errorText)
-            val btnProcess = it.findViewById<Button>(R.id.btnProcess)
+            val btnProcess = it.findViewById<Button>(R.id.btnSaveUploadeSPB)
 
             if (hasError) {
                 errorCard.visibility = View.VISIBLE
@@ -179,7 +224,6 @@ class ScanWeightBridgeActivity : AppCompatActivity() {
                     InfoType.TRANSPORTER to transporterName
                 )
 
-                // And update how you set values:
                 infoItems.forEach { (type, value) ->
                     val itemView = it.findViewById<View>(type.id)
                     setInfoItemValues(itemView, type.label, value)
@@ -192,10 +236,9 @@ class ScanWeightBridgeActivity : AppCompatActivity() {
     }
 
     private fun setInfoItemValues(view: View, label: String, value: String) {
-        // Find the label TextView (tvLabel) in our included layout and set its text
+
         view.findViewById<TextView>(R.id.tvLabel)?.text = label
 
-        // Find the value TextView
         view.findViewById<TextView>(R.id.tvValue)?.text = when (view.id) {
             R.id.infoBlok -> value
             else -> ": $value"
@@ -207,7 +250,6 @@ class ScanWeightBridgeActivity : AppCompatActivity() {
         isScanning = false
     }
 
-    // Also modify resumeScanner to be more robust
     private fun resumeScanner() {
         try {
             barcodeView.resume()
@@ -254,7 +296,6 @@ class ScanWeightBridgeActivity : AppCompatActivity() {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
                     val parsedData = Gson().fromJson(jsonStr, wbQRData::class.java)
 
-                    // Extract only idBlok from blokJjgList and map it to pairs of (idBlok, totalJjg)
 //                    val blokJjgList = "3301,312;3303,154;3309,321;3310,215;3312,421;3315,233"
                     val blokJjgList = parsedData.espb.blokJjg
                         .split(";")
@@ -295,15 +336,50 @@ class ScanWeightBridgeActivity : AppCompatActivity() {
                     val pemuatData = pemuatDeferred.await()
                         ?: throw Exception("Failed to fetch Pemuat Data! Please check the dataset.")
 
-                    val blokData = blokListDeferred.await()
+                    val blokData = try {
+                        AppLogger.d(idBlokList.toString())
+                        weightBridgeViewModel.getBlokById(idBlokList)
+                    } catch (e: Exception) {
+                        AppLogger.e("Error fetching Blok Data: ${e.message}")
+                        null
+                    }
                         ?: throw Exception("Failed to fetch Blok Data! Please check the dataset.")
 
+                    val groupedDeptDivisi = blokData?.groupBy { it.dept_abbr }
+                        ?.mapNotNull { (dept, blokList) ->
+                            dept?.let {
+                                val divisiList =
+                                    blokList.mapNotNull { it.divisi_abbr }
+                                        .distinct()
+                                if (divisiList.isNotEmpty()) {
+                                    "$dept ${divisiList.joinToString(" ")}"
+                                } else {
+                                    dept // If no divisions, show only the department
+                                }
+                            }
+                        } ?: listOf("-") // Default when blokData is null
+
+                    // Check if only one distinct department exists
                     val distinctDeptAbbr =
-                        blokData.mapNotNull { it.dept_abbr }.distinct().takeIf { it.isNotEmpty() }
-                            ?.joinToString(", ") ?: "-"
-                    val distinctDivisiAbbr =
-                        blokData.mapNotNull { it.divisi_abbr }.distinct().takeIf { it.isNotEmpty() }
-                            ?.joinToString(", ") ?: "-"
+                        groupedDeptDivisi.map { it.split(" ").first() }
+                            .distinct()
+                            .joinToString(", ")
+
+                    val distinctDeptCount =
+                        groupedDeptDivisi.map { it.split(" ").first() }
+                            .distinct().size
+
+                    val distinctDivisiAbbr = if (distinctDeptCount == 1) {
+                        // Only one department → Show only divisions
+                        groupedDeptDivisi.flatMap {
+                            it.split(" ").drop(1)
+                        } // Drop department name
+                            .distinct()
+                            .joinToString(" ")
+                    } else {
+                        // Multiple departments → Show dept with divisions
+                        groupedDeptDivisi.joinToString(", ")
+                    }
 
                     val pemuatNama =
                         pemuatData.mapNotNull { it.nama }.takeIf { it.isNotEmpty() }
@@ -372,7 +448,6 @@ class ScanWeightBridgeActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 AppLogger.e("Error Processing QR Result: ${e.message}")
                 withContext(Dispatchers.Main) {
-                    // Show error state
                     showBottomSheetWithData(
                         parsedData = null,
                         distinctDeptAbbr = "-",
@@ -396,54 +471,47 @@ class ScanWeightBridgeActivity : AppCompatActivity() {
     }
 
     private fun initViewModel() {
-        val factory = WeightBridgeViewModel.WeightBridgeViewModelFactory(application)
-        weightBridgeViewModel = ViewModelProvider(this, factory)[WeightBridgeViewModel::class.java]
+        val factory = WeighBridgeViewModel.WeightBridgeViewModelFactory(application)
+        weightBridgeViewModel = ViewModelProvider(this, factory)[WeighBridgeViewModel::class.java]
     }
 
 
     override fun onResume() {
         super.onResume()
         if (barcodeView.visibility == View.VISIBLE) {
-            // Set max brightness first
-            setMaxBrightness(this@ScanWeightBridgeActivity, true)
-            // Always reset scanning state and resume scanner when screen visible again
-            isScanning = false // Reset state
+            setMaxBrightness(this@ScanWeighBridgeActivity, true)
+            isScanning = false
             lifecycleScope.launch {
-                delay(100) // Small delay to ensure proper initialization
-                resumeScanner() // This will set isScanning = true and resume camera
+                delay(100)
+                resumeScanner()
             }
         }
     }
 
     override fun onPause() {
         super.onPause()
-        // Always pause the scanner when leaving the activity
         pauseScanner()
     }
 
-    // Add this to properly release resources
     override fun onDestroy() {
         super.onDestroy()
-        barcodeView.pause()  // Ensure scanner is paused
+        barcodeView.pause()
         barcodeView.barcodeView?.cameraInstance?.close() // Release camera
-        setMaxBrightness(this@ScanWeightBridgeActivity, false)
+        setMaxBrightness(this@ScanWeighBridgeActivity, false)
     }
 
     @Deprecated("Use onBackPressedDispatcher instead")
     @SuppressLint("MissingSuperCall")
     override fun onBackPressed() {
         when {
-            // If bottom sheet is showing, dismiss it
             ::bottomSheetDialog.isInitialized && bottomSheetDialog.isShowing -> {
                 bottomSheetDialog.dismiss()
             }
-            // If scanner is active, properly clean up before exiting
             barcodeView.visibility == View.VISIBLE -> {
                 pauseScanner()
                 barcodeView.barcodeView?.cameraInstance?.close()
                 super.onBackPressed()
             }
-            // Otherwise, just navigate back
             else -> super.onBackPressed()
         }
     }

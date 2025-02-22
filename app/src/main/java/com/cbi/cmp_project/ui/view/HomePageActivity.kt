@@ -32,10 +32,12 @@ import com.cbi.cmp_project.ui.adapter.FeatureCard
 import com.cbi.cmp_project.ui.adapter.FeatureCardAdapter
 import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
-import com.cbi.cmp_project.ui.view.weightBridge.ScanWeightBridgeActivity
+import com.cbi.cmp_project.ui.view.weighBridge.ListHistoryWeighBridgeActivity
+import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
 
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
+import com.cbi.cmp_project.ui.viewModel.WeighBridgeViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils.stringXML
@@ -57,10 +59,12 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var loadingDialog: LoadingDialog
     private var prefManager: PrefManager? = null
     private lateinit var panenViewModel: PanenViewModel
+    private lateinit var weightBridgeViewModel: WeighBridgeViewModel
     private var isTriggerButtonSinkronisasiData: Boolean = false
     private lateinit var dialog: Dialog
     private var countPanenTPH: Int = 0  // Global variable for count
     private var countPanenTPHApproval: Int = 0  // Global variable for count
+    private var counteSPBWBScanned: Int = 0  // Global variable for count
 
     private var hasShownErrorDialog = false  // Add this property
     private val permissionRequestCode = 1001
@@ -124,6 +128,22 @@ class HomePageActivity : AppCompatActivity() {
                     AppLogger.e("Error fetching data: ${e.message}")
                     withContext(Dispatchers.Main) {
                         featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
+                    }
+                }
+                try {
+                    val counteSPBWBDeferred = async { weightBridgeViewModel.coundESPBUploaded() }
+                    counteSPBWBScanned = counteSPBWBDeferred.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount(
+                            "Rekap e-SPB Timbangan Mill",
+                            counteSPBWBScanned.toString()
+                        )
+                        featureAdapter.hideLoadingForFeature("Rekap e-SPB Timbangan Mill")
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature("Rekap e-SPB Timbangan Mill")
                     }
                 }
             }
@@ -236,11 +256,21 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Weight bridge",
-                featureNameBackgroundColor = R.color.greenDarker,
+                featureName = "Scan e-SPB Timbangan Mill",
+                featureNameBackgroundColor = R.color.orange,
                 iconResource = R.drawable.cbi,
                 functionDescription = "",
                 displayType = DisplayType.ICON,
+                subTitle = "Transfer data eSPB dari driver"
+            ),
+
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Rekap e-SPB Timbangan Mill",
+                featureNameBackgroundColor = R.color.orange,
+                iconResource = R.drawable.cbi,
+                functionDescription = "",
+                displayType = DisplayType.COUNT,
                 subTitle = "Transfer data eSPB dari driver"
             ),
             FeatureCard(
@@ -334,9 +364,17 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            "Weight bridge" -> {
+            "Scan e-SPB Timbangan Mill" -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ScanWeightBridgeActivity::class.java)
+                    val intent = Intent(this, ScanWeighBridgeActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            "Rekap e-SPB Timbangan Mill" -> {
+                if (feature.displayType == DisplayType.COUNT) {
+                    val intent = Intent(this, ListHistoryWeighBridgeActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }
@@ -636,6 +674,8 @@ class HomePageActivity : AppCompatActivity() {
         val factory2 = PanenViewModel.PanenViewModelFactory(application)
         panenViewModel = ViewModelProvider(this, factory2)[PanenViewModel::class.java]
 
+        val factory3 = WeighBridgeViewModel.WeightBridgeViewModelFactory(application)
+        weightBridgeViewModel = ViewModelProvider(this, factory3)[WeighBridgeViewModel::class.java]
     }
 
 

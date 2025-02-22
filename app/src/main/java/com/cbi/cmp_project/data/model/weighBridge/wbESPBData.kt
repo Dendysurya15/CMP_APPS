@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.data.model.weightBridge
+package com.cbi.cmp_project.data.model.weighBridge
 
 import com.google.gson.annotations.SerializedName
 

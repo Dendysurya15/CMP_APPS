@@ -180,10 +180,15 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         ) {
             val extractedData = extractData(data)
             Log.d("ListPanenTPHAdapterTest", "bind: $extractedData")
-            binding.tvItemBlok.text = extractedData.blokText
-            binding.tvItemTPH.text = extractedData.tphText
-            binding.tvItemGrading.text = extractedData.gradingText
-            binding.tvItemJam.text = extractedData.tanggalText
+            binding.td1.visibility = View.VISIBLE
+            binding.td2.visibility = View.VISIBLE
+            binding.td3.visibility = View.VISIBLE
+            binding.td4.visibility = View.VISIBLE
+
+            binding.td1.text = extractedData.blokText
+            binding.td2.text = extractedData.tphText
+            binding.td3.text = extractedData.gradingText
+            binding.td4.text = extractedData.tanggalText
 
             if (archiveState == 1) {
                 Log.d("ListPanenTPHAdapterTest", "archiveState == 1")

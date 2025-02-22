@@ -21,6 +21,10 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table")
     abstract fun getAll(): List<ESPBEntity>
 
+    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
+    abstract fun getAllESPBUploaded(): List<ESPBEntity>
+
+
     @Query("SELECT * FROM espb_table WHERE archive = 1")
     abstract fun getAllArchived(): List<ESPBEntity>
 
@@ -44,4 +48,8 @@ abstract class ESPBDao {
 
         insert(espb)
     }
+
+    @Query("SELECT COUNT(*) FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
+    abstract suspend fun countESPBUploaded(): Int
+
 }

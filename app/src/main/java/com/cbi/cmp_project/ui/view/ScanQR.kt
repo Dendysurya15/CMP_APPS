@@ -9,7 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.ui.view.ListTPHApproval.Companion.EXTRA_QR_RESULT
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
-import com.cbi.cmp_project.ui.view.weightBridge.ScanWeightBridgeActivity
+import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
 import com.google.zxing.ResultPoint
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.BarcodeResult
@@ -53,7 +53,7 @@ class ScanQR : AppCompatActivity() {
                 putExtra(EXTRA_QR_RESULT, result)
                 putExtra("FEATURE_NAME", menuString)
             }
-            "Weight bridge" -> intent = Intent(this, ScanWeightBridgeActivity::class.java).apply {
+            "Weight bridge" -> intent = Intent(this, ScanWeighBridgeActivity::class.java).apply {
                 putExtra(EXTRA_QR_RESULT, result)
                 putExtra("FEATURE_NAME", menuString)
             }
