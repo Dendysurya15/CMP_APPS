@@ -13,10 +13,10 @@ class TPHRvAdapter(private var items: List<TphRvData>) :
     RecyclerView.Adapter<TPHRvAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvBlok: TextView = view.findViewById(R.id.tvItemBlok)
-        val tvTPH: TextView = view.findViewById(R.id.tvItemTPH)
-        val tvJjg: TextView = view.findViewById(R.id.tvItemGrading)
-        val tvTime: TextView = view.findViewById(R.id.tvItemJam)
+        val td1: TextView = view.findViewById(R.id.td1)
+        val td2: TextView = view.findViewById(R.id.td2)
+        val td3: TextView = view.findViewById(R.id.td3)
+        val td4: TextView = view.findViewById(R.id.td4)
         val flCheckBoxItemTph: FrameLayout = view.findViewById(R.id.flCheckBoxItemTph)
     }
 
@@ -28,10 +28,15 @@ class TPHRvAdapter(private var items: List<TphRvData>) :
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
-        holder.tvBlok.text = item.namaBlok
-        holder.tvTPH.text = item.noTPH.toString()
-        holder.tvJjg.text = item.jjg.toString()
-        holder.tvTime.text = item.time
+        holder.td1.visibility = View.VISIBLE
+        holder.td2.visibility = View.VISIBLE
+        holder.td3.visibility = View.VISIBLE
+        holder.td4.visibility = View.VISIBLE
+
+        holder.td1.text = item.namaBlok
+        holder.td2.text = item.noTPH.toString()
+        holder.td3.text = item.jjg.toString()
+        holder.td4.text = item.time
         holder.flCheckBoxItemTph.visibility = View.GONE
     }
 

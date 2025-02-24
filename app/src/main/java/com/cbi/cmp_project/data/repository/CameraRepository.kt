@@ -39,12 +39,16 @@ import android.widget.ImageView
 import android.widget.RelativeLayout
 import android.widget.Toast
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.utils.AlertDialogUtility
+import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
 import com.daimajia.androidanimations.library.Techniques
 import com.daimajia.androidanimations.library.YoYo
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -364,9 +368,8 @@ class CameraRepository(private val context: Context, private val window: Window,
                                         var commentWm = komentar
                                         commentWm = commentWm?.replace("|", ",")?.replace("\n", "")
                                         commentWm = AppUtils.splitStringWatermark(commentWm!!, 60)
-                                        val watermarkText = if (resultCode == "0") {
+                                        val watermarkText = if (resultCode == "0" || commentWm.isEmpty()) {
                                             "CMP\n${dateWM}"
-
                                         } else {
                                             "CMP\n${commentWm}\n${dateWM}"
                                         }
@@ -510,15 +513,19 @@ class CameraRepository(private val context: Context, private val window: Window,
 
             }
 
-//         Take Photos
-
         val captureCam = view.findViewById<FloatingActionButton>(R.id.captureCam)
         captureCam.apply {
             setOnClickListener {
-                capReq =
-                    cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
-                capReq.addTarget(imageReader!!.surface)
-                cameraCaptureSession?.capture(capReq.build(), null, null)
+                isEnabled = false
+                if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
+                    capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                    capReq.addTarget(imageReader!!.surface)
+                    cameraCaptureSession?.capture(capReq.build(), null, null)
+                    postDelayed({ isEnabled = true }, 2000)
+                } else {
+                    isEnabled = true
+                    Log.e("CameraError", "CameraDevice or ImageReader is null")
+                }
             }
         }
 
@@ -559,9 +566,14 @@ class CameraRepository(private val context: Context, private val window: Window,
         }
     }
 
-    fun openZoomPhotos(file: File, onChangePhoto: () -> Unit) {
+    fun openZoomPhotos(file: File, position: String, onChangePhoto: () -> Unit, onDeletePhoto: (String) -> Unit) {
         val fotoZoom = zoomView.findViewById<ImageView>(R.id.fotoZoom)
+        val backgroundView = zoomView.findViewById<View>(R.id.backgroundOverlay) // Add this to your layout
+
+        // Make both visible
         zoomView.visibility = View.VISIBLE
+        backgroundView.visibility = View.VISIBLE
+
 
         Glide.with(context)
             .load(file)
@@ -569,15 +581,31 @@ class CameraRepository(private val context: Context, private val window: Window,
             .skipMemoryCache(true)
             .into(fotoZoom)
 
-        // Close button logic
-        zoomView.findViewById<ImageView>(R.id.closeZoom)?.setOnClickListener {
+        // Your existing click listeners...
+        zoomView.findViewById<MaterialCardView>(R.id.cardCloseZoom)?.setOnClickListener {
             zoomView.visibility = View.GONE
+            backgroundView.visibility = View.GONE
         }
 
-        // Change photo logic
-        zoomView.findViewById<ImageView>(R.id.changePhoto)?.setOnClickListener {
+        zoomView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)?.setOnClickListener {
+            AlertDialogUtility.withTwoActions(
+                context,
+                "Hapus",
+                context.getString(R.string.confirmation_dialog_title),
+                context.getString(R.string.al_confirm_delete_photo),
+                "warning.json",
+                ContextCompat.getColor(context, R.color.greenDarker)
+            ) {
+                onDeletePhoto.invoke(position)
+                zoomView.visibility = View.GONE
+                backgroundView.visibility = View.GONE
+            }
+        }
+
+        zoomView.findViewById<MaterialCardView>(R.id.cardChangePhoto)?.setOnClickListener {
             zoomView.visibility = View.GONE
-            onChangePhoto.invoke() // Just call the callback without deleting the file
+            backgroundView.visibility = View.GONE
+            onChangePhoto.invoke()
         }
     }
 

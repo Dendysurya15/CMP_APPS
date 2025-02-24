@@ -33,6 +33,7 @@ import com.bumptech.glide.Glide
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.data.repository.CameraRepository
 import com.cbi.cmp_project.ui.viewModel.CameraViewModel
+import com.cbi.cmp_project.utils.AppLogger
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.snackbar.Snackbar
@@ -111,8 +112,6 @@ class TakeFotoPreviewAdapter(
 
         Toast.makeText(context, "Harap Mengisi Komentar Foto Sebelumnya Terlebih Dahulu!", Toast.LENGTH_SHORT).show()
 
-//        val background = holder.commentTextView.background as GradientDrawable
-//        background.setStroke(6, ContextCompat.getColor(context, android.R.color.holo_red_dark))
     }
 
     fun getActiveItemCount(): Int = activeItems.size
@@ -122,18 +121,41 @@ class TakeFotoPreviewAdapter(
 
         if (listFileFoto.containsKey(position.toString())) {
             val existingFile = listFileFoto[position.toString()]!!
-            cameraViewModel.openZoomPhotos(existingFile) {
-                cameraViewModel.takeCameraPhotos(
-                    uniqueKodeFoto,
-                    holder.imageView,
-                    position,
-                    null,
-                    comments[position],
-                    uniqueKodeFoto,
-                    featureName
-                )
-            }
+            cameraViewModel.openZoomPhotos(
+                file = existingFile,
+                position = position.toString(),
+                onChangePhoto = {
+                    cameraViewModel.takeCameraPhotos(
+                        uniqueKodeFoto,
+                        holder.imageView,
+                        position,
+                        null,
+                        comments[position],
+                        uniqueKodeFoto,
+                        featureName
+                    )
+                },
+                onDeletePhoto = { pos ->
+                    // Remove the photo and clear comment
+                    listFileFoto.remove(pos)
+                    comments[position.toInt()] = ""
+                    holder.imageView.setImageResource(R.drawable.baseline_add_a_photo_24)
+
+                    // Check if we should remove this section
+                    val shouldRemoveSection = position == activeItems.size - 1 && // Is this the last section?
+                            !hasPhotosAfterPosition(position) // No photos in later positions
+
+                    if (shouldRemoveSection && activeItems.size > 1) { // Keep at least one section
+                        activeItems.removeAt(position)
+                        comments.removeAt(position)
+                        notifyItemRemoved(position)
+                    } else {
+                        notifyItemChanged(position)
+                    }
+                }
+            )
         } else {
+            AppLogger.d("coba ges")
             cameraViewModel.takeCameraPhotos(
                 uniqueKodeFoto,
                 holder.imageView,
@@ -146,29 +168,77 @@ class TakeFotoPreviewAdapter(
         }
     }
 
+    // Helper function to check if there are any photos after given position
+    private fun hasPhotosAfterPosition(position: Int): Boolean {
+        for (i in position + 1 until activeItems.size) {
+            if (listFileFoto.containsKey(i.toString())) {
+                return true
+            }
+        }
+        return false
+    }
+
     private fun checkCameraPermission(position: Int, holder: FotoViewHolder) {
         when {
             ContextCompat.checkSelfPermission(
                 context,
                 android.Manifest.permission.CAMERA
             ) == PackageManager.PERMISSION_GRANTED -> {
+
                 handleCameraAction(position, holder)
             }
+
             ActivityCompat.shouldShowRequestPermissionRationale(
                 context as Activity,
                 android.Manifest.permission.CAMERA
             ) -> {
-                showPermissionRationale()
+                showSnackbarWithSettings("Camera permission required to take photos. Enable it in Settings.")
             }
+
             else -> {
-                ActivityCompat.requestPermissions(
-                    context as Activity,
-                    arrayOf(android.Manifest.permission.CAMERA),
-                    CAMERA_PERMISSION_REQUEST_CODE
-                )
+                // If permission is permanently denied, show settings option
+                if (isPermissionPermanentlyDenied()) {
+                    AppLogger.d("Permission permanently denied. Redirecting to settings.")
+                    showSnackbarWithSettings("Camera permission required to take photos. Enable it in Settings.")
+                } else {
+                    AppLogger.d("Requesting camera permission")
+                    ActivityCompat.requestPermissions(
+                        context as Activity,
+                        arrayOf(android.Manifest.permission.CAMERA),
+                        CAMERA_PERMISSION_REQUEST_CODE
+                    )
+                }
             }
         }
     }
+
+    // ✅ Check if the user permanently denied permission
+    private fun isPermissionPermanentlyDenied(): Boolean {
+        val activity = context as Activity
+        val sharedPref = activity.getSharedPreferences("permissions_prefs", Context.MODE_PRIVATE)
+        val firstRequest = sharedPref.getBoolean("first_camera_request", true)
+
+        if (firstRequest) {
+            sharedPref.edit().putBoolean("first_camera_request", false).apply()
+            return false
+        }
+
+        return !ActivityCompat.shouldShowRequestPermissionRationale(activity, android.Manifest.permission.CAMERA)
+    }
+
+    // ✅ Show Snackbar to open Settings if permanently denied
+    private fun showSnackbarWithSettings(message: String) {
+        Snackbar.make((context as Activity).findViewById(android.R.id.content), message, Snackbar.LENGTH_INDEFINITE)
+            .setAction("Settings") {
+                val intent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", context.packageName, null)
+                )
+                context.startActivity(intent)
+            }
+            .show()
+    }
+
 
     private fun showPermissionRationale() {
         if (context is Activity) {
@@ -196,10 +266,15 @@ class TakeFotoPreviewAdapter(
 
     fun addPhotoFile(id: String, file: File) {
         Log.d("TakeFotoAdapter", "addPhotoFile START - id: $id")
+
+        // Check if this position already had a photo
+        val hadExistingPhoto = listFileFoto.containsKey(id)
+
+        // Add/Update the photo in the map
         listFileFoto[id] = file
 
-        // Add new position if we can
-        if (activeItems.size < maxCount) {
+        // Only add new position if we didn't have a photo at this position before
+        if (!hadExistingPhoto && activeItems.size < maxCount) {
             Log.d("TakeFotoAdapter", "Adding new position. Current size: ${activeItems.size}")
             activeItems.add(true)
             comments.add("")
@@ -263,7 +338,6 @@ class TakeFotoPreviewAdapter(
             dialog.dismiss()
         }
 
-        // Set expanded state when showing
         dialog.setOnShowListener {
             val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             val behavior = BottomSheetBehavior.from(bottomSheet!!)
@@ -271,6 +345,20 @@ class TakeFotoPreviewAdapter(
         }
 
         dialog.show()
+    }
+
+    fun resetAllSections() {
+        // Clear all stored data
+        listFileFoto.clear()
+        comments.clear()
+        activeItems.clear()
+
+        // Reset to initial state (one empty section)
+        activeItems.add(true)
+        comments.add("")
+
+        // Notify adapter to refresh
+        notifyDataSetChanged()
     }
 
     override fun onPhotoTaken(photoFile: File, fname: String, resultCode: String, deletePhoto: View?, position: Int, komentar: String?) {

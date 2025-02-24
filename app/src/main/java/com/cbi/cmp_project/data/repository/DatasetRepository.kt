@@ -10,6 +10,7 @@ import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.MillModel
 import com.cbi.cmp_project.data.model.PanenEntity
+import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
 import com.cbi.cmp_project.data.network.CMPApiClient
 import com.cbi.markertph.data.model.TPHNewModel
@@ -19,19 +20,15 @@ import retrofit2.Response
 class DatasetRepository(context: Context,  private val apiService: ApiService = CMPApiClient.instance) {
 
     private val database = AppDatabase.getDatabase(context)
-//    private val regionalDao = database.regionalDao()
-//    private val wilayahDao = database.wilayahDao()
-//    private val deptDao = database.deptDao()
-//    private val divisiDao = database.divisiDao()
-//    private val blokDao = database.blokDao()
     private val karyawanDao = database.karyawanDao()
     private val kemandoranDao = database.kemandoranDao()
-//    private val kemandoranDetailDao = database.kemandoranDetailDao()
     private val tphDao = database.tphDao()
     private val millDao = database.millDao()
+    private val transporterDao = database.transporterDao()
 
     suspend fun updateOrInsertKaryawan(karyawans: List<KaryawanModel>) = karyawanDao.updateOrInsertKaryawan(karyawans)
     suspend fun updateOrInsertMill(mills: List<MillModel>) = millDao.updateOrInsertMill(mills)
+    suspend fun InsertTransporter(transporter: List<TransporterModel>) = transporterDao.InsertTransporter(transporter)
     suspend fun updateOrInsertKemandoran(kemandorans: List<KemandoranModel>) = kemandoranDao.updateOrInsertKemandoran(kemandorans)
 
     suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) = tphDao.updateOrInsertTPH(tph)

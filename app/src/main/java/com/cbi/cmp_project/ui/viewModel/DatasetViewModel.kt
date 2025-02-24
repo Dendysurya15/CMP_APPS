@@ -12,6 +12,7 @@ import com.bumptech.glide.load.engine.Resource
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.MillModel
+import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.data.repository.DatasetRepository
@@ -19,7 +20,9 @@ import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.PrefManager
 import com.cbi.markertph.data.model.TPHNewModel
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
+import com.google.gson.JsonDeserializer
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
@@ -57,6 +60,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val _millStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val millStatus: StateFlow<Result<Boolean>> = _millStatus.asStateFlow()
 
+    private val _transporterStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
+    val transporterStatus: StateFlow<Result<Boolean>> = _transporterStatus.asStateFlow()
+
     private val _tphStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val tphStatus: StateFlow<Result<Boolean>> = _tphStatus.asStateFlow()
 
@@ -76,52 +82,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         class UpToDate<T>(dataset: String) : Resource<T>(message = "Dataset $dataset is up to date", isUpToDate = true)  // Add this
     }
 
-//    fun updateOrInsertRegional(regionals: List<RegionalModel>) =
-//        viewModelScope.launch(Dispatchers.IO) {
-//            try {
-//                repository.updateOrInsertRegional(regionals)
-//                _regionalStatus.value = Result.success(true)
-//            } catch (e: Exception) {
-//                _regionalStatus.value = Result.failure(e)
-//            }
-//        }
-//
-//    fun updateOrInsertWilayah(wilayah: List<WilayahModel>) = viewModelScope.launch(Dispatchers.IO) {
-//        try {
-//            repository.updateOrInsertWilayah(wilayah)
-//            _wilayahStatus.value = Result.success(true)
-//        } catch (e: Exception) {
-//            _wilayahStatus.value = Result.failure(e)
-//        }
-//    }
-//
-//    fun updateOrInsertDept(dept: List<DeptModel>) = viewModelScope.launch(Dispatchers.IO) {
-//        try {
-//            repository.updateOrInsertDept(dept)
-//            _deptStatus.value = Result.success(true)
-//        } catch (e: Exception) {
-//            _deptStatus.value = Result.failure(e)
-//        }
-//    }
-//
-//    fun updateOrInsertDivisi(divisions: List<DivisiModel>) = viewModelScope.launch(Dispatchers.IO) {
-//        try {
-//            repository.updateOrInsertDivisi(divisions)
-//            _divisiStatus.value = Result.success(true)
-//        } catch (e: Exception) {
-//            _divisiStatus.value = Result.failure(e)
-//        }
-//    }
-//
-//    fun updateOrInsertBlok(blok: List<BlokModel>) = viewModelScope.launch(Dispatchers.IO) {
-//        try {
-//            repository.updateOrInsertBlok(blok)
-//            _blokStatus.value = Result.success(true)
-//        } catch (e: Exception) {
-//            _blokStatus.value = Result.failure(e)
-//        }
-//    }
-
     fun updateOrInsertKemandoran(kemandoran: List<KemandoranModel>) =
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -132,16 +92,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
-//    fun updateOrInsertKemandoranDetail(kemandoran_detail: List<KemandoranDetailModel>) =
-//        viewModelScope.launch(Dispatchers.IO) {
-//            try {
-//                repository.updateOrInsertKemandoranDetail(kemandoran_detail)
-//                _kemandoranDetailStatus.value = Result.success(true)
-//            } catch (e: Exception) {
-//                _kemandoranDetailStatus.value = Result.failure(e)
-//            }
-//        }
-//
     fun updateOrInsertKaryawan(karyawan: List<KaryawanModel>) =
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -162,18 +112,29 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
+    fun InsertTransporter(transporter: List<TransporterModel>) =
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.InsertTransporter(transporter)
+                _karyawanStatus.value = Result.success(true)
+            } catch (e: Exception) {
+                _karyawanStatus.value = Result.failure(e)
+            }
+        }
+
     fun updateOrInsertTPH(tph: List<TPHNewModel>) = viewModelScope.launch(Dispatchers.IO) {
         try {
+            AppLogger.d("ViewModel: Starting updateOrInsertTPH with ${tph.size} records")
             repository.updateOrInsertTPH(tph)
             _tphStatus.value = Result.success(true)
+            AppLogger.d("ViewModel: Successfully updated database")
         } catch (e: Exception) {
             _tphStatus.value = Result.failure(e)
+            AppLogger.e("ViewModel: Error updating database - ${e.message}")
         }
     }
 
-//    suspend fun getDeptList(estateId: String): List<DeptModel> {
-//        return repository.getDeptByRegionalAndEstate(estateId)
-//    }
+
 
     suspend fun getDivisiList(idEstate: Int): List<TPHNewModel> {
         return repository.getDivisiList(idEstate)
@@ -209,12 +170,74 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return repository.getTPHList( idEstate, idDivisi, tahunTanam, idBlok)
     }
 
-//    suspend fun getKemandoranDetailList(idHeader: Int): List<KemandoranDetailModel> {
-//        return repository.getKemandoranDetailList(idHeader)
-//    }
-
     suspend fun getKaryawanList(filteredId: Int): List<KaryawanModel> {
         return repository.getKaryawanList(filteredId)
+    }
+
+    private fun parseTPHJsonToList(jsonContent: String): List<TPHNewModel> {
+        try {
+            val jsonObject = JsonParser().parse(jsonContent).asJsonObject
+            val keyMappings = jsonObject.getAsJsonObject("key")
+                .entrySet()
+                .associate { (key, value) -> key to value.asString }
+
+            val dataArray = jsonObject.getAsJsonArray("data")
+            val resultList = mutableListOf<TPHNewModel>()
+
+            dataArray.forEach { element ->
+                try {
+                    val obj = element.asJsonObject
+                    val mappedObj = JsonObject()
+
+                    // Map the numbered keys to actual field names
+                    obj.entrySet().forEach { (key, value) ->
+                        val fieldName = keyMappings[key] ?: return@forEach
+                        mappedObj.add(fieldName, value)
+                    }
+
+                    // Manual conversion to TPHNewModel
+                    val model = TPHNewModel(
+                        id = mappedObj.get("id")?.asInt,
+                        regional = mappedObj.get("regional").toString(),
+                        company = mappedObj.get("company")?.asInt,
+                        company_abbr = mappedObj.get("company_abbr")?.asString,
+                        dept = mappedObj.get("dept")?.asInt,
+                        dept_abbr = mappedObj.get("dept_abbr")?.asString,
+                        divisi = mappedObj.get("divisi")?.asInt,
+                        divisi_abbr = mappedObj.get("divisi_abbr")?.asString,
+                        blok = mappedObj.get("blok")?.asInt,
+                        blok_kode = mappedObj.get("blok_kode")?.asString,
+                        ancak = mappedObj.get("ancak")?.asString,
+                        nomor = mappedObj.get("nomor")?.asString,
+                        tahun = mappedObj.get("tahun")?.asString,
+                        luas_area = mappedObj.get("luas_area")?.asString,
+                        jml_pokok = mappedObj.get("jml_pokok")?.asString,
+                        jml_pokok_ha = mappedObj.get("jml_pokok_ha")?.asString,
+                        lat = mappedObj.get("lat")?.asString,
+                        lon = mappedObj.get("lon")?.asString,
+                        update_date = mappedObj.get("update_date")?.asString,
+                        status = mappedObj.get("status")?.asString
+                    )
+
+                    // Log the first few items to check conversion
+                    if (resultList.size < 2) {
+                        AppLogger.d("Converted item ${resultList.size + 1}: $model")
+                    }
+
+                    resultList.add(model)
+                } catch (e: Exception) {
+                    AppLogger.e("Error converting single item: ${e.message}")
+                    // Continue with next item
+                }
+            }
+
+            AppLogger.d("Successfully converted ${resultList.size} items")
+            return resultList
+
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing JSON: ${e.message}")
+            throw e
+        }
     }
 
     private suspend fun <T> processDataset(
@@ -225,38 +248,98 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         response: Response<ResponseBody>,
         updateOperation: suspend (List<T>) -> Job,
         statusFlow: StateFlow<Result<Boolean>>,
-        hasShownError: Boolean, // Add as reference
+        hasShownError: Boolean,
         lastModifiedTimestamp: String,
-    ): Boolean {  // Return updated hasShownError value
+    ): Boolean {
         var updatedHasShownError = hasShownError
         try {
-            val dataList = parseStructuredJsonToList(jsonContent, modelClass)
+            AppLogger.d(jsonContent)
+            val dataList = try {
+                when (dataset) {
+                    "tph" -> parseTPHJsonToList(jsonContent) as List<T>
+                    else -> parseStructuredJsonToList(jsonContent, modelClass)
+                }
+            } catch (e: Exception) {
+                updatedHasShownError = true
+                results[dataset] = Resource.Error("Error parsing $dataset data: ${e.message}")
+                return updatedHasShownError
+            }
+
             AppLogger.d("Parsed ${dataset} list size: ${dataList.size}")
 
-            updateOperation(dataList).join()
+            // Check if data is valid
+            if (dataList.isEmpty()) {
+                updatedHasShownError = true
+                results[dataset] = Resource.Error("No valid data found for $dataset")
+                return updatedHasShownError
+            }
+
+            // Check first item for all null values
+            val firstItem = dataList.firstOrNull()
+            if (firstItem != null) {
+                val allFieldsNull = when (firstItem) {
+                    is TPHNewModel -> firstItem.run {
+                        id == null && regional == null && company == null &&
+                                company_abbr == null && dept == null && dept_abbr == null &&
+                                divisi == null && divisi_abbr == null && blok == null &&
+                                blok_kode == null && ancak == null && nomor == null &&
+                                tahun == null && luas_area == null && jml_pokok == null &&
+                                jml_pokok_ha == null && lat == null && lon == null &&
+                                update_date == null && status == null
+                    }
+                    // Add other model checks if needed
+                    else -> false
+                }
+
+                if (allFieldsNull) {
+                    AppLogger.e("Invalid data format: All fields are null in $dataset")
+                    updatedHasShownError = true
+                    results[dataset] = Resource.Error("Invalid data format for $dataset: All fields are null")
+                    return updatedHasShownError
+                }
+            }
+
+            AppLogger.d("Data validation passed for $dataset")
+            AppLogger.d(dataList.toString())
+
+            try {
+                AppLogger.d("Executing update operation for dataset: $dataset")
+                updateOperation(dataList).join()
+            } catch (e: Exception) {
+                AppLogger.e("Error updating dataset $dataset: ${e.message}")
+                updatedHasShownError = true
+                results[dataset] = Resource.Error("Failed to update dataset: $dataset - ${e.message}")
+                return updatedHasShownError
+            }
 
             if (statusFlow.value.isSuccess) {
+                AppLogger.d("Update operation successful for dataset: $dataset")
                 results[dataset] = Resource.Success(response)
+
                 when (dataset) {
                     "tph" -> prefManager.lastModifiedDatasetTPH = lastModifiedTimestamp
                     "blok" -> prefManager.lastModifiedDatasetBlok = lastModifiedTimestamp
                     "kemandoran" -> prefManager.lastModifiedDatasetKemandoran = lastModifiedTimestamp
                     "pemanen" -> prefManager.lastModifiedDatasetPemanen = lastModifiedTimestamp
+                    "transporter" -> prefManager.lastModifiedDatasetTransporter = lastModifiedTimestamp
                 }
                 prefManager!!.addDataset(dataset)
             } else {
                 val error = statusFlow.value.exceptionOrNull()
-                throw error ?: Exception("Unknown database error")
+                AppLogger.e("Database error for dataset $dataset: ${error?.message}")
+                updatedHasShownError = true
+                results[dataset] = Resource.Error("Database error while processing $dataset: ${error?.message ?: "Unknown error"}")
+                return updatedHasShownError
             }
         } catch (e: Exception) {
             AppLogger.e("$dataset processing error: ${e.message}")
-            if (!updatedHasShownError) {
-                results[dataset] = Resource.Error("Error processing $dataset data: ${e.message}")
-                updatedHasShownError = true
-            }
+            updatedHasShownError = true
+            results[dataset] = Resource.Error("Error processing $dataset data: ${e.message}")
         }
+
         return updatedHasShownError
     }
+
 
 
 
@@ -279,7 +362,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     if (request.dataset == "mill") {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
 
-                        AppLogger.d("askjdflk")
                         AppLogger.d(response.toString())
                     } else {
                         response = repository.downloadDataset(request)
@@ -289,10 +371,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     // Get headers
                     val contentType = response.headers()["Content-Type"]
                     val lastModified = response.headers()["Last-Modified-Dataset"]
-//                    val contentDisposition = response.headers()["Content-Disposition"]
-//
-//                    Log.d("DownloadResponse", "Last-Updated: $lastModified")
-//                    Log.d("DownloadResponse", "Content-Disposition: $contentDisposition")
 
                     when (response.code()) {
                         200 -> {
@@ -329,6 +407,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             results[request.dataset] = Resource.Storing(request.dataset)
                                             _downloadStatuses.postValue(results.toMap())
 
+
+                                            AppLogger.d(request.dataset)
+                                            AppLogger.d(lastModified.toString())
                                             try {
                                                 when (request.dataset) {
                                                     "tph" -> hasShownError = processDataset(
@@ -373,6 +454,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         response = response,
                                                         updateOperation = ::updateOrInsertMill,
                                                         statusFlow = millStatus,
+                                                        hasShownError = hasShownError,
+                                                        lastModifiedTimestamp = lastModified ?: ""
+                                                    )
+                                                    "transporter" -> hasShownError = processDataset(
+                                                        jsonContent = jsonContent,
+                                                        dataset = request.dataset,
+                                                        modelClass = TransporterModel::class.java,
+                                                        results = results,
+                                                        response = response,
+                                                        updateOperation = ::InsertTransporter,
+                                                        statusFlow = transporterStatus,
                                                         hasShownError = hasShownError,
                                                         lastModifiedTimestamp = lastModified ?: ""
                                                     )
@@ -507,43 +599,43 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun <T> parseStructuredJsonToList(jsonContent: String, classType: Class<T>): List<T> {
-        val gson = Gson()
-        val jsonObject = gson.fromJson(jsonContent, JsonObject::class.java)
+        val gson = GsonBuilder()
+            .setLenient()  // Add lenient parsing
+            .create()
 
-        // Get the key mappings
-        val keyMappings = jsonObject.getAsJsonObject("key")
-            .entrySet()
-            .associate { (key, value) ->
-                key to value.asString
-            }
+        try {
+            val jsonObject = JsonParser().parse(jsonContent).asJsonObject
+            val keyMappings = jsonObject.getAsJsonObject("key")
+                .entrySet()
+                .associate { (key, value) -> key to value.asString }
 
-        // Get the data array
-        val dataArray = jsonObject.getAsJsonArray("data")
+            val dataArray = jsonObject.getAsJsonArray("data")
+            val transformedArray = JsonArray()
 
-        // Transform each data object using the key mappings
-        val transformedArray = JsonArray().apply {
+            // Transform all at once instead of chunks
             dataArray.forEach { element ->
                 val originalObj = element.asJsonObject
                 val transformedObj = JsonObject()
 
-                // For each numbered field in the data object
                 originalObj.entrySet().forEach { (key, value) ->
-                    // Get the actual field name from key mappings
                     val fieldName = keyMappings[key] ?: return@forEach
-                    // Add to transformed object with proper field name
                     transformedObj.add(fieldName, value)
                 }
 
-                add(transformedObj)
+                transformedArray.add(transformedObj)
             }
+
+            AppLogger.d("About to convert array of size: ${transformedArray.size()}")
+
+            AppLogger.d(transformedArray.toString())
+            return gson.fromJson(transformedArray,
+                TypeToken.getParameterized(List::class.java, classType).type)
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing JSON: ${e.message}")
+            throw e
         }
-
-        // Log the transformed JSON for debugging
-        Log.d("JsonTransform", "Transformed JSON: $transformedArray")
-
-        // Convert to your data class list
-        return gson.fromJson(transformedArray, TypeToken.getParameterized(List::class.java, classType).type)
     }
+
 
     class DatasetViewModelFactory(
         private val application: Application

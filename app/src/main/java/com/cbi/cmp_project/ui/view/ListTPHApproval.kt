@@ -71,7 +71,6 @@ class ListTPHApproval : AppCompatActivity() {
         val constraintLayout = findViewById<ConstraintLayout>(R.id.clParentListPanen)
         val constraintSet = ConstraintSet()
         constraintSet.clone(constraintLayout)
-//        val filterSection = findViewById<LinearLayout>(R.id.filterSection)
         constraintSet.connect(
             R.id.filterSection, ConstraintSet.TOP,
             R.id.navbarPanenList, ConstraintSet.BOTTOM
@@ -180,10 +179,28 @@ class ListTPHApproval : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
+
+        val headers = listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+        updateTableHeaders(headers)
+
         recyclerView = findViewById(R.id.rvTableData)
         recyclerView.layoutManager = LinearLayoutManager(this)
         adapter = TPHRvAdapter(emptyList())
         recyclerView.adapter = adapter
+    }
+
+    private fun updateTableHeaders(headerNames: List<String>) {
+        val tableHeader = findViewById<View>(R.id.tableHeader)
+
+        val headerIds = listOf(R.id.th1, R.id.th2, R.id.th3, R.id.th4)
+
+        for (i in headerNames.indices) {
+            val textView = tableHeader.findViewById<TextView>(headerIds[i])
+            textView.apply {
+                visibility = View.VISIBLE  // Make all headers visible
+                text = headerNames[i]
+            }
+        }
     }
 
     private fun processQRResult() {

@@ -40,7 +40,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="25sp"
+            android:textSize="29sp"
             android:fontFamily="@font/manrope_extrabold"
             android:textColor="@color/greenDarker"
             android:layout_marginHorizontal="30dp"
@@ -51,7 +51,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="15sp"
+            android:textSize="18sp"
             android:textColor="@color/black"
             android:layout_marginHorizontal="30dp"
             android:gravity="left"
@@ -75,14 +75,14 @@
 
         <ImageView
             android:layout_width="wrap_content"
-            android:layout_height="50dp"
+            android:layout_height="65dp"
             android:src="@drawable/cbi"
             android:scaleType="fitCenter" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="15sp"
+            android:textSize="18sp"
             android:textColor="@color/black"
             android:gravity="center"
             android:id="@+id/version_app"

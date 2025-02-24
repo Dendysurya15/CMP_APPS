@@ -5,6 +5,7 @@ import android.widget.ImageView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.cbi.cmp_project.data.repository.CameraRepository
+import com.cbi.cmp_project.utils.AppLogger
 import java.io.File
 
 class CameraViewModel(private val cameraRepository: CameraRepository) : ViewModel() {
@@ -19,8 +20,8 @@ class CameraViewModel(private val cameraRepository: CameraRepository) : ViewMode
         cameraRepository.closeCamera(   )
     }
 
-    fun openZoomPhotos(file: File,  onChangePhoto: () -> Unit) {
-        cameraRepository.openZoomPhotos(file, onChangePhoto)
+    fun openZoomPhotos(file: File, position: String, onChangePhoto: () -> Unit, onDeletePhoto: (String) -> Unit) {
+        cameraRepository.openZoomPhotos(file, position, onChangePhoto, onDeletePhoto)
     }
 
     fun closeZoomPhotos() {

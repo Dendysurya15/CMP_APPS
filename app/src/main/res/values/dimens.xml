@@ -10,5 +10,7 @@
     <dimen name="max_dialog_height">200dp</dimen>
     <dimen name="list_item_spacing">16dp</dimen>
     <dimen name="list_item_spacing_half">8dp</dimen>
+    <dimen name="search_edit_text_height">48dp</dimen>
+    <dimen name="list_item_height">48dp</dimen>
 
 </resources>

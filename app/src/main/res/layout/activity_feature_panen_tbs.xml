@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/blueLight"
-    tools:context=".ui.view.PanenTBS.FeaturePanenTBSActivity">
+    tools:context=".ui.view.panenTBS.FeaturePanenTBSActivity">
 
     <!-- Header Section -->
     <TextView
@@ -19,7 +19,8 @@
         android:text="Info"
         android:textColor="@color/black"
         android:textSize="15sp"
-        app:drawableEndCompat="@drawable/ic_info_outline_white_24dp" />
+        app:drawableEndCompat="@drawable/ic_info_outline_white_24dp"
+        tools:ignore="MissingConstraints" />
 
     <include
         android:id="@+id/test"
@@ -82,6 +83,7 @@
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="center|left"
                         android:textSize="23sp"
+                        android:textColor="@color/black"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
@@ -92,6 +94,7 @@
                         android:gravity="center|left"
                         android:text="@string/desc_informasi_blok"
                         android:textSize="19sp"
+                        android:textColor="@color/black"
                         android:textStyle="italic"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
@@ -155,6 +158,7 @@
                             android:layout_height="match_parent"
                             android:fontFamily="@font/manrope_semibold"
                             android:gravity="center|left"
+                            android:textColor="@color/black"
                             android:text="Asistensi"
                             android:textSize="17dp" />
 
@@ -186,6 +190,7 @@
                         android:gravity="center|left"
                         android:textSize="23sp"
                         android:visibility="visible"
+                        android:textColor="@color/black"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
                     <TextView
@@ -196,6 +201,7 @@
                         android:gravity="center|left"
                         android:text="@string/desc_data_grading"
                         android:textSize="19sp"
+                        android:textColor="@color/black"
                         android:textStyle="italic"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
@@ -428,6 +434,7 @@
                         android:layout_width="200dp"
                         android:layout_height="match_parent"
                         android:layout_marginTop="10dp"
+                        android:textColor="@color/black"
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="center|left"
                         android:textSize="23sp"
@@ -441,7 +448,7 @@
                         android:fontFamily="@font/manrope_medium"
                         android:gravity="center|left"
                         android:text="@string/desc_lampiran_foto"
-
+                        android:textColor="@color/black"
                         android:textSize="19sp"
                         android:textStyle="italic"
                         android:visibility="visible"

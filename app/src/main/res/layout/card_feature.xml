@@ -51,6 +51,7 @@
                 android:layout_width="100dp"
                 android:layout_height="100dp"
                 android:text="000"
+                android:textColor="@color/black"
                 android:id="@+id/count_feature_data"
                 android:textSize="50sp"
                 android:visibility="visible"
@@ -109,9 +110,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/manrope_regular"
+            android:textColor="@color/black"
             android:text="Pencatatan panen TBS di TPH oleh kerani panen"
             android:textAlignment="center"
-            android:textSize="12sp" />
+            android:textSize="15sp" />
 
     </LinearLayout>
 

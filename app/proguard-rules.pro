@@ -57,12 +57,72 @@
 # Ensure ProGuard does not strip data models used in API responses
 -keep class com.cbi.cmp_project.data.model.** { *; }
 
-## If LoginResponse, LoginData, User, or any models are obfuscated, explicitly keep them
-#-keep class com.cbi.cmp_project.data.model.LoginResponse { *; }
-#-keep class com.cbi.cmp_project.data.model.LoginData { *; }
-#-keep class com.cbi.cmp_project.data.model.User { *; }
-
 # Keep constructors for serialization
 -keepclassmembers,allowobfuscation class com.cbi.cmp_project.data.model.** {
     public <init>();
 }
+
+# Keep Room database entities
+-keepclassmembers class * {
+    @androidx.room.Entity <fields>;
+}
+
+# Keep DAO methods
+-keepclassmembers class * {
+    @androidx.room.Dao <methods>;
+}
+
+# Keep all fields in Room models
+-keepclassmembers class com.yourpackage.models.** {
+    *;
+}
+
+# Keep the entire DatasetViewModel
+-keep class com.cbi.cmp_project.ui.viewModel.DatasetViewModel { *; }
+
+# Keep specific parsing method
+-keepclassmembers class com.cbi.cmp_project.ui.viewModel.DatasetViewModel {
+    private java.util.List parseStructuredJsonToList(java.lang.String, java.lang.Class);
+}
+
+# Keep all your models
+-keep class com.cbi.cmp_project.data.model.** { *; }
+-keep class com.cbi.cmp_project.domain.model.** { *; }
+-keep class com.cbi.cmp_project.ui.model.** { *; }
+
+# Keep Gson stuff
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class com.google.gson.** { *; }
+-keep class * extends com.google.gson.TypeAdapter
+-keep class * implements com.google.gson.TypeAdapterFactory
+-keep class * implements com.google.gson.JsonSerializer
+-keep class * implements com.google.gson.JsonDeserializer
+
+# Keep TypeToken stuff
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken
+
+# Keep all constructors in your models
+-keepclassmembers class com.cbi.cmp_project.** {
+    <init>();
+}
+
+# Keep all fields in your models
+-keepclassmembers class com.cbi.cmp_project.** {
+    <fields>;
+}
+
+# Debug info for testing (remove in final release)
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# Keep all Room-related classes
+-keep class androidx.room.** { *; }
+-keep class androidx.sqlite.** { *; }
+
+# Keep the GZIP related classes
+-keep class java.io.ByteArrayOutputStream { *; }
+-keep class java.util.zip.GZIPInputStream { *; }
+-keep class java.util.zip.GZIPOutputStream { *; }
+

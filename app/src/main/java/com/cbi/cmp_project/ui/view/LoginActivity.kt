@@ -1,5 +1,6 @@
 package com.cbi.cmp_project.ui.view
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
@@ -129,6 +130,9 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.estateUserLengkapLogin = loginResponse.data?.user?.dept_nama
                         prefManager!!.estateIdUserLogin = loginResponse.data?.user?.dept_id
                         prefManager!!.regionalIdUserLogin = loginResponse.data?.user?.regional
+                        prefManager!!.companyIdUserLogin = loginResponse.data?.user?.company
+                        prefManager!!.companyAbbrUserLogin = loginResponse.data?.user?.company_abbr
+                        prefManager!!.companyNamaUserLogin = loginResponse.data?.user?.company_nama
 
                         Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()
                         navigateToHomePage()
@@ -258,10 +262,11 @@ class LoginActivity : AppCompatActivity() {
         setAppVersion()
     }
 
+    @SuppressLint("SetTextI18n")
     private fun setAppVersion() {
         val versionTextView: TextView = findViewById(R.id.version_app)
         val appVersion = AppUtils.getAppVersion(this)
-        versionTextView.text = appVersion
+        versionTextView.text = "Versi $appVersion"
     }
 
 
@@ -304,18 +309,9 @@ class LoginActivity : AppCompatActivity() {
     private fun navigateToHomePage() {
         val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
         if (!checkRememberMe.isChecked){
-//            prefManager!!.isFirstTimeLaunch = false
-//            prefManager!!.token = ""
-//            prefManager!!.idUserLogin = 0
-//            prefManager!!.nameUserLogin = ""
             prefManager!!.username = ""
             prefManager!!.password = ""
             prefManager!!.rememberLogin = false
-//            prefManager!!.jabatanUserLogin = ""
-//            prefManager!!.estateUserLogin = ""
-//            prefManager!!.estateUserLengkapLogin = ""
-//            prefManager!!.estateIdUserLogin = ""
-//            prefManager!!.regionalIdUserLogin = ""
         }
         startActivity(Intent(this, HomePageActivity::class.java))
         finish()

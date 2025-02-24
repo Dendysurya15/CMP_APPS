@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.TPHBlokInfo
+import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.markertph.data.model.TPHNewModel
 
 @Dao
@@ -79,4 +80,16 @@ abstract class TPHDao {
         idEstate: Int,
         idDivisi: Int,
     ): List<TPHNewModel>
+
+    @Query(
+        """
+    SELECT * FROM tph
+    WHERE blok IN (:idListBlok)
+    GROUP BY blok
+    """
+    )
+    abstract  fun getBlokById(
+        idListBlok: List<Int>
+    ): List<TPHNewModel>
+
 }

@@ -1,6 +1,7 @@
 package com.cbi.cmp_project.utils
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -8,6 +9,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Base64
+import android.view.WindowManager
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
@@ -20,6 +22,8 @@ import com.jaredrummler.materialspinner.BuildConfig
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
@@ -71,6 +75,34 @@ object AppUtils {
         } else {
             @Suppress("DEPRECATION")
             vibrator.vibrate(100)
+        }
+    }
+
+    fun formatToIndonesianDate(dateString: String): String {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("EEEE, d MMMM YYYY 'Pukul' HH:mm:ss", Locale("id", "ID"))
+
+        return try {
+            val date = inputFormat.parse(dateString)
+            outputFormat.format(date ?: Date())
+        } catch (e: Exception) {
+            "Format tanggal tidak valid"
+        }
+    }
+
+    fun setMaxBrightness(activity: Activity, isMax: Boolean) {
+        try {
+            val window = activity.window
+            val layoutParams = window.attributes
+
+            if (isMax) {
+                layoutParams.screenBrightness = 1f // 1.0 is maximum brightness
+            } else {
+                layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            }
+            window.attributes = layoutParams
+        } catch (e: Exception) {
+            AppLogger.e("Error setting brightness: ${e.message}")
         }
     }
 

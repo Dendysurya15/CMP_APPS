@@ -26,7 +26,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:visibility="visible"
-
+                style="@style/defaultBoxColor"
                 android:minWidth="48dp"
                 android:minHeight="48dp"/>
 
@@ -43,64 +43,81 @@
 
         </FrameLayout>
 
+
+        <TextView
+            android:id="@+id/td1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/manrope_semibold"
+            android:padding="5dp"
+            android:visibility="gone"
+            android:gravity="center"
+            android:textColor="@color/black"
+            android:textSize="14dp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:id="@+id/td2"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:visibility="gone"
+            android:fontFamily="@font/manrope_semibold"
+            android:padding="5dp"
+            android:textColor="@color/black"
+            android:textSize="14dp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:id="@+id/td3"
+            android:layout_weight="1"
+            android:visibility="gone"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:fontFamily="@font/manrope_semibold"
+            android:padding="5dp"
+            android:textColor="@color/black"
+            android:textSize="14dp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:id="@+id/td4"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:fontFamily="@font/manrope_semibold"
+            android:padding="5dp"
+            android:visibility="gone"
+            android:textSize="14dp"
+            android:textColor="@color/black"
+            android:textStyle="bold" />
+
+
 <!--        <TextView-->
 <!--            android:layout_width="0dp"-->
-<!--            android:layout_height="wrap_content"-->
+<!--            android:id="@+id/td5"-->
 <!--            android:layout_weight="1"-->
+<!--            android:layout_height="wrap_content"-->
 <!--            android:gravity="center"-->
-<!--            android:id="@+id/tvItemTgl"-->
 <!--            android:fontFamily="@font/manrope_semibold"-->
-<!--            android:text="28 Jan 2025\n17:26"-->
 <!--            android:padding="5dp"-->
+<!--            android:visibility="gone"-->
 <!--            android:textSize="14dp"-->
+<!--            android:textColor="@color/black"-->
 <!--            android:textStyle="bold" />-->
 
-        <TextView
-            android:id="@+id/tvItemBlok"
+        <LinearLayout
+            android:id="@+id/td5"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:fontFamily="@font/manrope_semibold"
-            android:padding="5dp"
-            android:gravity="center"
-            android:textSize="14dp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:id="@+id/tvItemTPH"
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:fontFamily="@font/manrope_semibold"
             android:padding="5dp"
-            android:textSize="14dp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:id="@+id/tvItemGrading"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-
-            android:fontFamily="@font/manrope_semibold"
-            android:padding="5dp"
-            android:textSize="14dp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:id="@+id/tvItemJam"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:fontFamily="@font/manrope_semibold"
-            android:padding="5dp"
-            android:textSize="14dp"
-            android:textStyle="bold" />
-
-
+            android:visibility="gone" />
     </LinearLayout>
 
 
