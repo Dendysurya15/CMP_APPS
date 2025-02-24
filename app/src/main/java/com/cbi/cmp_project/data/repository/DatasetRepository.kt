@@ -53,6 +53,11 @@ class DatasetRepository(context: Context,  private val apiService: ApiService = 
         return kemandoranDao.getKemandoranByCriteria(idEstate, idDivisiArray)
     }
 
+    suspend fun getKemandoranEstate(idEstate: Int): List<KemandoranModel> {
+        return kemandoranDao.getKemandoranEstate(idEstate)
+    }
+
+
     suspend fun getTPHList(idEstate: Int, idDivisi:Int, tahunTanam : String,  idBlok :Int): List<TPHNewModel> {
         return tphDao.getTPHByCriteria(idEstate, idDivisi, tahunTanam, idBlok)
     }

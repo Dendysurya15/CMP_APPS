@@ -53,12 +53,43 @@
                 android:layout_width="match_parent"
                 android:layout_marginHorizontal="20dp"
                 layout="@layout/pertanyaan_spinner_layout"
+                android:id="@+id/formEspbKemandoran"/>
+            <include
+                android:layout_marginTop="10dp"
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginHorizontal="20dp"
+                layout="@layout/pertanyaan_spinner_layout"
+                android:id="@+id/formEspbPemuat"/>
+            <androidx.recyclerview.widget.RecyclerView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/rvPemuat"/>
+            <include
+                android:layout_marginTop="10dp"
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginHorizontal="20dp"
+                layout="@layout/pertanyaan_spinner_layout"
                 android:id="@+id/formEspbMill"/>
-
             <ImageView
-                android:layout_width="250dp"
+                android:layout_width="match_parent"
                 android:layout_height="250dp"
+                android:layout_marginTop="10dp"
                 android:id="@+id/qrCodeImageViewESPB"/>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="400dp">
+                <com.google.android.material.button.MaterialButton
+                    android:layout_width="wrap_content"
+                    android:text="Konfirmasi Scan"
+                    android:visibility="gone"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/btKonfirmScanESPB"/>
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
 
