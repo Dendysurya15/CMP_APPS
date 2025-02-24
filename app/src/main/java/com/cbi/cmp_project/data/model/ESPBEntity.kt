@@ -17,7 +17,7 @@ data class ESPBEntity(
     val archive: Int,
     val tph0: String, // {tph_id,date_created,jjg,status_espb
     val tph1: String,
-    val update: String = "NULL", // JSON {alasan, datetime, loc}
+    val update_info: String = "NULL", // JSON {alasan, datetime, loc}
     val uploaded_by_id: Int = 0,
     val uploaded_at: String = "NULL",
     val status_upload_cmp: Int = 0,
