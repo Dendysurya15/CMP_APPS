@@ -22,7 +22,8 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table")
     abstract fun getAll(): List<ESPBEntity>
 
-    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
+    //    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
+    @Query("SELECT * FROM espb_table")
     abstract fun getAllESPBUploaded(): List<ESPBEntity>
 
 
@@ -65,6 +66,12 @@ abstract class ESPBDao {
             Result.failure(e)
         }
     }
+
+    @Query("SELECT COUNT(*) FROM espb_table WHERE noESPB = :noESPB")
+    abstract suspend fun isNoESPBExists(noESPB: String): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertESPBData(espbData: ESPBEntity)
 
     @Query("SELECT COUNT(*) FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
     abstract suspend fun countESPBUploaded(): Int

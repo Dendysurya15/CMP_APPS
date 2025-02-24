@@ -51,50 +51,22 @@ class WeighBridgeRepository(context: Context) {
     }
 
 
-    suspend fun saveDataESPB(
-        blok_jjg: String,
-        created_by_id: Int,
-        created_at: String,
-        nopol: String,
-        driver: String,
-        transporter_id: Int,
-        pemuat_id: String,
-        mill_id: Int,
-        archive: Int,
-        tph0: String,
-        tph1: String,
-        update_info: String,
-        uploaded_by_id:Int?,
-        uploaded_at: String,
-        status_upload_cmp: Int,
-        status_upload_ppro: Int,
-        creator_info: String,
-        uploader_info: String,
-        noESPB: String,
-    ): Result<Long> {
-        val panenEntity = ESPBEntity(
-            blok_jjg= blok_jjg,
-            created_by_id = created_by_id,
-            created_at = created_at,
-            nopol  = nopol,
-            driver = driver,
-            transporter_id = transporter_id,
-            pemuat_id = pemuat_id,
-            mill_id = mill_id,
-            archive = archive,
-            tph0 = tph0,
-            tph1 = tph1,
-            update_info = update_info,
-            uploaded_by_id = uploaded_by_id!!,
-            uploaded_at = uploaded_at,
-            status_upload_cmp = status_upload_cmp,
-            status_upload_ppro = status_upload_ppro,
-            creator_info = creator_info,
-            uploader_info = uploader_info,
-            noESPB = noESPB,
-        )
-        return espbDao.insertWithTransaction(panenEntity)
+    // Function to check if noESPB exists
+    suspend fun isNoESPBExists(noESPB: String): Boolean {
+        return espbDao.isNoESPBExists(noESPB) > 0
     }
+
+    // Function to insert data into the database
+    suspend fun insertESPBData(espbData: ESPBEntity) {
+        espbDao.insertESPBData(espbData)
+    }
+
+    sealed class SaveResultESPBKrani {
+        object Success : SaveResultESPBKrani()
+        object AlreadyExists : SaveResultESPBKrani()
+        data class Error(val exception: Exception) : SaveResultESPBKrani()
+    }
+
 
 }
 

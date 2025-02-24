@@ -84,57 +84,51 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         tph0: String,
         tph1: String,
         update_info: String,
-        uploaded_by_id:Int?,
-        uploaded_at:String,
+        uploaded_by_id: Int,
+        uploaded_at: String,
         status_upload_cmp: Int,
         status_upload_ppro: Int,
         creator_info: String,
         uploader_info: String,
-        noESPB: String,
-    ) {
-        _saveDataESPBKraniTimbang.value = SaveDataESPBKraniTimbangState.Loading
+        noESPB: String
+    ): WeighBridgeRepository.SaveResultESPBKrani {
+        return try {
+            val exists = repository.isNoESPBExists(noESPB)
 
-        viewModelScope.launch {
-            try {
-                val result = repository.saveDataESPB(
-                    blok_jjg,
-                    created_by_id,
-                    created_at,
-                    nopol,
-                    driver,
-                    transporter_id,
-                    pemuat_id,
-                    mill_id,
-                    archive,
-                    tph0,
-                    tph1,
-                    update_info,
-                    uploaded_by_id,
-                    uploaded_at,
-                    status_upload_cmp,
-                    status_upload_ppro,
-                    creator_info,
-                    uploader_info,
-                    noESPB
+            // Only insert if noESPB doesn't exist
+            if (!exists) {
+                val espbData = ESPBEntity(
+                    blok_jjg = blok_jjg,
+                    created_by_id = created_by_id,
+                    created_at = created_at,
+                    nopol = nopol,
+                    driver = driver,
+                    transporter_id = transporter_id,
+                    pemuat_id = pemuat_id,
+                    mill_id = mill_id,
+                    archive = archive,
+                    tph0 = tph0,
+                    tph1 = tph1,
+                    update_info = update_info,
+                    uploaded_by_id = uploaded_by_id,
+                    uploaded_at = uploaded_at,
+                    status_upload_cmp = status_upload_cmp,
+                    status_upload_ppro = status_upload_ppro,
+                    creator_info = creator_info,
+                    uploader_info = uploader_info,
+                    noESPB = noESPB
                 )
-
-                result.fold(
-                    onSuccess = { id ->
-                        _saveDataESPBKraniTimbang.value = SaveDataESPBKraniTimbangState.Success(id)
-                    },
-                    onFailure = { exception ->
-                        _saveDataESPBKraniTimbang.value = SaveDataESPBKraniTimbangState.Error(
-                            exception.message ?: "Unknown error occurred"
-                        )
-                    }
-                )
-            } catch (e: Exception) {
-                _saveDataESPBKraniTimbang.value = SaveDataESPBKraniTimbangState.Error(
-                    e.message ?: "Unknown error occurred"
-                )
+                repository.insertESPBData(espbData)
+                WeighBridgeRepository.SaveResultESPBKrani.Success
+            } else {
+                WeighBridgeRepository.SaveResultESPBKrani.AlreadyExists
             }
+        } catch (e: Exception) {
+            WeighBridgeRepository.SaveResultESPBKrani.Error(e)
         }
     }
+
+
 
     class WeightBridgeViewModelFactory(
         private val application: Application
