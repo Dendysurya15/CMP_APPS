@@ -35,6 +35,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Suppress("UNREACHABLE_CODE")
 class ScanWeighBridgeActivity : AppCompatActivity() {
@@ -107,14 +110,38 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     lifecycleScope.launch {
                         withContext(Dispatchers.Main) {
                             loadingDialog.show()
-                            loadingDialog.setMessage("Sedang Simpan & Upload Data...")
+                            loadingDialog.setMessage("Sedang Simpan Data e-SPB...")
                             delay(500)
                         }
 
                         try {
                             // Simulate saving and uploading process
                             withContext(Dispatchers.IO) {
-                                delay(2000) // Simulate processing time
+
+
+
+                                weightBridgeViewModel.saveDataLocalKraniTimbangESPB(
+                                    tph_id = selectedTPHValue?.toString() ?: "",
+                                    date_created = SimpleDateFormat(
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        Locale.getDefault()
+                                    ).format(Date()),
+                                    created_by = userId!!,  // Prevent crash if userId is null
+                                    karyawan_id = (selectedPemanenIds + selectedPemanenLainIds).joinToString(
+                                        ","
+                                    ),
+                                    jjg_json = jjg_json,
+                                    foto = photoFilesString,
+                                    komentar = komentarFotoString,
+                                    asistensi = asistensi ?: 0, // Default to 0 if null
+                                    lat = lat ?: 0.0, // Default to 0.0 if null
+                                    lon = lon ?: 0.0, // Default to 0.0 if null
+                                    jenis_panen = selectedTipePanen?.toIntOrNull()
+                                        ?: 0, // Avoid NumberFormatException
+                                    ancakInput = ancakInput ?: "0", // Default to "0" if null
+                                    info = infoApp ?: "",
+                                    archive = 0
+                                )
 
 //                                throw Exception("Simulasi error saat upload data.")
                             }
@@ -296,8 +323,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
                     val parsedData = Gson().fromJson(jsonStr, wbQRData::class.java)
 
-//                    val blokJjgList = "3301,312;3303,154;3309,321;3310,215;3312,421;3315,233"
-                    val blokJjgList = parsedData.espb.blokJjg
+                    val blokJjgList = "3301,312;3303,154;3309,321;3310,215;3312,421;3315,233"
+//                    val blokJjgList = parsedData.espb.blokJjg
                         .split(";")
                         .mapNotNull {
                             it.split(",").takeIf { it.size == 2 }?.let { (id, jjg) ->

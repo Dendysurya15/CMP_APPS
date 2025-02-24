@@ -3,6 +3,7 @@ package com.cbi.cmp_project.data.database
 import androidx.room.*
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.PanenEntity
+import com.cbi.cmp_project.utils.AppLogger
 
 @Dao
 abstract class ESPBDao {
@@ -47,6 +48,22 @@ abstract class ESPBDao {
     open fun updateOrInsert(espb: List<ESPBEntity>) {
 
         insert(espb)
+    }
+
+    @Insert
+    abstract fun insert(espb: ESPBEntity): Long
+
+
+    @Transaction
+    open suspend fun insertWithTransaction(espb: ESPBEntity): Result<Long> {
+        return try {
+            val id = insert(espb)  // Uses the single entity insert
+            Result.success(id)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            AppLogger.e("insertWithTransaction failed", e.toString())
+            Result.failure(e)
+        }
     }
 
     @Query("SELECT COUNT(*) FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")

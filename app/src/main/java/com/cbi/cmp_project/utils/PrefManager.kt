@@ -90,6 +90,27 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var companyIdUserLogin: String?
+        get() = pref.getString("companyIdUserLogin", "")
+        set(companyIdUserLogin) {
+            editor.putString("companyIdUserLogin", companyIdUserLogin)
+            editor.commit()
+        }
+
+    var companyAbbrUserLogin: String?
+        get() = pref.getString("companyAbbrUserLogin", "")
+        set(companyAbbrUserLogin) {
+            editor.putString("companyAbbrUserLogin", companyAbbrUserLogin)
+            editor.commit()
+        }
+
+    var companyNamaUserLogin: String?
+        get() = pref.getString("companyNamaUserLogin", "")
+        set(companyNamaUserLogin) {
+            editor.putString("companyNamaUserLogin", companyNamaUserLogin)
+            editor.commit()
+        }
+
     var password: String?
         get() = pref.getString(PASSWORD, "")
         set(password) {

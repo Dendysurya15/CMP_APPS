@@ -12,6 +12,7 @@ import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.FlagESPBModel
 import com.cbi.cmp_project.ui.view.LoginActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ListHistoryWeighBridgeActivity
+import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
 import com.cbi.cmp_project.utils.AppUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -75,7 +76,7 @@ class MainActivity : AppCompatActivity() {
         if (!showingSplash) return
         showingSplash = false
 
-        startActivity(Intent(this, LoginActivity::class.java))
+        startActivity(Intent(this, ScanWeighBridgeActivity::class.java))
         finish()
     }
 

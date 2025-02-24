@@ -254,6 +254,7 @@
             android:layout_weight="1"
             android:text="Scan Ulang"
             android:textColor="#FFFFFF"
+            android:textSize="16sp"
             android:fontFamily="@font/manrope_bold"
             android:backgroundTint="@color/grayDefault"
             android:layout_marginEnd="8dp"/>
@@ -264,6 +265,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:visibility="gone"
+            android:textSize="16sp"
             android:text="@string/submit_text_krani_timbang"
             android:textColor="@color/white"
             android:fontFamily="@font/manrope_bold"
