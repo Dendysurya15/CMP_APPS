@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.FlagESPBModel
 import com.cbi.cmp_project.ui.view.LoginActivity
+import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
 import com.cbi.cmp_project.utils.AppUtils

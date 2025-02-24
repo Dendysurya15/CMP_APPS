@@ -13,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.data.model.weighBridge.wbQRData
 import com.cbi.cmp_project.ui.view.HomePageActivity
+import com.cbi.cmp_project.ui.viewModel.SaveDataESPBKraniTimbangState
 
 import com.cbi.cmp_project.ui.viewModel.WeighBridgeViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
@@ -50,6 +51,20 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
     private lateinit var loadingDialog: LoadingDialog
 
+    var globalBlokJjg: String = ""
+    var globalCreatedById: Int? = null
+    var globalCreatedAt: String = ""
+    var globalNopol: String = ""
+    var globalDriver: String = ""
+    var globalTransporterId: Int? = null
+    var globalPemuatId: String = ""
+    var globalMillId: Int? = null
+    var globalTph0: String = ""
+    var globalTph1: String = ""
+    var globalCreatorInfo: String = ""
+    var globalNoESPB: String = ""
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefManager = PrefManager(this)
@@ -65,8 +80,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         barcodeView = findViewById(R.id.barcode_scanner_krani_timbang)
         barcodeView.visibility = View.VISIBLE
         setMaxBrightness(this@ScanWeighBridgeActivity, true)
-        barcodeView.findViewById<TextView>(com.google.zxing.client.android.R.id.zxing_status_view)?.visibility = View.VISIBLE
-        barcodeView.findViewById<TextView>(com.google.zxing.client.android.R.id.zxing_status_view)?.text = "Letakkan QR ke dalam kotak scan!"
+        barcodeView.findViewById<TextView>(com.google.zxing.client.android.R.id.zxing_status_view)?.visibility =
+            View.VISIBLE
+        barcodeView.findViewById<TextView>(com.google.zxing.client.android.R.id.zxing_status_view)?.text =
+            "Letakkan QR ke dalam kotak scan!"
 
         barcodeView.decodeContinuous(object : BarcodeCallback {
             override fun barcodeResult(result: BarcodeResult?) {
@@ -100,101 +117,102 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             isScanning = false
             pauseScanner()
 
-                AlertDialogUtility.withTwoActions(
-                    this,
-                    "Simpan Data",
-                    getString(R.string.confirmation_dialog_title),
-                    getString(R.string.al_submit_upload_data_espb_by_krani_timbang),
-                    "warning.json"
-                ) {
-                    lifecycleScope.launch {
+            AlertDialogUtility.withTwoActions(
+                this,
+                "Simpan Data",
+                getString(R.string.confirmation_dialog_title),
+                getString(R.string.al_submit_upload_data_espb_by_krani_timbang),
+                "warning.json"
+            ) {
+                lifecycleScope.launch(Dispatchers.IO) {  // Change to start with IO dispatcher
+                    try {
+                        // Show loading on Main thread
                         withContext(Dispatchers.Main) {
                             loadingDialog.show()
                             loadingDialog.setMessage("Sedang Simpan Data e-SPB...")
-                            delay(500)
                         }
 
-                        try {
-                            // Simulate saving and uploading process
-                            withContext(Dispatchers.IO) {
+                        // Database operation (already on IO thread)
+                        weightBridgeViewModel.saveDataLocalKraniTimbangESPB(
+                            blok_jjg = globalBlokJjg,
+                            created_by_id = globalCreatedById ?: 0,
+                            created_at = globalCreatedAt,
+                            nopol = globalNopol,
+                            driver = globalDriver,
+                            transporter_id = globalTransporterId ?: 0,
+                            pemuat_id = globalPemuatId,
+                            mill_id = globalMillId!!,
+                            archive = 0,
+                            tph0 = globalTph0,
+                            tph1 = globalTph1,
+                            update_info = "",
+                            uploaded_by_id = 0,
+                            uploaded_at = "",
+                            status_upload_cmp = 0,
+                            status_upload_ppro = 0,
+                            creator_info = globalCreatorInfo,
+                            uploader_info = "",
+                            noESPB = globalNoESPB
+                        )
 
+                        // State collection handling
+                        withContext(Dispatchers.Main) {
+                            weightBridgeViewModel.saveDataESPBKraniTimbang.collect { state ->
+                                when (state) {
+                                    is SaveDataESPBKraniTimbangState.Loading -> {
+                                        // Already showing loading dialog
+                                    }
 
+                                    is SaveDataESPBKraniTimbangState.Success -> {
+                                        loadingDialog.dismiss()
+                                        AlertDialogUtility.withSingleAction(
+                                            this@ScanWeighBridgeActivity,
+                                            stringXML(R.string.al_back),
+                                            stringXML(R.string.al_success_save_local),
+                                            stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang),
+                                            "success.json",
+                                            R.color.greenDefault
+                                        ) {
+                                            val intent = Intent(
+                                                this@ScanWeighBridgeActivity,
+                                                HomePageActivity::class.java
+                                            )
+                                            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                            startActivity(intent)
+                                            finish()
+                                        }
+                                    }
 
-                                weightBridgeViewModel.saveDataLocalKraniTimbangESPB(
-                                    tph_id = selectedTPHValue?.toString() ?: "",
-                                    date_created = SimpleDateFormat(
-                                        "yyyy-MM-dd HH:mm:ss",
-                                        Locale.getDefault()
-                                    ).format(Date()),
-                                    created_by = userId!!,  // Prevent crash if userId is null
-                                    karyawan_id = (selectedPemanenIds + selectedPemanenLainIds).joinToString(
-                                        ","
-                                    ),
-                                    jjg_json = jjg_json,
-                                    foto = photoFilesString,
-                                    komentar = komentarFotoString,
-                                    asistensi = asistensi ?: 0, // Default to 0 if null
-                                    lat = lat ?: 0.0, // Default to 0.0 if null
-                                    lon = lon ?: 0.0, // Default to 0.0 if null
-                                    jenis_panen = selectedTipePanen?.toIntOrNull()
-                                        ?: 0, // Avoid NumberFormatException
-                                    ancakInput = ancakInput ?: "0", // Default to "0" if null
-                                    info = infoApp ?: "",
-                                    archive = 0
-                                )
-
-//                                throw Exception("Simulasi error saat upload data.")
-                            }
-
-
-                            withContext(Dispatchers.Main) {
-                                loadingDialog.dismiss()
-                                Toasty.success(
-                                    this@ScanWeighBridgeActivity,
-                                    "Data berhasil disimpan dan diupload!",
-                                    Toasty.LENGTH_SHORT,
-                                    true
-                                ).show()
-
-                                AlertDialogUtility.withSingleAction(
-                                    this@ScanWeighBridgeActivity,
-                                    stringXML(R.string.al_back),
-                                    stringXML(R.string.al_success_save_local),
-                                    stringXML(R.string.al_description_success_save_local_and_upload_to_server_cmp),
-                                    "success.json",
-                                    R.color.greenDefault
-                                ) {
-                                    val intent = Intent(this@ScanWeighBridgeActivity, HomePageActivity::class.java)
-                                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                                    startActivity(intent)
-                                    finish()
-                                }
-
-                            }
-
-                        } catch (e: Exception) {
-                            withContext(Dispatchers.Main) {
-                                loadingDialog.dismiss()
-
-                                AlertDialogUtility.withSingleAction(
-                                    this@ScanWeighBridgeActivity,
-                                    stringXML(R.string.al_back),
-                                    stringXML(R.string.al_failed_fetch_data),
-                                    "${stringXML(R.string.al_failed_save_local_and_upload_to_server_cmp)} ${e.message}",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-
+                                    is SaveDataESPBKraniTimbangState.Error -> {
+                                        loadingDialog.dismiss()
+                                        AlertDialogUtility.withSingleAction(
+                                            this@ScanWeighBridgeActivity,
+                                            stringXML(R.string.al_back),
+                                            stringXML(R.string.al_failed_save_local),
+                                            "${stringXML(R.string.al_failed_save_local_krani_timbang)} : ${state.message ?: "Unknown error"}",
+                                            "warning.json",
+                                            R.color.colorRedDark
+                                        ) {}
+                                    }
                                 }
                             }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            loadingDialog.dismiss()
+                            AlertDialogUtility.withSingleAction(
+                                this@ScanWeighBridgeActivity,
+                                stringXML(R.string.al_back),
+                                stringXML(R.string.al_failed_fetch_data),
+                                "${stringXML(R.string.al_failed_save_local_krani_timbang)} ${e.message}",
+                                "warning.json",
+                                R.color.colorRedDark
+                            ) {}
                         }
                     }
                 }
-
-
-//            bottomSheetDialog.dismiss()
+            }
         }
-
         bottomSheetView.findViewById<Button>(R.id.btnScanAgain)?.setOnClickListener {
             bottomSheetDialog.dismiss()
         }
@@ -323,8 +341,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
                     val parsedData = Gson().fromJson(jsonStr, wbQRData::class.java)
 
-                    val blokJjgList = "3301,312;3303,154;3309,321;3310,215;3312,421;3315,233"
-//                    val blokJjgList = parsedData.espb.blokJjg
+//                    val blokJjgList = "3301,312;3303,154;3309,321;3310,215;3312,421;3315,233"
+                    val blokJjgList = parsedData.espb.blokJjg
                         .split(";")
                         .mapNotNull {
                             it.split(",").takeIf { it.size == 2 }?.let { (id, jjg) ->
@@ -333,16 +351,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         }
 
                     val idBlokList = blokJjgList.map { it.first }
-
-                    val blokListDeferred = async {
-                        try {
-                            AppLogger.d(idBlokList.toString())
-                            weightBridgeViewModel.getBlokById(idBlokList)
-                        } catch (e: Exception) {
-                            AppLogger.e("Error fetching Blok Data: ${e.message}")
-                            null
-                        }
-                    }
 
                     val pemuatDeferred = async {
                         try {
@@ -453,11 +461,24 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val transporterData = transporterDeferred.await()
                         ?: throw Exception("Failed to fetch Transporter Data! Please check the dataset.")
 
-                    withContext(Dispatchers.Main) {
-                        val millAbbr =
-                            millData.firstOrNull()?.let { "${it.abbr} (${it.nama})" } ?: "-"
-                        val transporterName = transporterData.firstOrNull()?.let { it.nama } ?: "-"
+                    val millAbbr =
+                        millData.firstOrNull()?.let { "${it.abbr} (${it.nama})" } ?: "-"
+                    val transporterName = transporterData.firstOrNull()?.let { it.nama } ?: "-"
 
+                    globalBlokJjg = parsedData.espb.blokJjg
+                    globalCreatedById = prefManager!!.idUserLogin
+                    globalCreatedAt = createdAt
+                    globalNopol = parsedData.espb.nopol
+                    globalDriver = parsedData.espb.driver
+                    globalTransporterId = transporterId
+                    globalPemuatId = parsedData.espb.pemuat
+                    globalMillId = millId
+                    globalTph0 = parsedData.tph0!!
+                    globalTph1 = parsedData.tph1!!
+                    globalCreatorInfo = parsedData?.espb?.creatorInfo ?: ""
+                    globalNoESPB = parsedData.espb.noEspb
+
+                    withContext(Dispatchers.Main) {
                         showBottomSheetWithData(
                             parsedData = parsedData,
                             distinctDeptAbbr = distinctDeptAbbr,
@@ -534,11 +555,13 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             ::bottomSheetDialog.isInitialized && bottomSheetDialog.isShowing -> {
                 bottomSheetDialog.dismiss()
             }
+
             barcodeView.visibility == View.VISIBLE -> {
                 pauseScanner()
                 barcodeView.barcodeView?.cameraInstance?.close()
                 super.onBackPressed()
             }
+
             else -> super.onBackPressed()
         }
     }

@@ -17,5 +17,6 @@ data class wbESPBData(
     @SerializedName("mill_id") val millId: Int,
     @SerializedName("created_by_id") val createdById: Int,
     @SerializedName("no_espb") val noEspb: String,
-    @SerializedName("created_at") val createdAt: String
+    @SerializedName("created_at") val createdAt: String,
+    @SerializedName("creator_info") val creatorInfo: String?
 )

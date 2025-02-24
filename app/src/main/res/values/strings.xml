@@ -76,13 +76,13 @@
     <string name="al_success_download_dataset">Berhasil unduh data</string>
     <string name="al_success_download_dataset_description">Dataset aplikasi berhasil diunduh!</string>
     <string name="al_description_success_save_local">Data berhasil disimpan!</string>
-    <string name="al_description_success_save_local_and_upload_to_server_cmp">Data e-SPB berhasil disimpan!</string>
+    <string name="al_description_success_save_local_and_espb_krani_timbang">Data e-SPB berhasil disimpan!</string>
     <string name="al_success_save_local">Sukses Simpan</string>
     <string name="al_success_delete">Berhasil Hapus</string>
     <string name="al_success_update">Berhasil Update Data</string>
     <string name="al_failed_delete">Gagal Hapus</string>
     <string name="al_failed_save_local">Gagal Simpan</string>
-    <string name="al_failed_save_local_and_upload_to_server_cmp">Gagal simpan data e-SPB!</string>
+    <string name="al_failed_save_local_krani_timbang">Gagal simpan data e-SPB!</string>
     <string name="al_description_failed_save_local">Data gagal disimpan!</string>
     <string name="download_dataset">Sedang mengunduh dataset</string>
     <string name="fetching_dataset">Sedang mengambil dataset</string>
