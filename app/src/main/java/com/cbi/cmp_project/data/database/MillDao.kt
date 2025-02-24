@@ -22,9 +22,12 @@ abstract class MillDao {
         insertAll(mill)
     }
 
+    //get all mill
+    @Query("SELECT * FROM mill")
+    abstract suspend fun getAll(): List<MillModel>
+
     @Query("DELETE FROM mill")
     abstract fun deleteAll()
-
 
 
     @Query("SELECT COUNT(*) FROM mill")

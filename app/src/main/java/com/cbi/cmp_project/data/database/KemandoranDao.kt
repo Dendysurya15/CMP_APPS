@@ -40,4 +40,16 @@ abstract class KemandoranDao {
         idDivisiArray: List<Int>
     ): List<KemandoranModel>
 
+    @Query(
+        """
+    SELECT * FROM kemandoran 
+    WHERE dept = :idEstate
+    """
+    )
+    abstract fun getKemandoranEstate(
+        idEstate: Int,
+    ): List<KemandoranModel>
+
+
+
 }

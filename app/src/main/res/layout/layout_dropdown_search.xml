@@ -1,0 +1,61 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    > <!-- Add padding to prevent shadow clipping -->
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="5dp"
+        android:layout_marginHorizontal="3dp"
+        app:cardCornerRadius="10dp"
+        app:cardElevation="5dp"
+        android:background="@android:color/white">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            >  <!-- Add internal padding -->
+
+            <EditText
+                android:id="@+id/searchEditText"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:hint="Ketik disini..."
+                android:textColorHint="@color/graytextdark"
+                android:fontFamily="@font/manrope_bold"
+                android:padding="8dp"
+                android:background="@color/white"
+                android:textColor="@android:color/black"
+                android:drawableLeft="@drawable/baseline_search_24"
+                android:drawablePadding="10dp"
+                android:contentDescription="Search Icon" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="5dp"
+                android:background="@color/graylight"
+                android:textSize="15sp"
+                android:id="@+id/titleSearchDropdown"
+                android:visibility="gone"
+                android:fontFamily="@font/manrope_extrabold"
+                android:textColor="@color/black"
+                android:textStyle="italic"
+                android:text="Hasil Pencarian:" />
+
+            <ListView
+                android:id="@+id/listViewChoices"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@color/white"
+                android:divider="@color/grayBorder"
+                android:dividerHeight="1dp"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+</FrameLayout>

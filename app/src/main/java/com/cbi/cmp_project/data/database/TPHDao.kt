@@ -30,6 +30,9 @@ abstract class TPHDao {
     @Query("SELECT * FROM tph WHERE dept = :idEstate GROUP BY divisi")
     abstract fun getDivisiByCriteria(idEstate: Int): List<TPHNewModel>
 
+    //getDivisiAbbrByTphId
+    @Query("SELECT divisi_abbr FROM tph WHERE id = :id")
+    abstract suspend fun getDivisiAbbrByTphId(id: Int): String?
 
     @Query("SELECT COUNT(*) FROM tph")
     abstract suspend fun getCount(): Int

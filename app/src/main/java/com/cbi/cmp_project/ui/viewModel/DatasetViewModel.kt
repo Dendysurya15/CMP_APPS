@@ -193,6 +193,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return repository.getKemandoranList(idEstate, idDivisiArray)
     }
 
+    suspend fun getKemandoranEstate(
+        idEstate: Int,
+    ): List<KemandoranModel> {
+        return repository.getKemandoranEstate(idEstate)
+    }
+
     suspend fun getTPHList(
 
         idEstate: Int,

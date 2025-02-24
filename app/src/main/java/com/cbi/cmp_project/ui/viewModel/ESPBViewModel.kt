@@ -5,8 +5,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cbi.cmp_project.data.model.ESPBEntity
+import com.cbi.cmp_project.data.model.MillModel
 import com.cbi.cmp_project.data.repository.AppRepository
-import com.cbi.cmp_project.data.repository.DatasetRepository
 import kotlinx.coroutines.launch
 
 class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
@@ -19,6 +19,24 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
 
     private val _activeESPBList = MutableLiveData<List<ESPBEntity>>()
     val activeESPBList: LiveData<List<ESPBEntity>> get() = _activeESPBList
+
+    private val _millList = MutableLiveData<List<MillModel>>()
+    val millList: LiveData<List<MillModel>> = _millList
+
+    init {
+        loadMills()
+    }
+
+    private fun loadMills() {
+        viewModelScope.launch {
+            try {
+                val mills = repository.getMillList()
+                _millList.postValue(mills)
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
 
     fun loadAllESPB() {
         viewModelScope.launch {
@@ -50,5 +68,10 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
             repository.archiveESPBById(id)
             loadAllESPB() // Refresh the data
         }
+    }
+
+    //use getDivisiAbbrByTphId
+    suspend fun getDivisiAbbrByTphId(tphId: Int): String {
+        return repository.getDivisiAbbrByTphId(tphId)!!
     }
 }

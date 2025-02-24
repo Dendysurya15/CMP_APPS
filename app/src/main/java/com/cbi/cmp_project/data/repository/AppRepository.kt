@@ -3,13 +3,11 @@ package com.cbi.cmp_project.data.repository
 import android.content.Context
 import android.util.Log
 import com.cbi.cmp_project.data.database.AppDatabase
-import com.cbi.cmp_project.data.database.TPHDao
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.model.TPHBlokInfo
 import com.cbi.cmp_project.data.model.TphRvData
-import com.cbi.markertph.data.model.TPHNewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,6 +18,7 @@ class AppRepository(context: Context) {
     private val panenDao = database.panenDao()
     private val espbDao = database.espbDao()
     private val tphDao = database.tphDao()
+    private val millDao = database.millDao()
 
     suspend fun saveDataPanen(
         tph_id: String,
@@ -116,6 +115,10 @@ class AppRepository(context: Context) {
 
     suspend fun getPanenById(id: Int): PanenEntity? = withContext(Dispatchers.IO) {
         panenDao.getById(id)
+    }
+
+    suspend fun getDivisiAbbrByTphId(id: Int): String? = withContext(Dispatchers.IO) {
+        tphDao.getDivisiAbbrByTphId(id)
     }
 
     suspend fun getPanenCount(): Int {
@@ -243,6 +246,10 @@ class AppRepository(context: Context) {
 
     suspend fun updateOrInsertESPB(espb: List<ESPBEntity>) = withContext(Dispatchers.IO) {
         espbDao.updateOrInsert(espb)
+    }
+
+    suspend fun getMillList() = withContext(Dispatchers.IO) {
+        millDao.getAll()
     }
 
 }
