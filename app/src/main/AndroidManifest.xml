@@ -47,6 +47,9 @@
             android:name=".ui.view.weighBridge.ScanWeighBridgeActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.view.Absensi.FeatureAbsensiActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.view.FormESPBActivity"
             android:exported="false" />
         <activity
