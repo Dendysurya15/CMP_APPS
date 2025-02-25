@@ -85,11 +85,14 @@ class WeighBridgeRepository(context: Context) {
     }
 
 
-    suspend fun uploadESPBStagingKraniTimbang(dataList: List<Map<String, Any>>): Result<String>? {
+    suspend fun uploadESPBStagingKraniTimbang(
+        dataList: List<Map<String, Any>>,
+        onProgressUpdate: (Int, Int) -> Unit // Item ID, Progress %
+    ): Result<String>? {
         return try {
             withContext(Dispatchers.IO) {
                 val uploadData = dataList.map { item ->
-                    ApiService.dataUploadEspbKraniTimbang(
+                    item["id"] as Int to ApiService.dataUploadEspbKraniTimbang(
                         dept_ppro = item["dept_ppro"].toString(),
                         divisi_ppro = item["divisi_ppro"].toString(),
                         commodity = item["commodity"].toString(),
@@ -101,78 +104,35 @@ class WeighBridgeRepository(context: Context) {
                         mill_id = item["mill_id"].toString(),
                         created_by_id = item["created_by_id"].toString(),
                         created_at = item["created_at"].toString(),
-                        no_espb = item["no_espb"].toString()
+                        noSPB = item["noSPB"].toString()
                     )
                 }
 
-                AppLogger.d("uploadData $uploadData")
-
-                for (data in uploadData) {
+                var completed = 0
+                for ((itemId, data) in uploadData) {
                     try {
                         withTimeout(Constants.NETWORK_TIMEOUT_MS) {
-                            AppLogger.d("Request JSON: ${Gson().toJson(data)}")
                             val response = StagingApiClient.instance.insertESPBKraniTimbang(data)
-                            AppLogger.d("Upload Request Body: ${Gson().toJson(data)}")
-                            AppLogger.d("Raw Response: $response")
-
                             if (response.isSuccessful) {
-                                val body = response.body()
-
-                                if (body != null) {
-                                    // The body is already an object, so we can safely cast it
-                                    val uploadResponse = body as UploadStagingResponse
-                                    AppLogger.d("Parsed Response: $uploadResponse")
-
-                                    if (uploadResponse.status == 1) {
-                                        val messageStr = uploadResponse.message.toString()
-                                        AppLogger.d("Upload Success: $messageStr")
-                                    } else {
-                                        val messageStr = uploadResponse.message.toString()
-                                        AppLogger.e("Upload Failed: $messageStr")
-
-                                        // Extract the actual error message if possible
-                                        var detailedError = messageStr
-                                        if (uploadResponse.message is Map<*, *>) {
-                                            val messageMap = uploadResponse.message as Map<*, *>
-                                            if (messageMap.containsKey("originalError")) {
-                                                val originalError = messageMap["originalError"] as? Map<*, *>
-                                                if (originalError?.containsKey("info") == true) {
-                                                    val info = originalError["info"] as? Map<*, *>
-                                                    if (info?.containsKey("message") == true) {
-                                                        detailedError = info["message"].toString()
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        throw Exception("Upload failed: $detailedError")
-                                    }
-                                } else {
-                                    AppLogger.e("Upload Failed: Response body is null")
-                                    throw Exception("Upload failed: Null response body")
-                                }
+                                completed++
+                                val progress = (completed * 100) / dataList.size
+                                onProgressUpdate(itemId, progress)
                             } else {
-                                val errorBody = response.errorBody()?.string()
-                                AppLogger.e("Upload Error: Code ${response.code()} - Body: $errorBody")
-                                throw Exception("HTTP Error: ${response.code()} - $errorBody")
+                                throw Exception("Upload failed for item ID $itemId")
                             }
                         }
-                    } catch (e: TimeoutCancellationException) {
-                        AppLogger.e("Upload Error: Timeout on data ${Gson().toJson(data)}")
-                        throw Exception("Timeout occurred for data: ${Gson().toJson(data)}")
                     } catch (e: Exception) {
-                        AppLogger.e("Upload Error: Unexpected issue - ${e.message}")
-                        throw e // Propagate the exception to be caught by the ViewModel
+                        throw e
                     }
                 }
 
                 Result.success("All data uploaded successfully.")
             }
         } catch (e: Exception) {
-            AppLogger.e("Upload Error: Unexpected issue - ${e.message}")
             Result.failure(e)
         }
     }
+
 
 }
 

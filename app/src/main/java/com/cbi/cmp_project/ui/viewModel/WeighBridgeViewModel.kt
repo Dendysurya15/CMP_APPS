@@ -39,12 +39,26 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
 
 
 
+    private val _uploadProgress = MutableLiveData<Map<Int, Int>>() // Tracks each item's progress
+    val uploadProgress: LiveData<Map<Int, Int>> get() = _uploadProgress
+
     private val _uploadResult = MutableLiveData<Result<String>>()
-    val uploadResultStagingESPBKraniTimbang: LiveData<Result<String>> = _uploadResult
+    val uploadResult: LiveData<Result<String>> = _uploadResult
 
     fun uploadESPBStagingKraniTimbang(selectedItems: List<Map<String, Any>>) {
         viewModelScope.launch {
-            val result = repository.uploadESPBStagingKraniTimbang(selectedItems)
+            val progressMap = mutableMapOf<Int, Int>()
+            selectedItems.forEach { item ->
+                val itemId = item["id"] as Int
+                progressMap[itemId] = 0 // Initialize progress for each item
+            }
+            _uploadProgress.value = progressMap
+
+            val result = repository.uploadESPBStagingKraniTimbang(selectedItems) { itemId, progress ->
+                progressMap[itemId] = progress
+                _uploadProgress.postValue(progressMap) // Update progress
+            }
+
             result?.onSuccess { message ->
                 _uploadResult.value = Result.success(message)
             }?.onFailure { error ->

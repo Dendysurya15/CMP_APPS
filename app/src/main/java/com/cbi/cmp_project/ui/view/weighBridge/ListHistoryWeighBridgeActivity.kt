@@ -89,7 +89,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
 
     private fun handleUpload(selectedItems: List<Map<String, Any>>) {
-        // Map all selected items individually
+
         val uploadItems = selectedItems.map { item ->
             UploadItem(
                 id = item["id"] as Int,
@@ -104,7 +104,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                 millId = (item["mill_id"] as Number).toInt(),
                 createdById = (item["created_by_id"] as Number).toInt(),
                 createdAt = item["created_at"] as String,
-                noEspb = item["no_espb"] as String
+                noSPB = item["noSPB"] as String
             )
         }
 
@@ -129,7 +129,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 //        val allUploadItems = uploadItems + mergedItem
 
         val allUploadItems = uploadItems
-        // Setup the upload dialog
+
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
 
         val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
@@ -138,19 +138,27 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         counterTV.text = "0/${allUploadItems.size}"
         val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = UploadProgressAdapter(allUploadItems)
+        recyclerView.adapter = UploadProgressAdapter(uploadItems, weightBridgeViewModel)
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .setCancelable(false)
             .create()
         dialog.show()
-        lifecycleScope.launch {
-            loadingDialog.show()
-            delay(500) // Delay for 500 milliseconds
 
-            loadingDialog.dismiss()
+        weightBridgeViewModel.uploadESPBStagingKraniTimbang(selectedItems)
+
+        weightBridgeViewModel.uploadResult.observe(this) { result ->
+            result.onSuccess {
+//                dialog.dismiss()
+                Toast.makeText(this, "Upload Successful!", Toast.LENGTH_SHORT).show()
+            }.onFailure {
+//                dialog.dismiss()
+                Toast.makeText(this, "Upload Failed: ${it.message}", Toast.LENGTH_LONG).show()
+            }
         }
+
+
     }
 
 
