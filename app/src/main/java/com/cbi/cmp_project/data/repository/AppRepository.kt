@@ -258,4 +258,67 @@ class AppRepository(context: Context) {
         millDao.getAll()
     }
 
+    private fun transformTphDataToMap(inputData: String): Map<Int, Int> {
+        val records = inputData.split(";")
+
+        return records.mapNotNull {
+            val parts = it.split(",")
+            if (parts.size >= 3) {
+                try {
+                    parts[0].toInt() to parts[2].toInt()
+                } catch (e: NumberFormatException) {
+                    null
+                }
+            } else {
+                null
+            }
+        }.toMap()
+    }
+
+    suspend fun getJanjangSumByBlock(tphData: String): Map<Int, Int> = withContext(Dispatchers.IO) {
+        try {
+            // Parse the TPH data to get ID-to-janjang mapping
+            val tphJanjangMap = transformTphDataToMap(tphData)
+
+            // Get the TPH IDs from the map
+            val tphIds = tphJanjangMap.keys.toList()
+
+            // Retrieve the TPH models for these IDs
+            val tphModels = tphDao.getTPHsByIds(tphIds)
+
+            // Group by block and sum janjang values
+            tphModels
+                .filter { it.id != null && it.blok != null }
+                .groupBy { it.blok!! }
+                .mapValues { (_, tphsInBlock) ->
+                    // Sum janjang values for each TPH in this block
+                    tphsInBlock
+                        .mapNotNull { tph ->
+                            tph.id?.let { id -> tphJanjangMap[id] ?: 0 }
+                        }
+                        .sum()
+                }
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error calculating janjang sum by block", e)
+            emptyMap()
+        }
+    }
+
+    suspend fun getJanjangSumByBlockString(tphData: String): String = withContext(Dispatchers.IO) {
+        try {
+            val janjangByBlockMap = getJanjangSumByBlock(tphData)
+            convertJanjangMapToString(janjangByBlockMap)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error formatting janjang sums", e)
+            ""
+        }
+    }
+
+    fun convertJanjangMapToString(janjangByBlock: Map<Int, Int>): String {
+        return janjangByBlock.entries
+            .joinToString(";") { (blockId, janjangSum) ->
+                "$blockId,$janjangSum"
+            }
+    }
+
 }

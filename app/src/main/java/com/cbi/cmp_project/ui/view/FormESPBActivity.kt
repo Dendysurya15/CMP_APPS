@@ -48,9 +48,11 @@ import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.ESPBViewModel
+import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.PrefManager
+import com.cbi.markertph.data.model.TPHNewModel
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.google.android.material.button.MaterialButton
@@ -75,6 +77,7 @@ class FormESPBActivity : AppCompatActivity() {
     var tph0 = ""
     var tph1 = ""
     var idEstate = 0
+    var mekanisasi = 0
     var selectedKemandoranId = 0
     var selectedTransporterId = 0
     private lateinit var datasetViewModel: DatasetViewModel
@@ -89,9 +92,11 @@ class FormESPBActivity : AppCompatActivity() {
     private var pemuatListId: ArrayList<Int> = ArrayList()
     private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
-
+    private lateinit var thp1Map: Map<Int, Int>
     var divisiAbbr = ""
     var companyAbbr = ""
+    var formattedJanjangString = ""
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -100,9 +105,24 @@ class FormESPBActivity : AppCompatActivity() {
         featureName = intent.getStringExtra("FEATURE_NAME").toString()
         tph0 = intent.getStringExtra("tph_0").toString()
         tph1 = intent.getStringExtra("tph_1").toString()
+
+//        thp1Map = transformTphDataToMap(tph1)
         initViewModel()
         setupHeader()
         setupViewModel()
+        Log.d("tph1", "tph1: $tph1")
+        viewModel.janjangByBlock.observe(this) { janjangMap ->
+            // Log each block and its janjang sum
+            janjangMap.forEach { (blockId, janjangSum) ->
+                Log.d("BlockJanjang", "Block $blockId: $janjangSum janjang")
+            }
+
+            // Convert the map to string format INSIDE the observer
+            formattedJanjangString = convertJanjangMapToString(janjangMap)
+            Log.d("FormattedJanjang", "Formatted string: $formattedJanjangString")
+        }
+        // Process the TPH data
+        viewModel.processTPHData(tph1)
 
         //NBM 115
         //transporter 1
@@ -153,6 +173,22 @@ class FormESPBActivity : AppCompatActivity() {
         }catch (e: Exception){
             Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Estate $e", Toasty.LENGTH_LONG).show()
             0
+        }
+
+        val cbFormEspbMekanisasi = findViewById<MaterialCheckBox>(R.id.cbFormEspbMekanisasi)
+        cbFormEspbMekanisasi.setOnCheckedChangeListener {
+            _, isChecked ->
+            if (isChecked) {
+                formEspbTransporter.visibility = View.GONE
+                formEspbDriver.visibility = View.GONE
+                formEspbNopol.visibility = View.GONE
+                mekanisasi = 1
+            }else{
+                formEspbTransporter.visibility = View.VISIBLE
+                formEspbDriver.visibility = View.VISIBLE
+                formEspbNopol.visibility = View.VISIBLE
+                mekanisasi = 0
+            }
         }
 
         lifecycleScope.launch(Dispatchers.IO) {
@@ -291,7 +327,7 @@ class FormESPBActivity : AppCompatActivity() {
             }
         }
 
-        val cbFormEspb = findViewById<MaterialCheckBox>(R.id.cbFormEspb)
+        val cbFormEspb = findViewById<MaterialCheckBox>(R.id.cbFormEspbTransporter)
         cbFormEspb.setOnCheckedChangeListener {
             _, isChecked ->
             if (isChecked) {
@@ -302,100 +338,110 @@ class FormESPBActivity : AppCompatActivity() {
             }
         }
 
-        var blok_jjg = "12356,312;12357,154;12358,321;12359,215;12360,421;12361,233"
         val btnGenerateQRESPB = findViewById<FloatingActionButton>(R.id.btnGenerateQRESPB)
         btnGenerateQRESPB.setOnClickListener {
-            val nopol = try {
-                etEspbNopol.text.toString().replace(" ","").uppercase()
-            }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil No Polisi $e", Toasty.LENGTH_LONG).show()
-                "NULL"
-            }
+            AlertDialogUtility.withTwoActions(this, "SIMPAN", "KONFIRMASI BUAT QR ESPB?", "Pastikan seluruh data sudah valid!", "warning.json"){
+                val nopol = try {
+                    etEspbNopol.text.toString().replace(" ","").uppercase()
+                }catch (e: Exception){
+                    Toasty.error(this, "Terjadi Kesalahan saat mengambil No Polisi $e", Toasty.LENGTH_LONG).show()
+                    "NULL"
+                }
 
-            val driver = try {
-                etEspbDriver.text.toString().replace(" ","").uppercase()
-            }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil Driver $e", Toasty.LENGTH_LONG).show()
-                "NULL"
-            }
+                val driver = try {
+                    etEspbDriver.text.toString().replace(" ","").uppercase()
+                }catch (e: Exception){
+                    Toasty.error(this, "Terjadi Kesalahan saat mengambil Driver $e", Toasty.LENGTH_LONG).show()
+                    "NULL"
+                }
 
-            val espbDate: String = try {
-                getFormattedDateTime().toString()
-            }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil Tanggal ESPB $e", Toasty.LENGTH_LONG).show()
-                "NULL"
-            }
+                val espbDate: String = try {
+                    getFormattedDateTime().toString()
+                }catch (e: Exception){
+                    Toasty.error(this, "Terjadi Kesalahan saat mengambil Tanggal ESPB $e", Toasty.LENGTH_LONG).show()
+                    "NULL"
+                }
 
-            val appVersion: String = try {
-                this.packageManager.getPackageInfo(this.packageName, 0).versionName
-            } catch (e: Exception) {
-                Log.e("DeviceInfo", "Failed to get app version", e)
-                "Unknown"
-            }
+                val appVersion: String = try {
+                    this.packageManager.getPackageInfo(this.packageName, 0).versionName
+                } catch (e: Exception) {
+                    Log.e("DeviceInfo", "Failed to get app version", e)
+                    "Unknown"
+                }
 
-            val osVersion: String = try {
-                Build.VERSION.RELEASE
-            } catch (e: Exception) {
-                Log.e("DeviceInfo", "Failed to get OS version", e)
-                "Unknown"
-            }
+                val osVersion: String = try {
+                    Build.VERSION.RELEASE
+                } catch (e: Exception) {
+                    Log.e("DeviceInfo", "Failed to get OS version", e)
+                    "Unknown"
+                }
 
-            val phoneModel: String = try {
-                "${Build.MANUFACTURER} ${Build.MODEL}"
-            } catch (e: Exception) {
-                Log.e("DeviceInfo", "Failed to get phone model", e)
-                "Unknown"
-            }
-            val noESPBStr = "$companyAbbr-$estatePetugas/$divisiAbbr/$espbDate"
-            var transporter_id = 0
-            transporter_id = if (cbFormEspb.isChecked) {
-                0
-            }else{
-                selectedTransporterId
-            }
-            val creatorInfo = createCreatorInfo(
-                appVersion = appVersion,
-                osVersion = osVersion,
-                phoneModel = phoneModel
-            )
-            val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
-            val pemuatListId = selectedPemanen.map { it.id }
-            val json = constructESPBJson(
-                blok_jjg = blok_jjg,
-                nopol = nopol,
-                driver = driver,
-                pemuat_id = pemuatListId.joinToString(","),
-                transporter_id = transporter_id,
-                mill_id = selectedMillId!!,
-                created_by_id = idPetugas!!,
-                no_espb = noESPBStr,
-                tph0 = tph0,
-                tph1 = tph1,
-                appVersion = appVersion,
-                osVersion = osVersion,
-                phoneModel = phoneModel
-            )
-            val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
-            val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
-            ListPanenTBSActivity().generateHighQualityQRCode(encodedData!!, qrCodeImageView)
-            val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
-            btKonfirmScanESPB.visibility = View.VISIBLE
-            btKonfirmScanESPB.setOnClickListener {
-                saveESPB(
-                    blok_jjg = blok_jjg,
-                    nopol = nopol,
-                    driver = driver,
-                    pemuat_id = pemuatListId.joinToString(","),
-                    transporter_id = transporter_id,
-                    mill_id = selectedMillId!!,
-                    created_by_id = idPetugas!!,
-                    creator_info = creatorInfo.toString(),
-                    noESPB = noESPBStr,
-                    created_at = getCurrentDateTime(),
-                    tph0 = tph0,
-                    tph1 = tph1,
-                    status_draft = 0
+                val phoneModel: String = try {
+                    "${Build.MANUFACTURER} ${Build.MODEL}"
+                } catch (e: Exception) {
+                    Log.e("DeviceInfo", "Failed to get phone model", e)
+                    "Unknown"
+                }
+                val noESPBStr = "$companyAbbr-$estatePetugas/$divisiAbbr/$espbDate"
+                var transporter_id = 0
+                transporter_id = if (cbFormEspb.isChecked) {
+                    0
+                }else{
+                    selectedTransporterId
+                }
+                val creatorInfo = createCreatorInfo(
+                    appVersion = appVersion,
+                    osVersion = osVersion,
+                    phoneModel = phoneModel
                 )
+                val blok_jjg = try {
+                    formattedJanjangString
+                }catch (e: Exception){
+                    Toasty.error(this, "Terjadi Kesalahan saat mengambil Janjang Blok $e", Toasty.LENGTH_LONG).show()
+                    "NULL"
+                }
+                val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
+                val pemuatListId = selectedPemanen.map { it.id }
+                val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
+                btKonfirmScanESPB.visibility = View.VISIBLE
+                btKonfirmScanESPB.setOnClickListener {
+                    saveESPB(
+                        blok_jjg = blok_jjg,
+                        nopol = nopol,
+                        driver = driver,
+                        pemuat_id = pemuatListId.joinToString(","),
+                        transporter_id = transporter_id,
+                        mill_id = selectedMillId!!,
+                        created_by_id = idPetugas!!,
+                        creator_info = creatorInfo.toString(),
+                        noESPB = noESPBStr,
+                        created_at = getCurrentDateTime(),
+                        tph0 = tph0,
+                        tph1 = tph1,
+                        status_draft = 0,
+                        status_mekanisasi = mekanisasi
+                    )
+                }
+                if (mekanisasi == 0) {
+                    val json = constructESPBJson(
+                        blok_jjg = blok_jjg,
+                        nopol = nopol,
+                        driver = driver,
+                        pemuat_id = pemuatListId.joinToString(","),
+                        transporter_id = transporter_id,
+                        mill_id = selectedMillId!!,
+                        created_by_id = idPetugas!!,
+                        no_espb = noESPBStr,
+                        tph0 = tph0,
+                        tph1 = tph1,
+                        appVersion = appVersion,
+                        osVersion = osVersion,
+                        phoneModel = phoneModel
+                    )
+                    val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
+                    val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
+                    ListPanenTBSActivity().generateHighQualityQRCode(encodedData!!, qrCodeImageView)
+                }
             }
         }
 
@@ -795,7 +841,8 @@ class FormESPBActivity : AppCompatActivity() {
         tph1: String,
         creator_info: String,
         noESPB: String,
-        status_draft: Int
+        status_draft: Int,
+        status_mekanisasi: Int
         ){
         val vM = ViewModelProvider(this)[ESPBViewModel::class.java]
 
@@ -815,7 +862,8 @@ class FormESPBActivity : AppCompatActivity() {
                 tph1 = tph1,
                 creator_info = creator_info,
                 noESPB = noESPB,
-                status_draft = status_draft
+                status_draft = status_draft,
+                status_mekanisasi = status_mekanisasi
             )
         )
 
@@ -831,4 +879,25 @@ class FormESPBActivity : AppCompatActivity() {
             Toasty.error(this, "Error inserting ESPB data: ${e.message}", Toasty.LENGTH_LONG).show()
         }
     }
+
+    fun getTph1Id(tph: String): List<Int>{
+        val regex = """(\d+),\d{4}-\d{2}-\d{2}""".toRegex()
+        val matches = regex.findAll(tph)
+
+        // Extract the IDs into a list
+        val ids = matches.map { it.groupValues[1] }.toList()
+
+
+        // If you need them as integers instead of strings
+        return ids.map { it.toInt() }
+    }
+
+    private fun convertJanjangMapToString(janjangByBlock: Map<Int, Int>): String {
+        return janjangByBlock.entries
+            .joinToString(";") { (blockId, janjangSum) ->
+                "$blockId,$janjangSum"
+            }
+    }
+
+
 }

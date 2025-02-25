@@ -79,4 +79,30 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
     suspend fun getCompanyAbbrByTphId(tphId: Int): String {
         return repository.getCompanyAbbrByTphId(tphId)!!
     }
+
+    private val _janjangByBlock = MutableLiveData<Map<Int, Int>>()
+    val janjangByBlock: LiveData<Map<Int, Int>> = _janjangByBlock
+
+    /**
+     * Process TPH data and calculate janjang sum by block
+     */
+    fun processTPHData(tphData: String) {
+        viewModelScope.launch {
+            val result = repository.getJanjangSumByBlock(tphData)
+            _janjangByBlock.postValue(result)
+        }
+    }
+
+    private val _janjangByBlockString = MutableLiveData<String>()
+    val janjangByBlockString: LiveData<String> = _janjangByBlockString
+
+    /**
+     * Process TPH data and format janjang sums as a string
+     */
+    fun processTPHDataAsString(tphData: String) {
+        viewModelScope.launch {
+            val result = repository.getJanjangSumByBlockString(tphData)
+            _janjangByBlockString.postValue(result)
+        }
+    }
 }

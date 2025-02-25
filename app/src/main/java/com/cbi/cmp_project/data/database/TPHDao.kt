@@ -96,4 +96,7 @@ abstract class TPHDao {
         idListBlok: List<Int>
     ): List<TPHNewModel>
 
+    @Query("SELECT * FROM tph WHERE id IN (:tphIds)")
+    abstract suspend fun getTPHsByIds(tphIds: List<Int>): List<TPHNewModel>
+
 }

@@ -29,6 +29,18 @@
             android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:text="Mekanisasi Panen"
+                android:layout_marginHorizontal="20dp"
+                android:id="@+id/cbFormEspbMekanisasi"/>
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:text="Transporter dari unit internal"
+                android:layout_marginHorizontal="20dp"
+                android:id="@+id/cbFormEspbTransporter"/>
             <include
                 android:layout_height="wrap_content"
                 android:layout_width="match_parent"
@@ -41,12 +53,6 @@
                 android:layout_marginVertical="10dp"
                 layout="@layout/pane_et_layout"
                 android:id="@+id/formEspbDriver"/>
-            <com.google.android.material.checkbox.MaterialCheckBox
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:text="Transporter dari unit internal"
-                android:layout_marginHorizontal="20dp"
-                android:id="@+id/cbFormEspb"/>
             <include
                 android:layout_marginTop="10dp"
                 android:layout_height="wrap_content"
