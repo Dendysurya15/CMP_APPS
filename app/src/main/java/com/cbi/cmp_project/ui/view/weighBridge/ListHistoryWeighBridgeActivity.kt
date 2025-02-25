@@ -35,6 +35,7 @@ import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.AppUtils.vibrate
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
+import com.google.android.material.button.MaterialButton
 import com.leinardi.android.speeddial.SpeedDialActionItem
 import com.leinardi.android.speeddial.SpeedDialView
 import es.dmoral.toasty.Toasty
@@ -62,30 +63,32 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private var userId: Int? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
+    private var infoApp: String = ""
 
     private lateinit var loadingDialog: LoadingDialog
 
     private lateinit var speedDial: SpeedDialView
 
     private lateinit var tvEmptyState: TextView // Add this
+    private lateinit var headerCheckBoxWB: CheckBox // Add this
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefManager = PrefManager(this)
         loadingDialog = LoadingDialog(this)
         setContentView(R.layout.activity_list_history_weigh_bridge)
+        infoApp = AppUtils.getDeviceInfo(this@ListHistoryWeighBridgeActivity).toString()
         setupHeader()
         initViewModel()
         setupRecyclerView()
         initializeViews()
         setupSpeedDial()
         setupObserveData()
-
         weightBridgeViewModel.loadHistoryUploadeSPB()
     }
 
     private fun initializeViews() {
-        tvEmptyState = findViewById(R.id.tvEmptyState)
+        tvEmptyState = findViewById(R.id.tvEmptyStateKraniTimbang)
         speedDial = findViewById(R.id.dial_tph_list_krani_timbang_espb)
     }
 
@@ -106,7 +109,13 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                 millId = (item["mill_id"] as Number).toInt(),
                 createdById = (item["created_by_id"] as Number).toInt(),
                 createdAt = item["created_at"] as String,
-                no_espb = item["no_espb"] as String
+                no_espb = item["no_espb"] as String,
+                uploader_info = infoApp,
+                uploaded_at = SimpleDateFormat(
+                    "yyyy-MM-dd HH:mm:ss",
+                    Locale.getDefault()
+                ).format(Date()),
+                uploaded_by_id = prefManager!!.idUserLogin!!.toInt()
             )
         }
 
@@ -138,6 +147,11 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         titleTV.text = "Progress Upload..."
         val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
         counterTV.text = "0/${allUploadItems.size}"
+        val cancelDownloadDataset =
+            dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+        val containerDownloadDataset =
+            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
+
         val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = UploadProgressAdapter(uploadItems, weightBridgeViewModel)
@@ -148,28 +162,53 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             .create()
         dialog.show()
 
+        cancelDownloadDataset.setOnClickListener {
+            speedDial.close()
+            weightBridgeViewModel.loadHistoryUploadeSPB()
+            dialog.dismiss()
+        }
+
         weightBridgeViewModel.uploadStatusMap.observe(this) { statusMap ->
             val completedCount = statusMap.count { it.value == "Success" || it.value == "Failed" }
             counterTV.text = "$completedCount/${allUploadItems.size}"
 
             if (completedCount == allUploadItems.size) {
-//                Handler(Looper.getMainLooper()).postDelayed({
-//                    dialog.dismiss()
-//                }, 1500)
-
-                Toast.makeText(this, "nais Successful!", Toast.LENGTH_SHORT).show()
+                containerDownloadDataset.visibility = View.VISIBLE
+                cancelDownloadDataset.visibility = View.VISIBLE
             }
         }
 
-        weightBridgeViewModel.uploadESPBStagingKraniTimbang(selectedItems)
-
-        weightBridgeViewModel.uploadResult.observe(this) { result ->
-            result.onSuccess {
-                Toast.makeText(this, "Upload Successful!", Toast.LENGTH_SHORT).show()
-            }.onFailure {
-                Toast.makeText(this, "Upload Failed: ${it.message}", Toast.LENGTH_LONG).show()
+        weightBridgeViewModel.uploadESPBStagingKraniTimbang(
+            uploadItems.map { uploadItem ->
+                mapOf(
+                    "id" to uploadItem.id,
+                    "dept_ppro" to uploadItem.deptPpro,
+                    "divisi_ppro" to uploadItem.divisiPpro,
+                    "commodity" to uploadItem.commodity,
+                    "blok_jjg" to uploadItem.blokJjg,
+                    "nopol" to uploadItem.nopol,
+                    "driver" to uploadItem.driver,
+                    "pemuat_id" to uploadItem.pemuatId,
+                    "transporter_id" to uploadItem.transporterId,
+                    "mill_id" to uploadItem.millId,
+                    "created_by_id" to uploadItem.createdById,
+                    "created_at" to uploadItem.createdAt,
+                    "no_espb" to uploadItem.no_espb,
+                    "uploader_info" to uploadItem.uploader_info,
+                    "uploaded_at" to uploadItem.uploaded_at,
+                    "uploaded_by_id" to uploadItem.uploaded_by_id
+                )
             }
-        }
+        )
+
+
+//        weightBridgeViewModel.uploadResult.observe(this) { result ->
+//            result.onSuccess {
+//                Toast.makeText(this, "Upload Successful!", Toast.LENGTH_SHORT).show()
+//            }.onFailure {
+//                Toast.makeText(this, "Upload Failed: ${it.message}", Toast.LENGTH_LONG).show()
+//            }
+//        }
 
 
     }
@@ -406,6 +445,11 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
     private fun updateTableHeaders(headerNames: List<String>) {
         val tableHeader = findViewById<View>(R.id.wbTableHeader)
+        headerCheckBoxWB = tableHeader.findViewById(R.id.headerCheckBoxPanen)
+
+        headerCheckBoxWB.setOnCheckedChangeListener { _, isChecked ->
+            adapter.selectAllItems(isChecked)
+        }
         val headerIds = listOf(R.id.th1, R.id.th2, R.id.th3, R.id.th4, R.id.th5)
 
         for (i in headerNames.indices) {

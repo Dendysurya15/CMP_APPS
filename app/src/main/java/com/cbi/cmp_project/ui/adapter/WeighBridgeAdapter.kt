@@ -85,6 +85,18 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
             }
         }
 
+        if (item.status_cmp == 1 && item.status_ppro == 1) {
+            holder.checkbox.apply {
+                isChecked = true
+                isEnabled = false
+                alpha = 0.5f
+            }
+        } else {
+            holder.checkbox.isEnabled = true
+            holder.checkbox.alpha = 1.0f
+        }
+
+
         if (item.status_cmp == 1 && item.status_ppro == 1){
             holder.checkbox.apply {
                 isChecked = true
@@ -238,6 +250,16 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
             )
         }
     }
+
+    fun selectAllItems(selectAll: Boolean) {
+        if (selectAll) {
+            selectedItems.addAll(items.filter { it.status_cmp != 1 || it.status_ppro != 1 })
+        } else {
+            selectedItems.clear()
+        }
+        notifyDataSetChanged()
+    }
+
 
     override fun getItemCount() = items.size
 }

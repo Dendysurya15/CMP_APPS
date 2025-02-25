@@ -6,25 +6,17 @@ import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.MillModel
-import com.cbi.cmp_project.data.model.PanenEntity
-import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.model.TransporterModel
-import com.cbi.cmp_project.data.model.weighBridge.UploadStagingResponse
-import com.cbi.cmp_project.data.network.CMPApiClient
 import com.cbi.cmp_project.data.network.Constants
 import com.cbi.cmp_project.data.network.StagingApiClient
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.markertph.data.model.TPHNewModel
-import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import okhttp3.ResponseBody
-import retrofit2.Response
 import java.io.IOException
-import java.net.SocketTimeoutException
 
 class WeighBridgeRepository(context: Context) {
 
@@ -68,7 +60,6 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
-
     // Function to check if noESPB exists
     suspend fun isNoESPBExists(noESPB: String): Boolean {
         return espbDao.isNoESPBExists(noESPB) > 0
@@ -85,6 +76,9 @@ class WeighBridgeRepository(context: Context) {
         data class Error(val exception: Exception) : SaveResultESPBKrani()
     }
 
+    private suspend fun updateUploadStatus(id: Int, statusUploadPpro:Int, uploaderInfo:String, uploaderAt:String, uploadedById:Int ) {
+        espbDao.updateUploadStatus(id, statusUploadPpro, uploaderInfo, uploaderAt, uploadedById)
+    }
 
     // Create a data class to hold error information
     data class UploadError(
@@ -102,8 +96,16 @@ class WeighBridgeRepository(context: Context) {
                 val results = mutableMapOf<Int, Boolean>()
                 val errors = mutableListOf<UploadError>()
 
+                AppLogger.d(dataList.toString())
                 for (item in dataList) {
                     val itemId = item["id"] as Int
+                    val uploaderInfo = item["uploader_info"] as String
+                    val uploadedAt = item["uploaded_at"] as String
+                    val uploadedById = item["uploaded_by_id"] as Int
+
+                    AppLogger.d(uploaderInfo)
+                    AppLogger.d(uploadedAt)
+                    AppLogger.d(uploadedById.toString())
                     var errorMessage: String? = null
 
                     try {
@@ -147,6 +149,19 @@ class WeighBridgeRepository(context: Context) {
                                         if (responseBody != null && responseBody.status == 1) {
                                             results[itemId] = true
                                             onProgressUpdate(itemId, 100, true, null)
+
+                                            try {
+                                                updateUploadStatus(
+                                                    itemId,
+                                                    1,
+                                                    uploaderInfo,
+                                                    uploadedAt,
+                                                    uploadedById
+                                                    )
+                                                AppLogger.d("espb table dengan id $itemId has been updated")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Failed to update espb table for Item ID: $itemId - ${e.message}")
+                                            }
                                         } else {
                                             val rawErrorMessage = responseBody?.message?.toString() ?: "No message provided"
 

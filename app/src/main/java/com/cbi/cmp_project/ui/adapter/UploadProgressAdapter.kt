@@ -26,7 +26,10 @@ data class UploadItem(
     val millId: Int,
     val createdById: Int,
     val createdAt: String,
-    val no_espb: String
+    val no_espb: String,
+    val uploader_info:String,
+    val uploaded_at:String,
+    val uploaded_by_id:Int
 )
 
 

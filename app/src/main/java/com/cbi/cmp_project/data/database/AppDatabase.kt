@@ -66,8 +66,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun millDao():MillDao
     abstract fun transporterDao():TransporterDao
 
-
-
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null

@@ -45,7 +45,7 @@
             tools:listitem="@layout/table_item_row" />
 
         <TextView
-            android:id="@+id/tvEmptyState"
+            android:id="@+id/tvEmptyStateKraniTimbang"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"

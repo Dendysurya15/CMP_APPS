@@ -43,7 +43,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     val uploadProgress: LiveData<Map<Int, Int>> get() = _uploadProgress
 
     private val _uploadResult = MutableLiveData<Result<String>>()
-    val     uploadResult: LiveData<Result<String>> = _uploadResult
+    val uploadResult: LiveData<Result<String>> = _uploadResult
 
     // Add a status map
     private val _uploadStatusMap = MutableLiveData<Map<Int, String>>()
