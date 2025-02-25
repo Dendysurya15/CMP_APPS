@@ -74,4 +74,9 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
     suspend fun getDivisiAbbrByTphId(tphId: Int): String {
         return repository.getDivisiAbbrByTphId(tphId)!!
     }
+
+    //use getDivisiAbbrByTphId
+    suspend fun getCompanyAbbrByTphId(tphId: Int): String {
+        return repository.getCompanyAbbrByTphId(tphId)!!
+    }
 }

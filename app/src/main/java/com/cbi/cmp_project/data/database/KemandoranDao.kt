@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.data.model.TransporterModel
 
 @Dao
 abstract class KemandoranDao {
@@ -49,6 +50,15 @@ abstract class KemandoranDao {
     abstract fun getKemandoranEstate(
         idEstate: Int,
     ): List<KemandoranModel>
+
+
+    @Query(
+        """
+    SELECT * FROM transporter
+    """
+    )
+    abstract fun getAllTransporter(): List<TransporterModel>
+
 
 
 

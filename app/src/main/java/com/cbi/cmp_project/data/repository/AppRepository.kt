@@ -123,6 +123,10 @@ class AppRepository(context: Context) {
         tphDao.getDivisiAbbrByTphId(id)
     }
 
+    suspend fun getCompanyAbbrByTphId(id: Int): String? = withContext(Dispatchers.IO) {
+        tphDao.geCompanyAbbrByTphId(id)
+    }
+
     suspend fun getPanenCount(): Int {
         return panenDao.getCount()
     }

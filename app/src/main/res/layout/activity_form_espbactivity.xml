@@ -41,11 +41,18 @@
                 android:layout_marginVertical="10dp"
                 layout="@layout/pane_et_layout"
                 android:id="@+id/formEspbDriver"/>
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:text="Transporter dari unit internal"
+                android:layout_marginHorizontal="20dp"
+                android:id="@+id/cbFormEspb"/>
             <include
+                android:layout_marginTop="10dp"
                 android:layout_height="wrap_content"
                 android:layout_width="match_parent"
-                android:layout_marginVertical="10dp"
-                layout="@layout/pane_et_layout"
+                android:layout_marginHorizontal="20dp"
+                layout="@layout/pertanyaan_spinner_layout"
                 android:id="@+id/formEspbTransporter"/>
             <include
                 android:layout_marginTop="10dp"
@@ -62,6 +69,7 @@
                 layout="@layout/pertanyaan_spinner_layout"
                 android:id="@+id/formEspbPemuat"/>
             <androidx.recyclerview.widget.RecyclerView
+                android:layout_marginHorizontal="20dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:id="@+id/rvPemuat"/>

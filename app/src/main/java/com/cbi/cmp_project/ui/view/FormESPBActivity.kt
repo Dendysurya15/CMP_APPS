@@ -2,6 +2,7 @@ package com.cbi.cmp_project.ui.view
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.Typeface
@@ -39,6 +40,7 @@ import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.MillModel
+import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.ui.adapter.SelectedWorkerAdapter
 import com.cbi.cmp_project.ui.adapter.Worker
@@ -52,6 +54,7 @@ import com.cbi.cmp_project.utils.PrefManager
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -73,16 +76,22 @@ class FormESPBActivity : AppCompatActivity() {
     var tph1 = ""
     var idEstate = 0
     var selectedKemandoranId = 0
+    var selectedTransporterId = 0
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var viewModel: ESPBViewModel
     private var selectedMillId: Int? = null
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var pemuatList: List<KaryawanModel> = emptyList()
+    private var transporterList: List<TransporterModel> = emptyList()
+
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private lateinit var viewModelFactory: ESPBViewModelFactory
     private var pemuatListId: ArrayList<Int> = ArrayList()
     private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
+
+    var divisiAbbr = ""
+    var companyAbbr = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,7 +102,7 @@ class FormESPBActivity : AppCompatActivity() {
         tph1 = intent.getStringExtra("tph_1").toString()
         initViewModel()
         setupHeader()
-
+        setupViewModel()
 
         //NBM 115
         //transporter 1
@@ -110,11 +119,10 @@ class FormESPBActivity : AppCompatActivity() {
         tvEspbDriver.text = "Driver"
 
         val formEspbTransporter = findViewById<LinearLayout>(R.id.formEspbTransporter)
-        val tvEspbTransporter = formEspbTransporter.findViewById<TextView>(R.id.tvTitlePaneEt)
-        tvEspbTransporter.text = "Transporter"
 
         setupSpinnerText(R.id.formEspbMill,"Pilih Mill", "Mill")
         setupSpinnerText(R.id.formEspbKemandoran,"Pilih Kemandoran", "Kemandoran")
+        setupSpinnerText(R.id.formEspbTransporter,"Pilih Transporter", "Transporter")
         setupSpinnerText(R.id.formEspbPemuat,"Pilih Pemuat", "Pemuat")
 
         rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvPemuat)
@@ -131,19 +139,19 @@ class FormESPBActivity : AppCompatActivity() {
         val idPetugas = try {
             prefManager.idUserLogin
         }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Petugas $e", Toasty.LENGTH_SHORT).show()
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Petugas $e", Toasty.LENGTH_LONG).show()
             0
         }
         val estatePetugas = try {
             prefManager.estateUserLogin
         }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil Estate Petugas $e", Toasty.LENGTH_SHORT).show()
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil Estate Petugas $e", Toasty.LENGTH_LONG).show()
             "NULL"
         }
         idEstate = try {
             prefManager.estateIdUserLogin.toString().toInt()
         }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Estate $e", Toasty.LENGTH_SHORT).show()
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Estate $e", Toasty.LENGTH_LONG).show()
             0
         }
 
@@ -171,7 +179,7 @@ class FormESPBActivity : AppCompatActivity() {
                     selectedKemandoranId = try {
                         kemandoranList.find { it.nama == selectedKemandoran }?.id!!
                     } catch (e: Exception) {
-                        AppLogger.e("Error finding selectedDivisiId: ${e.message}")
+                        AppLogger.e("Error finding selectedKemandoranId: ${e.message}")
                         0
                     }
                     Log.d("FormESPBActivityKemandoran", "selectedKemandoranId: $selectedKemandoranId")
@@ -189,11 +197,11 @@ class FormESPBActivity : AppCompatActivity() {
                                 setupSpinner(R.id.formEspbPemuat, pemuatNames)
                             }
                         } catch (e: Exception) {
-                            AppLogger.e("Error fetching afdeling data: ${e.message}")
+                            AppLogger.e("Error fetching kemandoran data: ${e.message}")
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(
                                     this@FormESPBActivity,
-                                    "Error loading afdeling data: ${e.message}",
+                                    "Error loading kemandoran data: ${e.message}",
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -205,11 +213,53 @@ class FormESPBActivity : AppCompatActivity() {
                     }
                 }
             } catch (e: Exception) {
-                AppLogger.e("Error fetching afdeling data: ${e.message}")
+                AppLogger.e("Error fetching kemandoran data: ${e.message}")
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@FormESPBActivity,
-                        "Error loading afdeling data: ${e.message}",
+                        "Error loading kemandoran data: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+
+                }
+            }
+
+            try {
+                val transporterDeffered = async {
+                    try {
+                        datasetViewModel.getAllTransporter()
+                    } catch (e: Exception) {
+                        AppLogger.e("Error fetching transporterList: ${e.message}")
+                        emptyList()
+                    }
+                }
+                transporterList = transporterDeffered.await()
+                val nameTransporter: List<String> = transporterList.map { it.nama.toString() }
+                Log.d("FormESPBActivityTransporter", "nameTransporter: $nameTransporter")
+                withContext(Dispatchers.Main) {
+                    setupSpinner(R.id.formEspbTransporter, nameTransporter)
+                }
+                val spEspbTransporter= formEspbTransporter.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                spEspbTransporter.setOnItemSelectedListener { view, position, id, item ->
+                    val selectedTransporter = item.toString()
+
+                    selectedTransporterId = try {
+                        transporterList.find { it.nama == selectedTransporter }?.id!!
+                    } catch (e: Exception) {
+                        AppLogger.e("Error finding selectedTransporterId: ${e.message}")
+                        0
+                    }
+                    Log.d("FormESPBActivityTransporter", "selectedTransporterId: $selectedTransporterId")
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error fetching transporter data: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@FormESPBActivity,
+                        "Error loading transporter data: ${e.message}",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -220,46 +270,60 @@ class FormESPBActivity : AppCompatActivity() {
             }
         }
 
+        lifecycleScope.launch {
+            try {
+                // Split by semicolon to get each record
+                val firstTphRecord = tph0.split(";")[0]
+                // Split the first record by comma and get the first part (ID)
+                val firstTphId = firstTphRecord.split(",")[0].toInt()
+                Log.d("FormESPBActivityDivisiAbbr", "firstTphId: $firstTphId")
+                //use getDivisiAbbrByTphId FROM REPO
+                divisiAbbr = viewModel.getDivisiAbbrByTphId(firstTphId)
+                Log.d("FormESPBActivityDivisiAbbr", "divisiAbbr: $divisiAbbr")
+                companyAbbr = viewModel.getCompanyAbbrByTphId(firstTphId)
+                Log.d("FormESPBActivityDivisiAbbr", "companyAbbr: $companyAbbr")
+            } catch (e: Exception) {
+                Toasty.error(
+                    this@FormESPBActivity,
+                    "Terjadi Kesalahan saat mengambil Divisi $e",
+                    Toasty.LENGTH_LONG
+                ).show()
+            }
+        }
+
+        val cbFormEspb = findViewById<MaterialCheckBox>(R.id.cbFormEspb)
+        cbFormEspb.setOnCheckedChangeListener {
+            _, isChecked ->
+            if (isChecked) {
+                formEspbTransporter.visibility = View.GONE
+                selectedTransporterId = 0
+            }else{
+                formEspbTransporter.visibility = View.VISIBLE
+            }
+        }
+
         var blok_jjg = "12356,312;12357,154;12358,321;12359,215;12360,421;12361,233"
         val btnGenerateQRESPB = findViewById<FloatingActionButton>(R.id.btnGenerateQRESPB)
         btnGenerateQRESPB.setOnClickListener {
             val nopol = try {
                 etEspbNopol.text.toString().replace(" ","").uppercase()
             }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil No Polisi $e", Toasty.LENGTH_SHORT).show()
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil No Polisi $e", Toasty.LENGTH_LONG).show()
                 "NULL"
             }
 
             val driver = try {
                 etEspbDriver.text.toString().replace(" ","").uppercase()
             }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil Driver $e", Toasty.LENGTH_SHORT).show()
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil Driver $e", Toasty.LENGTH_LONG).show()
                 "NULL"
             }
 
-            val espbDate = try {
-                {getFormattedDateTime()}
+            val espbDate: String = try {
+                getFormattedDateTime().toString()
             }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil Tanggal ESPB $e", Toasty.LENGTH_SHORT).show()
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil Tanggal ESPB $e", Toasty.LENGTH_LONG).show()
                 "NULL"
-            }
-
-            var divisiAbbr: String = ""
-            lifecycleScope.launch {
-                try {
-                    // Split by semicolon to get each record
-                    val firstTphRecord = tph0.split(";")[0]
-                    // Split the first record by comma and get the first part (ID)
-                    val firstTphId = firstTphRecord.split(",")[0].toInt()
-                    //use getDivisiAbbrByTphId FROM REPO
-                    divisiAbbr = viewModel.getDivisiAbbrByTphId(firstTphId)
-                } catch (e: Exception) {
-                    Toasty.error(
-                        this@FormESPBActivity,
-                        "Terjadi Kesalahan saat mengambil Divisi $e",
-                        Toasty.LENGTH_SHORT
-                    ).show()
-                }
             }
 
             val appVersion: String = try {
@@ -282,8 +346,13 @@ class FormESPBActivity : AppCompatActivity() {
                 Log.e("DeviceInfo", "Failed to get phone model", e)
                 "Unknown"
             }
-            val noESPBStr = "SSS-$estatePetugas/$divisiAbbr/$espbDate"
-            val transporter_id = 1
+            val noESPBStr = "$companyAbbr-$estatePetugas/$divisiAbbr/$espbDate"
+            var transporter_id = 0
+            transporter_id = if (cbFormEspb.isChecked) {
+                0
+            }else{
+                selectedTransporterId
+            }
             val creatorInfo = createCreatorInfo(
                 appVersion = appVersion,
                 osVersion = osVersion,
@@ -330,7 +399,7 @@ class FormESPBActivity : AppCompatActivity() {
             }
         }
 
-        setupViewModel()
+
 //        setupSpinner(R.id.FormEspbPemuat)
         val formEspbMill = findViewById<LinearLayout>(R.id.formEspbMill)
         val spEspbMill = formEspbMill.findViewById<MaterialSpinner>(R.id.spPanenTBS)
@@ -339,7 +408,7 @@ class FormESPBActivity : AppCompatActivity() {
             selectedMillId = try {
                 selectedMill?.id!!
             }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Mill $e", Toasty.LENGTH_SHORT).show()
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Mill $e", Toasty.LENGTH_LONG).show()
                 0
             }
         }
@@ -580,7 +649,7 @@ class FormESPBActivity : AppCompatActivity() {
                 selectedKemandoranId = try {
                     kemandoranList.find { it.nama == selectedItem }?.id!!
                 } catch (e: Exception) {
-                    AppLogger.e("Error finding selectedDivisiId: ${e.message}")
+                    AppLogger.e("Error finding selectedKemandoranId: ${e.message}")
                     0
                 }
                 Log.d("FormESPBActivityKemandoran", "selectedKemandoranId: $selectedKemandoranId")
@@ -612,6 +681,15 @@ class FormESPBActivity : AppCompatActivity() {
                         }
                     }
                 }
+            }
+            R.id.formEspbTransporter -> {
+                selectedTransporterId = try {
+                    transporterList.find { it.nama == selectedItem }?.id!!
+                } catch (e: Exception) {
+                    AppLogger.e("Error finding selectedTransporterId: ${e.message}")
+                    0
+                }
+                Log.d("FormESPBActivityTransporter", "selectedTransporterId: $selectedTransporterId")
             }
             R.id.formEspbPemuat -> {
                 val karyawanMap = pemuatList.associateBy({ it.nama }, { it.id })
@@ -742,7 +820,15 @@ class FormESPBActivity : AppCompatActivity() {
         )
 
         // Insert ESPB data
-        vM.insertESPB(espbList)
+        try {
+            vM.insertESPB(espbList)
+            Toasty.success(this, "ESPB data inserted successfully", Toasty.LENGTH_LONG).show()
+            val intent = Intent(this, HomePageActivity::class.java)
+            startActivity(intent)
+            finishAffinity()
+        }catch (e: Exception){
+            AppLogger.e("Error inserting ESPB data: ${e.message}")
+            Toasty.error(this, "Error inserting ESPB data: ${e.message}", Toasty.LENGTH_LONG).show()
+        }
     }
-
 }

@@ -35,6 +35,10 @@ abstract class TPHDao {
     @Query("SELECT divisi_abbr FROM tph WHERE id = :id")
     abstract suspend fun getDivisiAbbrByTphId(id: Int): String?
 
+    //getDivisiAbbrByTphId
+    @Query("SELECT company_abbr FROM tph WHERE id = :id")
+    abstract suspend fun geCompanyAbbrByTphId(id: Int): String?
+
     @Query("SELECT COUNT(*) FROM tph")
     abstract suspend fun getCount(): Int
 

@@ -54,6 +54,10 @@ class DatasetRepository(context: Context,  private val apiService: ApiService = 
         return kemandoranDao.getKemandoranEstate(idEstate)
     }
 
+    suspend fun getAllTransporter(): List<TransporterModel> {
+        return kemandoranDao.getAllTransporter()
+    }
+
 
     suspend fun getTPHList(idEstate: Int, idDivisi:Int, tahunTanam : String,  idBlok :Int): List<TPHNewModel> {
         return tphDao.getTPHByCriteria(idEstate, idDivisi, tahunTanam, idBlok)

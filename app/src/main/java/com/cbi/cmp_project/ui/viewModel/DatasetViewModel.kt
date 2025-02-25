@@ -160,6 +160,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return repository.getKemandoranEstate(idEstate)
     }
 
+    suspend fun getAllTransporter(): List<TransporterModel> {
+        return repository.getAllTransporter()
+    }
+
     suspend fun getTPHList(
 
         idEstate: Int,
