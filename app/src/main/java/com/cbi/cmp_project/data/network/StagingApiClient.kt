@@ -21,11 +21,11 @@ object StagingApiClient {
     val instance: ApiService by lazy {
         val gson = GsonBuilder()
             .setLenient()
-            .setPrettyPrinting() // 👈 Makes JSON easier to read in logs
+            .setPrettyPrinting()
             .create()
 
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY // 👈 Logs full body for better debugging
+            level = HttpLoggingInterceptor.Level.BODY
         }
 
         val httpClient = OkHttpClient.Builder()
@@ -33,7 +33,7 @@ object StagingApiClient {
             .addInterceptor { chain ->
                 val original = chain.request()
                 val request = original.newBuilder()
-                    .header("Content-Type", "application/json") // 👈 Ensure sending JSON
+                    .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .header("x-api-key", API_KEY)
                     .method(original.method, original.body)

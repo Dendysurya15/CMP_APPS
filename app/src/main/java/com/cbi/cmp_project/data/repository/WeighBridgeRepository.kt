@@ -18,6 +18,7 @@ import com.cbi.markertph.data.model.TPHNewModel
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okhttp3.ResponseBody
@@ -85,53 +86,147 @@ class WeighBridgeRepository(context: Context) {
     }
 
 
+    // Create a data class to hold error information
+    data class UploadError(
+        val itemId: Int,
+        val errorMessage: String,
+        val errorType: String
+    )
+
     suspend fun uploadESPBStagingKraniTimbang(
         dataList: List<Map<String, Any>>,
-        onProgressUpdate: (Int, Int) -> Unit // Item ID, Progress %
+        onProgressUpdate: (Int, Int, Boolean, String?) -> Unit // itemId, progress, isSuccess, errorMsg
     ): Result<String>? {
         return try {
             withContext(Dispatchers.IO) {
-                val uploadData = dataList.map { item ->
-                    item["id"] as Int to ApiService.dataUploadEspbKraniTimbang(
-                        dept_ppro = item["dept_ppro"].toString(),
-                        divisi_ppro = item["divisi_ppro"].toString(),
-                        commodity = item["commodity"].toString(),
-                        blok_jjg = item["blok_jjg"].toString(),
-                        nopol = item["nopol"].toString(),
-                        driver = item["driver"].toString(),
-                        pemuat_id = item["pemuat_id"].toString(),
-                        transporter_id = item["transporter_id"].toString(),
-                        mill_id = item["mill_id"].toString(),
-                        created_by_id = item["created_by_id"].toString(),
-                        created_at = item["created_at"].toString(),
-                        noSPB = item["noSPB"].toString()
-                    )
-                }
+                val results = mutableMapOf<Int, Boolean>()
+                val errors = mutableListOf<UploadError>()
 
-                var completed = 0
-                for ((itemId, data) in uploadData) {
+                for (item in dataList) {
+                    val itemId = item["id"] as Int
+                    var errorMessage: String? = null
+
                     try {
-                        withTimeout(Constants.NETWORK_TIMEOUT_MS) {
-                            val response = StagingApiClient.instance.insertESPBKraniTimbang(data)
-                            if (response.isSuccessful) {
-                                completed++
-                                val progress = (completed * 100) / dataList.size
-                                onProgressUpdate(itemId, progress)
-                            } else {
-                                throw Exception("Upload failed for item ID $itemId")
+                        onProgressUpdate(itemId, 10, false, null)
+                        delay(500)
+
+                        val data = try {
+                            ApiService.dataUploadEspbKraniTimbang(
+                                dept_ppro = (item["dept_ppro"] ?: "0").toString(),
+                                divisi_ppro = (item["divisi_ppro"] ?: "0").toString(),
+                                commodity = (item["commodity"] ?: "0").toString(),
+                                blok_jjg = (item["blok_jjg"] ?: "").toString(),
+                                nopol = (item["nopol"] ?: "").toString(),
+                                driver = (item["driver"] ?: "").toString(),
+                                pemuat_id = (item["pemuat_id"] ?: "").toString(),
+                                transporter_id = (item["transporter_id"] ?: "0").toString(),
+                                mill_id = (item["mill_id"] ?: "0").toString(),
+                                created_by_id = (item["created_by_id"] ?: "0").toString(),
+                                created_at = (item["created_at"] ?: "").toString(),
+                                no_espb = (item["no_espb"] ?: "").toString()
+                            )
+                        } catch (e: Exception) {
+                            errorMessage = "Data error: ${e.message}"
+                            AppLogger.e("DataError Item ID: $itemId - $errorMessage")
+                            errors.add(UploadError(itemId, errorMessage, "DATA_ERROR"))
+                            results[itemId] = false
+                            onProgressUpdate(itemId, -1, false, errorMessage)
+                            continue
+                        }
+
+                        onProgressUpdate(itemId, 50, false, null)
+
+                        try {
+                            withTimeout(Constants.NETWORK_TIMEOUT_MS) {
+                                try {
+                                    val response = StagingApiClient.instance.insertESPBKraniTimbang(data)
+
+                                    if (response.isSuccessful) {
+                                        val responseBody = response.body()
+
+                                        if (responseBody != null && responseBody.status == 1) {
+                                            results[itemId] = true
+                                            onProgressUpdate(itemId, 100, true, null)
+                                        } else {
+                                            val rawErrorMessage = responseBody?.message?.toString() ?: "No message provided"
+
+                                            val extractedMessage = if (rawErrorMessage.contains("message=")) {
+                                                try {
+                                                    // Extract the actual error message between "message=" and the next comma or period
+                                                    val startIndex = rawErrorMessage.indexOf("message=") + "message=".length
+                                                    val endIndex = rawErrorMessage.indexOf(",", startIndex).takeIf { it > 0 }
+                                                        ?: rawErrorMessage.indexOf(".", startIndex).takeIf { it > 0 }
+                                                        ?: rawErrorMessage.length
+
+                                                    rawErrorMessage.substring(startIndex, endIndex).trim()
+                                                } catch (e: Exception) {
+                                                    // If parsing fails, use the original error
+                                                    "API Error: ${rawErrorMessage.take(100)}"
+                                                }
+                                            } else {
+                                                "API Error: ${rawErrorMessage.take(100)}"
+                                            }
+
+                                            AppLogger.e("APIError Item ID: $itemId - $rawErrorMessage")
+                                            errors.add(UploadError(itemId, extractedMessage, "API_ERROR"))
+                                            results[itemId] = false
+                                            onProgressUpdate(itemId, 100, false, extractedMessage)
+                                        }
+                                    } else {
+                                        errorMessage = response.errorBody()?.string() ?: "Server error: ${response.code()}"
+                                        AppLogger.e("ServerError Item ID: $itemId - $errorMessage")
+                                        errors.add(UploadError(itemId, errorMessage!!, "SERVER_ERROR"))
+                                        results[itemId] = false
+                                        onProgressUpdate(itemId, 100, false, errorMessage)
+                                    }
+                                } catch (e: IOException) {
+                                    errorMessage = "Network error: ${e.message}"
+                                    AppLogger.e("NetworkError Item ID: $itemId - $errorMessage")
+                                    errors.add(UploadError(itemId, errorMessage!!, "NETWORK_ERROR"))
+                                    results[itemId] = false
+                                    onProgressUpdate(itemId, 100, false, errorMessage)
+                                } catch (e: Exception) {
+                                    errorMessage = "API error: ${e.message}"
+                                    AppLogger.e("APIError Item ID: $itemId - $errorMessage")
+                                    errors.add(UploadError(itemId, errorMessage!!, "API_ERROR"))
+                                    results[itemId] = false
+                                    onProgressUpdate(itemId, 100, false, errorMessage)
+                                }
                             }
+                        } catch (e: TimeoutCancellationException) {
+                            errorMessage = "Request timed out"
+                            AppLogger.e("TimeoutError Item ID: $itemId - $errorMessage")
+                            errors.add(UploadError(itemId, errorMessage!!, "TIMEOUT_ERROR"))
+                            results[itemId] = false
+                            onProgressUpdate(itemId, 100, false, errorMessage)
                         }
                     } catch (e: Exception) {
-                        throw e
+                        errorMessage = "Unknown error: ${e.message}"
+                        AppLogger.e("UnknownError Item ID: $itemId - $errorMessage")
+                        errors.add(UploadError(itemId, errorMessage!!, "UNKNOWN_ERROR"))
+                        results[itemId] = false
+                        onProgressUpdate(itemId, 100, false, errorMessage)
                     }
                 }
 
-                Result.success("All data uploaded successfully.")
+                val allSucceeded = results.values.all { it }
+                if (allSucceeded) {
+                    AppLogger.d("UploadResult All data uploaded successfully.")
+                    Result.success("All data uploaded successfully.")
+                } else {
+                    val successCount = results.values.count { it }
+                    val failCount = results.size - successCount
+                    val errorMessage = "$failCount out of ${results.size} uploads failed."
+                    AppLogger.e("UploadResult $errorMessage")
+                    Result.failure(Exception(errorMessage))
+                }
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            AppLogger.e("RepositoryError Error: ${e.message}")
+            Result.failure(Exception("Repository error: ${e.message}"))
         }
     }
+
 
 
 }

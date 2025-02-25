@@ -3,6 +3,8 @@ package com.cbi.cmp_project.ui.view.weighBridge
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.CheckBox
@@ -104,7 +106,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                 millId = (item["mill_id"] as Number).toInt(),
                 createdById = (item["created_by_id"] as Number).toInt(),
                 createdAt = item["created_at"] as String,
-                noSPB = item["noSPB"] as String
+                no_espb = item["no_espb"] as String
             )
         }
 
@@ -146,14 +148,25 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             .create()
         dialog.show()
 
+        weightBridgeViewModel.uploadStatusMap.observe(this) { statusMap ->
+            val completedCount = statusMap.count { it.value == "Success" || it.value == "Failed" }
+            counterTV.text = "$completedCount/${allUploadItems.size}"
+
+            if (completedCount == allUploadItems.size) {
+//                Handler(Looper.getMainLooper()).postDelayed({
+//                    dialog.dismiss()
+//                }, 1500)
+
+                Toast.makeText(this, "nais Successful!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         weightBridgeViewModel.uploadESPBStagingKraniTimbang(selectedItems)
 
         weightBridgeViewModel.uploadResult.observe(this) { result ->
             result.onSuccess {
-//                dialog.dismiss()
                 Toast.makeText(this, "Upload Successful!", Toast.LENGTH_SHORT).show()
             }.onFailure {
-//                dialog.dismiss()
                 Toast.makeText(this, "Upload Failed: ${it.message}", Toast.LENGTH_LONG).show()
             }
         }

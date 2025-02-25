@@ -234,7 +234,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
                 "mill_id" to (selectedItem.mill_id ?: ""),
                 "created_by_id" to (selectedItem.created_by_id ?: ""),
                 "created_at" to (selectedItem.created_at ?: ""),
-                "noSPB" to (selectedItem.noSPB ?: ""),
+                "no_espb" to (selectedItem.noSPB ?: ""),
             )
         }
     }

@@ -43,27 +43,52 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     val uploadProgress: LiveData<Map<Int, Int>> get() = _uploadProgress
 
     private val _uploadResult = MutableLiveData<Result<String>>()
-    val uploadResult: LiveData<Result<String>> = _uploadResult
+    val     uploadResult: LiveData<Result<String>> = _uploadResult
+
+    // Add a status map
+    private val _uploadStatusMap = MutableLiveData<Map<Int, String>>()
+    val uploadStatusMap: LiveData<Map<Int, String>> get() = _uploadStatusMap
+
+    private val _uploadErrorMap = MutableLiveData<Map<Int, String>>()
+    val uploadErrorMap: LiveData<Map<Int, String>> get() = _uploadErrorMap
 
     fun uploadESPBStagingKraniTimbang(selectedItems: List<Map<String, Any>>) {
         viewModelScope.launch {
             val progressMap = mutableMapOf<Int, Int>()
+            val statusMap = mutableMapOf<Int, String>()
+            val errorMap = mutableMapOf<Int, String>()
+
             selectedItems.forEach { item ->
                 val itemId = item["id"] as Int
-                progressMap[itemId] = 0 // Initialize progress for each item
+                progressMap[itemId] = 0
+                statusMap[itemId] = "Waiting"
             }
+
             _uploadProgress.value = progressMap
+            _uploadStatusMap.value = statusMap
+            _uploadErrorMap.value = errorMap
 
-            val result = repository.uploadESPBStagingKraniTimbang(selectedItems) { itemId, progress ->
+            val result = repository.uploadESPBStagingKraniTimbang(selectedItems) { itemId, progress, isSuccess, errorMsg ->
                 progressMap[itemId] = progress
-                _uploadProgress.postValue(progressMap) // Update progress
+
+                statusMap[itemId] = when {
+                    !isSuccess && !errorMsg.isNullOrEmpty() -> "Failed"
+                    isSuccess -> "Success"
+                    progress > 0 && progress < 100 -> "Uploading"
+                    else -> "Waiting"
+                }
+
+                // Store error message if any
+                if (!errorMsg.isNullOrEmpty()) {
+                    errorMap[itemId] = errorMsg
+                }
+
+                _uploadProgress.postValue(progressMap)
+                _uploadStatusMap.postValue(statusMap)
+                _uploadErrorMap.postValue(errorMap)
             }
 
-            result?.onSuccess { message ->
-                _uploadResult.value = Result.success(message)
-            }?.onFailure { error ->
-                _uploadResult.value = Result.failure(error)
-            }
+            _uploadResult.value = result ?: Result.failure(Exception("Unknown error occurred"))
         }
     }
 

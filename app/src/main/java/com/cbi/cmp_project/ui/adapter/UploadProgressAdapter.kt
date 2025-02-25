@@ -26,7 +26,7 @@ data class UploadItem(
     val millId: Int,
     val createdById: Int,
     val createdAt: String,
-    val noSPB: String
+    val no_espb: String
 )
 
 
@@ -36,23 +36,29 @@ class UploadProgressAdapter(
 ) : RecyclerView.Adapter<UploadProgressAdapter.UploadViewHolder>() {
 
     private val uploadProgressMap = mutableMapOf<Int, Int>()
-    private val uploadStatusMap = mutableMapOf<Int, String>() // Tracks item status
+    private val uploadStatusMap = mutableMapOf<Int, String>()
+    private val uploadErrorMap = mutableMapOf<Int, String>()
 
     init {
         viewModel.uploadProgress.observeForever { progressMap ->
+            uploadProgressMap.clear()
             uploadProgressMap.putAll(progressMap)
-            progressMap.forEach { (id, progress) ->
-                uploadStatusMap[id] = when {
-                    progress == 0 -> "Waiting"
-                    progress in 1..99 -> "Uploading"
-                    progress == 100 -> "Success"
-                    else -> "Failed"
-                }
-            }
+            notifyDataSetChanged()
+        }
+
+        viewModel.uploadStatusMap.observeForever { statusMap ->
+            uploadStatusMap.clear()
+            uploadStatusMap.putAll(statusMap)
+            notifyDataSetChanged()
+        }
+
+        // Add an observer for error messages
+        viewModel.uploadErrorMap.observeForever { errorMap ->
+            uploadErrorMap.clear()
+            uploadErrorMap.putAll(errorMap)
             notifyDataSetChanged()
         }
     }
-
     class UploadViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvNameProgress: TextView = itemView.findViewById(R.id.tv_name_progress)
         val progressBarUpload: ProgressBar = itemView.findViewById(R.id.progressBarUpload)
@@ -70,36 +76,51 @@ class UploadProgressAdapter(
 
     override fun onBindViewHolder(holder: UploadViewHolder, position: Int) {
         val item = uploadItems[position]
-        holder.tvNameProgress.text = "(PPRO) ${item.noSPB}"
+        holder.tvNameProgress.text = "(PPRO) ${item.no_espb}"
 
-        // Set initial status to Waiting
-        holder.statusProgress.visibility = View.VISIBLE
+        // Get progress, status and error
         val progress = uploadProgressMap[item.id] ?: 0
         val status = uploadStatusMap[item.id] ?: "Waiting"
+        val errorMessage = uploadErrorMap[item.id]
 
-        holder.percentage.text = "$progress%"
-        holder.progressBarUpload.progress = progress
-        holder.statusProgress.text = status
+        // Update UI based on progress and status
+        holder.percentage.text = if (status == "Failed" || progress == 100) "100%" else "$progress%"
+        holder.progressBarUpload.progress = if (status == "Failed") 100 else progress
 
-        // Update visual cues based on status
+        // Set status text (show error message if available for Failed status)
+        holder.statusProgress.text = when {
+            status == "Failed" && !errorMessage.isNullOrEmpty() -> errorMessage
+            else -> status
+        }
+
         when (status) {
             "Waiting" -> {
                 holder.iconStatus.visibility = View.INVISIBLE
                 holder.loadingCircular.visibility = View.INVISIBLE
+                holder.statusProgress.visibility = View.VISIBLE
+                holder.iconStatus.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.black))
             }
             "Uploading" -> {
                 holder.iconStatus.visibility = View.INVISIBLE
                 holder.loadingCircular.visibility = View.VISIBLE
+                holder.statusProgress.visibility = View.VISIBLE
+                holder.iconStatus.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.black))
             }
             "Success" -> {
-                holder.iconStatus.setImageResource(R.drawable.baseline_check_24) // Assuming success icon drawable
+                holder.iconStatus.setImageResource(R.drawable.baseline_check_24)
+                holder.iconStatus.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
                 holder.iconStatus.visibility = View.VISIBLE
                 holder.loadingCircular.visibility = View.INVISIBLE
+                holder.statusProgress.visibility = View.VISIBLE
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
             }
             "Failed" -> {
-                holder.iconStatus.setImageResource(R.drawable.circle_exclamation_solid) // Assuming failed icon drawable
+                holder.iconStatus.setImageResource(es.dmoral.toasty.R.drawable.ic_error_outline_white_24dp)
+                holder.iconStatus.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.colorRedDark))
                 holder.iconStatus.visibility = View.VISIBLE
                 holder.loadingCircular.visibility = View.INVISIBLE
+                holder.statusProgress.visibility = View.VISIBLE
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.colorRedDark))
             }
         }
     }

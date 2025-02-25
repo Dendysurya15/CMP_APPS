@@ -100,7 +100,7 @@ interface ApiService {
         @SerializedName("mill_id") val mill_id: String,
         @SerializedName("created_by_id") val created_by_id: String,
         @SerializedName("created_at") val created_at: String,
-        @SerializedName("noSPB") val noSPB: String,
+        @SerializedName("no_espb") val no_espb: String,
     )
 
 }
