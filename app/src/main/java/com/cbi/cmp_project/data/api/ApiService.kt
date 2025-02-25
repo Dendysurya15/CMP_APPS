@@ -4,6 +4,7 @@ import android.graphics.Region
 import androidx.room.Query
 import com.cbi.cmp_project.data.model.LoginResponse
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
+import com.cbi.cmp_project.data.model.weighBridge.UploadStagingResponse
 import com.google.gson.annotations.SerializedName
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -69,7 +70,6 @@ interface ApiService {
         @SerializedName("password") val password: String
     )
 
-
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
 
@@ -84,5 +84,23 @@ interface ApiService {
         "Content-Type: application/json"
     )
     suspend fun downloadSmallDataset(@Body body: Map<String, Int>): Response<ResponseBody>
+
+    @POST("api/insert")
+    suspend fun insertESPBKraniTimbang(@Body request: dataUploadEspbKraniTimbang): Response<UploadStagingResponse>
+
+    data class dataUploadEspbKraniTimbang(
+        @SerializedName("dept_ppro") val dept_ppro: String,
+        @SerializedName("divisi_ppro") val divisi_ppro: String,
+        @SerializedName("commodity") val commodity: String,
+        @SerializedName("blok_jjg") val blok_jjg: String,
+        @SerializedName("nopol") val nopol: String,
+        @SerializedName("driver") val driver: String,
+        @SerializedName("pemuat_id") val pemuat_id: String,
+        @SerializedName("transporter_id") val transporter_id: String,
+        @SerializedName("mill_id") val mill_id: String,
+        @SerializedName("created_by_id") val created_by_id: String,
+        @SerializedName("created_at") val created_at: String,
+        @SerializedName("no_espb") val no_espb: String,
+    )
 
 }

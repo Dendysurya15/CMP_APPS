@@ -28,14 +28,31 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
 
     private val repository: WeighBridgeRepository = WeighBridgeRepository(application)
 
-    private val _uploadedESPB = MutableLiveData<List<ESPBEntity>>()
-    val uploadedESPB: LiveData<List<ESPBEntity>> = _uploadedESPB
+    private val _savedESPBByKrani = MutableLiveData<List<ESPBEntity>>()
+    val savedESPBByKrani: LiveData<List<ESPBEntity>> = _savedESPBByKrani
 
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
 
-    private val _saveDataESPBKraniTimbang = MutableStateFlow<SaveDataESPBKraniTimbangState>(SaveDataESPBKraniTimbangState.Loading)
-    val saveDataESPBKraniTimbang = _saveDataESPBKraniTimbang.asStateFlow()
+    private val _deleteItemsResult = MutableLiveData<Boolean>()
+    val deleteItemsResult: LiveData<Boolean> = _deleteItemsResult
+
+
+
+    private val _uploadResult = MutableLiveData<Result<String>>()
+    val uploadResultStagingESPBKraniTimbang: LiveData<Result<String>> = _uploadResult
+
+    fun uploadESPBStagingKraniTimbang(selectedItems: List<Map<String, Any>>) {
+        viewModelScope.launch {
+            val result = repository.uploadESPBStagingKraniTimbang(selectedItems)
+            result?.onSuccess { message ->
+                _uploadResult.value = Result.success(message)
+            }?.onFailure { error ->
+                _uploadResult.value = Result.failure(error)
+            }
+        }
+    }
+
 
     suspend fun getMillName(millId: Int): List<MillModel> {
         return repository.getMill(millId)
@@ -62,7 +79,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             repository.loadHistoryUploadeSPB()
                 .onSuccess { listData ->
-                    _uploadedESPB.postValue(listData)
+                    _savedESPBByKrani.postValue(listData)
                 }
                 .onFailure { exception ->
                     _error.postValue(exception.message ?: "Failed to load data")
@@ -70,6 +87,36 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun deleteMultipleItems(items: List<Map<String, Any>>) {
+        viewModelScope.launch {
+            try {
+                // Extract IDs from the items
+                val ids = items.mapNotNull { item ->
+                    (item["id"] as? Number)?.toInt()
+                }
+
+                if (ids.isEmpty()) {
+                    _deleteItemsResult.postValue(false)
+                    _error.postValue("No valid IDs found to delete")
+                    return@launch
+                }
+
+                val result = repository.deleteESPBByIds(ids)
+
+                // Check if the number of deleted items matches the number of IDs
+                val isSuccess = result == ids.size
+                _deleteItemsResult.postValue(isSuccess)
+
+                if (!isSuccess) {
+                    _error.postValue("Failed to delete all items")
+                }
+
+            } catch (e: Exception) {
+                _deleteItemsResult.postValue(false)
+                _error.postValue("Error deleting items: ${e.message}")
+            }
+        }
+    }
 
     suspend fun saveDataLocalKraniTimbangESPB(
         blok_jjg: String,
@@ -94,8 +141,6 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     ): WeighBridgeRepository.SaveResultESPBKrani {
         return try {
             val exists = repository.isNoESPBExists(noESPB)
-
-            // Only insert if noESPB doesn't exist
             if (!exists) {
                 val espbData = ESPBEntity(
                     blok_jjg = blok_jjg,

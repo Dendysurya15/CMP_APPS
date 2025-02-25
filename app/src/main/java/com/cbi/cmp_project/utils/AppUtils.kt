@@ -15,7 +15,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import com.cbi.cmp_project.R
-import com.cbi.cmp_project.data.network.RetrofitClient
 import com.github.junrar.Archive
 import com.github.junrar.rarfile.FileHeader
 import com.jaredrummler.materialspinner.BuildConfig

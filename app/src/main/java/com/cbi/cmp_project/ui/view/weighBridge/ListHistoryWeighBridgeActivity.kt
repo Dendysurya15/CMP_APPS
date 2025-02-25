@@ -4,28 +4,43 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.data.repository.WeighBridgeRepository
 import com.cbi.cmp_project.ui.adapter.WBData
 import com.cbi.cmp_project.ui.adapter.WeighBridgeAdapter
 import com.cbi.cmp_project.ui.view.HomePageActivity
 import com.cbi.cmp_project.ui.viewModel.WeighBridgeViewModel
+import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
+import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.AppUtils.vibrate
+import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
+import com.leinardi.android.speeddial.SpeedDialActionItem
+import com.leinardi.android.speeddial.SpeedDialView
+import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Suppress("UNREACHABLE_CODE")
 class ListHistoryWeighBridgeActivity : AppCompatActivity() {
@@ -42,18 +57,22 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
 
-    private var mappedData: List<Map<String, Any>> = emptyList()
+    private lateinit var loadingDialog: LoadingDialog
+
+    private lateinit var speedDial: SpeedDialView
 
     private lateinit var tvEmptyState: TextView // Add this
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefManager = PrefManager(this)
+        loadingDialog = LoadingDialog(this)
         setContentView(R.layout.activity_list_history_weigh_bridge)
         setupHeader()
         initViewModel()
         setupRecyclerView()
         initializeViews()
+        setupSpeedDial()
         setupObserveData()
 
         weightBridgeViewModel.loadHistoryUploadeSPB()
@@ -61,13 +80,200 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
     private fun initializeViews() {
         tvEmptyState = findViewById(R.id.tvEmptyState)
+        speedDial = findViewById(R.id.dial_tph_list_krani_timbang_espb)
     }
 
 
+    private fun handleUpload(selectedItems: List<Map<String, Any>>) {
+        this.vibrate()
+        AlertDialogUtility.withTwoActions(
+            this,
+            getString(R.string.al_delete),
+            getString(R.string.confirmation_dialog_title),
+            "${getString(R.string.al_make_sure_delete)} ${selectedItems.size} data?",
+            "warning.json",
+            ContextCompat.getColor(this, R.color.greendarkerbutton)
+        ) {
+            lifecycleScope.launch(Dispatchers.Main) {
+                loadingDialog.show()
+                delay(500)
+
+
+                    weightBridgeViewModel.uploadESPBStagingKraniTimbang(selectedItems)
+
+                    weightBridgeViewModel.uploadResultStagingESPBKraniTimbang.observe(this@ListHistoryWeighBridgeActivity) { result ->
+                        result?.onSuccess { message ->
+                            loadingDialog.dismiss()
+                            // Show success dialog
+                            AlertDialogUtility.withSingleAction(
+                                this@ListHistoryWeighBridgeActivity,
+                                getString(R.string.al_success_save_local),
+                                getString(R.string.al_description_success_save_local),
+                                message,
+                                "success.json",
+                                R.color.greendarkerbutton
+                            ) {
+                                Toasty.success(this@ListHistoryWeighBridgeActivity, "Berhasil upload ke staging", Toast.LENGTH_LONG, true).show()
+                            }
+                        }?.onFailure { error ->
+                            loadingDialog.dismiss()
+                            AppLogger.e("Upload Failed: ${error.message}")
+
+                            // Handle the error in UI without throwing
+                            AlertDialogUtility.withSingleAction(
+                                this@ListHistoryWeighBridgeActivity,
+                                getString(R.string.al_back),
+                                getString(R.string.al_failed_save_local),
+                                "${getString(R.string.al_failed_save_local)}: ${error.message}",
+                                "warning.json",
+                                R.color.colorRedDark
+                            ) {}
+                        }
+                    }
+            }
+        }
+    }
+
+
+
+
+
+    private fun handleDelete(selectedItems: List<Map<String, Any>>) {
+        this.vibrate()
+        AlertDialogUtility.withTwoActions(
+            this,
+            getString(R.string.al_delete),
+            getString(R.string.confirmation_dialog_title),
+            "${getString(R.string.al_make_sure_delete)} ${selectedItems.size} data?",
+            "warning.json",
+            ContextCompat.getColor(this, R.color.colorRedDark)
+        ) {
+            loadingDialog.show()
+            loadingDialog.setMessage("Deleting items...")
+
+            weightBridgeViewModel.deleteMultipleItems(selectedItems)
+
+            weightBridgeViewModel.deleteItemsResult.observe(this) { isSuccess ->
+                loadingDialog.dismiss()
+                if (isSuccess) {
+                    Toast.makeText(
+                        this,
+                        "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    // Reload data based on current state
+                    weightBridgeViewModel.loadHistoryUploadeSPB()
+                } else {
+                    Toast.makeText(
+                        this,
+                        "${getString(R.string.al_failed_delete)} data",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                speedDial.visibility = View.GONE
+            }
+
+            weightBridgeViewModel.error.observe(this) { errorMessage ->
+                loadingDialog.dismiss()
+                Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun setupSpeedDial() {
+
+        speedDial.apply {
+            addActionItem(
+                SpeedDialActionItem.Builder(R.id.uploadSelected, R.drawable.baseline_file_upload_24)
+                    .setLabel(getString(R.string.dial_upload_item))
+                    .setFabBackgroundColor(
+                        ContextCompat.getColor(
+                            this@ListHistoryWeighBridgeActivity,
+                            R.color.bluedarklight
+                        )
+                    )
+                    .create()
+            )
+
+            addActionItem(
+                SpeedDialActionItem.Builder(
+                    R.id.deleteSelected,
+                    R.drawable.baseline_delete_forever_24
+                )
+                    .setLabel(getString(R.string.dial_delete_item))
+                    .setFabBackgroundColor(
+                        ContextCompat.getColor(
+                            this@ListHistoryWeighBridgeActivity,
+                            R.color.colorRedDark
+                        )
+                    )
+                    .create()
+            )
+
+            visibility = View.GONE
+
+            setOnActionSelectedListener { actionItem ->
+                when (actionItem.id) {
+                    R.id.scan_qr -> {
+//                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
+//
+//                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
+//
+//                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
+//                        dialog.setContentView(view)
+////                        view.layoutParams.height = 500.toPx()
+//
+//                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
+//                        val data = "test"
+//                        generateHighQualityQRCode(data, qrCodeImageView)
+//                        dialog.setOnShowListener {
+//                            val bottomSheet =
+//                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+//                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
+//                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+//                        }
+//                        dialog.show()
+                        true
+                    }
+
+                    R.id.deleteSelected -> {
+                        val selectedItems = adapter.getSelectedItemsIdLocal()
+                        handleDelete(selectedItems)
+                        true
+                    }
+
+                    R.id.uploadSelected -> {
+                        val selectedItems = adapter.getSelectedItemsForUpload()
+
+                        if (AppUtils.isNetworkAvailable(this@ListHistoryWeighBridgeActivity)) {
+                            handleUpload(selectedItems)
+                        } else {
+                            AlertDialogUtility.withSingleAction(
+                                this@ListHistoryWeighBridgeActivity,
+                                getString(R.string.al_back),
+                                getString(R.string.al_no_internet_connection),
+                                getString(R.string.al_no_internet_connection_description_upload_espb_krani),
+                                "network_error.json",
+                                R.color.colorRedDark
+                            ) {}
+                        }
+                        true
+                    }
+
+                    else -> false
+                }
+            }
+        }
+
+
+    }
+
     private fun setupObserveData() {
-        weightBridgeViewModel.uploadedESPB.observe(this) { data ->
+        weightBridgeViewModel.savedESPBByKrani.observe(this) { data ->
 
             if (data.isNotEmpty()) {
+                speedDial.visibility = View.VISIBLE
                 tvEmptyState.visibility = View.GONE
                 recyclerView.visibility = View.VISIBLE
 
@@ -98,51 +304,38 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         null
                                     }
 
-                                    val groupedDeptDivisi = blokData?.groupBy { it.dept_abbr }
-                                        ?.mapNotNull { (dept, blokList) ->
-                                            dept?.let {
-                                                val divisiList =
-                                                    blokList.mapNotNull { it.divisi_abbr }
-                                                        .distinct()
-                                                if (divisiList.isNotEmpty()) {
-                                                    "$dept ${divisiList.joinToString(" ")}"
-                                                } else {
-                                                    dept // If no divisions, show only the department
-                                                }
-                                            }
-                                        } ?: listOf("-") // Default when blokData is null
+                                    val deptAbbr = blokData?.firstOrNull()?.dept_abbr
+                                        ?: "-"
 
-                                    // Check if only one distinct department exists
-                                    val distinctDeptAbbr =
-                                        groupedDeptDivisi.map { it.split(" ").first() }
-                                            .distinct()
-                                            .joinToString("\n")
+                                    val deptPPRO = blokData?.firstOrNull()?.dept_ppro
+                                        ?: 0
 
-                                    val distinctDeptCount =
-                                        groupedDeptDivisi.map { it.split(" ").first() }
-                                            .distinct().size
+                                    val divisiAbbr = blokData?.firstOrNull()?.divisi_abbr ?: "-"
 
-                                    val distinctDivisiAbbr = if (distinctDeptCount == 1) {
-                                        // Only one department → Show only divisions
-                                        groupedDeptDivisi.flatMap {
-                                            it.split(" ").drop(1)
-                                        } // Drop department name
-                                            .distinct()
-                                            .joinToString(" ")
-                                    } else {
-                                        // Multiple departments → Show dept with divisions
-                                        groupedDeptDivisi.joinToString("\n")
-                                    }
+                                    val divisiPPRO = blokData?.firstOrNull()?.dept_ppro
+                                        ?: 0
 
-                                    // Even if blokData fails, use non-null fields
                                     WBData(
+                                        //data untuk upload staging
+                                        id = item.id,
+                                        dept_ppro = deptPPRO,
+                                        divisi_ppro = divisiPPRO,
+                                        commodity = 0,
+                                        blok_jjg = item.blok_jjg,
+                                        nopol = item.nopol,
+                                        driver = item.driver,
+                                        pemuat_id = item.pemuat_id,
+                                        transporter_id = item.transporter_id,
+                                        mill_id = item.mill_id,
+                                        created_by_id = item.created_by_id,
+                                        created_at = item.created_at,
                                         noSPB = item.noESPB.ifEmpty { "-" },
-                                        estate = distinctDeptAbbr.ifEmpty { "-" },
-                                        afdeling = distinctDivisiAbbr.ifEmpty { "-" },
+                                        //untuk table
+                                        estate = deptAbbr.ifEmpty { "-" },
+                                        afdeling = divisiAbbr.ifEmpty { "-" },
                                         datetime = item.created_at.ifEmpty { "-" },
                                         status_cmp = item.status_upload_cmp,
                                         status_ppro = item.status_upload_ppro
-                                            ?: 0 // Defaults to 0 if null
                                     )
 
                                 }

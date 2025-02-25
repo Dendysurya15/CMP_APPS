@@ -73,7 +73,8 @@ abstract class ESPBDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertESPBData(espbData: ESPBEntity)
 
-    @Query("SELECT COUNT(*) FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
+    @Query("SELECT COUNT(*) FROM espb_table")
     abstract suspend fun countESPBUploaded(): Int
+
 
 }

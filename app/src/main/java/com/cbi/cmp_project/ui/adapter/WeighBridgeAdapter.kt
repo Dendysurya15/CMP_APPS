@@ -21,6 +21,18 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 data class WBData(
+    val id: Int,
+    val dept_ppro : Int,
+    val divisi_ppro :Int,
+    val commodity : Int,
+    val blok_jjg : String,
+    val nopol : String,
+    val driver : String,
+    val pemuat_id : String,
+    val transporter_id :Int,
+    val mill_id : Int,
+    val created_by_id : Int,
+    val created_at : String,
     val noSPB: String,
     val estate: String,
     val afdeling: String,
@@ -31,6 +43,8 @@ data class WBData(
 
 class WeighBridgeAdapter(private var items: List<WBData>) :
     RecyclerView.Adapter<WeighBridgeAdapter.ViewHolder>() {
+
+    private val selectedItems = mutableSetOf<WBData>() // Track selected items
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val td1: TextView = view.findViewById(R.id.td1)
@@ -59,6 +73,17 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         holder.td2.text = item.estate
         holder.td3.text = item.afdeling
         holder.td4.text = formatToIndonesianDateTime(item.datetime)
+
+        holder.checkbox.isChecked = selectedItems.contains(item)
+
+        // Handle checkbox click
+        holder.checkbox.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                selectedItems.add(item)
+            } else {
+                selectedItems.remove(item)
+            }
+        }
 
         if (item.status_cmp == 1 && item.status_ppro == 1){
             holder.checkbox.apply {
@@ -90,6 +115,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
                     text = "CMP"
                     gravity = Gravity.START
                     typeface = ResourcesCompat.getFont(context, R.font.manrope_extrabold) // Add font family and make it bold
+                    setTextColor(ResourcesCompat.getColor(resources, R.color.black, null))
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
@@ -131,6 +157,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
                     text = "PPRO"
                     gravity = Gravity.START
                     typeface = ResourcesCompat.getFont(context, R.font.manrope_extrabold) // Add font family and make it bold
+                    setTextColor(ResourcesCompat.getColor(resources, R.color.black, null))
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
@@ -169,6 +196,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
 
     fun updateList(newList: List<WBData>) {
         items = newList
+        selectedItems.clear() // Clear selection on update
         notifyDataSetChanged()
     }
 
@@ -183,6 +211,33 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         }
     }
 
+    fun getSelectedItemsIdLocal(): List<Map<String, Any>> {
+        return selectedItems.map { selectedItem ->
+            mapOf(
+                "id" to (selectedItem.id ?: "")
+            )
+        }
+    }
+
+    fun getSelectedItemsForUpload(): List<Map<String, Any>> {
+        return selectedItems.map { selectedItem ->
+            mapOf(
+                "id" to (selectedItem.id ?: ""),
+                "dept_ppro" to (selectedItem.dept_ppro ?: ""),
+                "divisi_ppro" to (selectedItem.divisi_ppro ?: ""),
+                "commodity" to (selectedItem.commodity ?: ""),
+                "blok_jjg" to (selectedItem.blok_jjg ?: ""),
+                "nopol" to (selectedItem.nopol ?: ""),
+                "driver" to (selectedItem.driver ?: ""),
+                "pemuat_id" to (selectedItem.pemuat_id ?: ""),
+                "transporter_id" to (selectedItem.transporter_id ?: ""),
+                "mill_id" to (selectedItem.mill_id ?: ""),
+                "created_by_id" to (selectedItem.created_by_id ?: ""),
+                "created_at" to (selectedItem.created_at ?: ""),
+                "no_espb" to (selectedItem.noSPB ?: ""),
+            )
+        }
+    }
 
     override fun getItemCount() = items.size
 }

@@ -78,7 +78,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
     private fun setupQRScanner() {
         barcodeView = findViewById(R.id.barcode_scanner_krani_timbang)
-        barcodeView.visibility = View.VISIBLE
         setMaxBrightness(this@ScanWeighBridgeActivity, true)
         barcodeView.findViewById<TextView>(com.google.zxing.client.android.R.id.zxing_status_view)?.visibility =
             View.VISIBLE
@@ -342,7 +341,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 withContext(Dispatchers.IO) {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
                     val parsedData = Gson().fromJson(jsonStr, wbQRData::class.java)
-
 //                    val blokJjgList = "3301,312;3303,154;3309,321;3310,215;3312,421;3315,233"
                     val blokJjgList = parsedData.espb.blokJjg
                         .split(";")
@@ -354,24 +352,33 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                     val idBlokList = blokJjgList.map { it.first }
 
+                    val pemuatList = parsedData.espb.pemuat_id
+                        .split(",")
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() } ?: emptyList()
+
                     val pemuatDeferred = async {
                         try {
-                            // Split the string by commas, trim spaces, and filter out any empty entries
-                            val pemuatList = parsedData.espb.pemuat
-                                .split(",")
-                                .map { it.trim() }
-                                .filter { it.isNotEmpty() }
-
-                            // Pass the list to the function
                             weightBridgeViewModel.getPemuatByIdList(pemuatList)
                         } catch (e: Exception) {
-                            AppLogger.e("Error fetching Blok Data: ${e.message}")
+                            AppLogger.e("Error fetching Pemuat Data: ${e.message}")
                             null
                         }
                     }
 
-                    val pemuatData = pemuatDeferred.await()
-                        ?: throw Exception("Failed to fetch Pemuat Data! Please check the dataset.")
+                    val pemuatData = try {
+                        pemuatDeferred.await()
+                    } catch (e: Exception) {
+                        AppLogger.e("Failed to fetch Pemuat Data: ${e.message}")
+                        null
+                    }
+
+                    val pemuatNama = pemuatData?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
+                        ?.joinToString(", ") ?: "-"
+
+                    if (pemuatNama == "-") {
+                        AppLogger.e("Pemuat Data is empty or failed to fetch.")
+                    }
 
                     val blokData = try {
                         AppLogger.d(idBlokList.toString())
@@ -382,57 +389,23 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     }
                         ?: throw Exception("Failed to fetch Blok Data! Please check the dataset.")
 
-                    val groupedDeptDivisi = blokData?.groupBy { it.dept_abbr }
-                        ?.mapNotNull { (dept, blokList) ->
-                            dept?.let {
-                                val divisiList =
-                                    blokList.mapNotNull { it.divisi_abbr }
-                                        .distinct()
-                                if (divisiList.isNotEmpty()) {
-                                    "$dept ${divisiList.joinToString(" ")}"
-                                } else {
-                                    dept // If no divisions, show only the department
-                                }
-                            }
-                        } ?: listOf("-") // Default when blokData is null
+                    val deptAbbr = blokData.firstOrNull()?.dept_abbr
+                        ?: "-"
 
-                    // Check if only one distinct department exists
-                    val distinctDeptAbbr =
-                        groupedDeptDivisi.map { it.split(" ").first() }
-                            .distinct()
-                            .joinToString(", ")
+                    val divisiAbbr = blokData.firstOrNull()?.divisi_abbr ?: "-"
 
-                    val distinctDeptCount =
-                        groupedDeptDivisi.map { it.split(" ").first() }
-                            .distinct().size
-
-                    val distinctDivisiAbbr = if (distinctDeptCount == 1) {
-                        // Only one department → Show only divisions
-                        groupedDeptDivisi.flatMap {
-                            it.split(" ").drop(1)
-                        } // Drop department name
-                            .distinct()
-                            .joinToString(" ")
-                    } else {
-                        // Multiple departments → Show dept with divisions
-                        groupedDeptDivisi.joinToString(", ")
-                    }
-
-                    val pemuatNama =
-                        pemuatData.mapNotNull { it.nama }.takeIf { it.isNotEmpty() }
-                            ?.joinToString(", ") ?: "-"
 
                     var totalJjgSum = 0
 
                     val formattedBlokList = blokJjgList.mapNotNull { (idBlok, totalJjg) ->
-                        val blokKode = blokData.find { it.blok == idBlok }?.blok_kode
+                        val blokKode = blokData?.find { it.blok == idBlok }?.blok_kode
                         if (blokKode != null && totalJjg != null) {
                             totalJjgSum += totalJjg
                             "• $blokKode ($totalJjg jjg)"
                         } else {
                             null
                         }
-                    }.joinToString("\n").takeIf { it.isNotBlank() } ?: ": -"
+                    }.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
 
                     val millId = parsedData.espb.millId
                     val transporterId = parsedData.espb.transporter
@@ -472,18 +445,18 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalNopol = parsedData.espb.nopol
                     globalDriver = parsedData.espb.driver
                     globalTransporterId = transporterId
-                    globalPemuatId = parsedData.espb.pemuat
+                    globalPemuatId = parsedData.espb.pemuat_id
                     globalMillId = millId
                     globalTph0 = parsedData.tph0!!
                     globalTph1 = parsedData.tph1!!
-                    globalCreatorInfo = parsedData?.espb?.creatorInfo ?: ""
+                    globalCreatorInfo = parsedData?.espb?.creatorInfo?.toString() ?: ""
                     globalNoESPB = parsedData.espb.noEspb
 
                     withContext(Dispatchers.Main) {
                         showBottomSheetWithData(
                             parsedData = parsedData,
-                            distinctDeptAbbr = distinctDeptAbbr,
-                            distinctDivisiAbbr = distinctDivisiAbbr,
+                            distinctDeptAbbr = deptAbbr,
+                            distinctDivisiAbbr = divisiAbbr,
                             formattedBlokList = formattedBlokList,
                             pemuat = pemuatNama,
                             totalJjgSum = totalJjgSum,

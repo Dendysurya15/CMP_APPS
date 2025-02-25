@@ -72,6 +72,7 @@
     <string name="al_back">Kembali</string>
     <string name="al_no_internet_connection">Tidak Ada Internet!</string>
     <string name="al_no_internet_connection_description_download_dataset">Pastikan perangkat terhubung agar dapat mengunduh dataset sistem!</string>
+    <string name="al_no_internet_connection_description_upload_espb_krani">Pastikan perangkat terhubung agar dapat mengunggah data e-SPB</string>
     <string name="al_no_internet_connection_description_login">Pastikan perangkat terhubung agar dapat Login ke sistem!</string>
     <string name="al_success_download_dataset">Berhasil unduh data</string>
     <string name="al_success_download_dataset_description">Dataset aplikasi berhasil diunduh!</string>
