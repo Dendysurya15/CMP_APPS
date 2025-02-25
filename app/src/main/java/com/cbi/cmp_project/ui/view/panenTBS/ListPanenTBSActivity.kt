@@ -104,6 +104,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
 
+    private var tph1IdPanen =  ""
+
     private var mappedData: List<Map<String, Any>> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -401,8 +403,19 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                 //get automatically selected items
                 val selectedItems2 = listAdapter.getCurrentData()
-                Log.d("ListPanenTBSActivityESPB", selectedItems2.toString())
-                Log.d("ListPanenTBSActivityESPB", listTPHDriver)
+                Log.d("ListPanenTBSActivityESPB", "selectedItems2:$selectedItems2")
+
+                // Extract the id values from the matches and join them with commas
+                tph1IdPanen =  try {
+                    val pattern = Regex("\\{id=(\\d+),")
+                    val matches = pattern.findAll(selectedItems2.toString())
+                    matches.map { it.groupValues[1] }.joinToString(", ")
+                }catch (e: Exception){
+                    Toasty.error(this, "Error parsing panen IDs: ${e.message}", Toast.LENGTH_LONG).show()
+                    ""
+                }
+
+                Log.d("ListPanenTBSActivityESPB", "listTPHDriver: $listTPHDriver")
                 val tph1NO = convertToFormattedString(
                     selectedItems2.toString(),
                     listTPHDriver
@@ -439,6 +452,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     val intent = Intent(this, FormESPBActivity::class.java)
                     intent.putExtra("tph_1", tph1)
                     intent.putExtra("tph_0", tph0)
+                    intent.putExtra("tph_1_id_panen", tph1IdPanen)
                     intent.putExtra("FEATURE_NAME", featureName)
                     startActivity(intent)
                     finishAffinity()

@@ -84,9 +84,7 @@ abstract class PanenDao {
     @Query("SELECT * FROM panen_table")
     abstract fun getAllAPanenRestan(): List<PanenEntityWithRelations>
 
-//    @Transaction
-//    open fun updateOrInsert(panen: List<PanenEntity>) {
-//
-//        insert(panen)
-//    }
+    // Add this to your PanenDao
+    @Query("UPDATE panen_table SET status_espb = :status WHERE id IN (:ids)")
+    abstract suspend fun updateESPBStatusByIds(ids: List<Int>, status: Int): Int
 }

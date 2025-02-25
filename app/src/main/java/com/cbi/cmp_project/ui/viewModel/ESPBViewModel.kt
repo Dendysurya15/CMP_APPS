@@ -93,16 +93,18 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         }
     }
 
-    private val _janjangByBlockString = MutableLiveData<String>()
-    val janjangByBlockString: LiveData<String> = _janjangByBlockString
+    // LiveData or StateFlow to track the update result if needed
+    private val _updateResult = MutableLiveData<Result<Int>>()
+    val updateResult: LiveData<Result<Int>> = _updateResult
 
-    /**
-     * Process TPH data and format janjang sums as a string
-     */
-    fun processTPHDataAsString(tphData: String) {
+    fun updateESPBStatus(idList: List<Int>, newStatus: Int) {
         viewModelScope.launch {
-            val result = repository.getJanjangSumByBlockString(tphData)
-            _janjangByBlockString.postValue(result)
+            try {
+                val updatedCount = repository.updatePanenESPBStatus(idList, newStatus)
+                _updateResult.postValue(Result.success(updatedCount))
+            } catch (e: Exception) {
+                _updateResult.postValue(Result.failure(e))
+            }
         }
     }
 }

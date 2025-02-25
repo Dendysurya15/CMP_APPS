@@ -321,4 +321,9 @@ class AppRepository(context: Context) {
             }
     }
 
+    // Add this to your AppRepository
+    suspend fun updatePanenESPBStatus(ids: List<Int>, status: Int) = withContext(Dispatchers.IO) {
+        panenDao.updateESPBStatusByIds(ids, status)
+    }
+
 }

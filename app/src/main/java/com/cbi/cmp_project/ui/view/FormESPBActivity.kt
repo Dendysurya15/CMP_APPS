@@ -30,6 +30,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -93,20 +94,49 @@ class FormESPBActivity : AppCompatActivity() {
     private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
     private lateinit var thp1Map: Map<Int, Int>
+    var idsToUpdate = listOf<Int>()
     var divisiAbbr = ""
     var companyAbbr = ""
     var formattedJanjangString = ""
+    var tph1IdPanen = ""
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_form_espbactivity)
-        featureName = intent.getStringExtra("FEATURE_NAME").toString()
-        tph0 = intent.getStringExtra("tph_0").toString()
-        tph1 = intent.getStringExtra("tph_1").toString()
+        try {
+            featureName = intent.getStringExtra("FEATURE_NAME").toString()
+        }catch (e: Exception){
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil FEATURE NAME $e", Toasty.LENGTH_LONG).show()
+        }
+        try {
+            tph0 = intent.getStringExtra("tph_0").toString()
+        }catch (e: Exception){
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 0 $e", Toasty.LENGTH_LONG).show()
+        }
+        try {
+            tph1 = intent.getStringExtra("tph_1").toString()
+        }catch (e: Exception){
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 1 $e", Toasty.LENGTH_LONG).show()
+        }
+        try {
+            ///tph1IdPanen is sometin like 1,23,4,5,2,3
+            tph1IdPanen = intent.getStringExtra("tph_1_id_panen").toString()
+            // Split the string by comma to get individual IDs
+            val idStrings = tph1IdPanen.split(",")
 
-//        thp1Map = transformTphDataToMap(tph1)
+            // Convert each string ID to an integer
+            idsToUpdate = idStrings.mapNotNull {
+                it.trim().toIntOrNull()
+                    ?: throw NumberFormatException("Invalid integer format: $it")
+            }
+            Log.d("FormESPBActivityIDS", "idsToUpdate: $idsToUpdate")
+
+        }catch (e: Exception){
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 1 ID PANEN $e", Toasty.LENGTH_LONG).show()
+        }
+
         initViewModel()
         setupHeader()
         setupViewModel()
@@ -871,6 +901,7 @@ class FormESPBActivity : AppCompatActivity() {
         try {
             vM.insertESPB(espbList)
             Toasty.success(this, "ESPB data inserted successfully", Toasty.LENGTH_LONG).show()
+            viewModel.updateESPBStatus(idsToUpdate, 1)
             val intent = Intent(this, HomePageActivity::class.java)
             startActivity(intent)
             finishAffinity()
@@ -878,18 +909,6 @@ class FormESPBActivity : AppCompatActivity() {
             AppLogger.e("Error inserting ESPB data: ${e.message}")
             Toasty.error(this, "Error inserting ESPB data: ${e.message}", Toasty.LENGTH_LONG).show()
         }
-    }
-
-    fun getTph1Id(tph: String): List<Int>{
-        val regex = """(\d+),\d{4}-\d{2}-\d{2}""".toRegex()
-        val matches = regex.findAll(tph)
-
-        // Extract the IDs into a list
-        val ids = matches.map { it.groupValues[1] }.toList()
-
-
-        // If you need them as integers instead of strings
-        return ids.map { it.toInt() }
     }
 
     private fun convertJanjangMapToString(janjangByBlock: Map<Int, Int>): String {
