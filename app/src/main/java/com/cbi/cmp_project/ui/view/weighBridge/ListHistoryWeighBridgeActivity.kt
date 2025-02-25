@@ -3,12 +3,14 @@ package com.cbi.cmp_project.ui.view.weighBridge
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
@@ -18,6 +20,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.data.repository.WeighBridgeRepository
+import com.cbi.cmp_project.ui.adapter.UploadItem
+import com.cbi.cmp_project.ui.adapter.UploadProgressAdapter
 import com.cbi.cmp_project.ui.adapter.WBData
 import com.cbi.cmp_project.ui.adapter.WeighBridgeAdapter
 import com.cbi.cmp_project.ui.view.HomePageActivity
@@ -85,57 +89,69 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
 
     private fun handleUpload(selectedItems: List<Map<String, Any>>) {
-        this.vibrate()
-        AlertDialogUtility.withTwoActions(
-            this,
-            getString(R.string.al_delete),
-            getString(R.string.confirmation_dialog_title),
-            "${getString(R.string.al_make_sure_delete)} ${selectedItems.size} data?",
-            "warning.json",
-            ContextCompat.getColor(this, R.color.greendarkerbutton)
-        ) {
-            lifecycleScope.launch(Dispatchers.Main) {
-                loadingDialog.show()
-                delay(500)
+        // Map all selected items individually
+        val uploadItems = selectedItems.map { item ->
+            UploadItem(
+                id = item["id"] as Int,
+                deptPpro = (item["dept_ppro"] as Number).toInt(),
+                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
+                commodity = (item["commodity"] as Number).toInt(),
+                blokJjg = item["blok_jjg"] as String,
+                nopol = item["nopol"] as String,
+                driver = item["driver"] as String,
+                pemuatId = item["pemuat_id"].toString(),
+                transporterId = (item["transporter_id"] as Number).toInt(),
+                millId = (item["mill_id"] as Number).toInt(),
+                createdById = (item["created_by_id"] as Number).toInt(),
+                createdAt = item["created_at"] as String,
+                noEspb = item["no_espb"] as String
+            )
+        }
 
+        // Merge all items into one combined UploadItem
+//        val mergedItem = UploadItem(
+//            id = -1, // Indicating merged data
+//            deptPpro = 0, // Use logic if needed
+//            divisiPpro = 0,
+//            commodity = 0,
+//            blokJjg = uploadItems.joinToString("; ") { it.blokJjg },
+//            nopol = uploadItems.joinToString(", ") { it.nopol }.trim(),
+//            driver = uploadItems.joinToString(", ") { it.driver }.trim(),
+//            pemuatId = uploadItems.joinToString(", ") { it.pemuatId }.trim(),
+//            transporterId = 0, // Use logic if necessary
+//            millId = 0,
+//            createdById = 0,
+//            createdAt = uploadItems.maxByOrNull { it.createdAt }?.createdAt ?: "",
+//            noEspb = uploadItems.joinToString(" | ") { it.noEspb }
+//        )
 
-                    weightBridgeViewModel.uploadESPBStagingKraniTimbang(selectedItems)
+        // Add merged item to the list
+//        val allUploadItems = uploadItems + mergedItem
 
-                    weightBridgeViewModel.uploadResultStagingESPBKraniTimbang.observe(this@ListHistoryWeighBridgeActivity) { result ->
-                        result?.onSuccess { message ->
-                            loadingDialog.dismiss()
-                            // Show success dialog
-                            AlertDialogUtility.withSingleAction(
-                                this@ListHistoryWeighBridgeActivity,
-                                getString(R.string.al_success_save_local),
-                                getString(R.string.al_description_success_save_local),
-                                message,
-                                "success.json",
-                                R.color.greendarkerbutton
-                            ) {
-                                Toasty.success(this@ListHistoryWeighBridgeActivity, "Berhasil upload ke staging", Toast.LENGTH_LONG, true).show()
-                            }
-                        }?.onFailure { error ->
-                            loadingDialog.dismiss()
-                            AppLogger.e("Upload Failed: ${error.message}")
+        val allUploadItems = uploadItems
+        // Setup the upload dialog
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
 
-                            // Handle the error in UI without throwing
-                            AlertDialogUtility.withSingleAction(
-                                this@ListHistoryWeighBridgeActivity,
-                                getString(R.string.al_back),
-                                getString(R.string.al_failed_save_local),
-                                "${getString(R.string.al_failed_save_local)}: ${error.message}",
-                                "warning.json",
-                                R.color.colorRedDark
-                            ) {}
-                        }
-                    }
-            }
+        val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
+        titleTV.text = "Progress Upload..."
+        val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
+        counterTV.text = "0/${allUploadItems.size}"
+        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = UploadProgressAdapter(allUploadItems)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+        dialog.show()
+        lifecycleScope.launch {
+            loadingDialog.show()
+            delay(500) // Delay for 500 milliseconds
+
+            loadingDialog.dismiss()
         }
     }
-
-
-
 
 
     private fun handleDelete(selectedItems: List<Map<String, Any>>) {
@@ -247,6 +263,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                         val selectedItems = adapter.getSelectedItemsForUpload()
 
                         if (AppUtils.isNetworkAvailable(this@ListHistoryWeighBridgeActivity)) {
+
                             handleUpload(selectedItems)
                         } else {
                             AlertDialogUtility.withSingleAction(

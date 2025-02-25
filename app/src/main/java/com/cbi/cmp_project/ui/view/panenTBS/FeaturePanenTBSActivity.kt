@@ -2207,7 +2207,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
             findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
-            AppLogger.d(accuracy.toString())
             currentAccuracy = accuracy
         }
     }
