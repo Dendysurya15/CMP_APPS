@@ -464,7 +464,7 @@ class HomePageActivity : AppCompatActivity() {
 
             if (completionCounter.incrementAndGet() >= totalCollections) {
                 AppLogger.d("All data collected, creating ZIP...")
-                AppUtils.createAndSaveZipUploadCMP(this, uploadDataList, prefManager!!.idUserLogin.toString())
+                AppUtils.createAndSaveZipUploadCMP( this, uploadDataList, prefManager!!.idUserLogin.toString())
 
                 dataReadyDeferred.complete(true)
             }

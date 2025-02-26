@@ -19,6 +19,10 @@ import com.cbi.cmp_project.R
 import com.github.junrar.Archive
 import com.github.junrar.rarfile.FileHeader
 import com.jaredrummler.materialspinner.BuildConfig
+import net.lingala.zip4j.ZipFile
+import net.lingala.zip4j.model.ZipParameters
+import net.lingala.zip4j.model.enums.CompressionMethod
+import net.lingala.zip4j.model.enums.EncryptionMethod
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedOutputStream
@@ -61,51 +65,48 @@ object AppUtils {
         try {
             val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
 
-            // Get the correct app-specific storage path
             val appFilesDir = File(context.getExternalFilesDir(null), "Upload").apply {
-                if (!exists()) mkdirs() // Ensure the "Upload" folder exists
+                if (!exists()) mkdirs()
             }
 
-            // Create the ZIP file inside the "Upload" folder
             val zipFileName = "${userId}_$dateTime.zip"
             val zipFile = File(appFilesDir, zipFileName)
 
-            ZipOutputStream(BufferedOutputStream(FileOutputStream(zipFile))).use { zipOut ->
-                featureDataList.forEach { (featureKey, dataList) ->
-                    saveJsonToZip(zipOut, featureKey, dataList)
-                }
+            val zip = ZipFile(zipFile)
+            zip.setPassword(ZIP_PASSWORD.toCharArray())
+
+            val zipParams = ZipParameters().apply {
+                compressionMethod = CompressionMethod.DEFLATE
+                isEncryptFiles = true
+                encryptionMethod = EncryptionMethod.ZIP_STANDARD
             }
 
-            Log.d("FileUtils", "ZIP file created successfully at: ${zipFile.absolutePath}")
+            featureDataList.forEach { (featureKey, dataList) ->
+                val jsonString = convertDataToJsonString(dataList)
+                val jsonBytes = jsonString.toByteArray()
+
+                val inputStream = ByteArrayInputStream(jsonBytes)
+                zip.addStream(inputStream, zipParams.apply { fileNameInZip = "$featureKey/data.json" })
+            }
+
+            Log.d("FileUtils", "✅ Encrypted ZIP file created successfully at: ${zipFile.absolutePath}")
 
         } catch (e: Exception) {
-            Log.e("FileUtils", "Error creating ZIP file: ${e.message}")
+            Log.e("FileUtils", "❌ Error creating encrypted ZIP file: ${e.message}")
         }
     }
 
-
-
-    private fun saveJsonToZip(zipOut: ZipOutputStream, featureKey: String, data: List<Map<String, Any>>) {
-        try {
-            val jsonArray = JSONArray() // Create a JSON array
-
-            data.forEach { entry ->
-                val jsonObject = JSONObject()
-                entry.forEach { (key, value) ->
-                    jsonObject.put(key, value) // Add each key-value pair to the JSON object
-                }
-                jsonArray.put(jsonObject) // Add the object to the array
-            }
-
-            val jsonString = jsonArray.toString() // Convert JSON array to string
-            val entry = ZipEntry("$featureKey/data.json")
-            zipOut.putNextEntry(entry)
-            zipOut.write(jsonString.toByteArray())
-            zipOut.closeEntry()
-        } catch (e: Exception) {
-            Log.e("FileUtils", "Error saving JSON to ZIP for $featureKey: ${e.message}")
+    // Convert List<Map<String, Any>> to JSON String
+    private fun convertDataToJsonString(data: List<Map<String, Any>>): String {
+        val jsonArray = JSONArray()
+        data.forEach { entry ->
+            val jsonObject = JSONObject()
+            entry.forEach { (key, value) -> jsonObject.put(key, value) }
+            jsonArray.put(jsonObject)
         }
+        return jsonArray.toString()
     }
+
 
 
 
