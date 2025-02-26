@@ -40,9 +40,11 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -154,6 +156,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
     private var userId: Int? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
+    private var karyawanId: List<String> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -238,23 +241,51 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                     "warning.json"
                 ) {
                     lifecycleScope.launch {
+                        repeatOnLifecycle(Lifecycle.State.STARTED) {
+                            absensiViewModel.saveDataAbsensiState.collect { state ->
+                                when (state) {
+                                    is SaveDataAbsensiState.Loading -> loadingDialog.show()
+                                    is SaveDataAbsensiState.Success -> {
+                                        loadingDialog.dismiss()
+                                        AlertDialogUtility.withSingleAction(
+                                            this@FeatureAbsensiActivity,
+                                            stringXML(R.string.al_back),
+                                            stringXML(R.string.al_success_save_local),
+                                            stringXML(R.string.al_description_success_save_local),
+                                            "success.json",
+                                            R.color.greenDefault
+                                        ) {
+                                            resetFormAfterSaveData()
+                                        }
+                                    }
+                                    is SaveDataAbsensiState.Error -> {
+                                        loadingDialog.dismiss()
+                                        AlertDialogUtility.withSingleAction(
+                                            this@FeatureAbsensiActivity,
+                                            stringXML(R.string.al_back),
+                                            stringXML(R.string.al_failed_save_local),
+                                            "${stringXML(R.string.al_description_failed_save_local)} : ${state.message ?: "Unknown error"}",
+                                            "warning.json",
+                                            R.color.colorRedDark
+                                        ) { }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+// Eksekusi Absensi di Coroutine Terpisah
+                    lifecycleScope.launch {
                         try {
-//                            val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
-//                            val selectedPemanenLain =
-//                                selectedPemanenLainAdapter.getSelectedWorkers()
-//                            val selectedPemanenIds = selectedPemanen.map { it.id }
-//                            val selectedPemanenLainIds = selectedPemanenLain.map { it.id }
+                            val karyawanId = karyawanList.map { it.id.toString() }
 
                             val photoFilesString = photoFiles.joinToString(";")
                             val komentarFotoString = komentarFoto.joinToString(";")
 
                             absensiViewModel.saveDataAbsensi(
-                                kemandoran_id =  "",
-                                date_created = SimpleDateFormat(
-                                    "yyyy-MM-dd HH:mm:ss",
-                                    Locale.getDefault()
-                                ).format(Date()),
-                                created_by = userId!!,  // Prevent crash if userId is null
+                                kemandoran_id = "",
+                                date_absen = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+                                created_by = userId ?: 0,  // Prevent crash if userId is null
                                 karyawan_msk_id = "",
                                 karyawan_tdk_msk_id = "",
                                 foto = photoFilesString,
@@ -266,44 +297,19 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                                 archive = 0
                             )
 
-                            absensiViewModel.saveDataAbsensiState.collect { state ->
-                                when (state) {
-                                    is SaveDataAbsensiState.Loading -> {
-                                        loadingDialog.show()
-                                    }
+                            absensiViewModel.updateKaryawanAbsensi(
+                                date_absen = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+                                status_absen = "",
+                                karyawan_msk_id = karyawanId
+                            )
 
-                                    is SaveDataAbsensiState.Success -> {
-                                        loadingDialog.dismiss()
-                                        AlertDialogUtility.withSingleAction(
-                                            this@FeatureAbsensiActivity,
-                                            stringXML(R.string.al_back),
-                                            stringXML(R.string.al_success_save_local),
-                                            stringXML(R.string.al_description_success_save_local),
-                                            "success.json",
-                                            R.color.greenDefault
-                                        ) {
-
-                                            resetFormAfterSaveData()
-
-                                        }
-                                    }
-
-                                    is SaveDataAbsensiState.Error -> {
-                                        loadingDialog.dismiss()
-                                        AlertDialogUtility.withSingleAction(
-                                            this@FeatureAbsensiActivity,
-                                            stringXML(R.string.al_back),
-                                            stringXML(R.string.al_failed_save_local),
-                                            "${stringXML(R.string.al_description_failed_save_local)} : ${state.message ?: "Unknown error"}",
-                                            "warning.json",
-                                            R.color.colorRedDark
-                                        ) {
-                                        }
-                                    }
-                                }
-                            }
+                            absensiViewModel.updateKemandoranAbsensi(
+                                kemandoran_id = "",
+                                date_absen = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+                                status_absen = ""
+                            )
                         } catch (e: Exception) {
-                            AppLogger.e("Error in saveDataPanen", e.toString())
+                            AppLogger.e("Error in saveDataAbsensi", e.toString())
                             AlertDialogUtility.withSingleAction(
                                 this@FeatureAbsensiActivity,
                                 stringXML(R.string.al_back),
@@ -311,8 +317,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                                 "${stringXML(R.string.al_description_failed_save_local)} : ${e.message ?: "Unknown error"}",
                                 "warning.json",
                                 R.color.colorRedDark
-                            ) {
-                            }
+                            ) { }
                         }
                     }
                 }
@@ -573,11 +578,23 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
 
         }
 
+        val layoutKemandoran = findViewById<LinearLayout>(R.id.layoutkemandoranAbsensi)
+        val isKemandoranEmpty = selectedKemandoran.isEmpty()
+
+        if (isKemandoranEmpty) {
+            layoutKemandoran.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                View.VISIBLE
+            layoutKemandoran.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                ContextCompat.getColor(this, R.color.colorRedDark)
+            missingFields.add(getString(R.string.field_pemanen_lain))
+        }
+        isValid = false
+
         val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensiAbsensi)
         val isAsistensiEnabled = switchAsistensi.isChecked
 
         inputMappings.forEach { (layout, key, inputType) ->
-            if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
+            if (layout.id != R.id.layoutKemandoranLainAbsensi && layout.id != R.id.layoutkemandoranAbsensi) {
 
                 val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
                 val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
@@ -588,8 +605,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                     FeatureAbsensiActivity.InputType.SPINNER -> {
                         when (layout.id) {
                             R.id.layoutEstate -> estateName!!.isEmpty()
-                            R.id.layoutAfdeling -> selectedAfdeling.isEmpty()
-                            R.id.layoutKemandoran -> selectedKemandoran.isEmpty()
+                            R.id.layoutAfdelingAbsensi -> selectedAfdeling.isEmpty()
+                            R.id.layoutkemandoranAbsensi -> selectedKemandoran.isEmpty()
                             else -> spinner.selectedIndex == -1
                         }
                     }
@@ -616,30 +633,16 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         // Check asistensi fields
         if (isAsistensiEnabled) {
             val layoutKemandoranLain = findViewById<LinearLayout>(R.id.layoutKemandoranLainAbsensi)
-//            val layoutPemanenLain = findViewById<LinearLayout>(R.id.layoutPemanenLain)
-
             val isKemandoranLainEmpty = selectedKemandoranLain.isEmpty()
-//            val isPemanenLainEmpty = selectedPemanenLainAdapter.itemCount == 0
 
-//            if (isKemandoranLainEmpty || isPemanenLainEmpty)
             if (isKemandoranLainEmpty) {
-                if (isKemandoranLainEmpty) {
-                    layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
-                        View.VISIBLE
-                    layoutKemandoranLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
-                        ContextCompat.getColor(this, R.color.colorRedDark)
-                    missingFields.add(getString(R.string.field_kemandoran_lain))
-                }
-
-//                if (isPemanenLainEmpty) {
-//                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
-//                        View.VISIBLE
-//                    layoutPemanenLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
-//                        ContextCompat.getColor(this, R.color.colorRedDark)
-//                    missingFields.add(getString(R.string.field_pemanen_lain))
-//                }
-                isValid = false
+                layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                    View.VISIBLE
+                layoutKemandoranLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                    ContextCompat.getColor(this, R.color.colorRedDark)
+                missingFields.add(getString(R.string.field_kemandoran_lain))
             }
+            isValid = false
         }
 
         // Check photo count
@@ -855,6 +858,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                             karyawanList = karyawanDeferred.await()
 
                             val karyawanNames = karyawanList.map { it.nama }
+
                             AppLogger.d(karyawanNames.toString())
                             AppLogger.d(karyawanList.toString())
 

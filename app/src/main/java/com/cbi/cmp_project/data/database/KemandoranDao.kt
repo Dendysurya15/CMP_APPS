@@ -50,6 +50,20 @@ abstract class KemandoranDao {
         idEstate: Int,
     ): List<KemandoranModel>
 
+    @Query(
+        """
+    UPDATE kemandoran
+    SET date_absen = :date_absen
+    AND status_absen = :status_absen
+    WHERE id IN (:idKemandoran)
+    """
+    )
+    abstract fun updateKemandoran(
+        date_absen: String,
+        status_absen: String,
+        idKemandoran: String,
+    ): Int
+
 //    @Query(
 //        """
 //    SELECT * FROM kemandoran

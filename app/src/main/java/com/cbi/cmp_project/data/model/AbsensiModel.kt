@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 data class AbsensiModel(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val kemandoran_id: String,
-    val date_created: String,
+    val date_absen: String,
     val created_by: Int,
     val karyawan_msk_id: String,  //"30,59,9"
     val karyawan_tdk_msk_id: String,  //"30,59,9"

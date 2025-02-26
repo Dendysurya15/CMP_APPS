@@ -20,15 +20,31 @@ sealed class SaveDataAbsensiState{
     data class Error(val message: String): SaveDataAbsensiState()
 }
 
+sealed class UpdateKaryawanAbsensiState{
+    object Loading: UpdateKaryawanAbsensiState()
+    data class Success(val id: Long): UpdateKaryawanAbsensiState()
+    data class Error(val message: String): UpdateKaryawanAbsensiState()
+}
+sealed class UpdateKemandoranAbsensiState{
+    object Loading: UpdateKemandoranAbsensiState()
+    data class Success(val id: Long): UpdateKemandoranAbsensiState()
+    data class Error(val message: String): UpdateKemandoranAbsensiState()
+}
 class AbsensiViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: AbsensiRepository = AbsensiRepository(application)
 
     private val _saveDataAbsensiState = MutableStateFlow<SaveDataAbsensiState>(SaveDataAbsensiState.Loading)
     val saveDataAbsensiState: StateFlow<SaveDataAbsensiState> get() = _saveDataAbsensiState.asStateFlow()
 
+    private val _updateKaryawanAbsensiState = MutableStateFlow<UpdateKaryawanAbsensiState>(UpdateKaryawanAbsensiState.Loading)
+    val updateKaryawanAbsensiState: StateFlow<UpdateKaryawanAbsensiState> get() = _updateKaryawanAbsensiState.asStateFlow()
+
+    private val _updateKemandoranbsensiState = MutableStateFlow<UpdateKemandoranAbsensiState>(UpdateKemandoranAbsensiState.Loading)
+    val updateKemandoranbsensiState: StateFlow<UpdateKemandoranAbsensiState> get() = _updateKemandoranbsensiState.asStateFlow()
+
     suspend fun saveDataAbsensi(
         kemandoran_id: String,
-        date_created: String,
+        date_absen: String,
         created_by: Int,
         karyawan_msk_id: String,
         karyawan_tdk_msk_id: String,
@@ -46,7 +62,7 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
             try {
                 val result = repository.saveDataAbsensi(
                     kemandoran_id,
-                    date_created,
+                    date_absen,
                     created_by,
                     karyawan_msk_id,
                     karyawan_tdk_msk_id,
@@ -71,6 +87,52 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
                 )
             } catch (e: Exception) {
                 _saveDataAbsensiState.value = SaveDataAbsensiState.Error(
+                    e.message ?: "Unknown error occurred"
+                )
+            }
+        }
+    }
+
+    suspend fun updateKaryawanAbsensi(
+        date_absen: String,
+        status_absen: String,
+        karyawan_msk_id: List<String>,
+    ) {
+        _updateKaryawanAbsensiState.value = UpdateKaryawanAbsensiState.Loading
+
+        viewModelScope.launch {
+            try {
+                val rowsUpdated: Long = repository.updateKaryawanAbsensi(date_absen, status_absen, karyawan_msk_id).toLong()
+                if (rowsUpdated > 0) {
+                    _updateKaryawanAbsensiState.value = UpdateKaryawanAbsensiState.Success(rowsUpdated)
+                } else {
+                    _updateKaryawanAbsensiState.value = UpdateKaryawanAbsensiState.Error("No records updated")
+                }
+            } catch (e: Exception) {
+                _updateKaryawanAbsensiState.value = UpdateKaryawanAbsensiState.Error(
+                    e.message ?: "Unknown error occurred"
+                )
+            }
+        }
+    }
+
+    suspend fun updateKemandoranAbsensi(
+        date_absen: String,
+        status_absen: String,
+        kemandoran_id: String,
+    ) {
+        _updateKemandoranbsensiState.value = UpdateKemandoranAbsensiState.Loading
+
+        viewModelScope.launch {
+            try {
+                val rowsUpdated: Long = repository.updateKemandoranAbsensi(date_absen, status_absen, kemandoran_id).toLong()
+                if (rowsUpdated > 0) {
+                    _updateKemandoranbsensiState.value = UpdateKemandoranAbsensiState.Success(rowsUpdated)
+                } else {
+                    _updateKemandoranbsensiState.value = UpdateKemandoranAbsensiState.Error("No records updated")
+                }
+            } catch (e: Exception) {
+                _updateKemandoranbsensiState.value = UpdateKemandoranAbsensiState.Error(
                     e.message ?: "Unknown error occurred"
                 )
             }

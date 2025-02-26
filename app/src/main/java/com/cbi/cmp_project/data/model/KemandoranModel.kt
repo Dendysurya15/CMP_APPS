@@ -37,5 +37,13 @@ data class KemandoranModel(
     val kode: String?,
     val nama: String?,
     val type: String?,
+    val kemandoran_id: String?,
+    val asistensi: Int?,
+    val foto: String?,
+    val komentar:  String?,
+    val lat: Double?,
+    val lon: Double?,
+    val date_absen: String?,
+    val status_absen: String?,
     val status: Int?
 )
