@@ -130,6 +130,11 @@ class AppRepository(context: Context) {
     suspend fun getPanenCount(): Int {
         return panenDao.getCount()
     }
+
+    suspend fun getCountDraftESPB(): Int {
+        return espbDao.getCountDraft()
+    }
+
     suspend fun getPanenCountArchive(): Int {
         return panenDao.getCountArchive()
     }

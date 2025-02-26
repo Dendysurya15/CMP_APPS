@@ -1,12 +1,16 @@
 package com.cbi.cmp_project.ui.viewModel
 
+import android.app.Application
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.MillModel
+import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.repository.AppRepository
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
@@ -22,6 +26,8 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
 
     private val _millList = MutableLiveData<List<MillModel>>()
     val millList: LiveData<List<MillModel>> = _millList
+
+    private val _espbDraftCount = MutableStateFlow(0)
 
     init {
         loadMills()
@@ -48,6 +54,13 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         viewModelScope.launch {
             _activeESPBList.value = repository.getActiveESPB()
         }
+    }
+
+
+    suspend fun getCountDraftESPB(): Int {
+        val count = repository.getCountDraftESPB()
+        _espbDraftCount.value = count
+        return count
     }
 
     fun loadArchivedESPB() {
@@ -105,6 +118,17 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
             } catch (e: Exception) {
                 _updateResult.postValue(Result.failure(e))
             }
+        }
+    }
+
+    class ESPBViewModelFactory(
+        private val application: AppRepository
+    ) : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(ESPBViewModel::class.java)) {
+                return ESPBViewModel(application) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 }

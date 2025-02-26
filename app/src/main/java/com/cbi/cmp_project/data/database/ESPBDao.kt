@@ -25,7 +25,6 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
     abstract fun getAllESPBUploaded(): List<ESPBEntity>
 
-
     @Query("SELECT * FROM espb_table WHERE archive = 1")
     abstract fun getAllArchived(): List<ESPBEntity>
 
@@ -43,6 +42,9 @@ abstract class ESPBDao {
 
     @Query("UPDATE espb_table SET archive = 1 WHERE id IN (:id)")
     abstract fun archiveByListID(id: List<Int>): Int
+
+    @Query("SELECT COUNT(*) FROM espb_table WHERE status_draft = 1")
+    abstract fun getCountDraft(): Int
 
     @Transaction
     open fun updateOrInsert(espb: List<ESPBEntity>) {
