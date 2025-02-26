@@ -71,4 +71,10 @@ abstract class ESPBDao {
     @Query("SELECT COUNT(*) FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
     abstract suspend fun countESPBUploaded(): Int
 
+
+    @Query("SELECT * FROM espb_table WHERE scan_status = 0")
+    abstract fun getAllESPBNonScan(): List<ESPBEntity>
+
+
+
 }

@@ -1,6 +1,5 @@
 package com.cbi.cmp_project.ui.viewModel
 
-import android.app.Application
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -8,8 +7,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.MillModel
-import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.repository.AppRepository
+import com.cbi.markertph.data.model.TPHNewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
@@ -26,6 +25,12 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
 
     private val _millList = MutableLiveData<List<MillModel>>()
     val millList: LiveData<List<MillModel>> = _millList
+
+    private val _historyEPSB = MutableLiveData<List<ESPBEntity>>()
+    val historyESPBNonScan: LiveData<List<ESPBEntity>> = _historyEPSB
+
+    private val _error = MutableLiveData<String>()
+    val error: LiveData<String> = _error
 
     private val _espbDraftCount = MutableStateFlow(0)
 
@@ -130,5 +135,21 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
+    }
+
+    fun loadHistoryESPBNonScan() {
+        viewModelScope.launch {
+            repository.loadHistoryESPB()
+                .onSuccess { listData ->
+                    _historyEPSB.postValue(listData)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
+    suspend fun getBlokById(listBlokId: List<Int>): List<TPHNewModel> {
+        return repository.getBlokById(listBlokId)
     }
 }

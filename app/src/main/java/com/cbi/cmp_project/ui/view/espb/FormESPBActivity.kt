@@ -1,7 +1,6 @@
-package com.cbi.cmp_project.ui.view
+package com.cbi.cmp_project.ui.view.espb
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Rect
@@ -44,7 +43,8 @@ import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.ui.adapter.SelectedWorkerAdapter
 import com.cbi.cmp_project.ui.adapter.Worker
-import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
+import com.cbi.cmp_project.ui.view.HomePageActivity
+import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.ESPBViewModel
@@ -68,8 +68,6 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.collections.joinToString
-import kotlin.jvm.java
 
 class FormESPBActivity : AppCompatActivity() {
     var featureName = ""
@@ -81,12 +79,12 @@ class FormESPBActivity : AppCompatActivity() {
     var selectedTransporterId = 0
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var viewModel: ESPBViewModel
-    private var selectedMillId: Int? = null
+    private var selectedMillId = 0
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var pemuatList: List<KaryawanModel> = emptyList()
     private var transporterList: List<TransporterModel> = emptyList()
 
-    private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
+    private lateinit var inputMappings: List<Triple<LinearLayout, String, FeaturePanenTBSActivity.InputType>>
     private lateinit var viewModelFactory: ESPBViewModelFactory
     private var pemuatListId: ArrayList<Int> = ArrayList()
     private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter
@@ -429,19 +427,23 @@ class FormESPBActivity : AppCompatActivity() {
             }
             val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
             val pemuatListId = selectedPemanen.map { it.id }
-            if (nopol == "NULL"){
+            if (nopol == "NULL" || nopol == ""){
                 Toasty.error(this, "Mohon lengkapi data No Polisi terlebih dahulu", Toasty.LENGTH_LONG).show()
                 return@setOnClickListener
             }
-            if (driver == "NULL"){
+            if (driver == "NULL" || driver == ""){
                 Toasty.error(this, "Mohon lengkapi data Driver terlebih dahulu", Toasty.LENGTH_LONG).show()
                 return@setOnClickListener
             }
-            if (transporter_id == 0 && !cbFormEspbTransporter.isChecked){
+            if (selectedTransporterId == 0 && !cbFormEspbTransporter.isChecked){
                 Toasty.error(this, "Mohon lengkapi data Transporter terlebih dahulu", Toasty.LENGTH_LONG).show()
                 return@setOnClickListener
             }
-            AlertDialogUtility.withTwoActions(this, "SIMPAN", "KONFIRMASI BUAT QR ESPB?", "Pastikan seluruh data sudah valid!", "warning.json"){
+            if (selectedMillId == 0){
+                Toasty.error(this, "Mohon lengkapi data Mill terlebih dahulu", Toasty.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            AlertDialogUtility.Companion.withTwoActions(this, "SIMPAN", "KONFIRMASI BUAT QR ESPB?", "Pastikan seluruh data sudah valid!", "warning.json"){
                 val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
                 btKonfirmScanESPB.visibility = View.VISIBLE
                 btKonfirmScanESPB.setOnClickListener {
@@ -714,7 +716,7 @@ class FormESPBActivity : AppCompatActivity() {
         popupWindow.showAsDropDown(spinner)
 
         editTextSearch.requestFocus()
-        val imm = spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val imm = spinner.context.getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
     }
 

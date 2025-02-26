@@ -31,6 +31,7 @@ import com.cbi.cmp_project.ui.adapter.DownloadItem
 import com.cbi.cmp_project.ui.adapter.DownloadProgressDatasetAdapter
 import com.cbi.cmp_project.ui.adapter.FeatureCard
 import com.cbi.cmp_project.ui.adapter.FeatureCardAdapter
+import com.cbi.cmp_project.ui.view.espb.ListHistoryESPBActivity
 import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ListHistoryWeighBridgeActivity
@@ -368,7 +369,16 @@ class HomePageActivity : AppCompatActivity() {
 
             "Buat eSPB" -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ListHistoryWeighBridgeActivity::class.java)
+                    val intent = Intent(this, ScanQR::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+
+            "Rekap eSPB" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, ListHistoryESPBActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }

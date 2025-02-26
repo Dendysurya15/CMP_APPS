@@ -8,6 +8,7 @@ import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.model.TPHBlokInfo
 import com.cbi.cmp_project.data.model.TphRvData
+import com.cbi.markertph.data.model.TPHNewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -330,6 +331,19 @@ class AppRepository(context: Context) {
     // Add this to your AppRepository
     suspend fun updatePanenESPBStatus(ids: List<Int>, status: Int) = withContext(Dispatchers.IO) {
         panenDao.updateESPBStatusByIds(ids, status)
+    }
+
+    suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val data = espbDao.getAllESPBNonScan()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getBlokById( listBlokId: List<Int>): List<TPHNewModel> {
+        return tphDao.getBlokById(listBlokId)
     }
 
 }

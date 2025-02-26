@@ -44,7 +44,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         val tanggalText: String,
         val tphText: String,
         val searchableText: String,
-        val tphId: Int
+        val tphId: Int,
+        val panenId: Int
     )
 
     fun setFeatureAndScanned(feature: String, scannedResult: String) {
@@ -70,7 +71,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
 
         AppLogger.d(item.toString())
+        val panenId = item["id"] as? String ?: "0"
         val tphId = item["tph_id"] as? String ?: "0"
+
         val blokName = item["blok_name"] as? String ?: "-"
         val noTPH = item["nomor"] as? String ?: "-"
         val dateCreated = item["date_created"] as? String ?: "-"
@@ -102,7 +105,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         val gradingText = "$totalJjg"
         val searchableText = "$blokText $noTPHText $gradingText $formattedTime"
 
-        return ExtractedData(gradingText, blokText, formattedTime,noTPHText, searchableText, tphId.toInt())
+        return ExtractedData(gradingText, blokText, formattedTime,noTPHText, searchableText, tphId.toInt(), panenId.toInt())
     }
 
 
@@ -197,20 +200,17 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 binding.numListTerupload.visibility = View.VISIBLE
                 binding.numListTerupload.text = "${adapterPosition + 1}."
             } else {
+
                 Log.d("ListPanenTPHAdapterTest", "archiveState == else")
                 binding.checkBoxPanen.visibility = View.VISIBLE
                 binding.numListTerupload.visibility = View.GONE
-                if (tphListScan.isNotEmpty()){
-                    Log.d("ListPanenTPHAdapterTest", "tphListScan.isNotEmpty()")
-                    tphListScan.forEach { scan ->
-                        Log.d("ListPanenTPHAdapterTest", "scan: $scan")
-                        Log.d("ListPanenTPHAdapterTest", "tphId: ${extractedData.tphId}")
-                        if (extractedData.tphId.toString() == scan) {
-                            Log.d("ListPanenTPHAdapterTest", "scan: COCOK")
-                            binding.checkBoxPanen.isChecked = true
-                            binding.checkBoxPanen.isEnabled = false
-                        }
-                    }
+                binding.checkBoxPanen.isChecked = isSelected
+                binding.checkBoxPanen.isEnabled = true // Reset to enabled by default
+                if (tphListScan.contains(extractedData.tphId.toString())) {
+                    binding.checkBoxPanen.isChecked = true
+                    binding.checkBoxPanen.isEnabled = false
+                    // Optionally, if you want this to be reflected in your selectedItems set:
+                    // onCheckedChange(true)
                 }
 //                binding.checkBoxPanen.isChecked = isSelected
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
