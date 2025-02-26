@@ -53,10 +53,6 @@ class ScanQR : AppCompatActivity() {
                 putExtra(EXTRA_QR_RESULT, result)
                 putExtra("FEATURE_NAME", menuString)
             }
-            "Weight bridge" -> intent = Intent(this, ScanWeighBridgeActivity::class.java).apply {
-                putExtra(EXTRA_QR_RESULT, result)
-                putExtra("FEATURE_NAME", menuString)
-            }
         }
 
         startActivity(intent)

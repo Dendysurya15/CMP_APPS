@@ -2,18 +2,24 @@ package com.cbi.cmp_project.ui.view
 
 import android.os.Bundle
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
 import android.provider.Settings
 
 import android.os.Build
+import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -23,6 +29,10 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.data.database.KaryawanDao
+import com.cbi.cmp_project.data.model.ESPBEntity
+import com.cbi.cmp_project.data.model.PanenEntity
+import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
 import com.cbi.cmp_project.databinding.ActivityHomePageBinding
 import com.cbi.cmp_project.ui.adapter.DisplayType
@@ -30,6 +40,9 @@ import com.cbi.cmp_project.ui.adapter.DownloadItem
 import com.cbi.cmp_project.ui.adapter.DownloadProgressDatasetAdapter
 import com.cbi.cmp_project.ui.adapter.FeatureCard
 import com.cbi.cmp_project.ui.adapter.FeatureCardAdapter
+import com.cbi.cmp_project.ui.adapter.UploadCMPItem
+import com.cbi.cmp_project.ui.adapter.UploadProgressAdapter
+import com.cbi.cmp_project.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ListHistoryWeighBridgeActivity
@@ -37,20 +50,27 @@ import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
 
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
+import com.cbi.cmp_project.ui.viewModel.UploadCMPViewModel
 import com.cbi.cmp_project.ui.viewModel.WeighBridgeViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
+import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
 
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
+import com.google.gson.Gson
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicInteger
 
 class HomePageActivity : AppCompatActivity() {
 
@@ -60,7 +80,9 @@ class HomePageActivity : AppCompatActivity() {
     private var prefManager: PrefManager? = null
     private lateinit var panenViewModel: PanenViewModel
     private lateinit var weightBridgeViewModel: WeighBridgeViewModel
+    private lateinit var uploadCMPViewModel: UploadCMPViewModel
     private var isTriggerButtonSinkronisasiData: Boolean = false
+    private var isTriggerUploadDataCMP: Boolean = false
     private lateinit var dialog: Dialog
     private var countPanenTPH: Int = 0  // Global variable for count
     private var countPanenTPHApproval: Int = 0  // Global variable for count
@@ -69,6 +91,9 @@ class HomePageActivity : AppCompatActivity() {
     private var hasShownErrorDialog = false  // Add this property
     private val permissionRequestCode = 1001
     private lateinit var adapter: DownloadProgressDatasetAdapter
+
+    private var globalESPBList: List<Map<String, Any>> = emptyList()
+    private var globalPanenList: List<Map<String, Any>> = emptyList()
 
 
     private lateinit var datasetViewModel: DatasetViewModel
@@ -281,7 +306,17 @@ class HomePageActivity : AppCompatActivity() {
                 functionDescription = "",
                 displayType = DisplayType.ICON,
                 subTitle = "Sinkronisasi data manual"
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Upload data CMP",
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.cbi,
+                functionDescription = "",
+                displayType = DisplayType.ICON,
+                subTitle = "Upload Semua Data CMP"
             )
+
         )
 
         val gridLayoutManager = GridLayoutManager(this, 2)
@@ -386,7 +421,275 @@ class HomePageActivity : AppCompatActivity() {
                     startDownloads()
                 }
             }
+
+            "Upload data CMP" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    isTriggerUploadDataCMP = true
+                    lifecycleScope.launch {
+                        loadingDialog.show()
+                        loadingDialog.setMessage("Sedang mempersiapkan data...")
+                        delay(500)
+                        val dataReadyDeferred = CompletableDeferred<Boolean>()
+
+                        // Start collecting data
+                        triggerAllDatabaseWithArchive()
+
+                        // Set up observers with completion callbacks
+                        setupObserverForUploadAllDataCMP(dataReadyDeferred)
+
+                        // Wait for the data collection to complete
+                        dataReadyDeferred.await()
+
+                        // Now that data is ready, set up the dialog
+                        setupDialogUpload()
+                    }
+
+
+//                    startUploadAllDataCMP()
+                }
+            }
         }
+    }
+
+
+    private fun setupObserverForUploadAllDataCMP(dataReadyDeferred: CompletableDeferred<Boolean>) {
+        val completionCounter = AtomicInteger(0)
+        val totalCollections = 2 // We need both ESPB and Panen data
+        val uploadDataList = mutableListOf<Pair<String, List<Map<String, Any>>>>()
+
+        fun checkAllCollectionsComplete(featureName: String, data: List<Map<String, Any>>) {
+            synchronized(uploadDataList) {
+                uploadDataList.add(featureName to data)
+            }
+
+            if (completionCounter.incrementAndGet() >= totalCollections) {
+                AppLogger.d("All data collected, creating ZIP...")
+                AppUtils.createAndSaveZipUploadCMP(this, uploadDataList, prefManager!!.idUserLogin.toString())
+
+                dataReadyDeferred.complete(true)
+            }
+        }
+
+        lifecycleScope.launch {
+            weightBridgeViewModel.activeESPB
+                .filter { it.isNotEmpty() }
+                .take(1)
+                .collect { list ->
+                    val mappedData = list.map { data ->
+                        // Your existing ESPB mapping code here
+                        val blokJjgList = data.blok_jjg
+                            .split(";")
+                            .mapNotNull {
+                                it.split(",").takeIf { it.size == 2 }?.let { (id, jjg) ->
+                                    id.toIntOrNull()?.let { it to jjg.toIntOrNull() }
+                                }
+                            }
+
+                        val idBlokList = blokJjgList.map { it.first }
+                        val concatenatedIds = idBlokList.joinToString(",")
+
+                        val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
+
+                        val blokData = withContext(Dispatchers.IO) {
+                            try {
+                                weightBridgeViewModel.getBlokById(idBlokList)
+                            } catch (e: Exception) {
+                                AppLogger.e("Error fetching Blok Data: ${e.message}")
+                                null
+                            }
+                        } ?: throw Exception("Failed to fetch Blok Data! Please check the dataset.")
+
+                        val regional = blokData.firstOrNull()?.regional ?: ""
+                        val company = blokData.firstOrNull()?.company ?: ""
+                        val dept = blokData.firstOrNull()?.dept ?: ""
+                        val divisi = blokData.firstOrNull()?.divisi ?: ""
+
+                        mapOf(
+                            "id" to data.id,
+                            "regional" to regional,
+                            "company" to company,
+                            "dept" to dept,
+                            "divisi" to divisi,
+                            "blok_id" to concatenatedIds,
+                            "jjg" to totalJjg,
+                            "user_id" to data.created_by_id,
+                            "date_created" to data.created_at,
+                            "nopol" to data.nopol,
+                            "driver" to data.driver,
+                            "transporter_id" to data.transporter_id,
+                            "mill_id" to data.mill_id,
+                            "info_app" to data.creator_info,
+                            "no_espb" to data.noESPB,
+//                            "feature" to "ESPB"
+                        )
+                    }
+
+                    globalESPBList = mappedData
+                    AppLogger.d("ESPB data loaded: ${globalESPBList.size} items")
+                    AppLogger.d("ESPB data loaded: ${globalESPBList}")
+                    checkAllCollectionsComplete("ESPB", globalESPBList)
+                }
+
+            loadingDialog.setMessage("Sedang mengambil data ESPB...")
+        }
+
+        // Panen observer
+        lifecycleScope.launch {
+            panenViewModel.activePanenList.observe(this@HomePageActivity) { panenList ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val mappedData = panenList.map { panenWithRelations ->
+                        // Your existing Panen mapping code here
+                        val jjgJson = panenWithRelations.panen.jjg_json as? Map<String, Any> ?: emptyMap()
+                        val karyawanIds = panenWithRelations.panen.karyawan_id
+                            ?.split(",")
+                            ?.map { it.trim() }
+                            ?: emptyList()
+                        val jumlahPemanen = karyawanIds.size
+                        val kemandoranData = if (karyawanIds.isNotEmpty()) {
+                            datasetViewModel.getKaryawanKemandoranList(karyawanIds)
+                        } else {
+                            emptyList()
+                        }
+                        val jsonResultKemandoran = convertToJsonKaryawanKemandoran(kemandoranData)
+
+                        mapOf<String, Any>(
+                            "id" to (panenWithRelations.panen.id as Any),
+                            "tanggal" to (panenWithRelations.panen.date_created as Any),
+                            "tipe" to (panenWithRelations.panen.jenis_panen as Any),
+                            "dept" to (panenWithRelations.tph?.dept as Int),
+                            "dept_abbr" to (panenWithRelations.tph?.dept_abbr as String),
+                            "divisi" to (panenWithRelations.tph?.divisi as Int),
+                            "divisi_abbr" to (panenWithRelations.tph?.divisi_abbr as String),
+                            "blok" to (panenWithRelations.tph?.blok as Int),
+                            "blok_name" to (panenWithRelations.tph?.blok_kode as String),
+                            "tph_nomor" to (panenWithRelations.tph!!.nomor as Any),
+                            "ancak" to (panenWithRelations.panen.ancak as Any),
+                            "updated_date" to (panenWithRelations.panen.date_created as Any),
+                            "updated_by" to (panenWithRelations.panen.created_by as Any),
+                            "asistensi" to (if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2),
+                            "kemandoran" to jsonResultKemandoran,
+                            "jumlah_pemanen" to jumlahPemanen,
+                            "jjg_panen" to (jjgJson["TO"] ?: 0),
+                            "jjg_mentah" to (jjgJson["UN"] ?: 0),
+                            "jjg_lewat_masak" to (jjgJson["OV"] ?: 0),
+                            "jjg_kosong" to (jjgJson["EM"] ?: 0),
+                            "jjg_abnormal" to (jjgJson["AB"] ?: 0),
+                            "jjg_serangan_tikus" to (jjgJson["RA"] ?: 0),
+                            "jjg_panjang" to (jjgJson["LO"] ?: 0),
+                            "jjg_tidak_vcut" to (jjgJson["TI"] ?: 0),
+                            "jjg_masak" to (jjgJson["RI"] ?: 0),
+                            "jjg_kirim" to (jjgJson["KP"] ?: 0),
+                            "foto" to (panenWithRelations.panen.foto as Any),
+                            "komentar" to (panenWithRelations.panen.komentar as Any),
+                            "lat" to (panenWithRelations.panen.lat as Any),
+                            "lon" to (panenWithRelations.panen.lon as Any),
+//                            "feature" to "Panen"
+                        )
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        globalPanenList = mappedData
+                        AppLogger.d("Panen data loaded: ${globalPanenList.size} items")
+                        AppLogger.d("Panen data loaded: ${globalPanenList}")
+                        checkAllCollectionsComplete("Panen", globalPanenList)
+                    }
+                }
+            }
+
+            loadingDialog.setMessage("Sedang mengambil data Panen...")
+        }
+    }
+
+    data class Pemanen(val nik: String, val nama: String)
+    data class Kemandoran(
+        val id: Int,
+        val kode: String,
+        val nama: String,
+        val pemanen: List<Pemanen>
+    )
+
+    fun convertToJsonKaryawanKemandoran(kemandoranData: List<KaryawanDao.KaryawanKemandoranData>): String {
+        val groupedData = kemandoranData
+            .groupBy { it.kemandoranId }
+            .map { (kemandoranId, dataList) ->
+                Kemandoran(
+                    id = kemandoranId,
+                    kode = dataList.first().kodeKemandoran,
+                    nama = dataList.first().kemandoranNama,
+                    pemanen = dataList.map { Pemanen(it.nik, it.namaKaryawan.trim()) }
+                )
+            }
+
+        return Gson().toJson(groupedData)
+    }
+
+    private fun triggerAllDatabaseWithArchive() {
+        weightBridgeViewModel.fetchActiveESPB()
+        panenViewModel.loadActivePanenESPB()
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun setupDialogUpload() {
+
+        loadingDialog.dismiss()
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
+        val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
+        titleTV.text = "Progress Upload..."
+
+        val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
+//        val totalUploadItems = globalESPBList.size + globalPanenList.size
+        val totalUploadItems = globalESPBList.size
+        counterTV.text = "0/$totalUploadItems"
+
+        val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+        val btnUploadDataCMP = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
+        val containerDownloadDataset =
+            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
+        containerDownloadDataset.visibility = View.VISIBLE
+        closeDialogBtn.visibility = View.VISIBLE
+        btnUploadDataCMP.visibility = View.VISIBLE
+
+        val uploadItems = mutableListOf<UploadCMPItem>()
+
+        globalESPBList.forEachIndexed { index, item ->
+            uploadItems.add(UploadCMPItem(id = index, titleProgress = "${item["feature"]} - ${item["no_espb"]}" as String))
+        }
+//        globalPanenList.forEachIndexed { index, item ->
+//            uploadItems.add(UploadCMPItem(id = globalESPBList.size + index, titleProgress =  "${item["feature"]} - ${item["dept_abbr"]} ${item["divisi_abbr"]} TPH No ${item["tph_nomor"]}, ${item["jjg_panen"]} Jjg" as String))
+//        }
+
+        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = UploadProgressCMPDataAdapter(uploadItems, uploadCMPViewModel)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+        dialog.show()
+
+
+        btnUploadDataCMP.setOnClickListener{
+            btnUploadDataCMP.isEnabled = false
+            closeDialogBtn.isEnabled = false
+            btnUploadDataCMP.alpha = 0.7f
+            closeDialogBtn.alpha = 0.7f
+            btnUploadDataCMP.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
+            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+
+
+        }
+
+        closeDialogBtn.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        loadingDialog.dismiss()
+    }
+
+
+    private fun startUploadAllDataCMP() {
+
     }
 
 
@@ -566,7 +869,6 @@ class HomePageActivity : AppCompatActivity() {
                 return
             }
 
-            AppLogger.d(isTriggerButtonSinkronisasiData.toString())
             val filteredRequests = if (isTriggerButtonSinkronisasiData) {
                 getDatasetsToDownload(
                     regionalIdString!!.toInt(),
@@ -676,6 +978,9 @@ class HomePageActivity : AppCompatActivity() {
 
         val factory3 = WeighBridgeViewModel.WeightBridgeViewModelFactory(application)
         weightBridgeViewModel = ViewModelProvider(this, factory3)[WeighBridgeViewModel::class.java]
+
+        val factory4 = UploadCMPViewModel.UploadCMPViewModelFactory(application)
+        uploadCMPViewModel = ViewModelProvider(this, factory4)[UploadCMPViewModel::class.java]
     }
 
 

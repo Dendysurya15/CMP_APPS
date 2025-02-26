@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Base64
+import android.util.Log
 import android.view.WindowManager
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -18,8 +19,12 @@ import com.cbi.cmp_project.R
 import com.github.junrar.Archive
 import com.github.junrar.rarfile.FileHeader
 import com.jaredrummler.materialspinner.BuildConfig
+import org.json.JSONArray
 import org.json.JSONObject
+import java.io.BufferedOutputStream
 import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -27,6 +32,7 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 object AppUtils {
 
@@ -34,7 +40,7 @@ object AppUtils {
     const val FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
         UPDATE_INTERVAL_IN_MILLISECONDS / 2
     const val LOG_LOC = "locationLog"
-
+    const val ZIP_PASSWORD = "CBI@2025"
     const val REQUEST_CHECK_SETTINGS = 0x1
 
 
@@ -47,6 +53,59 @@ object AppUtils {
         return context.getString(R.string.app_version)
     }
 
+    fun createAndSaveZipUploadCMP(
+        context: Context,
+        featureDataList: List<Pair<String, List<Map<String, Any>>>>,
+        userId: String
+    ) {
+        try {
+            val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
+
+            // Get the correct app-specific storage path
+            val appFilesDir = File(context.getExternalFilesDir(null), "Upload").apply {
+                if (!exists()) mkdirs() // Ensure the "Upload" folder exists
+            }
+
+            // Create the ZIP file inside the "Upload" folder
+            val zipFileName = "${userId}_$dateTime.zip"
+            val zipFile = File(appFilesDir, zipFileName)
+
+            ZipOutputStream(BufferedOutputStream(FileOutputStream(zipFile))).use { zipOut ->
+                featureDataList.forEach { (featureKey, dataList) ->
+                    saveJsonToZip(zipOut, featureKey, dataList)
+                }
+            }
+
+            Log.d("FileUtils", "ZIP file created successfully at: ${zipFile.absolutePath}")
+
+        } catch (e: Exception) {
+            Log.e("FileUtils", "Error creating ZIP file: ${e.message}")
+        }
+    }
+
+
+
+    private fun saveJsonToZip(zipOut: ZipOutputStream, featureKey: String, data: List<Map<String, Any>>) {
+        try {
+            val jsonArray = JSONArray() // Create a JSON array
+
+            data.forEach { entry ->
+                val jsonObject = JSONObject()
+                entry.forEach { (key, value) ->
+                    jsonObject.put(key, value) // Add each key-value pair to the JSON object
+                }
+                jsonArray.put(jsonObject) // Add the object to the array
+            }
+
+            val jsonString = jsonArray.toString() // Convert JSON array to string
+            val entry = ZipEntry("$featureKey/data.json")
+            zipOut.putNextEntry(entry)
+            zipOut.write(jsonString.toByteArray())
+            zipOut.closeEntry()
+        } catch (e: Exception) {
+            Log.e("FileUtils", "Error saving JSON to ZIP for $featureKey: ${e.message}")
+        }
+    }
 
 
 

@@ -101,7 +101,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.getActivePanenESPB()
                 .onSuccess { panenList ->
-                    _activePanenList.postValue(panenList)
+                    _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
                 }
                 .onFailure { exception ->
                     _error.postValue(exception.message ?: "Failed to load data")

@@ -15,6 +15,7 @@ import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.repository.WeighBridgeRepository
 import com.cbi.markertph.data.model.TPHNewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -113,6 +114,18 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         val count = repository.coundESPBUploaded()
         return count
     }
+
+
+    private val _activeESPB = MutableStateFlow<List<ESPBEntity>>(emptyList())
+    val activeESPB: StateFlow<List<ESPBEntity>> get() = _activeESPB.asStateFlow()
+
+    fun fetchActiveESPB() {
+        viewModelScope.launch {
+            val data = repository.getActiveESPB()
+            _activeESPB.value = data // Ensure immediate emission
+        }
+    }
+
 
     fun loadHistoryUploadeSPB() {
         viewModelScope.launch {

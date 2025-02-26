@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Query
 import com.cbi.cmp_project.data.api.ApiService
 import com.cbi.cmp_project.data.database.AppDatabase
+import com.cbi.cmp_project.data.database.KaryawanDao
+
 import com.cbi.cmp_project.data.database.TPHDao
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
@@ -66,6 +68,12 @@ class DatasetRepository(context: Context,  private val apiService: ApiService = 
     suspend fun getKaryawanList(filteredId:Int): List<KaryawanModel> {
         return karyawanDao.getKaryawanByCriteria(filteredId)
     }
+
+    suspend fun getKaryawanKemandoranList(filteredId: List<String>): List<KaryawanDao.KaryawanKemandoranData> {
+        return karyawanDao.getKaryawanKemandoranList(filteredId)
+    }
+
+
 
     suspend fun downloadDataset(request: DatasetRequest): Response<ResponseBody> {
         return apiService.downloadDataset(request)

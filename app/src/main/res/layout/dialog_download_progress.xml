@@ -134,6 +134,23 @@
                 app:iconTint="@color/white" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUploadDataCMP"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/manrope_bold"
+                android:text="Upload Data"
+                android:textSize="18sp"
+                android:visibility="gone"
+                android:layout_marginLeft="5dp"
+                app:backgroundTint="@color/greenDarker"
+                app:cornerRadius="10dp"
+                app:elevation="4dp"
+                app:icon="@drawable/baseline_file_upload_24"
+                app:iconGravity="start"
+                app:iconPadding="8dp"
+                app:iconTint="@color/white" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnRetryDownloadDataset"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

@@ -51,6 +51,11 @@ class WeighBridgeRepository(context: Context) {
         return espbDao.countESPBUploaded()
     }
 
+    suspend fun getActiveESPB(): List<ESPBEntity> = withContext(Dispatchers.IO) {
+        espbDao.getAllActive()
+    }
+
+
     suspend fun loadHistoryUploadeSPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
         try {
             val data = espbDao.getAllESPBUploaded()

@@ -9,6 +9,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.bumptech.glide.load.engine.Resource
+import com.cbi.cmp_project.data.database.KaryawanDao
+
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.MillModel
@@ -17,6 +19,7 @@ import com.cbi.cmp_project.data.model.dataset.DatasetRequest
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.data.repository.DatasetRepository
 import com.cbi.cmp_project.utils.AppLogger
+import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.PrefManager
 import com.cbi.markertph.data.model.TPHNewModel
 import com.google.gson.Gson
@@ -173,6 +176,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     suspend fun getKaryawanList(filteredId: Int): List<KaryawanModel> {
         return repository.getKaryawanList(filteredId)
     }
+
+
+
+    suspend fun getKaryawanKemandoranList(filteredIds: List<String>): List<KaryawanDao.KaryawanKemandoranData> {
+        return repository.getKaryawanKemandoranList(filteredIds) // Pass list directly
+    }
+
 
     private fun parseTPHJsonToList(jsonContent: String): List<TPHNewModel> {
         try {
@@ -394,7 +404,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                         // Extract with password
                                         val zipFile = net.lingala.zip4j.ZipFile(tempFile)
-                                        zipFile.setPassword("CBI@2025".toCharArray())
+                                        zipFile.setPassword(AppUtils.ZIP_PASSWORD.toCharArray())
 
                                         val extractDir = File(getApplication<Application>().cacheDir, "extracted_${System.currentTimeMillis()}")
                                         zipFile.extractAll(extractDir.absolutePath)
