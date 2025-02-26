@@ -31,6 +31,7 @@ import com.cbi.cmp_project.ui.adapter.DownloadProgressDatasetAdapter
 import com.cbi.cmp_project.ui.adapter.FeatureCard
 import com.cbi.cmp_project.ui.adapter.FeatureCardAdapter
 import com.cbi.cmp_project.ui.view.Absensi.FeatureAbsensiActivity
+import com.cbi.cmp_project.ui.view.Absensi.ListAbsensiActivity
 import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ListHistoryWeighBridgeActivity
@@ -368,6 +369,14 @@ class HomePageActivity : AppCompatActivity() {
             "Absensi panen" -> {
                 if (feature.displayType == DisplayType.ICON) {
                     val intent = Intent(this, FeatureAbsensiActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            "Rekap absensi panen" -> {
+                if (feature.displayType == DisplayType.COUNT) {
+                    val intent = Intent(this, ListAbsensiActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }

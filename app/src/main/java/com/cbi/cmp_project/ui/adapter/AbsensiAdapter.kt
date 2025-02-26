@@ -14,10 +14,12 @@ import com.cbi.cmp_project.databinding.TableItemRowBinding
 import com.cbi.cmp_project.ui.adapter.ListPanenTPHAdapter.ListPanenTPHViewHolder
 import com.cbi.cmp_project.ui.adapter.WBData
 import com.cbi.cmp_project.ui.viewModel.AbsensiViewModel
+import com.cbi.cmp_project.utils.AppLogger
 
 data class AbsensiDataList(
     val nama: String,
-    val jabatan: String
+    val jabatan: String,
+    var isChecked: Boolean = false
 )
 
 class AbsensiAdapter(
@@ -42,18 +44,24 @@ class AbsensiAdapter(
         // Bind data ke ViewHolder
         holder.tvNama.text = item.nama
         holder.tvJabatan.text = item.jabatan
-//        holder.flCheckbox.isChecked = item.isChecked
+        holder.flCheckbox.setOnCheckedChangeListener(null) // Reset listener untuk menghindari pemanggilan ulang saat rebind
+        holder.flCheckbox.isChecked = item.isChecked
 
-        // Event listener untuk perubahan checkbox
-//        holder.flCheckbox.setOnCheckedChangeListener { _, isChecked ->
-//            // Logika atau callback jika diperlukan
-////            items[position].isChecked = isChecked
-//            onCheckedChange(position, isChecked)
-//        }
+        holder.flCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            // Create a new list with updated isChecked value
+            items = items.mapIndexed { index, absensiData ->
+                if (index == position) absensiData.copy(isChecked = isChecked) else absensiData
+            }
+            notifyItemChanged(position) // Update only the changed item
+        }
     }
 
-    fun updateList(newList: List<AbsensiDataList>) {
-        items = newList
+    fun updateList(newList: List<AbsensiDataList>, append: Boolean = false) {
+        items = if (append) {
+            items + newList  // Menggabungkan data lama dengan data baru
+        } else {
+            newList            // Mengganti seluruh data jika append = false
+        }
         notifyDataSetChanged()
     }
     override fun getItemCount() = items.size

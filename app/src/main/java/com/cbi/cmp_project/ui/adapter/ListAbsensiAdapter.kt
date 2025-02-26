@@ -63,10 +63,6 @@ class ListAbsensiAdapter: RecyclerView.Adapter<ListAbsensiAdapter.ListAbsensiVie
         onSelectionChangeListener?.invoke(0)
     }
 
-    fun sortData(ascending: Boolean) {
-        sortData(SortField.NAMA, ascending) // Default to TPH sorting for backward compatibility
-    }
-
     fun sortData(field: SortField, ascending: Boolean) {
         currentSortField = field
         isSortAscending = ascending
@@ -106,11 +102,11 @@ class ListAbsensiAdapter: RecyclerView.Adapter<ListAbsensiAdapter.ListAbsensiVie
 
             if (archiveState == 1) {
                 binding.checkBoxAbsensi.visibility = View.GONE
-                binding.numListTersimpan.visibility = View.VISIBLE
-                binding.numListTersimpan.text = "${adapterPosition + 1}."
+//                binding.numListTersimpan.visibility = View.VISIBLE
+//                binding.numListTersimpan.text = "${adapterPosition + 1}."
             } else {
                 binding.checkBoxAbsensi.visibility = View.VISIBLE
-                binding.numListTersimpan.visibility = View.GONE
+//                binding.numListTersimpan.visibility = View.GONE
                 binding.checkBoxAbsensi.isChecked = isSelected
                 binding.checkBoxAbsensi.setOnCheckedChangeListener { _, isChecked ->
                     onCheckedChange(isChecked)

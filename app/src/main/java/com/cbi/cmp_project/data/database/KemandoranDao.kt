@@ -50,18 +50,16 @@ abstract class KemandoranDao {
         idEstate: Int,
     ): List<KemandoranModel>
 
-
-
-    @Query(
-        """
-    SELECT * FROM kemandoran 
-    WHERE dept = :idEstate 
-    AND divisi IN (:idDivisiArray)
-    AND type IN ('Upkeep', 'Harvest')
-    """
-    )
-    abstract fun getKemandoranByCriteriaAbsensi(
-        idEstate: Int,
-        idDivisiArray: List<Int>
-    ): List<KemandoranModel>
+//    @Query(
+//        """
+//    SELECT * FROM kemandoran
+//    WHERE dept = :idEstate
+//    AND divisi IN (:idDivisiArray)
+//    AND type IN ('Upkeep', 'Harvest')
+//    """
+//    )
+//    abstract fun getKemandoranByCriteriaAbsensi(
+//        idEstate: Int,
+//        idDivisiArray: List<Int>
+//    ): List<KemandoranModel>
 }

@@ -19,25 +19,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="5dp">
-
-            <FrameLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="0.2">
-
-                <TextView
-                    android:id="@+id/headerNoList"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:text="No."
-                    android:gravity="center"
-                    android:padding="5dp"
-                    android:visibility="gone"
-                    android:textSize="15dp"
-                    android:textStyle="bold"/>
-            </FrameLayout>
+            android:orientation="horizontal">
 
             <TextView
                 android:layout_width="0dp"
@@ -47,9 +29,10 @@
                 android:text="NAMA"
                 android:fontFamily="@font/manrope_extrabold"
                 android:padding="5dp"
-                android:textSize="15dp"
-                android:background="@drawable/rounded_radius_background"
-                android:textStyle="bold"/>
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:clickable="false"
+                android:focusable="false"/>
 
             <TextView
                 android:layout_width="0dp"
@@ -59,9 +42,10 @@
                 android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"
                 android:padding="5dp"
-                android:textSize="13dp"
-                android:background="@drawable/rounded_radius_background"
-                android:textStyle="bold"/>
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:clickable="false"
+                android:focusable="false"/>
 
             <CheckBox
                 android:id="@+id/headerCheckBoxAbsensi"
@@ -70,7 +54,9 @@
                 android:layout_gravity="center"
                 android:minWidth="48dp"
                 android:minHeight="48dp"
-                android:visibility="visible"/>
+                android:visibility="invisible"
+                android:clickable="false"
+                android:focusable="false"/>
 
         </LinearLayout>
 

@@ -1,31 +1,42 @@
 package com.cbi.cmp_project.data.repository
 
 import android.content.Context
+import com.cbi.cmp_project.data.database.AppDatabase
+import com.cbi.cmp_project.data.model.AbsensiModel
 
 class AbsensiRepository(context: Context) {
 
-    //    private val databaseHelper: DatabaseHelper = DatabaseHelper(context)
-//
-//    fun insertAbsensiRepo(data: AbsensiModel): Boolean {
-//        val db = databaseHelper.writableDatabase
-//        val values = ContentValues().apply {
-//            put(DatabaseHelper.KEY_USERID, data.user_id)
-//            put(DatabaseHelper.KEY_TANGGAL, data.tanggal)
-//            put(DatabaseHelper.KEY_NAME, data.name)
-//            put(DatabaseHelper.KEY_ESTATE, data.estate)
-//            put(DatabaseHelper.KEY_IDESTATE, data.id_estate)
-//            put(DatabaseHelper.KEY_AFDELING, data.afdeling)
-//            put(DatabaseHelper.KEY_IDAFDELING, data.id_afdeling)
-//            put(DatabaseHelper.KEY_LISTPEMANEN, data.list_pemanen)
-//            put(DatabaseHelper.KEY_LISTIDPEMANEN, data.list_idpemanen)
-//            put(DatabaseHelper.KEY_LAT, data.latitude)
-//            put(DatabaseHelper.KEY_LON, data.longitude)
-//            put(DatabaseHelper.KEY_PHOTO, data.foto)
-//        }
-//
-//        val rowsAffected = db.insert(DatabaseHelper.DB_TABLE_PANEN_TBS, null, values)
-////        db.close()
-//
-//        return rowsAffected > 0
-//    }
+    private val database = AppDatabase.getDatabase(context)
+    private val absensiDao = database.absensiDao()
+
+    suspend fun saveDataAbsensi(
+        kemandoran_id: String,
+        date_created: String,
+        created_by: Int,
+        karyawan_msk_id: String,
+        karyawan_tdk_msk_id: String,
+        foto: String,
+        komentar: String,
+        asistensi: Int,
+        lat: Double,
+        lon: Double,
+        info:String,
+        archive: Int,
+    ): Result<Long> {
+        val absensiModel = AbsensiModel(
+            kemandoran_id = kemandoran_id,
+            date_created = date_created,
+            created_by = created_by,
+            karyawan_msk_id = karyawan_msk_id,
+            karyawan_tdk_msk_id = karyawan_tdk_msk_id,
+            foto = foto,
+            komentar = komentar,
+            asistensi = asistensi,
+            lat = lat,
+            lon = lon,
+            info = info,
+            archive = archive
+        )
+        return absensiDao.insertWithTransaction(absensiModel)
+    }
 }

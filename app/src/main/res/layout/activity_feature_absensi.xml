@@ -63,14 +63,42 @@
                         android:id="@+id/layoutkemandoranAbsensi"/>
 
                     <LinearLayout
+                        android:id="@+id/layoutSelAsistensiAbsensi"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="130dp"
+                            android:layout_height="match_parent"
+                            android:gravity="center|left"
+                            android:textColor="@color/black"
+                            android:text="Asistensi"
+                            android:fontFamily="@font/manrope_semibold"
+                            android:textSize="18sp" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/selAsistensiAbsensi"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/switch_thumb_selector"
+                            app:trackTint="@color/switch_track_selector" />
+                    </LinearLayout>
+
+                    <include
+                        android:id="@+id/layoutKemandoranLainAbsensi"
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:visibility="gone" />
+
+                    <LinearLayout
                         android:id="@+id/llListAbsensi"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginHorizontal="10dp"
                         android:layout_marginTop="10dp"
                         android:orientation="vertical"
                         app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/layoutkemandoranAbsensi">
+                        app:layout_constraintTop_toBottomOf="@id/layoutKemandoranLainAbsensi">
 
                         <include
                             android:id="@+id/tableHeader"

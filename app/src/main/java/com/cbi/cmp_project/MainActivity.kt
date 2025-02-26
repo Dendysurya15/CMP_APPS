@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
             database.tphDao()
             database.flagESPBModelDao()
             database.millDao()
+            database.absensiDao()
             insertDefaultFlags()
 
             Log.d("Database", "Database and tables initialized successfully")
