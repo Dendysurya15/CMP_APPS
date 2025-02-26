@@ -97,25 +97,25 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             try {
                 val result = repository.saveDataESPB(
-                    blok_jjg,
-                    created_by_id,
-                    created_at,
-                    nopol,
-                    driver,
-                    transporter_id,
-                    pemuat_id,
-                    mill_id,
-                    archive,
-                    tph0,
-                    tph1,
-                    update_info,
-                    uploaded_by_id,
-                    uploaded_at,
-                    status_upload_cmp,
-                    status_upload_ppro,
-                    creator_info,
-                    uploader_info,
-                    noESPB
+                    blok_jjg = blok_jjg,
+                    created_by_id = created_by_id,
+                    created_at = created_at,
+                    nopol = nopol,
+                    driver = driver,
+                    transporter_id = transporter_id,
+                    pemuat_id = pemuat_id,
+                    mill_id = mill_id,
+                    archive = archive,
+                    tph0 = tph0,
+                    tph1 = tph1,
+                    update_info = update_info,
+                    uploaded_by_id = uploaded_by_id,
+                    uploaded_at = uploaded_at,
+                    status_upload_cmp = status_upload_cmp,
+                    status_upload_ppro = status_upload_ppro,
+                    creator_info = creator_info,
+                    uploader_info = uploader_info,
+                    noESPB = noESPB
                 )
 
                 result.fold(

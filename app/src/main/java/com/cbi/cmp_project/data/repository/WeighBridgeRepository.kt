@@ -50,7 +50,6 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
-
     suspend fun saveDataESPB(
         blok_jjg: String,
         created_by_id: Int,
@@ -92,6 +91,7 @@ class WeighBridgeRepository(context: Context) {
             creator_info = creator_info,
             uploader_info = uploader_info,
             noESPB = noESPB,
+            scan_status = 1
         )
         return espbDao.insertWithTransaction(panenEntity)
     }

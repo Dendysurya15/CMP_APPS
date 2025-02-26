@@ -92,7 +92,8 @@ class AppRepository(context: Context) {
                             info = "",
                             archive = 0,
                             status_espb = 0,
-                            status_restan = 0
+                            status_restan = 0,
+                            scan_status = 1
                         )
                     )
                 }
