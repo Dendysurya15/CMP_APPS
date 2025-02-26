@@ -30,7 +30,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -53,7 +52,6 @@ import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.PrefManager
-import com.cbi.markertph.data.model.TPHNewModel
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.google.android.material.button.MaterialButton
@@ -357,8 +355,8 @@ class FormESPBActivity : AppCompatActivity() {
             }
         }
 
-        val cbFormEspb = findViewById<MaterialCheckBox>(R.id.cbFormEspbTransporter)
-        cbFormEspb.setOnCheckedChangeListener {
+        val cbFormEspbTransporter = findViewById<MaterialCheckBox>(R.id.cbFormEspbTransporter)
+        cbFormEspbTransporter.setOnCheckedChangeListener {
             _, isChecked ->
             if (isChecked) {
                 formEspbTransporter.visibility = View.GONE
@@ -370,68 +368,80 @@ class FormESPBActivity : AppCompatActivity() {
 
         val btnGenerateQRESPB = findViewById<FloatingActionButton>(R.id.btnGenerateQRESPB)
         btnGenerateQRESPB.setOnClickListener {
+            val nopol = try {
+                etEspbNopol.text.toString().replace(" ","").uppercase()
+            }catch (e: Exception){
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil No Polisi $e", Toasty.LENGTH_LONG).show()
+                "NULL"
+            }
+
+            val driver = try {
+                etEspbDriver.text.toString().replace(" ","").uppercase()
+            }catch (e: Exception){
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil Driver $e", Toasty.LENGTH_LONG).show()
+                "NULL"
+            }
+
+            val espbDate: String = try {
+                getFormattedDateTime().toString()
+            }catch (e: Exception){
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil Tanggal ESPB $e", Toasty.LENGTH_LONG).show()
+                "NULL"
+            }
+
+            val appVersion: String = try {
+                this.packageManager.getPackageInfo(this.packageName, 0).versionName
+            } catch (e: Exception) {
+                Log.e("DeviceInfo", "Failed to get app version", e)
+                "Unknown"
+            }
+
+            val osVersion: String = try {
+                Build.VERSION.RELEASE
+            } catch (e: Exception) {
+                Log.e("DeviceInfo", "Failed to get OS version", e)
+                "Unknown"
+            }
+
+            val phoneModel: String = try {
+                "${Build.MANUFACTURER} ${Build.MODEL}"
+            } catch (e: Exception) {
+                Log.e("DeviceInfo", "Failed to get phone model", e)
+                "Unknown"
+            }
+            val noESPBStr = "$companyAbbr-$estatePetugas/$divisiAbbr/$espbDate"
+            var transporter_id = 0
+            transporter_id = if (cbFormEspbTransporter.isChecked) {
+                0
+            }else{
+                selectedTransporterId
+            }
+            val creatorInfo = createCreatorInfo(
+                appVersion = appVersion,
+                osVersion = osVersion,
+                phoneModel = phoneModel
+            )
+            val blok_jjg = try {
+                formattedJanjangString
+            }catch (e: Exception){
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil Janjang Blok $e", Toasty.LENGTH_LONG).show()
+                "NULL"
+            }
+            val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
+            val pemuatListId = selectedPemanen.map { it.id }
+            if (nopol == "NULL"){
+                Toasty.error(this, "Mohon lengkapi data No Polisi terlebih dahulu", Toasty.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            if (driver == "NULL"){
+                Toasty.error(this, "Mohon lengkapi data Driver terlebih dahulu", Toasty.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            if (transporter_id == 0 && !cbFormEspbTransporter.isChecked){
+                Toasty.error(this, "Mohon lengkapi data Transporter terlebih dahulu", Toasty.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
             AlertDialogUtility.withTwoActions(this, "SIMPAN", "KONFIRMASI BUAT QR ESPB?", "Pastikan seluruh data sudah valid!", "warning.json"){
-                val nopol = try {
-                    etEspbNopol.text.toString().replace(" ","").uppercase()
-                }catch (e: Exception){
-                    Toasty.error(this, "Terjadi Kesalahan saat mengambil No Polisi $e", Toasty.LENGTH_LONG).show()
-                    "NULL"
-                }
-
-                val driver = try {
-                    etEspbDriver.text.toString().replace(" ","").uppercase()
-                }catch (e: Exception){
-                    Toasty.error(this, "Terjadi Kesalahan saat mengambil Driver $e", Toasty.LENGTH_LONG).show()
-                    "NULL"
-                }
-
-                val espbDate: String = try {
-                    getFormattedDateTime().toString()
-                }catch (e: Exception){
-                    Toasty.error(this, "Terjadi Kesalahan saat mengambil Tanggal ESPB $e", Toasty.LENGTH_LONG).show()
-                    "NULL"
-                }
-
-                val appVersion: String = try {
-                    this.packageManager.getPackageInfo(this.packageName, 0).versionName
-                } catch (e: Exception) {
-                    Log.e("DeviceInfo", "Failed to get app version", e)
-                    "Unknown"
-                }
-
-                val osVersion: String = try {
-                    Build.VERSION.RELEASE
-                } catch (e: Exception) {
-                    Log.e("DeviceInfo", "Failed to get OS version", e)
-                    "Unknown"
-                }
-
-                val phoneModel: String = try {
-                    "${Build.MANUFACTURER} ${Build.MODEL}"
-                } catch (e: Exception) {
-                    Log.e("DeviceInfo", "Failed to get phone model", e)
-                    "Unknown"
-                }
-                val noESPBStr = "$companyAbbr-$estatePetugas/$divisiAbbr/$espbDate"
-                var transporter_id = 0
-                transporter_id = if (cbFormEspb.isChecked) {
-                    0
-                }else{
-                    selectedTransporterId
-                }
-                val creatorInfo = createCreatorInfo(
-                    appVersion = appVersion,
-                    osVersion = osVersion,
-                    phoneModel = phoneModel
-                )
-                val blok_jjg = try {
-                    formattedJanjangString
-                }catch (e: Exception){
-                    Toasty.error(this, "Terjadi Kesalahan saat mengambil Janjang Blok $e", Toasty.LENGTH_LONG).show()
-                    "NULL"
-                }
-                val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
-                val pemuatListId = selectedPemanen.map { it.id }
                 val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
                 btKonfirmScanESPB.visibility = View.VISIBLE
                 btKonfirmScanESPB.setOnClickListener {
@@ -448,8 +458,9 @@ class FormESPBActivity : AppCompatActivity() {
                         created_at = getCurrentDateTime(),
                         tph0 = tph0,
                         tph1 = tph1,
-                        status_draft = 0,
+                        status_draft = if (mekanisasi==0){0}else{1},
                         status_mekanisasi = mekanisasi
+
                     )
                 }
                 if (mekanisasi == 0) {
