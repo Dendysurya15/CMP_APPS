@@ -2,8 +2,6 @@ package com.cbi.cmp_project.data.database
 
 import androidx.room.*
 import com.cbi.cmp_project.data.model.ESPBEntity
-import com.cbi.cmp_project.data.model.PanenEntity
-import com.cbi.cmp_project.utils.AppLogger
 
 @Dao
 abstract class ESPBDao {
@@ -22,7 +20,8 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table")
     abstract fun getAll(): List<ESPBEntity>
 
-    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
+    //    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
+    @Query("SELECT * FROM espb_table")
     abstract fun getAllESPBUploaded(): List<ESPBEntity>
 
 
@@ -53,20 +52,28 @@ abstract class ESPBDao {
     @Insert
     abstract fun insert(espb: ESPBEntity): Long
 
+    @Query("SELECT COUNT(*) FROM espb_table WHERE noESPB = :noESPB")
+    abstract suspend fun isNoESPBExists(noESPB: String): Int
 
-    @Transaction
-    open suspend fun insertWithTransaction(espb: ESPBEntity): Result<Long> {
-        return try {
-            val id = insert(espb)  // Uses the single entity insert
-            Result.success(id)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            AppLogger.e("insertWithTransaction failed", e.toString())
-            Result.failure(e)
-        }
-    }
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertESPBData(espbData: ESPBEntity)
 
-    @Query("SELECT COUNT(*) FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
+    @Query("SELECT COUNT(*) FROM espb_table")
     abstract suspend fun countESPBUploaded(): Int
 
+    @Query("""
+        UPDATE espb_table 
+        SET uploader_info = :uploaderInfo, 
+            uploaded_by_id = :uploadedById, 
+            uploaded_at = :uploadedAt, 
+            status_upload_ppro = :statusUploadPpro 
+        WHERE id = :id
+    """)
+    abstract suspend fun updateUploadStatus(
+        id: Int,
+        statusUploadPpro: Int,
+        uploaderInfo: String,
+        uploadedAt: String,
+        uploadedById: Int
+    ): Int
 }

@@ -102,8 +102,7 @@ class MainActivity : AppCompatActivity() {
             FlagESPBModel(id = 1, flag = "Addition"),
             FlagESPBModel(id = 2, flag = "Manual"),
             FlagESPBModel(id = 3, flag = "Restan"),
-            FlagESPBModel(id = 4, flag = "Mekanisasi"),
-            FlagESPBModel(id = 5, flag = "Banjir")
+            FlagESPBModel(id = 4, flag = "Banjir")
         )
 
         defaultFlags.forEach { dao.insert(it) }

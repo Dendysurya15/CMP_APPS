@@ -1,5 +1,6 @@
 package com.cbi.cmp_project.data.model.weighBridge
 
+import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 
 data class wbQRData(
@@ -12,11 +13,11 @@ data class wbESPBData(
     @SerializedName("blok_jjg") val blokJjg: String,
     @SerializedName("nopol") val nopol: String,
     @SerializedName("driver") val driver: String,
-    @SerializedName("pemuat") val pemuat: String,
+    @SerializedName("pemuat_id") val pemuat_id: String,
     @SerializedName("transporter") val transporter: Int,
     @SerializedName("mill_id") val millId: Int,
     @SerializedName("created_by_id") val createdById: Int,
     @SerializedName("no_espb") val noEspb: String,
     @SerializedName("created_at") val createdAt: String,
-    @SerializedName("creator_info") val creatorInfo: String?
+    @SerializedName("creator_info") val creatorInfo: JsonElement,
 )
