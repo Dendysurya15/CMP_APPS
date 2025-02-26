@@ -7,16 +7,22 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.cmp_project.data.model.AbsensiModel
+import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.repository.AbsensiRepository
 import com.cbi.cmp_project.data.repository.PanenTBSRepository
+import com.cbi.cmp_project.data.repository.WeighBridgeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 sealed class SaveDataAbsensiState{
     object Loading: SaveDataAbsensiState()
-    data class Success(val id: Long): SaveDataAbsensiState()
+    object Success: SaveDataAbsensiState()
     data class Error(val message: String): SaveDataAbsensiState()
 }
 
@@ -53,45 +59,98 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         asistensi: Int,
         lat: Double,
         lon: Double,
-        info:String,
-        archive: Int,
-    ) {
-        _saveDataAbsensiState.value = SaveDataAbsensiState.Loading
+        info: String,
+        archive: Int
+    ): SaveDataAbsensiState {
+        return try {
+            val absensiData = AbsensiModel(
+                kemandoran_id = kemandoran_id,
+                date_absen = date_absen,
+                created_by = created_by,
+                karyawan_msk_id = karyawan_msk_id,
+                karyawan_tdk_msk_id = karyawan_tdk_msk_id,
+                foto = foto,
+                komentar = komentar,
+                asistensi = asistensi,
+                lat = lat,
+                lon = lon,
+                info = info,
+                archive = archive
+            )
+            repository.insertAbsensiData(absensiData)
+            SaveDataAbsensiState.Success
 
-        viewModelScope.launch {
-            try {
-                val result = repository.saveDataAbsensi(
-                    kemandoran_id,
-                    date_absen,
-                    created_by,
-                    karyawan_msk_id,
-                    karyawan_tdk_msk_id,
-                    foto,
-                    komentar,
-                    asistensi,
-                    lat,
-                    lon,
-                    info,
-                    archive
-                )
-
-                result.fold(
-                    onSuccess = { id ->
-                        _saveDataAbsensiState.value = SaveDataAbsensiState.Success(id)
-                    },
-                    onFailure = { exception ->
-                        _saveDataAbsensiState.value = SaveDataAbsensiState.Error(
-                            exception.message ?: "Unknown error occurred"
-                        )
-                    }
-                )
-            } catch (e: Exception) {
-                _saveDataAbsensiState.value = SaveDataAbsensiState.Error(
-                    e.message ?: "Unknown error occurred"
-                )
-            }
+        } catch (e: Exception) {
+            SaveDataAbsensiState.Error(e.toString())
         }
     }
+
+
+//    suspend fun saveDataAbsensi(
+//        kemandoran_id: String,
+//        date_absen: String,
+//        created_by: Int,
+//        karyawan_msk_id: String,
+//        karyawan_tdk_msk_id: String,
+//        foto: String,
+//        komentar: String,
+//        asistensi: Int,
+//        lat: Double,
+//        lon: Double,
+//        info:String,
+//        archive: Int,
+//    ) {
+//        _saveDataAbsensiState.value = SaveDataAbsensiState.Loading
+//        viewModelScope.launch {
+//            try {
+//                val result = repository.saveDataAbsensi(
+//                    kemandoran_id,
+//                    date_absen,
+//                    created_by,
+//                    karyawan_msk_id,
+//                    karyawan_tdk_msk_id,
+//                    foto,
+//                    komentar,
+//                    asistensi,
+//                    lat,
+//                    lon,
+//                    info,
+//                    archive
+//                )
+//                return try{
+//                    absensiData.saveDataAbsensi(
+//                        kemandoran_id = "",
+//                        date_absen = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+//                        created_by = userId!!,  // Prevent crash if userId is null
+//                        karyawan_msk_id = "",
+//                        karyawan_tdk_msk_id = "",
+//                        foto = photoFilesString,
+//                        komentar = komentarFotoString,
+//                        asistensi = asistensi ?: 0, // Default to 0 if null
+//                        lat = lat ?: 0.0, // Default to 0.0 if null
+//                        lon = lon ?: 0.0, // Default to 0.0 if null
+//                        info = infoApp ?: "",
+//                        archive = 0
+//                    )
+//                }
+//
+////                result.fold(
+////                    onSuccess = { id ->
+////                        _saveDataAbsensiState.value = SaveDataAbsensiState.Success(id)
+////                    },
+////                    onFailure = { exception ->
+////                        _saveDataAbsensiState.value = SaveDataAbsensiState.Error(
+////                            exception.message ?: "Unknown error occurred"
+////                        )
+////                    }
+////                )
+//            } catch (e: Exception) {
+//                _saveDataAbsensiState.value = SaveDataAbsensiState.Error(
+//                    e.message ?: "Unknown error occurred"
+//                )
+//            }
+//        }
+//    }
 
     suspend fun updateKaryawanAbsensi(
         date_absen: String,

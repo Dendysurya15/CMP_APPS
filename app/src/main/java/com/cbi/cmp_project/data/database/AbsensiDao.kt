@@ -2,6 +2,7 @@ package com.cbi.cmp_project.data.database
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.AbsensiModel
 import com.cbi.cmp_project.data.model.ESPBEntity
@@ -13,6 +14,9 @@ abstract class AbsensiDao {
 
     @Insert
     abstract fun insert(espb: AbsensiModel): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertAbsensiData(absensiData: AbsensiModel)
 
     @Transaction
     open suspend fun insertWithTransaction(espb: AbsensiModel): Result<Long> {

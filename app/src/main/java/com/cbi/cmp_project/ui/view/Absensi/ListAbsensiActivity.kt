@@ -56,15 +56,15 @@ class ListAbsensiActivity : AppCompatActivity() {
         tvEmptyStateAbsensi = findViewById(R.id.tvEmptyStateAbsensi)
     }
 
-    private fun setupRecyclerView() {
-        val headers = listOf("TANGGAL", "LOKASI", "TOTAL KEHADIRAN", "AKSI")
-        updateTableHeaders(headers)
-
-        recyclerView = findViewById(R.id.wbTableData)
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        absensiAdapter = AbsensiAdapter(emptyList())
-        recyclerView.adapter = absensiAdapter
-    }
+//    private fun setupRecyclerView() {
+//        val headers = listOf("TANGGAL", "LOKASI", "TOTAL KEHADIRAN", "AKSI")
+//        updateTableHeaders(headers)
+//
+//        recyclerView = findViewById(R.id.wbTableData)
+//        recyclerView.layoutManager = LinearLayoutManager(this)
+//        absensiAdapter = AbsensiAdapter(emptyList())
+//        recyclerView.adapter = absensiAdapter
+//    }
 
     private fun updateTableHeaders(headerNames: List<String>) {
         val tableHeader = findViewById<View>(R.id.rvTableDataAbsensi)

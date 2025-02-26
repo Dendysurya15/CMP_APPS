@@ -17,13 +17,14 @@ import com.cbi.cmp_project.ui.viewModel.AbsensiViewModel
 import com.cbi.cmp_project.utils.AppLogger
 
 data class AbsensiDataList(
+    val id: Int,
     val nama: String,
     val jabatan: String,
     var isChecked: Boolean = false
 )
 
 class AbsensiAdapter(
-    private var items: List<AbsensiDataList>) :
+    private var items: MutableList<AbsensiDataList>) :
     RecyclerView.Adapter<AbsensiAdapter.ViewHolder>() {
 
     // ViewHolder untuk Absensi
@@ -48,21 +49,24 @@ class AbsensiAdapter(
         holder.flCheckbox.isChecked = item.isChecked
 
         holder.flCheckbox.setOnCheckedChangeListener { _, isChecked ->
-            // Create a new list with updated isChecked value
-            items = items.mapIndexed { index, absensiData ->
-                if (index == position) absensiData.copy(isChecked = isChecked) else absensiData
-            }
-            notifyItemChanged(position) // Update only the changed item
+            items[position].isChecked = isChecked // <-- Perbarui nilai isChecked langsung
         }
+
     }
 
     fun updateList(newList: List<AbsensiDataList>, append: Boolean = false) {
         items = if (append) {
-            items + newList  // Menggabungkan data lama dengan data baru
+            (items + newList).toMutableList()  // <-- Ubah ke MutableList agar bisa diubah
         } else {
-            newList            // Mengganti seluruh data jika append = false
+            newList.toMutableList()  // <-- Pastikan tetap MutableList
         }
         notifyDataSetChanged()
     }
+
     override fun getItemCount() = items.size
+
+    // Fungsi untuk mendapatkan daftar absensi yang terbaru
+    fun getItems(): List<AbsensiDataList> {
+        return items
+    }
 }

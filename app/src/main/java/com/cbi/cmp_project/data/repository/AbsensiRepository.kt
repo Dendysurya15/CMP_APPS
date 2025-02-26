@@ -3,6 +3,7 @@ package com.cbi.cmp_project.data.repository
 import android.content.Context
 import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.AbsensiModel
+import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 
@@ -12,6 +13,10 @@ class AbsensiRepository(context: Context) {
     private val absensiDao = database.absensiDao()
     private val karyawanDao = database.karyawanDao()
     private val kemandoranDao = database.kemandoranDao()
+
+    suspend fun insertAbsensiData(absensiData: AbsensiModel) {
+        absensiDao.insertAbsensiData(absensiData)
+    }
 
     suspend fun saveDataAbsensi(
         kemandoran_id: String,
