@@ -6,6 +6,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import android.os.Environment
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Base64
@@ -48,6 +49,10 @@ object AppUtils {
         const val SUCCESS = "Berhasil Upload!"
         const val FAILED = "Gagal Upload!"
     }
+
+    object WaterMarkFotoDanFolder {
+        const val WMPanenTPH = "PANEN TPH"
+    }
     /**
      * Gets the current app version from BuildConfig or string resources.
      * @param context The context used to retrieve the string resource.
@@ -61,7 +66,7 @@ object AppUtils {
         context: Context,
         featureDataList: List<Pair<String, List<Map<String, Any>>>>,
         userId: String,
-        onResult: (Boolean, String, String) -> Unit // Callback now returns full path
+        onResult: (Boolean, String, String) -> Unit // Callback returns full path
     ) {
         try {
             val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
@@ -69,6 +74,12 @@ object AppUtils {
             val appFilesDir = File(context.getExternalFilesDir(null), "Upload").apply {
                 if (!exists()) mkdirs()
             }
+
+            // Get the Pictures directories - try both locations
+            val picturesDirs = listOf(
+                context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                File(context.getExternalFilesDir(null)?.parent ?: "", "Pictures")
+            ).filterNotNull()
 
             val zipFileName = "${userId}_$dateTime.zip"
             val zipFile = File(appFilesDir, zipFileName)
@@ -83,20 +94,209 @@ object AppUtils {
             }
 
             featureDataList.forEach { (featureKey, dataList) ->
+                // Add JSON data
                 val jsonString = convertDataToJsonString(dataList)
                 val jsonBytes = jsonString.toByteArray()
 
                 val inputStream = ByteArrayInputStream(jsonBytes)
                 zip.addStream(inputStream, zipParams.apply { fileNameInZip = "$featureKey/data.json" })
+
+                // Add photos for this feature
+                addFeaturePhotosToZip(context, dataList, featureKey, picturesDirs, zip, zipParams)
             }
 
-            onResult(true, zipFileName, zipFile.absolutePath) // ✅ Return full path
+            onResult(true, zipFileName, zipFile.absolutePath) // Return full path
 
         } catch (e: Exception) {
             val errorMessage = "❌ Error creating encrypted ZIP file: ${e.message}"
-
+            AppLogger.e(errorMessage)
             onResult(false, errorMessage, "") // Return empty path on failure
         }
+    }
+
+    /**
+     * Adds photos from CMP directories to the zip file
+     */
+    private fun addFeaturePhotosToZip(
+        context: Context,
+        dataList: List<Map<String, Any>>,
+        featureKey: String,
+        picturesDirs: List<File>,
+        zip: ZipFile,
+        zipParams: ZipParameters
+    ) {
+        val allCmpDirectories = mutableListOf<File>()
+
+        // Find all CMP directories in all possible Pictures folders
+        for (picturesDir in picturesDirs) {
+            if (!picturesDir.exists() || !picturesDir.isDirectory) {
+                AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
+                continue
+            }
+
+            val cmpDirectories = picturesDir.listFiles { file ->
+                file.isDirectory && file.name.startsWith("CMP")
+            } ?: emptyArray()
+
+            AppLogger.d("Looking for CMP directories in: ${picturesDir.absolutePath}")
+            AppLogger.d("Found ${cmpDirectories.size} CMP directories: ${cmpDirectories.map { it.name }}")
+
+            allCmpDirectories.addAll(cmpDirectories)
+        }
+
+        // Also check in the main Pictures directory itself
+        for (picturesDir in picturesDirs) {
+            val mainPicsDir = File(picturesDir.parentFile, "Pictures")
+            if (mainPicsDir.exists() && mainPicsDir.isDirectory) {
+                val cmpDirectories = mainPicsDir.listFiles { file ->
+                    file.isDirectory && file.name.startsWith("CMP")
+                } ?: emptyArray()
+
+                AppLogger.d("Looking for CMP directories in: ${mainPicsDir.absolutePath}")
+                AppLogger.d("Found ${cmpDirectories.size} CMP directories: ${cmpDirectories.map { it.name }}")
+
+                allCmpDirectories.addAll(cmpDirectories)
+            }
+        }
+
+        if (allCmpDirectories.isEmpty()) {
+            AppLogger.w("No CMP directories found in any Pictures location")
+        }
+
+        // Process each data entry to find photos
+        dataList.forEach { data ->
+            // Extract photo paths from the "foto" field
+            val photoPathString = data["foto"] as? String
+
+            AppLogger.d("id: ${data["id"]}")
+            AppLogger.d("Processing data: $data")
+
+            if (!photoPathString.isNullOrBlank()) {
+                // Split by semicolon to handle multiple photos
+                val photoPaths = photoPathString.split(";")
+
+                photoPaths.forEach { photoPath ->
+                    if (photoPath.isNotBlank()) {
+                        // Determine the file name from the path
+                        val photoFileName = photoPath.trim().substringAfterLast("/")
+
+                        // First try: Look for the exact file
+                        val photoFile = File(photoPath.trim())
+
+                        // Track if we found the photo
+                        var photoFound = false
+
+                        if (photoFile.exists() && photoFile.isFile) {
+                            try {
+                                // Add the photo to the zip file in the appropriate feature folder
+                                val targetPath = "$featureKey/photos/$photoFileName"
+                                zipParams.fileNameInZip = targetPath
+                                zip.addFile(photoFile, zipParams)
+                                photoFound = true
+                                AppLogger.d("Added photo to zip (direct path): ${photoFile.absolutePath} -> $targetPath")
+                            } catch (e: Exception) {
+                                AppLogger.e("Failed to add photo to zip: ${photoFile.absolutePath}, Error: ${e.message}")
+                            }
+                        } else {
+                            // Find photo by trying multiple search strategies
+                            val foundFile = findPhotoFile(allCmpDirectories, photoPath.trim(), photoFileName)
+
+                            if (foundFile != null) {
+                                try {
+                                    zipParams.fileNameInZip = "$featureKey/photos/${foundFile.name}"
+                                    zip.addFile(foundFile, zipParams)
+                                    photoFound = true
+                                    AppLogger.d("Added photo to zip (from search): ${foundFile.absolutePath}")
+                                } catch (e: Exception) {
+                                    AppLogger.e("Failed to add photo to zip: ${foundFile.absolutePath}, Error: ${e.message}")
+                                }
+                            }
+                        }
+
+                        if (!photoFound) {
+                            AppLogger.w("Photo not found in any directory: $photoPath")
+
+                            // One last attempt - check if it's a relative path from app's external files directory
+                            val relativePathFile = File(context.getExternalFilesDir(null), photoPath.trim())
+                            if (relativePathFile.exists() && relativePathFile.isFile) {
+                                try {
+                                    zipParams.fileNameInZip = "$featureKey/photos/$photoFileName"
+                                    zip.addFile(relativePathFile, zipParams)
+                                    AppLogger.d("Added photo to zip (relative path): ${relativePathFile.absolutePath}")
+                                } catch (e: Exception) {
+                                    AppLogger.e("Failed to add photo to zip: ${relativePathFile.absolutePath}, Error: ${e.message}")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Helper function to find a photo file using multiple search strategies
+     */
+    private fun findPhotoFile(
+        directories: List<File>,
+        photoPath: String,
+        photoFileName: String
+    ): File? {
+        // Strategy 1: Direct filename match in any CMP directory
+        for (dir in directories) {
+            val file = File(dir, photoFileName)
+            if (file.exists() && file.isFile) {
+                AppLogger.d("Found photo with exact name match: ${file.absolutePath}")
+                return file
+            }
+        }
+
+        // Strategy 2: Find files containing this filename
+        for (dir in directories) {
+            val matchingFiles = dir.listFiles { file ->
+                file.isFile && file.name.contains(photoFileName)
+            } ?: emptyArray()
+
+            if (matchingFiles.isNotEmpty()) {
+                AppLogger.d("Found photo with partial name match: ${matchingFiles.first().absolutePath}")
+                return matchingFiles.first()
+            }
+        }
+
+        // Strategy 3: For cases like "Panen TBS_1_2025227_112824.jpg",
+        // extract the base pattern and number
+        val patternMatch = """(.*?)_(\d+)_\d+_\d+\.jpg""".toRegex().find(photoFileName)
+        if (patternMatch != null) {
+            val (baseName, number) = patternMatch.destructured
+
+            // Look for files matching the pattern
+            for (dir in directories) {
+                if (dir.name.contains(baseName, ignoreCase = true)) {
+                    val matchingFiles = dir.listFiles { file ->
+                        file.isFile && file.name.contains("${baseName}_${number}")
+                    } ?: emptyArray()
+
+                    if (matchingFiles.isNotEmpty()) {
+                        AppLogger.d("Found photo with pattern match: ${matchingFiles.first().absolutePath}")
+                        return matchingFiles.first()
+                    }
+                }
+            }
+
+            // Try finding any file with the base name and number
+            for (dir in directories) {
+                val matchingFiles = dir.listFiles { file ->
+                    file.isFile && file.name.contains("${baseName}_${number}")
+                } ?: emptyArray()
+
+                if (matchingFiles.isNotEmpty()) {
+                    AppLogger.d("Found photo with loose pattern match: ${matchingFiles.first().absolutePath}")
+                    return matchingFiles.first()
+                }
+            }
+        }
+
+        return null
     }
 
 

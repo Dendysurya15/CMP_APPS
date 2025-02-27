@@ -1799,7 +1799,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
-        takeFotoPreviewAdapter = TakeFotoPreviewAdapter(3, cameraViewModel, this, featureName)
+        takeFotoPreviewAdapter = TakeFotoPreviewAdapter(3, cameraViewModel, this, AppUtils.WaterMarkFotoDanFolder.WMPanenTPH)
         recyclerView.adapter = takeFotoPreviewAdapter
     }
 
