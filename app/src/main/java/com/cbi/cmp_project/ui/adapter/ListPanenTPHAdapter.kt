@@ -176,7 +176,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             isSelected: Boolean,
             archiveState: Int,
             onCheckedChange: (Boolean) -> Unit,
-//            checkboxEnabled: Boolean,
+//            scanStatus: Int,
             extractData: (Map<String, Any>) -> ExtractedData,
             featureName: String = "",
             tphListScan: List<String> = emptyList()
@@ -193,7 +193,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             binding.td3.text = extractedData.gradingText
             binding.td4.text = extractedData.tanggalText
 
-            if (archiveState == 1) {
+            if (archiveState == 1 || featureName == "Rekap panen dan restan") {
                 Log.d("ListPanenTPHAdapterTest", "archiveState == 1")
 
                 binding.checkBoxPanen.visibility = View.GONE

@@ -116,6 +116,17 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:gravity="center"
+            android:orientation="horizontal"
+            android:padding="5dp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/td6"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
             android:padding="5dp"
             android:visibility="gone" />
     </LinearLayout>

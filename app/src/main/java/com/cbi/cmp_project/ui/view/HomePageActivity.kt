@@ -377,7 +377,7 @@ class HomePageActivity : AppCompatActivity() {
 
 
             "Rekap eSPB" -> {
-                if (feature.displayType == DisplayType.ICON) {
+                if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListHistoryESPBActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)

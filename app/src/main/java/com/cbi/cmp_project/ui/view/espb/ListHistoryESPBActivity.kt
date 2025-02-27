@@ -4,10 +4,13 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.CheckBox
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.setPadding
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -79,6 +82,12 @@ class ListHistoryESPBActivity : AppCompatActivity() {
                         val filteredData = coroutineScope {
                             data.map { item ->
                                 async {
+
+                                    // First extract TPH IDs from tph1 column to get tphCount
+                                    val tphEntries = item.tph1.split(";").filter { it.isNotEmpty() }
+                                    val tphCount = tphEntries.size
+
+                                    // Process blok_jjg data to get janjang sum
                                     val blokJjgList = item.blok_jjg
                                         .split(";")
                                         .mapNotNull {
@@ -91,26 +100,31 @@ class ListHistoryESPBActivity : AppCompatActivity() {
 
                                     val idBlokList = blokJjgList.map { it.first }
 
+                                    // Get blok data from repository
                                     val blokData = try {
-                                        withContext(Dispatchers.IO) { // Database operation on IO thread
+                                        withContext(Dispatchers.IO) {
                                             espbViewModel.getBlokById(idBlokList)
                                         }
                                     } catch (e: Exception) {
                                         AppLogger.e("Error fetching Blok Data: ${e.message}")
-                                        null
+                                        emptyList()
                                     }
 
-                                    // Even if blokData fails, use non-null fields
+                                    // Extract blok_kode values for display
+                                    val blokDisplay = if (blokData.isNotEmpty()) {
+                                        blokData.mapNotNull { it.blok_kode }.distinct().joinToString(", ")
+                                    } else {
+                                        // Fallback to just listing the blok IDs if we can't get the names
+                                        idBlokList.distinct().joinToString(", ") { it.toString() }
+                                    }
+
                                     ESPBData(
                                         time = item.created_at.ifEmpty { "-" },
-                                        blok = blokJjgList.joinToString(", ") {
-                                            val blokName = blokData?.find { data -> data.id == it.first }?.blok_kode ?: "Blok ${it.first}"
-                                            blokName
-                                        },
+                                        blok = blokDisplay,
                                         janjang = blokJjgList.sumOf { it.second ?: 0 }.toString(),
-                                        tphCount = item.tph1.split(";").filter { it.isNotEmpty() }.size.toString(),
+                                        tphCount = tphCount.toString(),
                                         status_mekanisasi = item.status_mekanisasi,
-                                        status_scan = item.status_draft // Defaults to 0 if null
+                                        status_scan = item.status_draft
                                     )
 
                                 }
@@ -132,7 +146,7 @@ class ListHistoryESPBActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        val headers = listOf("WAKTU", "BLOK", "JANJANG", "TPH", "STATUS ESPB")
+        val headers = listOf("WAKTU", "BLOK", "JANJANG", "TPH", "MAIC", "SCAN")
         updateTableHeaders(headers)
 
         recyclerView = findViewById(R.id.wbTableData)
@@ -143,7 +157,7 @@ class ListHistoryESPBActivity : AppCompatActivity() {
 
     private fun updateTableHeaders(headerNames: List<String>) {
         val tableHeader = findViewById<View>(R.id.wbTableHeader)
-        val headerIds = listOf(R.id.th1, R.id.th2, R.id.th3, R.id.th4, R.id.th5)
+        val headerIds = listOf(R.id.th1, R.id.th2, R.id.th3, R.id.th4, R.id.th5, R.id.th6)
 
         for (i in headerNames.indices) {
             val textView = tableHeader.findViewById<TextView>(headerIds[i])
@@ -152,6 +166,17 @@ class ListHistoryESPBActivity : AppCompatActivity() {
                 text = headerNames[i]
             }
         }
+
+        val th5 = tableHeader.findViewById<TextView>(R.id.th5)
+        val th6 = tableHeader.findViewById<TextView>(R.id.th6)
+        val layoutParamsTh5 = th5.layoutParams as LinearLayout.LayoutParams
+        layoutParamsTh5.weight = 0.3f
+        th5.layoutParams = layoutParamsTh5
+        val layoutParamsTh6 = th6.layoutParams as LinearLayout.LayoutParams
+        layoutParamsTh6.weight = 0.3f
+        th6.layoutParams = layoutParamsTh6
+        val flCheckBoxTableHeaderLayout = tableHeader.findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
+        flCheckBoxTableHeaderLayout.visibility = View.GONE
     }
 
     private fun initViewModel() {

@@ -447,6 +447,11 @@ class FormESPBActivity : AppCompatActivity() {
                 val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
                 btKonfirmScanESPB.visibility = View.VISIBLE
                 btKonfirmScanESPB.setOnClickListener {
+                    val statusDraft = if (mekanisasi == 0){
+                        1
+                    }else{
+                        0
+                    }
                     saveESPB(
                         blok_jjg = blok_jjg,
                         nopol = nopol,
@@ -460,9 +465,8 @@ class FormESPBActivity : AppCompatActivity() {
                         created_at = getCurrentDateTime(),
                         tph0 = tph0,
                         tph1 = tph1,
-                        status_draft = if (mekanisasi==0){0}else{1},
+                        status_draft = statusDraft,
                         status_mekanisasi = mekanisasi
-
                     )
                 }
                 if (mekanisasi == 0) {
@@ -488,8 +492,6 @@ class FormESPBActivity : AppCompatActivity() {
             }
         }
 
-
-//        setupSpinner(R.id.FormEspbPemuat)
         val formEspbMill = findViewById<LinearLayout>(R.id.formEspbMill)
         val spEspbMill = formEspbMill.findViewById<MaterialSpinner>(R.id.spPanenTBS)
         spEspbMill.setOnItemSelectedListener { view, position, id, item ->
@@ -536,13 +538,6 @@ class FormESPBActivity : AppCompatActivity() {
             }
             true // Consume event, preventing default behavior
         }
-//        spinner.setOnItemSelectedListener {
-//                view, position, id, item ->
-//            Log.d("FormESPBActivityKemandoran", "test klik: $id + $position + $item")
-//            selectedID = position
-//            val selectedIDs = id
-//            Toasty.info(this, "slectedid: $selectedID, selectedIDs: $selectedIDs, ", Toasty.LENGTH_SHORT).show()
-//        }
         return selectedID
     }
 

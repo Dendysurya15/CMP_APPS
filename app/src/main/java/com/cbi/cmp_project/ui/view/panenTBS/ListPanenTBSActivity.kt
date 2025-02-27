@@ -149,6 +149,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 panenViewModel.loadActivePanenESPB()
             } else if (featureName == "Rekap panen dan restan") {
                 panenViewModel.loadActivePanenRestan()
+                findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
+                findViewById<TextView>(R.id.list_item_tersimpan).text = "Hasil Rekap"
+                findViewById<TextView>(R.id.list_item_terscan).text = "TPH Selesai eSPB"
             } else {
                 panenViewModel.loadActivePanen()
                 panenViewModel.loadPanenCountArchive() // Load archive count
@@ -458,7 +461,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     finishAffinity()
                 }
             }
-        } else {
+        } else if(featureName == "Rekap panen dan restan") {
+            btnGenerateQRTPH.visibility = View.GONE
+        }
+        else {
             btnGenerateQRTPH.setOnClickListener {
                 val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
                 view.background = ContextCompat.getDrawable(
@@ -1009,9 +1015,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     }
                     counterTersimpan.text = panenList.size.toString()
 
-                    if (panenList.size == 0) {
+                    if (panenList.size == 0 && featureName == "Rekap Hasil Panen") {
                         btnGenerateQRTPH.visibility = View.GONE
-                    } else {
+                    } else if(panenList.size > 0 && featureName == "Rekap Hasil Panen"){
                         btnGenerateQRTPH.visibility = View.VISIBLE
                     }
                 }, 500)
