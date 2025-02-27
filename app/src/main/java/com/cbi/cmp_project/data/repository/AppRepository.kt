@@ -123,6 +123,10 @@ class AppRepository(context: Context) {
         tphDao.getDivisiAbbrByTphId(id)
     }
 
+    suspend fun updatePanenArchive(ids: List<Int>,statusArchive:Int) {
+        panenDao.updatePanenArchive(ids, statusArchive)
+    }
+
     suspend fun getPanenCount(): Int {
         return panenDao.getCount()
     }

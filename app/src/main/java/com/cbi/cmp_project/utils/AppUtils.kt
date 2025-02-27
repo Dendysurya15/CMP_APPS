@@ -16,19 +16,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import com.cbi.cmp_project.R
-import com.github.junrar.Archive
-import com.github.junrar.rarfile.FileHeader
-import com.jaredrummler.materialspinner.BuildConfig
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
 import net.lingala.zip4j.model.enums.CompressionMethod
 import net.lingala.zip4j.model.enums.EncryptionMethod
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedOutputStream
 import java.io.ByteArrayInputStream
 import java.io.File
-import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -36,7 +31,6 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
-import java.util.zip.ZipOutputStream
 
 object AppUtils {
 
@@ -48,6 +42,12 @@ object AppUtils {
     const val REQUEST_CHECK_SETTINGS = 0x1
 
 
+    object UploadStatusUtils {
+        const val WAITING = "Menunggu"
+        const val UPLOADING = "Sedang Upload..."
+        const val SUCCESS = "Berhasil Upload!"
+        const val FAILED = "Gagal Upload!"
+    }
     /**
      * Gets the current app version from BuildConfig or string resources.
      * @param context The context used to retrieve the string resource.
@@ -60,7 +60,8 @@ object AppUtils {
     fun createAndSaveZipUploadCMP(
         context: Context,
         featureDataList: List<Pair<String, List<Map<String, Any>>>>,
-        userId: String
+        userId: String,
+        onResult: (Boolean, String, String) -> Unit // Callback now returns full path
     ) {
         try {
             val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
@@ -89,12 +90,16 @@ object AppUtils {
                 zip.addStream(inputStream, zipParams.apply { fileNameInZip = "$featureKey/data.json" })
             }
 
-            Log.d("FileUtils", "✅ Encrypted ZIP file created successfully at: ${zipFile.absolutePath}")
+            onResult(true, zipFileName, zipFile.absolutePath) // ✅ Return full path
 
         } catch (e: Exception) {
-            Log.e("FileUtils", "❌ Error creating encrypted ZIP file: ${e.message}")
+            val errorMessage = "❌ Error creating encrypted ZIP file: ${e.message}"
+
+            onResult(false, errorMessage, "") // Return empty path on failure
         }
     }
+
+
 
     // Convert List<Map<String, Any>> to JSON String
     private fun convertDataToJsonString(data: List<Map<String, Any>>): String {

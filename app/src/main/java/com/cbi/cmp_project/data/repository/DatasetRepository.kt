@@ -40,6 +40,7 @@ class DatasetRepository(context: Context,  private val apiService: ApiService = 
 //        return deptDao.getDeptByCriteria(estateId)
 //    }
 
+
     suspend fun getDivisiList( idEstate: Int): List<TPHNewModel> {
         return tphDao.getDivisiByCriteria(idEstate)
     }

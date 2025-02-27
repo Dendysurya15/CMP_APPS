@@ -4,8 +4,10 @@ import android.graphics.Region
 import androidx.room.Query
 import com.cbi.cmp_project.data.model.LoginResponse
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
+import com.cbi.cmp_project.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.cmp_project.data.model.weighBridge.UploadStagingResponse
 import com.google.gson.annotations.SerializedName
+import okhttp3.MultipartBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -13,7 +15,9 @@ import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Headers
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Streaming
 import retrofit2.http.Url
 
@@ -102,5 +106,11 @@ interface ApiService {
         @SerializedName("created_at") val created_at: String,
         @SerializedName("no_espb") val no_espb: String,
     )
+
+    @Multipart
+    @POST("upload")
+    suspend fun uploadZip(
+        @Part zipFile: MultipartBody.Part
+    ): Response<UploadCMPResponse>
 
 }

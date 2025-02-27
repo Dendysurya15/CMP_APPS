@@ -355,7 +355,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
 
 
-
     fun downloadMultipleDatasets(requests: List<DatasetRequest>) {
         viewModelScope.launch {
             val results = mutableMapOf<String, Resource<Response<ResponseBody>>>()

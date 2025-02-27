@@ -11,7 +11,7 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
 import android.provider.Settings
-
+import kotlin.reflect.full.findAnnotation
 import android.os.Build
 import android.util.Log
 import android.view.LayoutInflater
@@ -28,6 +28,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.room.Entity
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.data.database.KaryawanDao
 import com.cbi.cmp_project.data.model.ESPBEntity
@@ -70,6 +71,9 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
 class HomePageActivity : AppCompatActivity() {
@@ -95,6 +99,11 @@ class HomePageActivity : AppCompatActivity() {
     private var globalESPBList: List<Map<String, Any>> = emptyList()
     private var globalPanenList: List<Map<String, Any>> = emptyList()
 
+    private var globalPanenIds: List<Int> = emptyList()
+    private var globalESPBIds: List<Int> = emptyList()
+    private var zipFilePath: String? = null
+    private var zipFileName: String? = null
+
 
     private lateinit var datasetViewModel: DatasetViewModel
 
@@ -114,9 +123,35 @@ class HomePageActivity : AppCompatActivity() {
         checkPermissions()
         setupRecyclerView()
 
-
+        setupObserveUpdateArchiveAllDataCMP()
     }
 
+
+    private fun setupObserveUpdateArchiveAllDataCMP() {
+        weightBridgeViewModel.updateStatus.observe(this) { success ->
+            if (success) {
+                AppLogger.d("✅ ESPB Archive Updated Successfully")
+            } else {
+                AppLogger.e("❌ ESPB Archive Update Failed")
+            }
+        }
+
+        panenViewModel.updateStatus.observe(this) { success ->
+            if (success) {
+                AppLogger.d("✅ Panen Archive Updated Successfully")
+            } else {
+                AppLogger.e("❌ Panen Archive Update Failed")
+            }
+        }
+
+        uploadCMPViewModel.updateStatus.observe(this) { success ->
+            if (success) {
+                AppLogger.d("✅ Upload Data Inserted or Updated Successfully")
+            } else {
+                AppLogger.e("❌ Upload Data Insertion Failed")
+            }
+        }
+    }
 
     private fun fetchDataEachCard() {
 
@@ -430,17 +465,9 @@ class HomePageActivity : AppCompatActivity() {
                         loadingDialog.setMessage("Sedang mempersiapkan data...")
                         delay(500)
                         val dataReadyDeferred = CompletableDeferred<Boolean>()
-
-                        // Start collecting data
                         triggerAllDatabaseWithArchive()
-
-                        // Set up observers with completion callbacks
                         setupObserverForUploadAllDataCMP(dataReadyDeferred)
-
-                        // Wait for the data collection to complete
                         dataReadyDeferred.await()
-
-                        // Now that data is ready, set up the dialog
                         setupDialogUpload()
                     }
 
@@ -449,6 +476,22 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+
+    // Function to get the table name dynamically
+    inline fun <reified T> getTableName(): String {
+        return T::class.findAnnotation<Entity>()?.tableName ?: T::class.simpleName.orEmpty()
+    }
+
+    // Mapping IDs to table names dynamically
+    fun createJsonTableNameMapping(): String {
+        val tableMap = mapOf(
+            getTableName<PanenEntity>() to globalPanenIds,
+            getTableName<ESPBEntity>() to globalESPBIds
+        )
+
+        return Gson().toJson(tableMap) // Convert to JSON string
     }
 
 
@@ -463,11 +506,38 @@ class HomePageActivity : AppCompatActivity() {
             }
 
             if (completionCounter.incrementAndGet() >= totalCollections) {
-                AppLogger.d("All data collected, creating ZIP...")
-                AppUtils.createAndSaveZipUploadCMP( this, uploadDataList, prefManager!!.idUserLogin.toString())
+                loadingDialog.setMessage("Sedang membuat rekap data file .zip...")
 
-                dataReadyDeferred.complete(true)
+
+                AppUtils.createAndSaveZipUploadCMP(
+                    this,
+                    uploadDataList,
+                    prefManager!!.idUserLogin.toString()
+                ) { success, fileName, fullPath ->
+                    if (success) {
+                        zipFilePath = fullPath // ✅ Store full path instead of just file name
+                        zipFileName = fileName // ✅ Store full path instead of just file name
+                        lifecycleScope.launch(Dispatchers.IO) {
+//                            weightBridgeViewModel.updateArchiveESPB(globalESPBIds, 1)
+//                            panenViewModel.updateArchivePanen(globalPanenIds, 1)
+//                            uploadCMPViewModel.addNewDataUpload(
+//                                1,
+//                                zipFileName!!,
+//                                1,
+//                                SimpleDateFormat(
+//                                    "yyyy-MM-dd HH:mm:ss",
+//                                    Locale.getDefault()
+//                                ).format(Date()),
+//                                jsonResultTableIds
+//                            )
+                        }
+                        dataReadyDeferred.complete(true)
+                    } else {
+                        AppLogger.e("❌ ZIP creation failed: $data")
+                    }
+                }
             }
+
         }
 
         lifecycleScope.launch {
@@ -525,8 +595,9 @@ class HomePageActivity : AppCompatActivity() {
                     }
 
                     globalESPBList = mappedData
-                    AppLogger.d("ESPB data loaded: ${globalESPBList.size} items")
-                    AppLogger.d("ESPB data loaded: ${globalESPBList}")
+                    globalESPBIds = mappedData.map { it["id"] as Int }
+
+                    AppLogger.d(globalESPBIds.toString())
                     checkAllCollectionsComplete("ESPB", globalESPBList)
                 }
 
@@ -538,8 +609,8 @@ class HomePageActivity : AppCompatActivity() {
             panenViewModel.activePanenList.observe(this@HomePageActivity) { panenList ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     val mappedData = panenList.map { panenWithRelations ->
-                        // Your existing Panen mapping code here
-                        val jjgJson = panenWithRelations.panen.jjg_json as? Map<String, Any> ?: emptyMap()
+                        val jjgJson =
+                            panenWithRelations.panen.jjg_json as? Map<String, Any> ?: emptyMap()
                         val karyawanIds = panenWithRelations.panen.karyawan_id
                             ?.split(",")
                             ?.map { it.trim() }
@@ -589,8 +660,8 @@ class HomePageActivity : AppCompatActivity() {
 
                     withContext(Dispatchers.Main) {
                         globalPanenList = mappedData
-                        AppLogger.d("Panen data loaded: ${globalPanenList.size} items")
-                        AppLogger.d("Panen data loaded: ${globalPanenList}")
+                        globalPanenIds = mappedData.map { it["id"] as Int }
+
                         checkAllCollectionsComplete("Panen", globalPanenList)
                     }
                 }
@@ -619,7 +690,6 @@ class HomePageActivity : AppCompatActivity() {
                     pemanen = dataList.map { Pemanen(it.nik, it.namaKaryawan.trim()) }
                 )
             }
-
         return Gson().toJson(groupedData)
     }
 
@@ -630,16 +700,13 @@ class HomePageActivity : AppCompatActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun setupDialogUpload() {
-
         loadingDialog.dismiss()
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
         val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-        titleTV.text = "Progress Upload..."
+        titleTV.text = "Upload Data CMP"
 
         val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
-//        val totalUploadItems = globalESPBList.size + globalPanenList.size
-        val totalUploadItems = globalESPBList.size
-        counterTV.text = "0/$totalUploadItems"
+        counterTV.text = "0/1"
 
         val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
         val btnUploadDataCMP = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
@@ -651,16 +718,18 @@ class HomePageActivity : AppCompatActivity() {
 
         val uploadItems = mutableListOf<UploadCMPItem>()
 
-        globalESPBList.forEachIndexed { index, item ->
-            uploadItems.add(UploadCMPItem(id = index, titleProgress = "${item["feature"]} - ${item["no_espb"]}" as String))
-        }
-//        globalPanenList.forEachIndexed { index, item ->
-//            uploadItems.add(UploadCMPItem(id = globalESPBList.size + index, titleProgress =  "${item["feature"]} - ${item["dept_abbr"]} ${item["divisi_abbr"]} TPH No ${item["tph_nomor"]}, ${item["jjg_panen"]} Jjg" as String))
-//        }
+        uploadItems.add(
+            UploadCMPItem(
+                id = 0,
+                title = zipFileName ?: "",
+                fullPath = zipFilePath ?: ""
+            )
+        )
 
         val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = UploadProgressCMPDataAdapter(uploadItems, uploadCMPViewModel)
+        val adapter = UploadProgressCMPDataAdapter(uploadItems)
+        recyclerView.adapter = adapter
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
@@ -668,28 +737,69 @@ class HomePageActivity : AppCompatActivity() {
             .create()
         dialog.show()
 
+        btnUploadDataCMP.setOnClickListener {
 
-        btnUploadDataCMP.setOnClickListener{
             btnUploadDataCMP.isEnabled = false
             closeDialogBtn.isEnabled = false
             btnUploadDataCMP.alpha = 0.7f
             closeDialogBtn.alpha = 0.7f
-            btnUploadDataCMP.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
+            btnUploadDataCMP.iconTint =
+                ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
             closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
 
-
+            startUploadAllDataCMP(zipFilePath)
         }
 
         closeDialogBtn.setOnClickListener {
             dialog.dismiss()
         }
 
-        loadingDialog.dismiss()
+        uploadCMPViewModel.uploadProgressCMP.observe(this) { progress ->
+            adapter.updateProgress(0, progress)
+            titleTV.text = "Sedang Upload Data..."
+        }
+
+        uploadCMPViewModel.uploadStatusCMP.observe(this) { status ->
+            adapter.updateStatus(0, status)
+            if (status == AppUtils.UploadStatusUtils.SUCCESS){
+                counterTV.text = "1/1"
+                titleTV.text = "Upload Berhasil"
+                btnUploadDataCMP.isEnabled = true
+                btnUploadDataCMP.visibility = View.GONE
+
+                closeDialogBtn.isEnabled = true
+                closeDialogBtn.alpha = 1f
+                closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+
+            }
+        }
+
+        uploadCMPViewModel.uploadErrorCMP.observe(this) { error ->
+            if (!error.isNullOrEmpty()) {
+                adapter.updateError(0, error)
+                titleTV.text = "Terjadi Kesalahan..."
+                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
+            }
+        }
+
+        uploadCMPViewModel.uploadResponseCMP.observe(this) { response ->
+            val jsonResultTableIds = createJsonTableNameMapping()
+            response?.let {
+                uploadCMPViewModel.UpdateOrInsertDataUpload(
+                    response.trackingId,
+                    response.nama_file,
+                    response.trackingId,
+                    response.tanggal_upload,
+                    jsonResultTableIds
+                )
+            }
+        }
+
     }
 
 
-    private fun startUploadAllDataCMP() {
-
+    private fun startUploadAllDataCMP(fileZip:String?) {
+        uploadCMPViewModel.uploadZipToServer(fileZip?: "")
     }
 
 

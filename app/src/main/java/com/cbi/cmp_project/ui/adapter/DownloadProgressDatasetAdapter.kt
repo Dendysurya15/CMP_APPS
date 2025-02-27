@@ -81,7 +81,7 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                 }
                 item.isStoringCompleted -> {
                     statusProgress.visibility = View.VISIBLE
-                    statusProgress.text = "Database successfully stored"
+
                     statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
                     iconStatus.visibility = View.VISIBLE
                     iconStatus.setImageResource(R.drawable.baseline_check_24)

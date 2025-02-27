@@ -52,6 +52,8 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
 
+    private val _updateStatus = MutableLiveData<Boolean>()
+    val updateStatus: LiveData<Boolean> get() = _updateStatus
 
 
     private val _saveDataPanenState = MutableStateFlow<SaveDataPanenState>(SaveDataPanenState.Loading)
@@ -106,6 +108,17 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 .onFailure { exception ->
                     _error.postValue(exception.message ?: "Failed to load data")
                 }
+        }
+    }
+
+    fun updateArchivePanen(ids: List<Int>, statusArchive:Int) {
+        viewModelScope.launch {
+            try {
+                repository.updatePanenArchive(ids,statusArchive)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+            }
         }
     }
 

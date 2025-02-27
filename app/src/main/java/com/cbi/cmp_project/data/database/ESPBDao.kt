@@ -76,4 +76,7 @@ abstract class ESPBDao {
         uploadedAt: String,
         uploadedById: Int
     ): Int
+
+    @Query("UPDATE espb_table SET archive = :statusArchive WHERE id IN (:ids)")
+    abstract suspend fun updateESPBArchive(ids: List<Int>, statusArchive: Int)
 }

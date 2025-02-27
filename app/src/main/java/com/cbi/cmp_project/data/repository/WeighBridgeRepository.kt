@@ -85,6 +85,10 @@ class WeighBridgeRepository(context: Context) {
         espbDao.updateUploadStatus(id, statusUploadPpro, uploaderInfo, uploaderAt, uploadedById)
     }
 
+    suspend fun updateESPBArchive(ids: List<Int>, statusArchive:Int) {
+        espbDao.updateESPBArchive(ids, statusArchive)
+    }
+
     // Create a data class to hold error information
     data class UploadError(
         val itemId: Int,
