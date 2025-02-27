@@ -5,7 +5,9 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.res.Resources
 import android.database.sqlite.SQLiteException
 import android.graphics.Bitmap
@@ -37,6 +39,7 @@ import com.cbi.cmp_project.R
 import com.cbi.cmp_project.ui.adapter.ListPanenTPHAdapter
 import com.cbi.cmp_project.ui.view.espb.FormESPBActivity
 import com.cbi.cmp_project.ui.view.HomePageActivity
+import com.cbi.cmp_project.ui.view.ScanQR
 
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
@@ -103,10 +106,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var estateName: String? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
-
+    private lateinit var btnAddMoreTph: FloatingActionButton
     private var tph1IdPanen =  ""
 
     private var mappedData: List<Map<String, Any>> = emptyList()
+
+    private var tph1= ""
+    private var tph0= ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -137,15 +143,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSearch()
         setupObservers()
-        setupSpeedDial()
+        if (featureName != "Buat eSPB" && featureName != "Rekap panen dan restan")  {
+            setupSpeedDial()
+            setupCheckboxControl()  // Add this
+        }
         setupCardListeners()
         initializeFilterViews()
         setupSortButton()
-        setupCheckboxControl()  // Add this
         currentState = 0
         setActiveCard(cardTersimpan)
         lifecycleScope.launch {
             if (featureName == "Buat eSPB") {
+                findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
                 panenViewModel.loadActivePanenESPB()
             } else if (featureName == "Rekap panen dan restan") {
                 panenViewModel.loadActivePanenRestan()
@@ -153,6 +162,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 findViewById<TextView>(R.id.list_item_tersimpan).text = "Hasil Rekap"
                 findViewById<TextView>(R.id.list_item_terscan).text = "TPH Selesai eSPB"
             } else {
+                findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.VISIBLE
                 panenViewModel.loadActivePanen()
                 panenViewModel.loadPanenCountArchive() // Load archive count
             }
@@ -160,6 +170,48 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         setupButtonGenerateQR()
+
+        if (featureName == "Buat eSPB"){
+            btnAddMoreTph = FloatingActionButton(this)
+            btnAddMoreTph.id = View.generateViewId()
+            btnAddMoreTph.setImageResource(R.drawable.baseline_add_24) // Make sure you have this resource, or use baseline_add_24
+            btnAddMoreTph.contentDescription = "Add More TPH"
+
+            // Set button background color to green
+            btnAddMoreTph.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, android.R.color.holo_green_dark))
+
+            // Set icon color to white
+            btnAddMoreTph.imageTintList = ColorStateList.valueOf(Color.WHITE)
+
+            // Add the button to the layout
+            val rootLayout = findViewById<ConstraintLayout>(R.id.clParentListPanen) // Assuming your root layout is a ConstraintLayout
+            val params = ConstraintLayout.LayoutParams(
+                ConstraintLayout.LayoutParams.WRAP_CONTENT,
+                ConstraintLayout.LayoutParams.WRAP_CONTENT
+            )
+            try {
+                params.bottomToTop = R.id.btnGenerateQRTPH
+            }catch (e: Exception){
+                params.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
+                Toasty.error(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+            params.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
+            // Convert dp to pixels for proper margin setting
+            val scale = resources.displayMetrics.density
+            val marginInPixels = (30 * scale + 0.5f).toInt()
+            params.setMargins(0, 0, marginInPixels, marginInPixels) // Set right and bottom margins to 30dp
+            rootLayout.addView(btnAddMoreTph, params)
+
+            btnAddMoreTph.setOnClickListener {
+                val intent = Intent(this, ScanQR::class.java)
+                intent.putExtra("tph_1", tph1)
+                intent.putExtra("tph_0", tph0)
+                intent.putExtra("tph_1_id_panen", tph1IdPanen)
+                intent.putExtra("FEATURE_NAME", featureName)
+                startActivity(intent)
+                finishAffinity()
+            }
+        }
     }
 
     private fun setupCardListeners() {
@@ -437,12 +489,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val set4 = tph0before.toEntries()
 
                 // Calculate string5 = string4 - string1 - string3
-                val tph0 = (set4 - set1 - set3).toString().replace("[", "").replace("]", "")
+                tph0 = (set4 - set1 - set3).toString().replace("[", "").replace("]", "")
                     .replace(", ", ";")
                 Log.d("ListPanenTBSActivityESPB", "tph0: $tph0")
 
                 // Calculate string6 = string2 + string3
-                val tph1 =
+                tph1 =
                     (set2 + set3).toString().replace("[", "").replace("]", "").replace(", ", ";")
                 Log.d("ListPanenTBSActivityESPB", "tph1: $tph1")
                 AlertDialogUtility.withTwoActions(

@@ -46,11 +46,13 @@ import com.cbi.cmp_project.ui.adapter.Worker
 import com.cbi.cmp_project.ui.view.HomePageActivity
 import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
+import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.ESPBViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
+import com.cbi.cmp_project.utils.AppUtils.setMaxBrightness
 import com.cbi.cmp_project.utils.PrefManager
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
@@ -488,6 +490,7 @@ class FormESPBActivity : AppCompatActivity() {
                     val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
                     val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
                     ListPanenTBSActivity().generateHighQualityQRCode(encodedData!!, qrCodeImageView)
+                    setMaxBrightness(this, true)
                 }
             }
         }
