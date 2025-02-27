@@ -19,6 +19,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -86,7 +87,6 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var weightBridgeViewModel: WeighBridgeViewModel
     private lateinit var uploadCMPViewModel: UploadCMPViewModel
     private var isTriggerButtonSinkronisasiData: Boolean = false
-    private var isTriggerUploadDataCMP: Boolean = false
     private lateinit var dialog: Dialog
     private var countPanenTPH: Int = 0  // Global variable for count
     private var countPanenTPHApproval: Int = 0  // Global variable for count
@@ -103,6 +103,7 @@ class HomePageActivity : AppCompatActivity() {
     private var globalESPBIds: List<Int> = emptyList()
     private var zipFilePath: String? = null
     private var zipFileName: String? = null
+    private var trackingIdsUpload: List<Int> = emptyList()
 
 
     private lateinit var datasetViewModel: DatasetViewModel
@@ -151,6 +152,18 @@ class HomePageActivity : AppCompatActivity() {
                 AppLogger.e("❌ Upload Data Insertion Failed")
             }
         }
+
+        //cek semua data upload
+        uploadCMPViewModel.allIds.observe(this) { data ->
+
+            if (data.isNotEmpty()) {
+                trackingIdsUpload = data
+                startDownloads() // This ensures download starts only after fetching data
+            } else {
+                Toast.makeText(this, "No data found in the last two days", Toast.LENGTH_SHORT).show()
+            }
+        }
+
     }
 
     private fun fetchDataEachCard() {
@@ -453,13 +466,19 @@ class HomePageActivity : AppCompatActivity() {
             "Sinkronisasi data" -> {
                 if (feature.displayType == DisplayType.ICON) {
                     isTriggerButtonSinkronisasiData = true
-                    startDownloads()
+                    lifecycleScope.launch {
+//                        loadingDialog.show()
+//                        loadingDialog.setMessage("Sedang mempersiapkan data...")
+//                        delay(500)
+
+                        uploadCMPViewModel.getAllIds() // Fetch data first
+                    }
                 }
             }
 
+
             "Upload data CMP" -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    isTriggerUploadDataCMP = true
                     lifecycleScope.launch {
                         loadingDialog.show()
                         loadingDialog.setMessage("Sedang mempersiapkan data...")
@@ -582,8 +601,8 @@ class HomePageActivity : AppCompatActivity() {
                             "divisi" to divisi,
                             "blok_id" to concatenatedIds,
                             "jjg" to totalJjg,
-                            "user_id" to data.created_by_id,
-                            "date_created" to data.created_at,
+                            "created_by_id" to data.created_by_id,
+                            "created_at" to data.created_at,
                             "nopol" to data.nopol,
                             "driver" to data.driver,
                             "transporter_id" to data.transporter_id,
@@ -987,7 +1006,7 @@ class HomePageActivity : AppCompatActivity() {
                     lastModifiedDatasetBlok,
                     lastModifiedDatasetPemanen,
                     lastModifiedDatasetKemandoran,
-                    lastModifiedDatasetTransporter
+                    lastModifiedDatasetTransporter,
                 )
             } else {
                 getDatasetsToDownload(
@@ -998,8 +1017,7 @@ class HomePageActivity : AppCompatActivity() {
                     lastModifiedDatasetPemanen,
                     lastModifiedDatasetKemandoran,
                     lastModifiedDatasetTransporter
-                )
-                    .filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
+                ).filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
             }
 
             if (filteredRequests.isNotEmpty()) {
@@ -1023,32 +1041,42 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedDatasetBlok: String?,
         lastModifiedDatasetPemanen: String?,
         lastModifiedDatasetKemandoran: String?,
-        lastModifiedDatasetTransporter: String?
+        lastModifiedDatasetTransporter: String?,
     ): List<DatasetRequest> {
-        return listOf(
+        val datasets = mutableListOf(
             //khusus mill
-            DatasetRequest(regional = regionalId, lastModified = null, dataset = "mill"),
+            DatasetRequest(regional = regionalId, lastModified = null, dataset = AppUtils.DatasetNames.mill),
             //khusus dataset
             DatasetRequest(
                 estate = estateId,
                 lastModified = lastModifiedDatasetTPH,
-                dataset = "tph"
+                dataset = AppUtils.DatasetNames.tph
             ),
             DatasetRequest(
                 estate = estateId,
                 lastModified = lastModifiedDatasetPemanen,
-                dataset = "pemanen"
+                dataset = AppUtils.DatasetNames.pemanen
             ),
             DatasetRequest(
                 estate = estateId,
                 lastModified = lastModifiedDatasetKemandoran,
-                dataset = "kemandoran"
+                dataset = AppUtils.DatasetNames.kemandoran
             ),
             DatasetRequest(
                 lastModified = lastModifiedDatasetTransporter,
-                dataset = "transporter"
+                dataset = AppUtils.DatasetNames.transporter
             )
         )
+
+        if (isTriggerButtonSinkronisasiData) {
+            return listOf(DatasetRequest(lastModified = null, dataset = AppUtils.DatasetNames.updateSyncLocalData, data = trackingIdsUpload))
+//            datasets.add( DatasetRequest(
+//                lastModified = null,
+//                dataset = AppUtils.DatasetNames.updateSyncLocalData
+//            ))
+        }
+
+        return datasets
     }
 
 

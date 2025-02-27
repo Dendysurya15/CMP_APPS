@@ -8,3 +8,5 @@ data class UploadCMPResponse(
     val tanggal_upload: String,
     val nama_file: String
 )
+
+

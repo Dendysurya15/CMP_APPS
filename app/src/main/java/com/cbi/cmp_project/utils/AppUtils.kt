@@ -53,6 +53,15 @@ object AppUtils {
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
     }
+
+    object DatasetNames {
+        const val mill = "mill"
+        const val tph = "tph"
+        const val pemanen = "pemanen"
+        const val kemandoran = "kemandoran"
+        const val transporter = "transporter"
+        const val updateSyncLocalData = "Update & Sinkronisasi Lokal Data"
+    }
     /**
      * Gets the current app version from BuildConfig or string resources.
      * @param context The context used to retrieve the string resource.

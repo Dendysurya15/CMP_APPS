@@ -38,6 +38,16 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uploadResponseCMP = MutableLiveData<UploadCMPResponse?>()
     val uploadResponseCMP: LiveData<UploadCMPResponse?> get() = _uploadResponseCMP
 
+    private val _allIds = MutableLiveData<List<Int>>() // Store only IDs
+    val allIds: LiveData<List<Int>> get() = _allIds
+
+    fun getAllIds() {
+        viewModelScope.launch {
+            val data = repository.getAllData()
+            val extractedIds = data.mapNotNull { it.tracking_id }
+            _allIds.postValue(extractedIds) // Post IDs to LiveData
+        }
+    }
 
     fun UpdateOrInsertDataUpload(
         tracking_id: Int,

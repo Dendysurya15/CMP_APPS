@@ -14,12 +14,17 @@ import com.cbi.cmp_project.data.model.MillModel
 import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
+import com.cbi.cmp_project.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.cmp_project.data.network.CMPApiClient
+import com.cbi.cmp_project.data.network.TestingAPIClient
 import com.cbi.markertph.data.model.TPHNewModel
 import okhttp3.ResponseBody
 import retrofit2.Response
 
-class DatasetRepository(context: Context,  private val apiService: ApiService = CMPApiClient.instance) {
+class DatasetRepository(context: Context,
+                        private val apiService: ApiService = CMPApiClient.instance,
+                        private val testingApiService: ApiService = TestingAPIClient.instance
+) {
 
     private val database = AppDatabase.getDatabase(context)
     private val karyawanDao = database.karyawanDao()
@@ -79,8 +84,13 @@ class DatasetRepository(context: Context,  private val apiService: ApiService = 
     suspend fun downloadDataset(request: DatasetRequest): Response<ResponseBody> {
         return apiService.downloadDataset(request)
     }
-    // In Repository
+
     suspend fun downloadSmallDataset(regional: Int): Response<ResponseBody> {
         return apiService.downloadSmallDataset(mapOf("regional" to regional))
+    }
+
+    suspend fun checkStatusUploadCMP(ids: List<Int>): Response<ResponseBody> {
+        val idDataString = ids.joinToString(",") // Convert list to "1,2,3,4"
+        return testingApiService.checkStatusUploadCMP(idDataString)
     }
 }

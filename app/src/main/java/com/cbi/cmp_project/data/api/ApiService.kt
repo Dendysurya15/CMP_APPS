@@ -113,4 +113,14 @@ interface ApiService {
         @Part zipFile: MultipartBody.Part
     ): Response<UploadCMPResponse>
 
+    @FormUrlEncoded
+    @POST("status")
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/x-www-form-urlencoded"
+    )
+    suspend fun checkStatusUploadCMP(
+        @Field("idData") ids: String // Send list as a comma-separated string
+    ):  Response<ResponseBody>
+
 }

@@ -17,4 +17,8 @@ abstract class UploadCMPDao {
 
     @Query("UPDATE upload_cmp SET status = :status WHERE tracking_id = :trackingId")
     abstract suspend fun updateStatus(trackingId: Int, status: Int)
+
+    @Query("SELECT * FROM upload_cmp WHERE  date(tanggal_upload) = date('now', 'localtime')")
+    abstract suspend fun getAllData(): List<UploadCMPModel>
+
 }

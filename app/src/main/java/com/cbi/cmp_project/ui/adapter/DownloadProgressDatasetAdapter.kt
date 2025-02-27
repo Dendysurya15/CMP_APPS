@@ -20,7 +20,8 @@ data class DownloadItem(
     var isStoring: Boolean = false,  // Add this
     var isStoringCompleted: Boolean = false,  // Add this
     var isUpToDate: Boolean = false,
-    var error: String? = null
+    var error: String? = null,
+    var test:String,
 )
 
 class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressDatasetAdapter.ViewHolder>() {
