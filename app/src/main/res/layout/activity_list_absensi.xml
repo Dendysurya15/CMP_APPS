@@ -378,7 +378,7 @@
             android:layout_height="wrap_content" />
 
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvTableDataAbsensi"
+            android:id="@+id/rvTableDataAbsensiList"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_marginTop="3dp"
@@ -390,7 +390,7 @@
             tools:listitem="@layout/table_item_row_list_absensi" />
 
         <TextView
-            android:id="@+id/tvEmptyStateAbsensi"
+            android:id="@+id/tvEmptyStateAbsensiList"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
@@ -420,7 +420,7 @@
         app:tint="@color/white" />
 
     <com.leinardi.android.speeddial.SpeedDialView
-        android:id="@+id/dial_tph_listAbsensi"
+        android:id="@+id/dial_listAbsensi"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginRight="15dp"

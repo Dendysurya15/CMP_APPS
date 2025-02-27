@@ -6,6 +6,8 @@ import com.cbi.cmp_project.data.model.AbsensiModel
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class AbsensiRepository(context: Context) {
 
@@ -16,6 +18,15 @@ class AbsensiRepository(context: Context) {
 
     suspend fun insertAbsensiData(absensiData: AbsensiModel) {
         absensiDao.insertAbsensiData(absensiData)
+    }
+
+    suspend fun getAllDataAbsensi(): Result<List<AbsensiModel>> = withContext(Dispatchers.IO) {
+        try {
+            val data = absensiDao.getAllDataAbsensi()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun saveDataAbsensi(

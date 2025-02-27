@@ -11,8 +11,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.databinding.TableItemRowAbsensiBinding
 import com.cbi.cmp_project.databinding.TableItemRowBinding
-import com.cbi.cmp_project.ui.adapter.ListPanenTPHAdapter.ListPanenTPHViewHolder
-import com.cbi.cmp_project.ui.adapter.WBData
 import com.cbi.cmp_project.ui.viewModel.AbsensiViewModel
 import com.cbi.cmp_project.utils.AppLogger
 

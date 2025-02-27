@@ -52,16 +52,6 @@
             android:textColor="@color/black"
             android:textSize="14dp"
             android:textStyle="bold" />
-
-        <LinearLayout
-            android:id="@+id/td4ListAbsensi"
-            android:layout_width="0dp"
-            android:layout_weight="0.5"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:padding="5dp"
-            android:visibility="gone"
-            tools:ignore="Orientation" />
     </LinearLayout>
 
 

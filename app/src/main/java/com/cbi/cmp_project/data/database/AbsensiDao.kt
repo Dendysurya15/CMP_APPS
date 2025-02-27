@@ -3,6 +3,7 @@ package com.cbi.cmp_project.data.database
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
+import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.AbsensiModel
 import com.cbi.cmp_project.data.model.ESPBEntity
@@ -14,6 +15,10 @@ abstract class AbsensiDao {
 
     @Insert
     abstract fun insert(espb: AbsensiModel): Long
+
+    //    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
+    @Query("SELECT * FROM absensi")
+    abstract fun getAllDataAbsensi(): List<AbsensiModel>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertAbsensiData(absensiData: AbsensiModel)

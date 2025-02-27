@@ -39,6 +39,9 @@ sealed class UpdateKemandoranAbsensiState{
 class AbsensiViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: AbsensiRepository = AbsensiRepository(application)
 
+    private val _savedDataAbsensiList = MutableLiveData<List<AbsensiModel>>()
+    val savedDataAbsensiList: LiveData<List<AbsensiModel>> = _savedDataAbsensiList
+
     private val _saveDataAbsensiState = MutableStateFlow<SaveDataAbsensiState>(SaveDataAbsensiState.Loading)
     val saveDataAbsensiState: StateFlow<SaveDataAbsensiState> get() = _saveDataAbsensiState.asStateFlow()
 
@@ -47,6 +50,21 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
 
     private val _updateKemandoranbsensiState = MutableStateFlow<UpdateKemandoranAbsensiState>(UpdateKemandoranAbsensiState.Loading)
     val updateKemandoranbsensiState: StateFlow<UpdateKemandoranAbsensiState> get() = _updateKemandoranbsensiState.asStateFlow()
+
+    private val _error = MutableLiveData<String>()
+    val error: LiveData<String> = _error
+
+    fun getAllDataAbsensi() {
+        viewModelScope.launch {
+            repository.getAllDataAbsensi()
+                .onSuccess { listData ->
+                    _savedDataAbsensiList.postValue(listData)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
 
     suspend fun saveDataAbsensi(
         kemandoran_id: String,
