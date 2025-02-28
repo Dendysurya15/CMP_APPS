@@ -119,15 +119,32 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     }
 
 
-    private val _activeESPB = MutableStateFlow<List<ESPBEntity>>(emptyList())
-    val activeESPB: StateFlow<List<ESPBEntity>> get() = _activeESPB.asStateFlow()
+    private val _activeESPBUploadCMP = MutableLiveData<List<ESPBEntity>>()
+    val activeESPBUploadCMP: LiveData<List<ESPBEntity>> get() = _activeESPBUploadCMP
 
     fun fetchActiveESPB() {
         viewModelScope.launch {
-            val data = repository.getActiveESPB()
-            _activeESPB.value = data // Ensure immediate emission
+            repository.getActiveESPB()
+                .onSuccess { espbList ->
+                    _activeESPBUploadCMP.postValue(espbList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load ESPB data")
+                }
         }
     }
+
+
+//
+//    private val _activeESPB = MutableStateFlow<List<ESPBEntity>>(emptyList())
+//    val activeESPB: StateFlow<List<ESPBEntity>> get() = _activeESPB.asStateFlow()
+//
+//    fun fetchActiveESPB() {
+//        viewModelScope.launch {
+//            val data = repository.getActiveESPB()
+//            _activeESPB.value = data // Ensure immediate emission
+//        }
+//    }
 
 
     fun loadHistoryUploadeSPB() {

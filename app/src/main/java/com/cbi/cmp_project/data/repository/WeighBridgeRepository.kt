@@ -6,6 +6,7 @@ import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.MillModel
+import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.network.Constants
 import com.cbi.cmp_project.data.network.StagingApiClient
@@ -51,10 +52,19 @@ class WeighBridgeRepository(context: Context) {
         return espbDao.countESPBUploaded()
     }
 
-    suspend fun getActiveESPB(): List<ESPBEntity> = withContext(Dispatchers.IO) {
-        espbDao.getAllActive()
-    }
+//    suspend fun getActiveESPB(): List<ESPBEntity> = withContext(Dispatchers.IO) {
+//        espbDao.getAllActive()
+//    }
 
+
+    suspend fun getActiveESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val data =  espbDao.getAllActive()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     suspend fun loadHistoryUploadeSPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
         try {

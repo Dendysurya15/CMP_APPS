@@ -468,25 +468,68 @@ class HomePageActivity : AppCompatActivity() {
 
             "Sinkronisasi data" -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    isTriggerButtonSinkronisasiData = true
-                    uploadCMPViewModel.getAllIds()
-                    loadingDialog.show()
-                    loadingDialog.setMessage("Sedang mempersiapkan data...")
+                    if (AppUtils.isNetworkAvailable(this)) {
+                        isTriggerButtonSinkronisasiData = true
+                        uploadCMPViewModel.getAllIds()
+                        loadingDialog.show()
+                        loadingDialog.setMessage("Sedang mempersiapkan data...")
+
+                        lifecycleScope.launch {
+                            val data = withTimeoutOrNull(500) {
+                                suspendCancellableCoroutine<List<Int>> { continuation ->
+                                    uploadCMPViewModel.allIds.observeOnce(this@HomePageActivity) { ids ->
+                                        continuation.resume(ids) {}
+                                    }
+                                }
+                            } ?: emptyList()
+
+                            loadingDialog.dismiss()
+
+                            if (data.isNotEmpty()) {
+                                trackingIdsUpload = data
+                                startDownloads()
+                            }
+                        }
+                    } else {
+
+
+                        AlertDialogUtility.withSingleAction(
+                            this@HomePageActivity,
+                            stringXML(R.string.al_back),
+                            stringXML(R.string.al_no_internet_connection),
+                            stringXML(R.string.al_no_internet_connection_description_login),
+                            "network_error.json",
+                            R.color.colorRedDark
+                        ) {
+
+                        }
+
+
+                    }
+
+                }
+            }
+
+
+            "Upload data CMP" -> {
+                if (feature.displayType == DisplayType.ICON) {
 
                     lifecycleScope.launch {
-                        val data = withTimeoutOrNull(500) {
-                            suspendCancellableCoroutine<List<Int>> { continuation ->
-                                uploadCMPViewModel.allIds.observeOnce(this@HomePageActivity) { ids ->
-                                    continuation.resume(ids) {}
-                                }
-                            }
-                        } ?: emptyList()
+                        loadingDialog.show()
+                        loadingDialog.setMessage("Sedang mempersiapkan data...")
+                        delay(500)
+                        val dataReadyDeferred = CompletableDeferred<Boolean>()
+                        val featuresToFetch = listOf(
+                            AppUtils.DatabaseTables.ESPB,
+                            AppUtils.DatabaseTables.PANEN
+                        )
 
-                        loadingDialog.dismiss()
+                        triggerAllDatabaseWithArchive(featuresToFetch)
+                        setupObserverForUploadAllDataCMP(dataReadyDeferred, featuresToFetch)
+                        dataReadyDeferred.await()
 
-                        if (data.isNotEmpty()) {
-                            trackingIdsUpload = data
-                            startDownloads()
+                        if (zipFilePath != null && zipFileName != null) {
+                            setupDialogUpload()
                         } else {
                             AlertDialogUtility.withSingleAction(
                                 this@HomePageActivity,
@@ -494,25 +537,11 @@ class HomePageActivity : AppCompatActivity() {
                                 stringXML(R.string.al_no_data_for_upload_cmp),
                                 stringXML(R.string.al_no_data_for_upload_cmp_description),
                                 "success.json",
-                                R.color.greenDarker
-                            ) {}
+                                R.color.greendarkerbutton
+                            ) {
+
+                            }
                         }
-                    }
-                }
-            }
-
-
-            "Upload data CMP" -> {
-                if (feature.displayType == DisplayType.ICON) {
-                    lifecycleScope.launch {
-                        loadingDialog.show()
-                        loadingDialog.setMessage("Sedang mempersiapkan data...")
-                        delay(500)
-                        val dataReadyDeferred = CompletableDeferred<Boolean>()
-                        triggerAllDatabaseWithArchive()
-                        setupObserverForUploadAllDataCMP(dataReadyDeferred)
-                        dataReadyDeferred.await()
-                        setupDialogUpload()
                     }
 
                 }
@@ -529,10 +558,27 @@ class HomePageActivity : AppCompatActivity() {
         return Gson().toJson(tableMap) // Convert to JSON string
     }
 
+    private val archiveUpdateActions = mapOf(
+        AppUtils.DatabaseTables.ESPB to { ids: List<Int> ->
+            weightBridgeViewModel.updateArchiveESPB(
+                ids,
+                1
+            )
+        },
+        AppUtils.DatabaseTables.PANEN to { ids: List<Int> ->
+            panenViewModel.updateArchivePanen(
+                ids,
+                1
+            )
+        }
+    )
 
-    private fun setupObserverForUploadAllDataCMP(dataReadyDeferred: CompletableDeferred<Boolean>) {
+    private fun setupObserverForUploadAllDataCMP(
+        dataReadyDeferred: CompletableDeferred<Boolean>,
+        featuresToFetch: List<String>
+    ) {
         val completionCounter = AtomicInteger(0)
-        val totalCollections = 2 // We need both ESPB and Panen data
+        val totalCollections = featuresToFetch.size
         val uploadDataList = mutableListOf<Pair<String, List<Map<String, Any>>>>()
 
         fun checkAllCollectionsComplete(featureName: String, data: List<Map<String, Any>>) {
@@ -541,7 +587,17 @@ class HomePageActivity : AppCompatActivity() {
             }
 
             if (completionCounter.incrementAndGet() >= totalCollections) {
-                loadingDialog.setMessage("Sedang membuat rekap data file .zip...")
+
+
+                AppLogger.d(uploadDataList.toString())
+                //bentuk list jika kosong : [(espb_table, []), (panen_table, [])] , jadi check second is empty
+                if (uploadDataList.all { it.second.isEmpty() }) {
+                    loadingDialog.dismiss()
+                    dataReadyDeferred.complete(false) // Notify failure or empty state
+                    return
+                }
+
+                loadingDialog.setMessage("Sedang membuat data upload dengan format .zip...")
 
                 AppUtils.createAndSaveZipUploadCMP(
                     this,
@@ -552,148 +608,197 @@ class HomePageActivity : AppCompatActivity() {
                         zipFilePath = fullPath
                         zipFileName = fileName
                         lifecycleScope.launch(Dispatchers.IO) {
-                            weightBridgeViewModel.updateArchiveESPB(globalESPBIds, 1)
-                            panenViewModel.updateArchivePanen(globalPanenIds, 1)
+                            featuresToFetch.forEach { feature ->
+                                val ids = when (feature) {
+                                    AppUtils.DatabaseTables.ESPB -> globalESPBIds
+                                    AppUtils.DatabaseTables.PANEN -> globalPanenIds
+                                    else -> emptyList()
+                                }
+
+                                if (ids.isNotEmpty()) {
+                                    archiveUpdateActions[feature]?.invoke(ids)
+                                }
+                            }
                         }
+
                         dataReadyDeferred.complete(true)
                     } else {
                         AppLogger.e("❌ ZIP creation failed: $data")
                     }
                 }
             }
-
         }
 
-        lifecycleScope.launch {
-            weightBridgeViewModel.activeESPB
-                .filter { it.isNotEmpty() }
-                .take(1)
-                .collect { list ->
-                    val mappedData = list.map { data ->
-                        // Your existing ESPB mapping code here
-                        val blokJjgList = data.blok_jjg
-                            .split(";")
-                            .mapNotNull {
-                                it.split(",").takeIf { it.size == 2 }?.let { (id, jjg) ->
-                                    id.toIntOrNull()?.let { it to jjg.toIntOrNull() }
+        featuresToFetch.forEach { feature ->
+            when (feature) {
+                AppUtils.DatabaseTables.ESPB -> {
+                    lifecycleScope.launch {
+
+                        weightBridgeViewModel.activeESPBUploadCMP.observeOnce(this@HomePageActivity) { list ->
+                            lifecycleScope.launch(Dispatchers.IO) {
+
+                                if (list.isNotEmpty()) {
+                                    val mappedData = list.map { data ->
+                                        val blokJjgList = data.blok_jjg
+                                            .split(";")
+                                            .mapNotNull {
+                                                it.split(",").takeIf { it.size == 2 }
+                                                    ?.let { (id, jjg) ->
+                                                        id.toIntOrNull()
+                                                            ?.let { it to jjg.toIntOrNull() }
+                                                    }
+                                            }
+
+                                        val idBlokList = blokJjgList.map { it.first }
+                                        val concatenatedIds = idBlokList.joinToString(",")
+
+                                        val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
+
+                                        val blokData = withContext(Dispatchers.IO) {
+                                            try {
+                                                weightBridgeViewModel.getBlokById(idBlokList)
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error fetching Blok Data: ${e.message}")
+                                                null
+                                            }
+                                        }
+                                            ?: throw Exception("Failed to fetch Blok Data! Please check the dataset.")
+
+                                        val regional = blokData.firstOrNull()?.regional ?: ""
+                                        val company = blokData.firstOrNull()?.company ?: ""
+                                        val dept = blokData.firstOrNull()?.dept ?: ""
+                                        val divisi = blokData.firstOrNull()?.divisi ?: ""
+
+                                        mapOf(
+                                            "id" to data.id,
+                                            "regional" to regional,
+                                            "company" to company,
+                                            "dept" to dept,
+                                            "divisi" to divisi,
+                                            "blok_id" to concatenatedIds,
+                                            "jjg" to totalJjg,
+                                            "created_by_id" to data.created_by_id,
+                                            "created_at" to data.created_at,
+                                            "nopol" to data.nopol,
+                                            "driver" to data.driver,
+                                            "transporter_id" to data.transporter_id,
+                                            "mill_id" to data.mill_id,
+                                            "info_app" to data.creator_info,
+                                            "no_espb" to data.noESPB,
+                                        )
+                                    }
+                                    withContext(Dispatchers.Main) {
+                                        globalESPBList = mappedData
+                                        globalESPBIds = mappedData.map { it["id"] as Int }
+                                        checkAllCollectionsComplete(
+                                            AppUtils.DatabaseTables.ESPB,
+                                            globalESPBList
+                                        )
+                                    }
+                                } else {
+                                    withContext(Dispatchers.Main) {
+                                        AppLogger.d("gak ada data ESPB")
+                                        checkAllCollectionsComplete(
+                                            AppUtils.DatabaseTables.ESPB,
+                                            emptyList()
+                                        ) // Ensure completion
+                                    }
                                 }
                             }
+                        }
 
-                        val idBlokList = blokJjgList.map { it.first }
-                        val concatenatedIds = idBlokList.joinToString(",")
-
-                        val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
-
-                        val blokData = withContext(Dispatchers.IO) {
-                            try {
-                                weightBridgeViewModel.getBlokById(idBlokList)
-                            } catch (e: Exception) {
-                                AppLogger.e("Error fetching Blok Data: ${e.message}")
-                                null
-                            }
-                        } ?: throw Exception("Failed to fetch Blok Data! Please check the dataset.")
-
-                        val regional = blokData.firstOrNull()?.regional ?: ""
-                        val company = blokData.firstOrNull()?.company ?: ""
-                        val dept = blokData.firstOrNull()?.dept ?: ""
-                        val divisi = blokData.firstOrNull()?.divisi ?: ""
-
-                        mapOf(
-                            "id" to data.id,
-                            "regional" to regional,
-                            "company" to company,
-                            "dept" to dept,
-                            "divisi" to divisi,
-                            "blok_id" to concatenatedIds,
-                            "jjg" to totalJjg,
-                            "created_by_id" to data.created_by_id,
-                            "created_at" to data.created_at,
-                            "nopol" to data.nopol,
-                            "driver" to data.driver,
-                            "transporter_id" to data.transporter_id,
-                            "mill_id" to data.mill_id,
-                            "info_app" to data.creator_info,
-                            "no_espb" to data.noESPB,
-                            //                            "feature" to "ESPB"
-                        )
+                        loadingDialog.setMessage("Sedang mengambil data ESPB...")
                     }
 
-                    globalESPBList = mappedData
-                    globalESPBIds = mappedData.map { it["id"] as Int }
-
-                    AppLogger.d(globalESPBIds.toString())
-                    checkAllCollectionsComplete("ESPB", globalESPBList)
                 }
 
-            loadingDialog.setMessage("Sedang mengambil data ESPB...")
-        }
+                AppUtils.DatabaseTables.PANEN -> {
+                    lifecycleScope.launch {
+                        panenViewModel.activePanenList.observeOnce(this@HomePageActivity) { panenList ->
+                            lifecycleScope.launch(Dispatchers.IO) {
 
-        // Panen observer
-        lifecycleScope.launch {
-            panenViewModel.activePanenList.observe(this@HomePageActivity) { panenList ->
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val mappedData = panenList.map { panenWithRelations ->
-                        val jjgJson =
-                            panenWithRelations.panen.jjg_json as? Map<String, Any> ?: emptyMap()
-                        val karyawanIds = panenWithRelations.panen.karyawan_id
-                            ?.split(",")
-                            ?.map { it.trim() }
-                            ?: emptyList()
-                        val jumlahPemanen = karyawanIds.size
-                        val kemandoranData = if (karyawanIds.isNotEmpty()) {
-                            datasetViewModel.getKaryawanKemandoranList(karyawanIds)
-                        } else {
-                            emptyList()
+                                if (panenList.isNotEmpty()) {
+                                    val mappedData = panenList.map { panenWithRelations ->
+                                        val jjgJson =
+                                            panenWithRelations.panen.jjg_json as? Map<String, Any>
+                                                ?: emptyMap()
+                                        val karyawanIds = panenWithRelations.panen.karyawan_id
+                                            ?.split(",")
+                                            ?.map { it.trim() }
+                                            ?: emptyList()
+                                        val jumlahPemanen = karyawanIds.size
+                                        val kemandoranData = if (karyawanIds.isNotEmpty()) {
+                                            datasetViewModel.getKaryawanKemandoranList(karyawanIds)
+                                        } else {
+                                            emptyList()
+                                        }
+                                        val jsonResultKemandoran =
+                                            convertToJsonKaryawanKemandoran(kemandoranData)
+
+                                        mapOf<String, Any>(
+                                            "id" to (panenWithRelations.panen.id as Any),
+                                            "tanggal" to (panenWithRelations.panen.date_created as Any),
+                                            "tipe" to (panenWithRelations.panen.jenis_panen as Any),
+                                            "dept" to (panenWithRelations.tph?.dept as Int),
+                                            "dept_abbr" to (panenWithRelations.tph?.dept_abbr as String),
+                                            "divisi" to (panenWithRelations.tph?.divisi as Int),
+                                            "divisi_abbr" to (panenWithRelations.tph?.divisi_abbr as String),
+                                            "blok" to (panenWithRelations.tph?.blok as Int),
+                                            "blok_name" to (panenWithRelations.tph?.blok_kode as String),
+                                            "tph_nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                            "ancak" to (panenWithRelations.panen.ancak as Any),
+                                            "updated_date" to (panenWithRelations.panen.date_created as Any),
+                                            "updated_by" to (panenWithRelations.panen.created_by as Any),
+                                            "asistensi" to (if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2),
+                                            "kemandoran" to jsonResultKemandoran,
+                                            "jumlah_pemanen" to jumlahPemanen,
+                                            "jjg_panen" to (jjgJson["TO"] ?: 0),
+                                            "jjg_mentah" to (jjgJson["UN"] ?: 0),
+                                            "jjg_lewat_masak" to (jjgJson["OV"] ?: 0),
+                                            "jjg_kosong" to (jjgJson["EM"] ?: 0),
+                                            "jjg_abnormal" to (jjgJson["AB"] ?: 0),
+                                            "jjg_serangan_tikus" to (jjgJson["RA"] ?: 0),
+                                            "jjg_panjang" to (jjgJson["LO"] ?: 0),
+                                            "jjg_tidak_vcut" to (jjgJson["TI"] ?: 0),
+                                            "jjg_masak" to (jjgJson["RI"] ?: 0),
+                                            "jjg_kirim" to (jjgJson["KP"] ?: 0),
+                                            "foto" to (panenWithRelations.panen.foto as Any),
+                                            "komentar" to (panenWithRelations.panen.komentar as Any),
+                                            "lat" to (panenWithRelations.panen.lat as Any),
+                                            "lon" to (panenWithRelations.panen.lon as Any),
+                                            //                            "feature" to "Panen"
+                                        )
+                                    }
+
+                                    withContext(Dispatchers.Main) {
+                                        globalPanenList = mappedData
+                                        globalPanenIds = mappedData.map { it["id"] as Int }
+
+                                        checkAllCollectionsComplete(
+                                            AppUtils.DatabaseTables.PANEN,
+                                            globalPanenList
+                                        )
+                                    }
+                                } else {
+                                    withContext(Dispatchers.Main) {
+                                        AppLogger.d("gak ada data Panen")
+                                        checkAllCollectionsComplete(
+                                            AppUtils.DatabaseTables.PANEN,
+                                            emptyList()
+                                        ) // Handle empty case
+                                    }
+                                }
+
+                            }
                         }
-                        val jsonResultKemandoran = convertToJsonKaryawanKemandoran(kemandoranData)
 
-                        mapOf<String, Any>(
-                            "id" to (panenWithRelations.panen.id as Any),
-                            "tanggal" to (panenWithRelations.panen.date_created as Any),
-                            "tipe" to (panenWithRelations.panen.jenis_panen as Any),
-                            "dept" to (panenWithRelations.tph?.dept as Int),
-                            "dept_abbr" to (panenWithRelations.tph?.dept_abbr as String),
-                            "divisi" to (panenWithRelations.tph?.divisi as Int),
-                            "divisi_abbr" to (panenWithRelations.tph?.divisi_abbr as String),
-                            "blok" to (panenWithRelations.tph?.blok as Int),
-                            "blok_name" to (panenWithRelations.tph?.blok_kode as String),
-                            "tph_nomor" to (panenWithRelations.tph!!.nomor as Any),
-                            "ancak" to (panenWithRelations.panen.ancak as Any),
-                            "updated_date" to (panenWithRelations.panen.date_created as Any),
-                            "updated_by" to (panenWithRelations.panen.created_by as Any),
-                            "asistensi" to (if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2),
-                            "kemandoran" to jsonResultKemandoran,
-                            "jumlah_pemanen" to jumlahPemanen,
-                            "jjg_panen" to (jjgJson["TO"] ?: 0),
-                            "jjg_mentah" to (jjgJson["UN"] ?: 0),
-                            "jjg_lewat_masak" to (jjgJson["OV"] ?: 0),
-                            "jjg_kosong" to (jjgJson["EM"] ?: 0),
-                            "jjg_abnormal" to (jjgJson["AB"] ?: 0),
-                            "jjg_serangan_tikus" to (jjgJson["RA"] ?: 0),
-                            "jjg_panjang" to (jjgJson["LO"] ?: 0),
-                            "jjg_tidak_vcut" to (jjgJson["TI"] ?: 0),
-                            "jjg_masak" to (jjgJson["RI"] ?: 0),
-                            "jjg_kirim" to (jjgJson["KP"] ?: 0),
-                            "foto" to (panenWithRelations.panen.foto as Any),
-                            "komentar" to (panenWithRelations.panen.komentar as Any),
-                            "lat" to (panenWithRelations.panen.lat as Any),
-                            "lon" to (panenWithRelations.panen.lon as Any),
-                            //                            "feature" to "Panen"
-                        )
-                    }
-
-                    withContext(Dispatchers.Main) {
-                        globalPanenList = mappedData
-                        globalPanenIds = mappedData.map { it["id"] as Int }
-
-                        checkAllCollectionsComplete("Panen", globalPanenList)
+                        loadingDialog.setMessage("Sedang mengambil data Panen...")
                     }
                 }
             }
-
-            loadingDialog.setMessage("Sedang mengambil data Panen...")
         }
     }
+
 
     data class Pemanen(val nik: String, val nama: String)
     data class Kemandoran(
@@ -717,9 +822,14 @@ class HomePageActivity : AppCompatActivity() {
         return Gson().toJson(groupedData)
     }
 
-    private fun triggerAllDatabaseWithArchive() {
-        weightBridgeViewModel.fetchActiveESPB()
-        panenViewModel.loadActivePanenESPB()
+
+    private fun triggerAllDatabaseWithArchive(features: List<String>) {
+        features.forEach { feature ->
+            when (feature) {
+                AppUtils.DatabaseTables.ESPB -> weightBridgeViewModel.fetchActiveESPB()
+                AppUtils.DatabaseTables.PANEN -> panenViewModel.loadActivePanenESPB()
+            }
+        }
     }
 
     @SuppressLint("SetTextI18n")
@@ -762,19 +872,34 @@ class HomePageActivity : AppCompatActivity() {
         dialog.show()
 
         btnUploadDataCMP.setOnClickListener {
+            if (AppUtils.isNetworkAvailable(this)) {
+                btnUploadDataCMP.isEnabled = false
+                closeDialogBtn.isEnabled = false
+                btnUploadDataCMP.alpha = 0.7f
+                closeDialogBtn.alpha = 0.7f
+                btnUploadDataCMP.iconTint =
+                    ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
+                closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
 
-            btnUploadDataCMP.isEnabled = false
-            closeDialogBtn.isEnabled = false
-            btnUploadDataCMP.alpha = 0.7f
-            closeDialogBtn.alpha = 0.7f
-            btnUploadDataCMP.iconTint =
-                ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
-            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+                startUploadAllDataCMP(zipFilePath)
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@HomePageActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) {
 
-            startUploadAllDataCMP(zipFilePath)
+                }
+            }
+
         }
 
         closeDialogBtn.setOnClickListener {
+            zipFileName = null
+            zipFilePath = null
             dialog.dismiss()
         }
 
