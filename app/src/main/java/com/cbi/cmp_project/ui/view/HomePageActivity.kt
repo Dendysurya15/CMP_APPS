@@ -24,6 +24,9 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -71,7 +74,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -105,7 +110,6 @@ class HomePageActivity : AppCompatActivity() {
     private var zipFileName: String? = null
     private var trackingIdsUpload: List<Int> = emptyList()
 
-
     private lateinit var datasetViewModel: DatasetViewModel
 
 
@@ -129,6 +133,7 @@ class HomePageActivity : AppCompatActivity() {
 
 
     private fun setupObserveUpdateArchiveAllDataCMP() {
+
         weightBridgeViewModel.updateStatus.observe(this) { success ->
             if (success) {
                 AppLogger.d("✅ ESPB Archive Updated Successfully")
@@ -145,22 +150,20 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
-        uploadCMPViewModel.updateStatus.observe(this) { success ->
+        uploadCMPViewModel.updateStatusUploadCMP.observe(this) { (id, success) ->
             if (success) {
-                AppLogger.d("✅ Upload Data Inserted or Updated Successfully")
+                AppLogger.d("✅ Upload Data with Tracking ID $id Inserted or Updated Successfully")
             } else {
-                AppLogger.e("❌ Upload Data Insertion Failed")
+                AppLogger.e("❌ Upload Data with Tracking ID $id Insertion Failed")
             }
         }
 
-        //cek semua data upload
+        //cek semua data upload apakah ada dalam satu hari ini
         uploadCMPViewModel.allIds.observe(this) { data ->
-
+            loadingDialog.dismiss()
             if (data.isNotEmpty()) {
                 trackingIdsUpload = data
-                startDownloads() // This ensures download starts only after fetching data
-            } else {
-                Toast.makeText(this, "No data found in the last two days", Toast.LENGTH_SHORT).show()
+
             }
         }
 
@@ -466,12 +469,34 @@ class HomePageActivity : AppCompatActivity() {
             "Sinkronisasi data" -> {
                 if (feature.displayType == DisplayType.ICON) {
                     isTriggerButtonSinkronisasiData = true
-                    lifecycleScope.launch {
-//                        loadingDialog.show()
-//                        loadingDialog.setMessage("Sedang mempersiapkan data...")
-//                        delay(500)
+                    uploadCMPViewModel.getAllIds()
+                    loadingDialog.show()
+                    loadingDialog.setMessage("Sedang mempersiapkan data...")
 
-                        uploadCMPViewModel.getAllIds() // Fetch data first
+                    lifecycleScope.launch {
+                        val data = withTimeoutOrNull(500) {
+                            suspendCancellableCoroutine<List<Int>> { continuation ->
+                                uploadCMPViewModel.allIds.observeOnce(this@HomePageActivity) { ids ->
+                                    continuation.resume(ids) {}
+                                }
+                            }
+                        } ?: emptyList()
+
+                        loadingDialog.dismiss()
+
+                        if (data.isNotEmpty()) {
+                            trackingIdsUpload = data
+                            startDownloads()
+                        } else {
+                            AlertDialogUtility.withSingleAction(
+                                this@HomePageActivity,
+                                stringXML(R.string.al_back),
+                                stringXML(R.string.al_no_data_for_upload_cmp),
+                                stringXML(R.string.al_no_data_for_upload_cmp_description),
+                                "success.json",
+                                R.color.greenDarker
+                            ) {}
+                        }
                     }
                 }
             }
@@ -490,26 +515,17 @@ class HomePageActivity : AppCompatActivity() {
                         setupDialogUpload()
                     }
 
-
-//                    startUploadAllDataCMP()
                 }
             }
         }
     }
 
 
-    // Function to get the table name dynamically
-    inline fun <reified T> getTableName(): String {
-        return T::class.findAnnotation<Entity>()?.tableName ?: T::class.simpleName.orEmpty()
-    }
-
-    // Mapping IDs to table names dynamically
     fun createJsonTableNameMapping(): String {
         val tableMap = mapOf(
-            getTableName<PanenEntity>() to globalPanenIds,
-            getTableName<ESPBEntity>() to globalESPBIds
+            AppUtils.DatabaseTables.PANEN to globalPanenIds,
+            AppUtils.DatabaseTables.ESPB to globalESPBIds
         )
-
         return Gson().toJson(tableMap) // Convert to JSON string
     }
 
@@ -527,28 +543,17 @@ class HomePageActivity : AppCompatActivity() {
             if (completionCounter.incrementAndGet() >= totalCollections) {
                 loadingDialog.setMessage("Sedang membuat rekap data file .zip...")
 
-
                 AppUtils.createAndSaveZipUploadCMP(
                     this,
                     uploadDataList,
                     prefManager!!.idUserLogin.toString()
                 ) { success, fileName, fullPath ->
                     if (success) {
-                        zipFilePath = fullPath // ✅ Store full path instead of just file name
-                        zipFileName = fileName // ✅ Store full path instead of just file name
+                        zipFilePath = fullPath
+                        zipFileName = fileName
                         lifecycleScope.launch(Dispatchers.IO) {
-//                            weightBridgeViewModel.updateArchiveESPB(globalESPBIds, 1)
-//                            panenViewModel.updateArchivePanen(globalPanenIds, 1)
-//                            uploadCMPViewModel.addNewDataUpload(
-//                                1,
-//                                zipFileName!!,
-//                                1,
-//                                SimpleDateFormat(
-//                                    "yyyy-MM-dd HH:mm:ss",
-//                                    Locale.getDefault()
-//                                ).format(Date()),
-//                                jsonResultTableIds
-//                            )
+                            weightBridgeViewModel.updateArchiveESPB(globalESPBIds, 1)
+                            panenViewModel.updateArchivePanen(globalPanenIds, 1)
                         }
                         dataReadyDeferred.complete(true)
                     } else {
@@ -609,7 +614,7 @@ class HomePageActivity : AppCompatActivity() {
                             "mill_id" to data.mill_id,
                             "info_app" to data.creator_info,
                             "no_espb" to data.noESPB,
-//                            "feature" to "ESPB"
+                            //                            "feature" to "ESPB"
                         )
                     }
 
@@ -673,7 +678,7 @@ class HomePageActivity : AppCompatActivity() {
                             "komentar" to (panenWithRelations.panen.komentar as Any),
                             "lat" to (panenWithRelations.panen.lat as Any),
                             "lon" to (panenWithRelations.panen.lon as Any),
-//                            "feature" to "Panen"
+                            //                            "feature" to "Panen"
                         )
                     }
 
@@ -780,7 +785,7 @@ class HomePageActivity : AppCompatActivity() {
 
         uploadCMPViewModel.uploadStatusCMP.observe(this) { status ->
             adapter.updateStatus(0, status)
-            if (status == AppUtils.UploadStatusUtils.SUCCESS){
+            if (status == AppUtils.UploadStatusUtils.SUCCESS) {
                 counterTV.text = "1/1"
                 titleTV.text = "Upload Berhasil"
                 btnUploadDataCMP.isEnabled = true
@@ -807,7 +812,7 @@ class HomePageActivity : AppCompatActivity() {
                 uploadCMPViewModel.UpdateOrInsertDataUpload(
                     response.trackingId,
                     response.nama_file,
-                    response.trackingId,
+                    response.status,
                     response.tanggal_upload,
                     jsonResultTableIds
                 )
@@ -817,8 +822,8 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
-    private fun startUploadAllDataCMP(fileZip:String?) {
-        uploadCMPViewModel.uploadZipToServer(fileZip?: "")
+    private fun startUploadAllDataCMP(fileZip: String?) {
+        uploadCMPViewModel.uploadZipToServer(fileZip ?: "")
     }
 
 
@@ -1043,38 +1048,45 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetTransporter: String?,
     ): List<DatasetRequest> {
-        val datasets = mutableListOf(
-            //khusus mill
-            DatasetRequest(regional = regionalId, lastModified = null, dataset = AppUtils.DatasetNames.mill),
-            //khusus dataset
-            DatasetRequest(
-                estate = estateId,
-                lastModified = lastModifiedDatasetTPH,
-                dataset = AppUtils.DatasetNames.tph
-            ),
-            DatasetRequest(
-                estate = estateId,
-                lastModified = lastModifiedDatasetPemanen,
-                dataset = AppUtils.DatasetNames.pemanen
-            ),
-            DatasetRequest(
-                estate = estateId,
-                lastModified = lastModifiedDatasetKemandoran,
-                dataset = AppUtils.DatasetNames.kemandoran
-            ),
-            DatasetRequest(
-                lastModified = lastModifiedDatasetTransporter,
-                dataset = AppUtils.DatasetNames.transporter
+        val datasets = mutableListOf<DatasetRequest>()
+
+        if (isTriggerButtonSinkronisasiData && trackingIdsUpload.isNotEmpty()) {
+            datasets.add(
+                DatasetRequest(
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.updateSyncLocalData,
+                    data = trackingIdsUpload
+                )
+            )
+        }
+        datasets.addAll(
+            listOf(
+//                DatasetRequest(
+//                    regional = regionalId,
+//                    lastModified = null,
+//                    dataset = AppUtils.DatasetNames.mill
+//                ),
+                DatasetRequest(
+                    estate = estateId,
+                    lastModified = lastModifiedDatasetTPH,
+                    dataset = AppUtils.DatasetNames.tph
+                ),
+                DatasetRequest(
+                    estate = estateId,
+                    lastModified = lastModifiedDatasetPemanen,
+                    dataset = AppUtils.DatasetNames.pemanen
+                ),
+                DatasetRequest(
+                    estate = estateId,
+                    lastModified = lastModifiedDatasetKemandoran,
+                    dataset = AppUtils.DatasetNames.kemandoran
+                ),
+                DatasetRequest(
+                    lastModified = lastModifiedDatasetTransporter,
+                    dataset = AppUtils.DatasetNames.transporter
+                )
             )
         )
-
-        if (isTriggerButtonSinkronisasiData) {
-            return listOf(DatasetRequest(lastModified = null, dataset = AppUtils.DatasetNames.updateSyncLocalData, data = trackingIdsUpload))
-//            datasets.add( DatasetRequest(
-//                lastModified = null,
-//                dataset = AppUtils.DatasetNames.updateSyncLocalData
-//            ))
-        }
 
         return datasets
     }
@@ -1092,6 +1104,15 @@ class HomePageActivity : AppCompatActivity() {
         ) {
 //            dialog.dismiss()  // Dismiss the download progress dialog
         }
+    }
+
+    fun <T> LiveData<T>.observeOnce(lifecycleOwner: LifecycleOwner, observer: Observer<T>) {
+        observe(lifecycleOwner, object : Observer<T> {
+            override fun onChanged(value: T) {
+                removeObserver(this)
+                observer.onChanged(value)
+            }
+        })
     }
 
 

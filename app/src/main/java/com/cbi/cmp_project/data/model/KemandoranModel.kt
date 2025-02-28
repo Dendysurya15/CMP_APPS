@@ -4,9 +4,10 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.cbi.cmp_project.utils.AppUtils
 
 @Entity(
-    tableName = "kemandoran",
+    tableName = AppUtils.DatabaseTables.KEMANDORAN,
 //    foreignKeys = [
 //        ForeignKey(
 //            entity = DeptModel::class, // The referenced table

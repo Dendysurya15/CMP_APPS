@@ -50,6 +50,19 @@ object AppUtils {
         const val FAILED = "Gagal Upload!"
     }
 
+    object DatabaseTables {
+        const val PANEN = "panen_table"
+        const val ESPB = "espb_table"
+        const val MILL = "mill"
+        const val TPH = "tph"
+        const val FLAGESPB = "flag_espb"
+        const val KEMANDORAN = "kemandoran"
+        const val KARYAWAN = "karyawan"
+        const val TRANSPORTER = "transporter"
+        const val UPLOADCMP = "upload_cmp"
+    }
+
+
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
     }

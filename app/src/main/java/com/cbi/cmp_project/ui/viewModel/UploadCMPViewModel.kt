@@ -18,10 +18,8 @@ import kotlinx.coroutines.launch
 class UploadCMPViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: UploadCMPRepository = UploadCMPRepository(application)
 
-    private val _updateStatus = MutableLiveData<Boolean>()
-    val updateStatus: LiveData<Boolean> get() = _updateStatus
-
-
+    private val _updateStatus = MutableLiveData<Pair<Int, Boolean>>()
+    val updateStatusUploadCMP: LiveData<Pair<Int, Boolean>> = _updateStatus
 
     private val _uploadProgressCMP = MutableLiveData<Int>()
     val uploadProgressCMP: LiveData<Int> get() = _uploadProgressCMP
@@ -67,9 +65,9 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                         table_ids = table_ids
                     )
                 )
-                _updateStatus.postValue(true)
+                _updateStatus.postValue(Pair(tracking_id, true)) // ✅ Return ID and Success
             } catch (e: Exception) {
-                _updateStatus.postValue(false)
+                _updateStatus.postValue(Pair(tracking_id, false)) // ❌ Return ID and Failure
             }
         }
     }

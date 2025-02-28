@@ -30,6 +30,8 @@
 
     <string name="al_failed_fetch_data_desc">Gagal Mengambil Data!</string>
     <string name="al_failed_fetch_data">Terjadi Kesalahan!</string>
+    <string name="al_no_data_for_upload_cmp">Data Tidak ada</string>
+    <string name="al_no_data_for_upload_cmp_description">Belum ada data yang dibuat untuk diupload ke Server</string>
 
     <string name="submit_text_krani_timbang">Simpan Data</string>
 

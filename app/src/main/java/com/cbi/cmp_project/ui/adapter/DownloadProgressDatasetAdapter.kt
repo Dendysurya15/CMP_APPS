@@ -9,6 +9,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.utils.AppUtils
 
 data class DownloadItem(
     val dataset: String,
@@ -21,7 +22,6 @@ data class DownloadItem(
     var isStoringCompleted: Boolean = false,  // Add this
     var isUpToDate: Boolean = false,
     var error: String? = null,
-    var test:String,
 )
 
 class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressDatasetAdapter.ViewHolder>() {
@@ -64,7 +64,7 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                 }
                 item.isUpToDate -> {  // Add this condition
                     statusProgress.visibility = View.VISIBLE
-                    statusProgress.text = "Database is already up to date"
+                    statusProgress.text = "${item.dataset} is already up to date"
                     statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.greendarkerbutton))
                     iconStatus.visibility = View.VISIBLE
                     iconStatus.setImageResource(R.drawable.baseline_check_24)
@@ -83,6 +83,11 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                 item.isStoringCompleted -> {
                     statusProgress.visibility = View.VISIBLE
 
+                    if(item.dataset == AppUtils.DatasetNames.updateSyncLocalData){
+                        statusProgress.text = "Berhasil sinkronisasi data"
+                    }else{
+                        statusProgress.text = "${item.dataset} successfully stored"
+                    }
                     statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
                     iconStatus.visibility = View.VISIBLE
                     iconStatus.setImageResource(R.drawable.baseline_check_24)
@@ -118,7 +123,12 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                 }
                 item.isLoading -> {
                     statusProgress.visibility = View.VISIBLE
-                    statusProgress.text = "Downloading: ${item.progress}%"
+                    if(item.dataset == AppUtils.DatasetNames.updateSyncLocalData){
+                        statusProgress.text = "Sedang sinkronisasi data..."
+                    }else{
+                        statusProgress.text = "Downloading: ${item.progress}%"
+                    }
+
                     loadingCircular.visibility = View.VISIBLE
                     progressBar.isIndeterminate = false
                 }

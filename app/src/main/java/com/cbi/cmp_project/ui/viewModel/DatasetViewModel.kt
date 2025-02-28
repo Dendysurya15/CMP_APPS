@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.bumptech.glide.load.engine.Resource
+import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.database.KaryawanDao
 
 import com.cbi.cmp_project.data.model.KaryawanModel
@@ -16,6 +17,7 @@ import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.MillModel
 import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
+import com.cbi.cmp_project.data.model.uploadCMP.FetchResponseItem
 import com.cbi.cmp_project.data.model.uploadCMP.FetchStatusCMPResponse
 import com.cbi.cmp_project.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.cmp_project.data.repository.AppRepository
@@ -33,11 +35,14 @@ import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
 import org.json.JSONException
 import org.json.JSONObject
@@ -49,8 +54,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val repository: DatasetRepository = DatasetRepository(application)
     private val prefManager = PrefManager(application)
 
-    private val _regionalStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
-    val regionalStatus: StateFlow<Result<Boolean>> = _regionalStatus.asStateFlow()
+    private val database = AppDatabase.getDatabase(application)
+    private val uploadCMPDao = database.uploadCMPDao()
+    private val espbDao = database.espbDao()
+    private val panenDao = database.panenDao()
+
+
 
     private val _downloadStatuses = MutableLiveData<Map<String, Resource<Response<ResponseBody>>>>()
     val downloadStatuses: LiveData<Map<String, Resource<Response<ResponseBody>>>> =
@@ -70,6 +79,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _tphStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val tphStatus: StateFlow<Result<Boolean>> = _tphStatus.asStateFlow()
+
+
+    private val _fetchStatusUploadCMPLiveData = MutableLiveData<List<FetchResponseItem>>()
+    val fetchStatusUploadCMPLiveData : LiveData<List<FetchResponseItem>> = _fetchStatusUploadCMPLiveData
 
     sealed class Resource<T>(
         val data: T? = null,
@@ -377,8 +390,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     }
 
 
-
-                    AppLogger.d(response.toString())
                     // Get headers
                     val contentType = response.headers()["Content-Type"]
                     val lastModified = response.headers()["Last-Modified-Dataset"]
@@ -559,14 +570,73 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         _downloadStatuses.postValue(results.toMap())
                                     }
                                 }
-                                else if(request.dataset == AppUtils.DatasetNames.updateSyncLocalData){
+                                else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
+                                    results[request.dataset] = Resource.Loading(0)
 
+                                    try {
+                                        val jsonResponse = Gson().fromJson(responseBodyString, FetchStatusCMPResponse::class.java)
 
-                                    val jsonResponse = Gson().fromJson(responseBodyString, FetchStatusCMPResponse::class.java)
-                                    jsonResponse.data.forEach { item ->
-                                        AppLogger.d("ID: ${item.id}, File: ${item.nama_file}, Status: ${item.status}")
+                                        viewModelScope.launch(Dispatchers.IO) {
+                                            val panenIdsToUpdate = mutableListOf<Int>()
+                                            val espbIdsToUpdate = mutableListOf<Int>()
+                                            val archiveStatus = mutableMapOf<String, Int>()  // Store status for batch updates
+
+                                            try {
+                                                val deferredUpdates = jsonResponse.data.map { item ->
+                                                    async {
+                                                        try {
+                                                            // Get table_ids JSON from DB
+                                                            val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(item.id) ?: "{}"
+                                                            val tableIdsObj = Gson().fromJson(tableIdsJson, JsonObject::class.java)
+
+                                                            tableIdsObj?.keySet()?.forEach { tableName ->
+                                                                val ids = tableIdsObj.getAsJsonArray(tableName).map { it.asInt }
+
+                                                                when (tableName) {
+                                                                    AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(ids)
+                                                                    AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(ids)
+                                                                }
+
+                                                                archiveStatus[tableName] = item.status
+                                                            }
+
+                                                            uploadCMPDao.updateStatus(item.id, item.status)
+                                                        } catch (e: Exception) {
+                                                            AppLogger.e("Error processing item ${item.id}: ${e.localizedMessage}")
+                                                        }
+                                                    }
+                                                }
+
+                                                deferredUpdates.awaitAll()
+
+                                                try {
+                                                    if (panenIdsToUpdate.isNotEmpty()) {
+                                                        panenDao.updatePanenArchive(panenIdsToUpdate, archiveStatus[AppUtils.DatabaseTables.PANEN] ?: 0)
+                                                    }
+                                                    if (espbIdsToUpdate.isNotEmpty()) {
+                                                        espbDao.updateESPBArchive(espbIdsToUpdate, archiveStatus[AppUtils.DatabaseTables.ESPB] ?: 0)
+                                                    }
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error in batch updates: ${e.localizedMessage}")
+                                                }
+
+                                                withContext(Dispatchers.Main) {
+                                                    results[request.dataset] = Resource.Success(response)
+                                                    _downloadStatuses.postValue(results.toMap())
+                                                }
+
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error in processing dataset updateSyncLocalData: ${e.localizedMessage}")
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error parsing JSON response: ${e.localizedMessage}")
                                     }
                                 }
+
+
+
+
                                 else {
                                     results[request.dataset] = Resource.Success(response)
                                 }
