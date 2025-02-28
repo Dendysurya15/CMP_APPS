@@ -1,5 +1,7 @@
 package com.cbi.cmp_project.ui.adapter
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -32,6 +34,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     private val selectedItems = mutableSetOf<Int>()
     private var isSortAscending: Boolean? = null
     private var selectAllState = false
+    private val preselectedTphIds = mutableSetOf<String>()
+
 
     private var featureName: String = ""
     private var tphListScan: List<String> = emptyList()
@@ -48,6 +52,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         val panenId: Int
     )
 
+    // Then modify setFeatureAndScanned to call this method:
     fun setFeatureAndScanned(feature: String, scannedResult: String) {
         featureName = feature
         Log.d("ListPanenTPHAdapterTest", "featureName: $featureName")
@@ -62,7 +67,11 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             emptyList()
         }
         Log.d("ListPanenTPHAdapterTest", "tphListScan: $tphListScan")
-        notifyDataSetChanged() // Only call this if you need to refresh the views
+
+        // Pre-select TPH IDs that match scanned list
+        preSelectTphIds()
+
+        notifyDataSetChanged()
     }
 
 
@@ -171,18 +180,22 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     }
     class ListPanenTPHViewHolder(private val binding: TableItemRowBinding) :
         RecyclerView.ViewHolder(binding.root) {
+        // In ListPanenTPHAdapter.kt, update the bind method in ListPanenTPHViewHolder class:
+
+        // In the ListPanenTPHAdapter.kt, modify the ViewHolder bind method:
+
         fun bind(
             data: Map<String, Any>,
             isSelected: Boolean,
             archiveState: Int,
             onCheckedChange: (Boolean) -> Unit,
-//            scanStatus: Int,
             extractData: (Map<String, Any>) -> ExtractedData,
             featureName: String = "",
             tphListScan: List<String> = emptyList()
         ) {
             val extractedData = extractData(data)
             Log.d("ListPanenTPHAdapterTest", "bind: $extractedData")
+
             binding.td1.visibility = View.VISIBLE
             binding.td2.visibility = View.VISIBLE
             binding.td3.visibility = View.VISIBLE
@@ -195,24 +208,34 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
             if (archiveState == 1 || featureName == "Rekap panen dan restan") {
                 Log.d("ListPanenTPHAdapterTest", "archiveState == 1")
-
                 binding.checkBoxPanen.visibility = View.GONE
                 binding.numListTerupload.visibility = View.VISIBLE
                 binding.numListTerupload.text = "${adapterPosition + 1}."
             } else {
-
                 Log.d("ListPanenTPHAdapterTest", "archiveState == else")
                 binding.checkBoxPanen.visibility = View.VISIBLE
                 binding.numListTerupload.visibility = View.GONE
+
+                // Clear the listener before setting checked state to prevent unwanted triggers
+                binding.checkBoxPanen.setOnCheckedChangeListener(null)
+
+                // Set initial state
+                binding.checkBoxPanen.isEnabled = true
                 binding.checkBoxPanen.isChecked = isSelected
-                binding.checkBoxPanen.isEnabled = true // Reset to enabled by default
+
+                // Handle scanned TPH items
                 if (tphListScan.contains(extractedData.tphId.toString())) {
                     binding.checkBoxPanen.isChecked = true
                     binding.checkBoxPanen.isEnabled = false
-                    // Optionally, if you want this to be reflected in your selectedItems set:
-                    // onCheckedChange(true)
+
+                    // Instead of trying to access adapter variables directly,
+                    // use the callback to update the adapter state
+                    if (!isSelected) {
+                        onCheckedChange(true)
+                    }
                 }
-//                binding.checkBoxPanen.isChecked = isSelected
+
+                // Set the listener AFTER configuring the checkbox state
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
                     onCheckedChange(isChecked)
                 }
@@ -318,15 +341,73 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         onSelectionChangeListener?.invoke(0)
     }
 
+//    fun updateData(newData: List<Map<String, Any>>) {
+//        tphList.clear()
+//        selectedItems.clear()
+//        selectAllState = false
+//        isSortAscending = null  // Add this line
+//        tphList.addAll(newData)
+//        filteredList = tphList.toMutableList()
+//        notifyDataSetChanged()
+//        onSelectionChangeListener?.invoke(0)
+//    }
+
+
+    // Then modify the updateData method to preserve selections from scanned items
     fun updateData(newData: List<Map<String, Any>>) {
+        // Keep track of tphListScan before clearing selections
+        preselectedTphIds.clear()
+        preselectedTphIds.addAll(tphListScan)
+
         tphList.clear()
         selectedItems.clear()
         selectAllState = false
-        isSortAscending = null  // Add this line
+        isSortAscending = null
         tphList.addAll(newData)
         filteredList = tphList.toMutableList()
+
+        // Pre-select items that match the scanned TPH IDs
+        if (preselectedTphIds.isNotEmpty()) {
+            tphList.forEachIndexed { index, item ->
+                try {
+                    val tphId = item["tph_id"].toString()
+                    if (preselectedTphIds.contains(tphId)) {
+                        selectedItems.add(index)
+                    }
+                } catch (e: Exception) {
+                    Log.e("ListPanenTPHAdapter", "Error pre-selecting TPH: ${e.message}")
+                }
+            }
+        }
+
         notifyDataSetChanged()
-        onSelectionChangeListener?.invoke(0)
+        onSelectionChangeListener?.invoke(selectedItems.size)
     }
+
+    // Add this method to ListPanenTPHAdapter class
+    fun preSelectTphIds() {
+        if (tphListScan.isNotEmpty()) {
+            var selectionChanged = false
+
+            // Find all matching items and add them to selectedItems
+            tphList.forEachIndexed { index, item ->
+                try {
+                    val extractedData = extractData(item)
+                    if (tphListScan.contains(extractedData.tphId.toString())) {
+                        selectedItems.add(index)
+                        selectionChanged = true
+                    }
+                } catch (e: Exception) {
+                    Log.e("ListPanenTPHAdapter", "Error pre-selecting TPH: ${e.message}")
+                }
+            }
+
+            if (selectionChanged) {
+                notifyDataSetChanged()
+                onSelectionChangeListener?.invoke(selectedItems.size)
+            }
+        }
+    }
+
 
 }

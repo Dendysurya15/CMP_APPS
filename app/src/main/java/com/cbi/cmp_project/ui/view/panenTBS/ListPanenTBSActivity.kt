@@ -119,23 +119,84 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setContentView(R.layout.activity_list_panen_tbs)
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
+
         listTPHDriver = try {
             AppUtils.readJsonFromEncryptedBase64Zip(
                 intent.getStringExtra("scannedResult").toString()
-            )
-                .toString()
-
-
+            ).toString()
         } catch (e: Exception) {
             Toasty.error(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             ""
         }
 
-        Log.d("testing", listTPHDriver.toString())
+        Log.d("listTPHDriver", listTPHDriver.toString())
+
         prefManager = PrefManager(this)
         userName = prefManager!!.nameUserLogin
         estateName = prefManager!!.estateUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
+
+        // Get previous TPH data if available
+        val previousTph1 = intent.getStringExtra("previous_tph_1") ?: ""
+        val previousTph0 = intent.getStringExtra("previous_tph_0") ?: ""
+        val previousTph1IdPanen = intent.getStringExtra("previous_tph_1_id_panen") ?: ""
+
+        if (previousTph1.isNotEmpty()) {
+            Log.d("ListPanenTBSActivity", "Previous tph1 found: $previousTph1")
+            tph1 = previousTph1
+        }
+
+        if (previousTph0.isNotEmpty()) {
+            Log.d("ListPanenTBSActivity", "Previous tph0 found: $previousTph0")
+            tph0 = previousTph0
+        }
+
+        if (previousTph1IdPanen.isNotEmpty()) {
+            Log.d("ListPanenTBSActivity", "Previous tph1IdPanen found: $previousTph1IdPanen")
+            tph1IdPanen = previousTph1IdPanen
+        }
+
+        if (listTPHDriver.isNotEmpty()) {
+            // Extract TPH IDs from the current scan
+            val currentScanTphIds = try {
+                val tphString = listTPHDriver
+                    .removePrefix("""{"tph":"""")
+                    .removeSuffix(""""}""")
+                tphString
+            } catch (e: Exception) {
+                e.printStackTrace()
+                ""
+            }
+
+            // If we have previous scan data stored in tph1, extract TPH IDs
+            val previousScanTphIds = if (tph1.isNotEmpty()) {
+                // Get the TPH IDs from tph1 string
+                tph1.split(";").mapNotNull { entry ->
+                    try {
+                        entry.split(",").firstOrNull()
+                    } catch (e: Exception) {
+                        Toasty.error(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                        null
+                    }
+                }.joinToString(";")
+            } else ""
+
+            // Combine previous and current scan TPH IDs
+            val combinedTphIds = if (previousScanTphIds.isNotEmpty() && currentScanTphIds.isNotEmpty()) {
+                """{"tph":"$previousScanTphIds;$currentScanTphIds"}"""
+            } else if (currentScanTphIds.isNotEmpty()) {
+                """{"tph":"$currentScanTphIds"}"""
+            } else if (previousScanTphIds.isNotEmpty()) {
+                """{"tph":"$previousScanTphIds"}"""
+            } else ""
+
+            // Update listTPHDriver with combined data
+            if (combinedTphIds.isNotEmpty()) {
+                listTPHDriver = combinedTphIds
+                Log.d("ListPanenTBSActivity", "Combined TPH IDs: $listTPHDriver")
+            }
+        }
+
         setupHeader()
         initViewModel()
         initializeViews()
@@ -461,13 +522,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 Log.d("ListPanenTBSActivityESPB", "selectedItems2:$selectedItems2")
 
                 // Extract the id values from the matches and join them with commas
-                tph1IdPanen =  try {
+                val newTph1IdPanen = try {
                     val pattern = Regex("\\{id=(\\d+),")
                     val matches = pattern.findAll(selectedItems2.toString())
                     matches.map { it.groupValues[1] }.joinToString(", ")
-                }catch (e: Exception){
+                } catch (e: Exception) {
                     Toasty.error(this, "Error parsing panen IDs: ${e.message}", Toast.LENGTH_LONG).show()
                     ""
+                }
+
+                // Combine with existing tph1IdPanen if it exists
+                tph1IdPanen = if (tph1IdPanen.isEmpty()) {
+                    newTph1IdPanen
+                } else {
+                    "$tph1IdPanen, $newTph1IdPanen"
                 }
 
                 Log.d("ListPanenTBSActivityESPB", "listTPHDriver: $listTPHDriver")
@@ -489,14 +557,36 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val set4 = tph0before.toEntries()
 
                 // Calculate string5 = string4 - string1 - string3
-                tph0 = (set4 - set1 - set3).toString().replace("[", "").replace("]", "")
+                val newTph0 = (set4 - set1 - set3).toString().replace("[", "").replace("]", "")
                     .replace(", ", ";")
-                Log.d("ListPanenTBSActivityESPB", "tph0: $tph0")
+                Log.d("ListPanenTBSActivityESPB", "New tph0: $newTph0")
 
                 // Calculate string6 = string2 + string3
-                tph1 =
+                val newTph1 =
                     (set2 + set3).toString().replace("[", "").replace("]", "").replace(", ", ";")
-                Log.d("ListPanenTBSActivityESPB", "tph1: $tph1")
+                Log.d("ListPanenTBSActivityESPB", "New tph1: $newTph1")
+
+                // Combine with existing data if it exists
+                if (tph0.isNotEmpty() && newTph0.isNotEmpty()) {
+                    tph0 = "$tph0;$newTph0"
+                } else if (newTph0.isNotEmpty()) {
+                    tph0 = newTph0
+                }
+
+                if (tph1.isNotEmpty() && newTph1.isNotEmpty()) {
+                    tph1 = "$tph1;$newTph1"
+                } else if (newTph1.isNotEmpty()) {
+                    tph1 = newTph1
+                }
+
+                // Remove any duplicate entries from tph0 and tph1
+                tph0 = removeDuplicateEntries(tph0)
+                tph1 = removeDuplicateEntries(tph1)
+
+                Log.d("ListPanenTBSActivityESPB", "Final tph0: $tph0")
+                Log.d("ListPanenTBSActivityESPB", "Final tph1: $tph1")
+                Log.d("ListPanenTBSActivityESPB", "Final tph1IdPanen: $tph1IdPanen")
+
                 AlertDialogUtility.withTwoActions(
                     this,
                     "LANJUT",
@@ -513,7 +603,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     finishAffinity()
                 }
             }
-        } else if(featureName == "Rekap panen dan restan") {
+        }  else if(featureName == "Rekap panen dan restan") {
             btnGenerateQRTPH.visibility = View.GONE
         }
         else {
@@ -1582,6 +1672,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 text = headerNames[i]
             }
         }
+    }
+
+    // Add a helper function to remove duplicate entries
+    private fun removeDuplicateEntries(entries: String): String {
+        if (entries.isEmpty()) return ""
+
+        val uniqueEntries = entries.split(";")
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .joinToString(";")
+
+        return uniqueEntries
     }
 
 
