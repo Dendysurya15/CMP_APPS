@@ -77,10 +77,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class HomePageActivity : AppCompatActivity() {
 
@@ -109,6 +112,8 @@ class HomePageActivity : AppCompatActivity() {
     private var zipFilePath: String? = null
     private var zipFileName: String? = null
     private var trackingIdsUpload: List<Int> = emptyList()
+    private lateinit var allUploadZipFilesToday: MutableList<File>
+
 
     private lateinit var datasetViewModel: DatasetViewModel
 
@@ -518,6 +523,38 @@ class HomePageActivity : AppCompatActivity() {
                         loadingDialog.show()
                         loadingDialog.setMessage("Sedang mempersiapkan data...")
                         delay(500)
+
+                        allUploadZipFilesToday = AppUtils.checkUploadZipReadyToday(this@HomePageActivity).toMutableList()
+
+                        if (allUploadZipFilesToday.isNotEmpty()) {
+                            uploadCMPViewModel.getUploadCMPTodayData()
+
+                            val filteredFiles = withContext(Dispatchers.Main) {
+                                suspendCoroutine<List<File>> { continuation ->
+                                    uploadCMPViewModel.fileData.observeOnce(this@HomePageActivity) { fileList ->
+                                        val filesToRemove = fileList.filter { it.status == 2 || it.status == 3 }.map { it.nama_file }
+                                        // Filter files and update `allUploadZipFilesToday`
+                                        allUploadZipFilesToday = allUploadZipFilesToday.filter { file ->
+                                            !filesToRemove.contains(file.name)
+                                        }.toMutableList()
+
+                                        continuation.resume(allUploadZipFilesToday) // Resume coroutine with valid files
+                                    }
+                                }
+                            }
+
+                            if (filteredFiles.isNotEmpty()) {
+                                Log.d("VALID_FILES", "Filtered valid files: $filteredFiles")
+                            } else {
+                                Log.d("VALID_FILES", "No valid files found.")
+                            }
+                        }
+
+
+
+                        AppLogger.d("Final allUploadZipFilesToday: $allUploadZipFilesToday")
+//
+                        // Proceed with database triggering only after observation is completed
                         val dataReadyDeferred = CompletableDeferred<Boolean>()
                         val featuresToFetch = listOf(
                             AppUtils.DatabaseTables.ESPB,
@@ -528,7 +565,7 @@ class HomePageActivity : AppCompatActivity() {
                         setupObserverForUploadAllDataCMP(dataReadyDeferred, featuresToFetch)
                         dataReadyDeferred.await()
 
-                        if (zipFilePath != null && zipFileName != null) {
+                        if ((zipFilePath != null && zipFileName != null) || allUploadZipFilesToday.isNotEmpty()) {
                             setupDialogUpload()
                         } else {
                             AlertDialogUtility.withSingleAction(
@@ -538,11 +575,10 @@ class HomePageActivity : AppCompatActivity() {
                                 stringXML(R.string.al_no_data_for_upload_cmp_description),
                                 "success.json",
                                 R.color.greendarkerbutton
-                            ) {
-
-                            }
+                            ) { }
                         }
                     }
+
 
                 }
             }
@@ -840,7 +876,6 @@ class HomePageActivity : AppCompatActivity() {
         titleTV.text = "Upload Data CMP"
 
         val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
-        counterTV.text = "0/1"
 
         val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
         val btnUploadDataCMP = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
@@ -850,15 +885,45 @@ class HomePageActivity : AppCompatActivity() {
         closeDialogBtn.visibility = View.VISIBLE
         btnUploadDataCMP.visibility = View.VISIBLE
 
+        // Create a list of upload items
         val uploadItems = mutableListOf<UploadCMPItem>()
 
-        uploadItems.add(
-            UploadCMPItem(
-                id = 0,
-                title = zipFileName ?: "",
-                fullPath = zipFilePath ?: ""
+
+        AppLogger.d(allUploadZipFilesToday.toString())
+        allUploadZipFilesToday.forEachIndexed { index, file ->
+            val fullPath = file.absolutePath
+            val fileName = file.name
+
+            if (fullPath.isNotEmpty() && fileName.isNotEmpty()) {
+                uploadItems.add(
+                    UploadCMPItem(
+                        id = index, // Unique ID for each file
+                        title = fileName,
+                        fullPath = fullPath
+                    )
+                )
+            }
+        }
+
+
+        AppLogger.d(zipFilePath.toString())
+        AppLogger.d(zipFileName.toString())
+        if (!zipFilePath.isNullOrEmpty() && !zipFileName.isNullOrEmpty()) {
+            uploadItems.add(
+                UploadCMPItem(
+                    id = 0,
+                    title = zipFileName ?: "",
+                    fullPath = zipFilePath ?: ""
+                )
             )
-        )
+        }
+
+
+        AppLogger.d(uploadItems.toString())
+        AppLogger.d(uploadItems.size.toString())
+
+        // Set initial counter
+        counterTV.text = "0/${uploadItems.size}"
 
         val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -873,6 +938,7 @@ class HomePageActivity : AppCompatActivity() {
 
         btnUploadDataCMP.setOnClickListener {
             if (AppUtils.isNetworkAvailable(this)) {
+                // Disable buttons
                 btnUploadDataCMP.isEnabled = false
                 closeDialogBtn.isEnabled = false
                 btnUploadDataCMP.alpha = 0.7f
@@ -881,7 +947,8 @@ class HomePageActivity : AppCompatActivity() {
                     ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
                 closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
 
-                startUploadAllDataCMP(zipFilePath)
+                // Start uploading all files
+                uploadCMPViewModel.uploadMultipleZips(uploadItems)
             } else {
                 AlertDialogUtility.withSingleAction(
                     this@HomePageActivity,
@@ -891,10 +958,9 @@ class HomePageActivity : AppCompatActivity() {
                     "network_error.json",
                     R.color.colorRedDark
                 ) {
-
+                    // Do nothing
                 }
             }
-
         }
 
         closeDialogBtn.setOnClickListener {
@@ -903,53 +969,106 @@ class HomePageActivity : AppCompatActivity() {
             dialog.dismiss()
         }
 
-        uploadCMPViewModel.uploadProgressCMP.observe(this) { progress ->
-            adapter.updateProgress(0, progress)
-            titleTV.text = "Sedang Upload Data..."
+        // OBSERVE PROGRESS DATA FOR ALL ITEMS
+
+        // Observe completed count to update counter
+        uploadCMPViewModel.completedCount.observe(this) { completed ->
+            val total = uploadCMPViewModel.totalCount.value ?: uploadItems.size
+            counterTV.text = "$completed/$total"
         }
 
-        uploadCMPViewModel.uploadStatusCMP.observe(this) { status ->
-            adapter.updateStatus(0, status)
-            if (status == AppUtils.UploadStatusUtils.SUCCESS) {
-                counterTV.text = "1/1"
-                titleTV.text = "Upload Berhasil"
-                btnUploadDataCMP.isEnabled = true
-                btnUploadDataCMP.visibility = View.GONE
+        // Observe progress for each item
+        uploadCMPViewModel.itemProgressMap.observe(this) { progressMap ->
+            // Update progress for each item
+            for ((id, progress) in progressMap) {
+                adapter.updateProgress(id, progress)
+            }
 
-                closeDialogBtn.isEnabled = true
-                closeDialogBtn.alpha = 1f
-                closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
-
+            // Update title if any upload is in progress
+            if (progressMap.values.any { it in 1..99 }) {
+                titleTV.text = "Sedang Upload Data..."
             }
         }
 
-        uploadCMPViewModel.uploadErrorCMP.observe(this) { error ->
-            if (!error.isNullOrEmpty()) {
-                adapter.updateError(0, error)
+        // Observe status for each item
+        uploadCMPViewModel.itemStatusMap.observe(this) { statusMap ->
+            // Update status for each item
+            for ((id, status) in statusMap) {
+                adapter.updateStatus(id, status)
+            }
+
+            // Check overall status
+            val allFinished = statusMap.values.none {
+                it == AppUtils.UploadStatusUtils.WAITING || it == AppUtils.UploadStatusUtils.UPLOADING
+            }
+
+            val allSuccess = statusMap.values.all { it == AppUtils.UploadStatusUtils.SUCCESS }
+
+            if (allFinished && statusMap.isNotEmpty()) {
+                if (allSuccess) {
+                    titleTV.text = "Upload Berhasil"
+                } else {
+                    titleTV.text = "Upload Selesai Dengan Kesalahan"
+                }
+
+                // Enable close button, hide upload button
+                btnUploadDataCMP.visibility = View.GONE
+                closeDialogBtn.isEnabled = true
+                closeDialogBtn.alpha = 1f
+                closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+            }
+        }
+
+        // Observe errors for each item
+        uploadCMPViewModel.itemErrorMap.observe(this) { errorMap ->
+            for ((id, error) in errorMap) {
+                if (!error.isNullOrEmpty()) {
+                    adapter.updateError(id, error)
+                }
+            }
+
+            if (errorMap.values.any { !it.isNullOrEmpty() }) {
                 titleTV.text = "Terjadi Kesalahan..."
                 titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
             }
         }
 
-        uploadCMPViewModel.uploadResponseCMP.observe(this) { response ->
-            val jsonResultTableIds = createJsonTableNameMapping()
-            response?.let {
-                uploadCMPViewModel.UpdateOrInsertDataUpload(
-                    response.trackingId,
-                    response.nama_file,
-                    response.status,
-                    response.tanggal_upload,
-                    jsonResultTableIds
-                )
+//        // Observe original LiveData for compatibility (affects currently uploading file)
+//        uploadCMPViewModel.uploadProgressCMP.observe(this) { progress ->
+//            // You can use this for showing progress in some global UI element if needed
+//        }
+//
+//        uploadCMPViewModel.uploadStatusCMP.observe(this) { status ->
+//            // You can use this for showing status in some global UI element if needed
+//        }
+//
+//        uploadCMPViewModel.uploadErrorCMP.observe(this) { error ->
+//            if (!error.isNullOrEmpty()) {
+//                // Handle global error display if needed
+//            }
+//        }
+
+        // Process responses for database updates
+        uploadCMPViewModel.itemResponseMap.observe(this) { responseMap ->
+            for ((_, response) in responseMap) {
+                response?.let {
+                    val jsonResultTableIds = createJsonTableNameMapping()
+                    uploadCMPViewModel.UpdateOrInsertDataUpload(
+                        response.trackingId,
+                        response.nama_file,
+                        response.status,
+                        response.tanggal_upload,
+                        jsonResultTableIds
+                    )
+                }
             }
         }
-
     }
 
 
-    private fun startUploadAllDataCMP(fileZip: String?) {
-        uploadCMPViewModel.uploadZipToServer(fileZip ?: "")
-    }
+//    private fun startUploadAllDataCMP(fileZip: String?) {
+//        uploadCMPViewModel.uploadZipToServer(fileZip ?: "")
+//    }
 
 
     private fun setupDownloadDialog() {
