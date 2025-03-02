@@ -87,6 +87,7 @@ import android.widget.ListView
 import android.widget.PopupWindow
 import android.widget.ScrollView
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.ui.adapter.Worker
 import com.cbi.cmp_project.ui.view.HomePageActivity
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
@@ -288,7 +289,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     getString(R.string.confirmation_dialog_description),
                     "warning.json"
                 ) {
-                    lifecycleScope.launch {
+                    lifecycleScope.launch(Dispatchers.Main) {
                         try {
                             val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
                             val selectedPemanenLain =
@@ -299,81 +300,69 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             val photoFilesString = photoFiles.joinToString(";")
                             val komentarFotoString = komentarFoto.joinToString(";")
 
+                            val result = withContext(Dispatchers.IO) {
+                                panenViewModel.saveDataPanen(
+                                    tph_id = selectedTPHValue?.toString() ?: "",
+                                    date_created = SimpleDateFormat(
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        Locale.getDefault()
+                                    ).format(Date()),
+                                    created_by = userId!!,  // Prevent crash if userId is null
+                                    karyawan_id = (selectedPemanenIds + selectedPemanenLainIds).joinToString(
+                                        ","
+                                    ),
+                                    jjg_json = jjg_json,
+                                    foto = photoFilesString,
+                                    komentar = komentarFotoString,
+                                    asistensi = asistensi ?: 0, // Default to 0 if null
+                                    lat = lat ?: 0.0, // Default to 0.0 if null
+                                    lon = lon ?: 0.0, // Default to 0.0 if null
+                                    jenis_panen = selectedTipePanen?.toIntOrNull()
+                                        ?: 0, // Avoid NumberFormatException
+                                    ancakInput = ancakInput.toInt(), // Default to "0" if null
+                                    info = infoApp ?: "",
+                                    archive = 0
+                                )
+                            }
 
-
-                            panenViewModel.saveDataPanen(
-                                tph_id = selectedTPHValue?.toString() ?: "",
-                                date_created = SimpleDateFormat(
-                                    "yyyy-MM-dd HH:mm:ss",
-                                    Locale.getDefault()
-                                ).format(Date()),
-                                created_by = userId!!,  // Prevent crash if userId is null
-                                karyawan_id = (selectedPemanenIds + selectedPemanenLainIds).joinToString(
-                                    ","
-                                ),
-                                jjg_json = jjg_json,
-                                foto = photoFilesString,
-                                komentar = komentarFotoString,
-                                asistensi = asistensi ?: 0, // Default to 0 if null
-                                lat = lat ?: 0.0, // Default to 0.0 if null
-                                lon = lon ?: 0.0, // Default to 0.0 if null
-                                jenis_panen = selectedTipePanen?.toIntOrNull()
-                                    ?: 0, // Avoid NumberFormatException
-                                ancakInput = ancakInput ?: "0", // Default to "0" if null
-                                info = infoApp ?: "",
-                                archive = 0
-                            )
-
-
-                            panenViewModel.saveDataPanenState.collect { state ->
-                                when (state) {
-                                    is SaveDataPanenState.Loading -> {
-                                        loadingDialog.show()
+                            when (result) {
+                                is AppRepository.SaveResultPanen.Success -> {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@FeaturePanenTBSActivity,
+                                        stringXML(R.string.al_back),
+                                        stringXML(R.string.al_success_save_local),
+                                        stringXML(R.string.al_description_success_save_local),
+                                        "success.json",
+                                        R.color.greenDefault
+                                    ) {
+                                        resetFormAfterSaveData()
                                     }
+                                }
 
-                                    is SaveDataPanenState.Success -> {
-                                        loadingDialog.dismiss()
-                                        AlertDialogUtility.withSingleAction(
-                                            this@FeaturePanenTBSActivity,
-                                            stringXML(R.string.al_back),
-                                            stringXML(R.string.al_success_save_local),
-                                            stringXML(R.string.al_description_success_save_local),
-                                            "success.json",
-                                            R.color.greenDefault
-                                        ) {
-
-                                            resetFormAfterSaveData()
-
-                                        }
-                                    }
-
-                                    is SaveDataPanenState.Error -> {
-                                        loadingDialog.dismiss()
-                                        AlertDialogUtility.withSingleAction(
-                                            this@FeaturePanenTBSActivity,
-                                            stringXML(R.string.al_back),
-                                            stringXML(R.string.al_failed_save_local),
-                                            "${stringXML(R.string.al_description_failed_save_local)} : ${state.message ?: "Unknown error"}",
-                                            "warning.json",
-                                            R.color.colorRedDark
-                                        ) {
-                                        }
-                                    }
+                                is AppRepository.SaveResultPanen.Error -> {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@FeaturePanenTBSActivity,
+                                        stringXML(R.string.al_back),
+                                        stringXML(R.string.al_failed_save_local),
+                                        "${stringXML(R.string.al_description_failed_save_local)} : ${result.exception.message}",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {}
                                 }
                             }
                         } catch (e: Exception) {
+                            AppLogger.d("Unexpected error: ${e.message}")
 
-                            AppLogger.e("Error in saveDataPanen", e.toString())
                             AlertDialogUtility.withSingleAction(
                                 this@FeaturePanenTBSActivity,
                                 stringXML(R.string.al_back),
                                 stringXML(R.string.al_failed_save_local),
-                                "${stringXML(R.string.al_description_failed_save_local)} : ${e.message ?: "Unknown error"}",
+                                "${stringXML(R.string.al_description_failed_save_local)} : ${e.message}",
                                 "warning.json",
                                 R.color.colorRedDark
-                            ) {
-                            }
+                            ) {}
                         }
+
                     }
                 }
             }
