@@ -1,6 +1,7 @@
 package com.cbi.cmp_project.ui.viewModel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -133,19 +134,6 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                 }
         }
     }
-
-
-//
-//    private val _activeESPB = MutableStateFlow<List<ESPBEntity>>(emptyList())
-//    val activeESPB: StateFlow<List<ESPBEntity>> get() = _activeESPB.asStateFlow()
-//
-//    fun fetchActiveESPB() {
-//        viewModelScope.launch {
-//            val data = repository.getActiveESPB()
-//            _activeESPB.value = data // Ensure immediate emission
-//        }
-//    }
-
 
     fun loadHistoryUploadeSPB() {
         viewModelScope.launch {

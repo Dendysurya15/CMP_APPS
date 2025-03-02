@@ -5,6 +5,7 @@ import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.utils.AppLogger
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class PanenDao {
