@@ -72,7 +72,7 @@
                 android:fontFamily="@font/manrope_extrabold"
                 android:padding="5dp"
                 android:visibility="gone"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
@@ -87,7 +87,7 @@
                 android:gravity="center"
                 android:visibility="gone"
                 android:padding="5dp"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
@@ -102,7 +102,7 @@
                 android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"
                 android:padding="5dp"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
@@ -117,12 +117,13 @@
                 android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"
                 android:padding="5dp"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
 
             <TextView
+                android:textAlignment="center"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
@@ -132,12 +133,26 @@
                 android:gravity="center"
                 android:padding="5dp"
                 android:visibility="gone"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
 
-
+            <TextView
+                android:textAlignment="center"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:id="@+id/th6"
+                android:text="JAM"
+                android:fontFamily="@font/manrope_extrabold"
+                android:gravity="center"
+                android:padding="5dp"
+                android:visibility="gone"
+                android:textSize="14sp"
+                android:textColor="@color/black"
+                android:background="@drawable/rounded_radius_background"
+                android:textStyle="bold"/>
 
         </LinearLayout>
 

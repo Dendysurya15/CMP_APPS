@@ -1,7 +1,7 @@
-package com.cbi.cmp_project.ui.view
+package com.cbi.cmp_project.ui.view.espb
 
 import android.annotation.SuppressLint
-import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.Typeface
@@ -39,19 +39,25 @@ import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.MillModel
+import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.ui.adapter.SelectedWorkerAdapter
 import com.cbi.cmp_project.ui.adapter.Worker
-import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
+import com.cbi.cmp_project.ui.view.HomePageActivity
+import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
+import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.ESPBViewModel
+import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
+import com.cbi.cmp_project.utils.AppUtils.setMaxBrightness
 import com.cbi.cmp_project.utils.PrefManager
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -64,36 +70,87 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.collections.joinToString
-import kotlin.jvm.java
 
 class FormESPBActivity : AppCompatActivity() {
     var featureName = ""
     var tph0 = ""
     var tph1 = ""
     var idEstate = 0
+    var mekanisasi = 0
     var selectedKemandoranId = 0
+    var selectedTransporterId = 0
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var viewModel: ESPBViewModel
-    private var selectedMillId: Int? = null
+    private var selectedMillId = 0
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var pemuatList: List<KaryawanModel> = emptyList()
-    private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
+    private var transporterList: List<TransporterModel> = emptyList()
+
+    private lateinit var inputMappings: List<Triple<LinearLayout, String, FeaturePanenTBSActivity.InputType>>
     private lateinit var viewModelFactory: ESPBViewModelFactory
     private var pemuatListId: ArrayList<Int> = ArrayList()
     private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
+    private lateinit var thp1Map: Map<Int, Int>
+    var idsToUpdate = listOf<Int>()
+    var divisiAbbr = ""
+    var companyAbbr = ""
+    var formattedJanjangString = ""
+    var tph1IdPanen = ""
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_form_espbactivity)
-        featureName = intent.getStringExtra("FEATURE_NAME").toString()
-        tph0 = intent.getStringExtra("tph_0").toString()
-        tph1 = intent.getStringExtra("tph_1").toString()
+        try {
+            featureName = intent.getStringExtra("FEATURE_NAME").toString()
+        }catch (e: Exception){
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil FEATURE NAME $e", Toasty.LENGTH_LONG).show()
+        }
+        try {
+            tph0 = intent.getStringExtra("tph_0").toString()
+        }catch (e: Exception){
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 0 $e", Toasty.LENGTH_LONG).show()
+        }
+        try {
+            tph1 = intent.getStringExtra("tph_1").toString()
+        }catch (e: Exception){
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 1 $e", Toasty.LENGTH_LONG).show()
+        }
+        try {
+            ///tph1IdPanen is sometin like 1,23,4,5,2,3
+            tph1IdPanen = intent.getStringExtra("tph_1_id_panen").toString()
+            // Split the string by comma to get individual IDs
+            val idStrings = tph1IdPanen.split(",")
+
+            // Convert each string ID to an integer
+            idsToUpdate = idStrings.mapNotNull {
+                it.trim().toIntOrNull()
+                    ?: throw NumberFormatException("Invalid integer format: $it")
+            }
+            Log.d("FormESPBActivityIDS", "idsToUpdate: $idsToUpdate")
+
+        }catch (e: Exception){
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 1 ID PANEN $e", Toasty.LENGTH_LONG).show()
+        }
+
         initViewModel()
         setupHeader()
+        setupViewModel()
+        Log.d("tph1", "tph1: $tph1")
+        viewModel.janjangByBlock.observe(this) { janjangMap ->
+            // Log each block and its janjang sum
+            janjangMap.forEach { (blockId, janjangSum) ->
+                Log.d("BlockJanjang", "Block $blockId: $janjangSum janjang")
+            }
 
+            // Convert the map to string format INSIDE the observer
+            formattedJanjangString = convertJanjangMapToString(janjangMap)
+            Log.d("FormattedJanjang", "Formatted string: $formattedJanjangString")
+        }
+        // Process the TPH data
+        viewModel.processTPHData(tph1)
 
         //NBM 115
         //transporter 1
@@ -110,11 +167,10 @@ class FormESPBActivity : AppCompatActivity() {
         tvEspbDriver.text = "Driver"
 
         val formEspbTransporter = findViewById<LinearLayout>(R.id.formEspbTransporter)
-        val tvEspbTransporter = formEspbTransporter.findViewById<TextView>(R.id.tvTitlePaneEt)
-        tvEspbTransporter.text = "Transporter"
 
         setupSpinnerText(R.id.formEspbMill,"Pilih Mill", "Mill")
         setupSpinnerText(R.id.formEspbKemandoran,"Pilih Kemandoran", "Kemandoran")
+        setupSpinnerText(R.id.formEspbTransporter,"Pilih Transporter", "Transporter")
         setupSpinnerText(R.id.formEspbPemuat,"Pilih Pemuat", "Pemuat")
 
         rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvPemuat)
@@ -131,20 +187,36 @@ class FormESPBActivity : AppCompatActivity() {
         val idPetugas = try {
             prefManager.idUserLogin
         }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Petugas $e", Toasty.LENGTH_SHORT).show()
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Petugas $e", Toasty.LENGTH_LONG).show()
             0
         }
         val estatePetugas = try {
             prefManager.estateUserLogin
         }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil Estate Petugas $e", Toasty.LENGTH_SHORT).show()
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil Estate Petugas $e", Toasty.LENGTH_LONG).show()
             "NULL"
         }
         idEstate = try {
             prefManager.estateIdUserLogin.toString().toInt()
         }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Estate $e", Toasty.LENGTH_SHORT).show()
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Estate $e", Toasty.LENGTH_LONG).show()
             0
+        }
+
+        val cbFormEspbMekanisasi = findViewById<MaterialCheckBox>(R.id.cbFormEspbMekanisasi)
+        cbFormEspbMekanisasi.setOnCheckedChangeListener {
+            _, isChecked ->
+            if (isChecked) {
+//                formEspbTransporter.visibility = View.GONE
+//                formEspbDriver.visibility = View.GONE
+//                formEspbNopol.visibility = View.GONE
+                mekanisasi = 1
+            }else{
+                formEspbTransporter.visibility = View.VISIBLE
+                formEspbDriver.visibility = View.VISIBLE
+                formEspbNopol.visibility = View.VISIBLE
+                mekanisasi = 0
+            }
         }
 
         lifecycleScope.launch(Dispatchers.IO) {
@@ -171,7 +243,7 @@ class FormESPBActivity : AppCompatActivity() {
                     selectedKemandoranId = try {
                         kemandoranList.find { it.nama == selectedKemandoran }?.id!!
                     } catch (e: Exception) {
-                        AppLogger.e("Error finding selectedDivisiId: ${e.message}")
+                        AppLogger.e("Error finding selectedKemandoranId: ${e.message}")
                         0
                     }
                     Log.d("FormESPBActivityKemandoran", "selectedKemandoranId: $selectedKemandoranId")
@@ -189,11 +261,11 @@ class FormESPBActivity : AppCompatActivity() {
                                 setupSpinner(R.id.formEspbPemuat, pemuatNames)
                             }
                         } catch (e: Exception) {
-                            AppLogger.e("Error fetching afdeling data: ${e.message}")
+                            AppLogger.e("Error fetching kemandoran data: ${e.message}")
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(
                                     this@FormESPBActivity,
-                                    "Error loading afdeling data: ${e.message}",
+                                    "Error loading kemandoran data: ${e.message}",
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -205,11 +277,53 @@ class FormESPBActivity : AppCompatActivity() {
                     }
                 }
             } catch (e: Exception) {
-                AppLogger.e("Error fetching afdeling data: ${e.message}")
+                AppLogger.e("Error fetching kemandoran data: ${e.message}")
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@FormESPBActivity,
-                        "Error loading afdeling data: ${e.message}",
+                        "Error loading kemandoran data: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+
+                }
+            }
+
+            try {
+                val transporterDeffered = async {
+                    try {
+                        datasetViewModel.getAllTransporter()
+                    } catch (e: Exception) {
+                        AppLogger.e("Error fetching transporterList: ${e.message}")
+                        emptyList()
+                    }
+                }
+                transporterList = transporterDeffered.await()
+                val nameTransporter: List<String> = transporterList.map { it.nama.toString() }
+                Log.d("FormESPBActivityTransporter", "nameTransporter: $nameTransporter")
+                withContext(Dispatchers.Main) {
+                    setupSpinner(R.id.formEspbTransporter, nameTransporter)
+                }
+                val spEspbTransporter= formEspbTransporter.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                spEspbTransporter.setOnItemSelectedListener { view, position, id, item ->
+                    val selectedTransporter = item.toString()
+
+                    selectedTransporterId = try {
+                        transporterList.find { it.nama == selectedTransporter }?.id!!
+                    } catch (e: Exception) {
+                        AppLogger.e("Error finding selectedTransporterId: ${e.message}")
+                        0
+                    }
+                    Log.d("FormESPBActivityTransporter", "selectedTransporterId: $selectedTransporterId")
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error fetching transporter data: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@FormESPBActivity,
+                        "Error loading transporter data: ${e.message}",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -220,46 +334,59 @@ class FormESPBActivity : AppCompatActivity() {
             }
         }
 
-        var blok_jjg = "12356,312;12357,154;12358,321;12359,215;12360,421;12361,233"
+        lifecycleScope.launch {
+            try {
+                // Split by semicolon to get each record
+                val firstTphRecord = tph0.split(";")[0]
+                // Split the first record by comma and get the first part (ID)
+                val firstTphId = firstTphRecord.split(",")[0].toInt()
+                Log.d("FormESPBActivityDivisiAbbr", "firstTphId: $firstTphId")
+                //use getDivisiAbbrByTphId FROM REPO
+                divisiAbbr = viewModel.getDivisiAbbrByTphId(firstTphId)
+                Log.d("FormESPBActivityDivisiAbbr", "divisiAbbr: $divisiAbbr")
+                companyAbbr = viewModel.getCompanyAbbrByTphId(firstTphId)
+                Log.d("FormESPBActivityDivisiAbbr", "companyAbbr: $companyAbbr")
+            } catch (e: Exception) {
+                Toasty.error(
+                    this@FormESPBActivity,
+                    "Terjadi Kesalahan saat mengambil Divisi $e",
+                    Toasty.LENGTH_LONG
+                ).show()
+            }
+        }
+
+        val cbFormEspbTransporter = findViewById<MaterialCheckBox>(R.id.cbFormEspbTransporter)
+        cbFormEspbTransporter.setOnCheckedChangeListener {
+            _, isChecked ->
+            if (isChecked) {
+                formEspbTransporter.visibility = View.GONE
+                selectedTransporterId = 0
+            }else{
+                formEspbTransporter.visibility = View.VISIBLE
+            }
+        }
+
         val btnGenerateQRESPB = findViewById<FloatingActionButton>(R.id.btnGenerateQRESPB)
         btnGenerateQRESPB.setOnClickListener {
             val nopol = try {
                 etEspbNopol.text.toString().replace(" ","").uppercase()
             }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil No Polisi $e", Toasty.LENGTH_SHORT).show()
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil No Polisi $e", Toasty.LENGTH_LONG).show()
                 "NULL"
             }
 
             val driver = try {
                 etEspbDriver.text.toString().replace(" ","").uppercase()
             }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil Driver $e", Toasty.LENGTH_SHORT).show()
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil Driver $e", Toasty.LENGTH_LONG).show()
                 "NULL"
             }
 
-            val espbDate = try {
-                {getFormattedDateTime()}
+            val espbDate: String = try {
+                getFormattedDateTime().toString()
             }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil Tanggal ESPB $e", Toasty.LENGTH_SHORT).show()
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil Tanggal ESPB $e", Toasty.LENGTH_LONG).show()
                 "NULL"
-            }
-
-            var divisiAbbr: String = ""
-            lifecycleScope.launch {
-                try {
-                    // Split by semicolon to get each record
-                    val firstTphRecord = tph0.split(";")[0]
-                    // Split the first record by comma and get the first part (ID)
-                    val firstTphId = firstTphRecord.split(",")[0].toInt()
-                    //use getDivisiAbbrByTphId FROM REPO
-                    divisiAbbr = viewModel.getDivisiAbbrByTphId(firstTphId)
-                } catch (e: Exception) {
-                    Toasty.error(
-                        this@FormESPBActivity,
-                        "Terjadi Kesalahan saat mengambil Divisi $e",
-                        Toasty.LENGTH_SHORT
-                    ).show()
-                }
             }
 
             val appVersion: String = try {
@@ -282,56 +409,92 @@ class FormESPBActivity : AppCompatActivity() {
                 Log.e("DeviceInfo", "Failed to get phone model", e)
                 "Unknown"
             }
-            val noESPBStr = "SSS-$estatePetugas/$divisiAbbr/$espbDate"
-            val transporter_id = 1
+            val noESPBStr = "$companyAbbr-$estatePetugas/$divisiAbbr/$espbDate"
+            var transporter_id = 0
+            transporter_id = if (cbFormEspbTransporter.isChecked) {
+                0
+            }else{
+                selectedTransporterId
+            }
             val creatorInfo = createCreatorInfo(
                 appVersion = appVersion,
                 osVersion = osVersion,
                 phoneModel = phoneModel
             )
+            val blok_jjg = try {
+                formattedJanjangString
+            }catch (e: Exception){
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil Janjang Blok $e", Toasty.LENGTH_LONG).show()
+                "NULL"
+            }
             val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
             val pemuatListId = selectedPemanen.map { it.id }
-            val json = constructESPBJson(
-                blok_jjg = blok_jjg,
-                nopol = nopol,
-                driver = driver,
-                pemuat_id = pemuatListId.joinToString(","),
-                transporter_id = transporter_id,
-                mill_id = selectedMillId!!,
-                created_by_id = idPetugas!!,
-                no_espb = noESPBStr,
-                tph0 = tph0,
-                tph1 = tph1,
-                appVersion = appVersion,
-                osVersion = osVersion,
-                phoneModel = phoneModel
-            )
-            val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
-            val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
-            ListPanenTBSActivity().generateHighQualityQRCode(encodedData!!, qrCodeImageView)
-            val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
-            btKonfirmScanESPB.visibility = View.VISIBLE
-            btKonfirmScanESPB.setOnClickListener {
-                saveESPB(
-                    blok_jjg = blok_jjg,
-                    nopol = nopol,
-                    driver = driver,
-                    pemuat_id = pemuatListId.joinToString(","),
-                    transporter_id = transporter_id,
-                    mill_id = selectedMillId!!,
-                    created_by_id = idPetugas!!,
-                    creator_info = creatorInfo.toString(),
-                    noESPB = noESPBStr,
-                    created_at = getCurrentDateTime(),
-                    tph0 = tph0,
-                    tph1 = tph1,
-                    status_draft = 0
-                )
+            if (nopol == "NULL" || nopol == ""){
+                Toasty.error(this, "Mohon lengkapi data No Polisi terlebih dahulu", Toasty.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            if (driver == "NULL" || driver == ""){
+                Toasty.error(this, "Mohon lengkapi data Driver terlebih dahulu", Toasty.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            if (selectedTransporterId == 0 && !cbFormEspbTransporter.isChecked){
+                Toasty.error(this, "Mohon lengkapi data Transporter terlebih dahulu", Toasty.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            if (selectedMillId == 0){
+                Toasty.error(this, "Mohon lengkapi data Mill terlebih dahulu", Toasty.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            AlertDialogUtility.Companion.withTwoActions(this, "SIMPAN", "KONFIRMASI BUAT QR ESPB?", "Pastikan seluruh data sudah valid!", "warning.json"){
+                val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
+                btKonfirmScanESPB.visibility = View.VISIBLE
+                btKonfirmScanESPB.setOnClickListener {
+                    val statusDraft = if (mekanisasi == 0){
+                        1
+                    }else{
+                        0
+                    }
+                    saveESPB(
+                        blok_jjg = blok_jjg,
+                        nopol = nopol,
+                        driver = driver,
+                        pemuat_id = pemuatListId.joinToString(","),
+                        transporter_id = transporter_id,
+                        mill_id = selectedMillId!!,
+                        created_by_id = idPetugas!!,
+                        creator_info = creatorInfo.toString(),
+                        noESPB = noESPBStr,
+                        created_at = getCurrentDateTime(),
+                        tph0 = tph0,
+                        tph1 = tph1,
+                        status_draft = statusDraft,
+                        status_mekanisasi = mekanisasi
+                    )
+                }
+                if (mekanisasi == 0) {
+                    val json = constructESPBJson(
+                        blok_jjg = blok_jjg,
+                        nopol = nopol,
+                        driver = driver,
+                        pemuat_id = pemuatListId.joinToString(","),
+                        transporter_id = transporter_id,
+                        mill_id = selectedMillId!!,
+                        created_by_id = idPetugas!!,
+                        no_espb = noESPBStr,
+                        tph0 = tph0,
+                        tph1 = tph1,
+                        appVersion = appVersion,
+                        osVersion = osVersion,
+                        phoneModel = phoneModel
+                    )
+                    val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
+                    val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
+                    ListPanenTBSActivity().generateHighQualityQRCode(encodedData!!, qrCodeImageView)
+                    setMaxBrightness(this, true)
+                }
             }
         }
 
-        setupViewModel()
-//        setupSpinner(R.id.FormEspbPemuat)
         val formEspbMill = findViewById<LinearLayout>(R.id.formEspbMill)
         val spEspbMill = formEspbMill.findViewById<MaterialSpinner>(R.id.spPanenTBS)
         spEspbMill.setOnItemSelectedListener { view, position, id, item ->
@@ -339,7 +502,7 @@ class FormESPBActivity : AppCompatActivity() {
             selectedMillId = try {
                 selectedMill?.id!!
             }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Mill $e", Toasty.LENGTH_SHORT).show()
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Mill $e", Toasty.LENGTH_LONG).show()
                 0
             }
         }
@@ -378,13 +541,6 @@ class FormESPBActivity : AppCompatActivity() {
             }
             true // Consume event, preventing default behavior
         }
-//        spinner.setOnItemSelectedListener {
-//                view, position, id, item ->
-//            Log.d("FormESPBActivityKemandoran", "test klik: $id + $position + $item")
-//            selectedID = position
-//            val selectedIDs = id
-//            Toasty.info(this, "slectedid: $selectedID, selectedIDs: $selectedIDs, ", Toasty.LENGTH_SHORT).show()
-//        }
         return selectedID
     }
 
@@ -558,7 +714,7 @@ class FormESPBActivity : AppCompatActivity() {
         popupWindow.showAsDropDown(spinner)
 
         editTextSearch.requestFocus()
-        val imm = spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val imm = spinner.context.getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
     }
 
@@ -580,7 +736,7 @@ class FormESPBActivity : AppCompatActivity() {
                 selectedKemandoranId = try {
                     kemandoranList.find { it.nama == selectedItem }?.id!!
                 } catch (e: Exception) {
-                    AppLogger.e("Error finding selectedDivisiId: ${e.message}")
+                    AppLogger.e("Error finding selectedKemandoranId: ${e.message}")
                     0
                 }
                 Log.d("FormESPBActivityKemandoran", "selectedKemandoranId: $selectedKemandoranId")
@@ -612,6 +768,15 @@ class FormESPBActivity : AppCompatActivity() {
                         }
                     }
                 }
+            }
+            R.id.formEspbTransporter -> {
+                selectedTransporterId = try {
+                    transporterList.find { it.nama == selectedItem }?.id!!
+                } catch (e: Exception) {
+                    AppLogger.e("Error finding selectedTransporterId: ${e.message}")
+                    0
+                }
+                Log.d("FormESPBActivityTransporter", "selectedTransporterId: $selectedTransporterId")
             }
             R.id.formEspbPemuat -> {
                 val karyawanMap = pemuatList.associateBy({ it.nama }, { it.id })
@@ -717,7 +882,8 @@ class FormESPBActivity : AppCompatActivity() {
         tph1: String,
         creator_info: String,
         noESPB: String,
-        status_draft: Int
+        status_draft: Int,
+        status_mekanisasi: Int
         ){
         val vM = ViewModelProvider(this)[ESPBViewModel::class.java]
 
@@ -737,12 +903,31 @@ class FormESPBActivity : AppCompatActivity() {
                 tph1 = tph1,
                 creator_info = creator_info,
                 noESPB = noESPB,
-                status_draft = status_draft
+                status_draft = status_draft,
+                status_mekanisasi = status_mekanisasi
             )
         )
 
         // Insert ESPB data
-        vM.insertESPB(espbList)
+        try {
+            vM.insertESPB(espbList)
+            Toasty.success(this, "ESPB data inserted successfully", Toasty.LENGTH_LONG).show()
+            viewModel.updateESPBStatus(idsToUpdate, 1)
+            val intent = Intent(this, HomePageActivity::class.java)
+            startActivity(intent)
+            finishAffinity()
+        }catch (e: Exception){
+            AppLogger.e("Error inserting ESPB data: ${e.message}")
+            Toasty.error(this, "Error inserting ESPB data: ${e.message}", Toasty.LENGTH_LONG).show()
+        }
     }
+
+    private fun convertJanjangMapToString(janjangByBlock: Map<Int, Int>): String {
+        return janjangByBlock.entries
+            .joinToString(";") { (blockId, janjangSum) ->
+                "$blockId,$janjangSum"
+            }
+    }
+
 
 }

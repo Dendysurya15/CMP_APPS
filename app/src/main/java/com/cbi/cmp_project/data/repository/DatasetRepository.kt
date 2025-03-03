@@ -62,6 +62,10 @@ class DatasetRepository(context: Context,
         return kemandoranDao.getKemandoranEstate(idEstate)
     }
 
+    suspend fun getAllTransporter(): List<TransporterModel> {
+        return kemandoranDao.getAllTransporter()
+    }
+
 
 //    suspend fun getKemandoranAbsensiList(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
 //        return kemandoranDao.getKemandoranByCriteriaAbsensi(idEstate, idDivisiArray)

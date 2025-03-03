@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.data.model.TransporterModel
 
 @Dao
 abstract class KemandoranDao {
@@ -75,16 +76,14 @@ abstract class KemandoranDao {
         idKemandoran: String,
     ): Int
 
-//    @Query(
-//        """
-//    SELECT * FROM kemandoran
-//    WHERE dept = :idEstate
-//    AND divisi IN (:idDivisiArray)
-//    AND type IN ('Upkeep', 'Harvest')
-//    """
-//    )
-//    abstract fun getKemandoranByCriteriaAbsensi(
-//        idEstate: Int,
-//        idDivisiArray: List<Int>
-//    ): List<KemandoranModel>
+    @Query(
+        """
+    SELECT * FROM transporter
+    """
+    )
+    abstract fun getAllTransporter(): List<TransporterModel>
+
+
+
+
 }

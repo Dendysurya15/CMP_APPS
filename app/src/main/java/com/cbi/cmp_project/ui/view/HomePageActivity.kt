@@ -39,6 +39,7 @@ import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.model.dataset.DatasetRequest
+import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.databinding.ActivityHomePageBinding
 import com.cbi.cmp_project.ui.adapter.DisplayType
 import com.cbi.cmp_project.ui.adapter.DownloadItem
@@ -50,12 +51,14 @@ import com.cbi.cmp_project.ui.view.Absensi.ListAbsensiActivity
 import com.cbi.cmp_project.ui.adapter.UploadCMPItem
 import com.cbi.cmp_project.ui.adapter.UploadProgressAdapter
 import com.cbi.cmp_project.ui.adapter.UploadProgressCMPDataAdapter
+import com.cbi.cmp_project.ui.view.espb.ListHistoryESPBActivity
 import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
 
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
+import com.cbi.cmp_project.ui.viewModel.ESPBViewModel
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.ui.viewModel.UploadCMPViewModel
 import com.cbi.cmp_project.ui.viewModel.WeighBridgeViewModel
@@ -97,6 +100,7 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var loadingDialog: LoadingDialog
     private var prefManager: PrefManager? = null
     private lateinit var panenViewModel: PanenViewModel
+    private lateinit var espbViewModel: ESPBViewModel
     private lateinit var weightBridgeViewModel: WeighBridgeViewModel
     private lateinit var uploadCMPViewModel: UploadCMPViewModel
     private var isTriggerButtonSinkronisasiData: Boolean = false
@@ -104,6 +108,8 @@ class HomePageActivity : AppCompatActivity() {
     private var countPanenTPH: Int = 0  // Global variable for count
     private var countPanenTPHApproval: Int = 0  // Global variable for count
     private var counteSPBWBScanned: Int = 0  // Global variable for count
+    private var countActiveESPB: Int = 0  // Global variable for count
+
 
     private var hasShownErrorDialog = false  // Add this property
     private val permissionRequestCode = 1001
@@ -201,6 +207,19 @@ class HomePageActivity : AppCompatActivity() {
                     AppLogger.e("Error fetching data: ${e.message}")
                     withContext(Dispatchers.Main) {
                         featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
+                    }
+                }
+                try {
+                    val countDeferred = async { espbViewModel.getCountDraftESPB() }
+                    countActiveESPB = countDeferred.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount("Rekap eSPB", countActiveESPB.toString())
+                        featureAdapter.hideLoadingForFeature("Rekap eSPB")
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature("Rekap eSPB")
                     }
                 }
                 try {
@@ -364,7 +383,6 @@ class HomePageActivity : AppCompatActivity() {
                 displayType = DisplayType.ICON,
                 subTitle = "Upload Semua Data CMP"
             )
-
         )
 
         val gridLayoutManager = GridLayoutManager(this, 2)
@@ -434,6 +452,15 @@ class HomePageActivity : AppCompatActivity() {
             "Buat eSPB" -> {
                 if (feature.displayType == DisplayType.ICON) {
                     val intent = Intent(this, ScanQR::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+
+            "Rekap eSPB" -> {
+                if (feature.displayType == DisplayType.COUNT) {
+                    val intent = Intent(this, ListHistoryESPBActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }
@@ -1337,6 +1364,10 @@ class HomePageActivity : AppCompatActivity() {
 
         val factory4 = UploadCMPViewModel.UploadCMPViewModelFactory(application)
         uploadCMPViewModel = ViewModelProvider(this, factory4)[UploadCMPViewModel::class.java]
+
+        val appRepository = AppRepository(application)
+        val factory5 = ESPBViewModel.ESPBViewModelFactory(appRepository)
+        espbViewModel = ViewModelProvider(this, factory5)[ESPBViewModel::class.java]
     }
 
 

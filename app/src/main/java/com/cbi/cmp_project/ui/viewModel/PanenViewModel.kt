@@ -220,7 +220,8 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 info = info,
                 archive = archive,
                 status_espb = 0,
-                status_restan = 0
+                status_restan = 0,
+                scan_status = 1
             )
             repository.saveDataPanen(panenData)
             AppRepository.SaveResultPanen.Success

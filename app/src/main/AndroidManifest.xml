@@ -55,7 +55,7 @@
             android:name=".ui.view.Absensi.FeatureAbsensiActivity"
             android:exported="false" />
         <activity
-            android:name=".ui.view.FormESPBActivity"
+            android:name=".ui.view.espb.FormESPBActivity"
             android:exported="false" />
         <activity
             android:name=".ui.view.ListTPHApproval"
@@ -78,6 +78,9 @@
             android:exported="false" />
         <activity
             android:name=".ui.view.SplashScreenActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.view.espb.ListHistoryESPBActivity"
             android:exported="false" />
         <activity
             android:name=".MainActivity"

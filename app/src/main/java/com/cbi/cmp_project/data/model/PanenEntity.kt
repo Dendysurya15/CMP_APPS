@@ -20,7 +20,8 @@ data class PanenEntity(
     val jenis_panen: Int, //normal = 0, Cut& carry =1, MAIC = 2
     val ancak: Int,
     val info: String,
-    val archive: Int,
-    val status_espb: Int, // default 0
-    val status_restan: Int // default 0
+    val archive: Int=0,
+    val status_espb: Int=0, // default 0
+    val status_restan: Int=0, // default 0
+    val scan_status: Int=0 // default 0
 )

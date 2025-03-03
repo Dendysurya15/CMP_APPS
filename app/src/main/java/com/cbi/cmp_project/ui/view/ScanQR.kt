@@ -3,6 +3,7 @@ package com.cbi.cmp_project.ui.view
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -20,14 +21,27 @@ class ScanQR : AppCompatActivity() {
 
     var menuString = ""
 
+    // Add variables to store previous TPH data
+    private var previousTph1 = ""
+    private var previousTph0 = ""
+    private var previousTph1IdPanen = ""
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_generate_espb)
         menuString = intent.getStringExtra("FEATURE_NAME").toString()
 
+        // Get previous TPH data if available
+        previousTph1 = intent.getStringExtra("tph_1") ?: ""
+        previousTph0 = intent.getStringExtra("tph_0") ?: ""
+        previousTph1IdPanen = intent.getStringExtra("tph_1_id_panen") ?: ""
+
+        Log.d("ScanQR", "Previous tph1: $previousTph1")
+        Log.d("ScanQR", "Previous tph0: $previousTph0")
+        Log.d("ScanQR", "Previous tph1IdPanen: $previousTph1IdPanen")
+
         barcodeView = findViewById(R.id.barcode_scanner)
         barcodeView.findViewById<TextView>(com.google.zxing.client.android.R.id.zxing_status_view)?.visibility = View.GONE
-
 
         barcodeView.decodeContinuous(object : BarcodeCallback {
             override fun barcodeResult(result: BarcodeResult?) {
@@ -50,8 +64,24 @@ class ScanQR : AppCompatActivity() {
 
         when (menuString) {
             "Buat eSPB" -> intent = Intent(this, ListPanenTBSActivity::class.java).apply {
-                putExtra(EXTRA_QR_RESULT, result)
+                putExtra("scannedResult", result)
+                Log.d("scannedResult", "result: $result")
                 putExtra("FEATURE_NAME", menuString)
+
+                // Pass previous TPH data if available
+                if (previousTph1.isNotEmpty()) {
+                    putExtra("previous_tph_1", previousTph1)
+                }
+                if (previousTph0.isNotEmpty()) {
+                    putExtra("previous_tph_0", previousTph0)
+                }
+                if (previousTph1IdPanen.isNotEmpty()) {
+                    putExtra("previous_tph_1_id_panen", previousTph1IdPanen)
+                }
+                Log.d("ListPanenTBSActivityPassData", "ScanQR previous_tph_1: $previousTph1")
+                Log.d("ListPanenTBSActivityPassData", "ScanQR previous_tph_0: $previousTph0")
+                Log.d("ListPanenTBSActivityPassData", "ScanQR previous_tph_1_id_panen: $previousTph1IdPanen")
+                Log.d("ListPanenTBSActivityPassData", "ScanQR FEATURE_NAME: $menuString")
             }
         }
 
@@ -78,4 +108,3 @@ class ScanQR : AppCompatActivity() {
         finish()
     }
 }
-

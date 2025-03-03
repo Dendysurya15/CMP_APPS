@@ -6,6 +6,7 @@ import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.MillModel
+import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.network.Constants
@@ -19,6 +20,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.IOException
 
+@Suppress("UNREACHABLE_CODE")
 class WeighBridgeRepository(context: Context) {
 
     private val database = AppDatabase.getDatabase(context)
@@ -36,10 +38,6 @@ class WeighBridgeRepository(context: Context) {
         return transporterDao.getTransporterById(transporterId)
     }
 
-    suspend fun deleteESPBByIds(ids: List<Int>) = withContext(Dispatchers.IO) {
-        espbDao.deleteByListID(ids)
-    }
-
     suspend fun getBlokById(listBlokId: List<Int>): List<TPHNewModel> {
         return tphDao.getBlokById(listBlokId)
     }
@@ -52,18 +50,18 @@ class WeighBridgeRepository(context: Context) {
         return espbDao.countESPBUploaded()
     }
 
-//    suspend fun getActiveESPB(): List<ESPBEntity> = withContext(Dispatchers.IO) {
-//        espbDao.getAllActive()
-//    }
-
-
     suspend fun getActiveESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
         try {
-            val data =  espbDao.getAllActive()
+            val data = espbDao.getAllActive()
             Result.success(data)
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+
+    suspend fun deleteESPBByIds(ids: List<Int>) = withContext(Dispatchers.IO) {
+        espbDao.deleteByListID(ids)
     }
 
     suspend fun loadHistoryUploadeSPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
@@ -91,11 +89,17 @@ class WeighBridgeRepository(context: Context) {
         data class Error(val exception: Exception) : SaveResultESPBKrani()
     }
 
-    private suspend fun updateUploadStatus(id: Int, statusUploadPpro:Int, uploaderInfo:String, uploaderAt:String, uploadedById:Int ) {
+    private suspend fun updateUploadStatus(
+        id: Int,
+        statusUploadPpro: Int,
+        uploaderInfo: String,
+        uploaderAt: String,
+        uploadedById: Int
+    ) {
         espbDao.updateUploadStatus(id, statusUploadPpro, uploaderInfo, uploaderAt, uploadedById)
     }
 
-    suspend fun updateESPBArchive(ids: List<Int>, statusArchive:Int) {
+    suspend fun updateESPBArchive(ids: List<Int>, statusArchive: Int) {
         espbDao.updateESPBArchive(ids, statusArchive)
     }
 
@@ -155,12 +159,14 @@ class WeighBridgeRepository(context: Context) {
                             continue
                         }
 
+
                         onProgressUpdate(itemId, 50, false, null)
 
                         try {
                             withTimeout(Constants.NETWORK_TIMEOUT_MS) {
                                 try {
-                                    val response = StagingApiClient.instance.insertESPBKraniTimbang(data)
+                                    val response =
+                                        StagingApiClient.instance.insertESPBKraniTimbang(data)
 
                                     if (response.isSuccessful) {
                                         val responseBody = response.body()
@@ -176,40 +182,64 @@ class WeighBridgeRepository(context: Context) {
                                                     uploaderInfo,
                                                     uploadedAt,
                                                     uploadedById
-                                                    )
+                                                )
                                                 AppLogger.d("espb table dengan id $itemId has been updated")
                                             } catch (e: Exception) {
                                                 AppLogger.e("Failed to update espb table for Item ID: $itemId - ${e.message}")
                                             }
                                         } else {
-                                            val rawErrorMessage = responseBody?.message?.toString() ?: "No message provided"
+                                            val rawErrorMessage = responseBody?.message?.toString()
+                                                ?: "No message provided"
 
-                                            val extractedMessage = if (rawErrorMessage.contains("message=")) {
-                                                try {
-                                                    // Extract the actual error message between "message=" and the next comma or period
-                                                    val startIndex = rawErrorMessage.indexOf("message=") + "message=".length
-                                                    val endIndex = rawErrorMessage.indexOf(",", startIndex).takeIf { it > 0 }
-                                                        ?: rawErrorMessage.indexOf(".", startIndex).takeIf { it > 0 }
-                                                        ?: rawErrorMessage.length
+                                            val extractedMessage =
+                                                if (rawErrorMessage.contains("message=")) {
+                                                    try {
+                                                        // Extract the actual error message between "message=" and the next comma or period
+                                                        val startIndex =
+                                                            rawErrorMessage.indexOf("message=") + "message=".length
+                                                        val endIndex =
+                                                            rawErrorMessage.indexOf(",", startIndex)
+                                                                .takeIf { it > 0 }
+                                                                ?: rawErrorMessage.indexOf(
+                                                                    ".",
+                                                                    startIndex
+                                                                ).takeIf { it > 0 }
+                                                                ?: rawErrorMessage.length
 
-                                                    rawErrorMessage.substring(startIndex, endIndex).trim()
-                                                } catch (e: Exception) {
-                                                    // If parsing fails, use the original error
+                                                        rawErrorMessage.substring(
+                                                            startIndex,
+                                                            endIndex
+                                                        ).trim()
+                                                    } catch (e: Exception) {
+                                                        // If parsing fails, use the original error
+                                                        "API Error: ${rawErrorMessage.take(100)}"
+                                                    }
+                                                } else {
                                                     "API Error: ${rawErrorMessage.take(100)}"
                                                 }
-                                            } else {
-                                                "API Error: ${rawErrorMessage.take(100)}"
-                                            }
 
                                             AppLogger.e("APIError Item ID: $itemId - $rawErrorMessage")
-                                            errors.add(UploadError(itemId, extractedMessage, "API_ERROR"))
+                                            errors.add(
+                                                UploadError(
+                                                    itemId,
+                                                    extractedMessage,
+                                                    "API_ERROR"
+                                                )
+                                            )
                                             results[itemId] = false
                                             onProgressUpdate(itemId, 100, false, extractedMessage)
                                         }
                                     } else {
-                                        errorMessage = response.errorBody()?.string() ?: "Server error: ${response.code()}"
+                                        errorMessage = response.errorBody()?.string()
+                                            ?: "Server error: ${response.code()}"
                                         AppLogger.e("ServerError Item ID: $itemId - $errorMessage")
-                                        errors.add(UploadError(itemId, errorMessage!!, "SERVER_ERROR"))
+                                        errors.add(
+                                            UploadError(
+                                                itemId,
+                                                errorMessage!!,
+                                                "SERVER_ERROR"
+                                            )
+                                        )
                                         results[itemId] = false
                                         onProgressUpdate(itemId, 100, false, errorMessage)
                                     }
@@ -261,8 +291,7 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
-
-
 }
 
+// Fetch TPH by ID
 
