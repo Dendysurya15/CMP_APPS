@@ -68,7 +68,6 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         tvEmptyState = findViewById(R.id.tvEmptyState)
     }
 
-
     private fun setupObserveData() {
         espbViewModel.historyESPBNonScan.observe(this) { data ->
 
