@@ -7,15 +7,20 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.cmp_project.data.model.AbsensiKemandoranRelations
 import com.cbi.cmp_project.data.model.AbsensiModel
 import com.cbi.cmp_project.data.model.ESPBEntity
+import com.cbi.cmp_project.data.model.KaryawanModel
+import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.repository.AbsensiRepository
 import com.cbi.cmp_project.data.repository.PanenTBSRepository
 import com.cbi.cmp_project.data.repository.WeighBridgeRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -39,8 +44,8 @@ sealed class UpdateKemandoranAbsensiState{
 class AbsensiViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: AbsensiRepository = AbsensiRepository(application)
 
-    private val _savedDataAbsensiList = MutableLiveData<List<AbsensiModel>>()
-    val savedDataAbsensiList: LiveData<List<AbsensiModel>> = _savedDataAbsensiList
+    private val _savedDataAbsensiList = MutableLiveData<List<AbsensiKemandoranRelations>>()
+    val savedDataAbsensiList: LiveData<List<AbsensiKemandoranRelations>> = _savedDataAbsensiList
 
     private val _saveDataAbsensiState = MutableStateFlow<SaveDataAbsensiState>(SaveDataAbsensiState.Loading)
     val saveDataAbsensiState: StateFlow<SaveDataAbsensiState> get() = _saveDataAbsensiState.asStateFlow()
@@ -54,6 +59,9 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
 
+    private val _archivedCount = MutableLiveData<Int>()
+    val archivedCount: LiveData<Int> = _archivedCount
+
     fun getAllDataAbsensi() {
         viewModelScope.launch {
             repository.getAllDataAbsensi()
@@ -65,6 +73,14 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
                 }
         }
     }
+
+    suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {
+        return withContext(Dispatchers.IO) {  // Run on background thread
+            repository.getKemandoranById(idKemandoran)
+        }
+    }
+
+
 
     suspend fun saveDataAbsensi(
         kemandoran_id: String,

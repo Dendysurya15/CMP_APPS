@@ -245,6 +245,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                                 val karyawanMskId = karyawanMasuk.joinToString(",") { it.id.toString() }
                                 val karyawanTdkMskId = karyawanTidakMasuk.joinToString(",") { it.id.toString() }
 
+                                AppLogger.d("Afd: $selectedAfdeling")
+                                AppLogger.d("Spin Afd: $selectedAfdelingIdSpinner")
                                 AppLogger.d("Karyawan Masuk: $karyawanMskId")
                                 AppLogger.d("Karyawan TIdak Masuk: $karyawanTdkMskId")
 
@@ -297,7 +299,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                                    ) {
                                        val intent = Intent(
                                            this@FeatureAbsensiActivity,
-                                           HomePageActivity::class.java
+                                           ListAbsensiActivity::class.java
                                        )
                                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                                        startActivity(intent)

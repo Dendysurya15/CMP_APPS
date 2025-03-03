@@ -2,6 +2,7 @@ package com.cbi.cmp_project.data.repository
 
 import android.content.Context
 import com.cbi.cmp_project.data.database.AppDatabase
+import com.cbi.cmp_project.data.model.AbsensiKemandoranRelations
 import com.cbi.cmp_project.data.model.AbsensiModel
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
@@ -20,7 +21,11 @@ class AbsensiRepository(context: Context) {
         absensiDao.insertAbsensiData(absensiData)
     }
 
-    suspend fun getAllDataAbsensi(): Result<List<AbsensiModel>> = withContext(Dispatchers.IO) {
+    suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {
+        return kemandoranDao.getKemandoranById(idKemandoran)
+    }
+
+    suspend fun getAllDataAbsensi(): Result<List<AbsensiKemandoranRelations>> = withContext(Dispatchers.IO) {
         try {
             val data = absensiDao.getAllDataAbsensi()
             Result.success(data)

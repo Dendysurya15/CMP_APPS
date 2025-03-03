@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 
 @Dao
@@ -24,6 +25,16 @@ abstract class KemandoranDao {
         }
         insertAll(kemandoran)
     }
+
+    @Query(
+        """
+    SELECT * FROM kemandoran 
+    WHERE id IN (:idKemandoran)
+    """
+    )
+    abstract fun getKemandoranById(
+        idKemandoran: List<String>,
+    ): List<KemandoranModel>
 
     @Query("SELECT COUNT(*) FROM kemandoran")
     abstract suspend fun getCount(): Int

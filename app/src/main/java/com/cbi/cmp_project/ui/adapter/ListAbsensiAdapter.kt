@@ -18,7 +18,7 @@ import java.util.Locale
 
 data class AbsensiDataRekap(
     val id: Int,
-    val kemandoranId: String,
+    val afdeling: String,
     val datetime: String,
     val karyawan_msk_id: String,
     val karyawan_tdk_msk_id: String,
@@ -53,10 +53,11 @@ class ListAbsensiAdapter(private var items: List<AbsensiDataRekap>):
 
 
         holder.td1.text = formatToIndonesianDateTime(item.datetime)
-        holder.td2.text = item.kemandoranId
-        holder.td3.text = "$jmlhKaryawanMsk"
+        holder.td2.text = item.afdeling
+        holder.td3.text = "$jmlhKaryawanMsk orang"
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     fun updateList(newList: List<AbsensiDataRekap>) {
         items = newList
         selectedItems.clear() // Clear selection on update
@@ -86,7 +87,7 @@ class ListAbsensiAdapter(private var items: List<AbsensiDataRekap>):
         return selectedItems.map { selectedItem ->
             mapOf(
                 "id" to (selectedItem.id ?: ""),
-                "kemandoran_id" to (selectedItem.kemandoranId ?: ""),
+                "divisi" to (selectedItem.afdeling ?: ""),
                 "karyawan_msk" to (selectedItem.karyawan_msk_id ?: ""),
             )
         }
