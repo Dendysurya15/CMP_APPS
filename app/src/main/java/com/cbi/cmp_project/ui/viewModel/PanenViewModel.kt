@@ -1,6 +1,7 @@
 package com.cbi.cmp_project.ui.viewModel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -13,14 +14,18 @@ import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.data.repository.DatasetRepository
 import com.cbi.cmp_project.utils.AppLogger
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 
 sealed class SaveDataPanenState {
-    object Loading : SaveDataPanenState()
     data class Success(val id: Long) : SaveDataPanenState()
     data class Error(val message: String) : SaveDataPanenState()
 }
@@ -52,10 +57,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
 
+    private val _updateStatus = MutableLiveData<Boolean>()
+    val updateStatus: LiveData<Boolean> get() = _updateStatus
 
-
-    private val _saveDataPanenState = MutableStateFlow<SaveDataPanenState>(SaveDataPanenState.Loading)
-    val saveDataPanenState = _saveDataPanenState.asStateFlow()
 
     fun loadAllPanen() {
         viewModelScope.launch {
@@ -101,11 +105,22 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.getActivePanenESPB()
                 .onSuccess { panenList ->
-                    _activePanenList.postValue(panenList)
+                    _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
                 }
                 .onFailure { exception ->
                     _error.postValue(exception.message ?: "Failed to load data")
                 }
+        }
+    }
+
+    fun updateArchivePanen(ids: List<Int>, statusArchive:Int) {
+        viewModelScope.launch {
+            try {
+                repository.updatePanenArchive(ids,statusArchive)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+            }
         }
     }
 
@@ -184,46 +199,35 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         lat: Double,
         lon: Double,
         jenis_panen: Int,
-        ancakInput: String,
+        ancakInput: Int,
         info:String,
         archive: Int,
-    ) {
-        _saveDataPanenState.value = SaveDataPanenState.Loading
+    ): AppRepository.SaveResultPanen {
+        return try {
+            val panenData = PanenEntity(
+                tph_id = tph_id,
+                date_created = date_created,
+                created_by = created_by,
+                karyawan_id = karyawan_id,
+                jjg_json = jjg_json,
+                foto = foto,
+                komentar = komentar,
+                asistensi = asistensi,
+                lat = lat,
+                lon = lon,
+                jenis_panen = jenis_panen,
+                ancak = ancakInput,
+                info = info,
+                archive = archive,
+                status_espb = 0,
+                status_restan = 0,
+                scan_status = 1
+            )
+            repository.saveDataPanen(panenData)
+            AppRepository.SaveResultPanen.Success
+        } catch (e: Exception) {
+            AppRepository.SaveResultPanen.Error(e)
 
-        viewModelScope.launch {
-            try {
-                val result = repository.saveDataPanen(
-                    tph_id,
-                    date_created,
-                    created_by,
-                    karyawan_id,
-                    jjg_json,
-                    foto,
-                    komentar,
-                    asistensi,
-                    lat,
-                    lon,
-                    jenis_panen,
-                    ancakInput,
-                    info,
-                    archive
-                )
-
-                result.fold(
-                    onSuccess = { id ->
-                        _saveDataPanenState.value = SaveDataPanenState.Success(id)
-                    },
-                    onFailure = { exception ->
-                        _saveDataPanenState.value = SaveDataPanenState.Error(
-                            exception.message ?: "Unknown error occurred"
-                        )
-                    }
-                )
-            } catch (e: Exception) {
-                _saveDataPanenState.value = SaveDataPanenState.Error(
-                    e.message ?: "Unknown error occurred"
-                )
-            }
         }
     }
 

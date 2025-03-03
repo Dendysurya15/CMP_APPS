@@ -2,8 +2,9 @@ package com.cbi.cmp_project.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.cbi.cmp_project.utils.AppUtils
 
-@Entity(tableName = "espb_table")
+@Entity(tableName = AppUtils.DatabaseTables.ESPB)
 data class ESPBEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val blok_jjg: String, // jjg kirim pabrik

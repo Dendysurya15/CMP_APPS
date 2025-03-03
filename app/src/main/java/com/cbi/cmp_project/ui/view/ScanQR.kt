@@ -83,10 +83,6 @@ class ScanQR : AppCompatActivity() {
                 Log.d("ListPanenTBSActivityPassData", "ScanQR previous_tph_1_id_panen: $previousTph1IdPanen")
                 Log.d("ListPanenTBSActivityPassData", "ScanQR FEATURE_NAME: $menuString")
             }
-            "Weight bridge" -> intent = Intent(this, ScanWeighBridgeActivity::class.java).apply {
-                putExtra(EXTRA_QR_RESULT, result)
-                putExtra("FEATURE_NAME", menuString)
-            }
         }
 
         startActivity(intent)

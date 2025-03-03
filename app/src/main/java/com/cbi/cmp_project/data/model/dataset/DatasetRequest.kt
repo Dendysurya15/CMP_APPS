@@ -7,5 +7,6 @@ data class DatasetRequest(
     @SerializedName("estate") val estate: Int? = null,
     @SerializedName("regional") val regional: Int? = null,
     @SerializedName("last_modified") val lastModified: String?,
-    @SerializedName("dataset") val dataset: String
+    @SerializedName("dataset") val dataset: String,
+    @SerializedName("data") val data: List<Int>? = null
 )

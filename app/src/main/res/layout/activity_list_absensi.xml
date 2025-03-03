@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/clParentListAbsensi"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    tools:context=".ui.view.Absensi.ListAbsensiActivity">
+
+    <include
+        android:id="@+id/navbarAbsensiList"
+        layout="@layout/header_feature_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/search_sectionAbsensi"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:visibility="gone"
+        android:weightSum="10"
+        app:layout_constraintTop_toBottomOf="@+id/navbarAbsensiList">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="7"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/graylightDarker"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/search_featureAbsensi"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@null"
+                    android:hint="Ketik Untuk Mencari..."
+                    android:imeOptions="actionDone"
+                    android:inputType="text"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="20dp"
+                    android:textSize="16sp" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    android:padding="8dp"
+                    android:src="@drawable/baseline_search_24" />
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <ImageView
+            android:id="@+id/btn_calendarAbsensi"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center_vertical"
+            android:layout_weight="1.5"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:contentDescription="Calendar"
+            android:focusable="true"
+            android:padding="8dp"
+            android:src="@drawable/baseline_calendar_month_24" />
+
+        <ImageView
+            android:id="@+id/btn_sortAbsensi"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center_vertical"
+            android:layout_weight="1.5"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:contentDescription="Sort"
+            android:focusable="true"
+            android:padding="8dp"
+            android:src="@drawable/baseline_sort_24" />
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:id="@+id/tglAbsensi"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="10dp"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/navbarAbsensiList"
+        tools:ignore="MissingConstraints">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/manrope_bold"
+            android:text="Tanggal: "
+            android:textColor="@color/black"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/listTglAbsensi"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/manrope_medium"
+            android:textColor="@color/black"
+            android:textSize="15sp"
+            android:textStyle="italic" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/total_sectionAbsensi"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="10dp"
+        android:orientation="horizontal"
+        android:paddingBottom="10dp"
+        android:visibility="gone"
+        android:weightSum="2"
+        app:layout_constraintTop_toBottomOf="@id/tglAbsensi"
+        tools:ignore="MissingConstraints">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/manrope_bold"
+                android:text="Total Kehadiran: "
+                android:textColor="@color/black"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/totalKehadiranAbsensi"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/manrope_medium"
+                android:text="0"
+                android:textColor="@color/black"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/manrope_bold"
+                android:text="Lokasi Kerja: "
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/lokasiKerja"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/black"
+                android:fontFamily="@font/manrope_medium"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/list_menu_upload_dataAbsensi"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="10dp"
+        android:layout_marginVertical="5dp"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toBottomOf="@id/total_sectionAbsensi">
+
+        <com.google.android.material.card.MaterialCardView
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/card_item_tersimpanAbsensi"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:foreground="?attr/selectableItemBackground"
+            app:cardBackgroundColor="@color/bgSelectWorkerGreen"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/strokeSelectWorkerGreen">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginVertical="10dp"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
+
+                <TextView
+                    android:id="@+id/list_item_tersimpanAbsensi"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:fontFamily="@font/manrope_semibold"
+                    android:text="Tersimpan"
+                    android:textColor="@color/black"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/counter_item_tersimpanAbsensi"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:fontFamily="@font/manrope_semibold"
+                    android:paddingHorizontal="10dp"
+                    android:text="0"
+                    android:textColor="@color/black"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+
+        <com.google.android.material.card.MaterialCardView
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/card_item_terscanAbsensi"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="5dp"
+            android:foreground="?attr/selectableItemBackground"
+            app:cardBackgroundColor="@color/graylight"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/graylightDarker">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginVertical="10dp"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
+
+                <TextView
+                    android:id="@+id/list_item_terscanAbsensi"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:fontFamily="@font/manrope_semibold"
+                    android:text="Sudah Scan"
+                    android:textColor="@color/black"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/counter_item_terscanAbsensi"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:fontFamily="@font/manrope_semibold"
+                    android:paddingHorizontal="10dp"
+                    android:text="0"
+                    android:textColor="@color/black"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/filterSectionAbsensi"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="10dp"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/list_menu_upload_dataAbsensi"
+        tools:ignore="MissingConstraints">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:fontFamily="@font/manrope_semibold"
+            android:gravity="center_vertical"
+            android:text="Filter: "
+            android:textSize="16sp" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.card.MaterialCardView
+                xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:app="http://schemas.android.com/apk/res-auto"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/bgLightYellow"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/borderYellow"
+                tools:ignore="MissingConstraints">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_marginVertical="3dp"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="10dp">
+
+                    <TextView
+                        android:id="@+id/filterNameAbsensi"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginLeft="5dp"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:textSize="15dp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:id="@+id/removeFilterAbsensi"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="5dp"
+                        android:background="@drawable/rounded_radius_background"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:src="@drawable/baseline_close_24"
+                        android:tint="@color/colorRedDark"
+                        tools:ignore="UseAppTint" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/contentLayoutAbsensi"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginHorizontal="10dp"
+        android:layout_marginTop="10dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/filterSectionAbsensi">
+
+        <!-- Fixed Header -->
+        <include
+            android:id="@+id/tableHeaderAbsensi"
+            layout="@layout/table_header_layout_list_absensi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvTableDataAbsensiList"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="3dp"
+            android:layout_marginBottom="5dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingBottom="10dp"
+            tools:itemCount="20"
+            tools:listitem="@layout/table_item_row_list_absensi" />
+
+        <TextView
+            android:id="@+id/tvEmptyStateAbsensiList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/border_bottom_light"
+            android:padding="16sp"
+            android:textColor="@color/black"
+            android:textAlignment="center"
+            android:textSize="16sp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnGenerateQRAbsensi"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="30dp"
+        android:layout_marginBottom="30dp"
+        android:src="@drawable/baseline_qr_code_scanner_24"
+        android:tooltipText="Generate QR TPH"
+        android:visibility="visible"
+        app:backgroundTint="@color/bluedarklight"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:maxImageSize="30dp"
+        app:rippleColor="@color/bgLightOrange"
+        app:tint="@color/white" />
+
+    <com.leinardi.android.speeddial.SpeedDialView
+        android:id="@+id/dial_listAbsensi"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="15dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/btnGenerateQRAbsensi"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:sdMainFabClosedBackgroundColor="@color/greenDarker"
+        app:sdMainFabClosedIconColor="@color/white"
+        app:sdMainFabClosedSrc="@drawable/list_solid"
+        app:sdMainFabOpenedBackgroundColor="@color/greenDarker"
+        app:sdMainFabOpenedSrc="@drawable/baseline_close_24" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

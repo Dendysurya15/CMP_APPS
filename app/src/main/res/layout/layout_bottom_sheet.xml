@@ -124,6 +124,8 @@
         android:gravity="center"
         android:text="Hasil Generate QR TPH"
         android:textSize="25sp"
+
+        android:textColor="@color/black"
         android:visibility="gone"
         tools:ignore="MissingConstraints" />
 
@@ -158,6 +160,7 @@
         android:gravity="left"
         android:text="Konfirmasi Scan QR"
         android:textSize="21sp"
+        android:textColor="@color/black"
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@+id/dashedLine"
         tools:ignore="MissingConstraints" />
@@ -168,6 +171,7 @@
         android:layout_height="wrap_content"
         android:fontFamily="@font/manrope_medium"
         android:gravity="left"
+        android:textColor="@color/black"
         android:text="Jika sudah melakukan scan QR harap konfirmasi dengan tombol berikut!"
         android:textSize="17sp"
         android:textStyle="italic"
