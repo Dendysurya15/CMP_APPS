@@ -1,6 +1,7 @@
 package com.cbi.cmp_project.ui.viewModel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -12,9 +13,11 @@ import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.MillModel
 import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.model.TransporterModel
+import com.cbi.cmp_project.data.model.UploadCMPModel
 import com.cbi.cmp_project.data.repository.WeighBridgeRepository
 import com.cbi.markertph.data.model.TPHNewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -37,6 +40,8 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     private val _deleteItemsResult = MutableLiveData<Boolean>()
     val deleteItemsResult: LiveData<Boolean> = _deleteItemsResult
 
+    private val _updateStatus = MutableLiveData<Boolean>()
+    val updateStatus: LiveData<Boolean> get() = _updateStatus
 
 
     private val _uploadProgress = MutableLiveData<Map<Int, Int>>() // Tracks each item's progress
@@ -114,6 +119,22 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         return count
     }
 
+
+    private val _activeESPBUploadCMP = MutableLiveData<List<ESPBEntity>>()
+    val activeESPBUploadCMP: LiveData<List<ESPBEntity>> get() = _activeESPBUploadCMP
+
+    fun fetchActiveESPB() {
+        viewModelScope.launch {
+            repository.getActiveESPB()
+                .onSuccess { espbList ->
+                    _activeESPBUploadCMP.postValue(espbList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load ESPB data")
+                }
+        }
+    }
+
     fun loadHistoryUploadeSPB() {
         viewModelScope.launch {
             repository.loadHistoryUploadeSPB()
@@ -156,6 +177,8 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
             }
         }
     }
+
+
 
     suspend fun saveDataLocalKraniTimbangESPB(
         blok_jjg: String,
@@ -212,7 +235,16 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-
+    fun updateArchiveESPB(ids: List<Int>, statusArchive:Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateESPBArchive(ids, statusArchive)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+            }
+        }
+    }
 
     class WeightBridgeViewModelFactory(
         private val application: Application

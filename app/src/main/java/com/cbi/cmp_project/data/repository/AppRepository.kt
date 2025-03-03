@@ -20,42 +20,16 @@ class AppRepository(context: Context) {
     private val tphDao = database.tphDao()
     private val millDao = database.millDao()
 
-    suspend fun saveDataPanen(
-        tph_id: String,
-        date_created: String,
-        created_by: Int,
-        karyawan_id: String,
-        jjg_json: String,
-        foto: String,
-        komentar: String,
-        asistensi: Int,
-        lat: Double,
-        lon: Double,
-        jenis_panen: Int,
-        ancakInput: String,
-        info:String,
-        archive: Int,
-    ): Result<Long> {
-        val panenEntity = PanenEntity(
-            tph_id = tph_id,
-            date_created = date_created,
-            created_by = created_by,
-            karyawan_id = karyawan_id,
-            jjg_json = jjg_json,
-            foto = foto,
-            komentar = komentar,
-            asistensi = asistensi,
-            lat = lat,
-            lon = lon,
-            jenis_panen = jenis_panen,
-            ancak = ancakInput.toIntOrNull() ?: 0,
-            info = info,
-            archive = archive,
-            status_espb = 0,
-            status_restan = 0
-        )
-        return panenDao.insertWithTransaction(panenEntity)
+    sealed class SaveResultPanen {
+        object Success : SaveResultPanen()
+        data class Error(val exception: Exception) : SaveResultPanen()
     }
+
+    suspend fun saveDataPanen(data: PanenEntity) {
+        panenDao.insert(data)
+    }
+
+
     suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<List<Long>> =
         withContext(Dispatchers.IO) {
             try {
@@ -121,6 +95,10 @@ class AppRepository(context: Context) {
 
     suspend fun getDivisiAbbrByTphId(id: Int): String? = withContext(Dispatchers.IO) {
         tphDao.getDivisiAbbrByTphId(id)
+    }
+
+    suspend fun updatePanenArchive(ids: List<Int>,statusArchive:Int) {
+        panenDao.updatePanenArchive(ids, statusArchive)
     }
 
     suspend fun getPanenCount(): Int {

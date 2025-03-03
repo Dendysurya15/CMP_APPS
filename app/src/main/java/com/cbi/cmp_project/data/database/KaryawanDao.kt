@@ -1,5 +1,6 @@
 package com.cbi.cmp_project.data.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -37,6 +38,29 @@ abstract class KaryawanDao {
         filteredId: Int
     ): List<KaryawanModel>
 
+    data class KaryawanKemandoranData(
+        @ColumnInfo(name = "karyawan_id") val karyawanId: Int,
+        @ColumnInfo(name = "nama_karyawan") val namaKaryawan: String,
+        @ColumnInfo(name = "nik") val nik: String,
+        @ColumnInfo(name = "kemandoran_id") val kemandoranId: Int,
+        @ColumnInfo(name = "kemandoran_nama") val kemandoranNama: String,
+        @ColumnInfo(name = "kode_kemandoran") val kodeKemandoran: String
+    )
+
+
+    @Query("""
+    SELECT karyawan.id AS karyawan_id, 
+           karyawan.nama AS nama_karyawan, 
+           karyawan.nik AS nik,  
+           karyawan.kemandoran_id, 
+           kemandoran.nama AS kemandoran_nama,
+           kemandoran.kode AS kode_kemandoran
+    FROM karyawan 
+    JOIN kemandoran ON karyawan.kemandoran_id = kemandoran.id 
+    WHERE karyawan.id IN (:filteredIds)
+""")
+    abstract  suspend fun getKaryawanKemandoranList(filteredIds: List<String>): List<KaryawanKemandoranData>
+
     @Query(
         """
     SELECT * FROM karyawan 
@@ -61,3 +85,4 @@ abstract class KaryawanDao {
         idKaryawan: List<String>
     ): Int
 }
+

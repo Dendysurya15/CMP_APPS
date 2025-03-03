@@ -5,6 +5,7 @@ import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.utils.AppLogger
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class PanenDao {
@@ -68,6 +69,9 @@ abstract class PanenDao {
 
     @Query("UPDATE panen_table SET archive = 1 WHERE id = :id")
     abstract fun archiveByID(id: Int): Int
+
+    @Query("UPDATE panen_table SET archive = :statusArchive WHERE id IN (:ids)")
+    abstract  suspend fun updatePanenArchive(ids: List<Int>, statusArchive: Int)
 
     @Query("UPDATE panen_table SET archive = 1 WHERE id IN (:id)")
     abstract fun archiveByListID(id: List<Int>): Int

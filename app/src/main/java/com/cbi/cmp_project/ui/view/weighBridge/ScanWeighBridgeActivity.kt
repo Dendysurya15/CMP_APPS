@@ -341,21 +341,19 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 withContext(Dispatchers.IO) {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
                     val parsedData = Gson().fromJson(jsonStr, wbQRData::class.java)
-//                    val blokJjgList = "3301,312;3303,154;3309,321;3310,215;3312,421;3315,233"
-                    val blokJjgList = parsedData.espb.blokJjg
-                        .split(";")
-                        .mapNotNull {
-                            it.split(",").takeIf { it.size == 2 }?.let { (id, jjg) ->
-                                id.toIntOrNull()?.let { it to jjg.toIntOrNull() }
-                            }
+
+                    AppLogger.d("Parsed Data: $parsedData")
+
+                    val blokJjgList = parsedData?.espb?.blokJjg?.split(";")?.mapNotNull {
+                        it.split(",").takeIf { it.size == 2 }?.let { (id, jjg) ->
+                            id.toIntOrNull()?.let { it to jjg.toIntOrNull() }
                         }
+                    } ?: emptyList()
 
                     val idBlokList = blokJjgList.map { it.first }
 
-                    val pemuatList = parsedData.espb.pemuat_id
-                        .split(",")
-                        .map { it.trim() }
-                        .filter { it.isNotEmpty() } ?: emptyList()
+                    val pemuatList = parsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
+                        ?.filter { it.isNotEmpty() } ?: emptyList()
 
                     val pemuatDeferred = async {
                         try {
@@ -366,13 +364,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         }
                     }
 
-                    val pemuatData = try {
-                        pemuatDeferred.await()
-                    } catch (e: Exception) {
-                        AppLogger.e("Failed to fetch Pemuat Data: ${e.message}")
-                        null
-                    }
-
+                    val pemuatData = pemuatDeferred.await()
                     val pemuatNama = pemuatData?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
                         ?.joinToString(", ") ?: "-"
 
@@ -386,30 +378,24 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     } catch (e: Exception) {
                         AppLogger.e("Error fetching Blok Data: ${e.message}")
                         null
-                    }
-                        ?: throw Exception("Failed to fetch Blok Data! Please check the dataset.")
+                    } ?: emptyList()
 
-                    val deptAbbr = blokData.firstOrNull()?.dept_abbr
-                        ?: "-"
-
+                    val deptAbbr = blokData.firstOrNull()?.dept_abbr ?: "-"
                     val divisiAbbr = blokData.firstOrNull()?.divisi_abbr ?: "-"
-
 
                     var totalJjgSum = 0
 
                     val formattedBlokList = blokJjgList.mapNotNull { (idBlok, totalJjg) ->
-                        val blokKode = blokData?.find { it.blok == idBlok }?.blok_kode
+                        val blokKode = blokData.find { it.blok == idBlok }?.blok_kode
                         if (blokKode != null && totalJjg != null) {
                             totalJjgSum += totalJjg
                             "• $blokKode ($totalJjg jjg)"
-                        } else {
-                            null
-                        }
+                        } else null
                     }.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
 
-                    val millId = parsedData.espb.millId
-                    val transporterId = parsedData.espb.transporter
-                    val createdAt = parsedData.espb.createdAt
+                    val millId = parsedData?.espb?.millId ?: 0
+                    val transporterId = parsedData?.espb?.transporter ?: 0
+                    val createdAt = parsedData?.espb?.createdAt ?: "-"
                     val createAtFormatted = formatToIndonesianDate(createdAt)
 
                     val millDataDeferred = async {
@@ -421,8 +407,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         }
                     }
 
-                    val millData = millDataDeferred.await()
-                        ?: throw Exception("Failed to fetch Mill Data! Please check the dataset.")
+                    val millData = millDataDeferred.await() ?: emptyList()
+                    val millAbbr = millData.firstOrNull()?.let { "${it.abbr} (${it.nama})" } ?: "-"
 
                     val transporterDeferred = async {
                         try {
@@ -433,24 +419,21 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         }
                     }
 
-                    val transporterData = transporterDeferred.await()
-                        ?: throw Exception("Failed to fetch Transporter Data! Please check the dataset.")
+                    val transporterData = transporterDeferred.await() ?: emptyList()
+                    val transporterName = transporterData.firstOrNull()?.nama ?: "-"
 
-                    val millAbbr =
-                        millData.firstOrNull()?.let { "${it.abbr} (${it.nama})" } ?: "-"
-                    val transporterName = transporterData.firstOrNull()?.let { it.nama } ?: "-"
-
-                    globalBlokJjg = parsedData.espb.blokJjg
+                    // Assign global variables safely
+                    globalBlokJjg = parsedData?.espb?.blokJjg ?: "-"
                     globalCreatedById = prefManager!!.idUserLogin
-                    globalNopol = parsedData.espb.nopol
-                    globalDriver = parsedData.espb.driver
+                    globalNopol = parsedData?.espb?.nopol ?: "-"
+                    globalDriver = parsedData?.espb?.driver ?: "-"
                     globalTransporterId = transporterId
-                    globalPemuatId = parsedData.espb.pemuat_id
+                    globalPemuatId = parsedData?.espb?.pemuat_id ?: "-"
                     globalMillId = millId
-                    globalTph0 = parsedData.tph0!!
-                    globalTph1 = parsedData.tph1!!
-                    globalCreatorInfo = parsedData?.espb?.creatorInfo?.toString() ?: ""
-                    globalNoESPB = parsedData.espb.noEspb
+                    globalTph0 = parsedData?.tph0 ?: "-"
+                    globalTph1 = parsedData?.tph1 ?: "-"
+                    globalCreatorInfo = parsedData?.espb?.creatorInfo?.toString() ?: "-"
+                    globalNoESPB = parsedData?.espb?.noEspb ?: "-"
 
                     withContext(Dispatchers.Main) {
                         showBottomSheetWithData(
@@ -489,6 +472,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     loadingDialog.dismiss()
                 }
             }
+
         }
     }
 

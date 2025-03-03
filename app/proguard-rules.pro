@@ -17,6 +17,11 @@
 -keepclasseswithmembers class * {
     @retrofit2.http.* <methods>;
 }
+
+-keepattributes *Annotation*
+-keep class androidx.room.** { *; }
+-keep @androidx.room.Entity class * { *; }
+
 -keep,allowobfuscation,allowshrinking interface retrofit2.Call
 -keep,allowobfuscation,allowshrinking class retrofit2.Response
 

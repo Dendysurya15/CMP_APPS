@@ -2,8 +2,9 @@ package com.cbi.cmp_project.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.cbi.cmp_project.utils.AppUtils
 
-@Entity(tableName = "panen_table")
+@Entity(tableName = AppUtils.DatabaseTables.PANEN)
 data class PanenEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val tph_id: String,
