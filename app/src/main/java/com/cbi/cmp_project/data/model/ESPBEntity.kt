@@ -2,8 +2,9 @@ package com.cbi.cmp_project.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.cbi.cmp_project.utils.AppUtils
 
-@Entity(tableName = "espb_table")
+@Entity(tableName = AppUtils.DatabaseTables.ESPB)
 data class ESPBEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val blok_jjg: String, // jjg kirim pabrik
@@ -26,5 +27,6 @@ data class ESPBEntity(
     val status_mekanisasi: Int = 0,
     val creator_info: String, // json {"app_version":"2.6.1","os_version":"13","device_model":"SM-A325F"}
     val uploader_info: String = "NULL", // json {"app_version":"2.6.1","os_version":"13","device_model":"SM-A325F"}
-    val noESPB: String //PT-EST/AFD/TGl/BLN/THN/JAM_MENIT_Detik_mili second "SSS-SLE/OC/02/01/25/140012000"
+    val noESPB: String, //PT-EST/AFD/TGl/BLN/THN/JAM_MENIT_Detik_mili second "SSS-SLE/OC/02/01/25/140012000"
+    val scan_status: Int=0 // default 0
 )
