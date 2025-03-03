@@ -55,11 +55,11 @@ object AppUtils {
         const val ESPB = "espb_table"
         const val MILL = "mill"
         const val TPH = "tph"
-        const val FLAGESPB = "flag_espb"
         const val KEMANDORAN = "kemandoran"
         const val KARYAWAN = "karyawan"
         const val TRANSPORTER = "transporter"
         const val UPLOADCMP = "upload_cmp"
+        const val FLAGESPB = "flag_espb"
     }
 
 

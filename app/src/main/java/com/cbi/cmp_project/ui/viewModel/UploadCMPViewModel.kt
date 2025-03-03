@@ -13,6 +13,7 @@ import com.cbi.cmp_project.data.repository.SaveResultNewUploadDataCMP
 import com.cbi.cmp_project.data.repository.UploadCMPRepository
 import com.cbi.cmp_project.data.repository.WeighBridgeRepository
 import com.cbi.cmp_project.ui.adapter.UploadCMPItem
+import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
 import kotlinx.coroutines.launch
 
@@ -256,21 +257,6 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                         val response = it.getOrNull()
                         // Update item's response
                         updateItemResponse(item.id, response)
-
-                        // Also update the original LiveData for current item
-                        _uploadResponseCMP.postValue(response)
-
-                        // Process response (e.g., save to database)
-//                        response?.let { resp ->
-//                            val jsonResultTableIds = createJsonTableNameMapping()
-//                            UpdateOrInsertDataUpload(
-//                                resp.trackingId,
-//                                resp.nama_file,
-//                                resp.status,
-//                                resp.tanggal_upload,
-//                                jsonResultTableIds
-//                            )
-//                        }
                     }
                 }
 

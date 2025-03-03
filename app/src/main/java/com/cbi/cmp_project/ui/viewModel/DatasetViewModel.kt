@@ -50,6 +50,7 @@ import retrofit2.Response
 import java.io.File
 
 
+@Suppress("NAME_SHADOWING")
 class DatasetViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: DatasetRepository = DatasetRepository(application)
     private val prefManager = PrefManager(application)
@@ -92,11 +93,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val isStoring: Boolean = false ,  // Add this
         val isUpToDate: Boolean = false
     ) {
-        class Success<T>(data: T) : Resource<T>(data)
+        class Success<T>(data: T, message: String? = null) : Resource<T>(data, message)
         class Error<T>(message: String, data: T? = null) : Resource<T>(data, message)
         class Loading<T>(progress: Int = 0) : Resource<T>(progress = progress)
-        class Extracting<T>(dataset: String) : Resource<T>(message = "Extracting $dataset", isExtracting = true)
-        class Storing<T>(dataset: String) : Resource<T>(message = "Storing $dataset", isStoring = true)  // Add this
+        class Extracting<T>(dataset: String) : Resource<T>(message = "Extracting $dataset...", isExtracting = true)
+        class Storing<T>(dataset: String) : Resource<T>(message = "Storing $dataset to database...", isStoring = true)  // Add this
         class UpToDate<T>(dataset: String) : Resource<T>(message = "Dataset $dataset is up to date", isUpToDate = true)  // Add this
     }
 
@@ -581,6 +582,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             val espbIdsToUpdate = mutableListOf<Int>()
                                             val archiveStatus = mutableMapOf<String, Int>()  // Store status for batch updates
 
+                                            AppLogger.d(jsonResponse.toString())
                                             try {
                                                 val deferredUpdates = jsonResponse.data.map { item ->
                                                     async {
@@ -621,7 +623,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 }
 
                                                 withContext(Dispatchers.Main) {
-                                                    results[request.dataset] = Resource.Success(response)
+                                                    val sortedList = jsonResponse.data
+                                                        .filter { it.status >= 4 }
+                                                        .sortedByDescending { it.tanggal_upload }
+                                                    val message = if (sortedList.isNotEmpty()) {
+                                                        "Terjadi kesalahan insert di server!\n\n" + sortedList.joinToString("\n") { item ->
+                                                            "• ${item.nama_file} (${item.message})"
+                                                        }
+                                                    } else {
+                                                        "Berhasil sinkronisasi data"
+                                                    }
+                                                    results[request.dataset] = Resource.Success(response, message)
                                                     _downloadStatuses.postValue(results.toMap())
                                                 }
 

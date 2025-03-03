@@ -96,7 +96,6 @@
                         android:id="@+id/status_progress"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:maxLines="5"
                         android:ellipsize="end"
                         android:gravity="center_vertical"
                         android:textColor="@color/black"

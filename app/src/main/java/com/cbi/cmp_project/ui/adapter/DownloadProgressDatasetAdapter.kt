@@ -1,5 +1,6 @@
 package com.cbi.cmp_project.ui.adapter
 
+import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -22,6 +23,7 @@ data class DownloadItem(
     var isStoringCompleted: Boolean = false,  // Add this
     var isUpToDate: Boolean = false,
     var error: String? = null,
+    var message : String?  = null,
 )
 
 class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressDatasetAdapter.ViewHolder>() {
@@ -42,6 +44,7 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
         return ViewHolder(view)
     }
 
+    @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
 
@@ -64,7 +67,7 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                 }
                 item.isUpToDate -> {  // Add this condition
                     statusProgress.visibility = View.VISIBLE
-                    statusProgress.text = "${item.dataset} is already up to date"
+                    statusProgress.text = item.message
                     statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.greendarkerbutton))
                     iconStatus.visibility = View.VISIBLE
                     iconStatus.setImageResource(R.drawable.baseline_check_24)
@@ -74,7 +77,7 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                 }
                 item.isStoring -> {
                     statusProgress.visibility = View.VISIBLE
-                    statusProgress.text = "Storing ${item.dataset} to database..."
+                    statusProgress.text = item.message
                     statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
                     iconStatus.visibility = View.GONE
                     loadingCircular.visibility = View.VISIBLE
@@ -84,11 +87,17 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                     statusProgress.visibility = View.VISIBLE
 
                     if(item.dataset == AppUtils.DatasetNames.updateSyncLocalData){
-                        statusProgress.text = "Berhasil sinkronisasi data"
+                        statusProgress.text = item.message
+                        if (item.message!!.contains(".zip")){
+                            statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.colorRedDark))
+                        }else{
+                            statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
+                        }
                     }else{
                         statusProgress.text = "${item.dataset} successfully stored"
+                        statusProgress.maxLines = 5
+                        statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
                     }
-                    statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
                     iconStatus.visibility = View.VISIBLE
                     iconStatus.setImageResource(R.drawable.baseline_check_24)
                     iconStatus.setColorFilter(ContextCompat.getColor(itemView.context, R.color.greendarkerbutton))
@@ -97,7 +106,7 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                 }
                 item.isExtracting -> {
                     statusProgress.visibility = View.VISIBLE
-                    statusProgress.text = "Extracting ${item.dataset}..."
+                    statusProgress.text = "${item.message}"
                     statusProgress.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
                     iconStatus.visibility = View.GONE
                     loadingCircular.visibility = View.VISIBLE

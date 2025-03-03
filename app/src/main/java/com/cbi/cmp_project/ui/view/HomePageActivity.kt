@@ -532,7 +532,7 @@ class HomePageActivity : AppCompatActivity() {
 
                         if (allUploadZipFilesToday.isNotEmpty()) {
                             uploadCMPViewModel.getUploadCMPTodayData()
-
+                            delay(100)
                             val filteredFiles = withContext(Dispatchers.Main) {
                                 suspendCoroutine<List<File>> { continuation ->
                                     uploadCMPViewModel.fileData.observeOnce(this@HomePageActivity) { fileList ->
@@ -932,14 +932,13 @@ class HomePageActivity : AppCompatActivity() {
             dialog.dismiss()
         }
 
-        // Observe completed count to update counter
-        uploadCMPViewModel.completedCount.observeOnce(this) { completed ->
+        uploadCMPViewModel.completedCount.observe(this) { completed ->
             val total = uploadCMPViewModel.totalCount.value ?: uploadItems.size
             counterTV.text = "$completed/$total"
         }
 
         // Observe progress for each item
-        uploadCMPViewModel.itemProgressMap.observeOnce(this) { progressMap ->
+        uploadCMPViewModel.itemProgressMap.observe(this) { progressMap ->
             // Update progress for each item
             for ((id, progress) in progressMap) {
                 adapter.updateProgress(id, progress)
@@ -952,7 +951,7 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         // Observe status for each item
-        uploadCMPViewModel.itemStatusMap.observeOnce(this) { statusMap ->
+        uploadCMPViewModel.itemStatusMap.observe(this) { statusMap ->
             // Update status for each item
             for ((id, status) in statusMap) {
                 adapter.updateStatus(id, status)
@@ -981,7 +980,7 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         // Observe errors for each item
-        uploadCMPViewModel.itemErrorMap.observeOnce(this) { errorMap ->
+        uploadCMPViewModel.itemErrorMap.observe(this) { errorMap ->
             for ((id, error) in errorMap) {
                 if (!error.isNullOrEmpty()) {
                     adapter.updateError(id, error)
@@ -995,35 +994,40 @@ class HomePageActivity : AppCompatActivity() {
         }
 
 //        // Observe original LiveData for compatibility (affects currently uploading file)
-//        uploadCMPViewModel.uploadProgressCMP.observeOnce(this) { progress ->
+//        uploadCMPViewModel.uploadProgressCMP.observe(this) { progress ->
 //            // You can use this for showing progress in some global UI element if needed
 //        }
 //
-//        uploadCMPViewModel.uploadStatusCMP.observeOnce(this) { status ->
+//        uploadCMPViewModel.uploadStatusCMP.observe(this) { status ->
 //            // You can use this for showing status in some global UI element if needed
 //        }
 //
-//        uploadCMPViewModel.uploadErrorCMP.observeOnce(this) { error ->
+//        uploadCMPViewModel.uploadErrorCMP.observe(this) { error ->
 //            if (!error.isNullOrEmpty()) {
 //                // Handle global error display if needed
 //            }
 //        }
 
         // Process responses for database updates
-        uploadCMPViewModel.itemResponseMap.observeOnce(this) { responseMap ->
-            for ((_, response) in responseMap) {
-                response?.let {
-                    val jsonResultTableIds = createJsonTableNameMapping()
-                    uploadCMPViewModel.UpdateOrInsertDataUpload(
-                        response.trackingId,
-                        response.nama_file,
-                        response.status,
-                        response.tanggal_upload,
-                        jsonResultTableIds
-                    )
+        uploadCMPViewModel.itemResponseMap.observe(this) { responseMap ->
+            lifecycleScope.launch {
+                for ((_, response) in responseMap) {
+                    AppLogger.d("response for update or insert table upload_cmp $response")
+                    response?.let {
+                        val jsonResultTableIds = createJsonTableNameMapping()
+                        uploadCMPViewModel.UpdateOrInsertDataUpload(
+                            response.trackingId,
+                            response.nama_file,
+                            response.status,
+                            response.tanggal_upload,
+                            jsonResultTableIds
+                        )
+                        delay(100) // Add delay before calling the function
+                    }
                 }
             }
         }
+
     }
 
 
@@ -1086,19 +1090,17 @@ class HomePageActivity : AppCompatActivity() {
             val downloadItems = statusMap.map { (dataset, resource) ->
                 when (resource) {
                     is DatasetViewModel.Resource.Success -> {
-                        AppLogger.d("Download Status: $dataset completed")
                         DownloadItem(
                             dataset = dataset,
                             progress = 100,
                             isCompleted = false,
                             isExtractionCompleted = false,
-                            isStoringCompleted = true  // Final state is storage complete
+                            isStoringCompleted = true, // Final state is storage complete
+                            message = resource.message
                         )
                     }
 
                     is DatasetViewModel.Resource.Error -> {
-                        AppLogger.d("Download Status: $dataset failed with error: ${resource.message}")
-
                         if (!hasShownErrorDialog) {
                             val errorMessage = resource.message ?: "Unknown error occurred"
                             if (errorMessage.contains("host", ignoreCase = true)) {
@@ -1112,7 +1114,6 @@ class HomePageActivity : AppCompatActivity() {
                     }
 
                     is DatasetViewModel.Resource.Loading -> {
-                        AppLogger.d("Download Status: $dataset loading")
                         DownloadItem(
                             dataset = dataset,
                             progress = resource.progress,
@@ -1121,12 +1122,13 @@ class HomePageActivity : AppCompatActivity() {
                     }
 
                     is DatasetViewModel.Resource.Extracting -> {
-                        AppLogger.d("Download Status: $dataset is being extracted")
+
                         DownloadItem(
                             dataset = dataset,
                             progress = 100,
                             isLoading = false,
-                            isExtracting = true
+                            isExtracting = true,
+                            message = resource.message
                         )
                     }
 
@@ -1137,7 +1139,8 @@ class HomePageActivity : AppCompatActivity() {
                             progress = 100,
                             isLoading = false,
                             isExtracting = false,
-                            isStoring = true
+                            isStoring = true,
+                            message = resource.message
                         )
 
                     }
@@ -1147,7 +1150,8 @@ class HomePageActivity : AppCompatActivity() {
                         DownloadItem(
                             dataset = dataset,
                             progress = 100,
-                            isUpToDate = true  // Set isUpToDate to true
+                            isUpToDate = true,
+                            message = resource.message
                         )
                     }
                 }
@@ -1266,11 +1270,11 @@ class HomePageActivity : AppCompatActivity() {
         }
         datasets.addAll(
             listOf(
-//                DatasetRequest(
-//                    regional = regionalId,
-//                    lastModified = null,
-//                    dataset = AppUtils.DatasetNames.mill
-//                ),
+                DatasetRequest(
+                    regional = regionalId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.mill
+                ),
                 DatasetRequest(
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
