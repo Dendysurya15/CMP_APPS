@@ -21,7 +21,7 @@ abstract class ESPBDao {
     abstract fun getAll(): List<ESPBEntity>
 
     //    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
-    @Query("SELECT * FROM espb_table")
+    @Query("SELECT * FROM espb_table where scan_status = 1")
     abstract fun getAllESPBUploaded(): List<ESPBEntity>
 
     @Query("SELECT * FROM espb_table WHERE archive = 1")
@@ -60,7 +60,7 @@ abstract class ESPBDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertESPBData(espbData: ESPBEntity)
 
-    @Query("SELECT COUNT(*) FROM espb_table")
+    @Query("SELECT COUNT(*) FROM espb_table where scan_status = 1")
     abstract suspend fun countESPBUploaded(): Int
 
     @Query("""

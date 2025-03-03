@@ -148,7 +148,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                 status_upload_ppro = 0,
                                 creator_info = globalCreatorInfo,
                                 uploader_info = "",
-                                noESPB = globalNoESPB
+                                noESPB = globalNoESPB,
                             )
                         }
 

@@ -55,7 +55,7 @@ import java.util.concurrent.Executors
         FlagESPBModel::class,
         MillModel::class,
         TransporterModel::class,
-        UploadCMPModel::class
+        UploadCMPModel::class,
         AbsensiModel::class,
     ],
     version = 7
