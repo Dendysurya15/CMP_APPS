@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mainAbsensi"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/blueLight"
+    tools:context=".ui.view.Absensi.FeatureAbsensiActivity">
+
+    <include
+        android:id="@+id/headerAbsensi"
+        layout="@layout/header_feature_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:id="@+id/scAbsensi"
+        android:layout_marginTop="10dp"
+        app:layout_constraintTop_toBottomOf="@id/headerAbsensi"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:clickable="true"
+            android:paddingRight="20dp"
+            android:paddingLeft="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="left"
+                android:orientation="vertical"
+                tools:ignore="RtlHardcoded,UselessParent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="left"
+                    android:orientation="vertical"
+                    tools:ignore="RtlHardcoded">
+
+                    <include
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:id="@+id/layoutEstateAbsensi"/>
+
+                    <include
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:id="@+id/layoutAfdelingAbsensi"/>
+                    <include
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:id="@+id/layoutkemandoranAbsensi"/>
+
+                    <LinearLayout
+                        android:id="@+id/layoutSelAsistensiAbsensi"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="130dp"
+                            android:layout_height="match_parent"
+                            android:gravity="center|left"
+                            android:textColor="@color/black"
+                            android:text="Asistensi"
+                            android:fontFamily="@font/manrope_semibold"
+                            android:textSize="18sp" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/selAsistensiAbsensi"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/switch_thumb_selector"
+                            app:trackTint="@color/switch_track_selector" />
+                    </LinearLayout>
+
+                    <include
+                        android:id="@+id/layoutKemandoranLainAbsensi"
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/llListAbsensi"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="vertical"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/layoutKemandoranLainAbsensi">
+
+                        <include
+                            android:id="@+id/tableHeader"
+                            layout="@layout/table_header_layout_absensi"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" />
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/rvTableDataAbsensi"
+                            android:layout_width="match_parent"
+                            android:layout_height="300dp"
+                            android:layout_marginTop="3dp"
+                            android:layout_marginBottom="5dp"
+                            android:layout_weight="1"
+                            android:clipToPadding="false"
+                            android:paddingBottom="10dp"
+                            tools:itemCount="20"
+                            tools:listitem="@layout/table_item_row_absensi" />
+
+                        <TextView
+                            android:id="@+id/tvEmptyStateAbsensi"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:textColor="@color/black"
+                            android:background="@drawable/border_bottom_light"
+                            android:padding="16dp"
+                            android:textAlignment="center"
+                            android:textSize="16dp"
+                            android:visibility="gone" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="200dp"
+                        android:id="@+id/tvFotoAbsensi"
+                        android:visibility="visible"
+                        android:layout_height="match_parent"
+                        android:text="Lampiran Foto"
+                        android:layout_marginTop="10dp"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:textSize="19dp"
+                        android:gravity="center|left"
+                        tools:ignore="HardcodedText,RtlHardcoded"/>
+
+                    <TextView
+                        android:layout_width="200dp"
+                        android:layout_height="match_parent"
+                        android:text="Minimal Upload 1 Foto*"
+                        android:visibility="visible"
+                        android:textStyle="italic"
+                        android:fontFamily="@font/manrope_medium"
+                        android:textSize="13dp"
+                        android:gravity="center|left"
+                        tools:ignore="HardcodedText,RtlHardcoded"/>
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rcFotoPreview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="visible"
+                        tools:listitem="@layout/take_and_preview_foto_layout"
+                        android:padding="10dp"
+                        android:clipToPadding="false"
+                        android:orientation="vertical"
+                        tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                        tools:itemCount="1"/>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:orientation="horizontal"
+                        android:layout_gravity="right"
+                        android:visibility="visible"
+                        android:layout_marginTop="30dp"
+                        android:layout_marginBottom="30dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/mbSaveDataAbsensi"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Simpan Data"
+                            android:textSize="16dp"
+                            android:fontFamily="@font/manrope_semibold"
+                            app:backgroundTint="@color/bluedarklight"
+                            app:cornerRadius="10dp"
+                            app:elevation="10dp"
+                            app:icon="@drawable/baseline_save_24"
+                            app:iconGravity="start"
+                            app:iconTint="@color/white"
+                            app:iconPadding="8dp"/>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+        </RelativeLayout>
+    </ScrollView>
+
+    <include
+        android:id="@+id/fotoAbsensi"
+        layout="@layout/camera_view"
+        android:visibility="gone"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <include
+        android:id="@+id/editFotoAbsensi"
+        layout="@layout/camera_edit"
+        android:visibility="gone"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

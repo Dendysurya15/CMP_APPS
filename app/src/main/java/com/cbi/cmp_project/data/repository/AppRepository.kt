@@ -8,6 +8,7 @@ import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.model.TPHBlokInfo
 import com.cbi.cmp_project.data.model.TphRvData
+import com.cbi.markertph.data.model.TPHNewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,42 +21,16 @@ class AppRepository(context: Context) {
     private val tphDao = database.tphDao()
     private val millDao = database.millDao()
 
-    suspend fun saveDataPanen(
-        tph_id: String,
-        date_created: String,
-        created_by: Int,
-        karyawan_id: String,
-        jjg_json: String,
-        foto: String,
-        komentar: String,
-        asistensi: Int,
-        lat: Double,
-        lon: Double,
-        jenis_panen: Int,
-        ancakInput: String,
-        info:String,
-        archive: Int,
-    ): Result<Long> {
-        val panenEntity = PanenEntity(
-            tph_id = tph_id,
-            date_created = date_created,
-            created_by = created_by,
-            karyawan_id = karyawan_id,
-            jjg_json = jjg_json,
-            foto = foto,
-            komentar = komentar,
-            asistensi = asistensi,
-            lat = lat,
-            lon = lon,
-            jenis_panen = jenis_panen,
-            ancak = ancakInput.toIntOrNull() ?: 0,
-            info = info,
-            archive = archive,
-            status_espb = 0,
-            status_restan = 0
-        )
-        return panenDao.insertWithTransaction(panenEntity)
+    sealed class SaveResultPanen {
+        object Success : SaveResultPanen()
+        data class Error(val exception: Exception) : SaveResultPanen()
     }
+
+    suspend fun saveDataPanen(data: PanenEntity) {
+        panenDao.insert(data)
+    }
+
+
     suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<List<Long>> =
         withContext(Dispatchers.IO) {
             try {
@@ -92,7 +67,8 @@ class AppRepository(context: Context) {
                             info = "",
                             archive = 0,
                             status_espb = 0,
-                            status_restan = 0
+                            status_restan = 0,
+                            scan_status = 1
                         )
                     )
                 }
@@ -123,9 +99,22 @@ class AppRepository(context: Context) {
         tphDao.getDivisiAbbrByTphId(id)
     }
 
+    suspend fun updatePanenArchive(ids: List<Int>,statusArchive:Int) {
+        panenDao.updatePanenArchive(ids, statusArchive)
+    }
+
+    suspend fun getCompanyAbbrByTphId(id: Int): String? = withContext(Dispatchers.IO) {
+        tphDao.geCompanyAbbrByTphId(id)
+    }
+
     suspend fun getPanenCount(): Int {
         return panenDao.getCount()
     }
+
+    suspend fun getCountDraftESPB(): Int {
+        return espbDao.getCountDraft()
+    }
+
     suspend fun getPanenCountArchive(): Int {
         return panenDao.getCountArchive()
     }
@@ -252,6 +241,88 @@ class AppRepository(context: Context) {
 
     suspend fun getMillList() = withContext(Dispatchers.IO) {
         millDao.getAll()
+    }
+
+    private fun transformTphDataToMap(inputData: String): Map<Int, Int> {
+        val records = inputData.split(";")
+
+        return records.mapNotNull {
+            val parts = it.split(",")
+            if (parts.size >= 3) {
+                try {
+                    parts[0].toInt() to parts[2].toInt()
+                } catch (e: NumberFormatException) {
+                    null
+                }
+            } else {
+                null
+            }
+        }.toMap()
+    }
+
+    suspend fun getJanjangSumByBlock(tphData: String): Map<Int, Int> = withContext(Dispatchers.IO) {
+        try {
+            // Parse the TPH data to get ID-to-janjang mapping
+            val tphJanjangMap = transformTphDataToMap(tphData)
+
+            // Get the TPH IDs from the map
+            val tphIds = tphJanjangMap.keys.toList()
+
+            // Retrieve the TPH models for these IDs
+            val tphModels = tphDao.getTPHsByIds(tphIds)
+
+            // Group by block and sum janjang values
+            tphModels
+                .filter { it.id != null && it.blok != null }
+                .groupBy { it.blok!! }
+                .mapValues { (_, tphsInBlock) ->
+                    // Sum janjang values for each TPH in this block
+                    tphsInBlock
+                        .mapNotNull { tph ->
+                            tph.id?.let { id -> tphJanjangMap[id] ?: 0 }
+                        }
+                        .sum()
+                }
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error calculating janjang sum by block", e)
+            emptyMap()
+        }
+    }
+
+    suspend fun getJanjangSumByBlockString(tphData: String): String = withContext(Dispatchers.IO) {
+        try {
+            val janjangByBlockMap = getJanjangSumByBlock(tphData)
+            convertJanjangMapToString(janjangByBlockMap)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error formatting janjang sums", e)
+            ""
+        }
+    }
+
+    fun convertJanjangMapToString(janjangByBlock: Map<Int, Int>): String {
+        return janjangByBlock.entries
+            .joinToString(";") { (blockId, janjangSum) ->
+                "$blockId,$janjangSum"
+            }
+    }
+
+    // Add this to your AppRepository
+    suspend fun updatePanenESPBStatus(ids: List<Int>, status: Int) = withContext(Dispatchers.IO) {
+        panenDao.updateESPBStatusByIds(ids, status)
+    }
+
+    suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val data = espbDao.getAllESPBS()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
+    suspend fun getBlokById( listBlokId: List<Int>): List<TPHNewModel> {
+        return tphDao.getBlokById(listBlokId)
     }
 
 }

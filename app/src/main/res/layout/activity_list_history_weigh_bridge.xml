@@ -45,7 +45,7 @@
             tools:listitem="@layout/table_item_row" />
 
         <TextView
-            android:id="@+id/tvEmptyState"
+            android:id="@+id/tvEmptyStateKraniTimbang"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
@@ -57,4 +57,21 @@
             android:visibility="gone" />
 
     </LinearLayout>
+
+    <com.leinardi.android.speeddial.SpeedDialView
+        android:id="@+id/dial_tph_list_krani_timbang_espb"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="30dp"
+        android:layout_marginRight="20dp"
+        android:visibility="gone"
+
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+
+        app:sdMainFabClosedBackgroundColor="@color/greenDarker"
+        app:sdMainFabClosedIconColor="@color/white"
+        app:sdMainFabClosedSrc="@drawable/list_solid"
+        app:sdMainFabOpenedBackgroundColor="@color/greenDarker"
+        app:sdMainFabOpenedSrc="@drawable/baseline_close_24" />
 </androidx.constraintlayout.widget.ConstraintLayout>
