@@ -108,13 +108,13 @@ interface ApiService {
     )
 
     @Multipart
-    @POST("upload")
+    @POST("cmpmain/upload")
     suspend fun uploadZip(
         @Part zipFile: MultipartBody.Part
     ): Response<UploadCMPResponse>
 
     @FormUrlEncoded
-    @POST("status")
+    @POST("cmpmain/status")
     @Headers(
         "Accept: application/json",
         "Content-Type: application/x-www-form-urlencoded"

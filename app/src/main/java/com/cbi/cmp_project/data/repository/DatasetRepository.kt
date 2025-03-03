@@ -99,6 +99,6 @@ class DatasetRepository(context: Context,
 
     suspend fun checkStatusUploadCMP(ids: List<Int>): Response<ResponseBody> {
         val idDataString = ids.joinToString(",") // Convert list to "1,2,3,4"
-        return testingApiService.checkStatusUploadCMP(idDataString)
+        return apiService.checkStatusUploadCMP(idDataString)
     }
 }

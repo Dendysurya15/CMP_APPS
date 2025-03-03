@@ -86,6 +86,7 @@ import android.widget.ArrayAdapter
 import android.widget.ListView
 import android.widget.PopupWindow
 import android.widget.ScrollView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.ui.adapter.Worker
@@ -1276,14 +1277,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         // Check jumTBS
         if (jumTBS <= 0) {
             isValid = false
-            val layoutJumTBS = findViewById<LinearLayout>(R.id.layoutJumTBS)
+            val layoutJumTBS = findViewById<ConstraintLayout>(R.id.layoutJumTBS)
             layoutJumTBS.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
                 text = stringXML(R.string.al_total_tbs_description)
                 visibility = View.VISIBLE
             }
             errorMessages.add(stringXML(R.string.al_total_tbs_description))
         } else {
-            val layoutJumTBS = findViewById<LinearLayout>(R.id.layoutJumTBS)
+            val layoutJumTBS = findViewById<ConstraintLayout>(R.id.layoutJumTBS)
             layoutJumTBS.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
                 visibility = View.GONE
             }
