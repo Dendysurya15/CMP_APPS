@@ -63,6 +63,10 @@ class DatasetRepository(context: Context,
     }
 
 
+//    suspend fun getKemandoranAbsensiList(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
+//        return kemandoranDao.getKemandoranByCriteriaAbsensi(idEstate, idDivisiArray)
+//    }
+
     suspend fun getTPHList(idEstate: Int, idDivisi:Int, tahunTanam : String,  idBlok :Int): List<TPHNewModel> {
         return tphDao.getTPHByCriteria(idEstate, idDivisi, tahunTanam, idBlok)
     }

@@ -45,6 +45,8 @@ import com.cbi.cmp_project.ui.adapter.DownloadItem
 import com.cbi.cmp_project.ui.adapter.DownloadProgressDatasetAdapter
 import com.cbi.cmp_project.ui.adapter.FeatureCard
 import com.cbi.cmp_project.ui.adapter.FeatureCardAdapter
+import com.cbi.cmp_project.ui.view.Absensi.FeatureAbsensiActivity
+import com.cbi.cmp_project.ui.view.Absensi.ListAbsensiActivity
 import com.cbi.cmp_project.ui.adapter.UploadCMPItem
 import com.cbi.cmp_project.ui.adapter.UploadProgressAdapter
 import com.cbi.cmp_project.ui.adapter.UploadProgressCMPDataAdapter
@@ -136,19 +138,6 @@ class HomePageActivity : AppCompatActivity() {
         checkPermissions()
         setupRecyclerView()
 
-        setupObserveUpdateArchiveAllDataCMP()
-    }
-
-
-    private fun setupObserveUpdateArchiveAllDataCMP() {
-
-        weightBridgeViewModel.updateStatus.observeOnce(this) { success ->
-            if (success) {
-                AppLogger.d("✅ ESPB Archive Updated Successfully")
-            } else {
-                AppLogger.e("❌ ESPB Archive Update Failed")
-            }
-        }
 
         panenViewModel.updateStatus.observeOnce(this) { success ->
             if (success) {
@@ -453,6 +442,22 @@ class HomePageActivity : AppCompatActivity() {
             "Rekap panen dan restan" -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListPanenTBSActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            "Absensi panen" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, FeatureAbsensiActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            "Rekap absensi panen" -> {
+                if (feature.displayType == DisplayType.COUNT) {
+                    val intent = Intent(this, ListAbsensiActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }
@@ -1257,47 +1262,30 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetTransporter: String?,
     ): List<DatasetRequest> {
-        val datasets = mutableListOf<DatasetRequest>()
-
-        if (isTriggerButtonSinkronisasiData && trackingIdsUpload.isNotEmpty()) {
-            datasets.add(
-                DatasetRequest(
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.updateSyncLocalData,
-                    data = trackingIdsUpload
-                )
-            )
-        }
-        datasets.addAll(
-            listOf(
-                DatasetRequest(
-                    regional = regionalId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.mill
-                ),
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetTPH,
-                    dataset = AppUtils.DatasetNames.tph
-                ),
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetPemanen,
-                    dataset = AppUtils.DatasetNames.pemanen
-                ),
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetKemandoran,
-                    dataset = AppUtils.DatasetNames.kemandoran
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedDatasetTransporter,
-                    dataset = AppUtils.DatasetNames.transporter
-                )
+        return listOf(
+            //khusus mill
+            DatasetRequest(regional = regionalId, lastModified = null, dataset = "mill"),
+            //khusus dataset
+            DatasetRequest(
+                estate = estateId,
+                lastModified = lastModifiedDatasetTPH,
+                dataset = "tph"
+            ),
+            DatasetRequest(
+                estate = estateId,
+                lastModified = lastModifiedDatasetPemanen,
+                dataset = "pemanen"
+            ),
+            DatasetRequest(
+                estate = estateId,
+                lastModified = lastModifiedDatasetKemandoran,
+                dataset = "kemandoran"
+            ),
+            DatasetRequest(
+                lastModified = lastModifiedDatasetTransporter,
+                dataset = "transporter"
             )
         )
-
-        return datasets
     }
 
 

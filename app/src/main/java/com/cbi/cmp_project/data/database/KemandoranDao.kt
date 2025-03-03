@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 
 @Dao
@@ -24,6 +25,16 @@ abstract class KemandoranDao {
         }
         insertAll(kemandoran)
     }
+
+    @Query(
+        """
+    SELECT * FROM kemandoran 
+    WHERE id IN (:idKemandoran)
+    """
+    )
+    abstract fun getKemandoranById(
+        idKemandoran: List<String>,
+    ): List<KemandoranModel>
 
     @Query("SELECT COUNT(*) FROM kemandoran")
     abstract suspend fun getCount(): Int
@@ -50,6 +61,30 @@ abstract class KemandoranDao {
         idEstate: Int,
     ): List<KemandoranModel>
 
+    @Query(
+        """
+    UPDATE kemandoran
+    SET date_absen = :date_absen
+    AND status_absen = :status_absen
+    WHERE id IN (:idKemandoran)
+    """
+    )
+    abstract fun updateKemandoran(
+        date_absen: String,
+        status_absen: String,
+        idKemandoran: String,
+    ): Int
 
-
+//    @Query(
+//        """
+//    SELECT * FROM kemandoran
+//    WHERE dept = :idEstate
+//    AND divisi IN (:idDivisiArray)
+//    AND type IN ('Upkeep', 'Harvest')
+//    """
+//    )
+//    abstract fun getKemandoranByCriteriaAbsensi(
+//        idEstate: Int,
+//        idDivisiArray: List<Int>
+//    ): List<KemandoranModel>
 }

@@ -7,6 +7,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.cbi.cmp_project.data.model.AbsensiModel
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.FlagESPBModel
 import com.cbi.cmp_project.data.model.KaryawanModel
@@ -41,8 +42,6 @@ import java.util.concurrent.Executors
  * - added new table named transporter
  * Version 6:
  * -added new column named status_upload for ESPBEntity
- * Version 7:
- * -added new table upload_cmp
  */
 
 
@@ -57,6 +56,7 @@ import java.util.concurrent.Executors
         MillModel::class,
         TransporterModel::class,
         UploadCMPModel::class
+        AbsensiModel::class,
     ],
     version = 7
 )
@@ -70,6 +70,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun millDao(): MillDao
     abstract fun transporterDao(): TransporterDao
     abstract fun uploadCMPDao(): UploadCMPDao
+    abstract fun absensiDao(): AbsensiDao
 
     companion object {
         @Volatile

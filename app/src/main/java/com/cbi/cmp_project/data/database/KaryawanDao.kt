@@ -9,6 +9,7 @@ import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.TransporterModel
+import com.google.android.gms.common.api.Status
 
 @Dao
 abstract class KaryawanDao {
@@ -69,5 +70,19 @@ abstract class KaryawanDao {
     abstract fun getPemuatByIdList(
         idKaryawan: List<String>,
     ): List<KaryawanModel>
+
+    @Query(
+        """
+        UPDATE karyawan 
+        SET date_absen = :date_absen
+        AND status_absen = :status_absen
+        WHERE id IN (:idKaryawan)
+        """
+    )
+    abstract suspend fun updateKaryawan(
+        date_absen: String,
+        status_absen: String,
+        idKaryawan: List<String>
+    ): Int
 }
 

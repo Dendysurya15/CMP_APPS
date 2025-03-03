@@ -179,6 +179,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return repository.getKemandoranEstate(idEstate)
     }
 
+//    suspend fun getKemandoranAbsensiList(
+//        idEstate: Int,
+//        idDivisiArray: List<Int>
+//    ): List<KemandoranModel> {
+//        return repository.getKemandoranAbsensiList(idEstate, idDivisiArray)
+//    }
+
     suspend fun getTPHList(
 
         idEstate: Int,
