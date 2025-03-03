@@ -108,12 +108,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
     private lateinit var btnAddMoreTph: FloatingActionButton
-    private var tph1IdPanen =  ""
+    private var tph1IdPanen = ""
 
     private var mappedData: List<Map<String, Any>> = emptyList()
 
-    private var tph1= ""
-    private var tph0= ""
+    private var tph1 = ""
+    private var tph0 = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -183,13 +183,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
             } else ""
 
             // Combine previous and current scan TPH IDs
-            val combinedTphIds = if (previousScanTphIds.isNotEmpty() && currentScanTphIds.isNotEmpty()) {
-                """{"tph":"$previousScanTphIds;$currentScanTphIds"}"""
-            } else if (currentScanTphIds.isNotEmpty()) {
-                """{"tph":"$currentScanTphIds"}"""
-            } else if (previousScanTphIds.isNotEmpty()) {
-                """{"tph":"$previousScanTphIds"}"""
-            } else ""
+            val combinedTphIds =
+                if (previousScanTphIds.isNotEmpty() && currentScanTphIds.isNotEmpty()) {
+                    """{"tph":"$previousScanTphIds;$currentScanTphIds"}"""
+                } else if (currentScanTphIds.isNotEmpty()) {
+                    """{"tph":"$currentScanTphIds"}"""
+                } else if (previousScanTphIds.isNotEmpty()) {
+                    """{"tph":"$previousScanTphIds"}"""
+                } else ""
 
             // Update listTPHDriver with combined data
             if (combinedTphIds.isNotEmpty()) {
@@ -205,7 +206,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSearch()
         setupObservers()
-        if (featureName != "Buat eSPB" && featureName != "Rekap panen dan restan")  {
+        if (featureName != "Buat eSPB" && featureName != "Rekap panen dan restan") {
             setupSpeedDial()
             setupCheckboxControl()  // Add this
         }
@@ -233,27 +234,33 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         setupButtonGenerateQR()
 
-        if (featureName == "Buat eSPB"){
+        if (featureName == "Buat eSPB") {
             btnAddMoreTph = FloatingActionButton(this)
             btnAddMoreTph.id = View.generateViewId()
             btnAddMoreTph.setImageResource(R.drawable.baseline_add_24) // Make sure you have this resource, or use baseline_add_24
             btnAddMoreTph.contentDescription = "Add More TPH"
 
             // Set button background color to green
-            btnAddMoreTph.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, android.R.color.holo_green_dark))
+            btnAddMoreTph.backgroundTintList = ColorStateList.valueOf(
+                ContextCompat.getColor(
+                    this,
+                    android.R.color.holo_green_dark
+                )
+            )
 
             // Set icon color to white
             btnAddMoreTph.imageTintList = ColorStateList.valueOf(Color.WHITE)
 
             // Add the button to the layout
-            val rootLayout = findViewById<ConstraintLayout>(R.id.clParentListPanen) // Assuming your root layout is a ConstraintLayout
+            val rootLayout =
+                findViewById<ConstraintLayout>(R.id.clParentListPanen) // Assuming your root layout is a ConstraintLayout
             val params = ConstraintLayout.LayoutParams(
                 ConstraintLayout.LayoutParams.WRAP_CONTENT,
                 ConstraintLayout.LayoutParams.WRAP_CONTENT
             )
             try {
                 params.bottomToTop = R.id.btnGenerateQRTPH
-            }catch (e: Exception){
+            } catch (e: Exception) {
                 params.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
                 Toasty.error(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             }
@@ -261,7 +268,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
             // Convert dp to pixels for proper margin setting
             val scale = resources.displayMetrics.density
             val marginInPixels = (30 * scale + 0.5f).toInt()
-            params.setMargins(0, 0, marginInPixels, marginInPixels) // Set right and bottom margins to 30dp
+            params.setMargins(
+                0,
+                0,
+                marginInPixels,
+                marginInPixels
+            ) // Set right and bottom margins to 30dp
             rootLayout.addView(btnAddMoreTph, params)
 
             btnAddMoreTph.setOnClickListener {
@@ -282,23 +294,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (featureName == "Rekap Hasil Panen") {
-                    AlertDialogUtility.withTwoActions(
+                startActivity(
+                    Intent(
                         this@ListPanenTBSActivity,
-                        "KEMBALI",
-                        "Kembali ke Menu utama?",
-                        "Data scan sebelumnya akan terhapus",
-                        "warning.json"
-                    ) {
-                        startActivity(
-                            Intent(
-                                this@ListPanenTBSActivity,
-                                HomePageActivity::class.java
-                            ))
-                        finishAffinity()
-                    }
-                }
+                        HomePageActivity::class.java
+                    )
+                )
+                finishAffinity()
             }
+
         })
     }
 
@@ -527,7 +531,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         return if (isEmpty()) "" else joinToString(";")
     }
 
-    private fun getAllDataFromList(){
+    private fun getAllDataFromList() {
         //get manually selected items
         val selectedItems = listAdapter.getSelectedItems()
         Log.d("ListPanenTBSActivityESPB", "selectedItems: $selectedItems")
@@ -633,10 +637,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     finishAffinity()
                 }
             }
-        }  else if(featureName == "Rekap panen dan restan") {
+        } else if (featureName == "Rekap panen dan restan") {
             btnGenerateQRTPH.visibility = View.GONE
-        }
-        else {
+        } else {
             btnGenerateQRTPH.setOnClickListener {
                 val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
                 view.background = ContextCompat.getDrawable(
@@ -1189,7 +1192,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     if (panenList.size == 0 && featureName == "Rekap Hasil Panen") {
                         btnGenerateQRTPH.visibility = View.GONE
-                    } else if(panenList.size > 0 && featureName == "Rekap Hasil Panen"){
+                    } else if (panenList.size > 0 && featureName == "Rekap Hasil Panen") {
                         btnGenerateQRTPH.visibility = View.VISIBLE
                     }
                 }, 500)
