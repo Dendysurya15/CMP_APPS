@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/svMainFormAncakInspect"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="100dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/manrope_extrabold"
+                android:gravity="center|start"
+                android:text="Pemeriksaan Ancak"
+                android:textColor="@color/black"
+                android:textSize="23sp"
+                tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+            <ImageButton
+                android:id="@+id/ibInfoBlokInspect"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="0dp"
+                android:src="@drawable/ic_info_outline_white_24dp"
+                app:tint="@color/black"
+                tools:ignore="ContentDescription" />
+
+        </LinearLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="-15dp"
+            android:layout_marginBottom="-5dp">
+
+            <TextView
+                android:id="@+id/tvTitleEstFormInspect"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginStart="-5dp"
+                android:fontFamily="@font/manrope_bold"
+                android:gravity="start|left"
+                android:text="NBE"
+                android:textColor="@color/black"
+                android:textSize="60dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="10dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/tvTitleEstFormInspect"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <TextView
+                    android:id="@+id/tvTitleAfdFormInspect"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:fontFamily="@font/manrope_bold"
+                    android:gravity="start|left"
+                    android:text="OC"
+                    android:textColor="@color/black"
+                    android:textSize="20dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginTop="-5dp"
+                    android:fontFamily="@font/manrope_bold"
+                    android:gravity="start|left"
+                    android:text="E019A"
+                    android:textColor="@color/black"
+                    android:textSize="20dp"
+                    app:layout_constraintTop_toBottomOf="@+id/tvTitleAfdFormInspect"
+                    tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:fontFamily="@font/manrope_bold"
+                android:gravity="start|left"
+                android:text="No. Pokok :"
+                android:textColor="@color/black"
+                android:textSize="20dp"
+                tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="-10dp"
+                android:layout_weight="1"
+                android:gravity="center|right"
+                android:orientation="horizontal"
+                tools:ignore="RtlHardcoded">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="3dp"
+                    android:fontFamily="@font/manrope_extrabold"
+                    android:text="#"
+                    android:textColor="@color/graylightDarker"
+                    android:textSize="30dp"
+                    tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+                <TextView
+                    android:id="@+id/tvNoPokokInspect"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:fontFamily="@font/manrope_extrabold"
+                    android:text="17"
+                    android:textColor="@color/black"
+                    android:textSize="40dp"
+                    tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <include
+            android:id="@+id/lyExistsTreeInspect"
+            layout="@layout/pertanyaan_spinner_layout" />
+
+        <include
+            android:id="@+id/lyJjgPanenAKPInspect"
+            layout="@layout/pane_number_layout"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/lyDetailFormInspect"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <include
+                android:id="@+id/lyPrioritasInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyHarvestTreeInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyRatAttackInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyGanoInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyNeatPelepahInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyPelepahSengklehInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyPruningInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyKentosanInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyBuahRipeInspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyBuahM1Inspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyBuahM2Inspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyBuahM3Inspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyBrdKtpInspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyBrdInInspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyBrdOutInspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyPasarPikulInspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyKetiakInspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyParitInspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyBrdSegarInspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyBrdBusukInspect"
+                layout="@layout/pane_number_layout" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+</ScrollView>

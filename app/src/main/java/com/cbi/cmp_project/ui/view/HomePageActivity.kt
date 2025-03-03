@@ -30,6 +30,7 @@ import com.cbi.cmp_project.ui.adapter.DownloadItem
 import com.cbi.cmp_project.ui.adapter.DownloadProgressDatasetAdapter
 import com.cbi.cmp_project.ui.adapter.FeatureCard
 import com.cbi.cmp_project.ui.adapter.FeatureCardAdapter
+import com.cbi.cmp_project.ui.view.Inspection.FormInspectionActivity
 import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.PanenTBS.ListPanenTBSActivity
 
@@ -190,7 +191,7 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Inspeksi panen",
+                featureName = "Inspeksi Panen",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
                 functionDescription = "............",
@@ -199,7 +200,7 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Rekap inspeksi panen",
+                featureName = "Rekap Inspeksi Panen",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
                 count = "0",
@@ -328,6 +329,14 @@ class HomePageActivity : AppCompatActivity() {
             "Rekap panen dan restan" -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListPanenTBSActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            "Inspeksi Panen" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, FormInspectionActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }

@@ -23,7 +23,7 @@
             android:layout_width="130dp"
             android:layout_height="wrap_content"
             android:text="Loading..."
-            android:textSize="20sp"
+            android:textSize="18sp"
             android:fontFamily="@font/manrope_semibold"
             android:id="@+id/tvNumberPanen"
             android:ellipsize="end"
