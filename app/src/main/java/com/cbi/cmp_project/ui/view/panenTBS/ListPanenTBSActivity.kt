@@ -5,7 +5,6 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.res.Resources
@@ -264,11 +263,16 @@ class ListPanenTBSActivity : AppCompatActivity() {
             rootLayout.addView(btnAddMoreTph, params)
 
             btnAddMoreTph.setOnClickListener {
+                getAllDataFromList()
                 val intent = Intent(this, ScanQR::class.java)
                 intent.putExtra("tph_1", tph1)
                 intent.putExtra("tph_0", tph0)
                 intent.putExtra("tph_1_id_panen", tph1IdPanen)
                 intent.putExtra("FEATURE_NAME", featureName)
+                Log.d("ListPanenTBSActivityPassData", "List tph1: $tph1")
+                Log.d("ListPanenTBSActivityPassData", "List tph0: $tph0")
+                Log.d("ListPanenTBSActivityPassData", "List tph1IdPanen: $tph1IdPanen")
+                Log.d("ListPanenTBSActivityPassData", "List FEATURE_NAME: $featureName")
                 startActivity(intent)
                 finishAffinity()
             }
@@ -500,93 +504,96 @@ class ListPanenTBSActivity : AppCompatActivity() {
         return if (isEmpty()) "" else joinToString(";")
     }
 
+    private fun getAllDataFromList(){
+        //get manually selected items
+        val selectedItems = listAdapter.getSelectedItems()
+        Log.d("ListPanenTBSActivityESPB", "selectedItems: $selectedItems")
+        val tph1AD0 =
+            convertToFormattedString(selectedItems.toString(), 0).replace("{\"KP\": ", "")
+                .replace("},", ",")
+        Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD0")
+        val tph1AD2 =
+            convertToFormattedString(selectedItems.toString(), 2).replace("{\"KP\": ", "")
+                .replace("},", ",")
+        Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD2")
+
+        //get automatically selected items
+        val selectedItems2 = listAdapter.getCurrentData()
+        Log.d("ListPanenTBSActivityESPB", "selectedItems2:$selectedItems2")
+
+        // Extract the id values from the matches and join them with commas
+        val newTph1IdPanen = try {
+            val pattern = Regex("\\{id=(\\d+),")
+            val matches = pattern.findAll(selectedItems2.toString())
+            matches.map { it.groupValues[1] }.joinToString(", ")
+        } catch (e: Exception) {
+            Toasty.error(this, "Error parsing panen IDs: ${e.message}", Toast.LENGTH_LONG).show()
+            ""
+        }
+
+        // Combine with existing tph1IdPanen if it exists
+        tph1IdPanen = if (tph1IdPanen.isEmpty()) {
+            newTph1IdPanen
+        } else {
+            "$tph1IdPanen, $newTph1IdPanen"
+        }
+
+        Log.d("ListPanenTBSActivityESPB", "listTPHDriver: $listTPHDriver")
+        val tph1NO = convertToFormattedString(
+            selectedItems2.toString(),
+            listTPHDriver
+        ).replace("{\"KP\": ", "").replace("},", ",")
+        Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsNO: $tph1NO")
+
+        //get item which is not selected
+        val tph0before =
+            convertToFormattedString(selectedItems2.toString(), 0).replace("{\"KP\": ", "")
+                .replace("},", ",")
+        Log.d("ListPanenTBSActivityESPB", "formatted selectedItems0: $tph0before")
+
+        val set1 = tph1AD0.toEntries()
+        val set2 = tph1AD2.toEntries()
+        val set3 = tph1NO.toEntries()
+        val set4 = tph0before.toEntries()
+
+        // Calculate string5 = string4 - string1 - string3
+        val newTph0 = (set4 - set1 - set3).toString().replace("[", "").replace("]", "")
+            .replace(", ", ";")
+        Log.d("ListPanenTBSActivityESPB", "New tph0: $newTph0")
+
+        // Calculate string6 = string2 + string3
+        val newTph1 =
+            (set2 + set3).toString().replace("[", "").replace("]", "").replace(", ", ";")
+        Log.d("ListPanenTBSActivityESPB", "New tph1: $newTph1")
+
+        // Combine with existing data if it exists
+        if (tph0.isNotEmpty() && newTph0.isNotEmpty()) {
+            tph0 = "$tph0;$newTph0"
+        } else if (newTph0.isNotEmpty()) {
+            tph0 = newTph0
+        }
+
+        if (tph1.isNotEmpty() && newTph1.isNotEmpty()) {
+            tph1 = "$tph1;$newTph1"
+        } else if (newTph1.isNotEmpty()) {
+            tph1 = newTph1
+        }
+
+        // Remove any duplicate entries from tph0 and tph1
+        tph0 = removeDuplicateEntries(tph0)
+        tph1 = removeDuplicateEntries(tph1)
+
+        Log.d("ListPanenTBSActivityESPB", "Final tph0: $tph0")
+        Log.d("ListPanenTBSActivityESPB", "Final tph1: $tph1")
+        Log.d("ListPanenTBSActivityESPB", "Final tph1IdPanen: $tph1IdPanen")
+    }
+
     private fun setupButtonGenerateQR() {
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
         if (featureName == "Buat eSPB") {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
             btnGenerateQRTPH.setOnClickListener {
-                //get manually selected items
-                val selectedItems = listAdapter.getSelectedItems()
-                Log.d("ListPanenTBSActivityESPB", "selectedItems: $selectedItems")
-                val tph1AD0 =
-                    convertToFormattedString(selectedItems.toString(), 0).replace("{\"KP\": ", "")
-                        .replace("},", ",")
-                Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD0")
-                val tph1AD2 =
-                    convertToFormattedString(selectedItems.toString(), 2).replace("{\"KP\": ", "")
-                        .replace("},", ",")
-                Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD2")
-
-                //get automatically selected items
-                val selectedItems2 = listAdapter.getCurrentData()
-                Log.d("ListPanenTBSActivityESPB", "selectedItems2:$selectedItems2")
-
-                // Extract the id values from the matches and join them with commas
-                val newTph1IdPanen = try {
-                    val pattern = Regex("\\{id=(\\d+),")
-                    val matches = pattern.findAll(selectedItems2.toString())
-                    matches.map { it.groupValues[1] }.joinToString(", ")
-                } catch (e: Exception) {
-                    Toasty.error(this, "Error parsing panen IDs: ${e.message}", Toast.LENGTH_LONG).show()
-                    ""
-                }
-
-                // Combine with existing tph1IdPanen if it exists
-                tph1IdPanen = if (tph1IdPanen.isEmpty()) {
-                    newTph1IdPanen
-                } else {
-                    "$tph1IdPanen, $newTph1IdPanen"
-                }
-
-                Log.d("ListPanenTBSActivityESPB", "listTPHDriver: $listTPHDriver")
-                val tph1NO = convertToFormattedString(
-                    selectedItems2.toString(),
-                    listTPHDriver
-                ).replace("{\"KP\": ", "").replace("},", ",")
-                Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsNO: $tph1NO")
-
-                //get item which is not selected
-                val tph0before =
-                    convertToFormattedString(selectedItems2.toString(), 0).replace("{\"KP\": ", "")
-                        .replace("},", ",")
-                Log.d("ListPanenTBSActivityESPB", "formatted selectedItems0: $tph0before")
-
-                val set1 = tph1AD0.toEntries()
-                val set2 = tph1AD2.toEntries()
-                val set3 = tph1NO.toEntries()
-                val set4 = tph0before.toEntries()
-
-                // Calculate string5 = string4 - string1 - string3
-                val newTph0 = (set4 - set1 - set3).toString().replace("[", "").replace("]", "")
-                    .replace(", ", ";")
-                Log.d("ListPanenTBSActivityESPB", "New tph0: $newTph0")
-
-                // Calculate string6 = string2 + string3
-                val newTph1 =
-                    (set2 + set3).toString().replace("[", "").replace("]", "").replace(", ", ";")
-                Log.d("ListPanenTBSActivityESPB", "New tph1: $newTph1")
-
-                // Combine with existing data if it exists
-                if (tph0.isNotEmpty() && newTph0.isNotEmpty()) {
-                    tph0 = "$tph0;$newTph0"
-                } else if (newTph0.isNotEmpty()) {
-                    tph0 = newTph0
-                }
-
-                if (tph1.isNotEmpty() && newTph1.isNotEmpty()) {
-                    tph1 = "$tph1;$newTph1"
-                } else if (newTph1.isNotEmpty()) {
-                    tph1 = newTph1
-                }
-
-                // Remove any duplicate entries from tph0 and tph1
-                tph0 = removeDuplicateEntries(tph0)
-                tph1 = removeDuplicateEntries(tph1)
-
-                Log.d("ListPanenTBSActivityESPB", "Final tph0: $tph0")
-                Log.d("ListPanenTBSActivityESPB", "Final tph1: $tph1")
-                Log.d("ListPanenTBSActivityESPB", "Final tph1IdPanen: $tph1IdPanen")
-
+                getAllDataFromList()
                 AlertDialogUtility.withTwoActions(
                     this,
                     "LANJUT",

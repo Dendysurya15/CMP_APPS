@@ -335,12 +335,13 @@ class AppRepository(context: Context) {
 
     suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
         try {
-            val data = espbDao.getAllESPBNonScan()
+            val data = espbDao.getAllESPBS()
             Result.success(data)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
 
     suspend fun getBlokById( listBlokId: List<Int>): List<TPHNewModel> {
         return tphDao.getBlokById(listBlokId)

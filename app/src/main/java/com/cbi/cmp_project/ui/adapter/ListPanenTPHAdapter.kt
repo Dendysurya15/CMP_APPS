@@ -35,7 +35,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     private var isSortAscending: Boolean? = null
     private var selectAllState = false
     private val preselectedTphIds = mutableSetOf<String>()
-
+    private val scannedTphIdsSet = mutableSetOf<String>()
 
     private var featureName: String = ""
     private var tphListScan: List<String> = emptyList()
@@ -191,51 +191,37 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             onCheckedChange: (Boolean) -> Unit,
             extractData: (Map<String, Any>) -> ExtractedData,
             featureName: String = "",
-            tphListScan: List<String> = emptyList()
+            tphListScan: List<String> = emptyList(),
+            isScannedItem: Boolean = false
         ) {
             val extractedData = extractData(data)
-            Log.d("ListPanenTPHAdapterTest", "bind: $extractedData")
 
+            // Set cell content
             binding.td1.visibility = View.VISIBLE
             binding.td2.visibility = View.VISIBLE
             binding.td3.visibility = View.VISIBLE
             binding.td4.visibility = View.VISIBLE
-
             binding.td1.text = extractedData.blokText
             binding.td2.text = extractedData.tphText
             binding.td3.text = extractedData.gradingText
             binding.td4.text = extractedData.tanggalText
 
             if (archiveState == 1 || featureName == "Rekap panen dan restan") {
-                Log.d("ListPanenTPHAdapterTest", "archiveState == 1")
                 binding.checkBoxPanen.visibility = View.GONE
                 binding.numListTerupload.visibility = View.VISIBLE
                 binding.numListTerupload.text = "${adapterPosition + 1}."
             } else {
-                Log.d("ListPanenTPHAdapterTest", "archiveState == else")
                 binding.checkBoxPanen.visibility = View.VISIBLE
                 binding.numListTerupload.visibility = View.GONE
 
-                // Clear the listener before setting checked state to prevent unwanted triggers
+                // IMPORTANT: Remove listener before setting state
                 binding.checkBoxPanen.setOnCheckedChangeListener(null)
 
-                // Set initial state
-                binding.checkBoxPanen.isEnabled = true
+                // Set state based on selection and whether it's from a scan
                 binding.checkBoxPanen.isChecked = isSelected
+                binding.checkBoxPanen.isEnabled = !isScannedItem
 
-                // Handle scanned TPH items
-                if (tphListScan.contains(extractedData.tphId.toString())) {
-                    binding.checkBoxPanen.isChecked = true
-                    binding.checkBoxPanen.isEnabled = false
-
-                    // Instead of trying to access adapter variables directly,
-                    // use the callback to update the adapter state
-                    if (!isSelected) {
-                        onCheckedChange(true)
-                    }
-                }
-
-                // Set the listener AFTER configuring the checkbox state
+                // Add listener AFTER setting state
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
                     onCheckedChange(isChecked)
                 }
@@ -252,10 +238,26 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         return selectAllState
     }
 
+    // Finally update getSelectedItems to include both manually selected AND scanned items
     fun getSelectedItems(): List<Map<String, Any>> {
-        return selectedItems.mapNotNull { position -> tphList.getOrNull(position) }
-    }
+        val result = mutableListOf<Map<String, Any>>()
 
+        // Get manually selected items
+        for (position in selectedItems) {
+            tphList.getOrNull(position)?.let { result.add(it) }
+        }
+
+        // Add all scanned items
+        for (item in tphList) {
+            val tphId = extractData(item).tphId.toString()
+            if (tphListScan.contains(tphId)) {
+                result.add(item)
+            }
+        }
+
+        // Return distinct items to avoid duplicates
+        return result.distinct()
+    }
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ListPanenTPHViewHolder {
         val binding = TableItemRowBinding.inflate(
             LayoutInflater.from(parent.context),
@@ -290,27 +292,36 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     }
 
     override fun onBindViewHolder(holder: ListPanenTPHViewHolder, position: Int) {
+        val item = filteredList[position]
+        val tphId = extractData(item).tphId.toString()
+        val isScannedItem = tphListScan.contains(tphId)
+        val originalPosition = tphList.indexOf(item)
+
+        // Save scanned TPH IDs in our set for quick lookup
+        if (isScannedItem) {
+            scannedTphIdsSet.add(tphId)
+        }
+
+        // Setup the view holder with correct state
         holder.bind(
-            filteredList[position],
-            selectedItems.contains(tphList.indexOf(filteredList[position])), // Modified to handle filtered list
-            currentArchiveState,
-            { isChecked ->
-                val originalPosition = tphList.indexOf(filteredList[position])
-                if (isChecked) {
-                    selectedItems.add(originalPosition)
-                } else {
-                    selectedItems.remove(originalPosition)
-                    selectAllState = false
-                }
-                onSelectionChangeListener?.invoke(selectedItems.size)
-                // Optionally re-sort the list when selection changes
-                if (currentSortField == SortField.CHECKED) {
-                    sortByCheckedItems(isSortAscending ?: true)
+            data = item,
+            isSelected = selectedItems.contains(originalPosition) || isScannedItem,
+            archiveState = currentArchiveState,
+            onCheckedChange = { isChecked ->
+                val origPos = tphList.indexOf(item)
+                if (!isScannedItem) { // Only modify selection for non-scanned items
+                    if (isChecked) {
+                        selectedItems.add(origPos)
+                    } else {
+                        selectedItems.remove(origPos)
+                        selectAllState = false
+                    }
+                    onSelectionChangeListener?.invoke(selectedItems.size)
                 }
             },
             extractData = ::extractData,
             featureName = featureName,
-            tphListScan = tphListScan
+            isScannedItem = isScannedItem
         )
     }
 

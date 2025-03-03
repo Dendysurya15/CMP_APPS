@@ -207,9 +207,9 @@ class FormESPBActivity : AppCompatActivity() {
         cbFormEspbMekanisasi.setOnCheckedChangeListener {
             _, isChecked ->
             if (isChecked) {
-                formEspbTransporter.visibility = View.GONE
-                formEspbDriver.visibility = View.GONE
-                formEspbNopol.visibility = View.GONE
+//                formEspbTransporter.visibility = View.GONE
+//                formEspbDriver.visibility = View.GONE
+//                formEspbNopol.visibility = View.GONE
                 mekanisasi = 1
             }else{
                 formEspbTransporter.visibility = View.VISIBLE
