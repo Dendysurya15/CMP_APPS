@@ -228,7 +228,7 @@ class HomePageActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         featureAdapter.updateCount(
                             "Rekap e-SPB Timbangan Mill",
-                            counteSPBWBScanned.toString()
+                            counteSPBWBScanned.toString().replace(" ","")
                         )
                         featureAdapter.hideLoadingForFeature("Rekap e-SPB Timbangan Mill")
                     }
@@ -324,7 +324,7 @@ class HomePageActivity : AppCompatActivity() {
                 featureName = "Scan e-SPB Timbangan Mill",
                 featureNameBackgroundColor = R.color.orange,
                 iconResource = R.drawable.cbi,
-                functionDescription = "",
+                functionDescription = "Scan data eSPB dari driver oleh kerani timbang",
                 displayType = DisplayType.ICON,
                 subTitle = "Transfer data eSPB dari driver"
             ),
@@ -334,7 +334,7 @@ class HomePageActivity : AppCompatActivity() {
                 featureName = "Rekap e-SPB Timbangan Mill",
                 featureNameBackgroundColor = R.color.orange,
                 iconResource = R.drawable.cbi,
-                functionDescription = "",
+                functionDescription = "Rekapitulasi eSPB yang telah discan",
                 displayType = DisplayType.COUNT,
                 subTitle = "Transfer data eSPB dari driver"
             ),
@@ -370,7 +370,7 @@ class HomePageActivity : AppCompatActivity() {
                 featureName = "Sinkronisasi data",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
-                functionDescription = "",
+                functionDescription = "Update semua data master",
                 displayType = DisplayType.ICON,
                 subTitle = "Sinkronisasi data manual"
             ),
@@ -379,7 +379,7 @@ class HomePageActivity : AppCompatActivity() {
                 featureName = "Upload data CMP",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
-                functionDescription = "",
+                functionDescription = "Upload semua data di aplikasi",
                 displayType = DisplayType.ICON,
                 subTitle = "Upload Semua Data CMP"
             )
