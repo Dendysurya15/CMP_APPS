@@ -306,7 +306,7 @@ class HomePageActivity : AppCompatActivity() {
                 featureName = "Inspeksi panen",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
-                functionDescription = "............",
+                functionDescription = "Buat inspeksi panen",
                 displayType = DisplayType.ICON,
                 subTitle = "Scan QR Code eSPB"
             ),
@@ -316,8 +316,27 @@ class HomePageActivity : AppCompatActivity() {
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
                 count = "0",
-                functionDescription = "............",
+                functionDescription = "Rekapitulasi inspeksi panen",
                 displayType = DisplayType.COUNT
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Scan e-SPB Timbangan Mill",
+                featureNameBackgroundColor = R.color.orange,
+                iconResource = R.drawable.cbi,
+                functionDescription = "",
+                displayType = DisplayType.ICON,
+                subTitle = "Transfer data eSPB dari driver"
+            ),
+
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = "Rekap e-SPB Timbangan Mill",
+                featureNameBackgroundColor = R.color.orange,
+                iconResource = R.drawable.cbi,
+                functionDescription = "",
+                displayType = DisplayType.COUNT,
+                subTitle = "Transfer data eSPB dari driver"
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -345,25 +364,6 @@ class HomePageActivity : AppCompatActivity() {
                 functionDescription = "Transfer data abseni dari supervisi ke kerani panen",
                 displayType = DisplayType.ICON,
                 subTitle = "Scan QR Code eSPB"
-            ),
-            FeatureCard(
-                cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Scan e-SPB Timbangan Mill",
-                featureNameBackgroundColor = R.color.orange,
-                iconResource = R.drawable.cbi,
-                functionDescription = "",
-                displayType = DisplayType.ICON,
-                subTitle = "Transfer data eSPB dari driver"
-            ),
-
-            FeatureCard(
-                cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Rekap e-SPB Timbangan Mill",
-                featureNameBackgroundColor = R.color.orange,
-                iconResource = R.drawable.cbi,
-                functionDescription = "",
-                displayType = DisplayType.COUNT,
-                subTitle = "Transfer data eSPB dari driver"
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,

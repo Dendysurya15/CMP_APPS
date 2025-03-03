@@ -14,6 +14,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
@@ -47,6 +48,7 @@ class ListTPHApproval : AppCompatActivity() {
         const val EXTRA_QR_RESULT = "scannedResult"
         private const val TAG = "ListTPHApproval"
     }
+
     private var userName: String? = null
     private var estateName: String? = null
     private var jabatanUser: String? = null
@@ -61,6 +63,26 @@ class ListTPHApproval : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                AlertDialogUtility.withTwoActions(
+                    this@ListTPHApproval,
+                    "KEMBALI",
+                    "Kembali ke Menu utama?",
+                   "Data scan sebelumnya akan terhapus",
+                    "warning.json"
+                ) {
+                    startActivity(
+                        Intent(
+                            this@ListTPHApproval,
+                            HomePageActivity::class.java
+                        ))
+                    finishAffinity()
+                }
+            }
+        })
+
         setContentView(R.layout.activity_list_panen_tbs)
 
         setupRecyclerView()
@@ -175,7 +197,6 @@ class ListTPHApproval : AppCompatActivity() {
                 }
             }
         }
-
     }
 
     private fun setupRecyclerView() {

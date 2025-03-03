@@ -27,6 +27,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
@@ -38,6 +39,7 @@ import com.cbi.cmp_project.R
 import com.cbi.cmp_project.ui.adapter.ListPanenTPHAdapter
 import com.cbi.cmp_project.ui.view.espb.FormESPBActivity
 import com.cbi.cmp_project.ui.view.HomePageActivity
+import com.cbi.cmp_project.ui.view.ListTPHApproval
 import com.cbi.cmp_project.ui.view.ScanQR
 
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
@@ -277,6 +279,27 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 finishAffinity()
             }
         }
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (featureName == "Rekap Hasil Panen") {
+                    AlertDialogUtility.withTwoActions(
+                        this@ListPanenTBSActivity,
+                        "KEMBALI",
+                        "Kembali ke Menu utama?",
+                        "Data scan sebelumnya akan terhapus",
+                        "warning.json"
+                    ) {
+                        startActivity(
+                            Intent(
+                                this@ListPanenTBSActivity,
+                                HomePageActivity::class.java
+                            ))
+                        finishAffinity()
+                    }
+                }
+            }
+        })
     }
 
     private fun setupCardListeners() {
@@ -1610,22 +1633,22 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("MissingSuperCall")
-    override fun onBackPressed() {
-        vibrate()
-//        AlertDialogUtility.withTwoActions(
-//            this,
-//            "Simpan",
-//            getString(R.string.confirmation_dialog_title),
-//            getString(R.string.al_confirm_feature),
-//            "warning.json"
-//        ) {
-        val intent = Intent(this, HomePageActivity::class.java)
-        startActivity(intent)
-        finishAffinity()
-//        }
-
-    }
+//    @SuppressLint("MissingSuperCall")
+//    override fun onBackPressed() {
+//        vibrate()
+////        AlertDialogUtility.withTwoActions(
+////            this,
+////            "Simpan",
+////            getString(R.string.confirmation_dialog_title),
+////            getString(R.string.al_confirm_feature),
+////            "warning.json"
+////        ) {
+//        val intent = Intent(this, HomePageActivity::class.java)
+//        startActivity(intent)
+//        finishAffinity()
+////        }
+//
+//    }
 
     private fun updateSortIcon() {
         sortButton.animate()
