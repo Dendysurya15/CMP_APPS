@@ -153,14 +153,11 @@
             android:id="@+id/tvErrorFormPanenTBS"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="6.7"
             android:layout_marginTop="5dp"
+            android:layout_weight="6.7"
             android:paddingStart="12dp"
             android:paddingBottom="4dp"
-            android:text="Jawaban harus diisi!"
-            android:textColor="@color/colorRedDark"
             android:textSize="16sp"
-            android:visibility="gone"
             tools:ignore="HardcodedText,RtlSymmetry" />
 
     </LinearLayout>

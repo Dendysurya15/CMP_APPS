@@ -68,9 +68,11 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="BLOK"
+                android:id="@+id/th1"
                 android:fontFamily="@font/manrope_extrabold"
                 android:padding="5dp"
-                android:textSize="16sp"
+                android:visibility="gone"
+                android:textSize="14sp"
                 android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
@@ -80,10 +82,12 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:text="NO TPH"
+                android:id="@+id/th2"
                 android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"
+                android:visibility="gone"
                 android:padding="5dp"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
@@ -92,11 +96,13 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
+                android:id="@+id/th3"
                 android:text="TOTAL JJG"
+                android:visibility="gone"
                 android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"
                 android:padding="5dp"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
@@ -105,16 +111,48 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
+                android:id="@+id/th4"
+                android:text="JAM"
+                android:visibility="gone"
+                android:fontFamily="@font/manrope_extrabold"
+                android:gravity="center"
+                android:padding="5dp"
+                android:textSize="14sp"
+                android:textColor="@color/black"
+                android:background="@drawable/rounded_radius_background"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:textAlignment="center"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:id="@+id/th5"
                 android:text="JAM"
                 android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"
                 android:padding="5dp"
-                android:textSize="16sp"
+                android:visibility="gone"
+                android:textSize="14sp"
                 android:textColor="@color/black"
                 android:background="@drawable/rounded_radius_background"
                 android:textStyle="bold"/>
 
-
+            <TextView
+                android:textAlignment="center"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:id="@+id/th6"
+                android:text="JAM"
+                android:fontFamily="@font/manrope_extrabold"
+                android:gravity="center"
+                android:padding="5dp"
+                android:visibility="gone"
+                android:textSize="14sp"
+                android:textColor="@color/black"
+                android:background="@drawable/rounded_radius_background"
+                android:textStyle="bold"/>
 
         </LinearLayout>
 

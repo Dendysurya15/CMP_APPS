@@ -174,6 +174,10 @@ class AlertDialogUtility {
                 val builder: AlertDialog.Builder = AlertDialog.Builder(context).setView(layoutBuilder)
                 val alertDialog: AlertDialog = builder.create()
 
+                // Disable dismiss on outside touch and back press
+                alertDialog.setCancelable(false)
+                alertDialog.setCanceledOnTouchOutside(false)
+
                 val mbCancelDialog = layoutBuilder.findViewById<MaterialButton>(R.id.mbCancelDialog)
                 mbCancelDialog.visibility = View.GONE
 

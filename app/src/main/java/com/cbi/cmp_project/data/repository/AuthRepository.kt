@@ -48,10 +48,6 @@ class AuthRepository {
                 "{\"message\":\"${e.message}\"}"))
         }
     }
-
-
-
-
 }
 
 fun String.toMediaType(): MediaType {

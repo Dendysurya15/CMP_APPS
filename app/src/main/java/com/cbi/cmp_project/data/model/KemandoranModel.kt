@@ -4,9 +4,10 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.cbi.cmp_project.utils.AppUtils
 
 @Entity(
-    tableName = "kemandoran",
+    tableName = AppUtils.DatabaseTables.KEMANDORAN,
 //    foreignKeys = [
 //        ForeignKey(
 //            entity = DeptModel::class, // The referenced table
@@ -37,5 +38,13 @@ data class KemandoranModel(
     val kode: String?,
     val nama: String?,
     val type: String?,
+    val kemandoran_id: String?,
+    val asistensi: Int?,
+    val foto: String?,
+    val komentar:  String?,
+    val lat: Double?,
+    val lon: Double?,
+    val date_absen: String?,
+    val status_absen: String?,
     val status: Int?
 )

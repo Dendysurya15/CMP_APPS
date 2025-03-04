@@ -6,8 +6,8 @@ plugins {
 
 android {
 
-    def versionMajor = 1
-    def versionMinor = 0
+    def versionMajor = 2
+    def versionMinor = 2
     def versionPatch = 0
 
     namespace 'com.cbi.cmp_project'
@@ -89,7 +89,7 @@ dependencies {
     implementation libs.androidx.navigation.ui.ktx
     implementation libs.play.services.location
     implementation libs.androidx.room.common
-
+    implementation "org.jetbrains.kotlin:kotlin-reflect"
     testImplementation libs.junit
     androidTestImplementation libs.androidx.junit
     androidTestImplementation libs.androidx.espresso.core

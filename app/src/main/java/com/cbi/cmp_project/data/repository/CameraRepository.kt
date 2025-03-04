@@ -191,19 +191,15 @@ class CameraRepository(private val context: Context, private val window: Window,
 
     fun takeCameraPhotos(resultCode: String, imageView: ImageView, pageForm : Int, deletePhoto : View?, komentar: String? = null, kodeFoto:String, featureName : String?) {
 
-        // Initialize Camera View
         val rootDCIM = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
-            "CMP"
+            "CMP-$featureName" // Store under "CMP-featureName"
         ).toString()
 
-
-        val rootApp = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES).toString()
-
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_FULLSCREEN,
-            WindowManager.LayoutParams.FLAG_FULLSCREEN
-        )
+        val rootApp = File(
+            context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+            "CMP-$featureName" // Store under "CMP-featureName"
+        ).toString()
 
         view.visibility = View.VISIBLE
         textureViewCam = TextureView(context)
@@ -325,14 +321,11 @@ class CameraRepository(private val context: Context, private val window: Window,
                                             val bytes = ByteArray(buffer.remaining())
                                             buffer.get(bytes)
 
-                                            var dirDCIM: File
-                                            var dirApp: File
-                                            var tipe_foto:String
+                                            val dirApp = File(rootApp)
+                                            if (!dirApp.exists()) dirApp.mkdirs()
 
-                                            dirApp = File(rootApp, "CMP")
-                                            dirApp.mkdirs()
-                                            dirDCIM = File(rootDCIM, "CMP")
-                                            dirDCIM.mkdirs()
+                                            val dirDCIM = File(rootDCIM)
+                                            if (!dirDCIM.exists()) dirDCIM.mkdirs()
 
                                             val dateFormat =
                                                 SimpleDateFormat("yyyyMdd_HHmmss").format(Calendar.getInstance().time)
@@ -369,9 +362,9 @@ class CameraRepository(private val context: Context, private val window: Window,
                                         commentWm = commentWm?.replace("|", ",")?.replace("\n", "")
                                         commentWm = AppUtils.splitStringWatermark(commentWm!!, 60)
                                         val watermarkText = if (resultCode == "0" || commentWm.isEmpty()) {
-                                            "CMP\n${dateWM}"
+                                            "CMP-$featureName\n${dateWM}"
                                         } else {
-                                            "CMP\n${commentWm}\n${dateWM}"
+                                            "CMP-$featureName\n${commentWm}\n${dateWM}"
                                         }
 
                                         val watermarkedBitmap = addWatermark(takenImage, watermarkText)
@@ -513,15 +506,19 @@ class CameraRepository(private val context: Context, private val window: Window,
 
             }
 
-//         Take Photos
-
         val captureCam = view.findViewById<FloatingActionButton>(R.id.captureCam)
         captureCam.apply {
             setOnClickListener {
-                capReq =
-                    cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
-                capReq.addTarget(imageReader!!.surface)
-                cameraCaptureSession?.capture(capReq.build(), null, null)
+                isEnabled = false
+                if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
+                    capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                    capReq.addTarget(imageReader!!.surface)
+                    cameraCaptureSession?.capture(capReq.build(), null, null)
+                    postDelayed({ isEnabled = true }, 2000)
+                } else {
+                    isEnabled = true
+                    Log.e("CameraError", "CameraDevice or ImageReader is null")
+                }
             }
         }
 

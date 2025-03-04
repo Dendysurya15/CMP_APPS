@@ -32,6 +32,8 @@
     <color name="grayBorder">#e4e6ea</color>
     <color name="anotherYellow">#b58b32</color>
     <color name="darkGray">#fcfbfc</color>
+    <color name="orangeButton">#fd7f20</color>
+
 
 
 
@@ -47,8 +49,8 @@
     <color name="md_theme_dark_background">#1C1B1F</color>
     <color name="md_theme_dark_onBackground">#E6E1E5</color>
     <color name="md_theme_dark_surface">#1C1B1F</color>
-    <color name="md_theme_dark_onSurface">#E6E1E5</color>
-    <color name="md_theme_dark_error">#F2B8B5</color>
+    <color name="md_theme_dark_onSurface">#FFFFFF</color>
+    <color name="md_theme_dark_error">#FFFFFF</color>
     <color name="md_theme_dark_onError">#601410</color>
 
 
