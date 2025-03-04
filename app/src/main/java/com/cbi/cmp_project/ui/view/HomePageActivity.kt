@@ -46,14 +46,15 @@ import com.cbi.cmp_project.ui.adapter.DownloadItem
 import com.cbi.cmp_project.ui.adapter.DownloadProgressDatasetAdapter
 import com.cbi.cmp_project.ui.adapter.FeatureCard
 import com.cbi.cmp_project.ui.adapter.FeatureCardAdapter
+import com.cbi.cmp_project.ui.view.Inspection.FormInspectionActivity
+import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
+import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.view.Absensi.FeatureAbsensiActivity
 import com.cbi.cmp_project.ui.view.Absensi.ListAbsensiActivity
 import com.cbi.cmp_project.ui.adapter.UploadCMPItem
 import com.cbi.cmp_project.ui.adapter.UploadProgressAdapter
 import com.cbi.cmp_project.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.cmp_project.ui.view.espb.ListHistoryESPBActivity
-import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
-import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
 
@@ -85,6 +86,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONObject
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -158,15 +160,6 @@ class HomePageActivity : AppCompatActivity() {
                 AppLogger.d("✅ Upload Data with Tracking ID $id Inserted or Updated Successfully")
             } else {
                 AppLogger.e("❌ Upload Data with Tracking ID $id Insertion Failed")
-            }
-        }
-
-        //cek semua data upload apakah ada dalam satu hari ini
-        uploadCMPViewModel.allIds.observeOnce(this) { data ->
-            loadingDialog.dismiss()
-            if (data.isNotEmpty()) {
-                trackingIdsUpload = data
-
             }
         }
 
@@ -303,7 +296,7 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Inspeksi panen",
+                featureName = "Inspeksi Panen",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
                 functionDescription = "Buat inspeksi panen",
@@ -312,7 +305,7 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Rekap inspeksi panen",
+                featureName = "Rekap Inspeksi Panen",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
                 count = "0",
@@ -322,7 +315,7 @@ class HomePageActivity : AppCompatActivity() {
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
                 featureName = "Scan e-SPB Timbangan Mill",
-                featureNameBackgroundColor = R.color.orange,
+                featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
                 functionDescription = "Scan data eSPB dari driver oleh kerani timbang",
                 displayType = DisplayType.ICON,
@@ -332,7 +325,7 @@ class HomePageActivity : AppCompatActivity() {
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
                 featureName = "Rekap e-SPB Timbangan Mill",
-                featureNameBackgroundColor = R.color.orange,
+                featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
                 functionDescription = "Rekapitulasi eSPB yang telah discan",
                 displayType = DisplayType.COUNT,
@@ -474,6 +467,14 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
+            "Inspeksi Panen" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, FormInspectionActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
             "Absensi panen" -> {
                 if (feature.displayType == DisplayType.ICON) {
                     val intent = Intent(this, FeatureAbsensiActivity::class.java)
@@ -510,28 +511,27 @@ class HomePageActivity : AppCompatActivity() {
                 if (feature.displayType == DisplayType.ICON) {
                     if (AppUtils.isNetworkAvailable(this)) {
                         isTriggerButtonSinkronisasiData = true
-                        uploadCMPViewModel.getAllIds()
+
                         loadingDialog.show()
                         loadingDialog.setMessage("Sedang mempersiapkan data...")
 
                         lifecycleScope.launch {
-                            val data = withTimeoutOrNull(500) {
-                                suspendCancellableCoroutine<List<Int>> { continuation ->
-                                    uploadCMPViewModel.allIds.observeOnce(this@HomePageActivity) { ids ->
-                                        continuation.resume(ids) {}
-                                    }
-                                }
-                            } ?: emptyList()
+                            uploadCMPViewModel.getAllIds()
+                            delay(100)
+                            val idDeferred = CompletableDeferred<List<Int>>()
+
+                            uploadCMPViewModel.allIds.observe(this@HomePageActivity) { ids ->
+                                idDeferred.complete(ids ?: emptyList()) // Ensure it's never null
+                            }
+
+                            val data = idDeferred.await()
 
                             loadingDialog.dismiss()
-
-                            if (data.isNotEmpty()) {
-                                trackingIdsUpload = data
-                                startDownloads()
-                            }
+                            trackingIdsUpload = data
+                            AppLogger.d(data.toString())
+                            startDownloads()
                         }
                     } else {
-
 
                         AlertDialogUtility.withSingleAction(
                             this@HomePageActivity,
@@ -629,9 +629,15 @@ class HomePageActivity : AppCompatActivity() {
 
                                 if (panenList.isNotEmpty()) {
                                     mappedPanenData = panenList.map { panenWithRelations ->
-                                        val jjgJson =
-                                            panenWithRelations.panen.jjg_json as? Map<String, Any>
-                                                ?: emptyMap()
+
+
+                                        val jjgJson = try {
+                                            JSONObject(panenWithRelations.panen.jjg_json).let { jsonObj ->
+                                                jsonObj.keys().asSequence().associateWith { jsonObj.getInt(it) }
+                                            }
+                                        } catch (e: Exception) {
+                                            emptyMap<String, Int>()
+                                        }
                                         val karyawanIds = panenWithRelations.panen.karyawan_id
                                             ?.split(",")
                                             ?.map { it.trim() }
@@ -648,6 +654,11 @@ class HomePageActivity : AppCompatActivity() {
                                         mapOf(
                                             "id" to panenWithRelations.panen.id,
                                             "tanggal" to panenWithRelations.panen.date_created,
+                                            "regional" to prefManager!!.regionalIdUserLogin.toString(),
+                                            "company" to prefManager!!.companyIdUserLogin.toString(),
+                                            "company_abbr" to prefManager!!.companyAbbrUserLogin.toString(),
+                                            "company_nama" to prefManager!!.companyNamaUserLogin.toString(),
+                                            "dept_nama" to prefManager!!.estateUserLengkapLogin.toString(),
                                             "tipe" to panenWithRelations.panen.jenis_panen,
                                             "dept" to (panenWithRelations.tph?.dept ?: 0) as Int,
                                             "dept_abbr" to (panenWithRelations.tph?.dept_abbr
@@ -657,7 +668,7 @@ class HomePageActivity : AppCompatActivity() {
                                             "divisi_abbr" to (panenWithRelations.tph?.divisi_abbr
                                                 ?: "") as String,
                                             "blok" to (panenWithRelations.tph?.blok ?: 0) as Int,
-                                            "blok_name" to (panenWithRelations.tph?.blok_kode
+                                            "blok_kode" to (panenWithRelations.tph?.blok_kode
                                                 ?: "") as String,
                                             "tph_nomor" to (panenWithRelations.tph?.nomor ?: ""),
                                             "ancak" to panenWithRelations.panen.ancak,
@@ -1063,11 +1074,6 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
-//    private fun startUploadAllDataCMP(fileZip: String?) {
-//        uploadCMPViewModel.uploadZipToServer(fileZip ?: "")
-//    }
-
-
     private fun setupDownloadDialog() {
 
         dialog = Dialog(this)
@@ -1289,30 +1295,47 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetTransporter: String?,
     ): List<DatasetRequest> {
-        return listOf(
-            //khusus mill
-            DatasetRequest(regional = regionalId, lastModified = null, dataset = "mill"),
-            //khusus dataset
-            DatasetRequest(
-                estate = estateId,
-                lastModified = lastModifiedDatasetTPH,
-                dataset = "tph"
-            ),
-            DatasetRequest(
-                estate = estateId,
-                lastModified = lastModifiedDatasetPemanen,
-                dataset = "pemanen"
-            ),
-            DatasetRequest(
-                estate = estateId,
-                lastModified = lastModifiedDatasetKemandoran,
-                dataset = "kemandoran"
-            ),
-            DatasetRequest(
-                lastModified = lastModifiedDatasetTransporter,
-                dataset = "transporter"
+        val datasets = mutableListOf<DatasetRequest>()
+
+        if (isTriggerButtonSinkronisasiData && trackingIdsUpload.isNotEmpty()) {
+            datasets.add(
+                DatasetRequest(
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.updateSyncLocalData,
+                    data = trackingIdsUpload
+                )
+            )
+        }
+        datasets.addAll(
+            listOf(
+                DatasetRequest(
+                    regional = regionalId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.mill
+                ),
+                DatasetRequest(
+                    estate = estateId,
+                    lastModified = lastModifiedDatasetTPH,
+                    dataset = AppUtils.DatasetNames.tph
+                ),
+                DatasetRequest(
+                    estate = estateId,
+                    lastModified = lastModifiedDatasetPemanen,
+                    dataset = AppUtils.DatasetNames.pemanen
+                ),
+                DatasetRequest(
+                    estate = estateId,
+                    lastModified = lastModifiedDatasetKemandoran,
+                    dataset = AppUtils.DatasetNames.kemandoran
+                ),
+                DatasetRequest(
+                    lastModified = lastModifiedDatasetTransporter,
+                    dataset = AppUtils.DatasetNames.transporter
+                )
             )
         )
+
+        return datasets
     }
 
 

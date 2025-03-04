@@ -27,6 +27,7 @@ import android.widget.PopupWindow
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -44,6 +45,7 @@ import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.ui.adapter.SelectedWorkerAdapter
 import com.cbi.cmp_project.ui.adapter.Worker
 import com.cbi.cmp_project.ui.view.HomePageActivity
+import com.cbi.cmp_project.ui.view.ListTPHApproval
 import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
@@ -101,8 +103,25 @@ class FormESPBActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContentView(R.layout.activity_form_espbactivity)
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                AlertDialogUtility.withTwoActions(
+                    this@FormESPBActivity,
+                    "KEMBALI",
+                    "Kembali ke Menu utama?",
+                    "Data scan sebelumnya akan terhapus",
+                    "warning.json"
+                ) {
+                    startActivity(
+                        Intent(
+                            this@FormESPBActivity,
+                            HomePageActivity::class.java
+                        ))
+                    finishAffinity()
+                }
+            }
+        })
         try {
             featureName = intent.getStringExtra("FEATURE_NAME").toString()
         }catch (e: Exception){
@@ -335,21 +354,41 @@ class FormESPBActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch {
+            var firstTphId = 0
+            // Split by semicolon to get each record
+            // Split the first record by comma and get the first part (ID)
             try {
                 // Split by semicolon to get each record
                 val firstTphRecord = tph0.split(";")[0]
                 // Split the first record by comma and get the first part (ID)
-                val firstTphId = firstTphRecord.split(",")[0].toInt()
+                firstTphId = firstTphRecord.split(",")[0].toInt()
                 Log.d("FormESPBActivityDivisiAbbr", "firstTphId: $firstTphId")
+            }catch (e: Exception){
+                Toasty.error(
+                    this@FormESPBActivity,
+                    "Terjadi Kesalahan saat mengambil firstTphId $e",
+                    Toasty.LENGTH_LONG
+                ).show()
+            }
+            try {
                 //use getDivisiAbbrByTphId FROM REPO
                 divisiAbbr = viewModel.getDivisiAbbrByTphId(firstTphId)
                 Log.d("FormESPBActivityDivisiAbbr", "divisiAbbr: $divisiAbbr")
+            } catch (e: Exception) {
+                Toasty.error(
+                    this@FormESPBActivity,
+                    "Terjadi Kesalahan saat mengambil divisiAbbr $e",
+                    Toasty.LENGTH_LONG
+                ).show()
+            }
+            try {
+                //use getDivisiAbbrByTphId FROM REPO
                 companyAbbr = viewModel.getCompanyAbbrByTphId(firstTphId)
                 Log.d("FormESPBActivityDivisiAbbr", "companyAbbr: $companyAbbr")
             } catch (e: Exception) {
                 Toasty.error(
                     this@FormESPBActivity,
-                    "Terjadi Kesalahan saat mengambil Divisi $e",
+                    "Terjadi Kesalahan saat mengambil companyAbbr $e",
                     Toasty.LENGTH_LONG
                 ).show()
             }

@@ -6,6 +6,7 @@ import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.UploadCMPModel
 import com.cbi.cmp_project.data.model.uploadCMP.UploadCMPResponse
+import com.cbi.cmp_project.data.network.CMPApiClient
 import com.cbi.cmp_project.data.network.Constants
 import com.cbi.cmp_project.data.network.StagingApiClient
 import com.cbi.cmp_project.data.network.TestingAPIClient
@@ -114,8 +115,9 @@ class UploadCMPRepository(context: Context) {
 
                 AppLogger.d("Sending upload request...")
 
-                val response = TestingAPIClient.instance.uploadZip(filePart)
+                val response = CMPApiClient.instance.uploadZip(filePart)
 
+                AppLogger.d(response.toString())
                 if (response.isSuccessful) {
                     val responseBody = response.body()
                     return@withContext if (responseBody != null) {

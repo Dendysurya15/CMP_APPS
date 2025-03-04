@@ -43,6 +43,9 @@
         android:theme="@style/Theme.Cmp_project"
         tools:targetApi="31">
         <activity
+            android:name=".ui.view.Inspection.FormInspectionActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.view.Absensi.ListAbsensiActivity"
             android:exported="false" />
         <activity

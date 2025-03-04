@@ -35,6 +35,7 @@ import java.util.zip.ZipInputStream
 
 object AppUtils {
 
+    const val TOTAL_MAX_TREES_INSPECTION: Int = 50
     const val UPDATE_INTERVAL_IN_MILLISECONDS: Long = 10000
     const val FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
         UPDATE_INTERVAL_IN_MILLISECONDS / 2
@@ -364,14 +365,14 @@ object AppUtils {
         return getString(field)
     }
 
-    fun Context.vibrate() {
+    fun Context.vibrate(duration: Long = 100) {
         val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+            vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
         } else {
             @Suppress("DEPRECATION")
-            vibrator.vibrate(100)
+            vibrator.vibrate(duration)
         }
     }
 

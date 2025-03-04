@@ -6,8 +6,8 @@ plugins {
 
 android {
 
-    def versionMajor = 1
-    def versionMinor = 0
+    def versionMajor = 2
+    def versionMinor = 2
     def versionPatch = 0
 
     namespace 'com.cbi.cmp_project'
@@ -62,6 +62,7 @@ dependencies {
     implementation libs.androidx.room.runtime
     implementation libs.androidx.legacy.support.v4
     implementation libs.androidx.recyclerview
+    implementation libs.androidx.fragment.ktx
     ksp libs.androidx.room.compiler
     implementation libs.androidx.room.ktx
 //    def room_version = "2.6.1"
