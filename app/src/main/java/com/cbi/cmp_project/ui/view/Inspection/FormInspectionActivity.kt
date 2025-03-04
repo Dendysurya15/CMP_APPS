@@ -46,7 +46,7 @@ import com.cbi.cmp_project.R
 import com.cbi.cmp_project.ui.adapter.FormAncakPagerAdapter
 import com.cbi.cmp_project.ui.fragment.FormAncakFragment
 import com.cbi.cmp_project.ui.view.HomePageActivity
-import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity.InputType
+import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
 import com.cbi.cmp_project.ui.viewModel.FormAncakViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
