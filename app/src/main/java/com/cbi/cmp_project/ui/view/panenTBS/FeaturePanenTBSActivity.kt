@@ -146,7 +146,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     enum class InputType {
         SPINNER,
-        EDITTEXT
+        EDITTEXT,
+        RADIO,
     }
 
     private var ancakInput: String = ""
@@ -833,6 +834,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 }
 
                 InputType.EDITTEXT -> setupEditTextView(layoutView)
+                else -> {}
 
             }
         }
@@ -1232,6 +1234,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             else -> editText.text.toString().trim().isEmpty()
                         }
                     }
+                    else -> false
                 }
 
                 if (isEmpty) {

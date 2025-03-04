@@ -13,8 +13,22 @@
 
     <style name="CustomBottomNavStyle" parent="Widget.MaterialComponents.BottomNavigationView">
         <item name="android:minHeight">70dp</item>
-
     </style>
 
+    <style name="RoundedFAB" parent="Widget.MaterialComponents.FloatingActionButton">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.FAB.Round</item>
+        <item name="strokeColor">@android:color/transparent</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="borderWidth">0dp</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.FAB.Round" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="NoIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">@android:color/transparent</item>
+    </style>
 
 </resources>

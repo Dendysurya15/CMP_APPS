@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:tools="http://schemas.android.com/tools"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+
+    <item
+        android:id="@+id/navMenuBlokInspect"
+        android:icon="@drawable/ic_home_black_24dp"
+        android:title="Info. Blok"
+        tools:ignore="HardcodedText" />
+
+    <item
+        android:id="@+id/navMenuAncakInspect"
+        android:icon="@drawable/baseline_grain_24"
+        android:title="P. Ancak"
+        tools:ignore="HardcodedText" />
+
+    <item
+        android:id="@+id/navMenuSummaryInspect"
+        android:icon="@drawable/list_solid"
+        android:title="Summary"
+        tools:ignore="HardcodedText" />
+</menu>

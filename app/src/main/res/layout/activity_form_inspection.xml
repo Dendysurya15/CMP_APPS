@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mainFormInspection"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/blueLight"
+    tools:context=".ui.view.Inspection.FormInspectionActivity">
+
+    <!-- Header Section -->
+    <include
+        android:id="@+id/headerFormInspection"
+        layout="@layout/header_feature_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Information Blok Section -->
+    <ScrollView
+        android:id="@+id/svInfoBlokInspection"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavInspect"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/headerFormInspection">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="30dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginTop="10dp"
+                android:fontFamily="@font/manrope_extrabold"
+                android:gravity="center|left"
+                android:text="Informasi Blok"
+                android:textColor="@color/black"
+                android:textSize="23dp"
+                tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginBottom="10dp"
+                android:fontFamily="@font/manrope_medium"
+                android:gravity="center|left"
+                android:text="Lengkapi informasi data blok berikut."
+                android:textColor="@color/black"
+                android:textSize="15dp"
+                android:textStyle="italic"
+                android:visibility="visible"
+                tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+            <include
+                android:id="@+id/lyEstInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyAfdInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyTtInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyBlokInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyAncakInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyNoTphInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyStatusPanenInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyJalurInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyBrdTglInspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyBuahTglInspect"
+                layout="@layout/pane_number_layout" />
+
+            <include
+                android:id="@+id/lyInspectionType"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyMandor1Inspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyPemanen1Inspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <LinearLayout
+                android:id="@+id/layoutSelAsistensi"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="130dp"
+                    android:layout_height="match_parent"
+                    android:fontFamily="@font/manrope_semibold"
+                    android:gravity="center|left"
+                    android:text="Pemanen Dari Kemandoran Lain"
+                    android:textColor="@color/black"
+                    android:textSize="18dp"
+                    tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/smAnotherKemandoran"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:thumbTint="@color/switch_thumb_selector"
+                    app:trackTint="@color/switch_track_selector" />
+
+            </LinearLayout>
+
+            <include
+                android:id="@+id/lyMandor2Inspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyPemanen2Inspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyConditionType"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyBaris1Inspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyBaris2Inspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <!-- Form Data Section -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/clFormInspection"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@+id/bottomNavInspect"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/headerFormInspection">
+
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/vpFormAncakInspect"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- Action Button Form Data Section -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabPhotoFormInspect"
+            style="@style/RoundedFAB"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginBottom="15dp"
+            android:backgroundTint="@color/bluelightbutton"
+            android:src="@drawable/baseline_add_a_photo_24"
+            app:fabCustomSize="65dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:maxImageSize="30dp"
+            app:tint="@android:color/white"
+            tools:ignore="ContentDescription" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabPrevFormInspect"
+            style="@style/RoundedFAB"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:layout_marginBottom="15dp"
+            android:backgroundTint="@color/biometric_error_color"
+            android:src="@drawable/baseline_arrow_back_24"
+            app:fabCustomSize="65dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/fabNextFormInspect"
+            app:maxImageSize="30dp"
+            app:tint="@android:color/white"
+            tools:ignore="ContentDescription" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabNextFormInspect"
+            style="@style/RoundedFAB"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="15dp"
+            android:backgroundTint="@color/greenDefault"
+            android:src="@drawable/baseline_arrow_forward_24"
+            app:fabCustomSize="65dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:maxImageSize="30dp"
+            app:tint="@android:color/white"
+            tools:ignore="ContentDescription" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Bottom Navigation Bar -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavInspect"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/border_top_light"
+        app:itemActiveIndicatorStyle="@style/NoIndicator"
+        app:itemIconTint="@color/switch_thumb_selector"
+        app:itemPaddingBottom="15dp"
+        app:itemPaddingTop="8dp"
+        app:itemTextColor="@color/switch_thumb_selector"
+        app:labelVisibilityMode="selected"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:menu="@menu/bottom_nav_menu_inspect" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

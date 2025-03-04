@@ -24,7 +24,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="0.4"
             android:text="Loading..."
-            android:textSize="20sp"
+            android:textSize="18sp"
             android:fontFamily="@font/manrope_semibold"
             android:ellipsize="end"
             android:textColor="@color/black"

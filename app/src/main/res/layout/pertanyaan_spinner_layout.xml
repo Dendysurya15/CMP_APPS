@@ -1,128 +1,164 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:tools="http://schemas.android.com/tools"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/parentSpPanenTBS"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center"
     android:layout_marginTop="10dp"
-    android:id="@+id/parentSpPanenTBS"
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
-
-    <TextView
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="0.35"
-        android:text="Loading.."
-        android:fontFamily="@font/manrope_semibold"
-        android:id="@+id/tvTitleFormPanenTBS"
-        android:textSize="18sp"
-        android:textColor="@color/black"
-        android:gravity="center|left"
-        tools:ignore="HardcodedText,RtlHardcoded"/>
+    android:gravity="center"
+    android:orientation="vertical">
 
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_weight="0.65"
-        android:orientation="vertical"
-        android:layout_height="wrap_content">
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
 
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:id="@+id/MCVSpinner"
-            android:background="@color/white"
+        <TextView
+            android:id="@+id/tvTitleFormPanenTBS"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="5dp">
+            android:layout_weight="3"
+            android:fontFamily="@font/manrope_semibold"
+            android:gravity="center|left"
+            android:text="Loading.."
+            android:textColor="@color/black"
+            android:textSize="18sp"
+            tools:ignore="HardcodedText,RtlHardcoded" />
 
-            <FrameLayout
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="0.3" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="6.7"
+            android:orientation="vertical">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/MCVSpinner"
                 android:layout_width="match_parent"
-                android:background="@color/white"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="5dp"
+                android:background="@color/white">
 
-                <com.jaredrummler.materialspinner.MaterialSpinner
+                <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:id="@+id/spPanenTBS"
-                    app:ms_hint_color="@color/black"
-                    app:ms_popup_padding_top="@dimen/cardview_compat_inset_shadow"
-                    app:ms_text_color="@color/black"
-                    app:ms_hint="Pilih Kategori Yang Sesuai" />
+                    android:background="@color/white">
 
-                <LinearLayout
-                    android:id="@+id/loadingDotsContainer"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:background="@color/white"
-                    android:orientation="horizontal"
-                    android:visibility="gone">
+                    <com.jaredrummler.materialspinner.MaterialSpinner
+                        android:id="@+id/spPanenTBS"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:ms_hint="Pilih Kategori Yang Sesuai"
+                        app:ms_hint_color="@color/black"
+                        app:ms_popup_padding_top="@dimen/cardview_compat_inset_shadow"
+                        app:ms_text_color="@color/black" />
 
-                    <TextView
-                        android:id="@+id/dot1"
+                    <LinearLayout
+                        android:id="@+id/loadingDotsContainer"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="."
-                        android:textColorHint="@color/black"
-                        android:textColor="@color/greendarkerbutton"
-                        android:textSize="25dp"
-                        android:textStyle="bold" />
+                        android:layout_gravity="center"
+                        android:background="@color/white"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
 
-                    <TextView
-                        android:id="@+id/dot2"
-                        android:layout_width="wrap_content"
+                        <TextView
+                            android:id="@+id/dot1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="."
+                            android:textColor="@color/greendarkerbutton"
+                            android:textColorHint="@color/black"
+                            android:textSize="25dp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/dot2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="."
+                            android:textColor="@color/greendarkerbutton"
+                            android:textSize="25dp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/dot3"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="."
+                            android:textColor="@color/greendarkerbutton"
+                            android:textSize="25dp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/dot4"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="."
+                            android:textColor="@color/greendarkerbutton"
+                            android:textSize="25dp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/etHomeMarkerTPH"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="."
-                        android:textSize="25dp"
-                        android:textColor="@color/greendarkerbutton"
-                        android:textStyle="bold" />
+                        android:background="@color/white"
+                        android:imeOptions="actionDone"
+                        android:inputType="number"
+                        android:maxLines="1"
+                        android:padding="16dp"
+                        android:singleLine="true"
+                        android:textColor="@color/black"
+                        android:textSize="15dp"
+                        android:visibility="gone" />
 
-                    <TextView
-                        android:id="@+id/dot3"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="."
-                        android:textSize="25dp"
-                        android:textColor="@color/greendarkerbutton"
-                        android:textStyle="bold" />
+                </FrameLayout>
 
-                    <TextView
-                        android:id="@+id/dot4"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="."
-                        android:textSize="25dp"
-                        android:textColor="@color/greendarkerbutton"
-                        android:textStyle="bold" />
-                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-                <EditText
-                    android:id="@+id/etHomeMarkerTPH"
-                    android:visibility="gone"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@color/white"
-                    android:imeOptions="actionDone"
-                    android:singleLine="true"
-                    android:maxLines="1"
-                    android:textColor="@color/black"
-                    android:inputType="number"
-                    android:padding="16dp"
-                    android:textSize="15dp" />
+            <com.google.android.flexbox.FlexboxLayout
+                android:id="@+id/fblRadioComponents"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:visibility="gone"
+                app:flexDirection="row"
+                app:flexWrap="wrap"
+                app:justifyContent="flex_start" />
 
-            </FrameLayout>
+        </LinearLayout>
 
-        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="3.3" />
 
         <TextView
             android:id="@+id/tvErrorFormPanenTBS"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Jawaban harus diisi!"
-            android:textColor="@color/colorRedDark"
-            android:visibility="gone"
             android:layout_marginTop="5dp"
+            android:layout_weight="6.7"
             android:paddingStart="12dp"
             android:paddingBottom="4dp"
-            android:textSize="16sp" />
+            android:textSize="16sp"
+            tools:ignore="HardcodedText,RtlSymmetry" />
+
     </LinearLayout>
 </LinearLayout>
