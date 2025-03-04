@@ -99,8 +99,8 @@ class AppRepository(context: Context) {
         tphDao.getDivisiAbbrByTphId(id)
     }
 
-    suspend fun updatePanenArchive(ids: List<Int>,statusArchive:Int) {
-        panenDao.updatePanenArchive(ids, statusArchive)
+    suspend fun updateDataIsZippedPanen(ids: List<Int>,status:Int) {
+        panenDao.updateDataIsZippedPanen(ids, status)
     }
 
     suspend fun getCompanyAbbrByTphId(id: Int): String? = withContext(Dispatchers.IO) {

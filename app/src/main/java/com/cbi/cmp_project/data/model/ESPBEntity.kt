@@ -28,5 +28,6 @@ data class ESPBEntity(
     val creator_info: String, // json {"app_version":"2.6.1","os_version":"13","device_model":"SM-A325F"}
     val uploader_info: String = "NULL", // json {"app_version":"2.6.1","os_version":"13","device_model":"SM-A325F"}
     val noESPB: String, //PT-EST/AFD/TGl/BLN/THN/JAM_MENIT_Detik_mili second "SSS-SLE/OC/02/01/25/140012000"
-    val scan_status: Int=0 // default 0
+    val scan_status: Int=0, // default 0
+    val dataIsZipped: Int = 0,
 )

@@ -113,10 +113,10 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateArchivePanen(ids: List<Int>, statusArchive:Int) {
+    fun updateDataIsZippedPanen(ids: List<Int>, status:Int) {
         viewModelScope.launch {
             try {
-                repository.updatePanenArchive(ids,statusArchive)
+                repository.updateDataIsZippedPanen(ids,status)
                 _updateStatus.postValue(true)
             } catch (e: Exception) {
                 _updateStatus.postValue(false)

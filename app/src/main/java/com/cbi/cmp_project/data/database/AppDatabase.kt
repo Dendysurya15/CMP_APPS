@@ -42,6 +42,8 @@ import java.util.concurrent.Executors
  * - added new table named transporter
  * Version 6:
  * -added new column named status_upload for ESPBEntity
+ * Version 9:
+ * added new column dataisZipped in panen and espb
  */
 
 
@@ -58,7 +60,7 @@ import java.util.concurrent.Executors
         UploadCMPModel::class,
         AbsensiModel::class,
     ],
-    version = 8
+    version = 10
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -88,7 +90,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_3_4,
                         MIGRATION_4_5,
                         MIGRATION_5_6,
-                        MIGRATION_6_7
+                        MIGRATION_6_7,
+                        MIGRATION_8_9,
+                        MIGRATION_9_10
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -185,6 +189,25 @@ abstract class AppDatabase : RoomDatabase() {
                 )
             }
         }
+
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE panen_table ADD COLUMN dataIsZipped INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE espb_table ADD COLUMN dataIsZipped INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE absensi ADD COLUMN dataIsZipped INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        private val MIGRATION_9_10 = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE panen_table ADD COLUMN wilayah TEXT DEFAULT NULL")
+                database.execSQL("ALTER TABLE panen_table ADD COLUMN divisi_nama TEXT DEFAULT NULL")
+                database.execSQL("ALTER TABLE panen_table ADD COLUMN blok_ppro INTEGER DEFAULT NULL")
+                database.execSQL("ALTER TABLE panen_table ADD COLUMN blok_nama TEXT DEFAULT NULL")
+            }
+        }
+
+
 
 
 

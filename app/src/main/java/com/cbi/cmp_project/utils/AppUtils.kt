@@ -54,6 +54,7 @@ object AppUtils {
     object DatabaseTables {
         const val PANEN = "panen_table"
         const val ESPB = "espb_table"
+        const val ABSENSI = "absensi"
         const val MILL = "mill"
         const val TPH = "tph"
         const val KEMANDORAN = "kemandoran"

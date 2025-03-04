@@ -99,8 +99,8 @@ class WeighBridgeRepository(context: Context) {
         espbDao.updateUploadStatus(id, statusUploadPpro, uploaderInfo, uploaderAt, uploadedById)
     }
 
-    suspend fun updateESPBArchive(ids: List<Int>, statusArchive: Int) {
-        espbDao.updateESPBArchive(ids, statusArchive)
+    suspend fun updateDataIsZippedESPB(ids: List<Int>, statusArchive: Int) {
+        espbDao.updateDataIsZippedESPB(ids, statusArchive)
     }
 
     // Create a data class to hold error information

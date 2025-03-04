@@ -231,14 +231,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         regional = mappedObj.get("regional").toString(),
                         company = mappedObj.get("company")?.asInt,
                         company_abbr = mappedObj.get("company_abbr")?.asString,
+                        wilayah = mappedObj.get("wilayah")?.asString,
                         dept = mappedObj.get("dept")?.asInt,
                         dept_ppro = mappedObj.get("dept_ppro")?.asInt,
                         dept_abbr = mappedObj.get("dept_abbr")?.asString,
                         divisi = mappedObj.get("divisi")?.asInt,
                         divisi_ppro = mappedObj.get("divisi_ppro")?.asInt,
                         divisi_abbr = mappedObj.get("divisi_abbr")?.asString,
+                        divisi_nama = mappedObj.get("divisi_nama")?.asString,
                         blok = mappedObj.get("blok")?.asInt,
+                        blok_ppro = mappedObj.get("blok_ppro")?.asInt,
                         blok_kode = mappedObj.get("blok_kode")?.asString,
+                        blok_nama = mappedObj.get("blok_nama")?.asString,
                         ancak = mappedObj.get("ancak")?.asString,
                         nomor = mappedObj.get("nomor")?.asString,
                         tahun = mappedObj.get("tahun")?.asString,
@@ -311,9 +315,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val allFieldsNull = when (firstItem) {
                     is TPHNewModel -> firstItem.run {
                         id == null && regional == null && company == null &&
-                                company_abbr == null && dept == null && dept_ppro == null && dept_abbr == null &&
-                                divisi == null && divisi_ppro == null && divisi_abbr == null && blok == null &&
-                                blok_kode == null && ancak == null && nomor == null &&
+                                company_abbr == null && wilayah == null && dept == null && dept_ppro == null && dept_abbr == null &&
+                                divisi == null && divisi_ppro == null && divisi_abbr == null && divisi_nama == null && blok == null &&
+                                blok_ppro == null && blok_kode == null && blok_nama == null && ancak == null && nomor == null &&
                                 tahun == null && luas_area == null && jml_pokok == null &&
                                 jml_pokok_ha == null && lat == null && lon == null &&
                                 update_date == null && status == null
@@ -584,9 +588,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         viewModelScope.launch(Dispatchers.IO) {
                                             val panenIdsToUpdate = mutableListOf<Int>()
                                             val espbIdsToUpdate = mutableListOf<Int>()
-                                            val archiveStatus = mutableMapOf<String, Int>()  // Store status for batch updates
+                                            val status = mutableMapOf<String, Int>()  // Store status for batch updates
 
-                                            AppLogger.d(jsonResponse.toString())
                                             try {
                                                 val deferredUpdates = jsonResponse.data.map { item ->
                                                     async {
@@ -603,7 +606,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                     AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(ids)
                                                                 }
 
-                                                                archiveStatus[tableName] = item.status
+                                                                status[tableName] = item.status
                                                             }
 
                                                             uploadCMPDao.updateStatus(item.id, item.status)
@@ -617,10 +620,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                                 try {
                                                     if (panenIdsToUpdate.isNotEmpty()) {
-                                                        panenDao.updatePanenArchive(panenIdsToUpdate, archiveStatus[AppUtils.DatabaseTables.PANEN] ?: 0)
+                                                        panenDao.updateDataIsZippedPanen(panenIdsToUpdate, status[AppUtils.DatabaseTables.PANEN] ?: 0)
                                                     }
                                                     if (espbIdsToUpdate.isNotEmpty()) {
-                                                        espbDao.updateESPBArchive(espbIdsToUpdate, archiveStatus[AppUtils.DatabaseTables.ESPB] ?: 0)
+                                                        espbDao.updateDataIsZippedESPB(espbIdsToUpdate, status[AppUtils.DatabaseTables.ESPB] ?: 0)
                                                     }
                                                 } catch (e: Exception) {
                                                     AppLogger.e("Error in batch updates: ${e.localizedMessage}")

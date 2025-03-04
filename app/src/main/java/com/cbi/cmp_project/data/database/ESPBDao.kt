@@ -27,7 +27,7 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table WHERE archive = 1")
     abstract fun getAllArchived(): List<ESPBEntity>
 
-    @Query("SELECT * FROM espb_table WHERE archive = 0")
+    @Query("SELECT * FROM espb_table WHERE dataIsZipped = 0")
     abstract fun getAllActive(): List<ESPBEntity>
 
     @Query("DELETE FROM espb_table WHERE id = :id")
@@ -79,8 +79,8 @@ abstract class ESPBDao {
         uploadedById: Int
     ): Int
 
-    @Query("UPDATE espb_table SET archive = :statusArchive WHERE id IN (:ids)")
-    abstract suspend fun updateESPBArchive(ids: List<Int>, statusArchive: Int)
+    @Query("UPDATE espb_table SET dataIsZipped = :status WHERE id IN (:ids)")
+    abstract suspend fun updateDataIsZippedESPB(ids: List<Int>, status: Int)
 
     @Query("SELECT * FROM espb_table WHERE scan_status = 0")
     abstract fun getAllESPBNonScan(): List<ESPBEntity>

@@ -237,10 +237,10 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun updateArchiveESPB(ids: List<Int>, statusArchive:Int) {
+    fun updateDataIsZippedESPB(ids: List<Int>, status:Int) {
         viewModelScope.launch {
             try {
-                repository.updateESPBArchive(ids, statusArchive)
+                repository.updateDataIsZippedESPB(ids, status)
                 _updateStatus.postValue(true)
             } catch (e: Exception) {
                 _updateStatus.postValue(false)

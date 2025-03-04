@@ -589,8 +589,6 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         }
 
-                        AppLogger.d("Final allUploadZipFilesToday: $allUploadZipFilesToday")
-
                         val featuresToFetch = listOf(
                             AppUtils.DatabaseTables.ESPB,
                             AppUtils.DatabaseTables.PANEN
@@ -601,7 +599,6 @@ class HomePageActivity : AppCompatActivity() {
                             val espbDeferred = CompletableDeferred<List<ESPBEntity>>()
                             val zipDeferred = CompletableDeferred<Boolean>()
 
-                            // Load Panen Data
                             panenViewModel.loadActivePanenESPB()
                             delay(100)
                             panenViewModel.activePanenList.observeOnce(this@HomePageActivity) { list ->
@@ -844,13 +841,13 @@ class HomePageActivity : AppCompatActivity() {
 
     private val archiveUpdateActions = mapOf(
         AppUtils.DatabaseTables.ESPB to { ids: List<Int> ->
-            weightBridgeViewModel.updateArchiveESPB(
+            weightBridgeViewModel.updateDataIsZippedESPB(
                 ids,
                 1
             )
         },
         AppUtils.DatabaseTables.PANEN to { ids: List<Int> ->
-            panenViewModel.updateArchivePanen(
+            panenViewModel.updateDataIsZippedPanen(
                 ids,
                 1
             )
