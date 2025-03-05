@@ -4,7 +4,9 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Transaction
+import androidx.sqlite.db.SupportSQLiteQuery
 import com.cbi.cmp_project.data.model.AbsensiKemandoranRelations
 import com.cbi.cmp_project.data.model.AbsensiModel
 import com.cbi.cmp_project.data.model.ESPBEntity
@@ -24,6 +26,21 @@ abstract class AbsensiDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertAbsensiData(absensiData: AbsensiModel)
+
+    @Query("""
+    SELECT COUNT(*) FROM absensi 
+    WHERE date_absen = :dateAbsen 
+    AND (
+        EXISTS (
+            SELECT 1 FROM absensi 
+            WHERE date_absen = :dateAbsen 
+            AND (
+                ',' || karyawan_msk_id || ',' LIKE '%,' || :karyawanMskId || ',%'
+            )
+        )
+    )
+""")
+    abstract fun checkIfExists(dateAbsen: String, karyawanMskId: String): Int
 
     @Transaction
     open suspend fun insertWithTransaction(espb: AbsensiModel): Result<Long> {

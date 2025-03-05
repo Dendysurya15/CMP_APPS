@@ -56,6 +56,10 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
     private val _updateKemandoranbsensiState = MutableStateFlow<UpdateKemandoranAbsensiState>(UpdateKemandoranAbsensiState.Loading)
     val updateKemandoranbsensiState: StateFlow<UpdateKemandoranAbsensiState> get() = _updateKemandoranbsensiState.asStateFlow()
 
+    fun isAbsensiExist(dateAbsen: String, karyawanMskIds: List<String>): Boolean {
+        return repository.isAbsensiExist(dateAbsen, karyawanMskIds)
+    }
+
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
 

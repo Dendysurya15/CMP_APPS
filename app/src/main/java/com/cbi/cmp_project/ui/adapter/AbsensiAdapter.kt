@@ -52,14 +52,27 @@ class AbsensiAdapter(
 
     }
 
-    fun updateList(newList: List<AbsensiDataList>, append: Boolean = false) {
+    // ✅ Function to remove a worker by ID
+    fun removeWorkerById(workerId: Int) {
+        items.removeAll { it.id == workerId }
+        notifyDataSetChanged()
+    }
+
+    fun updateList(newList: List<AbsensiDataList>, append: Boolean = true) {
         items = if (append) {
-            (items + newList).toMutableList()  // <-- Ubah ke MutableList agar bisa diubah
+            (items + newList).distinctBy { it.id }.toMutableList()
+            // Prevent duplicate entries based on unique `id`
         } else {
-            newList.toMutableList()  // <-- Pastikan tetap MutableList
+            newList.toMutableList()
         }
         notifyDataSetChanged()
     }
+
+    fun clearList() {
+        items.clear()
+        notifyDataSetChanged()
+    }
+
 
     override fun getItemCount() = items.size
 

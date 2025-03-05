@@ -1,12 +1,14 @@
 package com.cbi.cmp_project.data.repository
 
 import android.content.Context
+import androidx.sqlite.db.SimpleSQLiteQuery
 import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.AbsensiKemandoranRelations
 import com.cbi.cmp_project.data.model.AbsensiModel
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -23,6 +25,12 @@ class AbsensiRepository(context: Context) {
 
     suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {
         return kemandoranDao.getKemandoranById(idKemandoran)
+    }
+
+    fun isAbsensiExist(dateAbsen: String, karyawanMskIds: List<String>): Boolean {
+        return karyawanMskIds.any { karyawanId ->
+            absensiDao.checkIfExists(dateAbsen, karyawanId) > 0
+        }
     }
 
     suspend fun getAllDataAbsensi(): Result<List<AbsensiKemandoranRelations>> = withContext(Dispatchers.IO) {
