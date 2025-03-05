@@ -85,8 +85,8 @@ abstract class PanenDao {
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
-    @Query("SELECT * FROM panen_table")
-    abstract fun getAllAPanenRestan(): List<PanenEntityWithRelations>
+    @Query("SELECT * FROM panen_table WHERE status_espb = :status")
+    abstract fun getAllAPanenRestan(status: Int = 0): List<PanenEntityWithRelations>
 
     // Add this to your PanenDao
     @Query("UPDATE panen_table SET status_espb = :status WHERE id IN (:ids)")

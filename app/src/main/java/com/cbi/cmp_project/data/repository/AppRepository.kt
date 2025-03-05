@@ -154,15 +154,14 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun getActivePanenRestan(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
+    suspend fun getActivePanenRestan(status: Int = 0): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
         try {
-            val data = panenDao.getAllAPanenRestan()
+            val data = panenDao.getAllAPanenRestan(status)
             Result.success(data)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-
 
     suspend fun getArchivedPanen(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
         try {
