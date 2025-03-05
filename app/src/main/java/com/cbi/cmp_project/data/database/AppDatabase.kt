@@ -60,7 +60,7 @@ import java.util.concurrent.Executors
         UploadCMPModel::class,
         AbsensiModel::class,
     ],
-    version = 10
+    version = 11
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -206,6 +206,66 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE panen_table ADD COLUMN blok_nama TEXT DEFAULT NULL")
             }
         }
+
+        private val MIGRATION_10_11 = object : Migration(9, 10) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Rename old table
+                database.execSQL("ALTER TABLE ESPB RENAME TO ESPB_old")
+
+                // Create new table with updated schema
+                database.execSQL(
+                    """CREATE TABLE ESPB (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                blok_jjg TEXT NOT NULL,
+                created_by_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                nopol TEXT NOT NULL,
+                driver TEXT NOT NULL,
+                transporter_id INTEGER NOT NULL,
+                pemuat_id TEXT NOT NULL,
+                mill_id INTEGER NOT NULL,
+                archive INTEGER NOT NULL,
+                tph0 TEXT NOT NULL,
+                tph1 TEXT NOT NULL,
+                update_info_sp TEXT NOT NULL DEFAULT 'NULL',
+                uploaded_by_id_wb INTEGER NOT NULL DEFAULT 0,
+                uploaded_at_wb TEXT NOT NULL DEFAULT 'NULL',
+                uploaded_by_id_sp INTEGER NOT NULL DEFAULT 0,
+                uploaded_at_sp TEXT NOT NULL DEFAULT 'NULL',
+                status_upload_cmp_sp INTEGER NOT NULL DEFAULT 0,
+                status_upload_cmp_wb INTEGER NOT NULL DEFAULT 0,
+                status_upload_ppro_wb INTEGER NOT NULL DEFAULT 0,
+                status_draft INTEGER NOT NULL DEFAULT 0,
+                status_mekanisasi INTEGER NOT NULL DEFAULT 0,
+                creator_info TEXT NOT NULL,
+                uploader_info_sp TEXT NOT NULL DEFAULT 'NULL',
+                uploader_info_wb TEXT NOT NULL DEFAULT 'NULL',
+                noESPB TEXT NOT NULL,
+                scan_status INTEGER NOT NULL DEFAULT 0,
+                dataIsZipped INTEGER NOT NULL DEFAULT 0
+            )"""
+                )
+
+                // Copy data from old table to new table
+                database.execSQL(
+                    """INSERT INTO ESPB (
+                id, blok_jjg, created_by_id, created_at, nopol, driver, transporter_id, pemuat_id, mill_id, archive,
+                tph0, tph1, update_info_sp, uploaded_by_id_wb, uploaded_at_wb, status_upload_cmp_wb, 
+                status_upload_ppro_wb, status_draft, status_mekanisasi, creator_info, uploader_info_wb, 
+                noESPB, scan_status, dataIsZipped
+            ) 
+            SELECT id, blok_jjg, created_by_id, created_at, nopol, driver, transporter_id, pemuat_id, mill_id, archive,
+                   tph0, tph1, update_info, uploaded_by_id, uploaded_at, status_upload_cmp, 
+                   status_upload_ppro, status_draft, status_mekanisasi, creator_info, uploader_info, 
+                   noESPB, scan_status, dataIsZipped
+            FROM ESPB_old"""
+                )
+
+                // Drop old table
+                database.execSQL("DROP TABLE ESPB_old")
+            }
+        }
+
 
 
 

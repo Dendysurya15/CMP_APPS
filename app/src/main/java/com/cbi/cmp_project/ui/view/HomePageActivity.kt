@@ -117,9 +117,6 @@ class HomePageActivity : AppCompatActivity() {
     private val permissionRequestCode = 1001
     private lateinit var adapter: DownloadProgressDatasetAdapter
 
-    private var globalESPBList: List<Map<String, Any>> = emptyList()
-    private var globalPanenList: List<Map<String, Any>> = emptyList()
-
     private var globalPanenIds: List<Int> = emptyList()
     private var globalESPBIds: List<Int> = emptyList()
     private var zipFilePath: String? = null
@@ -628,62 +625,38 @@ class HomePageActivity : AppCompatActivity() {
                                     mappedPanenData = panenList.map { panenWithRelations ->
 
 
-                                        val jjgJson = try {
-                                            JSONObject(panenWithRelations.panen.jjg_json).let { jsonObj ->
-                                                jsonObj.keys().asSequence().associateWith { jsonObj.getInt(it) }
-                                            }
-                                        } catch (e: Exception) {
-                                            emptyMap<String, Int>()
-                                        }
-                                        val karyawanIds = panenWithRelations.panen.karyawan_id
-                                            ?.split(",")
-                                            ?.map { it.trim() }
-                                            ?: emptyList()
-                                        val jumlahPemanen = karyawanIds.size
-                                        val kemandoranData = if (karyawanIds.isNotEmpty()) {
-                                            datasetViewModel.getKaryawanKemandoranList(karyawanIds)
-                                        } else {
-                                            emptyList()
-                                        }
-                                        val jsonResultKemandoran =
-                                            convertToJsonKaryawanKemandoran(kemandoranData)
+//                                        val jjgJson = try {
+//                                            JSONObject(panenWithRelations.panen.jjg_json).let { jsonObj ->
+//                                                jsonObj.keys().asSequence().associateWith { jsonObj.getInt(it) }
+//                                            }
+//                                        } catch (e: Exception) {
+//                                            emptyMap<String, Int>()
+//                                        }
+//                                        val karyawanIds = panenWithRelations.panen.karyawan_id
+//                                            ?.split(",")
+//                                            ?.map { it.trim() }
+//                                            ?: emptyList()
+//                                        val jumlahPemanen = karyawanIds.size
+//                                        val kemandoranData = if (karyawanIds.isNotEmpty()) {
+//                                            datasetViewModel.getKaryawanKemandoranList(karyawanIds)
+//                                        } else {
+//                                            emptyList()
+//                                        }
+//                                        val jsonResultKemandoran =
+//                                            convertToJsonKaryawanKemandoran(kemandoranData)
 
                                         mapOf(
-                                            "id" to panenWithRelations.panen.id,
                                             "tanggal" to panenWithRelations.panen.date_created,
-                                            "regional" to prefManager!!.regionalIdUserLogin.toString(),
-                                            "company" to prefManager!!.companyIdUserLogin.toString(),
-                                            "company_abbr" to prefManager!!.companyAbbrUserLogin.toString(),
-                                            "company_nama" to prefManager!!.companyNamaUserLogin.toString(),
-                                            "dept_nama" to prefManager!!.estateUserLengkapLogin.toString(),
+                                            "jjg_json" to  panenWithRelations.panen.jjg_json,
                                             "tipe" to panenWithRelations.panen.jenis_panen,
-                                            "dept" to (panenWithRelations.tph?.dept ?: 0) as Int,
-                                            "dept_abbr" to (panenWithRelations.tph?.dept_abbr
-                                                ?: "") as String,
-                                            "divisi" to (panenWithRelations.tph?.divisi
+                                            "tph" to (panenWithRelations.tph?.id
                                                 ?: 0) as Int,
-                                            "divisi_abbr" to (panenWithRelations.tph?.divisi_abbr
-                                                ?: "") as String,
-                                            "blok" to (panenWithRelations.tph?.blok ?: 0) as Int,
-                                            "blok_kode" to (panenWithRelations.tph?.blok_kode
-                                                ?: "") as String,
                                             "tph_nomor" to (panenWithRelations.tph?.nomor ?: ""),
                                             "ancak" to panenWithRelations.panen.ancak,
                                             "updated_date" to panenWithRelations.panen.date_created,
                                             "updated_by" to panenWithRelations.panen.created_by,
                                             "asistensi" to if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2,
-                                            "kemandoran" to jsonResultKemandoran,
-                                            "jumlah_pemanen" to jumlahPemanen,
-                                            "jjg_panen" to (jjgJson["TO"] ?: 0),
-                                            "jjg_mentah" to (jjgJson["UN"] ?: 0),
-                                            "jjg_lewat_masak" to (jjgJson["OV"] ?: 0),
-                                            "jjg_kosong" to (jjgJson["EM"] ?: 0),
-                                            "jjg_abnormal" to (jjgJson["AB"] ?: 0),
-                                            "jjg_serangan_tikus" to (jjgJson["RA"] ?: 0),
-                                            "jjg_panjang" to (jjgJson["LO"] ?: 0),
-                                            "jjg_tidak_vcut" to (jjgJson["TI"] ?: 0),
-                                            "jjg_masak" to (jjgJson["RI"] ?: 0),
-                                            "jjg_kirim" to (jjgJson["KP"] ?: 0),
+                                            "kemandoran" to panenWithRelations.panen.karyawan_id,
                                             "foto" to panenWithRelations.panen.foto,
                                             "komentar" to panenWithRelations.panen.komentar,
                                             "lat" to panenWithRelations.panen.lat,
@@ -691,7 +664,8 @@ class HomePageActivity : AppCompatActivity() {
                                         )
                                     }
 
-                                    globalPanenList = mappedPanenData
+                                    AppLogger.d(mappedPanenData.toString())
+
                                     globalPanenIds = mappedPanenData.map { it["id"] as Int }
                                 }
 
@@ -744,7 +718,6 @@ class HomePageActivity : AppCompatActivity() {
                                         )
                                     }
 
-                                    globalESPBList = mappedESPBData
                                     globalESPBIds = mappedESPBData.map { it["id"] as Int }
                                 }
 
@@ -832,10 +805,15 @@ class HomePageActivity : AppCompatActivity() {
 
 
     fun createJsonTableNameMapping(): String {
-        val tableMap = mapOf(
-            AppUtils.DatabaseTables.PANEN to globalPanenIds,
-            AppUtils.DatabaseTables.ESPB to globalESPBIds
-        )
+        val tableMap = mutableMapOf<String, List<Int>>()
+
+        if (globalPanenIds.isNotEmpty()) {
+            tableMap[AppUtils.DatabaseTables.PANEN] = globalPanenIds
+        }
+        if (globalESPBIds.isNotEmpty()) {
+            tableMap[AppUtils.DatabaseTables.ESPB] = globalESPBIds
+        }
+
         return Gson().toJson(tableMap) // Convert to JSON string
     }
 

@@ -30,6 +30,9 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table WHERE dataIsZipped = 0")
     abstract fun getAllActive(): List<ESPBEntity>
 
+    @Query("SELECT * FROM espb_table WHERE dataIsZipped = 0 AND id IN (:ids)")
+    abstract fun getActiveESPBByIds(ids: List<Int>): List<ESPBEntity>
+
     @Query("DELETE FROM espb_table WHERE id = :id")
     abstract fun deleteByID(id: Int): Int
 
@@ -63,21 +66,42 @@ abstract class ESPBDao {
     @Query("SELECT COUNT(*) FROM espb_table where scan_status = 1")
     abstract suspend fun countESPBUploaded(): Int
 
-    @Query("""
-        UPDATE espb_table 
-        SET uploader_info = :uploaderInfo, 
-            uploaded_by_id = :uploadedById, 
-            uploaded_at = :uploadedAt, 
-            status_upload_ppro = :statusUploadPpro 
-        WHERE id = :id
-    """)
-    abstract suspend fun updateUploadStatus(
+    @Query(
+        """
+    UPDATE espb_table 
+    SET uploader_info_wb = :uploaderInfoWb, 
+        uploaded_by_id_wb = :uploadedByIdWb, 
+        uploaded_at_wb = :uploadedAtWb, 
+        status_upload_ppro_wb = :status 
+    WHERE id = :id
+"""
+    )
+    abstract suspend fun updateUploadStatusPPRO(
         id: Int,
-        statusUploadPpro: Int,
-        uploaderInfo: String,
-        uploadedAt: String,
-        uploadedById: Int
+        status: Int,
+        uploaderInfoWb: String,
+        uploadedAtWb: String,
+        uploadedByIdWb: Int
     ): Int
+
+    @Query(
+        """
+    UPDATE espb_table 
+    SET uploader_info_wb = :uploaderInfoWb, 
+        uploaded_by_id_wb = :uploadedByIdWb, 
+        uploaded_at_wb = :uploadedAtWb, 
+        status_upload_cmp_wb = :status 
+    WHERE id = :id
+"""
+    )
+    abstract suspend fun updateUploadStatusCMP(
+        id: Int,
+        status: Int,
+        uploaderInfoWb: String,
+        uploadedAtWb: String,
+        uploadedByIdWb: Int
+    ): Int
+
 
     @Query("UPDATE espb_table SET dataIsZipped = :status WHERE id IN (:ids)")
     abstract suspend fun updateDataIsZippedESPB(ids: List<Int>, status: Int)
@@ -87,7 +111,6 @@ abstract class ESPBDao {
 
     @Query("SELECT * FROM espb_table")
     abstract fun getAllESPBS(): List<ESPBEntity>
-
 
 
 }
