@@ -228,7 +228,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     // Manual conversion to TPHNewModel
                     val model = TPHNewModel(
                         id = mappedObj.get("id")?.asInt,
-                        regional = mappedObj.get("regional").toString(),
+                        regional = mappedObj.get("regional").asInt.toString(),
                         company = mappedObj.get("company")?.asInt,
                         company_abbr = mappedObj.get("company_abbr")?.asString,
                         wilayah = mappedObj.get("wilayah")?.asString,

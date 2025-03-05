@@ -701,10 +701,6 @@ class HomePageActivity : AppCompatActivity() {
 
                                         mapOf(
                                             "id" to data.id,
-                                            "regional" to regional,
-                                            "company" to company,
-                                            "dept" to dept,
-                                            "divisi" to divisi,
                                             "blok_id" to concatenatedIds,
                                             "jjg" to totalJjg,
                                             "created_by_id" to data.created_by_id,
@@ -714,7 +710,9 @@ class HomePageActivity : AppCompatActivity() {
                                             "transporter_id" to data.transporter_id,
                                             "mill_id" to data.mill_id,
                                             "info_app" to data.creator_info,
-                                            "no_espb" to data.noESPB
+                                            "no_espb" to data.noESPB,
+                                            "uploader_info_sp" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
+                                            "uploaded_by_id_sp" to prefManager!!.idUserLogin.toString()
                                         )
                                     }
 

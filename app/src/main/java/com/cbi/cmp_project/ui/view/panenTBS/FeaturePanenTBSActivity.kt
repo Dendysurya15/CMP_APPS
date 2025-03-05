@@ -23,6 +23,7 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
+import android.util.Log
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -88,6 +89,7 @@ import android.widget.PopupWindow
 import android.widget.ScrollView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.ui.adapter.Worker
 import com.cbi.cmp_project.ui.view.HomePageActivity
@@ -95,6 +97,7 @@ import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.ui.viewModel.SaveDataPanenState
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import kotlinx.coroutines.CompletableDeferred
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -134,7 +137,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var karyawanLainList: List<KaryawanModel> = emptyList()
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var kemandoranLainList: List<KemandoranModel> = emptyList()
-//    private var kemandoranDetailList: List<KemandoranDetailModel> = emptyList()
+
+    //    private var kemandoranDetailList: List<KemandoranDetailModel> = emptyList()
     private var tphList: List<TPHNewModel> = emptyList()
 
     private lateinit var loadingDialog: LoadingDialog
@@ -191,6 +195,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var userId: Int? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
+    private var panenStoredLocal: MutableList<Int> = mutableListOf()
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -229,6 +234,26 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
                     val estateIdInt = estateIdStr.toInt()
 
+                    val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
+
+                    panenViewModel.loadActivePanenESPB()
+                    delay(100)
+
+                    withContext(Dispatchers.Main) { // Ensure observation is on main thread
+                        panenViewModel.activePanenList.observe(this@FeaturePanenTBSActivity) { list ->
+                            panenDeferred.complete(list ?: emptyList()) // Ensure it's never null
+                        }
+                    }
+
+                    val panenList = panenDeferred.await()
+
+
+                    AppLogger.d(panenList.toString())
+                    panenStoredLocal = panenList
+                        .mapNotNull { it.tph?.id } // This ensures only non-null IDs are stored
+                        .toMutableList()
+
+
                     val divisiDeferred = async {
                         try {
                             datasetViewModel.getDivisiList(estateIdInt)
@@ -253,7 +278,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 withContext(Dispatchers.Main) {
                     val errorMessage = e.message?.let { "1. $it" } ?: "1. Unknown error"
 
-                    val estateInfo = estateId?.takeIf { it.isBlank() }?.let { "2. ID Estate User Login: \"$it\"" }
+                    val estateInfo = estateId?.takeIf { it.isBlank() }
+                        ?.let { "2. ID Estate User Login: \"$it\"" }
 
                     // Combine messages dynamically (avoid extra \n\n if estateInfo is null)
                     val fullMessage = listOfNotNull(errorMessage, estateInfo).joinToString("\n\n")
@@ -273,7 +299,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 }
 
             }
-
 
 
         }
@@ -414,14 +439,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
 
-    private fun resetFormAfterSaveData(){
+    private fun resetFormAfterSaveData() {
         selectedPemanenAdapter.clearAllWorkers()
         selectedPemanenLainAdapter.clearAllWorkers()
 
         val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
         setupSpinnerView(findViewById(R.id.layoutAfdeling), divisiNames)
         val layoutAfdeling = findViewById<View>(R.id.layoutAfdeling)
-        val tvUnderFormFieldAfdeling = layoutAfdeling.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+        val tvUnderFormFieldAfdeling =
+            layoutAfdeling.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
         tvUnderFormFieldAfdeling.text = "Pilih kembali Afdeling diatas!"
         tvUnderFormFieldAfdeling.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
         tvUnderFormFieldAfdeling.setTextColor(Color.BLACK)
@@ -433,7 +459,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             resources.getStringArray(R.array.tipe_panen_options).toList()
         setupSpinnerView(findViewById(R.id.layoutTipePanen), tipePanenOptions)
         val layoutTipePanen = findViewById<View>(R.id.layoutTipePanen)
-        val tvUnderFormFieldTipePanen = layoutTipePanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+        val tvUnderFormFieldTipePanen =
+            layoutTipePanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
         tvUnderFormFieldTipePanen.text = "Pilih kembali Tipe Panen diatas!"
         tvUnderFormFieldTipePanen.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
         tvUnderFormFieldTipePanen.setTextColor(Color.BLACK)
@@ -671,8 +698,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             tvPercent?.let {
                 it.setText("${persenJjgKosong}%")
             }
-        }
-        else if (layoutId == R.id.layoutAbnormal) {
+        } else if (layoutId == R.id.layoutAbnormal) {
             tvPercent?.let {
                 it.setText("${persenAbnormal}%")
             }
@@ -735,8 +761,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val factoryPanenViewModel = PanenViewModel.PanenViewModelFactory(application)
         panenViewModel = ViewModelProvider(this, factoryPanenViewModel)[PanenViewModel::class.java]
     }
-
-
 
 
     /**
@@ -1114,12 +1138,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         spinner.setItems(data)
 
-        if (linearLayout.id == R.id.layoutKemandoran || linearLayout.id == R.id.layoutPemanen || linearLayout.id == R.id.layoutKemandoranLain || linearLayout.id == R.id.layoutPemanenLain){
+        if (linearLayout.id == R.id.layoutKemandoran || linearLayout.id == R.id.layoutPemanen || linearLayout.id == R.id.layoutKemandoranLain || linearLayout.id == R.id.layoutPemanenLain) {
 //            Spinner khusus saerch
             spinner.setOnTouchListener { _, event ->
                 if (event.action == MotionEvent.ACTION_UP) {
                     // ✅ Pass `linearLayout` to avoid error
-                    showPopupSearchDropdown(spinner, data, editText, linearLayout) { selectedItem, position ->
+                    showPopupSearchDropdown(
+                        spinner,
+                        data,
+                        editText,
+                        linearLayout
+                    ) { selectedItem, position ->
                         spinner.text = selectedItem // Update spinner UI
                         tvError.visibility = View.GONE
                         onItemSelected(position) // Ensure selection callback works
@@ -1136,7 +1165,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         spinner.setOnItemSelectedListener { _, position, _, item ->
             tvError.visibility = View.GONE
-            handleItemSelection(linearLayout, position, item.toString()) // ✅ Ensure `linearLayout` is passed
+            handleItemSelection(
+                linearLayout,
+                position,
+                item.toString()
+            ) // ✅ Ensure `linearLayout` is passed
         }
     }
 
@@ -1173,13 +1206,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 //
 //
-    if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
-        isValid = false
-        this.vibrate()
-        errorMessages.add(stringXML(R.string.al_location_description_failed))
-        missingFields.add("Location")
+        if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
+            isValid = false
+            this.vibrate()
+            errorMessages.add(stringXML(R.string.al_location_description_failed))
+            missingFields.add("Location")
 
-    }
+        }
 
 //        // ✅ Check if lat or lon is empty or NaN
 //        if (lat.toString().isBlank() || lat!!.isNaN()) {
@@ -1234,6 +1267,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             else -> editText.text.toString().trim().isEmpty()
                         }
                     }
+
                     else -> false
                 }
 
@@ -1328,7 +1362,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         return isValid
     }
 
-    private fun handleItemSelection(linearLayout: LinearLayout, position: Int, selectedItem: String) {
+    private fun handleItemSelection(
+        linearLayout: LinearLayout,
+        position: Int,
+        selectedItem: String
+    ) {
         when (linearLayout.id) {
             R.id.layoutAfdeling -> {
                 resetDependentSpinners(linearLayout.rootView)
@@ -1413,7 +1451,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         kemandoranLainList = kemandoranLainDeferred.await()
 
                         val tahunTanamList = try {
-                            blokList.mapNotNull { it.tahun }.distinct().sortedBy { it.toIntOrNull() }
+                            blokList.mapNotNull { it.tahun }.distinct()
+                                .sortedBy { it.toIntOrNull() }
                         } catch (e: Exception) {
                             AppLogger.e("Error processing tahunTanamList: ${e.message}")
                             emptyList()
@@ -1528,7 +1567,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 lifecycleScope.launch(Dispatchers.IO) {
                     withContext(Dispatchers.Main) {
                         animateLoadingDots(linearLayout)
-                        delay(1000) // 1 second delay
+                        delay(1000)
                     }
 
                     try {
@@ -1545,10 +1584,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             )
                         }
 
-                        tphList = tphDeferred.await()
+                        tphList = tphDeferred.await() ?: emptyList() // Avoid null crash
 
-                        AppLogger.d(tphList.toString())
-                        val noTPHList = tphList.map { it.nomor }
+                        //exclude no tph yang sudah pernah dipilih atau di store di database
+                        val storedTPHIds =
+                            panenStoredLocal.toSet()
+
+                        val filteredTPHList = tphList.filter {
+                            val isExcluded = it.id in storedTPHIds
+                            !isExcluded
+                        }
+                        val noTPHList = filteredTPHList.map { it.nomor }
+
 
                         withContext(Dispatchers.Main) {
                             val layoutNoTPH =
@@ -1594,7 +1641,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     null
                 }
 
+                AppLogger.d(selectedTPHId.toString())
                 if (selectedTPHId != null) {
+                    if (!panenStoredLocal.contains(selectedTPHId)) {
+                        panenStoredLocal.add(selectedTPHId)
+                        AppLogger.d("Added TPH ID to panenStoredLocal: $selectedTPHId")
+                    } else {
+                        AppLogger.d("TPH ID already exists in panenStoredLocal: $selectedTPHId")
+                    }
+
                     selectedTPHValue = selectedTPHId
                     AppLogger.d("Selected TPH ID: $selectedTPHValue")
                 } else {
@@ -1602,7 +1657,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     AppLogger.e("Selected TPH ID is null, skipping processing.")
                 }
             }
-
 
 
             R.id.layoutKemandoran -> {
@@ -1638,7 +1692,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             val karyawanNames = karyawanList.map { "${it.nik} - ${it.nama}" }
 
                             withContext(Dispatchers.Main) {
-                                val layoutPemanen = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                val layoutPemanen =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
                                 if (karyawanNames.isNotEmpty()) {
                                     setupSpinnerView(layoutPemanen, karyawanNames)
                                 } else {
@@ -1722,7 +1777,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             karyawanLainList = karyawanDeferred.await()
 
-                            val namaKaryawanKemandoranLain = karyawanLainList.map { "${it.nik} - ${it.nama}" }
+                            val namaKaryawanKemandoranLain =
+                                karyawanLainList.map { "${it.nik} - ${it.nama}" }
 
                             withContext(Dispatchers.Main) {
                                 val layoutPemanenLain =
@@ -1792,7 +1848,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
-        takeFotoPreviewAdapter = TakeFotoPreviewAdapter(3, cameraViewModel, this, AppUtils.WaterMarkFotoDanFolder.WMPanenTPH)
+        takeFotoPreviewAdapter = TakeFotoPreviewAdapter(
+            3,
+            cameraViewModel,
+            this,
+            AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
+        )
         recyclerView.adapter = takeFotoPreviewAdapter
     }
 
@@ -1888,10 +1949,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             formulas()
 
-                            findViewById<View>(R.id.layoutBMentah)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenMentah}%")
-                            findViewById<View>(R.id.layoutBLewatMasak)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenLewatMasak}%")
-                            findViewById<View>(R.id.layoutJjgKosong)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenJjgKosong}%")
-                            findViewById<View>(R.id.layoutAbnormal)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenAbnormal}%")
+                            findViewById<View>(R.id.layoutBMentah)?.findViewById<TextView>(R.id.tvPercent)
+                                ?.setText("${persenMentah}%")
+                            findViewById<View>(R.id.layoutBLewatMasak)?.findViewById<TextView>(R.id.tvPercent)
+                                ?.setText("${persenLewatMasak}%")
+                            findViewById<View>(R.id.layoutJjgKosong)?.findViewById<TextView>(R.id.tvPercent)
+                                ?.setText("${persenJjgKosong}%")
+                            findViewById<View>(R.id.layoutAbnormal)?.findViewById<TextView>(R.id.tvPercent)
+                                ?.setText("${persenAbnormal}%")
 
                             updateCounterTextViews()
                         } else {
@@ -1913,10 +1978,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         if (jumTBS > 0 && newValue <= jumTBS && totalOthers <= jumTBS) {
                             counterVar.set(newValue)
                             formulas()
-                            findViewById<View>(R.id.layoutBMentah)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenMentah}%")
-                            findViewById<View>(R.id.layoutBLewatMasak)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenLewatMasak}%")
-                            findViewById<View>(R.id.layoutJjgKosong)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenJjgKosong}%")
-                            findViewById<View>(R.id.layoutAbnormal)?.findViewById<TextView>(R.id.tvPercent)?.setText("${persenAbnormal}%")
+                            findViewById<View>(R.id.layoutBMentah)?.findViewById<TextView>(R.id.tvPercent)
+                                ?.setText("${persenMentah}%")
+                            findViewById<View>(R.id.layoutBLewatMasak)?.findViewById<TextView>(R.id.tvPercent)
+                                ?.setText("${persenLewatMasak}%")
+                            findViewById<View>(R.id.layoutJjgKosong)?.findViewById<TextView>(R.id.tvPercent)
+                                ?.setText("${persenJjgKosong}%")
+                            findViewById<View>(R.id.layoutAbnormal)?.findViewById<TextView>(R.id.tvPercent)
+                                ?.setText("${persenAbnormal}%")
 
                             updateCounterTextViews()
                         } else {
@@ -1987,7 +2056,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         linearLayout: LinearLayout,
         onItemSelected: (String, Int) -> Unit
     ) {
-        val popupView = LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
+        val popupView =
+            LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
         val listView = popupView.findViewById<ListView>(R.id.listViewChoices)
         val editTextSearch = popupView.findViewById<EditText>(R.id.searchEditText)
 
@@ -2027,7 +2097,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     // If keyboard hides the EditText, scroll up
                     if (spinnerLocation[1] + spinner.height + popupWindow.height > rect.bottom) {
-                        val scrollAmount = spinnerLocation[1] - 400 // Scroll to show dropdown with extra space
+                        val scrollAmount =
+                            spinnerLocation[1] - 400 // Scroll to show dropdown with extra space
                         scrollView?.smoothScrollBy(0, scrollAmount)
                     }
                 }
@@ -2041,7 +2112,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
         var filteredData = data
-        val adapter = object : ArrayAdapter<String>(spinner.context, android.R.layout.simple_list_item_1, filteredData) {
+        val adapter = object : ArrayAdapter<String>(
+            spinner.context,
+            android.R.layout.simple_list_item_1,
+            filteredData
+        ) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val view = super.getView(position, convertView, parent)
                 val textView = view.findViewById<TextView>(android.R.id.text1)
@@ -2072,12 +2147,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         filteredData
                     }
                 ) {
-                    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    override fun getView(
+                        position: Int,
+                        convertView: View?,
+                        parent: ViewGroup
+                    ): View {
                         val view = super.getView(position, convertView, parent)
                         val textView = view.findViewById<TextView>(android.R.id.text1)
 
                         if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                            textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
+                            textView.setTextColor(
+                                ContextCompat.getColor(
+                                    context,
+                                    R.color.colorRedDark
+                                )
+                            )
                             textView.setTypeface(textView.typeface, Typeface.ITALIC)
                             view.isEnabled = false
                         } else {
@@ -2110,7 +2194,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         popupWindow.showAsDropDown(spinner)
 
         editTextSearch.requestFocus()
-        val imm = spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val imm =
+            spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
     }
 
@@ -2125,8 +2210,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
         return null
     }
-
-
 
 
     @SuppressLint("MissingSuperCall")
@@ -2203,9 +2286,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             currentAccuracy = accuracy
         }
     }
-
-
-
 
 
     private fun showSnackbarWithSettings(message: String) {
