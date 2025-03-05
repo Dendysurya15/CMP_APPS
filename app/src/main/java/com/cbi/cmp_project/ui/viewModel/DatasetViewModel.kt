@@ -33,6 +33,7 @@ import com.google.gson.JsonDeserializer
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -61,7 +62,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val panenDao = database.panenDao()
 
 
-
     private val _downloadStatuses = MutableLiveData<Map<String, Resource<Response<ResponseBody>>>>()
     val downloadStatuses: LiveData<Map<String, Resource<Response<ResponseBody>>>> =
         _downloadStatuses
@@ -83,22 +83,28 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
 
     private val _fetchStatusUploadCMPLiveData = MutableLiveData<List<FetchResponseItem>>()
-    val fetchStatusUploadCMPLiveData : LiveData<List<FetchResponseItem>> = _fetchStatusUploadCMPLiveData
+    val fetchStatusUploadCMPLiveData: LiveData<List<FetchResponseItem>> =
+        _fetchStatusUploadCMPLiveData
 
     sealed class Resource<T>(
         val data: T? = null,
         val message: String? = null,
         val progress: Int = 0,
         val isExtracting: Boolean = false,
-        val isStoring: Boolean = false ,  // Add this
+        val isStoring: Boolean = false,  // Add this
         val isUpToDate: Boolean = false
     ) {
         class Success<T>(data: T, message: String? = null) : Resource<T>(data, message)
         class Error<T>(message: String, data: T? = null) : Resource<T>(data, message)
         class Loading<T>(progress: Int = 0) : Resource<T>(progress = progress)
-        class Extracting<T>(dataset: String) : Resource<T>(message = "Extracting $dataset...", isExtracting = true)
-        class Storing<T>(dataset: String) : Resource<T>(message = "Storing $dataset to database...", isStoring = true)  // Add this
-        class UpToDate<T>(dataset: String) : Resource<T>(message = "Dataset $dataset is up to date", isUpToDate = true)  // Add this
+        class Extracting<T>(dataset: String) :
+            Resource<T>(message = "Extracting $dataset...", isExtracting = true)
+
+        class Storing<T>(dataset: String) :
+            Resource<T>(message = "Storing $dataset to database...", isStoring = true)  // Add this
+
+        class UpToDate<T>(dataset: String) :
+            Resource<T>(message = "Dataset $dataset is up to date", isUpToDate = true)  // Add this
     }
 
     fun updateOrInsertKemandoran(kemandoran: List<KemandoranModel>) =
@@ -154,7 +160,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     }
 
 
-
     suspend fun getDivisiList(idEstate: Int): List<TPHNewModel> {
         return repository.getDivisiList(idEstate)
     }
@@ -163,7 +168,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         idEstate: Int,
         idDivisi: Int,
     ): List<TPHNewModel> {
-        return repository.getBlokList( idEstate, idDivisi)
+        return repository.getBlokList(idEstate, idDivisi)
     }
 
     suspend fun getKemandoranList(
@@ -190,13 +195,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         tahunTanam: String,
         idBlok: Int
     ): List<TPHNewModel> {
-        return repository.getTPHList( idEstate, idDivisi, tahunTanam, idBlok)
+        return repository.getTPHList(idEstate, idDivisi, tahunTanam, idBlok)
     }
 
     suspend fun getKaryawanList(filteredId: Int): List<KaryawanModel> {
         return repository.getKaryawanList(filteredId)
     }
-
 
 
     suspend fun getKaryawanKemandoranList(filteredIds: List<String>): List<KaryawanDao.KaryawanKemandoranData> {
@@ -329,7 +333,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 if (allFieldsNull) {
                     AppLogger.e("Invalid data format: All fields are null in $dataset")
                     updatedHasShownError = true
-                    results[dataset] = Resource.Error("Invalid data format for $dataset: All fields are null")
+                    results[dataset] =
+                        Resource.Error("Invalid data format for $dataset: All fields are null")
                     return updatedHasShownError
                 }
             }
@@ -341,7 +346,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             } catch (e: Exception) {
                 AppLogger.e("Error updating dataset $dataset: ${e.message}")
                 updatedHasShownError = true
-                results[dataset] = Resource.Error("Failed to update dataset: $dataset - ${e.message}")
+                results[dataset] =
+                    Resource.Error("Failed to update dataset: $dataset - ${e.message}")
                 return updatedHasShownError
             }
 
@@ -350,18 +356,25 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 results[dataset] = Resource.Success(response)
 
                 when (dataset) {
-                    AppUtils.DatasetNames.tph -> prefManager.lastModifiedDatasetTPH = lastModifiedTimestamp
+                    AppUtils.DatasetNames.tph -> prefManager.lastModifiedDatasetTPH =
+                        lastModifiedTimestamp
 //                    "blok" -> prefManager.lastModifiedDatasetBlok = lastModifiedTimestamp
-                    AppUtils.DatasetNames.kemandoran -> prefManager.lastModifiedDatasetKemandoran = lastModifiedTimestamp
-                    AppUtils.DatasetNames.pemanen -> prefManager.lastModifiedDatasetPemanen = lastModifiedTimestamp
-                    AppUtils.DatasetNames.transporter -> prefManager.lastModifiedDatasetTransporter = lastModifiedTimestamp
+                    AppUtils.DatasetNames.kemandoran -> prefManager.lastModifiedDatasetKemandoran =
+                        lastModifiedTimestamp
+
+                    AppUtils.DatasetNames.pemanen -> prefManager.lastModifiedDatasetPemanen =
+                        lastModifiedTimestamp
+
+                    AppUtils.DatasetNames.transporter -> prefManager.lastModifiedDatasetTransporter =
+                        lastModifiedTimestamp
                 }
                 prefManager!!.addDataset(dataset)
             } else {
                 val error = statusFlow.value.exceptionOrNull()
                 AppLogger.e("Database error for dataset $dataset: ${error?.message}")
                 updatedHasShownError = true
-                results[dataset] = Resource.Error("Database error while processing $dataset: ${error?.message ?: "Unknown error"}")
+                results[dataset] =
+                    Resource.Error("Database error while processing $dataset: ${error?.message ?: "Unknown error"}")
                 return updatedHasShownError
             }
         } catch (e: Exception) {
@@ -374,8 +387,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     }
 
 
-
-
     fun downloadMultipleDatasets(requests: List<DatasetRequest>) {
         viewModelScope.launch {
             val results = mutableMapOf<String, Resource<Response<ResponseBody>>>()
@@ -386,16 +397,35 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 results[request.dataset] = Resource.Loading(0)
                 _downloadStatuses.postValue(results.toMap())
 
+
+                val validDatasets = setOf(
+                    AppUtils.DatasetNames.pemanen,
+                    AppUtils.DatasetNames.kemandoran,
+                    AppUtils.DatasetNames.tph,
+                    AppUtils.DatasetNames.transporter
+                )
+                val datasetName = request.dataset
+                var modifiedRequest = request  // Create a mutable copy of the request
+
+                if (datasetName in validDatasets) {
+                    val count = withContext(Dispatchers.IO) { repository.getDatasetCount(datasetName) }
+                    withContext(Dispatchers.Main) {
+                        if (count == 0) {
+                            // If no data, modify lastModified to null
+                            modifiedRequest = request.copy(lastModified = null)
+                            Log.d("DownloadResponse", "Dataset $datasetName has no records, setting lastModified to null.")
+                        }
+                    }
+                }
+
                 try {
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
-                    }
-                    else if(request.dataset == AppUtils.DatasetNames.updateSyncLocalData){
+                    } else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
                         response = repository.checkStatusUploadCMP(request.data!!)
-                    }
-                    else {
-                        response = repository.downloadDataset(request)
+                    } else {
+                        response = repository.downloadDataset(modifiedRequest)
                     }
 
 
@@ -408,15 +438,25 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             if (contentType?.contains("application/zip") == true) {
                                 val inputStream = response.body()?.byteStream()
                                 if (inputStream != null) {
-                                    Log.d("DownloadResponse", "Received ZIP file, size: ${response.body()?.contentLength()} bytes")
+                                    Log.d(
+                                        "DownloadResponse",
+                                        "Received ZIP file, size: ${
+                                            response.body()?.contentLength()
+                                        } bytes"
+                                    )
 
                                     try {
                                         // Update status to extracting
-                                        results[request.dataset] = Resource.Extracting(request.dataset)
+                                        results[request.dataset] =
+                                            Resource.Extracting(request.dataset)
                                         _downloadStatuses.postValue(results.toMap())
 
                                         // Create temp file
-                                        val tempFile = File.createTempFile("temp_", ".zip", getApplication<Application>().cacheDir)
+                                        val tempFile = File.createTempFile(
+                                            "temp_",
+                                            ".zip",
+                                            getApplication<Application>().cacheDir
+                                        )
                                         tempFile.outputStream().use { fileOut ->
                                             inputStream.copyTo(fileOut)
                                         }
@@ -425,17 +465,24 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         val zipFile = net.lingala.zip4j.ZipFile(tempFile)
                                         zipFile.setPassword(AppUtils.ZIP_PASSWORD.toCharArray())
 
-                                        val extractDir = File(getApplication<Application>().cacheDir, "extracted_${System.currentTimeMillis()}")
+                                        val extractDir = File(
+                                            getApplication<Application>().cacheDir,
+                                            "extracted_${System.currentTimeMillis()}"
+                                        )
                                         zipFile.extractAll(extractDir.absolutePath)
 
                                         // Read output.json
                                         val jsonFile = File(extractDir, "output.json")
                                         if (jsonFile.exists()) {
                                             val jsonContent = jsonFile.readText()
-                                            Log.d("DownloadResponse", "Extracted JSON content: $jsonContent")
+                                            Log.d(
+                                                "DownloadResponse",
+                                                "Extracted JSON content: $jsonContent"
+                                            )
 
                                             // Update status to storing
-                                            results[request.dataset] = Resource.Storing(request.dataset)
+                                            results[request.dataset] =
+                                                Resource.Storing(request.dataset)
                                             _downloadStatuses.postValue(results.toMap())
 
 
@@ -443,65 +490,80 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             AppLogger.d(lastModified.toString())
                                             try {
                                                 when (request.dataset) {
-                                                    AppUtils.DatasetNames.tph -> hasShownError = processDataset(
-                                                        jsonContent = jsonContent,
-                                                        dataset = request.dataset,
-                                                        modelClass = TPHNewModel::class.java,
-                                                        results = results,
-                                                        response = response,
-                                                        updateOperation = ::updateOrInsertTPH,
-                                                        statusFlow = tphStatus,
-                                                        hasShownError = hasShownError,
-                                                       lastModifiedTimestamp = lastModified ?: ""
-                                                    )
+                                                    AppUtils.DatasetNames.tph -> hasShownError =
+                                                        processDataset(
+                                                            jsonContent = jsonContent,
+                                                            dataset = request.dataset,
+                                                            modelClass = TPHNewModel::class.java,
+                                                            results = results,
+                                                            response = response,
+                                                            updateOperation = ::updateOrInsertTPH,
+                                                            statusFlow = tphStatus,
+                                                            hasShownError = hasShownError,
+                                                            lastModifiedTimestamp = lastModified
+                                                                ?: ""
+                                                        )
 
-                                                    AppUtils.DatasetNames.kemandoran -> hasShownError = processDataset(
-                                                        jsonContent = jsonContent,
-                                                        dataset = request.dataset,
-                                                        modelClass = KemandoranModel::class.java,
-                                                        results = results,
-                                                        response = response,
-                                                        updateOperation = ::updateOrInsertKemandoran,
-                                                        statusFlow = kemandoranStatus,
-                                                        hasShownError = hasShownError,
-                                                       lastModifiedTimestamp = lastModified ?: ""
-                                                    )
-                                                    AppUtils.DatasetNames.pemanen -> hasShownError = processDataset(
-                                                        jsonContent = jsonContent,
-                                                        dataset = request.dataset,
-                                                        modelClass = KaryawanModel::class.java,
-                                                        results = results,
-                                                        response = response,
-                                                        updateOperation = ::updateOrInsertKaryawan,
-                                                        statusFlow = karyawanStatus,
-                                                        hasShownError = hasShownError,
-                                                       lastModifiedTimestamp = lastModified ?: ""
-                                                    )
-                                                    AppUtils.DatasetNames.mill -> hasShownError = processDataset(
-                                                        jsonContent = jsonContent,
-                                                        dataset = request.dataset,
-                                                        modelClass = MillModel::class.java,
-                                                        results = results,
-                                                        response = response,
-                                                        updateOperation = ::updateOrInsertMill,
-                                                        statusFlow = millStatus,
-                                                        hasShownError = hasShownError,
-                                                        lastModifiedTimestamp = lastModified ?: ""
-                                                    )
-                                                    AppUtils.DatasetNames.transporter -> hasShownError = processDataset(
-                                                        jsonContent = jsonContent,
-                                                        dataset = request.dataset,
-                                                        modelClass = TransporterModel::class.java,
-                                                        results = results,
-                                                        response = response,
-                                                        updateOperation = ::InsertTransporter,
-                                                        statusFlow = transporterStatus,
-                                                        hasShownError = hasShownError,
-                                                        lastModifiedTimestamp = lastModified ?: ""
-                                                    )
+                                                    AppUtils.DatasetNames.kemandoran -> hasShownError =
+                                                        processDataset(
+                                                            jsonContent = jsonContent,
+                                                            dataset = request.dataset,
+                                                            modelClass = KemandoranModel::class.java,
+                                                            results = results,
+                                                            response = response,
+                                                            updateOperation = ::updateOrInsertKemandoran,
+                                                            statusFlow = kemandoranStatus,
+                                                            hasShownError = hasShownError,
+                                                            lastModifiedTimestamp = lastModified
+                                                                ?: ""
+                                                        )
+
+                                                    AppUtils.DatasetNames.pemanen -> hasShownError =
+                                                        processDataset(
+                                                            jsonContent = jsonContent,
+                                                            dataset = request.dataset,
+                                                            modelClass = KaryawanModel::class.java,
+                                                            results = results,
+                                                            response = response,
+                                                            updateOperation = ::updateOrInsertKaryawan,
+                                                            statusFlow = karyawanStatus,
+                                                            hasShownError = hasShownError,
+                                                            lastModifiedTimestamp = lastModified
+                                                                ?: ""
+                                                        )
+
+                                                    AppUtils.DatasetNames.mill -> hasShownError =
+                                                        processDataset(
+                                                            jsonContent = jsonContent,
+                                                            dataset = request.dataset,
+                                                            modelClass = MillModel::class.java,
+                                                            results = results,
+                                                            response = response,
+                                                            updateOperation = ::updateOrInsertMill,
+                                                            statusFlow = millStatus,
+                                                            hasShownError = hasShownError,
+                                                            lastModifiedTimestamp = lastModified
+                                                                ?: ""
+                                                        )
+
+                                                    AppUtils.DatasetNames.transporter -> hasShownError =
+                                                        processDataset(
+                                                            jsonContent = jsonContent,
+                                                            dataset = request.dataset,
+                                                            modelClass = TransporterModel::class.java,
+                                                            results = results,
+                                                            response = response,
+                                                            updateOperation = ::InsertTransporter,
+                                                            statusFlow = transporterStatus,
+                                                            hasShownError = hasShownError,
+                                                            lastModifiedTimestamp = lastModified
+                                                                ?: ""
+                                                        )
+
                                                     else -> {
 
-                                                        results[request.dataset] = Resource.Error("Failed to stored because no process storing dataset for  ${request.dataset}")
+                                                        results[request.dataset] =
+                                                            Resource.Error("Failed to stored because no process storing dataset for  ${request.dataset}")
                                                         hasShownError = true
                                                     }
 
@@ -510,7 +572,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             } catch (e: Exception) {
                                                 AppLogger.e("General processing error: ${e.message}")
                                                 if (!hasShownError) {
-                                                    results[request.dataset] = Resource.Error("Processing error: ${e.message ?: "Unknown error"}")
+                                                    results[request.dataset] =
+                                                        Resource.Error("Processing error: ${e.message ?: "Unknown error"}")
                                                     hasShownError = true
                                                 }
                                                 _downloadStatuses.postValue(results.toMap())
@@ -522,36 +585,57 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         extractDir.deleteRecursively()
 
                                     } catch (e: Exception) {
-                                        Log.e("DownloadResponse", "Error extracting zip: ${e.message}")
+                                        Log.e(
+                                            "DownloadResponse",
+                                            "Error extracting zip: ${e.message}"
+                                        )
                                         if (!hasShownError) {
-                                            results[request.dataset] = Resource.Error("Error extracting zip: ${e.message}")
+                                            results[request.dataset] =
+                                                Resource.Error("Error extracting zip: ${e.message}")
                                             hasShownError = true
                                         }
                                     }
                                 } else {
                                     Log.d("DownloadResponse", "ZIP response body is null")
-                                    results[request.dataset] = Resource.Error("ZIP response body is null")
+                                    results[request.dataset] =
+                                        Resource.Error("ZIP response body is null")
                                 }
                             } else if (contentType?.contains("application/json") == true) {
-                                val responseBodyString = response.body()?.string() ?: "Empty Response"
+                                val responseBodyString =
+                                    response.body()?.string() ?: "Empty Response"
                                 Log.d("DownloadResponse", "Received JSON: $responseBodyString")
 
-                                if (responseBodyString.contains("\"success\":false") && responseBodyString.contains("\"message\":\"Dataset is up to date\"")) {
+                                if (responseBodyString.contains("\"success\":false") && responseBodyString.contains(
+                                        "\"message\":\"Dataset is up to date\""
+                                    )
+                                ) {
                                     results[request.dataset] = Resource.UpToDate(request.dataset)
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.mill) {
+                                } else if (request.dataset == AppUtils.DatasetNames.mill) {
 
                                     try {
 
-                                        fun <T> parseMillJsonToList(jsonContent: String, classType: Class<T>): List<T> {
+                                        fun <T> parseMillJsonToList(
+                                            jsonContent: String,
+                                            classType: Class<T>
+                                        ): List<T> {
                                             val gson = Gson()
-                                            val jsonObject = gson.fromJson(jsonContent, JsonObject::class.java)
+                                            val jsonObject =
+                                                gson.fromJson(jsonContent, JsonObject::class.java)
                                             val dataArray = jsonObject.getAsJsonArray("data")
-                                            return gson.fromJson(dataArray, TypeToken.getParameterized(List::class.java, classType).type)
+                                            return gson.fromJson(
+                                                dataArray,
+                                                TypeToken.getParameterized(
+                                                    List::class.java,
+                                                    classType
+                                                ).type
+                                            )
                                         }
 
                                         // Use the new parse function
-                                        val millList = parseMillJsonToList(responseBodyString, MillModel::class.java)
+                                        val millList = parseMillJsonToList(
+                                            responseBodyString,
+                                            MillModel::class.java
+                                        )
 
                                         // Update status to storing
                                         results[request.dataset] = Resource.Storing(request.dataset)
@@ -571,59 +655,94 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         _downloadStatuses.postValue(results.toMap())
 
                                     } catch (e: Exception) {
-                                        Log.e("DownloadResponse", "Error processing mill data: ${e.message}")
+                                        Log.e(
+                                            "DownloadResponse",
+                                            "Error processing mill data: ${e.message}"
+                                        )
                                         if (!hasShownError) {
-                                            results[request.dataset] = Resource.Error("Error processing mill data: ${e.message}")
+                                            results[request.dataset] =
+                                                Resource.Error("Error processing mill data: ${e.message}")
                                             hasShownError = true
                                         }
                                         _downloadStatuses.postValue(results.toMap())
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
+                                } else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
                                     results[request.dataset] = Resource.Loading(0)
 
                                     try {
-                                        val jsonResponse = Gson().fromJson(responseBodyString, FetchStatusCMPResponse::class.java)
+                                        val jsonResponse = Gson().fromJson(
+                                            responseBodyString,
+                                            FetchStatusCMPResponse::class.java
+                                        )
 
                                         viewModelScope.launch(Dispatchers.IO) {
                                             val panenIdsToUpdate = mutableListOf<Int>()
                                             val espbIdsToUpdate = mutableListOf<Int>()
-                                            val status = mutableMapOf<String, Int>()  // Store status for batch updates
+                                            val status =
+                                                mutableMapOf<String, Int>()  // Store status for batch updates
 
                                             try {
-                                                val deferredUpdates = jsonResponse.data.map { item ->
-                                                    async {
-                                                        try {
-                                                            // Get table_ids JSON from DB
-                                                            val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(item.id) ?: "{}"
-                                                            val tableIdsObj = Gson().fromJson(tableIdsJson, JsonObject::class.java)
+                                                val deferredUpdates =
+                                                    jsonResponse.data.map { item ->
+                                                        async {
+                                                            try {
+                                                                // Get table_ids JSON from DB
+                                                                val tableIdsJson =
+                                                                    uploadCMPDao.getTableIdsByTrackingId(
+                                                                        item.id
+                                                                    ) ?: "{}"
+                                                                val tableIdsObj = Gson().fromJson(
+                                                                    tableIdsJson,
+                                                                    JsonObject::class.java
+                                                                )
 
-                                                            tableIdsObj?.keySet()?.forEach { tableName ->
-                                                                val ids = tableIdsObj.getAsJsonArray(tableName).map { it.asInt }
+                                                                tableIdsObj?.keySet()
+                                                                    ?.forEach { tableName ->
+                                                                        val ids =
+                                                                            tableIdsObj.getAsJsonArray(
+                                                                                tableName
+                                                                            ).map { it.asInt }
 
-                                                                when (tableName) {
-                                                                    AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(ids)
-                                                                    AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(ids)
-                                                                }
+                                                                        when (tableName) {
+                                                                            AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(
+                                                                                ids
+                                                                            )
 
-                                                                status[tableName] = item.status
+                                                                            AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(
+                                                                                ids
+                                                                            )
+                                                                        }
+
+                                                                        status[tableName] =
+                                                                            item.status
+                                                                    }
+
+                                                                uploadCMPDao.updateStatus(
+                                                                    item.id,
+                                                                    item.status
+                                                                )
+                                                            } catch (e: Exception) {
+                                                                AppLogger.e("Error processing item ${item.id}: ${e.localizedMessage}")
                                                             }
-
-                                                            uploadCMPDao.updateStatus(item.id, item.status)
-                                                        } catch (e: Exception) {
-                                                            AppLogger.e("Error processing item ${item.id}: ${e.localizedMessage}")
                                                         }
                                                     }
-                                                }
 
                                                 deferredUpdates.awaitAll()
 
                                                 try {
                                                     if (panenIdsToUpdate.isNotEmpty()) {
-                                                        panenDao.updateDataIsZippedPanen(panenIdsToUpdate, status[AppUtils.DatabaseTables.PANEN] ?: 0)
+                                                        panenDao.updateDataIsZippedPanen(
+                                                            panenIdsToUpdate,
+                                                            status[AppUtils.DatabaseTables.PANEN]
+                                                                ?: 0
+                                                        )
                                                     }
                                                     if (espbIdsToUpdate.isNotEmpty()) {
-                                                        espbDao.updateDataIsZippedESPB(espbIdsToUpdate, status[AppUtils.DatabaseTables.ESPB] ?: 0)
+                                                        espbDao.updateDataIsZippedESPB(
+                                                            espbIdsToUpdate,
+                                                            status[AppUtils.DatabaseTables.ESPB]
+                                                                ?: 0
+                                                        )
                                                     }
                                                 } catch (e: Exception) {
                                                     AppLogger.e("Error in batch updates: ${e.localizedMessage}")
@@ -634,13 +753,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         .filter { it.status >= 4 }
                                                         .sortedByDescending { it.tanggal_upload }
                                                     val message = if (sortedList.isNotEmpty()) {
-                                                        "Terjadi kesalahan insert di server!\n\n" + sortedList.joinToString("\n") { item ->
+                                                        "Terjadi kesalahan insert di server!\n\n" + sortedList.joinToString(
+                                                            "\n"
+                                                        ) { item ->
                                                             "• ${item.nama_file} (${item.message})"
                                                         }
                                                     } else {
                                                         "Berhasil sinkronisasi data"
                                                     }
-                                                    results[request.dataset] = Resource.Success(response, message)
+                                                    results[request.dataset] =
+                                                        Resource.Success(response, message)
                                                     _downloadStatuses.postValue(results.toMap())
                                                 }
 
@@ -651,19 +773,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     } catch (e: Exception) {
                                         AppLogger.e("Error parsing JSON response: ${e.localizedMessage}")
                                     }
-                                }
-
-
-
-
-                                else {
+                                } else {
                                     results[request.dataset] = Resource.Success(response)
                                 }
                             } else {
                                 Log.d("DownloadResponse", "Unknown response type: $contentType")
-                                results[request.dataset] = Resource.Error("Unknown response type: $contentType")
+                                results[request.dataset] =
+                                    Resource.Error("Unknown response type: $contentType")
                             }
                         }
+
                         401 -> {
                             if (!hasShownError) {
                                 results[request.dataset] = Resource.Error(
@@ -672,9 +791,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 )
                                 hasShownError = true
                             } else {
-                                results[request.dataset] = Resource.Error("Download failed", response)
+                                results[request.dataset] =
+                                    Resource.Error("Download failed", response)
                             }
                         }
+
                         else -> {
                             if (!hasShownError) {
                                 results[request.dataset] = Resource.Error(
@@ -683,7 +804,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 )
                                 hasShownError = true
                             } else {
-                                results[request.dataset] = Resource.Error("Download failed", response)
+                                results[request.dataset] =
+                                    Resource.Error("Download failed", response)
                             }
                         }
                     }
@@ -691,11 +813,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                 } catch (e: Exception) {
 //                    if (!hasShownError) {
-                        results[request.dataset] = Resource.Error(
-                            "Network error: ${e.message ?: "Unknown error"}",
-                            null
-                        )
-                        hasShownError = true
+                    results[request.dataset] = Resource.Error(
+                        "Network error: ${e.message ?: "Unknown error"}",
+                        null
+                    )
+                    hasShownError = true
 //                    } else {
 //                        results[request.dataset] = Resource.Error("Download failed", null)
 //                    }
@@ -736,8 +858,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             AppLogger.d("About to convert array of size: ${transformedArray.size()}")
 
             AppLogger.d(transformedArray.toString())
-            return gson.fromJson(transformedArray,
-                TypeToken.getParameterized(List::class.java, classType).type)
+            return gson.fromJson(
+                transformedArray,
+                TypeToken.getParameterized(List::class.java, classType).type
+            )
         } catch (e: Exception) {
             AppLogger.e("Error parsing JSON: ${e.message}")
             throw e
