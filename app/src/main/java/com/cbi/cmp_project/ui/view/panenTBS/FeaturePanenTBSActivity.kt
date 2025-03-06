@@ -88,6 +88,7 @@ import android.widget.ListView
 import android.widget.PopupWindow
 import android.widget.ScrollView
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.repository.AppRepository
@@ -198,6 +199,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var panenStoredLocal: MutableList<Int> = mutableListOf()
 
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_panen_tbs)
@@ -206,6 +208,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         prefManager = PrefManager(this)
         initViewModel()
         initializeJjgJson()
+
         regionalId = prefManager!!.regionalIdUserLogin
         estateId = prefManager!!.estateIdUserLogin
         estateName = prefManager!!.estateUserLogin
@@ -302,7 +305,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
         }
-
+        findViewById<View>(android.R.id.content).setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                val currentFocus = currentFocus
+                if (currentFocus is EditText) {
+                    imm.hideSoftInputFromWindow(currentFocus.windowToken, 0)
+                    currentFocus.clearFocus()
+                }
+            }
+            false // Don't consume the event so other touch handlers still work
+        }
 
         val mbSaveDataPanenTBS = findViewById<MaterialButton>(R.id.mbSaveDataPanenTBS)
 
@@ -998,6 +1011,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
+    // Add this class-level variable to track keyboard state
+    private var keyboardBeingDismissed = false
+
+    @SuppressLint("ClickableViewAccessibility")
     private fun setupEditTextView(layoutView: LinearLayout) {
         val etHomeMarkerTPH = layoutView.findViewById<EditText>(R.id.etHomeMarkerTPH)
         val spHomeMarkerTPH = layoutView.findViewById<View>(R.id.spPanenTBS)
@@ -1013,18 +1030,83 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             else -> AndroidInputType.TYPE_CLASS_TEXT
         }
 
+        // Enhanced keyboard hiding function with debounce mechanism
+        fun hideKeyboard() {
+            if (keyboardBeingDismissed) return
+
+            keyboardBeingDismissed = true
+            val imm = application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(etHomeMarkerTPH.windowToken, 0)
+            etHomeMarkerTPH.clearFocus()
+
+            // Reset flag after delay to prevent rapid toggling
+            Handler(Looper.getMainLooper()).postDelayed({
+                keyboardBeingDismissed = false
+            }, 300)
+        }
+
+        // Make EditText non-focusable when not editing
         etHomeMarkerTPH.setOnEditorActionListener { v, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) {
-                val imm =
-                    application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                imm.hideSoftInputFromWindow(v.windowToken, 0)
-                findViewById<MaterialSpinner>(R.id.spPanenTBS)?.requestFocus()
+                hideKeyboard()
                 true
             } else {
                 false
             }
         }
 
+        // Create and apply TouchInterceptor to the MaterialCardView and its parent
+        val touchInterceptor = object : View.OnTouchListener {
+            override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+                if (event?.action == MotionEvent.ACTION_DOWN) {
+                    hideKeyboard()
+                }
+                // Don't consume the event so scrolling still works
+                return false
+            }
+        }
+
+        // Apply to parent views to ensure scrolling works
+        val parentLayout = layoutView.findViewById<LinearLayout>(R.id.parentSpPanenTBS)
+        parentLayout?.setOnTouchListener(touchInterceptor)
+
+        // Apply specifically to the TextView area
+        val tvTitle = layoutView.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
+        tvTitle?.setOnTouchListener(touchInterceptor)
+
+        // Make MCVSpinner consume touch events but still hide keyboard
+        MCVSpinner.setOnTouchListener { v, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                hideKeyboard()
+            }
+            // Let the view handle the event normally after hiding keyboard
+            false
+        }
+
+        // Add global touch listener to root view that doesn't interfere with scrolling
+        val rootView = layoutView.rootView
+        rootView.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                if (etHomeMarkerTPH.hasFocus()) {
+                    hideKeyboard()
+                }
+            }
+            false
+        }
+
+        // Focus change listener
+        etHomeMarkerTPH.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                hideKeyboard()
+            }
+        }
+
+        // Add this to handle MaterialSpinner clicks
+        spHomeMarkerTPH.setOnClickListener {
+            hideKeyboard()
+        }
+
+        // Add text changed listener
         etHomeMarkerTPH.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -1040,9 +1122,25 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     ancakInput = s?.toString()?.trim() ?: ""
                 }
             }
-
             override fun afterTextChanged(s: Editable?) {}
         })
+    }
+
+    // Add this to your Activity class
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.action == MotionEvent.ACTION_DOWN) {
+            val v = currentFocus
+            if (v is EditText) {
+                val outRect = Rect()
+                v.getGlobalVisibleRect(outRect)
+                if (!outRect.contains(ev.rawX.toInt(), ev.rawY.toInt())) {
+                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.hideSoftInputFromWindow(v.windowToken, 0)
+                    v.clearFocus()
+                }
+            }
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
 
@@ -1138,9 +1236,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         spinner.setItems(data)
 
+        // Hide keyboard helper
+        fun ensureKeyboardHidden() {
+            val imm = application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(linearLayout.windowToken, 0)
+            editText.clearFocus()
+        }
+
         if (linearLayout.id == R.id.layoutKemandoran || linearLayout.id == R.id.layoutPemanen || linearLayout.id == R.id.layoutKemandoranLain || linearLayout.id == R.id.layoutPemanenLain) {
 //            Spinner khusus saerch
             spinner.setOnTouchListener { _, event ->
+
+                ensureKeyboardHidden()
                 if (event.action == MotionEvent.ACTION_UP) {
                     // ✅ Pass `linearLayout` to avoid error
                     showPopupSearchDropdown(
@@ -1367,6 +1474,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         position: Int,
         selectedItem: String
     ) {
+
+        val rootView = linearLayout.rootView
+        val currentFocus = rootView.findFocus()
+        if (currentFocus is EditText) {
+            currentFocus.clearFocus()
+            val imm = application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(currentFocus.windowToken, 0)
+        }
+
         when (linearLayout.id) {
             R.id.layoutAfdeling -> {
                 resetDependentSpinners(linearLayout.rootView)

@@ -81,7 +81,7 @@ abstract class PanenDao {
     abstract fun getAllActiveWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE dataIsZipped = 0 AND status_espb = 0")
+    @Query("SELECT * FROM panen_table WHERE (dataIsZipped = 0 OR archive != 1) AND status_espb = 0")
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
