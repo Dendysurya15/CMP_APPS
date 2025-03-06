@@ -21,10 +21,15 @@ import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
 import net.lingala.zip4j.model.enums.CompressionMethod
 import net.lingala.zip4j.model.enums.EncryptionMethod
+import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody
+import okio.BufferedSink
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.FileInputStream
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -54,6 +59,7 @@ object AppUtils {
     object DatabaseTables {
         const val PANEN = "panen_table"
         const val ESPB = "espb_table"
+        const val ABSENSI = "absensi"
         const val MILL = "mill"
         const val TPH = "tph"
         const val KEMANDORAN = "kemandoran"
@@ -66,6 +72,12 @@ object AppUtils {
 
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
+    }
+
+
+    object DatabaseServer{
+        const val CMP = "CMP"
+        const val PPRO = "PPRO"
     }
 
     object DatasetNames {
@@ -147,6 +159,39 @@ object AppUtils {
             onResult(false, errorMessage, "") // Return empty path on failure
         }
     }
+
+    class ProgressRequestBody(
+        private val file: File,
+        private val contentTypeString: String,
+        private val callback: (progress: Int) -> Unit
+    ) : RequestBody() {
+
+        override fun contentType(): MediaType? = contentTypeString.toMediaTypeOrNull()
+
+        override fun contentLength(): Long = file.length()
+
+        override fun writeTo(sink: BufferedSink) {
+            val length = contentLength()
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            val fileInputStream = FileInputStream(file)
+            var uploaded: Long = 0
+            fileInputStream.use { inputStream ->
+                var read = inputStream.read(buffer)
+                while (read != -1) {
+                    sink.write(buffer, 0, read)
+                    uploaded += read
+                    val progress = (uploaded * 100 / length).toInt()
+                    callback(progress) // report progress
+                    read = inputStream.read(buffer)
+                }
+            }
+        }
+
+        companion object {
+            private const val DEFAULT_BUFFER_SIZE = 2048
+        }
+    }
+
 
     /**
      * Adds photos from CMP directories to the zip file

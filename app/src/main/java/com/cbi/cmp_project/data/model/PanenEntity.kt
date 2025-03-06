@@ -21,7 +21,8 @@ data class PanenEntity(
     val ancak: Int,
     val info: String,
     val archive: Int=0,
-    val status_espb: Int=0, // default 0
-    val status_restan: Int=0, // default 0
-    val scan_status: Int=0 // default 0
+    val status_espb: Int=0, // 0 = belum jadi espb , 1 = sudah jadi espb , 2 = espb sudah sampai pabrik
+    val status_restan: Int=0,
+    val scan_status: Int=0,
+    val dataIsZipped: Int = 0,
 )

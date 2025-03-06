@@ -87,7 +87,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
 
         if (item.status_cmp == 1 && item.status_ppro == 1) {
             holder.checkbox.apply {
-                isChecked = true
+//                isChecked = true
                 isEnabled = false
                 alpha = 0.5f
             }
@@ -96,14 +96,6 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
             holder.checkbox.alpha = 1.0f
         }
 
-
-        if (item.status_cmp == 1 && item.status_ppro == 1){
-            holder.checkbox.apply {
-                isChecked = true
-                isEnabled = false  // Disable checkbox interaction
-                alpha = 0.5f
-            }
-        }
 
         val statusLayout = LinearLayout(holder.itemView.context).apply {
             orientation = LinearLayout.VERTICAL

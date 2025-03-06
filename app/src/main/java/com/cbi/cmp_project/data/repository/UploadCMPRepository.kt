@@ -12,6 +12,7 @@ import com.cbi.cmp_project.data.network.StagingApiClient
 import com.cbi.cmp_project.data.network.TestingAPIClient
 import com.cbi.cmp_project.data.repository.WeighBridgeRepository.UploadError
 import com.cbi.cmp_project.utils.AppLogger
+import com.cbi.cmp_project.utils.AppUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
@@ -60,37 +61,6 @@ class UploadCMPRepository(context: Context) {
         return uploadCMPDao.getAllData() // Calls the DAO function
     }
 
-    class ProgressRequestBody(
-        private val file: File,
-        private val contentTypeString: String,
-        private val callback: (progress: Int) -> Unit
-    ) : RequestBody() {
-
-        override fun contentType(): MediaType? = contentTypeString.toMediaTypeOrNull()
-
-        override fun contentLength(): Long = file.length()
-
-        override fun writeTo(sink: BufferedSink) {
-            val length = contentLength()
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            val fileInputStream = FileInputStream(file)
-            var uploaded: Long = 0
-            fileInputStream.use { inputStream ->
-                var read = inputStream.read(buffer)
-                while (read != -1) {
-                    sink.write(buffer, 0, read)
-                    uploaded += read
-                    val progress = (uploaded * 100 / length).toInt()
-                    callback(progress) // report progress
-                    read = inputStream.read(buffer)
-                }
-            }
-        }
-
-        companion object {
-            private const val DEFAULT_BUFFER_SIZE = 2048
-        }
-    }
 
     suspend fun uploadZipToServer(
         fileZipPath: String,
@@ -107,7 +77,7 @@ class UploadCMPRepository(context: Context) {
 
                 AppLogger.d("Starting file upload: ${file.name}")
 
-                val progressRequestBody = ProgressRequestBody(file, "application/zip") { progress ->
+                val progressRequestBody = AppUtils.ProgressRequestBody(file, "application/zip") { progress ->
                     AppLogger.d("Upload progress: $progress%")
                     onProgressUpdate(progress, false, null)
                 }

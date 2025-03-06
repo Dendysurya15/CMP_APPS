@@ -113,10 +113,10 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateArchivePanen(ids: List<Int>, statusArchive:Int) {
+    fun updateDataIsZippedPanen(ids: List<Int>, status:Int) {
         viewModelScope.launch {
             try {
-                repository.updatePanenArchive(ids,statusArchive)
+                repository.updateDataIsZippedPanen(ids,status)
                 _updateStatus.postValue(true)
             } catch (e: Exception) {
                 _updateStatus.postValue(false)
@@ -124,9 +124,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun loadActivePanenRestan() {
+    fun loadActivePanenRestan(status: Int = 0) {
         viewModelScope.launch {
-            repository.getActivePanenRestan()
+            repository.getActivePanenRestan(status)
                 .onSuccess { panenList ->
                     _activePanenList.postValue(panenList)
                 }
@@ -135,6 +135,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 }
         }
     }
+
 
     fun loadArchivedPanen() {
         viewModelScope.launch {

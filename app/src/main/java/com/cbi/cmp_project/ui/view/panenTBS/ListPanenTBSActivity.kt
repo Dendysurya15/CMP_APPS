@@ -221,9 +221,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 panenViewModel.loadActivePanenESPB()
             } else if (featureName == "Rekap panen dan restan") {
                 panenViewModel.loadActivePanenRestan()
+                // Add click listeners here
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
-                findViewById<TextView>(R.id.list_item_tersimpan).text = "Hasil Rekap"
-                findViewById<TextView>(R.id.list_item_terscan).text = "TPH Selesai eSPB"
+                findViewById<TextView>(R.id.list_item_tersimpan).apply {
+                    text = "Hasil Rekap"
+                    setOnClickListener {
+                        panenViewModel.loadActivePanenRestan()
+                    }
+                }
+                findViewById<TextView>(R.id.list_item_terscan).apply {
+                    text = "TPH Selesai eSPB"
+                    setOnClickListener {
+                        panenViewModel.loadActivePanenRestan(1)
+                    }
+                }
             } else {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.VISIBLE
                 panenViewModel.loadActivePanen()
@@ -545,7 +556,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD2")
 
         //get automatically selected items
-        val selectedItems2 = listAdapter.getCurrentData()
+        val selectedItems2 = listAdapter.getSelectedItems()
         Log.d("ListPanenTBSActivityESPB", "selectedItems2:$selectedItems2")
 
         // Extract the id values from the matches and join them with commas
@@ -565,6 +576,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             "$tph1IdPanen, $newTph1IdPanen"
         }
 
+        val allItems = listAdapter.getCurrentData()
         Log.d("ListPanenTBSActivityESPB", "listTPHDriver: $listTPHDriver")
         val tph1NO = convertToFormattedString(
             selectedItems2.toString(),
@@ -574,7 +586,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         //get item which is not selected
         val tph0before =
-            convertToFormattedString(selectedItems2.toString(), 0).replace("{\"KP\": ", "")
+            convertToFormattedString(allItems.toString(), 0).replace("{\"KP\": ", "")
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItems0: $tph0before")
 
@@ -1156,7 +1168,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             try {
                                 val jjgJsonString = data["jjg_json"].toString()
                                 val jjgJson = JSONObject(jjgJsonString)
-                                totalJjgCount += jjgJson.optInt("TO", 0)
+                                val key = if (featureName == "Rekap panen dan restan") "KP" else "TO"
+                                totalJjgCount += jjgJson.optInt(key, 0)
                             } catch (e: Exception) {
                                 AppLogger.e("Error parsing jjg_json: ${e.message}")
                             }
@@ -1250,7 +1263,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             try {
                                 val jjgJsonString = data["jjg_json"].toString()
                                 val jjgJson = JSONObject(jjgJsonString)
-                                totalJjgCount += jjgJson.optInt("TO", 0)
+                                val key = if (featureName == "Rekap panen dan restan") "KP" else "TO"
+                                totalJjgCount += jjgJson.optInt(key, 0)
                             } catch (e: Exception) {
                                 AppLogger.e("Error parsing jjg_json: ${e.message}")
                             }

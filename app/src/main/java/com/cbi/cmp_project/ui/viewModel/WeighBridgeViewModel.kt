@@ -15,6 +15,7 @@ import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.cmp_project.data.model.UploadCMPModel
 import com.cbi.cmp_project.data.repository.WeighBridgeRepository
+import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.markertph.data.model.TPHNewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,7 +58,11 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     private val _uploadErrorMap = MutableLiveData<Map<Int, String>>()
     val uploadErrorMap: LiveData<Map<Int, String>> get() = _uploadErrorMap
 
-    fun uploadESPBStagingKraniTimbang(selectedItems: List<Map<String, Any>>) {
+    private val _activeESPBByIds = MutableLiveData<List<ESPBEntity>>()
+    val activeESPBByIds: LiveData<List<ESPBEntity>> = _activeESPBByIds
+
+
+    fun uploadESPBKraniTimbang(selectedItems: List<Map<String, Any>>, globalIdEspb: List<Int>) {
         viewModelScope.launch {
             val progressMap = mutableMapOf<Int, Int>()
             val statusMap = mutableMapOf<Int, String>()
@@ -73,7 +78,10 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
             _uploadStatusMap.value = statusMap
             _uploadErrorMap.value = errorMap
 
-            val result = repository.uploadESPBStagingKraniTimbang(selectedItems) { itemId, progress, isSuccess, errorMsg ->
+            val result = repository.uploadESPBKraniTimbang(
+                selectedItems,
+                globalIdEspb
+            ) { itemId, progress, isSuccess, errorMsg ->
                 progressMap[itemId] = progress
 
                 statusMap[itemId] = when {
@@ -135,6 +143,20 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+
+    fun fetchActiveESPBByIds(ids: List<Int>) {
+        viewModelScope.launch {
+            repository.getActiveESPBByIds(ids)
+                .onSuccess { espbList ->
+                    _activeESPBByIds.postValue(espbList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load ESPB data")
+                }
+        }
+    }
+
+
     fun loadHistoryUploadeSPB() {
         viewModelScope.launch {
             repository.loadHistoryUploadeSPB()
@@ -179,7 +201,6 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     }
 
 
-
     suspend fun saveDataLocalKraniTimbangESPB(
         blok_jjg: String,
         created_by_id: Int,
@@ -192,13 +213,13 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         archive: Int,
         tph0: String,
         tph1: String,
-        update_info: String,
-        uploaded_by_id: Int,
-        uploaded_at: String,
-        status_upload_cmp: Int,
-        status_upload_ppro: Int,
+        update_info_sp: String? = null, // Set _sp fields to null
+        uploaded_by_id_wb: Int,
+        uploaded_at_wb: String,
+        status_upload_cmp_wb: Int,
+        status_upload_ppro_wb: Int,
         creator_info: String,
-        uploader_info: String,
+        uploader_info_wb: String,
         noESPB: String,
         scan_status: Int = 1,
     ): WeighBridgeRepository.SaveResultESPBKrani {
@@ -217,15 +238,22 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                     archive = archive,
                     tph0 = tph0,
                     tph1 = tph1,
-                    update_info = update_info,
-                    uploaded_by_id = uploaded_by_id,
-                    uploaded_at = uploaded_at,
-                    status_upload_cmp = status_upload_cmp,
-                    status_upload_ppro = status_upload_ppro,
+                    update_info_sp = update_info_sp ?: "NULL", // Ensure default null handling
+                    uploaded_by_id_wb = uploaded_by_id_wb,
+                    uploaded_at_wb = uploaded_at_wb,
+                    uploaded_by_id_sp = 0, // Nullify _sp fields
+                    uploaded_at_sp = "NULL",
+                    status_upload_cmp_sp = 0,
+                    status_upload_cmp_wb = status_upload_cmp_wb,
+                    status_upload_ppro_wb = status_upload_ppro_wb,
+                    status_draft = 0,
+                    status_mekanisasi = 0,
                     creator_info = creator_info,
-                    uploader_info = uploader_info,
+                    uploader_info_sp = "NULL", // Nullify _sp uploader info
+                    uploader_info_wb = uploader_info_wb,
                     noESPB = noESPB,
-                    scan_status = scan_status
+                    scan_status = scan_status,
+                    dataIsZipped = 0
                 )
                 repository.insertESPBData(espbData)
                 WeighBridgeRepository.SaveResultESPBKrani.Success
@@ -237,10 +265,11 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun updateArchiveESPB(ids: List<Int>, statusArchive:Int) {
+
+    fun updateDataIsZippedESPB(ids: List<Int>, status: Int) {
         viewModelScope.launch {
             try {
-                repository.updateESPBArchive(ids, statusArchive)
+                repository.updateDataIsZippedESPB(ids, status)
                 _updateStatus.postValue(true)
             } catch (e: Exception) {
                 _updateStatus.postValue(false)

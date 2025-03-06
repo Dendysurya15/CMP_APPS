@@ -10,6 +10,7 @@ import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -26,6 +27,7 @@ import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.data.model.TphRvData
 import com.cbi.cmp_project.ui.adapter.TPHRvAdapter
 import com.cbi.cmp_project.utils.AlertDialogUtility
+import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.cmp_project.utils.PrefManager
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -48,13 +50,15 @@ class ListTPHApproval : AppCompatActivity() {
         const val EXTRA_QR_RESULT = "scannedResult"
         private const val TAG = "ListTPHApproval"
     }
-
-    private var userName: String? = null
+    var menuString = ""
+    private var prefManager: PrefManager? = null
+    private var regionalId: String? = null
+    private var estateId: String? = null
     private var estateName: String? = null
+    private var userName: String? = null
+    private var userId: Int? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
-    private var estateId: String? = null
-    private var userId: Int? = null
 
     private lateinit var data: List<TphRvData>
     private lateinit var saveData: List<TphRvData>
@@ -84,6 +88,28 @@ class ListTPHApproval : AppCompatActivity() {
         })
 
         setContentView(R.layout.activity_list_panen_tbs)
+        prefManager = PrefManager(this)
+        regionalId = prefManager!!.regionalIdUserLogin
+        estateId = prefManager!!.estateIdUserLogin
+        estateName = prefManager!!.estateUserLogin
+        userName = prefManager!!.nameUserLogin
+        userId = prefManager!!.idUserLogin
+        jabatanUser = prefManager!!.jabatanUserLogin
+        setupHeader()
+        val backButton = findViewById<ImageView>(R.id.btn_back)
+
+        backButton.setOnClickListener {
+            AlertDialogUtility.withTwoActions(
+                this@ListTPHApproval,
+                "KEMBALI",
+                "Kembali ke Menu utama?",
+                "Data scan sebelumnya akan terhapus",
+                "warning.json"
+            ) {
+                startActivity(Intent(this@ListTPHApproval, HomePageActivity::class.java))
+                finishAffinity()
+            }
+        }
 
         setupRecyclerView()
         processQRResult()
@@ -222,6 +248,26 @@ class ListTPHApproval : AppCompatActivity() {
                 text = headerNames[i]
             }
         }
+    }
+
+
+    private fun setupHeader() {
+        menuString = intent.getStringExtra("FEATURE_NAME").toString()
+        AppLogger.d(menuString.toString())
+        val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
+        val userSection = findViewById<TextView>(R.id.userSection)
+        val locationSection = findViewById<LinearLayout>(R.id.locationSection)
+        locationSection.visibility = View.VISIBLE
+
+        AppUtils.setupUserHeader(
+            userName = userName,
+            jabatanUser = jabatanUser,
+            estateName = estateName,
+            afdelingUser = afdelingUser,
+            userSection = userSection,
+            featureName = menuString,
+            tvFeatureName = tvFeatureName
+        )
     }
 
     private fun processQRResult() {
