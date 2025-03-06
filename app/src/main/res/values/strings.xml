@@ -1,5 +1,4 @@
 <resources>
-    <string name="app_name">cmp_project</string>
     <string name="welcome_splash">Selamat Datang, </string>
     <string name="name_app">CBI Mobile Plantation</string>
     <string name="description_short">Aplikasi Input Panen TBS dan Inspeksi Panen Para Pemanen Kebun Regional I</string>

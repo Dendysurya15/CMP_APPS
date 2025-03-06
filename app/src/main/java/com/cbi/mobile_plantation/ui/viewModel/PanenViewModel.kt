@@ -1,0 +1,234 @@
+package com.cbi.mobile_plantation.ui.viewModel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.cbi.mobile_plantation.data.model.PanenEntity
+import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
+import com.cbi.mobile_plantation.data.repository.AppRepository
+import com.cbi.mobile_plantation.utils.AppLogger
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+
+sealed class SaveDataPanenState {
+    data class Success(val id: Long) : SaveDataPanenState()
+    data class Error(val message: String) : SaveDataPanenState()
+}
+
+class PanenViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository: AppRepository = AppRepository(application)
+
+    private val _panenList = MutableLiveData<List<PanenEntity>>()
+    val panenList: LiveData<List<PanenEntity>> get() = _panenList
+
+    private val _archivedPanenList = MutableLiveData<List<PanenEntityWithRelations>>()
+    val archivedPanenList: LiveData<List<PanenEntityWithRelations>> = _archivedPanenList
+
+    private val _activePanenList = MutableLiveData<List<PanenEntityWithRelations>>()
+    val activePanenList: LiveData<List<PanenEntityWithRelations>> = _activePanenList
+
+    private val _deleteItemsResult = MutableLiveData<Boolean>()
+    val deleteItemsResult: LiveData<Boolean> = _deleteItemsResult
+
+    private val _panenCount = MutableStateFlow(0)
+    val panenCount: StateFlow<Int> = _panenCount.asStateFlow()
+
+    private val _archivedCount = MutableLiveData<Int>()
+    val archivedCount: LiveData<Int> = _archivedCount
+
+    private val _panenCountApproval = MutableStateFlow(0)
+    val panenCountApproval: StateFlow<Int> = _panenCountApproval.asStateFlow()
+
+    private val _error = MutableLiveData<String>()
+    val error: LiveData<String> = _error
+
+    private val _updateStatus = MutableLiveData<Boolean>()
+    val updateStatus: LiveData<Boolean> get() = _updateStatus
+
+
+    fun loadAllPanen() {
+        viewModelScope.launch {
+            _panenList.value = repository.getAllPanen()
+        }
+    }
+
+    fun loadPanenCountArchive() = viewModelScope.launch {
+        try {
+            val count = repository.getPanenCountArchive()
+            _archivedCount.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error loading archive count: ${e.message}")
+            _archivedCount.value = 0  // Set to 0 if there's an error
+        }
+    }
+
+    suspend fun loadPanenCount(): Int {
+        val count = repository.getPanenCount()
+        _panenCount.value = count
+        return count
+    }
+
+    suspend fun loadPanenCountApproval(): Int {
+        val count = repository.getPanenCountApproval()
+        _panenCount.value = count
+        return count
+    }
+
+    fun loadActivePanen() {
+        viewModelScope.launch {
+            repository.getActivePanen()
+                .onSuccess { panenList ->
+                    _activePanenList.postValue(panenList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
+    fun loadActivePanenESPB() {
+        viewModelScope.launch {
+            repository.getActivePanenESPB()
+                .onSuccess { panenList ->
+                    _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
+    fun updateDataIsZippedPanen(ids: List<Int>, status:Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateDataIsZippedPanen(ids,status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+            }
+        }
+    }
+
+    fun loadActivePanenRestan(status: Int = 0) {
+        viewModelScope.launch {
+            repository.getActivePanenRestan(status)
+                .onSuccess { panenList ->
+                    _activePanenList.postValue(panenList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
+
+    fun loadArchivedPanen() {
+        viewModelScope.launch {
+            repository.getArchivedPanen()
+                .onSuccess { panenList ->
+                    _archivedPanenList.postValue(panenList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load archived data")
+                }
+        }
+    }
+
+    fun deleteMultipleItems(items: List<Map<String, Any>>) {
+        viewModelScope.launch {
+            try {
+                // Extract IDs from the items
+                val ids = items.mapNotNull { item ->
+                    (item["id"] as? Number)?.toInt()
+                }
+
+                if (ids.isEmpty()) {
+                    _deleteItemsResult.postValue(false)
+                    _error.postValue("No valid IDs found to delete")
+                    return@launch
+                }
+
+                val result = repository.deletePanenByIds(ids)
+
+                // Check if the number of deleted items matches the number of IDs
+                val isSuccess = result == ids.size
+                _deleteItemsResult.postValue(isSuccess)
+
+                if (!isSuccess) {
+                    _error.postValue("Failed to delete all items")
+                }
+
+            } catch (e: Exception) {
+                _deleteItemsResult.postValue(false)
+                _error.postValue("Error deleting items: ${e.message}")
+            }
+        }
+    }
+
+
+    fun archivePanenById(id: Int) {
+        viewModelScope.launch {
+            repository.archivePanenById(id)
+            loadAllPanen() // Refresh the data
+        }
+    }
+
+    suspend fun saveDataPanen(
+        tph_id: String,
+        date_created: String,
+        created_by: Int,
+        karyawan_id: String,
+        jjg_json: String,
+        foto: String,
+        komentar: String,
+        asistensi: Int,
+        lat: Double,
+        lon: Double,
+        jenis_panen: Int,
+        ancakInput: Int,
+        info:String,
+        archive: Int,
+    ): AppRepository.SaveResultPanen {
+        return try {
+            val panenData = PanenEntity(
+                tph_id = tph_id,
+                date_created = date_created,
+                created_by = created_by,
+                karyawan_id = karyawan_id,
+                jjg_json = jjg_json,
+                foto = foto,
+                komentar = komentar,
+                asistensi = asistensi,
+                lat = lat,
+                lon = lon,
+                jenis_panen = jenis_panen,
+                ancak = ancakInput,
+                info = info,
+                archive = archive
+            )
+            repository.saveDataPanen(panenData)
+            AppRepository.SaveResultPanen.Success
+        } catch (e: Exception) {
+            AppRepository.SaveResultPanen.Error(e)
+
+        }
+    }
+
+    class PanenViewModelFactory(
+        private val application: Application
+    ) : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(PanenViewModel::class.java)) {
+                return PanenViewModel(application) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class")
+        }
+    }
+}

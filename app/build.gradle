@@ -10,11 +10,11 @@ android {
     def versionMinor = 4
     def versionPatch = 0
 
-    namespace 'com.cbi.cmp_project'
+    namespace 'com.cbi.mobile_plantation'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.cbi.cmp_project"
+        applicationId "com.cbi.mobile_plantation"
         minSdk 27
         targetSdk 34
         versionCode((versionMajor * 10000) + (versionMinor * 100) + versionPatch)
