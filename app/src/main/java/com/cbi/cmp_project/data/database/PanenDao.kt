@@ -70,8 +70,8 @@ abstract class PanenDao {
     @Query("UPDATE panen_table SET archive = 1 WHERE id = :id")
     abstract fun archiveByID(id: Int): Int
 
-    @Query("UPDATE panen_table SET archive = :statusArchive WHERE id IN (:ids)")
-    abstract  suspend fun updatePanenArchive(ids: List<Int>, statusArchive: Int)
+    @Query("UPDATE panen_table SET dataIsZipped = :status WHERE id IN (:ids)")
+    abstract  suspend fun updateDataIsZippedPanen(ids: List<Int>, status: Int)
 
     @Query("UPDATE panen_table SET archive = 1 WHERE id IN (:id)")
     abstract fun archiveByListID(id: List<Int>): Int
@@ -81,7 +81,7 @@ abstract class PanenDao {
     abstract fun getAllActiveWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE archive = 0 AND status_espb = 0")
+    @Query("SELECT * FROM panen_table WHERE dataIsZipped = 0 AND status_espb = 0")
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction

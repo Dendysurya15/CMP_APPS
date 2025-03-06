@@ -2,8 +2,9 @@ package com.cbi.cmp_project.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.cbi.cmp_project.utils.AppUtils
 
-@Entity(tableName = "absensi")
+@Entity(tableName = AppUtils.DatabaseTables.ABSENSI)
 data class AbsensiModel(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val kemandoran_id: String,
@@ -17,5 +18,6 @@ data class AbsensiModel(
     val lat: Double,
     val lon: Double,
     val info: String,
-    val archive: Int
+    val archive: Int,
+    val dataIsZipped: Int = 0,
     )

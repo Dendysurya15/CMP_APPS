@@ -1,5 +1,6 @@
 package com.cbi.cmp_project.ui.adapter
 
+import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -28,7 +29,9 @@ data class UploadItem(
     val no_espb: String,
     val uploader_info:String,
     val uploaded_at:String,
-    val uploaded_by_id:Int
+    val uploaded_by_id:Int,
+    val file:String,
+    val endpoint:String,
 )
 
 
@@ -76,9 +79,11 @@ class UploadProgressAdapter(
         return UploadViewHolder(view)
     }
 
+    @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: UploadViewHolder, position: Int) {
         val item = uploadItems[position]
-        holder.tvNameProgress.text = "(PPRO) ${item.no_espb}"
+        holder.tvNameProgress.text = "${item.endpoint} (${item.no_espb})"
+
 
         // Get progress, status and error
         val progress = uploadProgressMap[item.id] ?: 0

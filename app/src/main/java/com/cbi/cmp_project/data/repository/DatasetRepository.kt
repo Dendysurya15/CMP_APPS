@@ -17,6 +17,7 @@ import com.cbi.cmp_project.data.model.dataset.DatasetRequest
 import com.cbi.cmp_project.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.cmp_project.data.network.CMPApiClient
 import com.cbi.cmp_project.data.network.TestingAPIClient
+import com.cbi.cmp_project.utils.AppUtils
 import com.cbi.markertph.data.model.TPHNewModel
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -39,6 +40,17 @@ class DatasetRepository(context: Context,
     suspend fun updateOrInsertKemandoran(kemandorans: List<KemandoranModel>) = kemandoranDao.updateOrInsertKemandoran(kemandorans)
 
     suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) = tphDao.updateOrInsertTPH(tph)
+
+
+    suspend fun getDatasetCount(datasetName: String): Int {
+        return when (datasetName) {
+            AppUtils.DatasetNames.pemanen -> karyawanDao.getCount()
+            AppUtils.DatasetNames.kemandoran -> kemandoranDao.getCount()
+            AppUtils.DatasetNames.tph -> tphDao.getCount()
+            AppUtils.DatasetNames.transporter -> transporterDao.getCount()
+            else -> 0
+        }
+    }
 
 //    suspend fun getDeptByRegionalAndEstate(estateId: String): List<DeptModel> {
 //        // Fetch dept data by regionalId and estateId
