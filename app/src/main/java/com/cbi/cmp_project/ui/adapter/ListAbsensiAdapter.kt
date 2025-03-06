@@ -20,6 +20,7 @@ data class AbsensiDataRekap(
     val id: Int,
     val afdeling: String,
     val datetime: String,
+    val kemandoran: String,
     val karyawan_msk_id: String,
     val karyawan_tdk_msk_id: String,
 )
@@ -52,8 +53,9 @@ class ListAbsensiAdapter(private var items: List<AbsensiDataRekap>):
         val jmlhKaryawanTdkMsk = if (item.karyawan_tdk_msk_id.isNotEmpty()) item.karyawan_tdk_msk_id.split(",").size else 0
 
 
-        holder.td1.text = formatToIndonesianDateTime(item.datetime)
-        holder.td2.text = item.afdeling
+//        holder.td1.text = formatToIndonesianDateTime(item.datetime)
+        holder.td1.text = item.afdeling
+        holder.td2.text = item.kemandoran
         holder.td3.text = "$jmlhKaryawanMsk orang"
     }
 

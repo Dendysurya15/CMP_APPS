@@ -232,7 +232,105 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         recyclerView.layoutManager = LinearLayoutManager(this)
 
         val mbSaveDataAbsensi = findViewById<MaterialButton>(R.id.mbSaveDataAbsensi)
-//        mbSaveDataAbsensi.setOnClickListener {
+        mbSaveDataAbsensi.setOnClickListener {
+            if (validateAndShowErrors()) {
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Simpan Data",
+                    getString(R.string.confirmation_dialog_title),
+                    getString(R.string.confirmation_dialog_description),
+                    "warning.json"
+                ) {
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        try {
+                            val result = withContext(Dispatchers.IO) {
+                                val absensiList = absensiAdapter.getItems()
+                                val (karyawanMasuk, karyawanTidakMasuk) = absensiList.partition { it.isChecked }
+
+                                val karyawanMskId = karyawanMasuk.joinToString(",") { it.id.toString() }
+                                val karyawanTdkMskId = karyawanTidakMasuk.joinToString(",") { it.id.toString() }
+
+                                val dateAbsen = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+                                val karyawanMskIdList = karyawanMskId.split(",") // Konversi ke List<String>
+                                val isDuplicate = absensiViewModel.isAbsensiExist(dateAbsen, karyawanMskIdList)
+                                if (isDuplicate) {
+                                    return@withContext SaveDataAbsensiState.Error("Data absensi sudah ada untuk sebagian karyawan.")
+                                }
+
+                                AppLogger.d("Tgl ${dateAbsen} + idKar ${karyawanMskId}")
+
+                                val listKemandoran = listOfNotNull(filteredKemandoranId, selectedKemandoranIdLainAbsensi)
+                                    .joinToString(",")
+
+                                val photoFilesString = photoFiles.joinToString(";")
+                                val komentarFotoString = komentarFoto.joinToString(";")
+
+                                absensiViewModel.saveDataAbsensi(
+                                    kemandoran_id = listKemandoran,
+                                    date_absen = dateAbsen,
+                                    created_by = userId!!,
+                                    karyawan_msk_id = karyawanMskId,
+                                    karyawan_tdk_msk_id = karyawanTdkMskId,
+                                    foto = photoFilesString,
+                                    komentar = komentarFotoString,
+                                    asistensi = asistensi ?: 0,
+                                    lat = lat ?: 0.0,
+                                    lon = lon ?: 0.0,
+                                    info = infoApp ?: "",
+                                    archive = 0
+                                )
+                            }
+
+                            when (result) {
+                                is SaveDataAbsensiState.Success -> {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@FeatureAbsensiActivity,
+                                        stringXML(R.string.al_back),
+                                        stringXML(R.string.al_success_save_local),
+                                        stringXML(R.string.al_description_success_save_local),
+                                        "success.json",
+                                        R.color.greenDefault
+                                    ) {
+                                        val intent = Intent(this@FeatureAbsensiActivity, ListAbsensiActivity::class.java)
+                                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                        startActivity(intent)
+                                        finish()
+                                    }
+                                }
+
+                                is SaveDataAbsensiState.Error -> {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@FeatureAbsensiActivity,
+                                        stringXML(R.string.al_back),
+                                        stringXML(R.string.al_failed_save_local),
+                                        "${stringXML(R.string.al_description_failed_save_local)} : ${result.message}",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) { }
+                                }
+
+                                SaveDataAbsensiState.Loading -> TODO()
+                            }
+                        } catch (e: Exception) {
+                            loadingDialog.dismiss()
+                            AppLogger.e("Error in saveDataAbsensi", e.toString())
+                            AlertDialogUtility.withSingleAction(
+                                this@FeatureAbsensiActivity,
+                                stringXML(R.string.al_back),
+                                stringXML(R.string.al_failed_save_local),
+                                "${stringXML(R.string.al_description_failed_save_local)} : ${e.message ?: "Unknown error"}",
+                                "warning.json",
+                                R.color.colorRedDark
+                            ) { }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    //        mbSaveDataAbsensi.setOnClickListener {
 //            if (validateAndShowErrors()) {
 //                AlertDialogUtility.withTwoActions(
 //                    this,
@@ -344,111 +442,6 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
 //                }
 //            }
 //        }
-
-        mbSaveDataAbsensi.setOnClickListener {
-            if (validateAndShowErrors()) {
-                AlertDialogUtility.withTwoActions(
-                    this,
-                    "Simpan Data",
-                    getString(R.string.confirmation_dialog_title),
-                    getString(R.string.confirmation_dialog_description),
-                    "warning.json"
-                ) {
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        try {
-                            val result = withContext(Dispatchers.IO) {
-                                val absensiList = absensiAdapter.getItems()
-                                val (karyawanMasuk, karyawanTidakMasuk) = absensiList.partition { it.isChecked }
-
-                                val karyawanMskId = karyawanMasuk.joinToString(",") { it.id.toString() }
-                                val karyawanTdkMskId = karyawanTidakMasuk.joinToString(",") { it.id.toString() }
-
-                                val dateAbsen = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-
-                                val karyawanMskIdList = karyawanMskId.split(",") // Konversi ke List<String>
-                                val isDuplicate = absensiViewModel.isAbsensiExist(dateAbsen, karyawanMskIdList)
-
-
-                                if (isDuplicate) {
-                                    return@withContext SaveDataAbsensiState.Error("Data absensi sudah ada untuk sebagian karyawan.")
-                                }
-
-                                AppLogger.d("Tgl ${dateAbsen} + idKar ${karyawanMskId}")
-
-                                val listKemandoran = listOfNotNull(filteredKemandoranId, selectedKemandoranIdLainAbsensi)
-                                    .joinToString(",")
-
-                                val photoFilesString = photoFiles.joinToString(";")
-                                val komentarFotoString = komentarFoto.joinToString(";")
-
-                                absensiViewModel.saveDataAbsensi(
-                                    kemandoran_id = listKemandoran,
-                                    date_absen = dateAbsen,
-                                    created_by = userId!!,
-                                    karyawan_msk_id = karyawanMskId,
-                                    karyawan_tdk_msk_id = karyawanTdkMskId,
-                                    foto = photoFilesString,
-                                    komentar = komentarFotoString,
-                                    asistensi = asistensi ?: 0,
-                                    lat = lat ?: 0.0,
-                                    lon = lon ?: 0.0,
-                                    info = infoApp ?: "",
-                                    archive = 0
-                                )
-                            }
-
-                            when (result) {
-                                is SaveDataAbsensiState.Success -> {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@FeatureAbsensiActivity,
-                                        stringXML(R.string.al_back),
-                                        stringXML(R.string.al_success_save_local),
-                                        stringXML(R.string.al_description_success_save_local),
-                                        "success.json",
-                                        R.color.greenDefault
-                                    ) {
-                                        val intent = Intent(this@FeatureAbsensiActivity, ListAbsensiActivity::class.java)
-                                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                                        startActivity(intent)
-                                        finish()
-                                    }
-                                }
-
-                                is SaveDataAbsensiState.Error -> {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@FeatureAbsensiActivity,
-                                        stringXML(R.string.al_back),
-                                        stringXML(R.string.al_failed_save_local),
-                                        "${stringXML(R.string.al_description_failed_save_local)} : ${result.message}",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) { }
-                                }
-
-                                SaveDataAbsensiState.Loading -> TODO()
-                            }
-                        } catch (e: Exception) {
-                            loadingDialog.dismiss()
-                            AppLogger.e("Error in saveDataAbsensi", e.toString())
-                            AlertDialogUtility.withSingleAction(
-                                this@FeatureAbsensiActivity,
-                                stringXML(R.string.al_back),
-                                stringXML(R.string.al_failed_save_local),
-                                "${stringXML(R.string.al_description_failed_save_local)} : ${e.message ?: "Unknown error"}",
-                                "warning.json",
-                                R.color.colorRedDark
-                            ) { }
-                        }
-                    }
-                }
-            }
-        }
-
-
-
-
-
-    }
 
     private fun initViewModel() {
         val idTakeFotoLayout = findViewById<View>(R.id.fotoAbsensi)

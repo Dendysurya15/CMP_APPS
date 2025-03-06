@@ -812,15 +812,27 @@ class ListAbsensiActivity : AppCompatActivity() {
 //
 //    }
 
+    fun formatToIndonesianDateTime(dateTimeStr: String): String {
+        try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val date = inputFormat.parse(dateTimeStr) ?: return dateTimeStr
+            val outputFormat = SimpleDateFormat("d MMM yy\nHH:mm", Locale("id"))
+            return outputFormat.format(date)
+        } catch (e: Exception) {
+            return dateTimeStr
+        }
+    }
+
     @SuppressLint("SetTextI18n")
     private fun setupObserveData() {
-        val listTgl = findViewById<TextView>(R.id.listTglAbsensi)
+        val listTgl = findViewById<TextView>(R.id.tvTglAbsensi)
         val listLokasi = findViewById<TextView>(R.id.lokasiKerja)
         val totalKehadiran = findViewById<TextView>(R.id.totalKehadiranAbsensi)
         val tglSection = findViewById<LinearLayout>(R.id.tglAbsensi)
         val totakKehadiranSection = findViewById<LinearLayout>(R.id.total_sectionAbsensi)
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
 
+//        listTgl.text = formatToIndonesianDateTime(datetime)
 //        loadingDialog.show()
 //        loadingDialog.setMessage("Loading data...")
 //
@@ -928,6 +940,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             //untuk table
                                             afdeling = kemandoranNama,
                                             datetime = absensiWithRelations.absensi.date_absen,
+                                            kemandoran = absensiWithRelations.kemandoran?.kode.toString(),
                                             karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id,
                                             karyawan_tdk_msk_id = absensiWithRelations.absensi.karyawan_tdk_msk_id
                                         )
@@ -960,7 +973,7 @@ class ListAbsensiActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        val headers = listOf("TANGGAL", "LOKASI", "TOTAL KEHADIRAN")
+        val headers = listOf("LOKASI", "KEMANDORAN", "TOTAL KEHADIRAN")
         updateTableHeaders(headers)
 
         recyclerView = findViewById(R.id.rvTableDataAbsensiList)
