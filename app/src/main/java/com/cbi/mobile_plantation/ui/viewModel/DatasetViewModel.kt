@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
+import org.json.JSONObject
 import retrofit2.Response
 import java.io.File
 
@@ -350,7 +351,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 when (dataset) {
                     AppUtils.DatasetNames.tph -> prefManager.lastModifiedDatasetTPH =
                         lastModifiedTimestamp
-//                    "blok" -> prefManager.lastModifiedDatasetBlok = lastModifiedTimestamp
                     AppUtils.DatasetNames.kemandoran -> prefManager.lastModifiedDatasetKemandoran =
                         lastModifiedTimestamp
 
@@ -382,9 +382,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     fun downloadMultipleDatasets(requests: List<DatasetRequest>) {
         viewModelScope.launch {
             val results = mutableMapOf<String, Resource<Response<ResponseBody>>>()
-            var hasShownError = false  // Flag to track if error has been shown
 
             requests.forEach { request ->
+                var hasShownError = false  // Flag to track if error has been shown
 
                 results[request.dataset] = Resource.Loading(0)
                 _downloadStatuses.postValue(results.toMap())
@@ -789,17 +789,29 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         }
 
                         else -> {
+                            val errorBody = response?.errorBody()?.string() ?: "Unknown error"
+
+                            // Extract the message from JSON safely
+                            val extractedMessage = try {
+                                val jsonObject = JSONObject(errorBody)
+                                jsonObject.optString("message", "Unknown error") // Get "message" key or default
+                            } catch (e: Exception) {
+                                errorBody // If JSON parsing fails, return the raw error
+                            }
+
+                            val errorMessage = "Download failed with status code: ${response?.code()} - $extractedMessage"
+
+                            Log.e("DownloadError", errorMessage) // Log the extracted message
+
                             if (!hasShownError) {
-                                results[request.dataset] = Resource.Error(
-                                    "Download failed with status code: ${response.code()}",
-                                    response
-                                )
+                                results[request.dataset] = Resource.Error(errorMessage, response)
                                 hasShownError = true
                             } else {
-                                results[request.dataset] =
-                                    Resource.Error("Download failed", response)
+                                results[request.dataset] = Resource.Error("Download failed", response)
                             }
                         }
+
+
                     }
                     _downloadStatuses.postValue(results.toMap())
 

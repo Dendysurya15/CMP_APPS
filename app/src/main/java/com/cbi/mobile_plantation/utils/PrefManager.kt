@@ -10,23 +10,6 @@ class PrefManager(_context: Context) {
     private var editor: SharedPreferences.Editor
     var privateMode = 0
 
-    fun saveFileList(fileList: List<String?>) {
-        val json = Gson().toJson(fileList)
-        editor.putString("downloaded_file_list", json)
-        editor.apply()
-    }
-
-    // Retrieve the list of files
-    fun getFileList(): List<String?> {
-        val json = pref.getString("downloaded_file_list", "[]")
-        return try {
-            val type = object : TypeToken<List<String?>>() {}.type
-            Gson().fromJson(json, type) ?: emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
     var rememberLogin: Boolean
         get() = pref.getBoolean(REMEMBERME, false)
         set(rememberLogin) {

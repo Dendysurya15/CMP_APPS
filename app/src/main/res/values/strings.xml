@@ -16,6 +16,7 @@
     <string name="al_confirm_out">Apakah anda yakin untuk keluar dari aplikasi ini?</string>
     <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah anda yakin untuk simpan data e-SPB ini?</string>
     <string name="al_confirm_feature">Apakah anda yakin untuk keluar dari Menu ini?</string>
+    <string name="al_confirm_logout">Apakah anda yakin Logout dari user ini?</string>
     <string name="al_confirm_delete_photo">Apakah anda yakin untuk menghapus foto ini?</string>
     <string name="al_location_not_ready">GPS Tidak terdeteksi!</string>
     <string name="al_location_description_failed"> Perangkat tidak dapat mendeteksi lokasi Anda saat ini. Pastikan layanan lokasi di perangkat Anda aktif!</string>

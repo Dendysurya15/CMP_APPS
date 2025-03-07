@@ -1032,7 +1032,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             if (keyboardBeingDismissed) return
 
             keyboardBeingDismissed = true
-            val imm = application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            val imm =
+                application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(etHomeMarkerTPH.windowToken, 0)
             etHomeMarkerTPH.clearFocus()
 
@@ -1119,6 +1120,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     ancakInput = s?.toString()?.trim() ?: ""
                 }
             }
+
             override fun afterTextChanged(s: Editable?) {}
         })
     }
@@ -1235,7 +1237,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         // Hide keyboard helper
         fun ensureKeyboardHidden() {
-            val imm = application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            val imm =
+                application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(linearLayout.windowToken, 0)
             editText.clearFocus()
         }
@@ -1476,7 +1479,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val currentFocus = rootView.findFocus()
         if (currentFocus is EditText) {
             currentFocus.clearFocus()
-            val imm = application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            val imm =
+                application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(currentFocus.windowToken, 0)
         }
 
@@ -1802,7 +1806,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             karyawanList = karyawanDeferred.await()
 
-                            val karyawanNames = karyawanList.map { "${it.nik} - ${it.nama}" }
+                            val karyawanList = karyawanDeferred.await()
+                            val karyawanNames = karyawanList
+                                .sortedBy { it.nama } // Sort by name alphabetically
+                                .map { "${it.nama} - ${it.nik}" }
+
 
                             withContext(Dispatchers.Main) {
                                 val layoutPemanen =
@@ -1891,7 +1899,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             karyawanLainList = karyawanDeferred.await()
 
                             val namaKaryawanKemandoranLain =
-                                karyawanLainList.map { "${it.nik} - ${it.nama}" }
+                                karyawanLainList.sortedBy { it.nama } // Sort by name alphabetically
+                                    .map { "${it.nama} - ${it.nik}" }
+
+
 
                             withContext(Dispatchers.Main) {
                                 val layoutPemanenLain =

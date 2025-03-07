@@ -2,6 +2,8 @@ package com.cbi.mobile_plantation.ui.view
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -52,6 +54,8 @@ class LoginActivity : AppCompatActivity() {
 
             }
         }
+        val etPasswordLayout = findViewById<TextInputLayout>(R.id.etPasswordLayout)
+        etPasswordLayout.setEndIconTintList(ColorStateList.valueOf(getColor(R.color.graytextdark)))
 
 
         val loginButton = findViewById<MaterialButton>(R.id.btn_login_submit)

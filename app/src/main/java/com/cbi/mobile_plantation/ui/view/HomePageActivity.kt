@@ -18,6 +18,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -62,12 +63,14 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
+import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
+import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -113,7 +116,6 @@ class HomePageActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        AppLogger.d("HomePage: onCreate started")
 
         binding = ActivityHomePageBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -122,10 +124,12 @@ class HomePageActivity : AppCompatActivity() {
         loadingDialog = LoadingDialog(this)
         initViewModel()
         setupDownloadDialog()
+        setupTitleAppNameAndVersion()
         setupName()
+        setupLogout()
         checkPermissions()
         setupRecyclerView()
-
+        setupCheckingAfterLogoutUser()
 
         panenViewModel.updateStatus.observeOnce(this) { success ->
             if (success) {
@@ -201,7 +205,7 @@ class HomePageActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         featureAdapter.updateCount(
                             "Rekap e-SPB Timbangan Mill",
-                            counteSPBWBScanned.toString().replace(" ","")
+                            counteSPBWBScanned.toString().replace(" ", "")
                         )
                         featureAdapter.hideLoadingForFeature("Rekap e-SPB Timbangan Mill")
                     }
@@ -508,7 +512,7 @@ class HomePageActivity : AppCompatActivity() {
 
                             loadingDialog.dismiss()
                             trackingIdsUpload = data
-                            AppLogger.d(data.toString())
+
                             startDownloads()
                         }
                     } else {
@@ -612,14 +616,14 @@ class HomePageActivity : AppCompatActivity() {
                                         mapOf(
                                             "id" to panenWithRelations.panen.id,
                                             "tanggal" to panenWithRelations.panen.date_created,
-                                            "jjg_json" to  panenWithRelations.panen.jjg_json,
+                                            "jjg_json" to panenWithRelations.panen.jjg_json,
                                             "tipe" to panenWithRelations.panen.jenis_panen,
                                             "tph" to (panenWithRelations.tph?.id
                                                 ?: 0) as Int,
                                             "tph_nomor" to (panenWithRelations.tph?.nomor ?: ""),
                                             "ancak" to panenWithRelations.panen.ancak,
                                             "updated_date" to panenWithRelations.panen.date_created,
-                                                "updated_by" to panenWithRelations.panen.created_by,
+                                            "updated_by" to panenWithRelations.panen.created_by,
                                             "asistensi" to if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2,
                                             "kemandoran" to panenWithRelations.panen.karyawan_id,
                                             "foto" to panenWithRelations.panen.foto,
@@ -658,7 +662,8 @@ class HomePageActivity : AppCompatActivity() {
                                             "mill_id" to data.mill_id,
                                             "info_app" to data.creator_info,
                                             "no_espb" to data.noESPB,
-                                            "uploader_info_sp" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
+                                            "uploader_info_sp" to AppUtils.getDeviceInfo(this@HomePageActivity)
+                                                .toString(),
                                             "uploaded_by_id_sp" to prefManager!!.idUserLogin.toString()
                                         )
                                     }
@@ -1282,16 +1287,72 @@ class HomePageActivity : AppCompatActivity() {
         })
     }
 
+    @SuppressLint("SetTextI18n")
+    private fun setupTitleAppNameAndVersion() {
+        val appVersion = AppUtils.getAppVersion(this)
+        findViewById<TextView>(R.id.titleAppNameAndVersion).text = "CMP - $appVersion"
+    }
+
 
     private fun setupName() {
         val userName = prefManager!!.nameUserLogin ?: "Unknown"
         val jobTitle = "${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
         val initials = userName.split(" ").take(2).joinToString("") { it.take(1).uppercase() }
 
-        AppLogger.d(userName)
         findViewById<TextView>(R.id.userNameLogin).text = userName
         findViewById<TextView>(R.id.jabatanUserLogin).text = jobTitle
         findViewById<TextView>(R.id.initalName).text = initials
+    }
+
+    private fun setupCheckingAfterLogoutUser(){
+        if(prefManager!!.datasetMustUpdate.isEmpty()){
+            startDownloads()
+        }
+    }
+
+    private fun setupLogout() {
+
+        val btnLogout = findViewById<MaterialButton>(R.id.btnLogout)
+
+        btnLogout.setOnClickListener {
+            vibrate()
+            AlertDialogUtility.withTwoActions(
+                this,
+                "Keluar",
+                getString(R.string.confirmation_dialog_title),
+                getString(R.string.al_confirm_logout),
+                "warning.json",
+                ContextCompat.getColor(this, R.color.bluedarklight)
+            ) {
+
+                prefManager!!.isFirstTimeLaunch = false
+                prefManager!!.rememberLogin = false
+                prefManager!!.token = null
+                prefManager!!.username = null
+                prefManager!!.password = null
+                prefManager!!.nameUserLogin = null
+                prefManager!!.idUserLogin = 0  // Resetting Int to 0
+                prefManager!!.jabatanUserLogin = null
+                prefManager!!.estateUserLogin = null
+                prefManager!!.estateUserLengkapLogin = null
+                prefManager!!.estateIdUserLogin = null
+                prefManager!!.regionalIdUserLogin = null
+                prefManager!!.companyIdUserLogin = null
+                prefManager!!.companyAbbrUserLogin = null
+                prefManager!!.companyNamaUserLogin = null
+                prefManager!!.lastModifiedDatasetTPH = null
+                prefManager!!.lastModifiedDatasetKemandoran = null
+                prefManager!!.lastModifiedDatasetPemanen = null
+                prefManager!!.lastModifiedDatasetTransporter = null
+                prefManager!!.clearDatasetMustUpdate()
+
+                val intent = Intent(this, LoginActivity::class.java)
+                Toasty.success(this, "Berhasil Logout", Toast.LENGTH_LONG, true).show()
+                startActivity(intent)
+                finishAffinity()
+            }
+        }
+
     }
 
 
@@ -1351,6 +1412,7 @@ class HomePageActivity : AppCompatActivity() {
             startDownloads()
         }
     }
+
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
