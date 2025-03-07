@@ -44,6 +44,7 @@ import com.cbi.cmp_project.ui.viewModel.WeighBridgeViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
+import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.AppUtils.vibrate
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
@@ -122,7 +123,10 @@ class ListAbsensiActivity : AppCompatActivity() {
         initializeViews()
         setupObserveData()
         absensiViewModel.getAllDataAbsensi()
+        absensiViewModel.loadAbsensiCountArchive()
         setupQRAbsensi()
+        setupCardListeners()
+        setActiveCard(cardTersimpan)
     }
 
     fun generateHighQualityQRCode(
@@ -191,6 +195,7 @@ class ListAbsensiActivity : AppCompatActivity() {
             val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
             val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
             val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
+            tvTitleQRGenerate.text = "Generate QR Absensi"
             val dashedLine: View = view.findViewById(R.id.dashedLine)
             val loadingContainer: LinearLayout =
                 view.findViewById(R.id.loadingDotsContainerBottomSheet)
@@ -244,8 +249,6 @@ class ListAbsensiActivity : AppCompatActivity() {
             lifecycleScope.launch(Dispatchers.Default) {
                 delay(1000)
                 try {
-                    val dataQR: TextView? = view.findViewById(R.id.dataQR)
-                    val dataQRTitle: TextView? = view.findViewById(R.id.dataQRTitle)
                     lifecycleScope.launch(Dispatchers.Default) {
                         delay(1000)
                         try {
@@ -294,21 +297,48 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                     }
 
                                                     // ID validation
+//                                                    val id = when (val idValue = item["id"]) {
+//                                                        null -> {
+//                                                            errorMessages.add("ID is null")
+//                                                            hasError = true
+//                                                            return@forEach
+//                                                        }
+//
+//                                                        !is Number -> {
+//                                                            errorMessages.add("Invalid ID format: $idValue")
+//                                                            hasError = true
+//                                                            return@forEach
+//                                                        }
+//
+//                                                        else -> idValue.toInt()
+//                                                    }
+
+                                                    // ID validation
                                                     val id = when (val idValue = item["id"]) {
                                                         null -> {
                                                             errorMessages.add("ID is null")
                                                             hasError = true
                                                             return@forEach
                                                         }
-
-                                                        !is Number -> {
+                                                        is List<*> -> {
+                                                            // Extract first element if it's a valid number
+                                                            val firstElement = idValue.firstOrNull()
+                                                            if (firstElement is Number) {
+                                                                firstElement.toInt()
+                                                            } else {
+                                                                errorMessages.add("Invalid ID format: $idValue")
+                                                                hasError = true
+                                                                return@forEach
+                                                            }
+                                                        }
+                                                        is Number -> idValue.toInt()
+                                                        else -> {
                                                             errorMessages.add("Invalid ID format: $idValue")
                                                             hasError = true
                                                             return@forEach
                                                         }
-
-                                                        else -> idValue.toInt()
                                                     }
+
 
                                                     if (id <= 0) {
                                                         errorMessages.add("Invalid ID value: $id")
@@ -317,7 +347,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                     }
 
                                                     try {
-//                                                        panenViewModel.archivePanenById(id)
+                                                        absensiViewModel.archiveAbsensiById(id)
                                                         successCount++
                                                     } catch (e: SQLiteException) {
                                                         errorMessages.add("Database error for ID $id: ${e.message}")
@@ -398,8 +428,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             }
                                         }
 
-//                                        panenViewModel.loadActivePanen()
-//                                        panenViewModel.loadPanenCountArchive()
+                                        absensiViewModel.loadActiveAbsensi()
+                                        absensiViewModel.loadAbsensiCountArchive()
                                     }
                                 }
                             }
@@ -623,9 +653,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                 throw IllegalArgumentException("Data Absensi is empty.")
             }
 
-            val formattedList = mappedData.map { data ->
-                val idKemandoran = data["id"]?.toString()
-                    ?.replace("[", "")?.replace("]", "") // Remove brackets
+            mappedData.joinToString(",\n") { data ->
+                val idKemandoran = data["id"]?.toString()?.replace("[", "")?.replace("]", "")
                     ?: throw IllegalArgumentException("Missing idKemandoran.")
 
                 val idKaryawan = data["karyawan_msk_id"]?.toString()
@@ -637,12 +666,12 @@ class ListAbsensiActivity : AppCompatActivity() {
                 }.toString()
             }
 
-            formattedList.joinToString(",")
-
         } catch (e: Exception) {
             throw IllegalArgumentException("formatPanenDataForQR Error: ${e.message}")
         }
     }
+
+
 
 
 
@@ -685,7 +714,43 @@ class ListAbsensiActivity : AppCompatActivity() {
 //        }
 //    }
 
+    private fun setupCardListeners() {
+        cardTersimpan.setOnClickListener {
+            currentState = 0
+            setActiveCard(cardTersimpan)
+            loadingDialog.show()
+            loadingDialog.setMessage("Loading data tersimpan...")
+            // Reset visibility states before loading new data
+            tvEmptyStateAbsensi.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+            absensiAdapter.updateArchiveState(0)
+//            if (featureName== "Rekap absensi panen") {
+//                absensiViewModel.loadActiveAbsensi()
+//            } else {
+//                absensiViewModel.getAllDataAbsensi()
+//            }
+            absensiViewModel.getAllDataAbsensi()
+        }
+
+        cardTerscan.setOnClickListener {
+            currentState = 1
+            setActiveCard(cardTerscan)
+            loadingDialog.show()
+            loadingDialog.setMessage("Loading data terscan...")
+            // Reset visibility states before loading new data
+            tvEmptyStateAbsensi.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+            speedDial.visibility = View.GONE
+            absensiAdapter.updateArchiveState(1)
+            absensiViewModel.loadArchivedAbsensi()
+        }
+    }
+
     private fun initializeViews() {
+        cardTersimpan = findViewById(R.id.card_item_tersimpanAbsensi)
+        cardTerscan = findViewById(R.id.card_item_terscanAbsensi)
+        counterTersimpan = findViewById(R.id.counter_item_tersimpanAbsensi)
+        counterTerscan = findViewById(R.id.counter_item_terscanAbsensi)
         tvEmptyStateAbsensi = findViewById(R.id.tvEmptyStateAbsensiList)
         speedDial = findViewById(R.id.dial_listAbsensi)
     }
@@ -812,76 +877,72 @@ class ListAbsensiActivity : AppCompatActivity() {
 //
 //    }
 
-    fun formatToIndonesianDateTime(dateTimeStr: String): String {
-        try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val date = inputFormat.parse(dateTimeStr) ?: return dateTimeStr
-            val outputFormat = SimpleDateFormat("d MMM yy\nHH:mm", Locale("id"))
-            return outputFormat.format(date)
+    private fun setActiveCard(activeCard: MaterialCardView) {
+
+        cardTersimpan.apply {
+            setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
+            strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
+        }
+
+        cardTerscan.apply {
+            setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
+            strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
+        }
+
+        // Set active card colors
+        activeCard.apply {
+            setCardBackgroundColor(ContextCompat.getColor(context, R.color.bgSelectWorkerGreen))
+            strokeColor = ContextCompat.getColor(context, R.color.strokeSelectWorkerGreen)
+        }
+    }
+
+    fun formatToIndonesianDate(dateStr: String): String {
+        return try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val date = inputFormat.parse(dateStr) ?: return dateStr
+            val outputFormat = SimpleDateFormat("d MMMM yyyy", Locale("id")) // Example: 6 Maret 2025
+            outputFormat.format(date)
         } catch (e: Exception) {
-            return dateTimeStr
+            dateStr // Return original string in case of error
         }
     }
 
     @SuppressLint("SetTextI18n")
     private fun setupObserveData() {
-        val listTgl = findViewById<TextView>(R.id.tvTglAbsensi)
+        val listTgl = findViewById<TextView>(R.id.listTglAbsensi)
         val listLokasi = findViewById<TextView>(R.id.lokasiKerja)
         val totalKehadiran = findViewById<TextView>(R.id.totalKehadiranAbsensi)
         val tglSection = findViewById<LinearLayout>(R.id.tglAbsensi)
         val totakKehadiranSection = findViewById<LinearLayout>(R.id.total_sectionAbsensi)
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
 
-//        listTgl.text = formatToIndonesianDateTime(datetime)
-//        loadingDialog.show()
-//        loadingDialog.setMessage("Loading data...")
-//
-//        absensiViewModel.archivedCount.observe(this) { count ->
-//            counterTerscan.text = count.toString()
-//        }
+        loadingDialog.show()
+        loadingDialog.setMessage("Loading data...")
+
+        absensiViewModel.archivedCount.observe(this) { count ->
+            counterTerscan.text = count.toString()
+        }
 
         absensiViewModel.savedDataAbsensiList.observe(this) { data ->
             if (currentState == 0 ) {
                 absensiAdapter.updateList(emptyList())
 
                 if (data.isNotEmpty()) {
+                    val dateAbsen = data.first().absensi.date_absen // Get date_absen from first item
+                    val formattedDate = formatToIndonesianDate(dateAbsen) // Format it to Indonesian date
+                    val tglAbsensi = findViewById<TextView>(R.id.tvTglAbsensi)
+                    tglAbsensi.text = formattedDate
+
                     speedDial.visibility = View.VISIBLE
                     tvEmptyStateAbsensi.visibility = View.GONE
                     recyclerView.visibility = View.VISIBLE
-
-//                    mappedData = data.map { absensiWithRelations ->
-//                        mapOf<String, Any>(
-//                            "id" to (absensiWithRelations.absensi.id as Any),
-//                            "kemandoran_id" to (absensiWithRelations.kemandoran?.kemandoran_id as Any),
-//                            "datetime" to (absensiWithRelations.absensi.date_absen as Any),
-//                            "karyawan_msk_id" to (absensiWithRelations.absensi.karyawan_msk_id as Any),
-//                            "karyawan_tdk_msk_id" to (absensiWithRelations.absensi.karyawan_tdk_msk_id as Any)
-//                        )
-//                    }
-//
-//                    listTgl.visibility = View.VISIBLE
-//                    listLokasi.visibility = View.VISIBLE
-////                    totalKehadiran.text = View.VISIBLE
-////                    totalJjg.text = totalJjgCount.toString()
-////                    totalTPH.text = distinctTphCount.toString()
-//
-//                    absensiAdapter.updateList(mappedData)
-//                    originalData =
-//                        emptyList() // Reset original data when new data is loaded
-//                    filterSection.visibility =
-//                        View.GONE // Hide filter section for new data
 
 //                // Launch coroutine in lifecycleScope
                     lifecycleScope.launch {
                         try {
                             val filteredData = coroutineScope {
                                 AppLogger.d(data.toString())
-
                                 data.map { absensiWithRelations ->
-//                                val kemandoran = absensiWithRelations.kemandoran
-//                                AppLogger.d("${kemandoran?.id}, Divisi Abbr: ${kemandoran?.divisi_abbr}, Nama: ${kemandoran?.nama}")
-
-
                                     val rawKemandoran = absensiWithRelations.absensi.kemandoran_id
                                         .split(",")
                                         .map { it.trim() }
@@ -905,15 +966,110 @@ class ListAbsensiActivity : AppCompatActivity() {
                                     AppLogger.d(kemandoranData.toString())
                                     val kemandoranNama = kemandoranData?.mapNotNull { it.divisi_abbr }?.takeIf { it.isNotEmpty() }
                                         ?.joinToString("\n") ?: "-"
-
-//                                    val kemandoranId = kemandoranData?.mapNotNull { it.divisi_abbr }?.takeIf { it.isNotEmpty() }
-//                                        ?.joinToString("\n") ?: "-"
-
                                     async {
-//                                    val allAfdeling = data.mapNotNull { it.kemandoran?.divisi_abbr }
-//                                        .distinct() // Remove duplicates
-//                                        .joinToString(", ") // Combine into a single string
+                                        mappedData = mappedData + mapOf(
+                                            "id" to (rawKemandoran.firstOrNull()?.toIntOrNull() ?: -1),
+                                            "afdeling" to kemandoranNama,
+                                            "datetime" to absensiWithRelations.absensi.date_absen,
+                                            "karyawan_msk_id" to absensiWithRelations.absensi.karyawan_msk_id,
+                                            "karyawan_tdk_msk_id" to absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                        )
 
+                                        AbsensiDataRekap(
+                                            //data untuk upload staging
+                                            id = absensiWithRelations.absensi.id,
+//                                        estate = deptPPRO,
+//                                        afdeling = divisiPPRO,
+//                                        datetime = 0,
+//                                        karyawan_msk_id = item.blok_jjg,
+//                                        karyawan_tdk_msk_id = item.nopol,
+//                                        driver = item.driver,
+//                                        pemuat_id = item.pemuat_id,
+//                                        transporter_id = item.transporter_id,
+//                                        mill_id = item.mill_id,
+//                                        created_by_id = item.created_by_id,
+//                                        created_at = item.created_at,
+//                                        noSPB = item.noESPB.ifEmpty { "-" },
+                                            //untuk table
+                                            afdeling = kemandoranNama,
+                                            datetime = absensiWithRelations.absensi.date_absen,
+                                            kemandoran = absensiWithRelations.kemandoran?.kode.toString(),
+                                            karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id,
+                                            karyawan_tdk_msk_id = absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                        )
+                                    }
+                                }.map { it.await() } // Wait for all async tasks to complete
+                            }
+                            AppLogger.d("cek data ${mappedData.toString()}")
+                            absensiAdapter.updateList(filteredData)
+                        } catch (e: Exception) {
+                            AppLogger.e("Data processing error: ${e.message}")
+                        }
+                    }
+                } else {
+                    tvEmptyStateAbsensi.text = "No Uploaded e-SPB data available"
+                    tvEmptyStateAbsensi.visibility = View.VISIBLE
+                    recyclerView.visibility = View.GONE
+                    tglSection.visibility = View.GONE
+                    totakKehadiranSection.visibility = View.GONE
+                }
+                counterTersimpan.text = data.size.toString()
+
+                if (data.size == 0) {
+                    btnGenerateQRAbsensi.visibility = View.GONE
+                } else {
+                    btnGenerateQRAbsensi.visibility = View.VISIBLE
+                }
+                loadingDialog.dismiss()
+            }
+        }
+
+        absensiViewModel.archivedAbsensiList.observe(this) { data ->
+//            val dateAbsen = data.first().absensi.date_absen // Get date_absen from first item
+//            val formattedDate = formatToIndonesianDate(dateAbsen) // Format it to Indonesian date
+//            val tglAbsensi = findViewById<TextView>(R.id.tvTglAbsensi)
+//            tglAbsensi.text = formattedDate
+
+            btnGenerateQRAbsensi.visibility = View.GONE
+
+            if (currentState == 1 ) {
+                absensiAdapter.updateList(emptyList())
+
+                if (data.isNotEmpty()) {
+                    speedDial.visibility = View.GONE
+                    tvEmptyStateAbsensi.visibility = View.GONE
+                    recyclerView.visibility = View.VISIBLE
+
+//                // Launch coroutine in lifecycleScope
+                    lifecycleScope.launch {
+                        try {
+                            val filteredData = coroutineScope {
+                                AppLogger.d(data.toString())
+                                data.map { absensiWithRelations ->
+                                    val rawKemandoran = absensiWithRelations.absensi.kemandoran_id
+                                        .split(",")
+                                        .map { it.trim() }
+                                        .filter { it.isNotEmpty() } ?: emptyList()
+
+                                    val kemandoranDeferred = async {
+                                        try {
+                                            absensiViewModel.getKemandoranById(rawKemandoran)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error fetching Pemuat Data: ${e.message}")
+                                            null
+                                        }
+                                    }
+
+                                    val kemandoranData = try {
+                                        kemandoranDeferred.await()
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Failed to fetch Pemuat Data: ${e.message}")
+                                        null
+                                    }
+                                    AppLogger.d(kemandoranData.toString())
+                                    val kemandoranNama = kemandoranData?.mapNotNull { it.divisi_abbr }?.takeIf { it.isNotEmpty() }
+                                        ?.joinToString("\n") ?: "-"
+                                    async {
                                         mappedData = mappedData + mapOf(
                                             "id" to rawKemandoran,
                                             "afdeling" to kemandoranNama,
@@ -944,7 +1100,6 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id,
                                             karyawan_tdk_msk_id = absensiWithRelations.absensi.karyawan_tdk_msk_id
                                         )
-
                                     }
                                 }.map { it.await() } // Wait for all async tasks to complete
                             }
@@ -961,7 +1116,9 @@ class ListAbsensiActivity : AppCompatActivity() {
                     tglSection.visibility = View.GONE
                     totakKehadiranSection.visibility = View.GONE
                 }
-//                counterTersimpan.text = data.size.toString()
+                counterTerscan.text = data.size.toString()
+
+                loadingDialog.dismiss()
 
 //                if (data.size == 0) {
 //                    btnGenerateQRAbsensi.visibility = View.GONE
@@ -969,6 +1126,24 @@ class ListAbsensiActivity : AppCompatActivity() {
 //                    btnGenerateQRAbsensi.visibility = View.VISIBLE
 //                }
             }
+        }
+        absensiViewModel.error.observe(this) { errorMessage ->
+            loadingDialog.dismiss()
+            showErrorDialog(errorMessage)
+        }
+
+    }
+
+    private fun showErrorDialog(errorMessage: String) {
+        AlertDialogUtility.withSingleAction(
+            this@ListAbsensiActivity,
+            stringXML(R.string.al_back),
+            stringXML(R.string.al_failed_fetch_data),
+            "${stringXML(R.string.al_failed_fetch_data_desc)} ${errorMessage}",
+            "warning.json",
+            R.color.colorRedDark
+        ) {
+            finish()
         }
     }
 

@@ -27,8 +27,9 @@ data class AbsensiDataRekap(
 
 class ListAbsensiAdapter(private var items: List<AbsensiDataRekap>):
     RecyclerView.Adapter<ListAbsensiAdapter.ListAbsensiViewHolder>() {
-
         private  val selectedItems = mutableSetOf<AbsensiDataRekap>()
+
+    private var currentArchiveState: Int = 0
 
     class ListAbsensiViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val td1: TextView = view.findViewById(R.id.td1ListAbsensi)
@@ -113,7 +114,7 @@ class ListAbsensiAdapter(private var items: List<AbsensiDataRekap>):
 //    }
 //
 //    private var currentSortField: SortField = SortField.NAMA
-//    private var namaKaryawanList = mutableListOf<Map<String, Any>>()
+    private var namaKaryawanList = mutableListOf<Map<String, Any>>()
 //    private var filteredList = mutableListOf<Map<String, Any>>()
 //    private var currentArchiveState: Int = 0
 //    private var areCheckboxesEnabled = true
@@ -230,10 +231,10 @@ class ListAbsensiAdapter(private var items: List<AbsensiDataRekap>):
 //
 //
 //
-//    fun updateArchiveState(state: Int) {
-//        currentArchiveState = state
-//        notifyDataSetChanged()
-//    }
+    fun updateArchiveState(state: Int) {
+        currentArchiveState = state
+        notifyDataSetChanged()
+    }
 //
 //    private var onSelectionChangedListener: ((Int) -> Unit)? = null
 //

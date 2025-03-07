@@ -57,6 +57,7 @@ import com.cbi.cmp_project.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.cmp_project.ui.view.espb.ListHistoryESPBActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
+import com.cbi.cmp_project.ui.viewModel.AbsensiViewModel
 
 import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.ESPBViewModel
@@ -101,12 +102,14 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var binding: ActivityHomePageBinding
     private lateinit var loadingDialog: LoadingDialog
     private var prefManager: PrefManager? = null
+    private lateinit var absensiViewModel: AbsensiViewModel
     private lateinit var panenViewModel: PanenViewModel
     private lateinit var espbViewModel: ESPBViewModel
     private lateinit var weightBridgeViewModel: WeighBridgeViewModel
     private lateinit var uploadCMPViewModel: UploadCMPViewModel
     private var isTriggerButtonSinkronisasiData: Boolean = false
     private lateinit var dialog: Dialog
+    private var countAbsensi: Int = 0  // Global variable for count
     private var countPanenTPH: Int = 0  // Global variable for count
     private var countPanenTPHApproval: Int = 0  // Global variable for count
     private var counteSPBWBScanned: Int = 0  // Global variable for count
@@ -228,6 +231,20 @@ class HomePageActivity : AppCompatActivity() {
                         featureAdapter.hideLoadingForFeature("Rekap e-SPB Timbangan Mill")
                     }
                 }
+                try {
+                    val countDeferredAbsensi = async { absensiViewModel.loadAbsensiCount() }
+                    countAbsensi = countDeferredAbsensi.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount("Rekap absensi panen", countAbsensi.toString())
+                        AppLogger.d(countAbsensi.toString())
+                        featureAdapter.hideLoadingForFeature("Rekap absensi panen")
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature("Rekap absensi panen")
+                    }
+                }
             }
         } else {
             AppLogger.e("Feature adapter not initialized yet")
@@ -333,16 +350,16 @@ class HomePageActivity : AppCompatActivity() {
                 featureName = "Absensi panen",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
+                count = null,
                 functionDescription = "Absensi kehadiran karyawan panen oleh supervisi",
-                displayType = DisplayType.ICON,
-                subTitle = "Scan QR Code eSPB"
+                displayType = DisplayType.ICON
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
                 featureName = "Rekap absensi panen",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
-                count = "0",
+                count = countAbsensi.toString(),
                 functionDescription = "Rekapitulasi absensi karyawan dan transfer data ke kerani panen",
                 displayType = DisplayType.COUNT
             ),
@@ -351,9 +368,9 @@ class HomePageActivity : AppCompatActivity() {
                 featureName = "Scan absensi panen",
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
+                count = null,
                 functionDescription = "Transfer data abseni dari supervisi ke kerani panen",
-                displayType = DisplayType.ICON,
-                subTitle = "Scan QR Code eSPB"
+                displayType = DisplayType.ICON
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -1364,6 +1381,9 @@ class HomePageActivity : AppCompatActivity() {
         val appRepository = AppRepository(application)
         val factory5 = ESPBViewModel.ESPBViewModelFactory(appRepository)
         espbViewModel = ViewModelProvider(this, factory5)[ESPBViewModel::class.java]
+
+        val factory6 = AbsensiViewModel.AbsensiViewModelFactory(application)
+        absensiViewModel = ViewModelProvider(this, factory6)[AbsensiViewModel::class.java]
     }
 
 

@@ -21,11 +21,28 @@ abstract class AbsensiDao {
     abstract fun insert(espb: AbsensiModel): Long
 
     //    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
-    @Query("SELECT * FROM absensi")
+    @Query("SELECT * FROM absensi WHERE archive = 0 AND date(date_absen) = date('now', 'localtime')")
     abstract fun getAllDataAbsensi(): List<AbsensiKemandoranRelations>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertAbsensiData(absensiData: AbsensiModel)
+
+    @Query("SELECT COUNT(*) FROM absensi WHERE archive = 1 AND date(date_absen) = date('now', 'localtime')")
+    abstract suspend fun getCountArchiveAbsensi(): Int
+
+    @Query("SELECT COUNT(*) FROM absensi WHERE archive = 0 AND date(date_absen) = date('now', 'localtime')")
+    abstract suspend fun getCountAbsensi(): Int
+
+    @Transaction
+    @Query("SELECT * FROM absensi WHERE archive = 0 AND date(date_absen) = date('now', 'localtime')")
+    abstract fun getAllActiveAbsensiWithRelations(): List<AbsensiKemandoranRelations>
+
+    @Transaction
+    @Query("SELECT * FROM absensi WHERE archive = 1 AND date(date_absen) = date('now', 'localtime')")
+    abstract fun getAllArchivedAbsensiWithRelations(): List<AbsensiKemandoranRelations>
+
+    @Query("UPDATE absensi SET archive = 1 WHERE id = :id")
+    abstract fun archiveAbsensiByID(id: Int): Int
 
     @Query("""
     SELECT COUNT(*) FROM absensi 

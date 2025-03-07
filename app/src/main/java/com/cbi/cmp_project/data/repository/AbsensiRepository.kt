@@ -8,8 +8,12 @@ import com.cbi.cmp_project.data.model.AbsensiModel
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
 class AbsensiRepository(context: Context) {
@@ -27,9 +31,39 @@ class AbsensiRepository(context: Context) {
         return kemandoranDao.getKemandoranById(idKemandoran)
     }
 
+    suspend fun getAbsensiCount(): Int {
+        return absensiDao.getCountAbsensi()
+    }
+
+    suspend fun getAbsensiCountArhive(): Int {
+        return absensiDao.getCountArchiveAbsensi()
+    }
+
     fun isAbsensiExist(dateAbsen: String, karyawanMskIds: List<String>): Boolean {
         return karyawanMskIds.any { karyawanId ->
             absensiDao.checkIfExists(dateAbsen, karyawanId) > 0
+        }
+    }
+
+    suspend fun archiveAbsensiById(id: Int) = withContext(Dispatchers.IO) {
+        absensiDao.archiveAbsensiByID(id)
+    }
+
+    suspend fun getActiveAbsensi(): Result<List<AbsensiKemandoranRelations>> = withContext(Dispatchers.IO) {
+        try {
+            val data = absensiDao.getAllActiveAbsensiWithRelations()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getArchivedAbsensi(): Result<List<AbsensiKemandoranRelations>> = withContext(Dispatchers.IO) {
+        try {
+            val data = absensiDao.getAllArchivedAbsensiWithRelations()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
