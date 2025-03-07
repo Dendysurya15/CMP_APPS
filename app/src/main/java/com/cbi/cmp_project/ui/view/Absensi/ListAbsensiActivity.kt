@@ -297,47 +297,49 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                     }
 
                                                     // ID validation
-//                                                    val id = when (val idValue = item["id"]) {
-//                                                        null -> {
-//                                                            errorMessages.add("ID is null")
-//                                                            hasError = true
-//                                                            return@forEach
-//                                                        }
-//
-//                                                        !is Number -> {
-//                                                            errorMessages.add("Invalid ID format: $idValue")
-//                                                            hasError = true
-//                                                            return@forEach
-//                                                        }
-//
-//                                                        else -> idValue.toInt()
-//                                                    }
-
-                                                    // ID validation
                                                     val id = when (val idValue = item["id"]) {
                                                         null -> {
                                                             errorMessages.add("ID is null")
                                                             hasError = true
                                                             return@forEach
                                                         }
-                                                        is List<*> -> {
-                                                            // Extract first element if it's a valid number
-                                                            val firstElement = idValue.firstOrNull()
-                                                            if (firstElement is Number) {
-                                                                firstElement.toInt()
-                                                            } else {
-                                                                errorMessages.add("Invalid ID format: $idValue")
-                                                                hasError = true
-                                                                return@forEach
-                                                            }
-                                                        }
-                                                        is Number -> idValue.toInt()
-                                                        else -> {
+
+                                                        !is Number -> {
                                                             errorMessages.add("Invalid ID format: $idValue")
                                                             hasError = true
                                                             return@forEach
                                                         }
+
+                                                        else -> idValue.toInt()
                                                     }
+
+
+                                                    AppLogger.d(id.toString())
+                                                    // ID validation
+//                                                    val id = when (val idValue = item["id"]) {
+//                                                        null -> {
+//                                                            errorMessages.add("ID is null")
+//                                                            hasError = true
+//                                                            return@forEach
+//                                                        }
+//                                                        is List<*> -> {
+//                                                            // Extract first element if it's a valid number
+//                                                            val firstElement = idValue.firstOrNull()
+//                                                            if (firstElement is Number) {
+//                                                                firstElement.toInt()
+//                                                            } else {
+//                                                                errorMessages.add("Invalid ID format: $idValue")
+//                                                                hasError = true
+//                                                                return@forEach
+//                                                            }
+//                                                        }
+//                                                        is Number -> idValue.toInt()
+//                                                        else -> {
+//                                                            errorMessages.add("Invalid ID format: $idValue")
+//                                                            hasError = true
+//                                                            return@forEach
+//                                                        }
+//                                                    }
 
 
                                                     if (id <= 0) {
@@ -654,7 +656,7 @@ class ListAbsensiActivity : AppCompatActivity() {
             }
 
             mappedData.joinToString(",\n") { data ->
-                val idKemandoran = data["id"]?.toString()?.replace("[", "")?.replace("]", "")
+                val idKemandoran = data["id_kemandoran"]?.toString()?.replace("[", "")?.replace("]", "")
                     ?: throw IllegalArgumentException("Missing idKemandoran.")
 
                 val idKaryawan = data["karyawan_msk_id"]?.toString()
@@ -968,7 +970,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                         ?.joinToString("\n") ?: "-"
                                     async {
                                         mappedData = mappedData + mapOf(
-                                            "id" to (rawKemandoran.firstOrNull()?.toIntOrNull() ?: -1),
+                                            "id_kemandoran" to (rawKemandoran.firstOrNull()?.toIntOrNull() ?: -1),
+                                            "id" to absensiWithRelations.absensi.id,
                                             "afdeling" to kemandoranNama,
                                             "datetime" to absensiWithRelations.absensi.date_absen,
                                             "karyawan_msk_id" to absensiWithRelations.absensi.karyawan_msk_id,
