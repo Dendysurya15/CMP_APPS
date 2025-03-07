@@ -378,6 +378,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return updatedHasShownError
     }
 
+    suspend fun getLatLonDivisi(
+        idEstate: Int,
+        idDivisi: Int,
+    ): List<TPHNewModel> {
+        return repository.getLatLonDivisi( idEstate, idDivisi)
+    }
+
 
     fun downloadMultipleDatasets(requests: List<DatasetRequest>) {
         viewModelScope.launch {

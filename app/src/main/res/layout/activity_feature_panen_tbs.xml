@@ -75,29 +75,29 @@
                     <!--                    android:visibility="gone"-->
                     <!--                    android:id="@+id/layoutWilayah"/>-->
 
-                    <TextView
-                        android:id="@+id/title_data_informasi_blok"
-                        android:layout_width="200dp"
-                        android:layout_height="match_parent"
-                        android:layout_marginTop="10dp"
-                        android:fontFamily="@font/manrope_extrabold"
-                        android:gravity="center|left"
-                        android:textSize="23sp"
-                        android:textColor="@color/black"
-                        android:visibility="visible"
-                        tools:ignore="HardcodedText,RtlHardcoded" />
+                    <!--                    <TextView-->
+                    <!--                        android:id="@+id/title_data_informasi_blok"-->
+                    <!--                        android:layout_width="200dp"-->
+                    <!--                        android:layout_height="match_parent"-->
+                    <!--                        android:layout_marginTop="10dp"-->
+                    <!--                        android:fontFamily="@font/manrope_extrabold"-->
+                    <!--                        android:gravity="center|left"-->
+                    <!--                        android:textSize="23sp"-->
+                    <!--                        android:textColor="@color/black"-->
+                    <!--                        android:visibility="visible"-->
+                    <!--                        tools:ignore="HardcodedText,RtlHardcoded" />-->
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:fontFamily="@font/manrope_medium"
-                        android:gravity="center|left"
-                        android:text="@string/desc_informasi_blok"
-                        android:textSize="19sp"
-                        android:textColor="@color/black"
-                        android:textStyle="italic"
-                        android:visibility="visible"
-                        tools:ignore="HardcodedText,RtlHardcoded" />
+                    <!--                    <TextView-->
+                    <!--                        android:layout_width="match_parent"-->
+                    <!--                        android:layout_height="match_parent"-->
+                    <!--                        android:fontFamily="@font/manrope_medium"-->
+                    <!--                        android:gravity="center|left"-->
+                    <!--                        android:text="@string/desc_informasi_blok"-->
+                    <!--                        android:textSize="19sp"-->
+                    <!--                        android:textColor="@color/black"-->
+                    <!--                        android:textStyle="italic"-->
+                    <!--                        android:visibility="visible"-->
+                    <!--                        tools:ignore="HardcodedText,RtlHardcoded" />-->
 
                     <include
                         android:id="@+id/layoutEstate"
@@ -105,61 +105,159 @@
 
                     <include
                         android:id="@+id/layoutAfdeling"
-
                         layout="@layout/pertanyaan_spinner_layout" />
 
-                    <include
-                        android:id="@+id/layoutTahunTanam"
+                    <TextView
+                        android:id="@+id/titleScanTPHAlert"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="5dp"
+                        android:fontFamily="@font/manrope_bold"
+                        android:gravity="left"
+                        android:padding="5dp"
+                        android:text="Loading..."
+                        android:textSize="17sp"
+                        android:textStyle="italic"
+                        android:visibility="gone"
+                        tools:ignore="MissingConstraints" />
 
-                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnScanTPHRadius"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:backgroundTint="@color/bluedarklight"
+                        android:fontFamily="@font/manrope_bold"
+                        android:text="Refresh"
+                        android:textAllCaps="false"
+                        android:textSize="19sp"
+                        android:visibility="gone"
+                        app:cornerRadius="8dp"
+                        app:icon="@drawable/baseline_refresh_24"
+                        app:iconGravity="textEnd"
+                        app:iconPadding="8dp" />
+
+                    <!--                    <include-->
+                    <!--                        android:id="@+id/layoutTahunTanam"-->
+
+                    <!--                        layout="@layout/pertanyaan_spinner_layout" />-->
 
 
-                    <include
-                        android:id="@+id/layoutBlok"
+                    <!--                    <include-->
+                    <!--                        android:id="@+id/layoutBlok"-->
 
-                        layout="@layout/pertanyaan_spinner_layout" />
+                    <!--                        layout="@layout/pertanyaan_spinner_layout" />-->
+
+
+                    <androidx.core.widget.NestedScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fillViewport="true">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:orientation="vertical"
+                            >
+
+                            <TextView
+                                android:id="@+id/titleScannedTPHInsideRadius"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:fontFamily="@font/manrope_extrabold"
+                                android:gravity="left"
+                                android:text="Daftar Lokasi TPH"
+                                android:textSize="20sp"
+                                android:textColor="@color/black"
+                                android:visibility="gone"
+                                app:layout_constraintTop_toBottomOf="@+id/dashedLine"
+                                tools:ignore="MissingConstraints" />
+
+                            <TextView
+                                android:id="@+id/descScannedTPHInsideRadius"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_medium"
+                                android:gravity="left"
+                                android:textColor="@color/black"
+                                android:textSize="18sp"
+                                android:visibility="gone"
+                                app:layout_constraintTop_toBottomOf="@+id/titleAfterScanQR"
+                                tools:ignore="MissingConstraints" />
+
+                            <TextView
+                                android:id="@+id/emptyScanTPHInsideRadius"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginVertical="10dp"
+                                android:text="@string/no_detect_tph"
+                                android:textSize="18sp"
+                                android:layout_marginLeft="5dp"
+                                android:textColor="@color/black"
+                                android:textStyle="italic"
+                                android:visibility="gone"
+                                />
+
+                            <androidx.recyclerview.widget.RecyclerView
+                                android:id="@+id/tphRecyclerView"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:visibility="gone"
+                                android:nestedScrollingEnabled="false"
+                                android:clipToPadding="false"
+                                android:padding="0dp" />
+
+
+
+                        </LinearLayout>
+                    </androidx.core.widget.NestedScrollView>
+
+
 
                     <include
                         android:id="@+id/layoutAncak"
-
-                        layout="@layout/pertanyaan_spinner_layout" />
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:visibility="gone" />
 
                     <include
                         android:id="@+id/layoutTipePanen"
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:visibility="gone" />
 
-                        layout="@layout/pertanyaan_spinner_layout" />
+                    <!--                    <include-->
+                    <!--                        android:id="@+id/layoutNoTPH"-->
 
-                    <include
-                        android:id="@+id/layoutNoTPH"
-
-                        layout="@layout/pertanyaan_spinner_layout" />
+                    <!--                        layout="@layout/pertanyaan_spinner_layout" />-->
 
                     <include
                         android:id="@+id/layoutKemandoran"
-
-                        layout="@layout/pertanyaan_spinner_layout" />
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:visibility="gone" />
 
                     <include
                         android:id="@+id/layoutPemanen"
-
-                        layout="@layout/pertanyaan_spinner_layout" />
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:visibility="gone" />
 
 
                     <LinearLayout
                         android:id="@+id/layoutSelAsistensi"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-
                         android:layout_marginTop="10dp"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:visibility="gone">
 
                         <TextView
                             android:layout_width="130dp"
                             android:layout_height="match_parent"
                             android:fontFamily="@font/manrope_semibold"
                             android:gravity="center|left"
-                            android:textColor="@color/black"
                             android:text="Asistensi"
+                            android:textColor="@color/black"
                             android:textSize="17dp" />
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
@@ -188,9 +286,9 @@
                         android:layout_marginTop="10dp"
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="center|left"
-                        android:textSize="23sp"
-                        android:visibility="visible"
                         android:textColor="@color/black"
+                        android:textSize="23sp"
+                        android:visibility="gone"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
                     <TextView
@@ -200,104 +298,101 @@
 
                         android:gravity="center|left"
                         android:text="@string/desc_data_grading"
-                        android:textSize="19sp"
                         android:textColor="@color/black"
+                        android:textSize="19sp"
                         android:textStyle="italic"
-                        android:visibility="visible"
+                        android:visibility="gone"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
                     <include
                         android:id="@+id/layoutJumTBS"
                         layout="@layout/pane_number_layout"
-                        android:visibility="visible" />
+                        android:visibility="gone" />
 
                     <include
                         android:id="@+id/layoutBMentah"
                         layout="@layout/pane_number_layout"
-                        android:visibility="visible" />
+                        android:visibility="gone" />
+
 
                     <include
                         android:id="@+id/layoutBLewatMasak"
                         layout="@layout/pane_number_layout"
-                        android:visibility="visible" />
+                        android:visibility="gone" />
 
                     <include
                         android:id="@+id/layoutJjgKosong"
                         layout="@layout/pane_number_layout"
-                        android:visibility="visible" />
+                        android:visibility="gone" />
 
                     <include
                         android:id="@+id/layoutAbnormal"
                         layout="@layout/pane_number_layout"
-                        android:visibility="visible" />
+                        android:visibility="gone" />
 
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="10dp"
-                        />
+                        android:layout_marginBottom="10dp" />
 
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/layoutTBSMasak"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginVertical="5dp"
                         android:layout_marginTop="10dp"
                         android:paddingBottom="10dp"
-                        android:visibility="visible"
-                        app:cardCornerRadius="8dp"
-                        android:layout_marginVertical="5dp"
+                        android:visibility="gone"
                         app:cardBackgroundColor="@color/white"
-                        app:strokeWidth="1dp"
-                        app:strokeColor="@color/grayBorder">
+                        app:cardCornerRadius="8dp"
+                        app:strokeColor="@color/grayBorder"
+                        app:strokeWidth="1dp">
 
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:paddingBottom="20dp"
-                            android:orientation="vertical">
+                            android:orientation="vertical"
+                            android:paddingBottom="20dp">
 
                             <LinearLayout
                                 android:id="@+id/title"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:background="@color/darkGray"
+                                android:gravity="center_vertical"
                                 android:orientation="horizontal"
                                 android:paddingHorizontal="20dp"
-                                android:paddingVertical="15dp"
-                                android:background="@color/darkGray"
-                                android:gravity="center_vertical">
+                                android:paddingVertical="15dp">
 
                                 <TextView
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/manrope_bold"
                                     android:text="Hasil Perhitungan"
                                     android:textColor="@color/black"
-                                    android:fontFamily="@font/manrope_bold"
-                                    android:textSize="22sp"
-                                    android:layout_weight="1" />
+                                    android:textSize="22sp" />
 
                                 <TextView
                                     android:id="@+id/tvFormulas"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Rumus"
-                                    android:textColor="@color/anotherYellow"
-                                    android:fontFamily="@font/manrope_bold"
-                                    android:textSize="17sp"
                                     android:drawableStart="@drawable/ic_info_outline_white_24dp"
                                     android:drawablePadding="5dp"
                                     android:drawableTint="@color/anotherYellow"
-                                    />
+                                    android:fontFamily="@font/manrope_bold"
+                                    android:text="Rumus"
+                                    android:textColor="@color/anotherYellow"
+                                    android:textSize="17sp" />
 
                             </LinearLayout>
 
                             <View
                                 android:layout_width="match_parent"
                                 android:layout_height="3dp"
-                                android:background="@drawable/border_bottom_light"
                                 android:layout_marginBottom="5dp"
-                                />
-
+                                android:background="@drawable/border_bottom_light" />
 
 
                             <androidx.constraintlayout.widget.ConstraintLayout
@@ -307,7 +402,7 @@
                                 android:background="@color/white"
                                 android:paddingHorizontal="20dp"
                                 android:paddingVertical="5dp"
-                                android:visibility="visible">
+                                android:visibility="gone">
 
                                 <TextView
                                     android:id="@+id/tvDikirimPabrik"
@@ -315,10 +410,9 @@
                                     android:layout_height="wrap_content"
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text="Dikirim ke Pabrik"
-                                    android:textColor="@color/black"
                                     android:textSize="21sp"
-                                    app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterKirimPabrik"
+                                    app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintWidth_percent="0.5"
                                     tools:ignore="MissingConstraints" />
 
@@ -330,8 +424,8 @@
                                     android:text=": 0 buah"
                                     android:textColor="@color/black"
                                     android:textSize="21sp"
-                                    app:layout_constraintStart_toEndOf="@id/tvDikirimPabrik"
                                     app:layout_constraintHorizontal_chainStyle="packed"
+                                    app:layout_constraintStart_toEndOf="@id/tvDikirimPabrik"
                                     tools:ignore="MissingConstraints" />
                             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -351,9 +445,8 @@
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text="Janjang Dibayar"
                                     android:textSize="21sp"
-                                    android:textColor="@color/black"
-                                    app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterTBSDibayar"
+                                    app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintWidth_percent="0.5"
                                     tools:ignore="MissingConstraints" />
 
@@ -365,8 +458,8 @@
                                     android:text=": 0 buah"
                                     android:textColor="@color/black"
                                     android:textSize="21sp"
-                                    app:layout_constraintStart_toEndOf="@id/tvJanjangDibayar"
                                     app:layout_constraintHorizontal_chainStyle="packed"
+                                    app:layout_constraintStart_toEndOf="@id/tvJanjangDibayar"
                                     tools:ignore="MissingConstraints" />
                             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -375,9 +468,9 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:background="@color/white"
-                                android:visibility="visible"
                                 android:paddingHorizontal="20dp"
-                                android:paddingVertical="5dp">
+                                android:paddingVertical="5dp"
+                                android:visibility="visible">
 
                                 <TextView
                                     android:id="@+id/tvTotalJjg"
@@ -387,8 +480,8 @@
                                     android:text="Total Janjang"
                                     android:textColor="@color/greenDefault"
                                     android:textSize="21sp"
-                                    app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterBuahMasak"
+                                    app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintWidth_percent="0.5"
                                     tools:ignore="MissingConstraints" />
 
@@ -400,8 +493,8 @@
                                     android:text=": 0 buah"
                                     android:textColor="@color/greenDefault"
                                     android:textSize="21sp"
-                                    app:layout_constraintStart_toEndOf="@id/tvTotalJjg"
                                     app:layout_constraintHorizontal_chainStyle="packed"
+                                    app:layout_constraintStart_toEndOf="@id/tvTotalJjg"
                                     tools:ignore="MissingConstraints" />
                             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -409,38 +502,37 @@
                     </com.google.android.material.card.MaterialCardView>
 
 
-
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        />
+                        android:layout_marginTop="10dp" />
 
 
                     <include
                         android:id="@+id/layoutSeranganTikus"
                         layout="@layout/pane_number_layout"
-                        android:visibility="visible" />
+                        android:visibility="gone" />
 
                     <include
                         android:id="@+id/layoutTangkaiPanjang"
                         layout="@layout/pane_number_layout"
-                        android:visibility="visible" />
+                        android:visibility="gone" />
 
                     <include
                         android:id="@+id/layoutVcut"
-                        layout="@layout/pane_number_layout" />
+                        layout="@layout/pane_number_layout"
+                        android:visibility="gone" />
 
                     <TextView
                         android:id="@+id/title_lampiran_foto"
                         android:layout_width="200dp"
                         android:layout_height="match_parent"
                         android:layout_marginTop="10dp"
-                        android:textColor="@color/black"
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="center|left"
+                        android:textColor="@color/black"
                         android:textSize="23sp"
-                        android:visibility="visible"
+                        android:visibility="gone"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
                     <TextView
@@ -453,7 +545,7 @@
                         android:textColor="@color/black"
                         android:textSize="19sp"
                         android:textStyle="italic"
-                        android:visibility="visible"
+                        android:visibility="gone"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
 
@@ -465,7 +557,7 @@
                         android:clipToPadding="false"
                         android:orientation="vertical"
                         android:padding="10dp"
-                        android:visibility="visible"
+                        android:visibility="gone"
                         tools:itemCount="1"
                         tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                         tools:listitem="@layout/take_and_preview_foto_layout" />
@@ -527,6 +619,7 @@
                             android:fontFamily="@font/manrope_semibold"
                             android:text="Simpan Data"
                             android:textSize="16dp"
+                            android:visibility="gone"
                             app:backgroundTint="@color/bluedarklight"
                             app:cornerRadius="10dp"
                             app:elevation="10dp"

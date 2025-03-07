@@ -61,6 +61,10 @@ class DatasetRepository(context: Context,
         return tphDao.getBlokByCriteria(idEstate, idDivisi)
     }
 
+    suspend fun getLatLonDivisi( idEstate: Int, idDivisi:Int): List<TPHNewModel> {
+        return tphDao.getLatLonByDivisi(idEstate, idDivisi)
+    }
+
     suspend fun getKemandoranList(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
         return kemandoranDao.getKemandoranByCriteria(idEstate, idDivisiArray)
     }

@@ -50,6 +50,18 @@ abstract class TPHDao {
     """)
     abstract suspend fun getTPHAndBlokInfo(id: Int): TPHBlokInfo?
 
+    @Query(
+        """
+    SELECT * FROM tph 
+    WHERE dept = :idEstate 
+    AND divisi = :idDivisi
+    """
+    )
+    abstract fun getLatLonByDivisi(
+        idEstate: Int,
+        idDivisi: Int,
+    ): List<TPHNewModel>
+
     // If you need the values separately, keep these queries as well
     @Query("SELECT nomor FROM tph WHERE id = :id")
     abstract suspend fun getTPHNomor(id: Int): String?

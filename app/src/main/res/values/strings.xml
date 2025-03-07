@@ -85,10 +85,13 @@
     <string name="al_success_delete">Berhasil Hapus</string>
     <string name="al_success_update">Berhasil Update Data</string>
     <string name="al_failed_delete">Gagal Hapus</string>
+    <string name="text_scan_tph_form_panen"></string>
     <string name="al_failed_save_local">Gagal Simpan</string>
+
     <string name="al_failed_save_local_krani_timbang">Gagal simpan data e-SPB!</string>
     <string name="al_description_failed_save_local">Data gagal disimpan!</string>
     <string name="download_dataset">Sedang mengunduh dataset</string>
+    <string name="no_detect_tph">- Tidak terdeteksi TPH dalam radius ini</string>
     <string name="fetching_dataset">Sedang mengambil dataset</string>
 
     <string-array name="tipe_panen_options">

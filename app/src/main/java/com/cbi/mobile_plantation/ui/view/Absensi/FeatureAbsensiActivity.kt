@@ -583,7 +583,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                 val isEmpty = when (inputType) {
                     FeatureAbsensiActivity.InputType.SPINNER -> {
                         when (layout.id) {
-                            R.id.layoutEstate -> estateName!!.isEmpty()
+                            R.id.layoutEstateAbsensi -> estateName!!.isEmpty()
                             R.id.layoutAfdelingAbsensi -> selectedAfdeling.isEmpty()
                             R.id.layoutkemandoranAbsensi -> selectedKemandoran.isEmpty()
                             else -> spinner.selectedIndex == -1
