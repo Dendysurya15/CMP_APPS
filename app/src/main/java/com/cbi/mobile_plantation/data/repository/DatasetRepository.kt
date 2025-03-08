@@ -125,4 +125,8 @@ class DatasetRepository(
         val requestBody = mapOf("last_modified" to lastModified)
         return apiService.downloadSettingJson(requestBody)
     }
+
+    suspend fun getTPHsByIds(tphIds: List<Int>): List<TPHNewModel> {
+        return tphDao.getTPHsByIds(tphIds)
+    }
 }

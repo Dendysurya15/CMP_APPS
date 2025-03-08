@@ -7,12 +7,20 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.google.android.material.radiobutton.MaterialRadioButton
 
-class ListTPHInsideRadiusAdapter(private val tphList: List<Triple<String, String, Float>>) :
-    RecyclerView.Adapter<ListTPHInsideRadiusAdapter.ViewHolder>() {
+class ListTPHInsideRadiusAdapter(
+    private val tphList: List<FeaturePanenTBSActivity.ScannedTPHSelectionItem>,
+    private val listener: OnTPHSelectedListener
+) : RecyclerView.Adapter<ListTPHInsideRadiusAdapter.ViewHolder>() {
 
-    private var selectedPosition = -1  // Store selected position
+    private var selectedPosition = -1
+
+    // Updated interface
+    interface OnTPHSelectedListener {
+        fun onTPHSelected(selectedTPH: FeaturePanenTBSActivity.ScannedTPHSelectionItem)
+    }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tphInfoTextView: TextView = itemView.findViewById(R.id.tphInfoTextView)
@@ -27,15 +35,20 @@ class ListTPHInsideRadiusAdapter(private val tphList: List<Triple<String, String
 
     @SuppressLint("SetTextI18n", "NotifyDataSetChanged")
     override fun onBindViewHolder(holder: ViewHolder, @SuppressLint("RecyclerView") position: Int) {
-        val (nomor, blokKode, distance) = tphList[position]
-        holder.tphInfoTextView.text = "TPH $nomor - $blokKode (${distance.toInt()} m)"
+        val tphItem = tphList[position]
+        holder.tphInfoTextView.text = "TPH ${tphItem.number} - ${tphItem.blockCode} (${tphItem.distance.toInt()} m)"
         holder.radioButton.isChecked = position == selectedPosition
 
         holder.radioButton.setOnClickListener {
             selectedPosition = position
-            notifyDataSetChanged() // Refresh the list to update selection
+            notifyDataSetChanged() // Refresh selection
+
+            // Notify the activity about the selected item
+            listener.onTPHSelected(tphItem)
         }
     }
 
     override fun getItemCount() = tphList.size
 }
+
+

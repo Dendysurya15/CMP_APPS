@@ -246,8 +246,6 @@
                         </LinearLayout>
                     </androidx.core.widget.NestedScrollView>
 
-
-
                     <include
                         android:id="@+id/layoutAncak"
                         layout="@layout/pertanyaan_spinner_layout"

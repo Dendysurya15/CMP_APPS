@@ -274,6 +274,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    suspend fun getTPHsByIds(tphIds: List<Int>): List<TPHNewModel> {
+        return repository.getTPHsByIds(tphIds)
+    }
+
     private suspend fun <T> processDataset(
         jsonContent: String,
         dataset: String,
