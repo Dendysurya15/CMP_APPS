@@ -1160,6 +1160,7 @@ class HomePageActivity : AppCompatActivity() {
         val lastModifiedDatasetKemandoran = prefManager!!.lastModifiedDatasetKemandoran
         val lastModifiedDatasetPemanen = prefManager!!.lastModifiedDatasetPemanen
         val lastModifiedDatasetTransporter = prefManager!!.lastModifiedDatasetTransporter
+        val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
 
         if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
             AppLogger.d("Downloads: Estate ID is null or empty, aborting download")
@@ -1184,6 +1185,7 @@ class HomePageActivity : AppCompatActivity() {
                     lastModifiedDatasetPemanen,
                     lastModifiedDatasetKemandoran,
                     lastModifiedDatasetTransporter,
+                    lastModifiedSettingJSON
                 )
             } else {
                 getDatasetsToDownload(
@@ -1193,7 +1195,8 @@ class HomePageActivity : AppCompatActivity() {
                     lastModifiedDatasetBlok,
                     lastModifiedDatasetPemanen,
                     lastModifiedDatasetKemandoran,
-                    lastModifiedDatasetTransporter
+                    lastModifiedDatasetTransporter,
+                    lastModifiedSettingJSON
                 ).filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
             }
 
@@ -1219,6 +1222,7 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedDatasetPemanen: String?,
         lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetTransporter: String?,
+        lastModifiedSettingJSON: String?
     ): List<DatasetRequest> {
         val datasets = mutableListOf<DatasetRequest>()
 
@@ -1256,6 +1260,10 @@ class HomePageActivity : AppCompatActivity() {
                 DatasetRequest(
                     lastModified = lastModifiedDatasetTransporter,
                     dataset = AppUtils.DatasetNames.transporter
+                ),
+                DatasetRequest(
+                    lastModified = lastModifiedSettingJSON,
+                    dataset = AppUtils.DatasetNames.settingJSON
                 )
             )
         )

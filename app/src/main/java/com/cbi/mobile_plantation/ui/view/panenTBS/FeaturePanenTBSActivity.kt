@@ -133,7 +133,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var locationEnable: Boolean = false
 
     private lateinit var btnScanTPHRadius: MaterialButton
-    private lateinit var tphRecyclerView: RecyclerView
+    private lateinit var tphScannedResultRecyclerView: RecyclerView
     private lateinit var titleScannedTPHInsideRadius: TextView
     private lateinit var descScannedTPHInsideRadius: TextView
     private lateinit var emptyScannedTPHInsideRadius: TextView
@@ -213,7 +213,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
     private var panenStoredLocal: MutableList<Int> = mutableListOf()
-    private val radiusMinimum = 80F
+    private var radiusMinimum = 0F
+    private var boundaryAccuracy = 0F
 
 
     @SuppressLint("ClickableViewAccessibility")
@@ -223,6 +224,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         loadingDialog = LoadingDialog(this)
 
         prefManager = PrefManager(this)
+
+        radiusMinimum = prefManager!!.radiusMinimum
+        boundaryAccuracy = prefManager!!.boundaryAccuracy
+
         initViewModel()
         initUI()
         initializeJjgJson()
@@ -472,7 +477,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     private fun initUI() {
         btnScanTPHRadius = findViewById(R.id.btnScanTPHRadius)
-        tphRecyclerView = findViewById(R.id.tphRecyclerView)
+        tphScannedResultRecyclerView = findViewById(R.id.tphScannedResultRecyclerView)
         titleScannedTPHInsideRadius = findViewById(R.id.titleScannedTPHInsideRadius)
         descScannedTPHInsideRadius = findViewById(R.id.descScannedTPHInsideRadius)
         emptyScannedTPHInsideRadius = findViewById(R.id.emptyScanTPHInsideRadius)
@@ -543,6 +548,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     }
 
+    @SuppressLint("SetTextI18n")
     private fun updateDependentCounters(
         layoutId: Int,
         change: Int,
@@ -806,9 +812,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     /**
      * Sets up all spinner mappings, counters, and the RecyclerView.
      */
-    @SuppressLint("SetTextI18n")
+    @SuppressLint("SetTextI18n", "CutPasteId")
     private fun setupLayout() {
 
+
+        val featureName = intent.getStringExtra("FEATURE_NAME")
+        if (featureName == "Panen TBS") {
+            findViewById<LinearLayout>(R.id.layoutEstate).visibility = View.GONE
+        }
 
         val radiusText = "${radiusMinimum.toInt()} m"
         val fullText =
@@ -829,18 +840,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
         )
         descScannedTPHInsideRadius.text = spannableString
-        tphRecyclerView.layoutManager = LinearLayoutManager(this)
-        tphRecyclerView.isNestedScrollingEnabled = false
+        tphScannedResultRecyclerView.layoutManager = LinearLayoutManager(this)
+        tphScannedResultRecyclerView.isNestedScrollingEnabled = false
         val decoration = DividerItemDecoration(this, DividerItemDecoration.VERTICAL)
-        tphRecyclerView.removeItemDecoration(decoration) // Remove if applied
+        tphScannedResultRecyclerView.removeItemDecoration(decoration) // Remove if applied
 
         btnScanTPHRadius.setOnClickListener {
-            if (currentAccuracy == null || currentAccuracy > 15.0f) {
+            if (currentAccuracy > boundaryAccuracy) {
                 AlertDialogUtility.withTwoActions(
                     this,
                     "Lanjutkan",
                     getString(R.string.confirmation_dialog_title),
-                    "Gps terdeteksi diluar dari ${radiusMinimum.toInt()} meter. Apakah tetap akan melanjutkan?",
+                    "Gps terdeteksi diluar dari ${boundaryAccuracy.toInt()} meter. Apakah tetap akan melanjutkan?",
                     "warning.json",
                     ContextCompat.getColor(this, R.color.greendarkerbutton)
                 ) {
@@ -1050,13 +1061,39 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val tphList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
 
             if (tphList.isNotEmpty()) {
-                tphRecyclerView.visibility = View.VISIBLE
+                tphScannedResultRecyclerView.visibility = View.VISIBLE
                 titleScannedTPHInsideRadius.visibility = View.VISIBLE
                 descScannedTPHInsideRadius.visibility = View.VISIBLE
                 emptyScannedTPHInsideRadius.visibility = View.GONE
-                tphRecyclerView.adapter = ListTPHInsideRadiusAdapter(tphList)
+                tphScannedResultRecyclerView.adapter = ListTPHInsideRadiusAdapter(tphList)
+
+                val itemHeight = 50
+                val maxHeight = 250
+
+                val density = tphScannedResultRecyclerView.resources.displayMetrics.density
+                val maxHeightPx = (maxHeight * density).toInt()
+                val recyclerViewHeightPx = (tphList.size * itemHeight * density).toInt()
+
+                tphScannedResultRecyclerView.layoutParams.height =
+                    if (recyclerViewHeightPx > maxHeightPx) maxHeightPx else ViewGroup.LayoutParams.WRAP_CONTENT
+
+                tphScannedResultRecyclerView.requestLayout()
+
+                if (recyclerViewHeightPx > maxHeightPx) {
+                    tphScannedResultRecyclerView.isNestedScrollingEnabled = true
+                    tphScannedResultRecyclerView.overScrollMode =
+                        View.OVER_SCROLL_ALWAYS // Show scrollbar
+                } else {
+                    tphScannedResultRecyclerView.isNestedScrollingEnabled = false
+                    tphScannedResultRecyclerView.overScrollMode =
+                        View.OVER_SCROLL_NEVER // Disable bounce effect
+                }
+
+                tphScannedResultRecyclerView.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
+                tphScannedResultRecyclerView.isVerticalScrollBarEnabled =
+                    true // Force scrollbar visibility
             } else {
-                tphRecyclerView.visibility = View.GONE
+                tphScannedResultRecyclerView.visibility = View.GONE
                 titleScannedTPHInsideRadius.visibility = View.VISIBLE
                 descScannedTPHInsideRadius.visibility = View.VISIBLE
                 emptyScannedTPHInsideRadius.visibility = View.VISIBLE
@@ -1606,7 +1643,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 titleScannedTPHInsideRadius.visibility = View.GONE
                 descScannedTPHInsideRadius.visibility = View.GONE
                 emptyScannedTPHInsideRadius.visibility = View.GONE
-                tphRecyclerView.visibility = View.GONE
+                tphScannedResultRecyclerView.visibility = View.GONE
 
                 selectedAfdeling = selectedItem.toString()
                 selectedAfdelingIdSpinner = position
@@ -1664,12 +1701,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         if (id != null && lat != null && lon != null) {
                                             id to TPHLocation(lat, lon, nomor, blokKode)
                                         } else {
-                                            null // Skip invalid entries
+                                            null
                                         }
                                     }
                                     .toMap()
                             } catch (e: Exception) {
-                                AppLogger.e("Error fetching listLatLonAfd: ${e.message}")
+                                AlertDialogUtility.withSingleAction(
+                                    this@FeaturePanenTBSActivity,
+                                    stringXML(R.string.al_back),
+                                    stringXML(R.string.al_failed_fetch_data),
+                                    "Error fetching listLatLonAfd: ${e.message}",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ) {
+
+                                }
                                 emptyMap()
                             }
                         }.await()
@@ -1677,27 +1723,50 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
                         withContext(Dispatchers.Main) {
-                            val titleScanTPHalert = findViewById<TextView>(R.id.titleScanTPHAlert)
-                            titleScanTPHalert.visibility = View.VISIBLE
+                            val alertCardScanRadius =
+                                findViewById<MaterialCardView>(R.id.alertCardScanRadius)
+                            alertCardScanRadius.visibility = View.VISIBLE
+
+                            val alertTvScannedRadius =
+                                findViewById<TextView>(R.id.alertTvScannedRadius)
+                            alertTvScannedRadius.visibility = View.VISIBLE
 
                             val btnScanTPHRadius =
                                 findViewById<MaterialButton>(R.id.btnScanTPHRadius)
                             btnScanTPHRadius.visibility = View.VISIBLE
 
-                            val text =
-                                "Lakukan Refresh saat $radiusMinimum m dalam radius terdekat TPH"
+                            val radiusText = "${radiusMinimum.toInt()} m"
+                            val text = "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
                             val asterisk = "*"
 
                             val spannableScanTPHTitle = SpannableString("$text $asterisk").apply {
+                                val startIndex = text.indexOf(radiusText)
+                                val endIndex = startIndex + radiusText.length
+
                                 setSpan(
-                                    ForegroundColorSpan(Color.RED),
+                                    StyleSpan(Typeface.BOLD), // Make text bold
+                                    startIndex,
+                                    endIndex,
+                                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                )
+
+                                setSpan(
+                                    StyleSpan(Typeface.ITALIC), // Make text bold
+                                    startIndex,
+                                    endIndex,
+                                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                )
+
+                                setSpan(
+                                    ForegroundColorSpan(Color.RED), // Make asterisk red
                                     text.length,
                                     length,
                                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
                                 )
                             }
 
-                            titleScanTPHalert.text = spannableScanTPHTitle
+                            alertTvScannedRadius.text = spannableScanTPHTitle
+
                         }
                     } catch (e: Exception) {
                         AppLogger.e("Error fetching afdeling data: ${e.message}")

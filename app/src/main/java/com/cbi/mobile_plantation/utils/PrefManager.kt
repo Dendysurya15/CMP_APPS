@@ -136,14 +136,34 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var lastModifiedSettingJSON: String?
+        get() = pref.getString("lastModifiedSettingJSON", "")
+        set(lastModifiedSettingJSON) {
+            editor.putString("lastModifiedSettingJSON", lastModifiedSettingJSON)
+            editor.commit()
+        }
+
+    var radiusMinimum: Float
+        get() = pref.getFloat("radiusMinimum", 80F) // Default 80F
+        set(value) {
+            editor.putFloat("radiusMinimum", value)
+            editor.commit()
+        }
+
+    var boundaryAccuracy: Float
+        get() = pref.getFloat("boundaryAccuracy", 15F) // Default 15F
+        set(value) {
+            editor.putFloat("boundaryAccuracy", value)
+            editor.commit()
+        }
+
+
     var token: String?
         get() = pref.getString("token", "")
         set(token) {
             editor.putString("token", token)
             editor.commit()
         }
-
-
 
     var isFirstTimeLaunch: Boolean
         get() = pref.getBoolean("IsFirstTimeLaunch", false)  // Default is true

@@ -86,6 +86,7 @@ object AppUtils {
         const val kemandoran = "kemandoran"
         const val transporter = "transporter"
         const val updateSyncLocalData = "Update & Sinkronisasi Lokal Data"
+        const val settingJSON = "setting.json"
     }
     /**
      * Gets the current app version from BuildConfig or string resources.

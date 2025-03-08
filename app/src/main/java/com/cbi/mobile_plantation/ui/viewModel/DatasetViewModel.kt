@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
+import org.json.JSONException
 import org.json.JSONObject
 import retrofit2.Response
 import java.io.File
@@ -351,6 +352,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 when (dataset) {
                     AppUtils.DatasetNames.tph -> prefManager.lastModifiedDatasetTPH =
                         lastModifiedTimestamp
+
                     AppUtils.DatasetNames.kemandoran -> prefManager.lastModifiedDatasetKemandoran =
                         lastModifiedTimestamp
 
@@ -382,7 +384,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         idEstate: Int,
         idDivisi: Int,
     ): List<TPHNewModel> {
-        return repository.getLatLonDivisi( idEstate, idDivisi)
+        return repository.getLatLonDivisi(idEstate, idDivisi)
     }
 
 
@@ -407,12 +409,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 var modifiedRequest = request  // Create a mutable copy of the request
 
                 if (datasetName in validDatasets) {
-                    val count = withContext(Dispatchers.IO) { repository.getDatasetCount(datasetName) }
+                    val count =
+                        withContext(Dispatchers.IO) { repository.getDatasetCount(datasetName) }
                     withContext(Dispatchers.Main) {
                         if (count == 0) {
                             // If no data, modify lastModified to null
                             modifiedRequest = request.copy(lastModified = null)
-                            Log.d("DownloadResponse", "Dataset $datasetName has no records, setting lastModified to null.")
+                            Log.d(
+                                "DownloadResponse",
+                                "Dataset $datasetName has no records, setting lastModified to null."
+                            )
                         }
                     }
                 }
@@ -423,6 +429,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadSmallDataset(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
                         response = repository.checkStatusUploadCMP(request.data!!)
+                    } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                        response = repository.downloadSettingJson(request.lastModified!!)
                     } else {
                         response = repository.downloadDataset(modifiedRequest)
                     }
@@ -431,6 +439,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     // Get headers
                     val contentType = response.headers()["Content-Type"]
                     val lastModified = response.headers()["Last-Modified-Dataset"]
+                    val lastModifiedSettingsJson = response.headers()["Last-Modified-Settings"]
 
                     when (response.code()) {
                         200 -> {
@@ -600,6 +609,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         Resource.Error("ZIP response body is null")
                                 }
                             } else if (contentType?.contains("application/json") == true) {
+
+                                Log.d("DownloadResponse", request.lastModified.toString())
                                 val responseBodyString =
                                     response.body()?.string() ?: "Empty Response"
                                 Log.d("DownloadResponse", "Received JSON: $responseBodyString")
@@ -609,6 +620,48 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     )
                                 ) {
                                     results[request.dataset] = Resource.UpToDate(request.dataset)
+                                } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+
+                                    if (responseBodyString.isBlank()) {
+                                        Log.e("DownloadResponse", "Received empty JSON response")
+                                        results[request.dataset] =
+                                            Resource.Error("Empty JSON response")
+                                        _downloadStatuses.postValue(results.toMap())
+                                    }
+
+                                    try {
+                                        val jsonObject = JSONObject(responseBodyString)
+
+                                        val tphRadius = jsonObject.optInt("tph_radius", -1) // Default -1 if not found
+                                        val gpsAccuracy = jsonObject.optInt("gps_accuracy", -1) // Default -1 if not found
+
+                                        var isStored = false
+
+                                        if (tphRadius != -1) {
+                                            prefManager.radiusMinimum = tphRadius.toFloat()
+                                            isStored = true
+                                        }
+                                        if (gpsAccuracy != -1) {
+                                            prefManager.boundaryAccuracy = gpsAccuracy.toFloat()
+                                            isStored = true
+                                        }
+
+                                        results[request.dataset] = Resource.Storing(request.dataset)
+                                        _downloadStatuses.postValue(results.toMap())
+
+                                        // ✅ Run only if data was stored
+                                        if (isStored) {
+                                            prefManager!!.addDataset(request.dataset)
+                                            results[request.dataset] = Resource.Success(response)
+                                            _downloadStatuses.postValue(results.toMap())
+                                        }
+
+                                    } catch (e: JSONException) {
+                                        Log.e("DownloadResponse", "Error parsing JSON: ${e.message}", e)
+                                        results[request.dataset] = Resource.Error("Error parsing JSON: ${e.message}")
+                                        _downloadStatuses.postValue(results.toMap())
+                                    }
+
                                 } else if (request.dataset == AppUtils.DatasetNames.mill) {
 
                                     try {
@@ -801,12 +854,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             // Extract the message from JSON safely
                             val extractedMessage = try {
                                 val jsonObject = JSONObject(errorBody)
-                                jsonObject.optString("message", "Unknown error") // Get "message" key or default
+                                jsonObject.optString(
+                                    "message",
+                                    "Unknown error"
+                                ) // Get "message" key or default
                             } catch (e: Exception) {
                                 errorBody // If JSON parsing fails, return the raw error
                             }
 
-                            val errorMessage = "Download failed with status code: ${response?.code()} - $extractedMessage"
+                            val errorMessage =
+                                "Download failed with status code: ${response?.code()} - $extractedMessage"
 
                             Log.e("DownloadError", errorMessage) // Log the extracted message
 
@@ -814,7 +871,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 results[request.dataset] = Resource.Error(errorMessage, response)
                                 hasShownError = true
                             } else {
-                                results[request.dataset] = Resource.Error("Download failed", response)
+                                results[request.dataset] =
+                                    Resource.Error("Download failed", response)
                             }
                         }
 

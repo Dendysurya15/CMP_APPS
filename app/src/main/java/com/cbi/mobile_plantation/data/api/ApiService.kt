@@ -86,6 +86,13 @@ interface ApiService {
     )
     suspend fun downloadSmallDataset(@Body body: Map<String, Int>): Response<ResponseBody>
 
+    @POST("dataset/get-settings")
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json"
+    )
+    suspend fun downloadSettingJson(@Body body: Map<String, String>): Response<ResponseBody>
+
     @POST("api/insert")
     suspend fun insertESPBKraniTimbangPPRO(@Body request: dataUploadEspbKraniTimbangPPRO): Response<UploadStagingResponse>
 
