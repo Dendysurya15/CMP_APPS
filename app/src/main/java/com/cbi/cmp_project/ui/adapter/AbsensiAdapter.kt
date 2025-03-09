@@ -53,10 +53,12 @@ class AbsensiAdapter(
     }
 
     // ✅ Function to remove a worker by ID
-    fun removeWorkerById(workerId: Int) {
-        items.removeAll { it.id == workerId }
+    fun removeWorkerById(workerId: String) {
+        AppLogger.d("Removing AbsensiDataList ID: $workerId")
+        items.removeAll { it.id.toString() == workerId }
         notifyDataSetChanged()
     }
+
 
     fun updateList(newList: List<AbsensiDataList>, append: Boolean = true) {
         items = if (append) {
