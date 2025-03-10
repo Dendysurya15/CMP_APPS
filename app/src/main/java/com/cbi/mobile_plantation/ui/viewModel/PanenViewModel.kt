@@ -194,6 +194,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         jenis_panen: Int,
         ancakInput: Int,
         info:String,
+        blokBanjir : Int,
         archive: Int,
     ): AppRepository.SaveResultPanen {
         return try {
@@ -211,6 +212,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 jenis_panen = jenis_panen,
                 ancak = ancakInput,
                 info = info,
+                status_banjir = blokBanjir,
                 archive = archive
             )
             repository.saveDataPanen(panenData)

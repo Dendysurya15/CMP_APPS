@@ -461,7 +461,7 @@ class HomePageActivity : AppCompatActivity() {
 
             "Absensi panen" -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, FeatureAbsensiActivity::class.java)
+                    val intent = Intent(    this, FeatureAbsensiActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }
@@ -472,6 +472,21 @@ class HomePageActivity : AppCompatActivity() {
                     val intent = Intent(this, ListAbsensiActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
+                }
+            }
+
+            "Scan absensi panen" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    AlertDialogUtility.withSingleAction(
+                        this@HomePageActivity,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_features_still_in_development),
+                        stringXML(R.string.al_desc_features_still_in_development),
+                        "warning.json",
+                        R.color.yellowbutton
+                    ) {
+
+                    }
                 }
             }
 

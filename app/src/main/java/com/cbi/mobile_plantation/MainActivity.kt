@@ -97,7 +97,7 @@ class MainActivity : AppCompatActivity() {
         if (!showingSplash) return
         showingSplash = false
 
-        startActivity(Intent(this, FeaturePanenTBSActivity::class.java))
+        startActivity(Intent(this, LoginActivity::class.java))
         finish()
     }
 

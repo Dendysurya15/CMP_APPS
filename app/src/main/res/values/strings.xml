@@ -27,6 +27,9 @@
     <string name="al_total_tbs">Total TBS 0</string>
     <string name="al_total_tbs_description">Jumlah TBS harus lebih dari 0</string>
     <string name="al_photo_minimal_one">Minimal 1 foto yang terlampir</string>
+    <string name="al_no_tph_selected_by_scanned">Nomor TPH belum dipilih!</string>
+    <string name="al_no_tph_detected_trigger_submit">Tidak ada Nomor TPH yang terdeteksi. Pastikan anda berada dalam radius tersebut!</string>
+    <string name="al_for_attempting_get_tph_in_radius">Harap menekan tombol refresh untuk mendapatkan TPH Terdekat</string>
 
     <string name="al_failed_fetch_data_desc">Gagal Mengambil Data!</string>
     <string name="al_failed_fetch_data">Terjadi Kesalahan!</string>
@@ -37,7 +40,7 @@
 
 
     <string name="desc_informasi_blok">Keterangan Blok Panen TPH</string>
-    <string name="desc_lampiran_foto">Minimal Upload 1 Foto</string>
+    <string name="desc_lampiran_foto">Upload foto sebagai bukti pengisian form panen</string>
     <string name="desc_data_grading">Input Data Grading</string>
 
     <string name="alert_login_username_field_empty">Username Tidak Boleh Kosong!</string>
@@ -73,6 +76,8 @@
 
     <string name="al_back">Kembali</string>
     <string name="al_no_internet_connection">Tidak Ada Internet!</string>
+    <string name="al_features_still_in_development">Segera Hadir</string>
+    <string name="al_desc_features_still_in_development">Fitur masih dalam tahap pengembangan!</string>
     <string name="al_data_cmp">Tidak Ada Internet!</string>
     <string name="al_no_internet_connection_description_download_dataset">Pastikan perangkat terhubung agar dapat mengunduh dataset sistem!</string>
     <string name="al_no_internet_connection_description_upload_espb_krani">Pastikan perangkat terhubung agar dapat mengunggah data e-SPB</string>

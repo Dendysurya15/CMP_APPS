@@ -75,17 +75,29 @@
 <!--                                        android:visibility="gone"-->
 <!--                                        android:id="@+id/layoutWilayah"/>-->
 
-<!--                    <TextView-->
-<!--                        android:id="@+id/title_data_informasi_blok"-->
-<!--                        android:layout_width="200dp"-->
-<!--                        android:layout_height="match_parent"-->
-<!--                        android:layout_marginTop="10dp"-->
-<!--                        android:fontFamily="@font/manrope_extrabold"-->
-<!--                        android:gravity="center|left"-->
-<!--                        android:textColor="@color/black"-->
-<!--                        android:textSize="23sp"-->
-<!--                        android:visibility="visible"-->
-<!--                        tools:ignore="HardcodedText,RtlHardcoded" />-->
+                    <TextView
+                        android:id="@+id/title_data_informasi_blok"
+                        android:layout_width="200dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginTop="10dp"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:gravity="center|left"
+                        android:textColor="@color/black"
+                        android:textSize="23sp"
+                        android:visibility="visible"
+                        tools:ignore="HardcodedText,RtlHardcoded" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:fontFamily="@font/manrope_medium"
+                        android:gravity="center|left"
+                        android:text="@string/desc_informasi_blok"
+                        android:textColor="@color/black"
+                        android:textSize="19sp"
+                        android:textStyle="italic"
+                        android:visibility="visible"
+                        tools:ignore="HardcodedText,RtlHardcoded" />
 
 
                     <LinearLayout
@@ -103,7 +115,7 @@
                             android:gravity="center|left"
                             android:text="Blok Banjir"
                             android:textColor="@color/black"
-                            android:textSize="17dp"
+                            android:textSize="18sp"
                             tools:ignore="HardcodedText" />
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
@@ -114,18 +126,6 @@
                             app:trackTint="@color/switch_track_selector" />
                     </LinearLayout>
 
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:fontFamily="@font/manrope_medium"
-                        android:gravity="center|left"
-                        android:text="@string/desc_informasi_blok"
-                        android:textColor="@color/black"
-                        android:textSize="19sp"
-                        android:textStyle="italic"
-                        android:visibility="visible"
-                        tools:ignore="HardcodedText,RtlHardcoded" />
 
                     <include
                         android:id="@+id/layoutEstate"
@@ -271,6 +271,17 @@
                                 android:clipToPadding="false"
                                 android:padding="0dp" />
 
+                            <TextView
+                                android:id="@+id/tvErrorScannedNotSelected"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="5dp"
+                                android:text="Nomor TPH harus dipilih!"
+                                android:textColor="@color/colorRedDark"
+                                android:fontFamily="@font/manrope_bold"
+                                android:textSize="17sp"
+                                android:visibility="gone"
+                                tools:ignore="HardcodedText,RtlSymmetry" />
 
                         </LinearLayout>
                     </androidx.core.widget.NestedScrollView>
@@ -346,7 +357,7 @@
                         android:gravity="center|left"
                         android:textColor="@color/black"
                         android:textSize="23sp"
-                        android:visibility="gone"
+                        android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
                     <TextView
@@ -359,34 +370,34 @@
                         android:textColor="@color/black"
                         android:textSize="19sp"
                         android:textStyle="italic"
-                        android:visibility="gone"
+                        android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
                     <include
                         android:id="@+id/layoutJumTBS"
                         layout="@layout/pane_number_layout"
-                        android:visibility="gone" />
+                         />
 
                     <include
                         android:id="@+id/layoutBMentah"
                         layout="@layout/pane_number_layout"
-                        android:visibility="gone" />
+                         />
 
 
                     <include
                         android:id="@+id/layoutBLewatMasak"
                         layout="@layout/pane_number_layout"
-                        android:visibility="gone" />
+                         />
 
                     <include
                         android:id="@+id/layoutJjgKosong"
                         layout="@layout/pane_number_layout"
-                        android:visibility="gone" />
+                         />
 
                     <include
                         android:id="@+id/layoutAbnormal"
                         layout="@layout/pane_number_layout"
-                        android:visibility="gone" />
+                         />
 
 
                     <View
@@ -401,7 +412,7 @@
                         android:layout_marginVertical="5dp"
                         android:layout_marginTop="10dp"
                         android:paddingBottom="10dp"
-                        android:visibility="gone"
+                        android:visibility="visible"
                         app:cardBackgroundColor="@color/white"
                         app:cardCornerRadius="8dp"
                         app:strokeColor="@color/grayBorder"
@@ -460,7 +471,7 @@
                                 android:background="@color/white"
                                 android:paddingHorizontal="20dp"
                                 android:paddingVertical="5dp"
-                                android:visibility="gone">
+                                android:visibility="visible">
 
                                 <TextView
                                     android:id="@+id/tvDikirimPabrik"
@@ -590,7 +601,7 @@
                         android:gravity="center|left"
                         android:textColor="@color/black"
                         android:textSize="23sp"
-                        android:visibility="gone"
+                        android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
                     <TextView
@@ -603,7 +614,7 @@
                         android:textColor="@color/black"
                         android:textSize="19sp"
                         android:textStyle="italic"
-                        android:visibility="gone"
+                        android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
 
@@ -614,11 +625,24 @@
                         android:layout_below="@id/tvTitleFormPanenTBS"
                         android:clipToPadding="false"
                         android:orientation="vertical"
-                        android:padding="10dp"
-                        android:visibility="gone"
+                        android:layout_marginTop="10dp"
+                        android:paddingHorizontal="10dp"
+                        android:visibility="visible"
                         tools:itemCount="1"
                         tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                         tools:listitem="@layout/take_and_preview_foto_layout" />
+
+                    <TextView
+                        android:id="@+id/tvErrorNotAttachPhotos"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="5dp"
+                        android:text="Minimal upload 1 foto"
+                        android:textColor="@color/colorRedDark"
+                        android:fontFamily="@font/manrope_bold"
+                        android:textSize="17sp"
+                        android:visibility="gone"
+                        tools:ignore="HardcodedText,RtlSymmetry" />
 
                     <!--                <com.google.android.material.card.MaterialCardView-->
                     <!--                    android:layout_width="match_parent"-->
@@ -677,7 +701,7 @@
                             android:fontFamily="@font/manrope_semibold"
                             android:text="Simpan Data"
                             android:textSize="16dp"
-                            android:visibility="gone"
+                            android:visibility="visible"
                             app:backgroundTint="@color/bluedarklight"
                             app:cornerRadius="10dp"
                             app:elevation="10dp"

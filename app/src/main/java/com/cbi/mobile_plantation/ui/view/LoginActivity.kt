@@ -83,6 +83,21 @@ class LoginActivity : AppCompatActivity() {
         })
 
 
+        val tvForgotLogin = findViewById<TextView>(R.id.tvForgotLogin)
+        tvForgotLogin.setOnClickListener {
+            AlertDialogUtility.withSingleAction(
+                this@LoginActivity,
+                stringXML(R.string.al_back),
+                stringXML(R.string.al_features_still_in_development),
+                stringXML(R.string.al_desc_features_still_in_development),
+                "warning.json",
+                R.color.yellowbutton
+            ) {
+
+            }
+        }
+
+
         authViewModel = ViewModelProvider(
             this,
             AuthViewModel.Factory(AuthRepository())
