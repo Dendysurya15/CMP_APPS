@@ -182,31 +182,45 @@
                             android:textSize="19sp" />
                     </com.google.android.material.textfield.TextInputLayout>
 
-                <CheckBox
-                    android:id="@+id/checkRememberMe"
-                    style="@style/defaultBoxColor"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="20dp"
-                    android:fontFamily="@font/manrope_semibold"
-                    android:text="Simpan Login Saya"
-                    android:textColor="@color/graytextdark"
-                    android:textSize="17sp"
-
+                    android:id="@+id/checkAndForgetSection"
+                    android:orientation="horizontal"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/etPasswordLayout" />
+                    app:layout_constraintTop_toBottomOf="@id/etPasswordLayout"
+                    app:layout_constraintEnd_toEndOf="parent">
 
-                <TextView
-                    android:id="@+id/tvForgotLogin"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="30dp"
-                    android:fontFamily="@font/manrope_semibold"
-                    android:text="Lupa Sandi?"
-                    android:textColor="@color/colorRedDark"
-                    android:textSize="17sp"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/etPasswordLayout" />
+                    <CheckBox
+                        android:id="@+id/checkRememberMe"
+                        style="@style/defaultBoxColor"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minWidth="0dp"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:text="Simpan Login Saya"
+                        android:textColor="@color/graytextdark"
+                        />
+
+                    <TextView
+                        android:id="@+id/tvForgotLogin"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="end"
+                        android:textSize="20dp"
+                        android:minWidth="0dp"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:text="Lupa Sandi?"
+                        android:textColor="@color/colorRedDark"
+                         />
+                </LinearLayout>
+
+
+
+
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_login_submit"
@@ -220,7 +234,7 @@
                     android:textSize="16sp"
                     app:layout_constraintEnd_toStartOf="@+id/btn_finger"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/checkRememberMe" />
+                    app:layout_constraintTop_toBottomOf="@id/checkAndForgetSection" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_finger"
