@@ -24,6 +24,8 @@ import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.setResponsiveTextSize
+import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputLayout
 import es.dmoral.toasty.Toasty
@@ -84,6 +86,7 @@ class LoginActivity : AppCompatActivity() {
 
 
         val tvForgotLogin = findViewById<TextView>(R.id.tvForgotLogin)
+        tvForgotLogin.setResponsiveTextSizeWithConstraints(17F, 12F,18F)
         tvForgotLogin.setOnClickListener {
             AlertDialogUtility.withSingleAction(
                 this@LoginActivity,
@@ -201,6 +204,7 @@ class LoginActivity : AppCompatActivity() {
 
 
         val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
+        checkRememberMe.setResponsiveTextSizeWithConstraints(17F, 12F,18F)
         checkRememberMe.setOnCheckedChangeListener { _, isChecked ->
             prefManager!!.rememberLogin = isChecked
         }
@@ -278,6 +282,7 @@ class LoginActivity : AppCompatActivity() {
     @SuppressLint("SetTextI18n")
     private fun setAppVersion() {
         val versionTextView: TextView = findViewById(R.id.version_app)
+        versionTextView?.setResponsiveTextSizeWithConstraints(17F, 12F,18F)
         val appVersion = AppUtils.getAppVersion(this)
         versionTextView.text = "Versi $appVersion"
     }

@@ -48,6 +48,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
@@ -664,6 +665,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
                 val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
                 val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
+                tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F,25F)
                 val dashedLine: View = view.findViewById(R.id.dashedLine)
                 val loadingContainer: LinearLayout =
                     view.findViewById(R.id.loadingDotsContainerBottomSheet)
@@ -725,8 +727,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 val dataQR: TextView? = view.findViewById(R.id.dataQR)
                                 val titleQRConfirm: TextView =
                                     view.findViewById(R.id.titleAfterScanQR)
+                                titleQRConfirm.setResponsiveTextSizeWithConstraints(17F, 17F,19F)
                                 val descQRConfirm: TextView =
                                     view.findViewById(R.id.descAfterScanQR)
+                                descQRConfirm.setResponsiveTextSizeWithConstraints(17F, 15F,19F)
                                 val btnConfirmScanPanenTPH: MaterialButton =
                                     view.findViewById(R.id.btnConfirmScanPanenTPH)
 

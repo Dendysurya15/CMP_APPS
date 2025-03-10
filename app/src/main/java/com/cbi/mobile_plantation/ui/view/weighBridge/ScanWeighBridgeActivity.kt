@@ -7,6 +7,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -24,6 +25,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.setMaxBrightness
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.gson.Gson
 import com.google.zxing.ResultPoint
@@ -72,6 +74,27 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         setupBottomSheet()
         setupQRScanner()
 
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                when {
+                    ::bottomSheetDialog.isInitialized && bottomSheetDialog.isShowing -> {
+                        bottomSheetDialog.dismiss()
+                    }
+
+                    barcodeView.visibility == View.VISIBLE -> {
+                        pauseScanner()
+                        barcodeView.barcodeView?.cameraInstance?.close()
+                        isEnabled = false // Disable this callback momentarily
+                        onBackPressedDispatcher.onBackPressed() // Call the system back event
+                    }
+
+                    else -> {
+                        isEnabled = false // Ensure default behavior is triggered
+                        onBackPressedDispatcher.onBackPressed()
+                    }
+                }
+            }
+        })
     }
 
     private fun setupQRScanner() {
@@ -104,12 +127,15 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         bottomSheetDialog = BottomSheetDialog(this)
         val bottomSheetView = layoutInflater.inflate(R.layout.layout_bottom_sheet_wb, null)
         bottomSheetDialog.setContentView(bottomSheetView)
+        bottomSheetDialog.behavior.peekHeight = (resources.displayMetrics.heightPixels * 0.7).toInt()
+        bottomSheetDialog.behavior.isDraggable = true  // Allow dragging
 
-        bottomSheetDialog.setCanceledOnTouchOutside(false)
-        bottomSheetDialog.setCancelable(false)
-        bottomSheetDialog.behavior.apply {
-            isDraggable = false
-        }
+
+//        bottomSheetDialog.setCanceledOnTouchOutside(false)
+//        bottomSheetDialog.setCancelable(false)
+//        bottomSheetDialog.behavior.apply {
+//            isDraggable = false
+//        }
         bottomSheetView.findViewById<Button>(R.id.btnSaveUploadeSPB)?.setOnClickListener {
             isScanning = false
             pauseScanner()
@@ -245,6 +271,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             val dataContainer = it.findViewById<LinearLayout>(R.id.dataContainer)
             val errorText = it.findViewById<TextView>(R.id.errorText)
             val btnProcess = it.findViewById<Button>(R.id.btnSaveUploadeSPB)
+
+
 
             if (hasError) {
                 errorCard.visibility = View.VISIBLE
@@ -506,21 +534,21 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         setMaxBrightness(this@ScanWeighBridgeActivity, false)
     }
 
-    @Deprecated("Use onBackPressedDispatcher instead")
-    @SuppressLint("MissingSuperCall")
-    override fun onBackPressed() {
-        when {
-            ::bottomSheetDialog.isInitialized && bottomSheetDialog.isShowing -> {
-                bottomSheetDialog.dismiss()
-            }
-
-            barcodeView.visibility == View.VISIBLE -> {
-                pauseScanner()
-                barcodeView.barcodeView?.cameraInstance?.close()
-                super.onBackPressed()
-            }
-
-            else -> super.onBackPressed()
-        }
-    }
+//    @Deprecated("Use onBackPressedDispatcher instead")
+//    @SuppressLint("MissingSuperCall")
+//    override fun onBackPressed() {
+//        when {
+//            ::bottomSheetDialog.isInitialized && bottomSheetDialog.isShowing -> {
+//                bottomSheetDialog.dismiss()
+//            }
+//
+//            barcodeView.visibility == View.VISIBLE -> {
+//                pauseScanner()
+//                barcodeView.barcodeView?.cameraInstance?.close()
+//                super.onBackPressed()
+//            }
+//
+//            else -> super.onBackPressed()
+//        }
+//    }
 }

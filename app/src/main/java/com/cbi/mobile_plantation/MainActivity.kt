@@ -14,8 +14,11 @@ import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.FlagESPBModel
 import com.cbi.mobile_plantation.ui.view.LoginActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
+import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
+import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -57,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetTextI18n")
     private fun setAppVersion(rootView: View) {
         val versionTextView: TextView? = rootView.findViewById(R.id.version_app)
+        versionTextView?.setResponsiveTextSizeWithConstraints(17F, 12F,18F)
         if (versionTextView != null) {
             val appVersion = AppUtils.getAppVersion(this)
             versionTextView.text = "Versi $appVersion"
