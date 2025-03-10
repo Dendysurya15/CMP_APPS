@@ -54,6 +54,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val uploadCMPDao = database.uploadCMPDao()
     private val espbDao = database.espbDao()
     private val panenDao = database.panenDao()
+    private val absensiDao = database.absensiDao()
 
 
     private val _downloadStatuses = MutableLiveData<Map<String, Resource<Response<ResponseBody>>>>()
@@ -120,6 +121,20 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 _karyawanStatus.value = Result.failure(e)
             }
         }
+
+    fun clearAllData() {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { uploadCMPDao.dropAllData() }
+                withContext(Dispatchers.IO) { espbDao.dropAllData() }
+                withContext(Dispatchers.IO) { panenDao.dropAllData() }
+                withContext(Dispatchers.IO) { absensiDao.dropAllData() }
+            } catch (e: Exception) {
+                Log.e("ViewModel", "Error clearing database: ${e.message}")
+            }
+        }
+    }
+
 
     fun updateOrInsertMill(mill: List<MillModel>) =
         viewModelScope.launch(Dispatchers.IO) {
@@ -636,8 +651,14 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     try {
                                         val jsonObject = JSONObject(responseBodyString)
 
-                                        val tphRadius = jsonObject.optInt("tph_radius", -1) // Default -1 if not found
-                                        val gpsAccuracy = jsonObject.optInt("gps_accuracy", -1) // Default -1 if not found
+                                        val tphRadius = jsonObject.optInt(
+                                            "tph_radius",
+                                            -1
+                                        ) // Default -1 if not found
+                                        val gpsAccuracy = jsonObject.optInt(
+                                            "gps_accuracy",
+                                            -1
+                                        ) // Default -1 if not found
 
                                         var isStored = false
 
@@ -661,8 +682,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
 
                                     } catch (e: JSONException) {
-                                        Log.e("DownloadResponse", "Error parsing JSON: ${e.message}", e)
-                                        results[request.dataset] = Resource.Error("Error parsing JSON: ${e.message}")
+                                        Log.e(
+                                            "DownloadResponse",
+                                            "Error parsing JSON: ${e.message}",
+                                            e
+                                        )
+                                        results[request.dataset] =
+                                            Resource.Error("Error parsing JSON: ${e.message}")
                                         _downloadStatuses.postValue(results.toMap())
                                     }
 

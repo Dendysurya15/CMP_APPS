@@ -96,7 +96,7 @@
     <string name="al_failed_save_local_krani_timbang">Gagal simpan data e-SPB!</string>
     <string name="al_description_failed_save_local">Data gagal disimpan!</string>
     <string name="download_dataset">Sedang mengunduh dataset</string>
-    <string name="no_detect_tph">- Tidak terdeteksi TPH dalam radius ini</string>
+    <string name="no_detect_tph">Tidak terdeteksi TPH dalam radius ini</string>
     <string name="fetching_dataset">Sedang mengambil dataset</string>
 
     <string-array name="tipe_panen_options">
@@ -104,5 +104,10 @@
         <item>Cut &amp; Carry</item>
         <item>MAIC</item>
     </string-array>
+
+    <array name="autosize_text_sizes">
+        <item>12sp</item>
+        <item>17sp</item>
+    </array>
 
 </resources>

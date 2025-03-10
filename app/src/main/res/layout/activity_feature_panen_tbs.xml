@@ -255,6 +255,7 @@
                                 android:layout_marginVertical="10dp"
                                 android:text="@string/no_detect_tph"
                                 android:textSize="18sp"
+                                android:fontFamily="@font/manrope_bold"
                                 android:layout_marginLeft="5dp"
                                 android:textColor="@color/black"
                                 android:textStyle="italic"

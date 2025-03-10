@@ -1369,6 +1369,8 @@ class HomePageActivity : AppCompatActivity() {
                 prefManager!!.lastModifiedDatasetTransporter = null
                 prefManager!!.clearDatasetMustUpdate()
 
+                datasetViewModel.clearAllData()
+
                 val intent = Intent(this, LoginActivity::class.java)
                 Toasty.success(this, "Berhasil Logout", Toast.LENGTH_LONG, true).show()
                 startActivity(intent)

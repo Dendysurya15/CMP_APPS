@@ -103,6 +103,10 @@ abstract class ESPBDao {
     ): Int
 
 
+    @Query("DELETE FROM espb_table")
+    abstract suspend fun dropAllData()
+
+
     @Query("UPDATE espb_table SET dataIsZipped = :status WHERE id IN (:ids)")
     abstract suspend fun updateDataIsZippedESPB(ids: List<Int>, status: Int)
 

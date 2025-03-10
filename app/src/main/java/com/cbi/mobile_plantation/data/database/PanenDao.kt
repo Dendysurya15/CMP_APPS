@@ -34,6 +34,9 @@ abstract class PanenDao {
     @Delete
     abstract fun deleteAll(panen: List<PanenEntity>)
 
+    @Query("DELETE FROM panen_table")
+    abstract suspend fun dropAllData()
+
     @Query("SELECT * FROM panen_table WHERE id = :id")
     abstract fun getById(id: Int): PanenEntity?
 
