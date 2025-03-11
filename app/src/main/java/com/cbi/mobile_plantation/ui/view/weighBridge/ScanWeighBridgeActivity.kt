@@ -148,6 +148,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 "warning.json"
             ) {
                 lifecycleScope.launch(Dispatchers.Main) {
+
+                    loadingDialog.show()
+                    loadingDialog.setMessage("Sedang menyimpan e-SPB ke local database...")
                     try {
                         val result = withContext(Dispatchers.IO) {
                             weightBridgeViewModel.saveDataLocalKraniTimbangESPB(
@@ -180,22 +183,135 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                         when (result) {
                             is WeighBridgeRepository.SaveResultESPBKrani.Success -> {
+                                // Get the ID of the saved item (assuming result.id contains the saved item's ID)
 
+
+                                val savedItemId = result.id
+
+                                val itemToUpload = mapOf(
+                                    "id" to savedItemId,
+                                    "endpoint" to "PPRO", // First endpoint (PPRO)
+                                    "uploader_info" to globalCreatorInfo, // Use creator info for uploader
+                                    "uploaded_at" to SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+                                    "uploaded_by_id" to (globalCreatedById ?: 0),
+                                    "dept_ppro" to "0", // Provide default values or get from your globals
+                                    "divisi_ppro" to "0",
+                                    "commodity" to "0",
+                                    "blok_jjg" to globalBlokJjg,
+                                    "nopol" to globalNopol,
+                                    "driver" to globalDriver,
+                                    "pemuat_id" to globalPemuatId.toString(),
+                                    "transporter_id" to (globalTransporterId ?: 0).toString(),
+                                    "mill_id" to globalMillId.toString(),
+                                    "created_by_id" to (globalCreatedById ?: 0).toString(),
+                                    "created_at" to SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+                                    "no_espb" to globalNoESPB
+                                )
+
+//                                // Second item for CMP endpoint (assuming you need both uploads)
+//                                val cmpItem = mapOf(
+//                                    "id" to savedItemId,
+//                                    "endpoint" to "CMP",
+//                                    "uploader_info" to globalCreatorInfo,
+//                                    "uploaded_at" to SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+//                                    "uploaded_by_id" to (globalCreatedById ?: 0),
+//                                    "file" to "$globalNoESPB.zip" // Assuming there's a zip file with this name
+//                                )
+
+                                // List of items to upload
+                                val itemsToUpload = listOf(itemToUpload)
+//                                val itemsToUpload = listOf(itemToUpload, cmpItem)
+                                val globalIdEspb = listOf(savedItemId)
+
+                                // Start the upload
+                                weightBridgeViewModel.uploadESPBKraniTimbang(itemsToUpload, globalIdEspb)
+
+                                // Observe upload progress
+                                weightBridgeViewModel.uploadProgress.observe(this@ScanWeighBridgeActivity) { progressMap ->
+                                    // Handle progress updates
+                                    AppLogger.d("Upload progress: $progressMap")
+                                }
+
+                                // Observe upload status
+                                weightBridgeViewModel.uploadStatusMap.observe(this@ScanWeighBridgeActivity) { statusMap ->
+                                    // Handle status updates
+                                    AppLogger.d("Upload status: $statusMap")
+
+                                    // Check if all uploads are complete
+                                    val allComplete = statusMap.values.all { it == "Success" || it == "Failed" }
+                                    if (allComplete) {
+                                        // Check if all successful
+                                        val allSuccessful = statusMap.values.all { it == "Success" }
+
+                                        // Show appropriate dialog based on upload result
+                                        if (allSuccessful) {
+                                            AlertDialogUtility.withSingleAction(
+                                                this@ScanWeighBridgeActivity,
+                                                stringXML(R.string.al_back),
+                                                stringXML(R.string.al_success_save_local),
+                                                stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang) +
+                                                        "\nBerhasil mengupload data ke server.",
+                                                "success.json",
+                                                R.color.greendarkerbutton
+                                            ) {
+                                                val intent = Intent(
+                                                    this@ScanWeighBridgeActivity,
+                                                    HomePageActivity::class.java
+                                                )
+                                                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                                startActivity(intent)
+                                                finish()
+                                            }
+                                        } else {
+                                            // Show partial success or failure dialog
+                                            val failedCount = statusMap.values.count { it == "Failed" }
+
+                                            AlertDialogUtility.withSingleAction(
+                                                this@ScanWeighBridgeActivity,
+                                                stringXML(R.string.al_back),
+                                                stringXML(R.string.al_success_save_local),
+                                                stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang) +
+                                                        "\nData tersimpan lokal tetapi $failedCount upload gagal.",
+                                                "warning.json",
+                                                R.color.orangeButton
+                                            ) {
+                                                val intent = Intent(
+                                                    this@ScanWeighBridgeActivity,
+                                                    HomePageActivity::class.java
+                                                )
+                                                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                                startActivity(intent)
+                                                finish()
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Observe errors
+                                weightBridgeViewModel.uploadErrorMap.observe(this@ScanWeighBridgeActivity) { errorMap ->
+                                    // Log errors
+                                    if (errorMap.isNotEmpty()) {
+                                        AppLogger.e("Upload errors: $errorMap")
+                                    }
+                                }
+
+                                // Observe final result
+                                weightBridgeViewModel.uploadResult.observe(this@ScanWeighBridgeActivity) { result ->
+                                    // Final result handling (optional as we're already handling with statusMap)
+                                    AppLogger.d("Final upload result: $result")
+                                }
+
+                                // Show initial success dialog for local save
                                 AlertDialogUtility.withSingleAction(
                                     this@ScanWeighBridgeActivity,
                                     stringXML(R.string.al_back),
                                     stringXML(R.string.al_success_save_local),
-                                    stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang),
-                                    "success.json",
+                                    stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang) +
+                                            "\nSedang mengupload data ke server...",
+                                    "loading.json",  // Use a loading animation
                                     R.color.greendarkerbutton
                                 ) {
-                                    val intent = Intent(
-                                        this@ScanWeighBridgeActivity,
-                                        HomePageActivity::class.java
-                                    )
-                                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                                    startActivity(intent)
-                                    finish()
+                                    // Do nothing on click, as we're waiting for upload to complete
                                 }
                             }
 
@@ -207,7 +323,11 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "Data dengan nomor e-SPB ${globalNoESPB} sudah tersimpan sebelumnya.",
                                     "warning.json",
                                     R.color.orangeButton
-                                ) {}
+                                ) {
+
+
+
+                                }
                             }
 
                             is WeighBridgeRepository.SaveResultESPBKrani.Error -> {

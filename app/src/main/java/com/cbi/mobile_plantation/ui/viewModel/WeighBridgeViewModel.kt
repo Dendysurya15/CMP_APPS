@@ -206,7 +206,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         archive: Int,
         tph0: String,
         tph1: String,
-        update_info_sp: String? = null, // Set _sp fields to null
+        update_info_sp: String? = null,
         uploaded_by_id_wb: Int,
         uploaded_at_wb: String,
         status_upload_cmp_wb: Int,
@@ -231,10 +231,10 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                     archive = archive,
                     tph0 = tph0,
                     tph1 = tph1,
-                    update_info_sp = update_info_sp ?: "NULL", // Ensure default null handling
+                    update_info_sp = update_info_sp ?: "NULL",
                     uploaded_by_id_wb = uploaded_by_id_wb,
                     uploaded_at_wb = uploaded_at_wb,
-                    uploaded_by_id_sp = 0, // Nullify _sp fields
+                    uploaded_by_id_sp = 0,
                     uploaded_at_sp = "NULL",
                     status_upload_cmp_sp = 0,
                     status_upload_cmp_wb = status_upload_cmp_wb,
@@ -242,14 +242,15 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                     status_draft = 0,
                     status_mekanisasi = 0,
                     creator_info = creator_info,
-                    uploader_info_sp = "NULL", // Nullify _sp uploader info
+                    uploader_info_sp = "NULL",
                     uploader_info_wb = uploader_info_wb,
                     noESPB = noESPB,
                     scan_status = scan_status,
                     dataIsZipped = 0
                 )
-                repository.insertESPBData(espbData)
-                WeighBridgeRepository.SaveResultESPBKrani.Success
+                // Insert and get the ID
+                val insertedId = repository.insertESPBDataAndGetId(espbData)
+                WeighBridgeRepository.SaveResultESPBKrani.Success(insertedId)
             } else {
                 WeighBridgeRepository.SaveResultESPBKrani.AlreadyExists
             }

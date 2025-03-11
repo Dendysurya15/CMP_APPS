@@ -26,4 +26,5 @@ data class PanenEntity(
     val status_restan: Int=0,
     val scan_status: Int=0,
     val dataIsZipped: Int = 0,
+    val no_espb: String = "null"
 )
