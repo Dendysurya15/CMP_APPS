@@ -30,6 +30,8 @@ class FormAncakViewModel : ViewModel() {
         val parit: Int = 0,
         val brdSegar: Int = 0,
         val brdBusuk: Int = 0,
+        val photo: String = "",
+        val comment: String = ""
     )
 
     data class ValidationResult(

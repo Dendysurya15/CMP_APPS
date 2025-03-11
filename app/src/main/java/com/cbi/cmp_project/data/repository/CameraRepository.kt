@@ -562,7 +562,7 @@ class CameraRepository(private val context: Context, private val window: Window,
         }
     }
 
-    fun openZoomPhotos(file: File, position: String, onChangePhoto: () -> Unit, onDeletePhoto: (String) -> Unit) {
+    fun openZoomPhotos(file: File, position: String, onChangePhoto: () -> Unit, onDeletePhoto: (String) -> Unit, onClosePhoto: () -> Unit = {}) {
         val fotoZoom = zoomView.findViewById<ImageView>(R.id.fotoZoom)
         val backgroundView = zoomView.findViewById<View>(R.id.backgroundOverlay) // Add this to your layout
 
@@ -579,6 +579,7 @@ class CameraRepository(private val context: Context, private val window: Window,
 
         // Your existing click listeners...
         zoomView.findViewById<MaterialCardView>(R.id.cardCloseZoom)?.setOnClickListener {
+            onClosePhoto.invoke()
             zoomView.visibility = View.GONE
             backgroundView.visibility = View.GONE
         }

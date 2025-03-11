@@ -1,12 +1,9 @@
 package com.cbi.cmp_project.ui.adapter
 
 import android.app.Activity
-import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
@@ -14,18 +11,15 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.Settings
 import android.util.Log
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.Window
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
@@ -64,7 +58,7 @@ class TakeFotoPreviewAdapter(
 
     class FotoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val imageView: ImageView = itemView.findViewById(R.id.ivAddFoto)
-        val commentTextView: TextView = itemView.findViewById(R.id.etPhotoComment)
+        val commentTextView: TextView = itemView.findViewById(R.id.tvPhotoComment)
         val titleCommentTextView: TextView = itemView.findViewById(R.id.titleComment)
     }
 

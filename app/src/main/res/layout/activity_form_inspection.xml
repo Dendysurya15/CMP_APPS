@@ -196,7 +196,19 @@
             app:layout_constraintStart_toStartOf="parent"
             app:maxImageSize="30dp"
             app:tint="@android:color/white"
+            app:pressedTranslationZ="0dp"
             tools:ignore="ContentDescription" />
+
+        <View
+            android:id="@+id/badgePhotoInspect"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:background="@drawable/circle_white_background"
+            android:backgroundTint="@color/colorRed"
+            android:elevation="10dp"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="@id/fabPhotoFormInspect"
+            app:layout_constraintTop_toTopOf="@id/fabPhotoFormInspect" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fabPrevFormInspect"
@@ -205,7 +217,6 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="10dp"
             android:layout_marginBottom="15dp"
-            android:backgroundTint="@color/biometric_error_color"
             android:src="@drawable/baseline_arrow_back_24"
             app:fabCustomSize="65dp"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -221,7 +232,6 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="20dp"
             android:layout_marginBottom="15dp"
-            android:backgroundTint="@color/greenDefault"
             android:src="@drawable/baseline_arrow_forward_24"
             app:fabCustomSize="65dp"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -231,6 +241,20 @@
             tools:ignore="ContentDescription" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <include
+        android:id="@+id/incTakePhotoInspect"
+        layout="@layout/camera_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <include
+        android:id="@+id/incEditPhotoInspect"
+        layout="@layout/camera_edit"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 
     <!-- Bottom Navigation Bar -->
     <com.google.android.material.bottomnavigation.BottomNavigationView

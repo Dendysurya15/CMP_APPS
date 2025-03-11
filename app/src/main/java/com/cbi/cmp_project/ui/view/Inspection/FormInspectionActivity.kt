@@ -1,17 +1,23 @@
 package com.cbi.cmp_project.ui.view.Inspection
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
+import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.provider.Settings
 import android.text.Editable
 import android.text.Spannable
 import android.text.SpannableString
@@ -23,10 +29,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -38,15 +46,22 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
+import com.bumptech.glide.Glide
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.data.repository.CameraRepository
 import com.cbi.cmp_project.ui.adapter.FormAncakPagerAdapter
+import com.cbi.cmp_project.ui.adapter.TakeFotoPreviewAdapter
+import com.cbi.cmp_project.ui.adapter.TakeFotoPreviewAdapter.Companion.CAMERA_PERMISSION_REQUEST_CODE
 import com.cbi.cmp_project.ui.fragment.FormAncakFragment
 import com.cbi.cmp_project.ui.view.HomePageActivity
 import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity.InputType
+import com.cbi.cmp_project.ui.viewModel.CameraViewModel
 import com.cbi.cmp_project.ui.viewModel.FormAncakViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
@@ -55,19 +70,27 @@ import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.AppUtils.vibrate
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
+import com.cbi.cmp_project.utils.SoftKeyboardStateWatcher
 import com.google.android.flexbox.FlexboxLayout
+import com.google.android.material.badge.BadgeDrawable
+import com.google.android.material.badge.BadgeUtils
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.snackbar.Snackbar
 import com.jaredrummler.materialspinner.MaterialSpinner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import kotlin.math.abs
 import kotlin.reflect.KMutableProperty0
 
-class FormInspectionActivity : AppCompatActivity() {
+class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallback {
     private lateinit var loadingDialog: LoadingDialog
     private var prefManager: PrefManager? = null
 
@@ -82,6 +105,8 @@ class FormInspectionActivity : AppCompatActivity() {
     private var jumBrdTglPath = 0
     private var jumBuahTglPath = 0
 
+    private var shouldReopenBottomSheet = false
+
     private val listRadioItems: Map<String, Map<String, String>> = mapOf(
         "InspectionType" to mapOf(
             "1" to "Inspeksi",
@@ -95,12 +120,18 @@ class FormInspectionActivity : AppCompatActivity() {
 
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
 
+    private lateinit var cameraViewModel: CameraViewModel
     private lateinit var formAncakViewModel: FormAncakViewModel
     private lateinit var formAncakPagerAdapter: FormAncakPagerAdapter
+    private lateinit var keyboardWatcher: SoftKeyboardStateWatcher
 
+    private lateinit var infoBlokView: ScrollView
+    private lateinit var formInspectionView: ConstraintLayout
+    private lateinit var bottomNavInspect: BottomNavigationView
     private lateinit var vpFormAncak: ViewPager2
     private lateinit var fabPrevFormAncak: FloatingActionButton
     private lateinit var fabNextFormAncak: FloatingActionButton
+    private lateinit var fabPhotoFormAncak: FloatingActionButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,6 +139,8 @@ class FormInspectionActivity : AppCompatActivity() {
 
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
+
+        initViewModel()
 
         regionalId = prefManager!!.regionalIdUserLogin
         estateId = prefManager!!.estateIdUserLogin
@@ -118,11 +151,6 @@ class FormInspectionActivity : AppCompatActivity() {
 
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
-
-        formAncakViewModel = ViewModelProvider(this)[FormAncakViewModel::class.java]
-        vpFormAncak = findViewById(R.id.vpFormAncakInspect)
-        fabPrevFormAncak = findViewById(R.id.fabPrevFormInspect)
-        fabNextFormAncak = findViewById(R.id.fabNextFormInspect)
 
         setupHeader()
 
@@ -136,6 +164,7 @@ class FormInspectionActivity : AppCompatActivity() {
             try {
                 withContext(Dispatchers.Main) {
                     setupLayout()
+                    setKeyboardVisibilityListener()
                     loadingDialog.dismiss()
                 }
             } catch (e: Exception) {
@@ -166,6 +195,17 @@ class FormInspectionActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 when {
+                    cameraViewModel.statusCamera() -> {
+                        cameraViewModel.closeCamera()
+
+                        if (shouldReopenBottomSheet) {
+                            shouldReopenBottomSheet = false
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                showViewPhotoBottomSheet()
+                            }, 100)
+                        }
+                    }
+
                     else -> {
                         vibrate()
                         AlertDialogUtility.withTwoActions(
@@ -189,6 +229,24 @@ class FormInspectionActivity : AppCompatActivity() {
                 }
             }
         })
+    }
+
+    override fun onDestroy() {
+        keyboardWatcher.unregister()
+        super.onDestroy()
+    }
+
+    private fun initViewModel() {
+        formAncakViewModel = ViewModelProvider(this)[FormAncakViewModel::class.java]
+
+        val idTakeFotoLayout = findViewById<View>(R.id.incTakePhotoInspect)
+        val idEditFotoLayout = findViewById<View>(R.id.incEditPhotoInspect)
+        val cameraRepository = CameraRepository(this, window, idTakeFotoLayout, idEditFotoLayout)
+        cameraRepository.setPhotoCallback(this)
+        cameraViewModel = ViewModelProvider(
+            this,
+            CameraViewModel.Factory(cameraRepository)
+        )[CameraViewModel::class.java]
     }
 
     private fun setupViewPager() {
@@ -237,9 +295,30 @@ class FormInspectionActivity : AppCompatActivity() {
                 vpFormAncak.setCurrentItem(pageIndex, true)
             }
 
+            val currentPage = formAncakViewModel.currentPage.value ?: 1
+            val totalPages =
+                formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+
             Handler(Looper.getMainLooper()).postDelayed({
-                updateButtonVisibility(page)
+                fabPrevFormAncak.isEnabled = if (currentPage <= 1) false else true
+                fabPrevFormAncak.backgroundTintList = ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        this,
+                        if (currentPage <= 1) R.color.greytext else androidx.biometric.R.color.biometric_error_color
+                    )
+                )
+                fabNextFormAncak.isEnabled = if (currentPage >= totalPages) false else true
+                fabNextFormAncak.backgroundTintList = ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        this,
+                        if (currentPage >= totalPages) R.color.greytext else R.color.greenDefault
+                    )
+                )
             }, 300)
+        }
+
+        formAncakViewModel.formData.observe(this) { formData ->
+            updatePhotoBadgeVisibility()
         }
 
         formAncakViewModel.fieldValidationError.observe(this) { errorMap ->
@@ -254,15 +333,6 @@ class FormInspectionActivity : AppCompatActivity() {
             }
         }
     }
-
-    private fun updateButtonVisibility(currentPage: Int) {
-        val totalPages =
-            formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
-
-        fabPrevFormAncak.visibility = if (currentPage > 1) View.VISIBLE else View.INVISIBLE
-//        fabNextFormAncak.text = if (currentPage == totalPages) "Submit" else "Next"
-    }
-
 
     private fun setupNavigation() {
         fabNextFormAncak.setOnClickListener {
@@ -356,8 +426,12 @@ class FormInspectionActivity : AppCompatActivity() {
         for (page in 1..totalPages) {
             val pageData = formData[page]
             val emptyTreeValue = pageData?.emptyTree ?: 0
+            val photoValue = pageData?.photo ?: 0
+            val commentValue = pageData?.comment ?: 0
 
             AppLogger.d("Page $page: EmptyTree = $emptyTreeValue")
+            AppLogger.d("Page $page: Photo = $photoValue")
+            AppLogger.d("Page $page: Comment = $commentValue")
 
             if (page == currentPage) break
         }
@@ -388,6 +462,247 @@ class FormInspectionActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupAddPhotosView() {
+        fabPhotoFormAncak.setOnClickListener {
+            val validationResult = formAncakViewModel.validateCurrentPage()
+            if (validationResult.isValid) {
+                showViewPhotoBottomSheet()
+            } else {
+                vibrate(500)
+            }
+        }
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun showViewPhotoBottomSheet(fileName: String? = null) {
+        val currentPage = formAncakViewModel.currentPage.value ?: 1
+        val currentData =
+            formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
+        val rootApp = this.getExternalFilesDir(Environment.DIRECTORY_PICTURES).toString()
+
+        val bottomSheetDialog = BottomSheetDialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_inspection_photo, null)
+        bottomSheetDialog.setContentView(view)
+
+        view.background = ContextCompat.getDrawable(this, R.drawable.rounded_top_right_left)
+
+        val ibDeletePhotoInspect = view.findViewById<ImageButton>(R.id.ibDeletePhotoInspect)
+        val incLytPhotosInspect = view.findViewById<View>(R.id.incLytPhotosInspect)
+        val ivAddPhoto = incLytPhotosInspect.findViewById<ImageView>(R.id.ivAddFoto)
+        val tvPhotoComment = incLytPhotosInspect.findViewById<TextView>(R.id.tvPhotoComment)
+        val etPhotoComment = incLytPhotosInspect.findViewById<EditText>(R.id.etPhotoComment)
+
+        tvPhotoComment.visibility = View.GONE
+
+        ibDeletePhotoInspect.visibility = if (currentData.photo.isNotEmpty() || currentData.comment.isNotEmpty()) View.VISIBLE else View.GONE
+        ibDeletePhotoInspect.setOnClickListener {
+            AlertDialogUtility.withTwoActions(
+                this,
+                "Hapus",
+                this.getString(R.string.confirmation_dialog_title),
+                "Apakah anda yakin untuk menghapus lampiran ini?",
+                "warning.json",
+                ContextCompat.getColor(this, R.color.greenDarker)
+            ) {
+                ivAddPhoto.setImageResource(R.drawable.baseline_add_a_photo_24)
+                etPhotoComment.setText("")
+
+                formAncakViewModel.savePageData(
+                    currentPage,
+                    currentData.copy(photo = "", comment = "")
+                )
+
+                ibDeletePhotoInspect.visibility = View.GONE
+                updatePhotoBadgeVisibility()
+                etPhotoComment.clearFocus()
+            }
+        }
+
+        etPhotoComment.visibility = View.VISIBLE
+        etPhotoComment.setText(currentData.comment)
+        etPhotoComment.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(
+                s: CharSequence?,
+                start: Int,
+                count: Int,
+                after: Int
+            ) {
+            }
+
+            override fun onTextChanged(
+                s: CharSequence?,
+                start: Int,
+                before: Int,
+                count: Int
+            ) {
+            }
+
+            override fun afterTextChanged(s: Editable?) {
+                formAncakViewModel.savePageData(
+                    currentPage,
+                    currentData.copy(comment = s?.toString() ?: "")
+                )
+            }
+        })
+
+        var resultFileName = currentData.photo
+        if (fileName != null) {
+            resultFileName = fileName
+        }
+
+        ivAddPhoto.setOnClickListener {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.CAMERA
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    bottomNavInspect.visibility = View.GONE
+                    bottomSheetDialog.dismiss()
+
+                    if (resultFileName.isNotEmpty()) {
+                        val filePath = File(File(rootApp, "CMP"), resultFileName)
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            cameraViewModel.openZoomPhotos(
+                                file = filePath,
+                                position = currentPage.toString(),
+                                onChangePhoto = {
+                                    shouldReopenBottomSheet = true
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        cameraViewModel.takeCameraPhotos(
+                                            currentPage.toString(),
+                                            ivAddPhoto,
+                                            currentPage,
+                                            null,
+                                            "", // soon assign lat lon
+                                            currentPage.toString(),
+                                            "IP"
+                                        )
+                                    }, 100)
+                                },
+                                onDeletePhoto = { pos ->
+                                    ivAddPhoto.setImageResource(R.drawable.baseline_add_a_photo_24)
+                                    formAncakViewModel.savePageData(
+                                        currentPage,
+                                        currentData.copy(photo = "")
+                                    )
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        showViewPhotoBottomSheet()
+                                    }, 100)
+                                },
+                                onClosePhoto = {
+                                    bottomNavInspect.visibility = View.VISIBLE
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        showViewPhotoBottomSheet()
+                                    }, 100)
+                                }
+                            )
+                        }, 100)
+                    } else {
+                        shouldReopenBottomSheet = true
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            cameraViewModel.takeCameraPhotos(
+                                currentPage.toString(),
+                                ivAddPhoto,
+                                currentPage,
+                                null,
+                                "", // soon assign lat lon
+                                currentPage.toString(),
+                                "IP"
+                            )
+                        }, 100)
+                    }
+                }
+
+                ActivityCompat.shouldShowRequestPermissionRationale(
+                    this,
+                    android.Manifest.permission.CAMERA
+                ) -> {
+                    showSnackbarWithSettings("Camera permission required to take photos. Enable it in Settings.")
+                }
+
+                else -> {
+                    // If permission is permanently denied, show settings option
+                    if (isPermissionPermanentlyDenied()) {
+                        AppLogger.d("Permission permanently denied. Redirecting to settings.")
+                        showSnackbarWithSettings("Camera permission required to take photos. Enable it in Settings.")
+                    } else {
+                        AppLogger.d("Requesting camera permission")
+                        ActivityCompat.requestPermissions(
+                            this,
+                            arrayOf(android.Manifest.permission.CAMERA),
+                            CAMERA_PERMISSION_REQUEST_CODE
+                        )
+                    }
+                }
+            }
+        }
+
+        if (resultFileName.isNotEmpty()) {
+            val filePath = File(File(rootApp, "CMP"), resultFileName)
+            Glide.with(this)
+                .load(filePath)
+                .into(ivAddPhoto)
+        }
+
+        val displayMetrics = resources.displayMetrics
+        val width = displayMetrics.widthPixels
+
+        bottomSheetDialog.window?.apply {
+            setLayout(
+                (width * 0.8).toInt(),
+                WindowManager.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        bottomSheetDialog.setOnShowListener {
+            val bottomSheet =
+                bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            val behavior = BottomSheetBehavior.from(bottomSheet!!)
+            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        }
+
+        bottomSheetDialog.show()
+    }
+
+    private fun setKeyboardVisibilityListener() {
+        fun showWithAnimation(view: View) {
+            view.apply {
+                if (visibility != View.VISIBLE) {
+                    visibility = View.VISIBLE
+                    translationY = 100f
+                    alpha = 0f
+                    animate()
+                        .translationY(0f)
+                        .alpha(1f)
+                        .setDuration(300)
+                        .setInterpolator(DecelerateInterpolator())
+                        .start()
+                }
+            }
+        }
+
+        val rootView = findViewById<View>(android.R.id.content)
+        keyboardWatcher = SoftKeyboardStateWatcher(
+            rootView,
+            object : SoftKeyboardStateWatcher.OnSoftKeyboardStateChangedListener {
+                override fun onSoftKeyboardOpened(keyboardHeight: Int) {
+                    bottomNavInspect.visibility = View.GONE
+                    fabPrevFormAncak.visibility = View.GONE
+                    fabNextFormAncak.visibility = View.GONE
+                    fabPhotoFormAncak.visibility = View.GONE
+                }
+
+                override fun onSoftKeyboardClosed() {
+                    bottomNavInspect.post {
+                        showWithAnimation(bottomNavInspect)
+                        showWithAnimation(fabPrevFormAncak)
+                        showWithAnimation(fabNextFormAncak)
+                        showWithAnimation(fabPhotoFormAncak)
+                    }
+                }
+            })
+    }
+
     private fun setupHeader() {
         featureName = intent.getStringExtra("FEATURE_NAME")
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
@@ -407,14 +722,19 @@ class FormInspectionActivity : AppCompatActivity() {
     }
 
     private fun setupLayout() {
-        val infoBlokView = findViewById<ScrollView>(R.id.svInfoBlokInspection)
-        val formInspectionView = findViewById<ConstraintLayout>(R.id.clFormInspection)
-        val bottomNavInspect = findViewById<BottomNavigationView>(R.id.bottomNavInspect)
+        infoBlokView = findViewById(R.id.svInfoBlokInspection)
+        formInspectionView = findViewById(R.id.clFormInspection)
+        bottomNavInspect = findViewById(R.id.bottomNavInspect)
+        vpFormAncak = findViewById(R.id.vpFormAncakInspect)
+        fabPrevFormAncak = findViewById(R.id.fabPrevFormInspect)
+        fabNextFormAncak = findViewById(R.id.fabNextFormInspect)
+        fabPhotoFormAncak = findViewById(R.id.fabPhotoFormInspect)
 
         lifecycleScope.launch(Dispatchers.Default) {
             withContext(Dispatchers.Main) {
                 setupViewPager()
                 setupNavigation()
+                setupAddPhotosView()
                 observeViewModel()
             }
         }
@@ -422,6 +742,12 @@ class FormInspectionActivity : AppCompatActivity() {
         bottomNavInspect.setOnItemSelectedListener { item ->
             val activeBottomNavId = bottomNavInspect.selectedItemId
             if (activeBottomNavId == item.itemId) return@setOnItemSelectedListener false
+
+            val validationResult = formAncakViewModel.validateCurrentPage()
+            if (activeBottomNavId == R.id.navMenuAncakInspect && !validationResult.isValid) {
+                vibrate(500)
+                return@setOnItemSelectedListener false
+            }
 
             loadingDialog.show()
             loadingDialog.setMessage("Loading data...")
@@ -591,6 +917,19 @@ class FormInspectionActivity : AppCompatActivity() {
         )
 
         textView.text = spannable
+    }
+
+    private fun updatePhotoBadgeVisibility() {
+        val currentPage = formAncakViewModel.currentPage.value ?: 1
+        val currentData =
+            formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
+
+        val badgePhotoInspect = findViewById<View>(R.id.badgePhotoInspect)
+        badgePhotoInspect.visibility = if (currentData.photo.isNotEmpty()) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -968,6 +1307,59 @@ class FormInspectionActivity : AppCompatActivity() {
             parent = parent.parent
         }
         return null
+    }
+
+    private fun isPermissionPermanentlyDenied(): Boolean {
+        val sharedPref = this.getSharedPreferences("permissions_prefs", Context.MODE_PRIVATE)
+        val firstRequest = sharedPref.getBoolean("first_camera_request", true)
+
+        if (firstRequest) {
+            sharedPref.edit().putBoolean("first_camera_request", false).apply()
+            return false
+        }
+
+        return !ActivityCompat.shouldShowRequestPermissionRationale(this, android.Manifest.permission.CAMERA)
+    }
+
+    private fun showSnackbarWithSettings(message: String) {
+        Snackbar.make(this.findViewById(android.R.id.content), message, Snackbar.LENGTH_INDEFINITE)
+            .setAction("Settings") {
+                val intent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", this.packageName, null)
+                )
+                this.startActivity(intent)
+            }
+            .show()
+    }
+
+    override fun onPhotoTaken(
+        photoFile: File,
+        fname: String,
+        resultCode: String,
+        deletePhoto: View?,
+        position: Int,
+        komentar: String?
+    ) {
+        AppLogger.d("fname: $fname")
+        AppLogger.d("resultCode: $resultCode")
+        AppLogger.d("position: $position")
+
+        if (shouldReopenBottomSheet) {
+            shouldReopenBottomSheet = false
+
+            bottomNavInspect.visibility = View.VISIBLE
+
+            val currentPage = formAncakViewModel.currentPage.value ?: 1
+            val currentData =
+                formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
+
+            formAncakViewModel.savePageData(currentPage, currentData.copy(photo = fname))
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                showViewPhotoBottomSheet(fname)
+            }, 100)
+        }
     }
 
 }
