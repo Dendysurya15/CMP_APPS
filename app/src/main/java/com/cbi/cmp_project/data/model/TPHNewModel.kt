@@ -4,9 +4,10 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.cbi.cmp_project.utils.AppUtils
 
 @Entity(
-    tableName = "tph",
+    tableName = AppUtils.DatabaseTables.TPH,
 //    foreignKeys = [
 //        ForeignKey(
 //            entity = RegionalModel::class, // The referenced table
@@ -46,8 +47,10 @@ data class TPHNewModel (
     val company:Int?,
     val company_abbr:String?,
     val dept:Int?,
+    val dept_ppro:Int?,
     val dept_abbr:String?,
     val divisi:Int?,
+    val divisi_ppro:Int?,
     val divisi_abbr:String?,
     val blok:Int?,
     val blok_kode:String?,

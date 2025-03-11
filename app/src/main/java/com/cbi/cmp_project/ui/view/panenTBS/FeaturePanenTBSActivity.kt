@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.ui.view.PanenTBS
+package com.cbi.cmp_project.ui.view.panenTBS
 
 import android.Manifest
 import android.animation.ObjectAnimator
@@ -23,7 +23,6 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
-import android.util.Log
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -87,7 +86,9 @@ import android.widget.ArrayAdapter
 import android.widget.ListView
 import android.widget.PopupWindow
 import android.widget.ScrollView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.cbi.cmp_project.data.repository.AppRepository
 import com.cbi.cmp_project.ui.adapter.Worker
 import com.cbi.cmp_project.ui.view.HomePageActivity
 import com.cbi.cmp_project.ui.viewModel.PanenViewModel
@@ -290,7 +291,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     getString(R.string.confirmation_dialog_description),
                     "warning.json"
                 ) {
-                    lifecycleScope.launch {
+                    lifecycleScope.launch(Dispatchers.Main) {
                         try {
                             val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
                             val selectedPemanenLain =
@@ -301,81 +302,69 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             val photoFilesString = photoFiles.joinToString(";")
                             val komentarFotoString = komentarFoto.joinToString(";")
 
+                            val result = withContext(Dispatchers.IO) {
+                                panenViewModel.saveDataPanen(
+                                    tph_id = selectedTPHValue?.toString() ?: "",
+                                    date_created = SimpleDateFormat(
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        Locale.getDefault()
+                                    ).format(Date()),
+                                    created_by = userId!!,  // Prevent crash if userId is null
+                                    karyawan_id = (selectedPemanenIds + selectedPemanenLainIds).joinToString(
+                                        ","
+                                    ),
+                                    jjg_json = jjg_json,
+                                    foto = photoFilesString,
+                                    komentar = komentarFotoString,
+                                    asistensi = asistensi ?: 0, // Default to 0 if null
+                                    lat = lat ?: 0.0, // Default to 0.0 if null
+                                    lon = lon ?: 0.0, // Default to 0.0 if null
+                                    jenis_panen = selectedTipePanen?.toIntOrNull()
+                                        ?: 0, // Avoid NumberFormatException
+                                    ancakInput = ancakInput.toInt(), // Default to "0" if null
+                                    info = infoApp ?: "",
+                                    archive = 0
+                                )
+                            }
 
-
-                            panenViewModel.saveDataPanen(
-                                tph_id = selectedTPHValue?.toString() ?: "",
-                                date_created = SimpleDateFormat(
-                                    "yyyy-MM-dd HH:mm:ss",
-                                    Locale.getDefault()
-                                ).format(Date()),
-                                created_by = userId!!,  // Prevent crash if userId is null
-                                karyawan_id = (selectedPemanenIds + selectedPemanenLainIds).joinToString(
-                                    ","
-                                ),
-                                jjg_json = jjg_json,
-                                foto = photoFilesString,
-                                komentar = komentarFotoString,
-                                asistensi = asistensi ?: 0, // Default to 0 if null
-                                lat = lat ?: 0.0, // Default to 0.0 if null
-                                lon = lon ?: 0.0, // Default to 0.0 if null
-                                jenis_panen = selectedTipePanen?.toIntOrNull()
-                                    ?: 0, // Avoid NumberFormatException
-                                ancakInput = ancakInput ?: "0", // Default to "0" if null
-                                info = infoApp ?: "",
-                                archive = 0
-                            )
-
-
-                            panenViewModel.saveDataPanenState.collect { state ->
-                                when (state) {
-                                    is SaveDataPanenState.Loading -> {
-                                        loadingDialog.show()
+                            when (result) {
+                                is AppRepository.SaveResultPanen.Success -> {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@FeaturePanenTBSActivity,
+                                        stringXML(R.string.al_back),
+                                        stringXML(R.string.al_success_save_local),
+                                        stringXML(R.string.al_description_success_save_local),
+                                        "success.json",
+                                        R.color.greenDefault
+                                    ) {
+                                        resetFormAfterSaveData()
                                     }
+                                }
 
-                                    is SaveDataPanenState.Success -> {
-                                        loadingDialog.dismiss()
-                                        AlertDialogUtility.withSingleAction(
-                                            this@FeaturePanenTBSActivity,
-                                            stringXML(R.string.al_back),
-                                            stringXML(R.string.al_success_save_local),
-                                            stringXML(R.string.al_description_success_save_local),
-                                            "success.json",
-                                            R.color.greenDefault
-                                        ) {
-
-                                            resetFormAfterSaveData()
-
-                                        }
-                                    }
-
-                                    is SaveDataPanenState.Error -> {
-                                        loadingDialog.dismiss()
-                                        AlertDialogUtility.withSingleAction(
-                                            this@FeaturePanenTBSActivity,
-                                            stringXML(R.string.al_back),
-                                            stringXML(R.string.al_failed_save_local),
-                                            "${stringXML(R.string.al_description_failed_save_local)} : ${state.message ?: "Unknown error"}",
-                                            "warning.json",
-                                            R.color.colorRedDark
-                                        ) {
-                                        }
-                                    }
+                                is AppRepository.SaveResultPanen.Error -> {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@FeaturePanenTBSActivity,
+                                        stringXML(R.string.al_back),
+                                        stringXML(R.string.al_failed_save_local),
+                                        "${stringXML(R.string.al_description_failed_save_local)} : ${result.exception.message}",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {}
                                 }
                             }
                         } catch (e: Exception) {
+                            AppLogger.d("Unexpected error: ${e.message}")
 
-                            AppLogger.e("Error in saveDataPanen", e.toString())
                             AlertDialogUtility.withSingleAction(
                                 this@FeaturePanenTBSActivity,
                                 stringXML(R.string.al_back),
                                 stringXML(R.string.al_failed_save_local),
-                                "${stringXML(R.string.al_description_failed_save_local)} : ${e.message ?: "Unknown error"}",
+                                "${stringXML(R.string.al_description_failed_save_local)} : ${e.message}",
                                 "warning.json",
                                 R.color.colorRedDark
-                            ) {
-                            }
+                            ) {}
                         }
+
                     }
                 }
             }
@@ -1291,14 +1280,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         // Check jumTBS
         if (jumTBS <= 0) {
             isValid = false
-            val layoutJumTBS = findViewById<LinearLayout>(R.id.layoutJumTBS)
+            val layoutJumTBS = findViewById<ConstraintLayout>(R.id.layoutJumTBS)
             layoutJumTBS.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
                 text = stringXML(R.string.al_total_tbs_description)
                 visibility = View.VISIBLE
             }
             errorMessages.add(stringXML(R.string.al_total_tbs_description))
         } else {
-            val layoutJumTBS = findViewById<LinearLayout>(R.id.layoutJumTBS)
+            val layoutJumTBS = findViewById<ConstraintLayout>(R.id.layoutJumTBS)
             layoutJumTBS.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
                 visibility = View.GONE
             }
@@ -1347,9 +1336,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 selectedAfdeling = selectedItem.toString()
                 selectedAfdelingIdSpinner = position
-
-
-                AppLogger.d(selectedAfdeling.toString())
 
                 val selectedDivisiId = try {
                     divisiList.find { it.divisi_abbr == selectedAfdeling }?.divisi
@@ -1806,7 +1792,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
-        takeFotoPreviewAdapter = TakeFotoPreviewAdapter(3, cameraViewModel, this, featureName)
+        takeFotoPreviewAdapter = TakeFotoPreviewAdapter(3, cameraViewModel, this, AppUtils.WaterMarkFotoDanFolder.WMPanenTPH)
         recyclerView.adapter = takeFotoPreviewAdapter
     }
 
@@ -2172,35 +2158,49 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
     @Override
+    @SuppressLint("DefaultLocale")
     override fun onResume() {
         super.onResume()
 
-        Log.d("LocationActivity", "onResume called")
+        // Manually check location permission
+        val isLocationGranted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
 
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            // Only start if not already started
-            if (!locationViewModel.isStartLocations) {
-                Log.d("LocationActivity", "Starting location updates in onResume")
-                locationViewModel.startLocationUpdates()
+        if (isLocationGranted) {
+            locationViewModel.startLocationUpdates()
+            isSnackbarShown = false // Reset snackbar flag
+        } else if (!isSnackbarShown) {
+            showSnackbarWithSettings("Location permission is required for this app. Enable it in Settings.")
+            isSnackbarShown = true // Prevent duplicate snackbars
+        }
+
+
+        locationViewModel.airplaneModeState.observe(this) { isAirplaneMode ->
+            if (isAirplaneMode) {
+                locationViewModel.stopLocationUpdates()
+            } else {
+                // Only restart if we have permission
+                if (ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    locationViewModel.startLocationUpdates()
+                }
             }
         }
 
+        // Observe location updates
         locationViewModel.locationData.observe(this) { location ->
             locationEnable = true
             lat = location.latitude
             lon = location.longitude
-            Log.d("LocationActivity", "Location update received: $lat, $lon")
         }
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
-            findViewById<TextView>(R.id.accuracyLocation).text =
-                String.format("%.1f m", accuracy)
+            findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
             currentAccuracy = accuracy
-            Log.d("LocationActivity", "Accuracy update: $accuracy")
         }
     }
 

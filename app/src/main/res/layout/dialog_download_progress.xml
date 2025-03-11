@@ -16,7 +16,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingHorizontal="10dp">
+        >
 
         <TextView
             android:layout_width="0dp"
@@ -48,19 +48,6 @@
             android:tooltipText="Menu Upload"
             tools:ignore="MissingConstraints" />
     </LinearLayout>
-
-<!--    <TextView-->
-<!--        android:layout_width="wrap_content"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:text="Proses pengunduhan dataset sedang berlangsung, mohon untuk menunggu sementara!"-->
-<!--        android:layout_marginLeft="10dp"-->
-<!--        android:textColor="@color/grayDefault"-->
-<!--        android:paddingVertical="5dp"-->
-<!--        android:paddingHorizontal="10dp"-->
-<!--        android:textStyle="bold"-->
-<!--        android:fontFamily="@font/montserrat_light"-->
-<!--        android:layout_gravity="center_vertical"-->
-<!--        android:textSize="14dp" />-->
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -105,23 +92,9 @@
         tools:itemCount="7"
         tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
-<!--    <TextView-->
-<!--        android:layout_width="wrap_content"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:layout_marginTop="10dp"-->
-<!--        android:id="@+id/close_progress_statement"-->
-<!--        android:textColor="@color/black"-->
-<!--        android:paddingVertical="5dp"-->
-<!--        android:visibility="visible"-->
-<!--        android:text="asldkflksdf"-->
-<!--        android:textStyle="bold"-->
-<!--        android:fontFamily="@font/montserrat_mediumitalic"-->
-<!--        android:textSize="14dp"-->
-<!--        />-->
-
     <LinearLayout
         android:id="@+id/containerDownloadDataset"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:orientation="vertical"
@@ -140,14 +113,16 @@
             android:textSize="18sp" />
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:gravity="center">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCancelDownloadDataset"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:fontFamily="@font/manrope_bold"
                 android:text="Tutup Dialog"
                 android:textSize="18sp"
@@ -161,9 +136,28 @@
                 app:iconTint="@color/white" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnRetryDownloadDataset"
-                android:layout_width="wrap_content"
+                android:id="@+id/btnUploadDataCMP"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/manrope_bold"
+                android:text="Upload Data"
+                android:textSize="18sp"
+                android:visibility="gone"
+                android:layout_marginStart="5dp"
+                app:backgroundTint="@color/greenDarker"
+                app:cornerRadius="10dp"
+                app:elevation="4dp"
+                app:icon="@drawable/baseline_file_upload_24"
+                app:iconGravity="start"
+                app:iconPadding="8dp"
+                app:iconTint="@color/white" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRetryDownloadDataset"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:visibility="gone"
                 android:layout_marginStart="10dp"
                 android:fontFamily="@font/montserrat_mediumitalic"
@@ -179,6 +173,7 @@
         </LinearLayout>
 
     </LinearLayout>
+
 
 
 

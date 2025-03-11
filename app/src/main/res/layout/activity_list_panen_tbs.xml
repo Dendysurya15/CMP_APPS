@@ -54,7 +54,7 @@
                     android:inputType="text"
                     android:paddingHorizontal="10dp"
                     android:paddingVertical="20dp"
-                    android:textSize="16dp" />
+                    android:textSize="16sp" />
 
                 <ImageView
                     android:layout_width="wrap_content"
@@ -100,6 +100,7 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="10dp"
         android:layout_marginTop="10dp"
+
         android:orientation="horizontal"
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@id/navbarPanenList"
@@ -110,15 +111,16 @@
             android:layout_height="wrap_content"
             android:fontFamily="@font/manrope_bold"
             android:text="Blok: "
-            android:textSize="16dp" />
+            android:textColor="@color/black"
+            android:textSize="16sp" />
 
         <TextView
             android:id="@+id/listBlok"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/manrope_medium"
-
-            android:textSize="15dp"
+            android:textColor="@color/black"
+            android:textSize="15sp"
 
             android:textStyle="italic" />
     </LinearLayout>
@@ -146,7 +148,8 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/manrope_bold"
                 android:text="Total Jjg: "
-                android:textSize="16dp" />
+                android:textColor="@color/black"
+                android:textSize="16sp" />
 
             <TextView
                 android:id="@+id/totalJjg"
@@ -154,7 +157,8 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/manrope_medium"
                 android:text="0"
-                android:textSize="15dp" />
+                android:textColor="@color/black"
+                android:textSize="15sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -168,14 +172,15 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/manrope_bold"
                 android:text="Total TPH: "
-                android:textSize="16dp" />
+                android:textSize="16sp" />
 
             <TextView
                 android:id="@+id/totalTPH"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:textColor="@color/black"
                 android:fontFamily="@font/manrope_medium"
-                android:textSize="15dp" />
+                android:textSize="15sp" />
         </LinearLayout>
 
 
@@ -219,7 +224,7 @@
                     android:text="Tersimpan"
                     android:textColor="@color/black"
 
-                    android:textSize="16dp"
+                    android:textSize="16sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -231,7 +236,7 @@
                     android:paddingHorizontal="10dp"
                     android:text="0"
                     android:textColor="@color/black"
-                    android:textSize="16dp"
+                    android:textSize="16sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -267,7 +272,7 @@
                     android:fontFamily="@font/manrope_semibold"
                     android:text="Sudah Scan"
                     android:textColor="@color/black"
-                    android:textSize="16dp"
+                    android:textSize="16sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -279,7 +284,7 @@
                     android:paddingHorizontal="10dp"
                     android:text="0"
                     android:textColor="@color/black"
-                    android:textSize="16dp"
+                    android:textSize="16sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -304,7 +309,7 @@
             android:fontFamily="@font/manrope_semibold"
             android:gravity="center_vertical"
             android:text="Filter: "
-            android:textSize="16dp" />
+            android:textSize="16sp" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -397,10 +402,10 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:background="@drawable/border_bottom_light"
-            android:padding="16dp"
+            android:padding="16sp"
             android:textColor="@color/black"
             android:textAlignment="center"
-            android:textSize="16dp"
+            android:textSize="16sp"
             android:visibility="gone" />
 
     </LinearLayout>

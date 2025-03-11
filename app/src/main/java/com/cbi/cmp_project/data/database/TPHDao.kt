@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.cmp_project.data.model.KemandoranModel
 import com.cbi.cmp_project.data.model.TPHBlokInfo
+import com.cbi.cmp_project.data.model.TransporterModel
 import com.cbi.markertph.data.model.TPHNewModel
 
 @Dao
@@ -30,6 +31,13 @@ abstract class TPHDao {
     @Query("SELECT * FROM tph WHERE dept = :idEstate GROUP BY divisi")
     abstract fun getDivisiByCriteria(idEstate: Int): List<TPHNewModel>
 
+    //getDivisiAbbrByTphId
+    @Query("SELECT divisi_abbr FROM tph WHERE id = :id")
+    abstract suspend fun getDivisiAbbrByTphId(id: Int): String?
+
+    //getDivisiAbbrByTphId
+    @Query("SELECT company_abbr FROM tph WHERE id = :id")
+    abstract suspend fun geCompanyAbbrByTphId(id: Int): String?
 
     @Query("SELECT COUNT(*) FROM tph")
     abstract suspend fun getCount(): Int
@@ -76,4 +84,19 @@ abstract class TPHDao {
         idEstate: Int,
         idDivisi: Int,
     ): List<TPHNewModel>
+
+    @Query(
+        """
+    SELECT * FROM tph
+    WHERE blok IN (:idListBlok)
+    GROUP BY blok
+    """
+    )
+    abstract  fun getBlokById(
+        idListBlok: List<Int>
+    ): List<TPHNewModel>
+
+    @Query("SELECT * FROM tph WHERE id IN (:tphIds)")
+    abstract suspend fun getTPHsByIds(tphIds: List<Int>): List<TPHNewModel>
+
 }

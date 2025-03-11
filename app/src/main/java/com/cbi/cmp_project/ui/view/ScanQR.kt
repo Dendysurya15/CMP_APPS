@@ -1,101 +1,110 @@
 package com.cbi.cmp_project.ui.view
 
-import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
+import android.view.View
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.ui.view.ListTPHApproval.Companion.EXTRA_QR_RESULT
-import com.cbi.cmp_project.ui.view.PanenTBS.ListPanenTBSActivity
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
+import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
+import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
+import com.google.zxing.ResultPoint
+import com.journeyapps.barcodescanner.BarcodeCallback
+import com.journeyapps.barcodescanner.BarcodeResult
+import com.journeyapps.barcodescanner.DecoratedBarcodeView
 
 class ScanQR : AppCompatActivity() {
+    private lateinit var barcodeView: DecoratedBarcodeView
 
     var menuString = ""
 
-    private val qrCodeLauncher = registerForActivityResult(
-        ScanContract()
-    ) { result ->
-        if (result.contents != null) {
-            Log.d("testing",result.contents)
-            // Launch result activity with scanned content
-            var intent = Intent(this, ListTPHApproval::class.java).apply {
-
-                putExtra(EXTRA_QR_RESULT, result.contents) }
-            when (menuString) {
-                "Buat eSPB" -> intent = Intent(this, ListPanenTBSActivity::class.java).apply {
-                    Log.d("testing",result.contents)
-                putExtra(EXTRA_QR_RESULT, result.contents)
-                putExtra("FEATURE_NAME", menuString)}
-            }
-            startActivity(intent)
-            finish()
-        } else {
-            Toast.makeText(
-                this,
-                "Scanning cancelled",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
+    // Add variables to store previous TPH data
+    private var previousTph1 = ""
+    private var previousTph0 = ""
+    private var previousTph1IdPanen = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        menuString = intent.getStringExtra("FEATURE_NAME") ?: ""
-        Log.d("testing", "menu string $menuString ")
         setContentView(R.layout.activity_generate_espb)
-        checkPermissionAndStartScanning()
+        menuString = intent.getStringExtra("FEATURE_NAME").toString()
+
+        // Get previous TPH data if available
+        previousTph1 = intent.getStringExtra("tph_1") ?: ""
+        previousTph0 = intent.getStringExtra("tph_0") ?: ""
+        previousTph1IdPanen = intent.getStringExtra("tph_1_id_panen") ?: ""
+
+        Log.d("ScanQR", "Previous tph1: $previousTph1")
+        Log.d("ScanQR", "Previous tph0: $previousTph0")
+        Log.d("ScanQR", "Previous tph1IdPanen: $previousTph1IdPanen")
+
+        barcodeView = findViewById(R.id.barcode_scanner)
+        barcodeView.findViewById<TextView>(com.google.zxing.client.android.R.id.zxing_status_view)?.visibility = View.GONE
+
+        barcodeView.decodeContinuous(object : BarcodeCallback {
+            override fun barcodeResult(result: BarcodeResult?) {
+                result?.text?.let { qrCodeValue ->
+                    handleQRCode(qrCodeValue)
+                    barcodeView.pause() // ✅ Stop scanning after first scan
+                }
+            }
+
+            override fun possibleResultPoints(resultPoints: List<ResultPoint>) {}
+        })
+
+        barcodeView.resume() // ✅ Start scanning
     }
 
-    private fun checkPermissionAndStartScanning() {
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            startScanning()
-        } else {
-            ActivityCompat.requestPermissions(
-                this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
-            )
-        }
-    }
-
-    private fun startScanning() {
-        // Configure scanner options
-        val options = ScanOptions().apply {
-            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-            setOrientationLocked(false)
-            setBeepEnabled(true)
-            setPrompt(menuString)
-            setTimeout(60000)  // 60 second timeout
-            setCameraId(0)  // Use back camera
-            setBarcodeImageEnabled(true)  // Save scanned barcode image
+    private fun handleQRCode(result: String) {
+        var intent = Intent(this, ListTPHApproval::class.java).apply {
+            putExtra(EXTRA_QR_RESULT, result)
         }
 
-        // Launch the scanner
-        qrCodeLauncher.launch(options)
+        when (menuString) {
+            "Buat eSPB" -> intent = Intent(this, ListPanenTBSActivity::class.java).apply {
+                putExtra("scannedResult", result)
+                Log.d("scannedResult", "result: $result")
+                putExtra("FEATURE_NAME", menuString)
+
+                // Pass previous TPH data if available
+                if (previousTph1.isNotEmpty()) {
+                    putExtra("previous_tph_1", previousTph1)
+                }
+                if (previousTph0.isNotEmpty()) {
+                    putExtra("previous_tph_0", previousTph0)
+                }
+                if (previousTph1IdPanen.isNotEmpty()) {
+                    putExtra("previous_tph_1_id_panen", previousTph1IdPanen)
+                }
+                Log.d("ListPanenTBSActivityPassData", "ScanQR previous_tph_1: $previousTph1")
+                Log.d("ListPanenTBSActivityPassData", "ScanQR previous_tph_0: $previousTph0")
+                Log.d("ListPanenTBSActivityPassData", "ScanQR previous_tph_1_id_panen: $previousTph1IdPanen")
+                Log.d("ListPanenTBSActivityPassData", "ScanQR FEATURE_NAME: $menuString")
+            }
+        }
+
+        startActivity(intent)
+        finish()
     }
 
     override fun onResume() {
         super.onResume()
-        // If returning from ResultActivity, we might want to start scanning again
-        if (shouldAutoStartScanner) {
-            checkPermissionAndStartScanning()
-        }
+        barcodeView.resume() // ✅ Resume scanning when back to activity
     }
 
-    companion object {
-        var shouldAutoStartScanner = true
-        private const val REQUEST_CODE_PERMISSIONS = 10
-        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+    override fun onPause() {
+        super.onPause()
+        barcodeView.pause() // ✅ Pause scanning when activity is not visible
+    }
+
+    // ✅ Override System Back Button
+    @Deprecated("This method has been deprecated in favor of using the\n      {@link OnBackPressedDispatcher} via {@link #getOnBackPressedDispatcher()}.\n      The OnBackPressedDispatcher controls how back button events are dispatched\n      to one or more {@link OnBackPressedCallback} objects.")
+    @SuppressLint("MissingSuperCall")
+    override fun onBackPressed() {
+        val intent = Intent(this, HomePageActivity::class.java) // Change this to your desired activity
+        startActivity(intent)
+        finish()
     }
 }
