@@ -90,9 +90,9 @@ interface ApiService {
     suspend fun downloadSmallDataset(@Body body: Map<String, Int>): Response<ResponseBody>
 
     @POST("api/insert")
-    suspend fun insertESPBKraniTimbang(@Body request: dataUploadEspbKraniTimbang): Response<UploadStagingResponse>
+    suspend fun insertESPBKraniTimbangPPRO(@Body request: dataUploadEspbKraniTimbangPPRO): Response<UploadStagingResponse>
 
-    data class dataUploadEspbKraniTimbang(
+    data class dataUploadEspbKraniTimbangPPRO(
         @SerializedName("dept_ppro") val dept_ppro: String,
         @SerializedName("divisi_ppro") val divisi_ppro: String,
         @SerializedName("commodity") val commodity: String,

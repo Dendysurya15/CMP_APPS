@@ -141,15 +141,17 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                 archive = 0,
                                 tph0 = globalTph0,
                                 tph1 = globalTph1,
-                                update_info = "",
-                                uploaded_by_id = 0,
-                                uploaded_at = "",
-                                status_upload_cmp = 0,
-                                status_upload_ppro = 0,
+                                update_info_sp = "", // Changed from update_info
+                                uploaded_by_id_wb = 0, // New field for WB
+                                uploaded_at_wb = "",   // New field for WB
+                                status_upload_cmp_wb = 0, // New field for WB
+                                status_upload_ppro_wb = 0, // New field for WB
                                 creator_info = globalCreatorInfo,
-                                uploader_info = "",
+                                uploader_info_wb = "", // New field for WB
                                 noESPB = globalNoESPB,
+                                scan_status = 1, // Default scan_status
                             )
+
                         }
 
                         when (result) {

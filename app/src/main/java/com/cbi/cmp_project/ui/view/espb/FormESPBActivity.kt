@@ -129,11 +129,13 @@ class FormESPBActivity : AppCompatActivity() {
         }
         try {
             tph0 = intent.getStringExtra("tph_0").toString()
+            Log.d("FormESPBActivityTPH0", "tph0: $tph0")
         }catch (e: Exception){
             Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 0 $e", Toasty.LENGTH_LONG).show()
         }
         try {
             tph1 = intent.getStringExtra("tph_1").toString()
+            Log.d("FormESPBActivityTPH1", "tph1: $tph1")
         }catch (e: Exception){
             Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 1 $e", Toasty.LENGTH_LONG).show()
         }
@@ -359,7 +361,7 @@ class FormESPBActivity : AppCompatActivity() {
             // Split the first record by comma and get the first part (ID)
             try {
                 // Split by semicolon to get each record
-                val firstTphRecord = tph0.split(";")[0]
+                val firstTphRecord = tph1.split(";")[0]
                 // Split the first record by comma and get the first part (ID)
                 firstTphId = firstTphRecord.split(",")[0].toInt()
                 Log.d("FormESPBActivityDivisiAbbr", "firstTphId: $firstTphId")

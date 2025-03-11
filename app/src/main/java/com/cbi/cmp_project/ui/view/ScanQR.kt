@@ -11,6 +11,7 @@ import com.cbi.cmp_project.R
 import com.cbi.cmp_project.ui.view.ListTPHApproval.Companion.EXTRA_QR_RESULT
 import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
+import com.cbi.cmp_project.utils.AppLogger
 import com.google.zxing.ResultPoint
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.BarcodeResult
@@ -30,7 +31,6 @@ class ScanQR : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_generate_espb)
         menuString = intent.getStringExtra("FEATURE_NAME").toString()
-
         // Get previous TPH data if available
         previousTph1 = intent.getStringExtra("tph_1") ?: ""
         previousTph0 = intent.getStringExtra("tph_0") ?: ""
@@ -59,6 +59,7 @@ class ScanQR : AppCompatActivity() {
 
     private fun handleQRCode(result: String) {
         var intent = Intent(this, ListTPHApproval::class.java).apply {
+            putExtra("FEATURE_NAME", menuString)
             putExtra(EXTRA_QR_RESULT, result)
         }
 
