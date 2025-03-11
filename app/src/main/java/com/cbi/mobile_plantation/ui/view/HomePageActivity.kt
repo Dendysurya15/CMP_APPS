@@ -682,9 +682,9 @@ class HomePageActivity : AppCompatActivity() {
                                             "mill_id" to data.mill_id,
                                             "info_app" to data.creator_info,
                                             "no_espb" to data.noESPB,
-                                            "uploader_info_sp" to AppUtils.getDeviceInfo(this@HomePageActivity)
+                                            "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
                                                 .toString(),
-                                            "uploaded_by_id_sp" to prefManager!!.idUserLogin.toString()
+                                            "jabatan" to prefManager!!.jabatanUserLogin.toString(),
                                         )
                                     }
 

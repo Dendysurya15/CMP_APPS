@@ -201,7 +201,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
     private var ancakInput: String = ""
-    private var selectedEstate: String = ""
+
     private var asistensi: Int = 0
     private var blokBanjir: Int = 0
     private var selectedTipePanen: String = ""
@@ -257,8 +257,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         prefManager = PrefManager(this)
 
-        radiusMinimum = prefManager!!.radiusMinimum
-//        radiusMinimum = 80F
+//        radiusMinimum = prefManager!!.radiusMinimum
+        radiusMinimum = 80F
         boundaryAccuracy = prefManager!!.boundaryAccuracy
 
         initViewModel()
@@ -307,7 +307,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     val panenList = panenDeferred.await()
 
 
-                    AppLogger.d(panenList.toString())
                     panenStoredLocal = panenList
                         .mapNotNull { it.tph?.id } // This ensures only non-null IDs are stored
                         .toMutableList()
@@ -432,6 +431,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         "success.json",
                                         R.color.greenDefault
                                     ) {
+
+                                        panenStoredLocal.add(selectedTPHValue!!.toInt())
                                         resetFormAfterSaveData()
                                     }
                                 }
@@ -1368,6 +1369,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val resultsList = mutableListOf<ScannedTPHSelectionItem>()
 
         for ((id, location) in coordinates) {
+            if (id in panenStoredLocal) continue // Exclude IDs already in panenStoredLocal
+
             val results = FloatArray(1)
             Location.distanceBetween(userLat, userLon, location.lat, location.lon, results)
             val distance = results[0]
@@ -2565,52 +2568,40 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     if (layoutId == R.id.layoutJumTBS) {
                         val oldValue = jumTBS
-                        val sisa = oldValue - abnormal - bLewatMasak - bMentah - jjgKosong
+                        val sumOfOthers = abnormal + bLewatMasak + bMentah + jjgKosong
 
-                        if (newValue >= oldValue || (newValue > 0 && sisa > 0)) {
-                            jumTBS = newValue
-                            counterVar.set(jumTBS)
-
-                            // Update dependent counters if needed
-                            val updates = listOf(
-                                Pair(::bMentah, R.id.layoutBMentah),
-                                Pair(::bLewatMasak, R.id.layoutBLewatMasak),
-                                Pair(::jjgKosong, R.id.layoutJjgKosong),
-                                Pair(::abnormal, R.id.layoutAbnormal),
-                                Pair(::seranganTikus, R.id.layoutSeranganTikus),
-                                Pair(::tangkaiPanjang, R.id.layoutTangkaiPanjang),
-                                Pair(::tidakVCut, R.id.layoutVcut)
-                            )
-
-                            Handler(Looper.getMainLooper()).post {
-                                for ((counter, layout) in updates) {
-                                    if (counter.get() > newValue) {
-                                        updateDependentCounters(layout, -1, counter, null)
-                                        updateEditText(layout, counter.get())
-                                    }
-                                }
-                            }
-
-                            formulas()
-
-                            findViewById<View>(R.id.layoutBMentah)?.findViewById<TextView>(R.id.tvPercent)
-                                ?.setText("${persenMentah}%")
-                            findViewById<View>(R.id.layoutBLewatMasak)?.findViewById<TextView>(R.id.tvPercent)
-                                ?.setText("${persenLewatMasak}%")
-                            findViewById<View>(R.id.layoutJjgKosong)?.findViewById<TextView>(R.id.tvPercent)
-                                ?.setText("${persenJjgKosong}%")
-                            findViewById<View>(R.id.layoutAbnormal)?.findViewById<TextView>(R.id.tvPercent)
-                                ?.setText("${persenAbnormal}%")
-
-                            updateCounterTextViews()
-                        } else {
-                            // Reset to old value if conditions not met
+                        // For jumTBS: Don't allow changing to a value less than the sum of other counters
+                        if (newValue < sumOfOthers) {
                             etNumber.setText(oldValue.toString())
                             vibrate()
+                            etNumber.addTextChangedListener(this)
+                            return
+                        }
+
+                        jumTBS = newValue
+                        counterVar.set(jumTBS)
+
+                        // Update dependent counters if needed
+                        val updates = listOf(
+                            Pair(::bMentah, R.id.layoutBMentah),
+                            Pair(::bLewatMasak, R.id.layoutBLewatMasak),
+                            Pair(::jjgKosong, R.id.layoutJjgKosong),
+                            Pair(::abnormal, R.id.layoutAbnormal),
+                            Pair(::seranganTikus, R.id.layoutSeranganTikus),
+                            Pair(::tangkaiPanjang, R.id.layoutTangkaiPanjang),
+                            Pair(::tidakVCut, R.id.layoutVcut)
+                        )
+
+                        Handler(Looper.getMainLooper()).post {
+                            for ((counter, layout) in updates) {
+                                if (counter.get() > newValue) {
+                                    updateDependentCounters(layout, -1, counter, null)
+                                    updateEditText(layout, counter.get())
+                                }
+                            }
                         }
                     } else {
                         // For other layouts (bMentah, bLewatMasak, etc.)
-                        val currentValue = counterVar.get()
                         val totalOthers = when (layoutId) {
                             R.id.layoutBMentah -> abnormal + bLewatMasak + newValue + jjgKosong
                             R.id.layoutBLewatMasak -> abnormal + newValue + bMentah + jjgKosong
@@ -2621,23 +2612,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         if (jumTBS > 0 && newValue <= jumTBS && totalOthers <= jumTBS) {
                             counterVar.set(newValue)
-                            formulas()
-                            findViewById<View>(R.id.layoutBMentah)?.findViewById<TextView>(R.id.tvPercent)
-                                ?.setText("${persenMentah}%")
-                            findViewById<View>(R.id.layoutBLewatMasak)?.findViewById<TextView>(R.id.tvPercent)
-                                ?.setText("${persenLewatMasak}%")
-                            findViewById<View>(R.id.layoutJjgKosong)?.findViewById<TextView>(R.id.tvPercent)
-                                ?.setText("${persenJjgKosong}%")
-                            findViewById<View>(R.id.layoutAbnormal)?.findViewById<TextView>(R.id.tvPercent)
-                                ?.setText("${persenAbnormal}%")
-
-                            updateCounterTextViews()
                         } else {
                             // Reset to previous value
                             etNumber.setText(counterVar.get().toString())
                             vibrate()
+                            etNumber.addTextChangedListener(this)
+                            return
                         }
                     }
+
+                    // Update formulas and UI for all cases
+                    formulas()
+                    updatePercentages()
+                    updateCounterTextViews()
 
                 } catch (e: NumberFormatException) {
                     etNumber.setText(counterVar.get().toString())
@@ -2650,36 +2637,29 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val btDec = includedLayout.findViewById<CardView>(R.id.btDec)
         val btInc = includedLayout.findViewById<CardView>(R.id.btInc)
-        fun vibrate() {
-            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(
-                    VibrationEffect.createOneShot(
-                        50,
-                        VibrationEffect.DEFAULT_AMPLITUDE
-                    )
-                )
-            } else {
-                vibrator.vibrate(50)
-            }
-        }
-
-
 
         btDec.setOnClickListener {
             if (counterVar.get() > 0) {
+                // Special handling for jumTBS decrement
+                if (layoutId == R.id.layoutJumTBS) {
+                    val sumOfOthers = abnormal + bLewatMasak + bMentah + jjgKosong
+                    if (counterVar.get() - 1 < sumOfOthers) {
+                        vibrate()
+                        return@setOnClickListener
+                    }
+                }
+
                 updateDependentCounters(
                     layoutId,
                     -1,
                     counterVar,
                     tvPercent
-                )  // Decrement through dependent counter
+                )
                 etNumber.setText(counterVar.get().toString())
             } else {
                 vibrate()
             }
         }
-
 
         btInc.setOnClickListener {
             updateDependentCounters(
@@ -2687,8 +2667,35 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 1,
                 counterVar,
                 tvPercent
-            )  // Increment through dependent counter
+            )
             etNumber.setText(counterVar.get().toString())
+        }
+    }
+
+    // Helper function to update all percentage displays
+    private fun updatePercentages() {
+        findViewById<View>(R.id.layoutBMentah)?.findViewById<TextView>(R.id.tvPercent)
+            ?.setText("${persenMentah}%")
+        findViewById<View>(R.id.layoutBLewatMasak)?.findViewById<TextView>(R.id.tvPercent)
+            ?.setText("${persenLewatMasak}%")
+        findViewById<View>(R.id.layoutJjgKosong)?.findViewById<TextView>(R.id.tvPercent)
+            ?.setText("${persenJjgKosong}%")
+        findViewById<View>(R.id.layoutAbnormal)?.findViewById<TextView>(R.id.tvPercent)
+            ?.setText("${persenAbnormal}%")
+    }
+
+    // Helper function for vibration
+    private fun vibrate() {
+        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(
+                VibrationEffect.createOneShot(
+                    50,
+                    VibrationEffect.DEFAULT_AMPLITUDE
+                )
+            )
+        } else {
+            vibrator.vibrate(50)
         }
     }
 

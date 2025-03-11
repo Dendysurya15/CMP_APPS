@@ -269,7 +269,7 @@
             android:layout_weight="1"
             android:backgroundTint="@color/greenDarker"
             android:fontFamily="@font/manrope_bold"
-            android:text="Simpan e-SPB"
+            android:text="Simpan dan Upload e-SPB"
             android:textColor="@color/white"
             android:textSize="16sp"
             android:visibility="gone" />
