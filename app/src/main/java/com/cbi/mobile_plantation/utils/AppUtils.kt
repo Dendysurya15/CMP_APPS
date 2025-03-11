@@ -97,14 +97,14 @@ object AppUtils {
         return context.getString(R.string.app_version)
     }
 
-    fun checkUploadZipReadyToday(context: Context): List<File> {
+    fun checkUploadZipReadyToday(idUser:String, context: Context): List<File> {
         val todayDate = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date()) // Get today's date
         val uploadDir = File(context.getExternalFilesDir(null), "Upload").apply {
             if (!exists()) mkdirs()
         }
 
         return uploadDir.listFiles { file ->
-            file.isFile && file.name.matches(Regex("\\d+_${todayDate}.*\\.zip"))
+            file.isFile && file.name.matches(Regex("$idUser+_${todayDate}.*\\.zip"))
         }?.toList() ?: emptyList()
     }
 

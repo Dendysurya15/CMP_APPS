@@ -581,17 +581,17 @@
                     <include
                         android:id="@+id/layoutSeranganTikus"
                         layout="@layout/pane_number_layout"
-                        android:visibility="gone" />
+                         />
 
                     <include
                         android:id="@+id/layoutTangkaiPanjang"
                         layout="@layout/pane_number_layout"
-                        android:visibility="gone" />
+                         />
 
                     <include
                         android:id="@+id/layoutVcut"
                         layout="@layout/pane_number_layout"
-                        android:visibility="gone" />
+                         />
 
                     <TextView
                         android:id="@+id/title_lampiran_foto"

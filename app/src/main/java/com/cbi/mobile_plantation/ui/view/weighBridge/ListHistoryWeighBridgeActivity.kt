@@ -421,7 +421,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
 
                                 allUploadZipFilesToday =
-                                    AppUtils.checkUploadZipReadyToday(this@ListHistoryWeighBridgeActivity)
+                                    AppUtils.checkUploadZipReadyToday(prefManager!!.idUserLogin.toString(), this@ListHistoryWeighBridgeActivity)
                                         .toMutableList()
 
 

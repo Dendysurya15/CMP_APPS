@@ -461,7 +461,7 @@ class HomePageActivity : AppCompatActivity() {
 
             "Absensi panen" -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(    this, FeatureAbsensiActivity::class.java)
+                    val intent = Intent(this, FeatureAbsensiActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }
@@ -559,7 +559,7 @@ class HomePageActivity : AppCompatActivity() {
                         delay(500)
 
                         allUploadZipFilesToday =
-                            AppUtils.checkUploadZipReadyToday(this@HomePageActivity).toMutableList()
+                            AppUtils.checkUploadZipReadyToday(prefManager!!.idUserLogin.toString(), this@HomePageActivity).toMutableList()
 
                         if (allUploadZipFilesToday.isNotEmpty()) {
                             uploadCMPViewModel.getUploadCMPTodayData()
@@ -576,7 +576,7 @@ class HomePageActivity : AppCompatActivity() {
                                                 !filesToRemove.contains(file.name)
                                             }.toMutableList()
 
-                                        continuation.resume(allUploadZipFilesToday) // Resume coroutine with valid files
+                                        continuation.resume(allUploadZipFilesToday)
                                     }
                                 }
                             }
@@ -587,6 +587,9 @@ class HomePageActivity : AppCompatActivity() {
                                 Log.d("VALID_FILES", "No valid files found.")
                             }
                         }
+
+
+                        AppLogger.d(allUploadZipFilesToday.toString())
 
                         val featuresToFetch = listOf(
                             AppUtils.DatabaseTables.ESPB,
@@ -637,14 +640,16 @@ class HomePageActivity : AppCompatActivity() {
                                                 ?: 0) as Int,
                                             "tph_nomor" to (panenWithRelations.tph?.nomor ?: ""),
                                             "ancak" to panenWithRelations.panen.ancak,
-                                            "updated_date" to panenWithRelations.panen.date_created,
-                                            "updated_by" to panenWithRelations.panen.created_by,
                                             "asistensi" to if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2,
                                             "kemandoran" to panenWithRelations.panen.karyawan_id,
                                             "foto" to panenWithRelations.panen.foto,
                                             "komentar" to panenWithRelations.panen.komentar,
                                             "lat" to panenWithRelations.panen.lat,
-                                            "lon" to panenWithRelations.panen.lon
+                                            "lon" to panenWithRelations.panen.lon,
+                                            "created_by" to prefManager!!.idUserLogin.toString(),
+                                            "created_name" to prefManager!!.nameUserLogin.toString(),
+                                            "created_date" to panenWithRelations.panen.date_created,
+                                            "jabatan" to prefManager!!.jabatanUserLogin.toString(),
                                         )
                                     }
 
@@ -1327,8 +1332,8 @@ class HomePageActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.initalName).text = initials
     }
 
-    private fun setupCheckingAfterLogoutUser(){
-        if(prefManager!!.datasetMustUpdate.isEmpty()){
+    private fun setupCheckingAfterLogoutUser() {
+        if (prefManager!!.datasetMustUpdate.isEmpty()) {
             startDownloads()
         }
     }
