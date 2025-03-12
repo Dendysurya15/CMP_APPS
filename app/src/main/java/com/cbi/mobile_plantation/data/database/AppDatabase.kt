@@ -58,7 +58,7 @@ import com.cbi.markertph.data.model.TPHNewModel
         UploadCMPModel::class,
         AbsensiModel::class,
     ],
-    version = 13
+    version = 14
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -91,7 +91,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_6_7,
                         MIGRATION_8_9,
                         MIGRATION_9_10,
-                        MIGRATION_11_12
+                        MIGRATION_11_12,
+                        MIGRATION_13_14
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -213,7 +214,11 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
 
-
+        private val MIGRATION_13_14 = object : Migration(12, 13) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE mill_table ADD COLUMN ip TEXT DEFAULT NULL")
+            }
+        }
 
 
 

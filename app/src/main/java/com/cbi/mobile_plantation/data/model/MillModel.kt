@@ -9,5 +9,5 @@ data class MillModel(
     @PrimaryKey val id: Int?,
     val abbr: String?,
     val nama: String?,
-
+    val ip:String?,
 )

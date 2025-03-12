@@ -703,6 +703,8 @@ class HomePageActivity : AppCompatActivity() {
                                 Log.d("UploadCheck", uploadDataList.toString())
 
                                 if (uploadDataList.isNotEmpty()) {
+
+                                    AppLogger.d("upload List $uploadDataList")
                                     lifecycleScope.launch(Dispatchers.IO) {
                                         AppUtils.createAndSaveZipUploadCMP(
                                             this@HomePageActivity,

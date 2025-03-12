@@ -71,7 +71,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
             val errorMap = mutableMapOf<Int, String>()
 
             selectedItems.forEach { item ->
-                val itemId = item["id"] as Int
+                val itemId = item["num"] as Int
                 val endpoint = item["endpoint"] as String
                 progressMap[itemId] = 0
                 statusMap[itemId] = "Waiting"
