@@ -95,7 +95,7 @@ class WeighBridgeRepository(context: Context) {
 
     // Function to insert data into the database
     suspend fun insertESPBDataAndGetId(espbData: ESPBEntity): Int {
-        return espbDao.insertAndGetId(espbData)
+        return espbDao.insertAndGetId(espbData).toInt()
     }
 
     sealed class SaveResultESPBKrani {

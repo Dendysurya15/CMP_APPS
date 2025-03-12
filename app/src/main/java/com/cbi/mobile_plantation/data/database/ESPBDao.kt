@@ -56,7 +56,7 @@ abstract class ESPBDao {
 
     // In your DAO interface
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    abstract suspend fun insertAndGetId(espbData: ESPBEntity): Int
+    abstract  suspend fun insertAndGetId(espbData: ESPBEntity): Long
 
     @Insert
     abstract fun insert(espb: ESPBEntity): Long

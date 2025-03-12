@@ -37,6 +37,14 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     private val _updateStatus = MutableLiveData<Boolean>()
     val updateStatus: LiveData<Boolean> get() = _updateStatus
 
+    data class UploadItemInfo(
+        val status: String,
+        val endpoint: String
+    )
+
+    private val _uploadStatusEndpointMap = MutableLiveData<Map<Int, UploadItemInfo>>()
+    val uploadStatusEndpointMap: LiveData<Map<Int, UploadItemInfo>> = _uploadStatusEndpointMap
+
 
     private val _uploadProgress = MutableLiveData<Map<Int, Int>>() // Tracks each item's progress
     val uploadProgress: LiveData<Map<Int, Int>> get() = _uploadProgress
@@ -59,16 +67,20 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             val progressMap = mutableMapOf<Int, Int>()
             val statusMap = mutableMapOf<Int, String>()
+            val statusEndpointMap = mutableMapOf<Int, UploadItemInfo>()
             val errorMap = mutableMapOf<Int, String>()
 
             selectedItems.forEach { item ->
                 val itemId = item["id"] as Int
+                val endpoint = item["endpoint"] as String
                 progressMap[itemId] = 0
                 statusMap[itemId] = "Waiting"
+                statusEndpointMap[itemId] = UploadItemInfo("Waiting", endpoint)
             }
 
             _uploadProgress.value = progressMap
             _uploadStatusMap.value = statusMap
+            _uploadStatusEndpointMap.value = statusEndpointMap
             _uploadErrorMap.value = errorMap
 
             val result = repository.uploadESPBKraniTimbang(
@@ -77,11 +89,18 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
             ) { itemId, progress, isSuccess, errorMsg ->
                 progressMap[itemId] = progress
 
-                statusMap[itemId] = when {
+                val newStatus = when {
                     !isSuccess && !errorMsg.isNullOrEmpty() -> "Failed"
                     isSuccess -> "Success"
                     progress > 0 && progress < 100 -> "Uploading"
                     else -> "Waiting"
+                }
+
+                statusMap[itemId] = newStatus
+
+                // Update the endpoint info map with new status but keep the endpoint
+                statusEndpointMap[itemId]?.let { info ->
+                    statusEndpointMap[itemId] = info.copy(status = newStatus)
                 }
 
                 // Store error message if any
@@ -91,6 +110,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
 
                 _uploadProgress.postValue(progressMap)
                 _uploadStatusMap.postValue(statusMap)
+                _uploadStatusEndpointMap.postValue(statusEndpointMap)
                 _uploadErrorMap.postValue(errorMap)
             }
 
