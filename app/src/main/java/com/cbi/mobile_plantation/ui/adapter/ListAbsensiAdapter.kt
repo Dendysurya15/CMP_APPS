@@ -14,14 +14,16 @@ data class AbsensiDataRekap(
     val id: Int,
     val afdeling: String,
     val datetime: String,
+    val kemandoran: String,
     val karyawan_msk_id: String,
     val karyawan_tdk_msk_id: String,
 )
 
 class ListAbsensiAdapter(private var items: List<AbsensiDataRekap>):
     RecyclerView.Adapter<ListAbsensiAdapter.ListAbsensiViewHolder>() {
-
         private  val selectedItems = mutableSetOf<AbsensiDataRekap>()
+
+    private var currentArchiveState: Int = 0
 
     class ListAbsensiViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val td1: TextView = view.findViewById(R.id.td1ListAbsensi)
@@ -46,8 +48,9 @@ class ListAbsensiAdapter(private var items: List<AbsensiDataRekap>):
         val jmlhKaryawanTdkMsk = if (item.karyawan_tdk_msk_id.isNotEmpty()) item.karyawan_tdk_msk_id.split(",").size else 0
 
 
-        holder.td1.text = formatToIndonesianDateTime(item.datetime)
-        holder.td2.text = item.afdeling
+//        holder.td1.text = formatToIndonesianDateTime(item.datetime)
+        holder.td1.text = item.afdeling
+        holder.td2.text = item.kemandoran
         holder.td3.text = "$jmlhKaryawanMsk orang"
     }
 
@@ -105,7 +108,7 @@ class ListAbsensiAdapter(private var items: List<AbsensiDataRekap>):
 //    }
 //
 //    private var currentSortField: SortField = SortField.NAMA
-//    private var namaKaryawanList = mutableListOf<Map<String, Any>>()
+    private var namaKaryawanList = mutableListOf<Map<String, Any>>()
 //    private var filteredList = mutableListOf<Map<String, Any>>()
 //    private var currentArchiveState: Int = 0
 //    private var areCheckboxesEnabled = true
@@ -222,10 +225,10 @@ class ListAbsensiAdapter(private var items: List<AbsensiDataRekap>):
 //
 //
 //
-//    fun updateArchiveState(state: Int) {
-//        currentArchiveState = state
-//        notifyDataSetChanged()
-//    }
+    fun updateArchiveState(state: Int) {
+        currentArchiveState = state
+        notifyDataSetChanged()
+    }
 //
 //    private var onSelectionChangedListener: ((Int) -> Unit)? = null
 //

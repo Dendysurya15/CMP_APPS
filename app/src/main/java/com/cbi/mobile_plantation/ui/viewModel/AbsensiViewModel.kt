@@ -7,6 +7,16 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.cmp_project.data.model.AbsensiKemandoranRelations
+import com.cbi.cmp_project.data.model.AbsensiModel
+import com.cbi.cmp_project.data.model.ESPBEntity
+import com.cbi.cmp_project.data.model.KaryawanModel
+import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.data.model.PanenEntityWithRelations
+import com.cbi.cmp_project.data.repository.AbsensiRepository
+import com.cbi.cmp_project.data.repository.PanenTBSRepository
+import com.cbi.cmp_project.data.repository.WeighBridgeRepository
+import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AbsensiModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
@@ -40,6 +50,12 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
     private val _savedDataAbsensiList = MutableLiveData<List<AbsensiKemandoranRelations>>()
     val savedDataAbsensiList: LiveData<List<AbsensiKemandoranRelations>> = _savedDataAbsensiList
 
+    private val _activeAbsensiList = MutableLiveData<List<AbsensiKemandoranRelations>>()
+    val activeAbsensiList: LiveData<List<AbsensiKemandoranRelations>> = _activeAbsensiList
+
+    private val _archivedAbsensiList = MutableLiveData<List<AbsensiKemandoranRelations>>()
+    val archivedAbsensiList: LiveData<List<AbsensiKemandoranRelations>> = _archivedAbsensiList
+
     private val _saveDataAbsensiState = MutableStateFlow<SaveDataAbsensiState>(SaveDataAbsensiState.Loading)
     val saveDataAbsensiState: StateFlow<SaveDataAbsensiState> get() = _saveDataAbsensiState.asStateFlow()
 
@@ -49,11 +65,65 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
     private val _updateKemandoranbsensiState = MutableStateFlow<UpdateKemandoranAbsensiState>(UpdateKemandoranAbsensiState.Loading)
     val updateKemandoranbsensiState: StateFlow<UpdateKemandoranAbsensiState> get() = _updateKemandoranbsensiState.asStateFlow()
 
+    fun isAbsensiExist(dateAbsen: String, karyawanMskIds: List<String>): Boolean {
+        return repository.isAbsensiExist(dateAbsen, karyawanMskIds)
+    }
+
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
 
     private val _archivedCount = MutableLiveData<Int>()
     val archivedCount: LiveData<Int> = _archivedCount
+
+    private val _absensiCount = MutableStateFlow(0)
+    val absensiCount: StateFlow<Int> = _absensiCount.asStateFlow()
+
+    suspend fun loadAbsensiCount(): Int {
+        val count = repository.getAbsensiCount()
+        _absensiCount.value = count
+        return count
+    }
+
+    fun archiveAbsensiById(id: Int) {
+        viewModelScope.launch {
+            repository.archiveAbsensiById(id)
+            getAllDataAbsensi() // Refresh the data
+        }
+    }
+
+    fun loadActiveAbsensi() {
+        viewModelScope.launch {
+            repository.getActiveAbsensi()
+                .onSuccess { panenList ->
+                    _activeAbsensiList.postValue(panenList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
+    fun loadArchivedAbsensi() {
+        viewModelScope.launch {
+            repository.getArchivedAbsensi()
+                .onSuccess { absensiList ->
+                    _archivedAbsensiList.postValue(absensiList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load archived data")
+                }
+        }
+    }
+
+    fun loadAbsensiCountArchive() = viewModelScope.launch {
+        try {
+            val count = repository.getAbsensiCountArhive()
+            _archivedCount.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error loading archive count: ${e.message}")
+            _archivedCount.value = 0  // Set to 0 if there's an error
+        }
+    }
 
     fun getAllDataAbsensi() {
         viewModelScope.launch {
