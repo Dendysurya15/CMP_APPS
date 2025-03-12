@@ -24,36 +24,25 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
+import com.cbi.mobile_plantation.ui.adapter.AbsensiAdapter
 import com.cbi.mobile_plantation.ui.adapter.AbsensiDataRekap
 import com.cbi.mobile_plantation.ui.adapter.ListAbsensiAdapter
+import com.cbi.mobile_plantation.ui.adapter.UploadItem
+import com.cbi.mobile_plantation.ui.adapter.UploadProgressAdapter
+import com.cbi.mobile_plantation.ui.adapter.WBData
+import com.cbi.mobile_plantation.ui.adapter.WeighBridgeAdapter
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
+import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
-import com.cbi.cmp_project.R
-import com.cbi.cmp_project.data.model.AbsensiKemandoranRelations
-import com.cbi.cmp_project.ui.adapter.AbsensiAdapter
-import com.cbi.cmp_project.ui.adapter.AbsensiDataRekap
-import com.cbi.cmp_project.ui.adapter.ListAbsensiAdapter
-import com.cbi.cmp_project.ui.adapter.UploadItem
-import com.cbi.cmp_project.ui.adapter.UploadProgressAdapter
-import com.cbi.cmp_project.ui.adapter.WBData
-import com.cbi.cmp_project.ui.adapter.WeighBridgeAdapter
-import com.cbi.cmp_project.ui.view.HomePageActivity
-import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
-import com.cbi.cmp_project.ui.viewModel.AbsensiViewModel
-import com.cbi.cmp_project.ui.viewModel.WeighBridgeViewModel
-import com.cbi.cmp_project.utils.AlertDialogUtility
-import com.cbi.cmp_project.utils.AppLogger
-import com.cbi.cmp_project.utils.AppUtils
-import com.cbi.cmp_project.utils.AppUtils.stringXML
-import com.cbi.cmp_project.utils.AppUtils.vibrate
-import com.cbi.cmp_project.utils.LoadingDialog
-import com.cbi.cmp_project.utils.PrefManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
@@ -70,11 +59,14 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.charset.StandardCharsets
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -580,11 +572,17 @@ class ListAbsensiActivity : AppCompatActivity() {
         return try {
             if (jsonData.isBlank()) throw IllegalArgumentException("JSON data is empty")
 
-            // Minify JSON first
-            val minifiedJson = JSONObject(jsonData).toString()
+            // Check if the input is a JSON array or object and handle accordingly
+            val minifiedJson = if (jsonData.trim().startsWith("[")) {
+                // It's a JSON array
+                JSONArray(jsonData).toString()
+            } else {
+                // It's a JSON object
+                JSONObject(jsonData).toString()
+            }
 
             // Reject empty JSON
-            if (minifiedJson == "{}") {
+            if (minifiedJson == "{}" || minifiedJson == "[]") {
                 AppLogger.e("Empty JSON detected, returning null")
                 throw IllegalArgumentException("Empty JSON detected")
             }
@@ -626,18 +624,42 @@ class ListAbsensiActivity : AppCompatActivity() {
                 throw IllegalArgumentException("Data Absensi is empty.")
             }
 
-            mappedData.joinToString(",\n") { data ->
-                val idKemandoran = data["id_kemandoran"]?.toString()?.replace("[", "")?.replace("]", "")
-                    ?: throw IllegalArgumentException("Missing idKemandoran.")
+            AppLogger.d("mappedData $mappedData")
 
-                val idKaryawan = data["karyawan_msk_id"]?.toString()
-                    ?: throw IllegalArgumentException("Missing idKaryawan.")
+            // Group data by id_kemandoran
+            val groupedByKemandoran = mutableMapOf<String, MutableList<String>>()
 
-                JSONObject().apply {
-                    put("idKemandoran", idKemandoran)
-                    put("idKaryawan", idKaryawan)
-                }.toString()
+            mappedData.forEach { data ->
+                val idKemandoran = data["id_kemandoran"]?.toString() ?:
+                throw IllegalArgumentException("Missing idKemandoran.")
+
+                val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
+
+                // Split the comma-separated employee IDs
+                val employeeIds = karyawanMskId.split(",").filter { it.isNotEmpty() }
+
+                // Get or create the list for this kemandoran
+                val employeeList = groupedByKemandoran.getOrPut(idKemandoran) { mutableListOf() }
+
+                // Add employee IDs to the list
+                employeeList.addAll(employeeIds)
             }
+
+            // Create the JSON array with the requested format
+            val resultArray = JSONArray()
+
+            groupedByKemandoran.forEach { (kemandoranId, employeeIds) ->
+                val jsonObject = JSONObject()
+                jsonObject.put("idKemandoran", kemandoranId)
+
+                val employeeArray = JSONArray()
+                employeeIds.distinct().forEach { employeeArray.put(it) }
+
+                jsonObject.put("idKaryawan", employeeArray)
+                resultArray.put(jsonObject)
+            }
+
+            resultArray.toString()
 
         } catch (e: Exception) {
             throw IllegalArgumentException("formatPanenDataForQR Error: ${e.message}")

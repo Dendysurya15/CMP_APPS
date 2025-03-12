@@ -7,16 +7,12 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Transaction
+import androidx.sqlite.db.SupportSQLiteQuery
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AbsensiModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
+import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.utils.AppLogger
-import androidx.sqlite.db.SupportSQLiteQuery
-import com.cbi.cmp_project.data.model.AbsensiKemandoranRelations
-import com.cbi.cmp_project.data.model.AbsensiModel
-import com.cbi.cmp_project.data.model.ESPBEntity
-import com.cbi.cmp_project.data.model.PanenEntityWithRelations
-import com.cbi.cmp_project.utils.AppLogger
 
 @Dao
 abstract class AbsensiDao {
