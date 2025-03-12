@@ -63,7 +63,7 @@ class UploadCMPRepository(context: Context) {
 
                 AppLogger.d("Sending upload request...")
 
-                val response = TestingAPIClient.instance.uploadZip(filePart)
+                val response = CMPApiClient.instance.uploadZip(filePart)
 
                 AppLogger.d(response.toString())
                 if (response.isSuccessful) {

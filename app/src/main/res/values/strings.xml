@@ -14,7 +14,7 @@
     <string name="confirmation_dialog_description">Pastikan Anda telah memeriksa dengan teliti sebelum melanjutkan.</string>
     <string name="al_yes">Ya</string>
     <string name="al_confirm_out">Apakah anda yakin untuk keluar dari aplikasi ini?</string>
-    <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah anda yakin untuk simpan data e-SPB ini?</string>
+    <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah anda yakin untuk simpan &amp; upload data e-SPB ini?</string>
     <string name="al_confirm_feature">Apakah anda yakin untuk keluar dari Menu ini?</string>
     <string name="al_confirm_logout">Apakah anda yakin Logout dari user ini?</string>
     <string name="al_confirm_delete_photo">Apakah anda yakin untuk menghapus foto ini?</string>

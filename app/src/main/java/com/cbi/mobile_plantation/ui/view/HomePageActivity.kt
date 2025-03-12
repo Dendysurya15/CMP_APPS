@@ -646,6 +646,7 @@ class HomePageActivity : AppCompatActivity() {
                                             "komentar" to panenWithRelations.panen.komentar,
                                             "lat" to panenWithRelations.panen.lat,
                                             "lon" to panenWithRelations.panen.lon,
+                                            "status_banjir" to panenWithRelations.panen.status_banjir,
                                             "created_by" to prefManager!!.idUserLogin.toString(),
                                             "created_name" to prefManager!!.nameUserLogin.toString(),
                                             "created_date" to panenWithRelations.panen.date_created,
