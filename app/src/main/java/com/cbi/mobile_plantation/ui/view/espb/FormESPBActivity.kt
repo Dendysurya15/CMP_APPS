@@ -131,7 +131,7 @@ class FormESPBActivity : AppCompatActivity() {
             Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 0 $e", Toasty.LENGTH_LONG).show()
         }
         try {
-            tph1 = intent.getStringExtra("tph_1").toString()
+            tph1 = removeRecordsWithStatus2(intent.getStringExtra("tph_1").toString())
             Log.d("FormESPBActivityTPH1", "tph1: $tph1")
         }catch (e: Exception){
             Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 1 $e", Toasty.LENGTH_LONG).show()
@@ -223,7 +223,7 @@ class FormESPBActivity : AppCompatActivity() {
 
         val cbFormEspbMekanisasi = findViewById<MaterialCheckBox>(R.id.cbFormEspbMekanisasi)
         cbFormEspbMekanisasi.setOnCheckedChangeListener {
-            _, isChecked ->
+                _, isChecked ->
             if (isChecked) {
 //                formEspbTransporter.visibility = View.GONE
 //                formEspbDriver.visibility = View.GONE
@@ -395,7 +395,7 @@ class FormESPBActivity : AppCompatActivity() {
 
         val cbFormEspbTransporter = findViewById<MaterialCheckBox>(R.id.cbFormEspbTransporter)
         cbFormEspbTransporter.setOnCheckedChangeListener {
-            _, isChecked ->
+                _, isChecked ->
             if (isChecked) {
                 formEspbTransporter.visibility = View.GONE
                 selectedTransporterId = 0
@@ -922,7 +922,7 @@ class FormESPBActivity : AppCompatActivity() {
         noESPB: String,
         status_draft: Int,
         status_mekanisasi: Int
-        ){
+    ){
         val vM = ViewModelProvider(this)[ESPBViewModel::class.java]
 
         // Example: Create ESPB data
@@ -950,7 +950,7 @@ class FormESPBActivity : AppCompatActivity() {
         try {
             vM.insertESPB(espbList)
             Toasty.success(this, "ESPB data inserted successfully", Toasty.LENGTH_LONG).show()
-            viewModel.updateESPBStatus(idsToUpdate, 1)
+            viewModel.updateESPBStatus(idsToUpdate, 1, noESPB)
             val intent = Intent(this, HomePageActivity::class.java)
             startActivity(intent)
             finishAffinity()
@@ -967,5 +967,23 @@ class FormESPBActivity : AppCompatActivity() {
             }
     }
 
+    private fun removeRecordsWithStatus2(dataString: String): String {
+        // Parse the string into individual records
+        val records = dataString.split(";")
+
+        // Filter out records where status_espb = 2
+        val filteredRecords = records.filter { record ->
+            val fields = record.split(",")
+            if (fields.size >= 4) {
+                val statusEspb = fields[3].trim()
+                statusEspb != "2"
+            } else {
+                true // Keep records that don't match our expected format
+            }
+        }
+
+        // Join the filtered records back into a string
+        return filteredRecords.joinToString(";")
+    }
 
 }

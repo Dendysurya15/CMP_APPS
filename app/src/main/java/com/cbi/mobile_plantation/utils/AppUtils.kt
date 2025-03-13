@@ -68,13 +68,38 @@ object AppUtils {
         const val FLAGESPB = "flag_espb"
     }
 
+    object ListFeatureByRoleUser {
+        const val KeraniTimbang = "Kerani Timbang"
+        const val Asisten = "Asisten"
+        const val Mandor1 = "Mandor 1"
+        const val KeraniPanen = "Kerani Panen"
+        const val IT = "IT"
+    }
+
+    object ListFeatureNames {
+        const val PanenTBS = "Panen TBS"
+        const val RekapHasilPanen = "Rekap Hasil Panen"
+        const val ScanHasilPanen = "Scan Hasil Panen"
+        const val RekapPanenDanRestan = "Rekap panen dan restan"
+        const val BuatESPB = "Buat eSPB"
+        const val RekapESPB = "Rekap eSPB"
+        const val InspeksiPanen = "Inspeksi Panen"
+        const val RekapInspeksiPanen = "Rekap Inspeksi Panen"
+        const val ScanESPBTimbanganMill = "Scan e-SPB Timbangan Mill"
+        const val RekapESPBTimbanganMill = "Rekap e-SPB Timbangan Mill"
+        const val AbsensiPanen = "Absensi panen"
+        const val RekapAbsensiPanen =  "Rekap absensi panen"
+        const val ScanAbsensiPanen =  "Scan absensi panen"
+        const val SinkronisasiData = "Sinkronisasi data"
+        const val UploadDataCMP = "Upload Data CMP"
+    }
 
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
     }
 
 
-    object DatabaseServer{
+    object DatabaseServer {
         const val CMP = "CMP"
         const val PPRO = "PPRO"
     }
@@ -88,6 +113,7 @@ object AppUtils {
         const val updateSyncLocalData = "Update & Sinkronisasi Lokal Data"
         const val settingJSON = "setting.json"
     }
+
     /**
      * Gets the current app version from BuildConfig or string resources.
      * @param context The context used to retrieve the string resource.
@@ -97,8 +123,9 @@ object AppUtils {
         return context.getString(R.string.app_version)
     }
 
-    fun checkUploadZipReadyToday(idUser:String, context: Context): List<File> {
-        val todayDate = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date()) // Get today's date
+    fun checkUploadZipReadyToday(idUser: String, context: Context): List<File> {
+        val todayDate =
+            SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date()) // Get today's date
         val uploadDir = File(context.getExternalFilesDir(null), "Upload").apply {
             if (!exists()) mkdirs()
         }
@@ -145,7 +172,9 @@ object AppUtils {
                 val jsonBytes = jsonString.toByteArray()
 
                 val inputStream = ByteArrayInputStream(jsonBytes)
-                zip.addStream(inputStream, zipParams.apply { fileNameInZip = "$featureKey/data.json" })
+                zip.addStream(
+                    inputStream,
+                    zipParams.apply { fileNameInZip = "$featureKey/data.json" })
 
                 // Add photos for this feature
                 addFeaturePhotosToZip(context, dataList, featureKey, picturesDirs, zip, zipParams)
@@ -278,7 +307,8 @@ object AppUtils {
                             }
                         } else {
                             // Find photo by trying multiple search strategies
-                            val foundFile = findPhotoFile(allCmpDirectories, photoPath.trim(), photoFileName)
+                            val foundFile =
+                                findPhotoFile(allCmpDirectories, photoPath.trim(), photoFileName)
 
                             if (foundFile != null) {
                                 try {
@@ -296,7 +326,8 @@ object AppUtils {
                             AppLogger.w("Photo not found in any directory: $photoPath")
 
                             // One last attempt - check if it's a relative path from app's external files directory
-                            val relativePathFile = File(context.getExternalFilesDir(null), photoPath.trim())
+                            val relativePathFile =
+                                File(context.getExternalFilesDir(null), photoPath.trim())
                             if (relativePathFile.exists() && relativePathFile.isFile) {
                                 try {
                                     zipParams.fileNameInZip = "$featureKey/photos/$photoFileName"
@@ -379,7 +410,6 @@ object AppUtils {
     }
 
 
-
     // Convert List<Map<String, Any>> to JSON String
     private fun convertDataToJsonString(data: List<Map<String, Any>>): String {
         val jsonArray = JSONArray()
@@ -390,8 +420,6 @@ object AppUtils {
         }
         return jsonArray.toString()
     }
-
-
 
 
     fun getDeviceInfo(context: Context): JSONObject {
@@ -414,7 +442,12 @@ object AppUtils {
         val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
+            vibrator.vibrate(
+                VibrationEffect.createOneShot(
+                    duration,
+                    VibrationEffect.DEFAULT_AMPLITUDE
+                )
+            )
         } else {
             @Suppress("DEPRECATION")
             vibrator.vibrate(duration)
@@ -423,7 +456,8 @@ object AppUtils {
 
     fun formatToIndonesianDate(dateString: String): String {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val outputFormat = SimpleDateFormat("EEEE, d MMMM YYYY 'Pukul' HH:mm:ss", Locale("id", "ID"))
+        val outputFormat =
+            SimpleDateFormat("EEEE, d MMMM YYYY 'Pukul' HH:mm:ss", Locale("id", "ID"))
 
         return try {
             val date = inputFormat.parse(dateString)
@@ -548,7 +582,8 @@ object AppUtils {
     }
 
     fun isNetworkAvailable(context: Context): Boolean {
-        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
         // if the android version is equal to M
         // or greater we need to use the

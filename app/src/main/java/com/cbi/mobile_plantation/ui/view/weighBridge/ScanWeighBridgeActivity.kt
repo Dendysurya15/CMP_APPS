@@ -331,7 +331,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     }
 
                                     // Create the items to upload list including both items
-                                    val itemsToUpload = listOf(itemToUpload, cmpItem)
+                                    val itemsToUpload = listOf(itemToUpload)
                                     val globalIdEspb = listOf(savedItemId)
 
 

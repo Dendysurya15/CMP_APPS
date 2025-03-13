@@ -306,8 +306,8 @@ class AppRepository(context: Context) {
     }
 
     // Add this to your AppRepository
-    suspend fun updatePanenESPBStatus(ids: List<Int>, status: Int) = withContext(Dispatchers.IO) {
-        panenDao.updateESPBStatusByIds(ids, status)
+    suspend fun updatePanenESPBStatus(ids: List<Int>, status: Int, noESPB :String) = withContext(Dispatchers.IO) {
+        panenDao.updateESPBStatusByIds(ids, status,noESPB)
     }
 
     suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {

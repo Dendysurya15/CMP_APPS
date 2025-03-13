@@ -73,6 +73,7 @@
     <string name="field_pemanen">Pemanen</string>
     <string name="field_kemandoran_lain">Kemandoran Lain</string>
     <string name="field_pemanen_lain">Pemanen Lain</string>
+    <string name="last_update_TPH">Terakhir diperbarui:</string>
 
     <string name="al_back">Kembali</string>
     <string name="al_no_internet_connection">Tidak Ada Internet!</string>

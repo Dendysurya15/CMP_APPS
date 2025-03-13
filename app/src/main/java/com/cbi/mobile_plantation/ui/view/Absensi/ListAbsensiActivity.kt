@@ -915,9 +915,12 @@ class ListAbsensiActivity : AppCompatActivity() {
                                     AppLogger.d(kemandoranData.toString())
                                     val afdeling = kemandoranData?.mapNotNull { it.divisi_abbr }?.takeIf { it.isNotEmpty() }
                                         ?.joinToString("\n") ?: "-"
+
+                                    val kemandoranRaw = kemandoranData?.mapNotNull { it.kode }?.takeIf { it.isNotEmpty() }
+                                        ?.joinToString("\n") ?: "-"
                                     async {
                                         mappedData = mappedData + mapOf(
-                                            "id_kemandoran" to (rawKemandoran.firstOrNull()?.toIntOrNull() ?: -1),
+                                            "id_kemandoran" to rawKemandoran,
                                             "id" to absensiWithRelations.absensi.id,
                                             "afdeling" to afdeling,
                                             "datetime" to absensiWithRelations.absensi.date_absen,
@@ -943,7 +946,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             //untuk table
                                             afdeling = afdeling,
                                             datetime = absensiWithRelations.absensi.date_absen,
-                                            kemandoran = absensiWithRelations.kemandoran?.kode.toString(),
+                                            kemandoran = kemandoranRaw,
                                             karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id,
                                             karyawan_tdk_msk_id = absensiWithRelations.absensi.karyawan_tdk_msk_id
                                         )
