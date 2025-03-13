@@ -1136,6 +1136,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         recyclerView.visibility = View.VISIBLE
 
                         mappedData = panenList.map { panenWithRelations ->
+
+
+
                             mapOf<String, Any>(
                                 "id" to (panenWithRelations.panen.id as Any),
                                 "tph_id" to (panenWithRelations.panen.tph_id as Any),
@@ -1153,7 +1156,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 "lon" to (panenWithRelations.panen.lon as Any),
                                 "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
                                 "ancak" to (panenWithRelations.panen.ancak as Any),
-                                "archive" to (panenWithRelations.panen.archive as Any)
+                                "archive" to (panenWithRelations.panen.archive as Any),
+                                "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
+                                "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
+                                "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
+                                "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
                             )
                         }
 

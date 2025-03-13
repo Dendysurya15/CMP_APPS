@@ -101,7 +101,7 @@ class MainActivity : AppCompatActivity() {
         if (!showingSplash) return
         showingSplash = false
 
-        startActivity(Intent(this, LoginActivity::class.java))
+        startActivity(Intent(this, ListPanenTBSActivity::class.java))
         finish()
     }
 

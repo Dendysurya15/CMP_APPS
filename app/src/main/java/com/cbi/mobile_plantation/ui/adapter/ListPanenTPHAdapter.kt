@@ -1,14 +1,21 @@
 package com.cbi.mobile_plantation.ui.adapter
 
+import android.annotation.SuppressLint
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.TextView
+import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
+import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.databinding.TableItemRowBinding
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import org.json.JSONException
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -92,9 +99,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             JSONObject()
         }
 
-        val totalJjg =   if (featureName=="Buat eSPB" || featureName=="Rekap panen dan restan"){
+        val totalJjg = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan") {
             jjgJson.optInt("KP", 0)
-        }else{
+        } else {
             jjgJson.optInt("TO", 0) //diganti KP
         }
 
@@ -112,9 +119,16 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         val gradingText = "$totalJjg"
         val searchableText = "$blokText $noTPHText $gradingText $formattedTime"
 
-        return ExtractedData(gradingText, blokText, formattedTime,noTPHText, searchableText, tphId.toInt(), panenId.toInt())
+        return ExtractedData(
+            gradingText,
+            blokText,
+            formattedTime,
+            noTPHText,
+            searchableText,
+            tphId.toInt(),
+            panenId.toInt()
+        )
     }
-
 
 
     fun filterData(query: String) {
@@ -154,7 +168,10 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     val position = tphList.indexOf(item)
                     if (!selectedItems.contains(position)) 1 else 0
                 }
-                SortField.TPH -> extractData(item).tphText.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0
+
+                SortField.TPH -> extractData(item).tphText.replace(Regex("[^0-9]"), "")
+                    .toIntOrNull() ?: 0
+
                 SortField.BLOK -> extractData(item).blokText
                 SortField.GRADING -> extractData(item).gradingText.toIntOrNull() ?: 0
                 SortField.TIME -> extractData(item).tanggalText
@@ -176,6 +193,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         filteredList = tphList.toMutableList()
         notifyDataSetChanged()
     }
+
     class ListPanenTPHViewHolder(private val binding: TableItemRowBinding) :
         RecyclerView.ViewHolder(binding.root) {
         // In ListPanenTPHAdapter.kt, update the bind method in ListPanenTPHViewHolder class:
@@ -256,6 +274,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         // Return distinct items to avoid duplicates
         return result.distinct()
     }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ListPanenTPHViewHolder {
         val binding = TableItemRowBinding.inflate(
             LayoutInflater.from(parent.context),
@@ -289,8 +308,11 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         notifyDataSetChanged()
     }
 
+    @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: ListPanenTPHViewHolder, position: Int) {
         val item = filteredList[position]
+
+        AppLogger.d(item.toString())
         val tphId = extractData(item).tphId.toString()
         val isScannedItem = tphListScan.contains(tphId)
         val originalPosition = tphList.indexOf(item)
@@ -300,7 +322,74 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             scannedTphIdsSet.add(tphId)
         }
 
-        // Setup the view holder with correct state
+        holder.itemView.setOnClickListener {
+            val context = holder.itemView.context
+            val bottomSheetDialog = BottomSheetDialog(context)
+            val view = LayoutInflater.from(context)
+                .inflate(R.layout.layout_bottom_sheet_detail_table, null)
+
+            view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
+                "Detail Panen - ${extractData(item).blokText} TPH ${extractData(item).tphText}"
+
+            view.findViewById<Button>(R.id.btnCloseDetailTable).setOnClickListener {
+                bottomSheetDialog.dismiss()
+            }
+
+            bottomSheetDialog.setContentView(view)
+
+            val maxHeight = (context.resources.displayMetrics.heightPixels * 0.85).toInt()
+
+            val data = extractData(item)
+
+            val dateCreated = item["date_created"] as? String ?: "-"
+            val dateCreatedRaw = dateCreated
+
+            val originalFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val displayFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+
+            val formattedDate = try {
+                val date = originalFormat.parse(dateCreatedRaw)
+                date?.let { displayFormat.format(it) } ?: "-"
+            } catch (e: Exception) {
+                "-" // Fallback if parsing fails
+            }
+
+            val infoItems = listOf(
+                DetailInfoType.TANGGAL_BUAT to formattedDate,
+                DetailInfoType.BLOK_BANJIR to item["blok_banjir"],
+                DetailInfoType.ESTATE_AFDELING to "${item["nama_estate"]} / ${item["nama_afdeling"]}",
+                DetailInfoType.BLOK_TAHUN to "${data.blokText} / ${item["tahun_tanam"]}",
+                DetailInfoType.ANCAK to "${item["ancak"]}",
+                DetailInfoType.NO_TPH to data.tphText,
+                DetailInfoType.KEMANDORAN to "",
+                DetailInfoType.NAMA_PEMANEN to "",
+                DetailInfoType.TOTAL_JANJANG to ""
+            )
+
+            // Set values for all items
+            infoItems.forEach { (type, value) ->
+                val itemView = view.findViewById<View>(type.id)
+                setInfoItemValues(itemView, type.label, value.toString())
+            }
+
+            bottomSheetDialog.show()
+
+
+            bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                ?.let { bottomSheet ->
+                    val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                    behavior.apply {
+                        this.peekHeight = maxHeight
+                        this.state = BottomSheetBehavior.STATE_EXPANDED
+                        this.isFitToContents = true
+                        this.isDraggable = false
+                    }
+
+                    bottomSheet.layoutParams?.height = maxHeight
+                }
+        }
+
         holder.bind(
             data = item,
             isSelected = selectedItems.contains(originalPosition) || isScannedItem,
@@ -330,7 +419,23 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
     override fun getItemCount() = filteredList.size  // Changed from tphList.size
 
+    enum class DetailInfoType(val id: Int, val label: String) {
+        TANGGAL_BUAT(R.id.DataTanggalBuat, "Dibuat pada"),
+        BLOK_BANJIR(R.id.DataBlokBanjir, "Blok Banjir"),
+        ESTATE_AFDELING(R.id.DataEstateAfdeling, "Estate/Afdeling"),
+        BLOK_TAHUN(R.id.DataBlokTahunTanam, "Blok/Thn Tanam"),
+        ANCAK(R.id.DataAncak, "Ancak"),
+        NO_TPH(R.id.DataNoTPH, "No TPH"),
+        KEMANDORAN(R.id.DataKemandoran, "Kemandoran"),
+        NAMA_PEMANEN(R.id.DataNamaPemanen, "Nama Pemanen"),
+        TOTAL_JANJANG(R.id.DataTotalJanjang, "Total Janjang")
+    }
 
+    @SuppressLint("SetTextI18n")
+    private fun setInfoItemValues(view: View, label: String, value: String) {
+        view.findViewById<TextView>(R.id.tvLabel)?.text = label
+        view.findViewById<TextView>(R.id.tvValue)?.text = ": $value"
+    }
 
     private var onSelectionChangedListener: ((Int) -> Unit)? = null
 
