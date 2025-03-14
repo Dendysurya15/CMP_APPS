@@ -324,7 +324,7 @@ class WeighBridgeRepository(context: Context) {
                                     progressRequestBody
                                 )
 
-                                val response = TestingAPIClient.instance.uploadZip(filePart)
+                                val response = CMPApiClient.instance.uploadZip(filePart)
 
                                 if (response.isSuccessful) {
                                     val responseBody = response.body()

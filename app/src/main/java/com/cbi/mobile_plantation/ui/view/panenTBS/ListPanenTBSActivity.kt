@@ -30,17 +30,20 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.ui.adapter.ListPanenTPHAdapter
 import com.cbi.mobile_plantation.ui.view.espb.FormESPBActivity
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.view.ScanQR
+import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
 
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
@@ -81,6 +84,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var featureName = ""
     private var listTPHDriver = ""
     private lateinit var panenViewModel: PanenViewModel
+    private lateinit var espbViewModel: ESPBViewModel
     private lateinit var listAdapter: ListPanenTPHAdapter
     private lateinit var loadingDialog: LoadingDialog
     private var currentState = 0 // 0 for tersimpan, 1 for terscan
@@ -116,6 +120,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private var tph1 = ""
     private var tph0 = ""
+    private var espbId = 0
+
+    private lateinit var ll_detail_espb: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -208,7 +215,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSearch()
         setupObservers()
-        if (featureName != "Buat eSPB" && featureName != "Rekap panen dan restan") {
+        if (featureName != "Buat eSPB" && featureName != "Rekap panen dan restan" && featureName != "Detail eSPB") {
             setupSpeedDial()
             setupCheckboxControl()  // Add this
         }
@@ -217,6 +224,22 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupSortButton()
         currentState = 0
         setActiveCard(cardTersimpan)
+        if (featureName == "Detail eSPB") {
+            // set to gone card_item_tersimpan
+            cardTersimpan.visibility = View.GONE
+            // set to gone card_item_terscan
+            cardTerscan.visibility = View.GONE
+            val app = AppRepository(application)
+            val espbViewModelFactory = ESPBViewModel.ESPBViewModelFactory(app)
+            espbViewModel = ViewModelProvider(this, espbViewModelFactory)[ESPBViewModel::class.java]
+            espbId = try {
+                intent.getStringExtra("id_espb").toString().toInt()
+            } catch (e: Exception) {
+                Toasty.error(this, "Error mengambil id eSPB: ${e.message}", Toast.LENGTH_LONG)
+                    .show()
+                0
+            }
+        }
         lifecycleScope.launch {
             if (featureName == "Buat eSPB") {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
@@ -237,6 +260,121 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         panenViewModel.loadActivePanenRestan(1)
                     }
                 }
+            } else if (featureName == "Detail eSPB") {
+                panenViewModel.loadActivePanenRestan(1)
+                ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
+                ll_detail_espb.visibility = View.VISIBLE
+                espbViewModel.getESPBById(espbId)
+                espbViewModel.espbEntity.observe(this@ListPanenTBSActivity) { espbWithRelations ->
+                    if (espbWithRelations != null) {
+                        try {
+                            // Extract ESPB data
+                            val espb = espbWithRelations
+
+                            // Find all included layouts
+                            val tvNoEspb = findViewById<View>(R.id.tv_no_espb)
+                            val tvBlok = findViewById<View>(R.id.tv_blok)
+                            val tvNoPol = findViewById<View>(R.id.tv_no_pol)
+                            val tvTransporter = findViewById<View>(R.id.tv_transporter)
+                            val tvDriver = findViewById<View>(R.id.tv_driver)
+                            val tvMill = findViewById<View>(R.id.tv_mill)
+                            val tvMekanisasi = findViewById<View>(R.id.tv_mekanisasi)
+                            val tvDraft = findViewById<View>(R.id.tv_draft)
+
+                            // Set No eSPB
+                            tvNoEspb.findViewById<TextView>(R.id.tvTitleEspb).text = "No eSPB"
+                            tvNoEspb.findViewById<TextView>(R.id.tvSubTitleEspb).text = espb.noESPB
+
+                            // Set Blok
+                            tvBlok.findViewById<TextView>(R.id.tvTitleEspb).text = "Blok JJG"
+                            tvBlok.findViewById<TextView>(R.id.tvSubTitleEspb).text = espb.blok_jjg
+
+                            // Set No Polisi
+                            tvNoPol.findViewById<TextView>(R.id.tvTitleEspb).text = "No Polisi"
+                            tvNoPol.findViewById<TextView>(R.id.tvSubTitleEspb).text = espb.nopol
+
+                            // Launch coroutines to fetch transporter and mill names
+                            lifecycleScope.launch {
+                                try {
+                                    // Set Transporter
+                                    tvTransporter.findViewById<TextView>(R.id.tvTitleEspb).text =
+                                        "Transporter"
+                                    val transporterName = withContext(Dispatchers.IO) {
+                                        try {
+                                            espbViewModel.getTransporterNameById(espb.transporter_id)
+                                                ?: "Unknown"
+                                        } catch (e: Exception) {
+                                            Log.e(
+                                                "ListPanenTBSActivity",
+                                                "Error fetching transporter",
+                                                e
+                                            )
+                                            "Unknown"
+                                        }
+                                    }
+                                    tvTransporter.findViewById<TextView>(R.id.tvSubTitleEspb).text =
+                                        transporterName
+
+                                    // Set Mill
+                                    tvMill.findViewById<TextView>(R.id.tvTitleEspb).text = "Mill"
+                                    val millAbbr = withContext(Dispatchers.IO) {
+                                        try {
+                                            espbViewModel.getMillNameById(espb.mill_id) ?: "Unknown"
+                                        } catch (e: Exception) {
+                                            Log.e("ListPanenTBSActivity", "Error fetching mill", e)
+                                            "Unknown"
+                                        }
+                                    }
+                                    tvMill.findViewById<TextView>(R.id.tvSubTitleEspb).text =
+                                        millAbbr
+                                } catch (e: Exception) {
+                                    Log.e("ListPanenTBSActivity", "Error in coroutine", e)
+                                    Toasty.error(
+                                        this@ListPanenTBSActivity,
+                                        "Error loading details: ${e.message}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+
+                            // Set Driver
+                            tvDriver.findViewById<TextView>(R.id.tvTitleEspb).text = "Driver"
+                            tvDriver.findViewById<TextView>(R.id.tvSubTitleEspb).text = espb.driver
+
+                            // Set Mekanisasi status
+                            tvMekanisasi.findViewById<TextView>(R.id.tvTitleEspb).text =
+                                "Mekanisasi"
+                            val mekanisasiStatus =
+                                if (espb.status_mekanisasi == 1) "Ya" else "Tidak"
+                            tvMekanisasi.findViewById<TextView>(R.id.tvSubTitleEspb).text =
+                                mekanisasiStatus
+
+                            // Set Draft status
+                            tvDraft.findViewById<TextView>(R.id.tvTitleEspb).text = "Status"
+                            val draftStatus = if (espb.status_draft == 1) "Draft" else "Final"
+                            tvDraft.findViewById<TextView>(R.id.tvSubTitleEspb).text = draftStatus
+
+                            // Make the layout visible now that we've populated it
+                            ll_detail_espb.visibility = View.VISIBLE
+
+                        } catch (e: Exception) {
+                            Toasty.error(
+                                this@ListPanenTBSActivity,
+                                "Error displaying eSPB details: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            Log.e("ListPanenTBSActivity", "Error displaying eSPB details", e)
+                        }
+                    } else {
+                        Toasty.error(
+                            this@ListPanenTBSActivity,
+                            "eSPB data not found",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        ll_detail_espb.visibility = View.GONE
+                    }
+                }
+
             } else {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.VISIBLE
                 panenViewModel.loadActivePanen()
@@ -405,7 +543,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             throw IllegalArgumentException("Invalid JSON format in jjg_json: $jjgJsonString")
                         }
 
-                        val key = if (featureName == "Rekap panen dan restan") "KP" else "TO"
+                        val key =
+                            if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
 
                         val toValue = if (jjgJson.has(key)) {
                             jjgJson.getInt(key) // Throws JSONException if the key is not an int
@@ -553,7 +692,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD0")
         val tph1AD2 =
-            convertToFormattedString(selectedItems.toString(), 2).replace("{\"KP\": ", "")
+            convertToFormattedString(selectedItems.toString(), 1).replace("{\"KP\": ", "")
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD2")
 
@@ -1161,14 +1300,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     ?.mapNotNull { it.kemandoran_id?.toString() }
                                     ?.distinct() ?: emptyList()
 
-                                val kemandoranData: List<KemandoranModel>? = withContext(Dispatchers.IO) {
-                                    try {
-                                        panenViewModel.getKemandoranById(rawKemandoran)
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error fetching Kemandoran Data: ${e.message}")
-                                        null
+                                val kemandoranData: List<KemandoranModel>? =
+                                    withContext(Dispatchers.IO) {
+                                        try {
+                                            panenViewModel.getKemandoranById(rawKemandoran)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error fetching Kemandoran Data: ${e.message}")
+                                            null
+                                        }
                                     }
-                                }
 
                                 val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
                                     ?.takeIf { it.isNotEmpty() }
@@ -1205,7 +1345,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "nama_karyawans" to karyawanNamas as Any,
                                     "nama_kemandorans" to kemandoranNamas as Any,
 
-                                )
+                                    )
                             }
 
 
@@ -1222,12 +1362,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     val jjgJsonString = data["jjg_json"].toString()
                                     val jjgJson = JSONObject(jjgJsonString)
                                     val key =
-                                        if (featureName == "Rekap panen dan restan") "KP" else "TO"
+                                        if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
                                     totalJjgCount += jjgJson.optInt(key, 0)
                                 } catch (e: Exception) {
                                     AppLogger.e("Error parsing jjg_json: ${e.message}")
                                 }
                             }
+
 
                             // Calculate distinct TPH count
                             val distinctTphCount = mappedData
@@ -1239,6 +1380,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                             blokSection.visibility = View.VISIBLE
                             totalSection.visibility = View.VISIBLE
+                            listBlok.text = distinctBlokNames.ifEmpty { "-" }
+                            totalJjg.text = totalJjgCount.toString()
+                            totalTPH.text = distinctTphCount.toString()
+                            // Update TextViews
+                            if (featureName != "Detail eSPB") {
+                                blokSection.visibility = View.VISIBLE
+                                totalSection.visibility = View.VISIBLE
+                            }
                             listBlok.text = distinctBlokNames.ifEmpty { "-" }
                             totalJjg.text = totalJjgCount.toString()
                             totalTPH.text = distinctTphCount.toString()
@@ -1267,7 +1416,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 }, 500)
             }
         }
-
 
         panenViewModel.archivedPanenList.observe(this) { panenList ->
             if (currentState == 1) { // Only process if we're in terscan state
@@ -1320,7 +1468,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 val jjgJsonString = data["jjg_json"].toString()
                                 val jjgJson = JSONObject(jjgJsonString)
                                 val key =
-                                    if (featureName == "Rekap panen dan restan") "KP" else "TO"
+                                    if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
+
                                 totalJjgCount += jjgJson.optInt(key, 0)
                             } catch (e: Exception) {
                                 AppLogger.e("Error parsing jjg_json: ${e.message}")
@@ -1334,8 +1483,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             .count()
 
                         // Update TextViews
-                        blokSection.visibility = View.VISIBLE
-                        totalSection.visibility = View.VISIBLE
+                        if (featureName != "Detail eSPB") {
+                            blokSection.visibility = View.VISIBLE
+                            totalSection.visibility = View.VISIBLE
+                        }
                         listBlok.text = distinctBlokNames.ifEmpty { "-" }
                         totalJjg.text = totalJjgCount.toString()
                         totalTPH.text = distinctTphCount.toString()
@@ -1789,6 +1940,4 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         return uniqueEntries
     }
-
-
 }

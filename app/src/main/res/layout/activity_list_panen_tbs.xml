@@ -179,8 +179,8 @@
                 android:id="@+id/totalTPH"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/black"
                 android:fontFamily="@font/manrope_medium"
+                android:textColor="@color/black"
                 android:textSize="15sp" />
         </LinearLayout>
 
@@ -196,8 +196,15 @@
         android:orientation="horizontal"
         app:layout_constraintTop_toBottomOf="@id/total_section">
 
-        <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
-            xmlns:app="http://schemas.android.com/apk/res-auto"
+        <include
+            android:id="@+id/ll_detail_espb"
+            android:visibility="gone"
+            layout="@layout/activity_detail_espbactivity"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/card_item_tersimpan"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
@@ -244,8 +251,7 @@
         </com.google.android.material.card.MaterialCardView>
 
 
-        <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
-            xmlns:app="http://schemas.android.com/apk/res-auto"
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/card_item_terscan"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
@@ -254,9 +260,7 @@
             app:cardBackgroundColor="@color/graylight"
             app:cardCornerRadius="20dp"
             app:cardElevation="0dp"
-            app:strokeColor="@color/graylightDarker"
-
-            >
+            app:strokeColor="@color/graylightDarker">
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -294,76 +298,82 @@
     </LinearLayout>
 
     <LinearLayout
+
         android:id="@+id/filterSection"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="10dp"
         android:layout_marginTop="10dp"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@id/list_menu_upload_data"
         tools:ignore="MissingConstraints">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:fontFamily="@font/manrope_semibold"
-            android:gravity="center_vertical"
-            android:text="Filter: "
-            android:textSize="16sp" />
-
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
-                xmlns:app="http://schemas.android.com/apk/res-auto"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:fontFamily="@font/manrope_semibold"
+                android:gravity="center_vertical"
+                android:text="Filter: "
+                android:textSize="16sp" />
+
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/bgLightYellow"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/borderYellow"
+                android:orientation="horizontal">
 
-                tools:ignore="MissingConstraints">
-
-                <LinearLayout
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_marginVertical="3dp"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="10dp">
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="@color/bgLightYellow"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/borderYellow"
 
-                    <TextView
-                        android:id="@+id/filterName"
+                    tools:ignore="MissingConstraints">
+
+                    <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:layout_marginLeft="5dp"
-                        android:fontFamily="@font/manrope_semibold"
-                        android:textSize="15dp"
-                        android:textStyle="bold" />
+                        android:layout_height="match_parent"
+                        android:layout_marginVertical="3dp"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="10dp">
 
-                    <ImageView
-                        android:id="@+id/removeFilter"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginLeft="5dp"
-                        android:background="@drawable/rounded_radius_background"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:src="@drawable/baseline_close_24"
-                        android:tint="@color/colorRedDark"
-                        tools:ignore="UseAppTint" />
+                        <TextView
+                            android:id="@+id/filterName"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:layout_marginLeft="5dp"
+                            android:fontFamily="@font/manrope_semibold"
+                            android:textSize="15dp"
+                            android:textStyle="bold" />
 
-                </LinearLayout>
+                        <ImageView
+                            android:id="@+id/removeFilter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginLeft="5dp"
+                            android:background="@drawable/rounded_radius_background"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:src="@drawable/baseline_close_24"
+                            android:tint="@color/colorRedDark"
+                            tools:ignore="UseAppTint" />
 
-            </com.google.android.material.card.MaterialCardView>
+                    </LinearLayout>
 
+                </com.google.android.material.card.MaterialCardView>
+
+
+            </LinearLayout>
 
         </LinearLayout>
-
 
     </LinearLayout>
 
@@ -404,8 +414,8 @@
             android:layout_gravity="center"
             android:background="@drawable/border_bottom_light"
             android:padding="16sp"
-            android:textColor="@color/black"
             android:textAlignment="center"
+            android:textColor="@color/black"
             android:textSize="16sp"
             android:visibility="gone" />
 

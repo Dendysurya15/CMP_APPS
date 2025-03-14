@@ -96,7 +96,13 @@ class FormESPBActivity : AppCompatActivity() {
     var companyAbbr = ""
     var formattedJanjangString = ""
     var tph1IdPanen = ""
-
+    private var regionalId: String? = null
+    private var estateId: String? = null
+    private var estateName: String? = null
+    private var userName: String? = null
+    private var userId: Int? = null
+    private var jabatanUser: String? = null
+    private var afdelingUser: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -202,6 +208,14 @@ class FormESPBActivity : AppCompatActivity() {
         }
 
         val prefManager = PrefManager(this)
+
+        regionalId = prefManager!!.regionalIdUserLogin
+        estateId = prefManager!!.estateIdUserLogin
+        estateName = prefManager!!.estateUserLogin
+        userName = prefManager!!.nameUserLogin
+        userId = prefManager!!.idUserLogin
+        jabatanUser = prefManager!!.jabatanUserLogin
+
         val idPetugas = try {
             prefManager.idUserLogin
         }catch (e: Exception){
@@ -557,11 +571,8 @@ class FormESPBActivity : AppCompatActivity() {
     }
 
     private fun initViewModel() {
-
         val factory = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
-
-
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -617,9 +628,23 @@ class FormESPBActivity : AppCompatActivity() {
         return sdf.format(Date())
     }
 
+
     private fun setupHeader() {
+
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
-        AppUtils.setupFeatureHeader(featureName, tvFeatureName)
+        val userSection = findViewById<TextView>(R.id.userSection)
+        val locationSection = findViewById<LinearLayout>(R.id.locationSection)
+        locationSection.visibility = View.VISIBLE
+
+        AppUtils.setupUserHeader(
+            userName = userName,
+            jabatanUser = jabatanUser,
+            estateName = estateName,
+            afdelingUser = afdelingUser,
+            userSection = userSection,
+            featureName = featureName,
+            tvFeatureName = tvFeatureName
+        )
     }
 
     private fun showPopupSearchDropdown(
@@ -895,7 +920,6 @@ class FormESPBActivity : AppCompatActivity() {
 
         return gson.toJson(rootObject)
     }
-
 
     class ESPBViewModelFactory(private val repository: AppRepository) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {

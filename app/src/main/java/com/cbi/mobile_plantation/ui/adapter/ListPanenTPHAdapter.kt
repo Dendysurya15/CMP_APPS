@@ -1,5 +1,8 @@
 package com.cbi.mobile_plantation.ui.adapter
 
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.annotation.SuppressLint
 import android.os.Handler
 import android.os.Looper
@@ -14,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.databinding.TableItemRowBinding
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import org.json.JSONException
@@ -202,6 +206,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
         fun bind(
             data: Map<String, Any>,
+            context: android.content.Context,
             isSelected: Boolean,
             archiveState: Int,
             onCheckedChange: (Boolean) -> Unit,
@@ -236,6 +241,14 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 // Set state based on selection and whether it's from a scan
                 binding.checkBoxPanen.isChecked = isSelected
                 binding.checkBoxPanen.isEnabled = !isScannedItem
+                if (!isScannedItem){
+                    // Set the color of the checkbox to blue when checked
+                    val colorStateList = ColorStateList(
+                        arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                        intArrayOf(Color.RED, Color.GRAY)
+                    )
+                    binding.checkBoxPanen.buttonTintList = colorStateList
+                }
 
                 // Add listener AFTER setting state
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
@@ -283,8 +296,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         )
         return ListPanenTPHViewHolder(binding)
     }
-
-
     fun selectAll(select: Boolean) {
         selectAllState = select
         selectedItems.clear()
@@ -295,8 +306,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 }
             }
         }
-        // Remove this line
-        // areCheckboxesEnabled = !select  // Disable checkboxes when selecting all
         Handler(Looper.getMainLooper()).post {
             notifyDataSetChanged()
             onSelectionChangeListener?.invoke(selectedItems.size)
@@ -322,89 +331,93 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             scannedTphIdsSet.add(tphId)
         }
 
-        holder.itemView.setOnClickListener {
-            val context = holder.itemView.context
-            val bottomSheetDialog = BottomSheetDialog(context)
-            val view = LayoutInflater.from(context)
-                .inflate(R.layout.layout_bottom_sheet_detail_table, null)
+        if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen){
+            holder.itemView.setOnClickListener {
+                val context = holder.itemView.context
+                val bottomSheetDialog = BottomSheetDialog(context)
+                val view = LayoutInflater.from(context)
+                    .inflate(R.layout.layout_bottom_sheet_detail_table, null)
 
-            view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
-                "Detail Panen - ${extractData(item).blokText} TPH ${extractData(item).tphText}"
+                view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
+                    "Detail Panen - ${extractData(item).blokText} TPH ${extractData(item).tphText}"
 
-            view.findViewById<Button>(R.id.btnCloseDetailTable).setOnClickListener {
-                bottomSheetDialog.dismiss()
-            }
-
-            bottomSheetDialog.setContentView(view)
-
-            val maxHeight = (context.resources.displayMetrics.heightPixels * 0.85).toInt()
-
-            val data = extractData(item)
-
-            val dateCreated = item["date_created"] as? String ?: "-"
-            val dateCreatedRaw = dateCreated
-
-            val originalFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val displayFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
-
-            val formattedDate = try {
-                val date = originalFormat.parse(dateCreatedRaw)
-                date?.let { displayFormat.format(it) } ?: "-"
-            } catch (e: Exception) {
-                "-" // Fallback if parsing fails
-            }
-
-            val jjgJsonStr = item["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
-            val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
-
-            val infoItems = listOf(
-                DetailInfoType.TANGGAL_BUAT to formattedDate,
-                DetailInfoType.BLOK_BANJIR to item["blok_banjir"],
-                DetailInfoType.ESTATE_AFDELING to "${item["nama_estate"]} / ${item["nama_afdeling"]}",
-                DetailInfoType.BLOK_TAHUN to "${data.blokText} / ${item["tahun_tanam"]}",
-                DetailInfoType.ANCAK to "${item["ancak"]}",
-                DetailInfoType.NO_TPH to data.tphText,
-                DetailInfoType.KEMANDORAN to "${item["nama_kemandorans"]}",
-                DetailInfoType.NAMA_PEMANEN to "${item["nama_karyawans"]}",
-                DetailInfoType.TOTAL_JANJANG to (jjgJson["TO"]?.toString() ?: "0"),
-                DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK to (jjgJson["KP"]?.toString() ?: "0"),
-                DetailInfoType.TOTAL_JANJANG_DI_BAYAR to (jjgJson["PA"]?.toString() ?: "0"),
-                DetailInfoType.TOTAL_DATA_BUAH_MENTAH to (jjgJson["UN"]?.toString() ?: "0"),
-                DetailInfoType.TOTAL_DATA_LEWAT_MASAK to (jjgJson["OV"]?.toString() ?: "0"),
-                DetailInfoType.TOTAL_DATA_JJG_KOSONG to (jjgJson["EM"]?.toString() ?: "0"),
-                DetailInfoType.TOTAL_DATA_ABNORMAL to (jjgJson["AB"]?.toString() ?: "0"),
-                DetailInfoType.TOTAL_DATA_SERANGAN_TIKUS to (jjgJson["RA"]?.toString() ?: "0"),
-                DetailInfoType.TOTAL_DATA_TANGKAI_PANJANG to (jjgJson["LO"]?.toString() ?: "0"),
-                DetailInfoType.TOTAL_DATA_TIDAK_VCUT to (jjgJson["TI"]?.toString() ?: "0"),
-            )
-
-
-            // Set values for all items
-            infoItems.forEach { (type, value) ->
-                val itemView = view.findViewById<View>(type.id)
-                setInfoItemValues(itemView, type.label, value.toString())
-            }
-
-            bottomSheetDialog.show()
-
-
-            bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                ?.let { bottomSheet ->
-                    val behavior = BottomSheetBehavior.from(bottomSheet)
-
-                    behavior.apply {
-                        this.peekHeight = maxHeight
-                        this.state = BottomSheetBehavior.STATE_EXPANDED
-                        this.isFitToContents = true
-                        this.isDraggable = false
-                    }
-
-                    bottomSheet.layoutParams?.height = maxHeight
+                view.findViewById<Button>(R.id.btnCloseDetailTable).setOnClickListener {
+                    bottomSheetDialog.dismiss()
                 }
+
+                bottomSheetDialog.setContentView(view)
+
+                val maxHeight = (context.resources.displayMetrics.heightPixels * 0.85).toInt()
+
+                val data = extractData(item)
+
+                val dateCreated = item["date_created"] as? String ?: "-"
+                val dateCreatedRaw = dateCreated
+
+                val originalFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                val displayFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+
+                val formattedDate = try {
+                    val date = originalFormat.parse(dateCreatedRaw)
+                    date?.let { displayFormat.format(it) } ?: "-"
+                } catch (e: Exception) {
+                    "-" // Fallback if parsing fails
+                }
+
+                val jjgJsonStr = item["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
+                val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
+
+                val infoItems = listOf(
+                    DetailInfoType.TANGGAL_BUAT to formattedDate,
+                    DetailInfoType.BLOK_BANJIR to item["blok_banjir"],
+                    DetailInfoType.ESTATE_AFDELING to "${item["nama_estate"]} / ${item["nama_afdeling"]}",
+                    DetailInfoType.BLOK_TAHUN to "${data.blokText} / ${item["tahun_tanam"]}",
+                    DetailInfoType.ANCAK to "${item["ancak"]}",
+                    DetailInfoType.NO_TPH to data.tphText,
+                    DetailInfoType.KEMANDORAN to "${item["nama_kemandorans"]}",
+                    DetailInfoType.NAMA_PEMANEN to "${item["nama_karyawans"]}",
+                    DetailInfoType.TOTAL_JANJANG to (jjgJson["TO"]?.toString() ?: "0"),
+                    DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK to (jjgJson["KP"]?.toString() ?: "0"),
+                    DetailInfoType.TOTAL_JANJANG_DI_BAYAR to (jjgJson["PA"]?.toString() ?: "0"),
+                    DetailInfoType.TOTAL_DATA_BUAH_MENTAH to (jjgJson["UN"]?.toString() ?: "0"),
+                    DetailInfoType.TOTAL_DATA_LEWAT_MASAK to (jjgJson["OV"]?.toString() ?: "0"),
+                    DetailInfoType.TOTAL_DATA_JJG_KOSONG to (jjgJson["EM"]?.toString() ?: "0"),
+                    DetailInfoType.TOTAL_DATA_ABNORMAL to (jjgJson["AB"]?.toString() ?: "0"),
+                    DetailInfoType.TOTAL_DATA_SERANGAN_TIKUS to (jjgJson["RA"]?.toString() ?: "0"),
+                    DetailInfoType.TOTAL_DATA_TANGKAI_PANJANG to (jjgJson["LO"]?.toString() ?: "0"),
+                    DetailInfoType.TOTAL_DATA_TIDAK_VCUT to (jjgJson["TI"]?.toString() ?: "0"),
+                )
+
+
+                // Set values for all items
+                infoItems.forEach { (type, value) ->
+                    val itemView = view.findViewById<View>(type.id)
+                    setInfoItemValues(itemView, type.label, value.toString())
+                }
+
+                bottomSheetDialog.show()
+
+
+                bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                    ?.let { bottomSheet ->
+                        val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                        behavior.apply {
+                            this.peekHeight = maxHeight
+                            this.state = BottomSheetBehavior.STATE_EXPANDED
+                            this.isFitToContents = true
+                            this.isDraggable = false
+                        }
+
+                        bottomSheet.layoutParams?.height = maxHeight
+                    }
+            }
         }
+
 
         holder.bind(
             data = item,
+            context = holder.itemView.context,
             isSelected = selectedItems.contains(originalPosition) || isScannedItem,
             archiveState = currentArchiveState,
             onCheckedChange = { isChecked ->

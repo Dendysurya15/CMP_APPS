@@ -24,7 +24,6 @@ abstract class PanenDao {
         }
     }
 
-
     @Query("SELECT EXISTS(SELECT 1 FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated)")
     abstract suspend fun exists(tphId: String, dateCreated: String): Boolean
 
@@ -89,6 +88,9 @@ abstract class PanenDao {
     @Query("SELECT * FROM panen_table WHERE status_espb = :status")
     abstract fun getAllAPanenRestan(status: Int = 0): List<PanenEntityWithRelations>
 
+    @Transaction
+    @Query("SELECT * FROM panen_table WHERE no_espb = :no_espb")
+    abstract fun getAllPanenWhereESPB(no_espb: String): List<PanenEntity>
     // Add this to your PanenDao
     @Query("UPDATE panen_table SET status_espb = :status AND no_espb = :noESPB WHERE id IN (:ids)")
     abstract suspend fun updateESPBStatusByIds(ids: List<Int>, status: Int, noESPB : String): Int

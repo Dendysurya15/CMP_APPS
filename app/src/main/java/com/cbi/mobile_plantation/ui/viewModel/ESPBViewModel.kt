@@ -17,6 +17,9 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
     private val _espbList = MutableLiveData<List<ESPBEntity>>()
     val espbList: LiveData<List<ESPBEntity>> get() = _espbList
 
+    private val _espbEntity = MutableLiveData<ESPBEntity>()
+    val espbEntity: LiveData<ESPBEntity> get() = _espbEntity
+
     private val _archivedESPBList = MutableLiveData<List<ESPBEntity>>()
     val archivedESPBList: LiveData<List<ESPBEntity>> get() = _archivedESPBList
 
@@ -52,6 +55,12 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
     fun loadAllESPB() {
         viewModelScope.launch {
             _espbList.value = repository.getAllESPB()
+        }
+    }
+
+    fun getESPBById(int: Int){
+        viewModelScope.launch {
+            _espbEntity.value = repository.getESPBById(int)
         }
     }
 
@@ -115,10 +124,10 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
     private val _updateResult = MutableLiveData<Result<Int>>()
     val updateResult: LiveData<Result<Int>> = _updateResult
 
-    fun updateESPBStatus(idList: List<Int>, newStatus: Int, noESPB : String) {
+    fun updateESPBStatus(idList: List<Int>, newStatus: Int, no_espb: String) {
         viewModelScope.launch {
             try {
-                val updatedCount = repository.updatePanenESPBStatus(idList, newStatus, noESPB)
+                val updatedCount = repository.updatePanenESPBStatus(idList, newStatus, no_espb)
                 _updateResult.postValue(Result.success(updatedCount))
             } catch (e: Exception) {
                 _updateResult.postValue(Result.failure(e))
@@ -151,5 +160,15 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
 
     suspend fun getBlokById(listBlokId: List<Int>): List<TPHNewModel> {
         return repository.getBlokById(listBlokId)
+    }
+
+    suspend fun getTransporterNameById(transporterId: Int): String? {
+        // Implement this method to retrieve the transporter name from your repository or database
+        return repository.getTransporterNameById(transporterId)
+    }
+
+    suspend fun getMillNameById(millId: Int): String? {
+        // Implement this method to retrieve the mill name from your repository or database
+        return repository.getMillNameById(millId)
     }
 }
