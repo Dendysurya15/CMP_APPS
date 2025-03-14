@@ -19,5 +19,6 @@ data class wbESPBData(
     @SerializedName("created_by_id") val createdById: Int,
     @SerializedName("no_espb") val noEspb: String,
     @SerializedName("created_at") val createdAt: String,
+    @SerializedName("update_info_sp") val update_info_sp: String,
     @SerializedName("creator_info") val creatorInfo: JsonElement,
 )

@@ -25,6 +25,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -79,6 +80,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -100,6 +103,8 @@ class HomePageActivity : AppCompatActivity() {
     private var countPanenTPHApproval: Int = 0  // Global variable for count
     private var counteSPBWBScanned: Int = 0  // Global variable for count
     private var countActiveESPB: Int = 0  // Global variable for count
+    private val _globalLastModifiedTPH = MutableLiveData<String>()
+    val globalLastModifiedTPH: LiveData<String> get() = _globalLastModifiedTPH
 
 
     private var hasShownErrorDialog = false  // Add this property
@@ -126,6 +131,7 @@ class HomePageActivity : AppCompatActivity() {
 
         loadingDialog = LoadingDialog(this)
         initViewModel()
+        _globalLastModifiedTPH.value = prefManager!!.lastModifiedDatasetTPH
         setupDownloadDialog()
         setupTitleAppNameAndVersion()
         setupName()
@@ -243,17 +249,17 @@ class HomePageActivity : AppCompatActivity() {
         val features = listOf(
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
-                featureName = "Panen TBS",
-                featureNameBackgroundColor = R.color.greenDarker,
-                iconResource = R.drawable.cbi,
+                featureName = AppUtils.ListFeatureNames.PanenTBS,
+                featureNameBackgroundColor = R.color.greenBorder,
+                iconResource = R.drawable.panen_tbs_icon,
                 count = null,
                 functionDescription = "Pencatatatan panen TBS di TPH oleh kerani panen",
                 displayType = DisplayType.ICON
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
-                featureName = "Rekap Hasil Panen",
-                featureNameBackgroundColor = R.color.greenDarker,
+                featureName = AppUtils.ListFeatureNames.RekapHasilPanen,
+                featureNameBackgroundColor = R.color.greenBorder,
                 iconResource = null,
                 count = countPanenTPH.toString(),
                 functionDescription = "Rekapitulasi panen TBS dan transfer data ke suoervisi",
@@ -261,17 +267,17 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
-                featureName = "Scan Hasil Panen",
-                featureNameBackgroundColor = R.color.greenDarker,
-                iconResource = R.drawable.cbi,
+                featureName = AppUtils.ListFeatureNames.ScanHasilPanen,
+                featureNameBackgroundColor = R.color.blueLightBorder,
+                iconResource = R.drawable.scan_hasil_panen_icon,
                 count = null,
                 functionDescription = "Transfer data dari kerani panen ke supervisi untuk pembuatan eSPB",
                 displayType = DisplayType.ICON
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
-                featureName = "Rekap panen dan restan",
-                featureNameBackgroundColor = R.color.greenDarker,
+                featureName = AppUtils.ListFeatureNames.RekapPanenDanRestan,
+                featureNameBackgroundColor = R.color.blueLightBorder,
                 iconResource = null,
                 count = countPanenTPHApproval.toString(),
                 functionDescription = "Rekapitulsasi panen TBS dan restan dari kerani panen",
@@ -279,17 +285,17 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Buat eSPB",
-                featureNameBackgroundColor = R.color.greenDarker,
-                iconResource = R.drawable.cbi,
+                featureName = AppUtils.ListFeatureNames.BuatESPB,
+                featureNameBackgroundColor = R.color.yellowBorder,
+                iconResource = R.drawable.espb_icon,
                 functionDescription = "Transfer data dari driver ke supervisi untuk pembuatan eSPB",
                 displayType = DisplayType.ICON,
                 subTitle = "Scan QR Code eSPB"
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Rekap eSPB",
-                featureNameBackgroundColor = R.color.greenDarker,
+                featureName = AppUtils.ListFeatureNames.RekapESPB,
+                featureNameBackgroundColor = R.color.yellowBorder,
                 iconResource = null,
                 count = "0",
                 functionDescription = "Rekapitulasi eSPB dan transfer data ke driver",
@@ -297,17 +303,17 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Inspeksi Panen",
-                featureNameBackgroundColor = R.color.greenDarker,
-                iconResource = R.drawable.cbi,
+                featureName = AppUtils.ListFeatureNames.InspeksiPanen,
+                featureNameBackgroundColor = R.color.blueDarkborder,
+                iconResource = R.drawable.inspeksi_icon,
                 functionDescription = "Buat inspeksi panen",
                 displayType = DisplayType.ICON,
                 subTitle = "Scan QR Code eSPB"
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Rekap Inspeksi Panen",
-                featureNameBackgroundColor = R.color.greenDarker,
+                featureName = AppUtils.ListFeatureNames.RekapInspeksiPanen,
+                featureNameBackgroundColor = R.color.blueDarkborder,
                 iconResource = null,
                 count = "0",
                 functionDescription = "Rekapitulasi inspeksi panen",
@@ -315,9 +321,9 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Scan e-SPB Timbangan Mill",
-                featureNameBackgroundColor = R.color.greenDarker,
-                iconResource = R.drawable.cbi,
+                featureName = AppUtils.ListFeatureNames.ScanESPBTimbanganMill,
+                featureNameBackgroundColor = R.color.yellowBorder,
+                iconResource = R.drawable.timbang_icon,
                 functionDescription = "Scan data eSPB dari driver oleh kerani timbang",
                 displayType = DisplayType.ICON,
                 subTitle = "Transfer data eSPB dari driver"
@@ -325,8 +331,8 @@ class HomePageActivity : AppCompatActivity() {
 
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Rekap e-SPB Timbangan Mill",
-                featureNameBackgroundColor = R.color.greenDarker,
+                featureName = AppUtils.ListFeatureNames.RekapESPBTimbanganMill,
+                featureNameBackgroundColor = R.color.yellowBorder,
                 iconResource = R.drawable.cbi,
                 functionDescription = "Rekapitulasi eSPB yang telah discan",
                 displayType = DisplayType.COUNT,
@@ -334,17 +340,17 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Absensi panen",
-                featureNameBackgroundColor = R.color.greenDarker,
-                iconResource = R.drawable.cbi,
+                featureName = AppUtils.ListFeatureNames.AbsensiPanen,
+                featureNameBackgroundColor = R.color.greenBorder,
+                iconResource = R.drawable.absensi_panen_icon,
                 count = null,
                 functionDescription = "Absensi kehadiran karyawan panen oleh supervisi",
                 displayType = DisplayType.ICON
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Rekap absensi panen",
-                featureNameBackgroundColor = R.color.greenDarker,
+                featureName = AppUtils.ListFeatureNames.RekapAbsensiPanen,
+                featureNameBackgroundColor = R.color.greenBorder,
                 iconResource = null,
                 count = countAbsensi.toString(),
                 functionDescription = "Rekapitulasi absensi karyawan dan transfer data ke kerani panen",
@@ -352,32 +358,87 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Scan absensi panen",
-                featureNameBackgroundColor = R.color.greenDarker,
-                iconResource = R.drawable.cbi,
+                featureName = AppUtils.ListFeatureNames.ScanAbsensiPanen,
+                featureNameBackgroundColor = R.color.greenBorder,
+                iconResource = R.drawable.scan_qr_icon,
                 count = null,
                 functionDescription = "Transfer data abseni dari supervisi ke kerani panen",
                 displayType = DisplayType.ICON
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Sinkronisasi data",
-                featureNameBackgroundColor = R.color.greenDarker,
-                iconResource = R.drawable.cbi,
+                featureName = AppUtils.ListFeatureNames.SinkronisasiData,
+                featureNameBackgroundColor = R.color.toscaBorder,
+                iconResource = R.drawable.upload_icon,
                 functionDescription = "Update semua data master",
                 displayType = DisplayType.ICON,
                 subTitle = "Sinkronisasi data manual"
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
-                featureName = "Upload data CMP",
-                featureNameBackgroundColor = R.color.greenDarker,
-                iconResource = R.drawable.cbi,
+                featureName = AppUtils.ListFeatureNames.UploadDataCMP,
+                featureNameBackgroundColor = R.color.toscaBorder,
+                iconResource = R.drawable.sync_icon,
                 functionDescription = "Upload semua data di aplikasi",
                 displayType = DisplayType.ICON,
                 subTitle = "Upload Semua Data CMP"
             )
         )
+
+        fun getFilteredFeaturesByJabatan(jabatan: String): List<FeatureCard> {
+            val commonFeatures = listOf(
+                features.find { it.featureName == AppUtils.ListFeatureNames.SinkronisasiData },
+                features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
+            ).filterNotNull()
+
+            val specificFeatures = when (jabatan) {
+                AppUtils.ListFeatureByRoleUser.KeraniPanen -> listOf(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.PanenTBS },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapHasilPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
+                ).filterNotNull()
+
+                AppUtils.ListFeatureByRoleUser.KeraniTimbang -> listOf(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanESPBTimbanganMill },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPBTimbanganMill },
+                ).filterNotNull()
+
+                AppUtils.ListFeatureByRoleUser.Mandor1 -> listOf(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanHasilPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.BuatESPB },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+                ).filterNotNull()
+
+                AppUtils.ListFeatureByRoleUser.Asisten -> listOf(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanHasilPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.BuatESPB },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+                ).filterNotNull()
+
+                AppUtils.ListFeatureByRoleUser.IT -> features
+
+                else -> emptyList()
+            }
+
+            return if (jabatan == AppUtils.ListFeatureByRoleUser.IT) {
+                specificFeatures
+            } else {
+                specificFeatures + commonFeatures
+            }
+        }
+
 
         val gridLayoutManager = GridLayoutManager(this, 2)
         gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
@@ -386,6 +447,12 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
+        val jabatan = prefManager!!.jabatanUserLogin!!
+        val filteredFeatures = getFilteredFeaturesByJabatan(jabatan)
+
+        val tvCountFeatures = findViewById<TextView>(R.id.tvCountFeatures)
+        tvCountFeatures.text = filteredFeatures.size.toString()
+
         binding.featuresRecyclerView.apply {
             layoutManager = gridLayoutManager
             featureAdapter = FeatureCardAdapter { featureCard ->
@@ -393,7 +460,7 @@ class HomePageActivity : AppCompatActivity() {
             }
 
             adapter = featureAdapter
-            featureAdapter.setFeatures(features)
+            featureAdapter.setFeatures(filteredFeatures)
 
             post {
                 fetchDataEachCard()
@@ -419,7 +486,7 @@ class HomePageActivity : AppCompatActivity() {
 
     private fun onFeatureCardClicked(feature: FeatureCard) {
         when (feature.featureName) {
-            "Panen TBS" -> {
+            AppUtils.ListFeatureNames.PanenTBS -> {
                 if (feature.displayType == DisplayType.ICON) {
                     val intent = Intent(this, FeaturePanenTBSActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
@@ -427,7 +494,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            "Rekap Hasil Panen" -> {
+            AppUtils.ListFeatureNames.RekapHasilPanen -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListPanenTBSActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
@@ -435,7 +502,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            "Scan Hasil Panen" -> {
+            AppUtils.ListFeatureNames.ScanHasilPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
                     val intent = Intent(this, ScanQR::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
@@ -443,7 +510,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            "Buat eSPB" -> {
+            AppUtils.ListFeatureNames.BuatESPB -> {
                 if (feature.displayType == DisplayType.ICON) {
                     val intent = Intent(this, ScanQR::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
@@ -452,7 +519,7 @@ class HomePageActivity : AppCompatActivity() {
             }
 
 
-            "Rekap eSPB" -> {
+            AppUtils.ListFeatureNames.RekapESPB -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListHistoryESPBActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
@@ -460,7 +527,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            "Rekap panen dan restan" -> {
+            AppUtils.ListFeatureNames.RekapPanenDanRestan -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListPanenTBSActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
@@ -468,7 +535,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            "Inspeksi Panen" -> {
+            AppUtils.ListFeatureNames.InspeksiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
                     val intent = Intent(this, FormInspectionActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
@@ -476,7 +543,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            "Absensi panen" -> {
+            AppUtils.ListFeatureNames.AbsensiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
                     val intent = Intent(this, FeatureAbsensiActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
@@ -484,7 +551,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            "Rekap absensi panen" -> {
+            AppUtils.ListFeatureNames.RekapAbsensiPanen -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListAbsensiActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
@@ -492,7 +559,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            "Scan absensi panen" -> {
+            AppUtils.ListFeatureNames.ScanAbsensiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
                     AlertDialogUtility.withSingleAction(
                         this@HomePageActivity,
@@ -507,7 +574,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            "Scan e-SPB Timbangan Mill" -> {
+            AppUtils.ListFeatureNames.ScanESPBTimbanganMill -> {
                 if (feature.displayType == DisplayType.ICON) {
                     val intent = Intent(this, ScanWeighBridgeActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
@@ -515,7 +582,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            "Rekap e-SPB Timbangan Mill" -> {
+            AppUtils.ListFeatureNames.RekapESPBTimbanganMill -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListHistoryWeighBridgeActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
@@ -523,7 +590,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            "Sinkronisasi data" -> {
+            AppUtils.ListFeatureNames.SinkronisasiData -> {
                 if (feature.displayType == DisplayType.ICON) {
                     if (AppUtils.isNetworkAvailable(this)) {
                         isTriggerButtonSinkronisasiData = true
@@ -567,7 +634,7 @@ class HomePageActivity : AppCompatActivity() {
             }
 
 
-            "Upload data CMP" -> {
+            AppUtils.ListFeatureNames.UploadDataCMP -> {
                 if (feature.displayType == DisplayType.ICON) {
 
                     lifecycleScope.launch {
@@ -576,7 +643,10 @@ class HomePageActivity : AppCompatActivity() {
                         delay(500)
 
                         allUploadZipFilesToday =
-                            AppUtils.checkUploadZipReadyToday(prefManager!!.idUserLogin.toString(), this@HomePageActivity).toMutableList()
+                            AppUtils.checkUploadZipReadyToday(
+                                prefManager!!.idUserLogin.toString(),
+                                this@HomePageActivity
+                            ).toMutableList()
 
                         if (allUploadZipFilesToday.isNotEmpty()) {
                             uploadCMPViewModel.getUploadCMPTodayData()
@@ -691,6 +761,7 @@ class HomePageActivity : AppCompatActivity() {
                                         mapOf(
                                             "id" to data.id,
                                             "blok_id" to concatenatedIds,
+                                            "blok_jjg" to data.blok_jjg,
                                             "jjg" to totalJjg,
                                             "created_by_id" to data.created_by_id,
                                             "created_at" to data.created_at,
@@ -698,8 +769,11 @@ class HomePageActivity : AppCompatActivity() {
                                             "driver" to data.driver,
                                             "transporter_id" to data.transporter_id,
                                             "mill_id" to data.mill_id,
-                                            "info_app" to data.creator_info,
+                                            "creator_info" to data.creator_info,
                                             "no_espb" to data.noESPB,
+                                            "tph0" to data.tph0,
+                                            "tph1" to data.tph1,
+                                            "update_info_sp" to data.update_info_sp,
                                             "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
                                                 .toString(),
                                             "jabatan" to prefManager!!.jabatanUserLogin.toString(),
@@ -1170,7 +1244,7 @@ class HomePageActivity : AppCompatActivity() {
 
             if (downloadItems.all { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
 
-
+                _globalLastModifiedTPH.value = prefManager!!.lastModifiedDatasetTPH
                 if (prefManager!!.isFirstTimeLaunch && downloadItems.any { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
                     prefManager!!.isFirstTimeLaunch = false
                     AppLogger.d("First-time launch flag updated to false")
@@ -1347,9 +1421,28 @@ class HomePageActivity : AppCompatActivity() {
         val jobTitle = "${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
         val initials = userName.split(" ").take(2).joinToString("") { it.take(1).uppercase() }
 
+        globalLastModifiedTPH.observe(this) { timestamp ->
+            val formattedDate = if (timestamp.isNullOrEmpty()) {
+                "-"
+            } else {
+                val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                val outputFormat = SimpleDateFormat("dd MMMM yyyy HH:mm", Locale("id", "ID"))
+                try {
+                    val date = inputFormat.parse(timestamp)
+                    outputFormat.format(date ?: "-")
+                } catch (e: Exception) {
+                    "-"
+                }
+            }
+
+            findViewById<TextView>(R.id.lastUpdateTPH).text = "Terakhir diperbarui: $formattedDate"
+        }
+
+
         findViewById<TextView>(R.id.userNameLogin).text = userName
         findViewById<TextView>(R.id.jabatanUserLogin).text = jobTitle
         findViewById<TextView>(R.id.initalName).text = initials
+
     }
 
     private fun setupCheckingAfterLogoutUser() {

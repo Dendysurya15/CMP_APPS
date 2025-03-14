@@ -96,6 +96,13 @@ class FormESPBActivity : AppCompatActivity() {
     var companyAbbr = ""
     var formattedJanjangString = ""
     var tph1IdPanen = ""
+    private var regionalId: String? = null
+    private var estateId: String? = null
+    private var estateName: String? = null
+    private var userName: String? = null
+    private var userId: Int? = null
+    private var jabatanUser: String? = null
+    private var afdelingUser: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -201,6 +208,14 @@ class FormESPBActivity : AppCompatActivity() {
         }
 
         val prefManager = PrefManager(this)
+
+        regionalId = prefManager!!.regionalIdUserLogin
+        estateId = prefManager!!.estateIdUserLogin
+        estateName = prefManager!!.estateUserLogin
+        userName = prefManager!!.nameUserLogin
+        userId = prefManager!!.idUserLogin
+        jabatanUser = prefManager!!.jabatanUserLogin
+
         val idPetugas = try {
             prefManager.idUserLogin
         }catch (e: Exception){
@@ -222,7 +237,7 @@ class FormESPBActivity : AppCompatActivity() {
 
         val cbFormEspbMekanisasi = findViewById<MaterialCheckBox>(R.id.cbFormEspbMekanisasi)
         cbFormEspbMekanisasi.setOnCheckedChangeListener {
-            _, isChecked ->
+                _, isChecked ->
             if (isChecked) {
 //                formEspbTransporter.visibility = View.GONE
 //                formEspbDriver.visibility = View.GONE
@@ -394,7 +409,7 @@ class FormESPBActivity : AppCompatActivity() {
 
         val cbFormEspbTransporter = findViewById<MaterialCheckBox>(R.id.cbFormEspbTransporter)
         cbFormEspbTransporter.setOnCheckedChangeListener {
-            _, isChecked ->
+                _, isChecked ->
             if (isChecked) {
                 formEspbTransporter.visibility = View.GONE
                 selectedTransporterId = 0
@@ -613,9 +628,23 @@ class FormESPBActivity : AppCompatActivity() {
         return sdf.format(Date())
     }
 
+
     private fun setupHeader() {
+
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
-        AppUtils.setupFeatureHeader(featureName, tvFeatureName)
+        val userSection = findViewById<TextView>(R.id.userSection)
+        val locationSection = findViewById<LinearLayout>(R.id.locationSection)
+        locationSection.visibility = View.VISIBLE
+
+        AppUtils.setupUserHeader(
+            userName = userName,
+            jabatanUser = jabatanUser,
+            estateName = estateName,
+            afdelingUser = afdelingUser,
+            userSection = userSection,
+            featureName = featureName,
+            tvFeatureName = tvFeatureName
+        )
     }
 
     private fun showPopupSearchDropdown(
@@ -917,7 +946,7 @@ class FormESPBActivity : AppCompatActivity() {
         noESPB: String,
         status_draft: Int,
         status_mekanisasi: Int
-        ){
+    ){
         val vM = ViewModelProvider(this)[ESPBViewModel::class.java]
 
         // Example: Create ESPB data

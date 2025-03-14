@@ -56,6 +56,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     private lateinit var loadingDialog: LoadingDialog
 
     var globalBlokJjg: String = ""
+    var globalBlokId: String = ""
+    var globalTotalJjg: String = ""
     var globalCreatedById: Int? = null
     var globalNopol: String = ""
     var globalDriver: String = ""
@@ -65,6 +67,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     var globalTph0: String = ""
     var globalTph1: String = ""
     var globalCreatorInfo: String = ""
+    var globalCreatedAt : String = ""
+    var globalUpdateInfoSP: String = ""
     var globalNoESPB: String = ""
     var globalDeptPPRO: Int = 0
     var globalDivisiPPRO: Int = 0
@@ -237,22 +241,27 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     val espbData = mapOf(
                                         "num" to number++,
                                         "id" to savedItemId,
-                                        "blok_id" to globalBlokJjg,
-                                        "jjg" to globalTph1,
+                                        "blok_id" to globalBlokId,
+                                        "blok_jjg" to globalBlokJjg,
+                                        "jjg" to globalTotalJjg,
                                         "created_by_id" to (globalCreatedById ?: 0),
-                                        "created_at" to SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        ).format(Date()),
+                                        "created_at" to globalCreatedAt,
                                         "nopol" to globalNopol,
                                         "driver" to globalDriver,
                                         "transporter_id" to (globalTransporterId ?: 0),
                                         "mill_id" to globalMillId,
-                                        "info_app" to globalCreatorInfo,
+                                        "creator_info" to globalCreatorInfo,
                                         "no_espb" to globalNoESPB,
-                                        "app_version" to globalCreatorInfo,
+                                        "tph0" to globalTph0,
+                                        "tph1" to globalTph1,
+                                        "update_info_sp" to globalUpdateInfoSP,
+                                        "app_version" to AppUtils.getDeviceInfo(this@ScanWeighBridgeActivity)
+                                            .toString(),
                                         "jabatan" to prefManager!!.jabatanUserLogin
                                     )
+
+
+                                    AppLogger.d(espbData.toString())
 
                                     val uploadDataList =
                                         mutableListOf<Pair<String, List<Map<String, Any>>>>()
@@ -330,7 +339,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                                     }
 
-                                    // Create the items to upload list including both items
                                     val itemsToUpload = listOf(itemToUpload, cmpItem)
                                     val globalIdEspb = listOf(savedItemId)
 
@@ -640,7 +648,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     } ?: emptyList()
 
                     val idBlokList = blokJjgList.map { it.first }
-
+                    val concatenatedIds = idBlokList.joinToString(",")
                     val pemuatList = parsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
                         ?.filter { it.isNotEmpty() } ?: emptyList()
 
@@ -713,8 +721,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                     val transporterData = transporterDeferred.await() ?: emptyList()
                     val transporterName = transporterData.firstOrNull()?.nama ?: "-"
+                    val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
 
-                    // Assign global variables safely
+                    globalBlokId = concatenatedIds
+                    globalTotalJjg = totalJjg.toString()
                     globalBlokJjg = parsedData?.espb?.blokJjg ?: "-"
                     globalCreatedById = prefManager!!.idUserLogin
                     globalNopol = parsedData?.espb?.nopol ?: "-"
@@ -724,8 +734,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalMillId = millId
                     globalTph0 = parsedData?.tph0 ?: "-"
                     globalTph1 = parsedData?.tph1 ?: "-"
+                    globalCreatedAt = parsedData?.espb?.createdAt.toString() ?: "-"
                     globalCreatorInfo = parsedData?.espb?.creatorInfo?.toString() ?: "-"
                     globalNoESPB = parsedData?.espb?.noEspb ?: "-"
+                    globalUpdateInfoSP = parsedData?.espb?.update_info_sp ?: "-"
 
                     withContext(Dispatchers.Main) {
                         showBottomSheetWithData(

@@ -37,6 +37,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.repository.AppRepository
+import com.cbi.mobile_plantation.data.model.KaryawanModel
+import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.ui.adapter.ListPanenTPHAdapter
 import com.cbi.mobile_plantation.ui.view.espb.FormESPBActivity
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
@@ -65,6 +67,7 @@ import com.leinardi.android.speeddial.SpeedDialActionItem
 import com.leinardi.android.speeddial.SpeedDialView
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -93,13 +96,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private lateinit var cardTerscan: MaterialCardView
     private lateinit var counterTersimpan: TextView
     private lateinit var counterTerscan: TextView
-    private lateinit var tvEmptyState: TextView // Add this
-    private lateinit var recyclerView: RecyclerView // Add this
+    private lateinit var tvEmptyState: TextView
+    private lateinit var recyclerView: RecyclerView
     private lateinit var speedDial: SpeedDialView
 
-    private var isAscendingOrder = true // Add this property at class level
+    private var isAscendingOrder = true
 
-    private lateinit var searchEditText: EditText  // Add this as class property
+    private lateinit var searchEditText: EditText
     private lateinit var sortButton: ImageView // Add this at class level
     private lateinit var filterSection: LinearLayout
     private lateinit var filterName: TextView
@@ -221,18 +224,19 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupSortButton()
         currentState = 0
         setActiveCard(cardTersimpan)
-        if (featureName == "Detail eSPB"){
+        if (featureName == "Detail eSPB") {
             // set to gone card_item_tersimpan
             cardTersimpan.visibility = View.GONE
             // set to gone card_item_terscan
             cardTerscan.visibility = View.GONE
-            val app= AppRepository(application)
+            val app = AppRepository(application)
             val espbViewModelFactory = ESPBViewModel.ESPBViewModelFactory(app)
             espbViewModel = ViewModelProvider(this, espbViewModelFactory)[ESPBViewModel::class.java]
             espbId = try {
                 intent.getStringExtra("id_espb").toString().toInt()
-            }catch (e: Exception){
-                Toasty.error(this, "Error mengambil id eSPB: ${e.message}", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toasty.error(this, "Error mengambil id eSPB: ${e.message}", Toast.LENGTH_LONG)
+                    .show()
                 0
             }
         }
@@ -256,7 +260,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         panenViewModel.loadActivePanenRestan(1)
                     }
                 }
-            } else if (featureName == "Detail eSPB"){
+            } else if (featureName == "Detail eSPB") {
                 panenViewModel.loadActivePanenRestan(1)
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
                 ll_detail_espb.visibility = View.VISIBLE
@@ -293,16 +297,23 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             lifecycleScope.launch {
                                 try {
                                     // Set Transporter
-                                    tvTransporter.findViewById<TextView>(R.id.tvTitleEspb).text = "Transporter"
+                                    tvTransporter.findViewById<TextView>(R.id.tvTitleEspb).text =
+                                        "Transporter"
                                     val transporterName = withContext(Dispatchers.IO) {
                                         try {
-                                            espbViewModel.getTransporterNameById(espb.transporter_id) ?: "Unknown"
+                                            espbViewModel.getTransporterNameById(espb.transporter_id)
+                                                ?: "Unknown"
                                         } catch (e: Exception) {
-                                            Log.e("ListPanenTBSActivity", "Error fetching transporter", e)
+                                            Log.e(
+                                                "ListPanenTBSActivity",
+                                                "Error fetching transporter",
+                                                e
+                                            )
                                             "Unknown"
                                         }
                                     }
-                                    tvTransporter.findViewById<TextView>(R.id.tvSubTitleEspb).text = transporterName
+                                    tvTransporter.findViewById<TextView>(R.id.tvSubTitleEspb).text =
+                                        transporterName
 
                                     // Set Mill
                                     tvMill.findViewById<TextView>(R.id.tvTitleEspb).text = "Mill"
@@ -314,10 +325,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             "Unknown"
                                         }
                                     }
-                                    tvMill.findViewById<TextView>(R.id.tvSubTitleEspb).text = millAbbr
+                                    tvMill.findViewById<TextView>(R.id.tvSubTitleEspb).text =
+                                        millAbbr
                                 } catch (e: Exception) {
                                     Log.e("ListPanenTBSActivity", "Error in coroutine", e)
-                                    Toasty.error(this@ListPanenTBSActivity, "Error loading details: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    Toasty.error(
+                                        this@ListPanenTBSActivity,
+                                        "Error loading details: ${e.message}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
 
@@ -326,9 +342,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             tvDriver.findViewById<TextView>(R.id.tvSubTitleEspb).text = espb.driver
 
                             // Set Mekanisasi status
-                            tvMekanisasi.findViewById<TextView>(R.id.tvTitleEspb).text = "Mekanisasi"
-                            val mekanisasiStatus = if (espb.status_mekanisasi == 1) "Ya" else "Tidak"
-                            tvMekanisasi.findViewById<TextView>(R.id.tvSubTitleEspb).text = mekanisasiStatus
+                            tvMekanisasi.findViewById<TextView>(R.id.tvTitleEspb).text =
+                                "Mekanisasi"
+                            val mekanisasiStatus =
+                                if (espb.status_mekanisasi == 1) "Ya" else "Tidak"
+                            tvMekanisasi.findViewById<TextView>(R.id.tvSubTitleEspb).text =
+                                mekanisasiStatus
 
                             // Set Draft status
                             tvDraft.findViewById<TextView>(R.id.tvTitleEspb).text = "Status"
@@ -339,16 +358,24 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             ll_detail_espb.visibility = View.VISIBLE
 
                         } catch (e: Exception) {
-                            Toasty.error(this@ListPanenTBSActivity, "Error displaying eSPB details: ${e.message}", Toast.LENGTH_LONG).show()
+                            Toasty.error(
+                                this@ListPanenTBSActivity,
+                                "Error displaying eSPB details: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
                             Log.e("ListPanenTBSActivity", "Error displaying eSPB details", e)
                         }
                     } else {
-                        Toasty.error(this@ListPanenTBSActivity, "eSPB data not found", Toast.LENGTH_LONG).show()
+                        Toasty.error(
+                            this@ListPanenTBSActivity,
+                            "eSPB data not found",
+                            Toast.LENGTH_LONG
+                        ).show()
                         ll_detail_espb.visibility = View.GONE
                     }
                 }
 
-            }else {
+            } else {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.VISIBLE
                 panenViewModel.loadActivePanen()
                 panenViewModel.loadPanenCountArchive() // Load archive count
@@ -516,7 +543,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             throw IllegalArgumentException("Invalid JSON format in jjg_json: $jjgJsonString")
                         }
 
-                        val key = if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
+                        val key =
+                            if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
 
                         val toValue = if (jjgJson.has(key)) {
                             jjgJson.getInt(key) // Throws JSONException if the key is not an int
@@ -779,7 +807,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
                 val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
                 val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
-                tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F,25F)
+                tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
                 val dashedLine: View = view.findViewById(R.id.dashedLine)
                 val loadingContainer: LinearLayout =
                     view.findViewById(R.id.loadingDotsContainerBottomSheet)
@@ -841,10 +869,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 val dataQR: TextView? = view.findViewById(R.id.dataQR)
                                 val titleQRConfirm: TextView =
                                     view.findViewById(R.id.titleAfterScanQR)
-                                titleQRConfirm.setResponsiveTextSizeWithConstraints(17F, 17F,19F)
+                                titleQRConfirm.setResponsiveTextSizeWithConstraints(17F, 17F, 19F)
                                 val descQRConfirm: TextView =
                                     view.findViewById(R.id.descAfterScanQR)
-                                descQRConfirm.setResponsiveTextSizeWithConstraints(17F, 15F,19F)
+                                descQRConfirm.setResponsiveTextSizeWithConstraints(17F, 15F, 19F)
                                 val btnConfirmScanPanenTPH: MaterialButton =
                                     view.findViewById(R.id.btnConfirmScanPanenTPH)
 
@@ -1245,78 +1273,138 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 listAdapter.updateData(emptyList())
                 Handler(Looper.getMainLooper()).postDelayed({
                     loadingDialog.dismiss()
-                    if (panenList.isNotEmpty()) {
-                        tvEmptyState.visibility = View.GONE
-                        recyclerView.visibility = View.VISIBLE
 
-                        mappedData = panenList.map { panenWithRelations ->
-                            mapOf<String, Any>(
-                                "id" to (panenWithRelations.panen.id as Any),
-                                "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                "date_created" to (panenWithRelations.panen.date_created as Any),
-                                "blok_name" to (panenWithRelations.tph?.blok_kode
-                                    ?: "Unknown"), // Handle null safely
-                                "nomor" to (panenWithRelations.tph!!.nomor as Any),
-                                "created_by" to (panenWithRelations.panen.created_by as Any),
-                                "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
-                                "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
-                                "foto" to (panenWithRelations.panen.foto as Any),
-                                "komentar" to (panenWithRelations.panen.komentar as Any),
-                                "asistensi" to (panenWithRelations.panen.asistensi as Any),
-                                "lat" to (panenWithRelations.panen.lat as Any),
-                                "lon" to (panenWithRelations.panen.lon as Any),
-                                "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
-                                "ancak" to (panenWithRelations.panen.ancak as Any),
-                                "archive" to (panenWithRelations.panen.archive as Any)
-                            )
-                        }
+                    lifecycleScope.launch {
 
 
-                        val distinctBlokNames = mappedData
-                            .map { it["blok_name"].toString() }
-                            .distinct()
-                            .filter { it != "-" }
-                            .sorted()
-                            .joinToString(", ")
+                        if (panenList.isNotEmpty()) {
+                            tvEmptyState.visibility = View.GONE
+                            recyclerView.visibility = View.VISIBLE
 
-                        var totalJjgCount = 0
-                        mappedData.forEach { data ->
-                            try {
-                                val jjgJsonString = data["jjg_json"].toString()
-                                val jjgJson = JSONObject(jjgJsonString)
-                                val key = if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
-                                totalJjgCount += jjgJson.optInt(key, 0)
-                            } catch (e: Exception) {
-                                AppLogger.e("Error parsing jjg_json: ${e.message}")
+                            mappedData = panenList.map { panenWithRelations ->
+
+                                val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
+                                    .map { it.trim() }
+                                    .filter { it.isNotEmpty() }
+
+                                val pemuatData: List<KaryawanModel>? = withContext(Dispatchers.IO) {
+                                    try {
+                                        panenViewModel.getPemuatByIdList(pemuatList)
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error fetching Pemuat Data: ${e.message}")
+                                        null
+                                    }
+                                }
+
+                                val rawKemandoran: List<String> = pemuatData
+                                    ?.mapNotNull { it.kemandoran_id?.toString() }
+                                    ?.distinct() ?: emptyList()
+
+                                val kemandoranData: List<KemandoranModel>? =
+                                    withContext(Dispatchers.IO) {
+                                        try {
+                                            panenViewModel.getKemandoranById(rawKemandoran)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error fetching Kemandoran Data: ${e.message}")
+                                            null
+                                        }
+                                    }
+
+                                val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
+                                    ?.takeIf { it.isNotEmpty() }
+                                    ?.joinToString("\n") { "• $it" } ?: "-"
+
+
+                                val karyawanNamas = pemuatData?.mapNotNull { it.nama }
+                                    ?.takeIf { it.isNotEmpty() }
+                                    ?.joinToString(", ") ?: "-"
+
+
+                                mapOf<String, Any>(
+                                    "id" to (panenWithRelations.panen.id as Any),
+                                    "tph_id" to (panenWithRelations.panen.tph_id as Any),
+                                    "date_created" to (panenWithRelations.panen.date_created as Any),
+                                    "blok_name" to (panenWithRelations.tph?.blok_kode
+                                        ?: "Unknown"), // Handle null safely
+                                    "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                    "created_by" to (panenWithRelations.panen.created_by as Any),
+//                                    "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
+                                    "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
+                                    "foto" to (panenWithRelations.panen.foto as Any),
+                                    "komentar" to (panenWithRelations.panen.komentar as Any),
+                                    "asistensi" to (panenWithRelations.panen.asistensi as Any),
+                                    "lat" to (panenWithRelations.panen.lat as Any),
+                                    "lon" to (panenWithRelations.panen.lon as Any),
+                                    "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
+                                    "ancak" to (panenWithRelations.panen.ancak as Any),
+                                    "archive" to (panenWithRelations.panen.archive as Any),
+                                    "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
+                                    "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
+                                    "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
+                                    "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
+                                    "nama_karyawans" to karyawanNamas as Any,
+                                    "nama_kemandorans" to kemandoranNamas as Any,
+
+                                    )
                             }
-                        }
 
-                        // Calculate distinct TPH count
-                        val distinctTphCount = mappedData
-                            .mapNotNull { it["tph_id"].toString().toIntOrNull() }
-                            .distinct()
-                            .count()
 
-                        // Update TextViews
-                        if (featureName != "Detail eSPB"){
+                            val distinctBlokNames = mappedData
+                                .map { it["blok_name"].toString() }
+                                .distinct()
+                                .filter { it != "-" }
+                                .sorted()
+                                .joinToString(", ")
+
+                            var totalJjgCount = 0
+                            mappedData.forEach { data ->
+                                try {
+                                    val jjgJsonString = data["jjg_json"].toString()
+                                    val jjgJson = JSONObject(jjgJsonString)
+                                    val key =
+                                        if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
+                                    totalJjgCount += jjgJson.optInt(key, 0)
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error parsing jjg_json: ${e.message}")
+                                }
+                            }
+
+
+                            // Calculate distinct TPH count
+                            val distinctTphCount = mappedData
+                                .mapNotNull { it["tph_id"].toString().toIntOrNull() }
+                                .distinct()
+                                .count()
+
+                            // Update TextViews
+
                             blokSection.visibility = View.VISIBLE
                             totalSection.visibility = View.VISIBLE
-                        }
-                        listBlok.text = distinctBlokNames.ifEmpty { "-" }
-                        totalJjg.text = totalJjgCount.toString()
-                        totalTPH.text = distinctTphCount.toString()
+                            listBlok.text = distinctBlokNames.ifEmpty { "-" }
+                            totalJjg.text = totalJjgCount.toString()
+                            totalTPH.text = distinctTphCount.toString()
+                            // Update TextViews
+                            if (featureName != "Detail eSPB") {
+                                blokSection.visibility = View.VISIBLE
+                                totalSection.visibility = View.VISIBLE
+                            }
+                            listBlok.text = distinctBlokNames.ifEmpty { "-" }
+                            totalJjg.text = totalJjgCount.toString()
+                            totalTPH.text = distinctTphCount.toString()
 
-                        listAdapter.updateData(mappedData)
-                        originalData =
-                            emptyList() // Reset original data when new data is loaded
-                        filterSection.visibility =
-                            View.GONE // Hide filter section for new data
-                    } else {
-                        tvEmptyState.text = "No saved data available"
-                        tvEmptyState.visibility = View.VISIBLE
-                        recyclerView.visibility = View.GONE
-                        blokSection.visibility = View.GONE
-                        totalSection.visibility = View.GONE
+                            listAdapter.updateData(mappedData)
+                            originalData =
+                                emptyList() // Reset original data when new data is loaded
+                            filterSection.visibility =
+                                View.GONE // Hide filter section for new data
+                        } else {
+                            tvEmptyState.text = "No saved data available"
+                            tvEmptyState.visibility = View.VISIBLE
+                            recyclerView.visibility = View.GONE
+                            blokSection.visibility = View.GONE
+                            totalSection.visibility = View.GONE
+                        }
+
                     }
                     counterTersimpan.text = panenList.size.toString()
 
@@ -1379,7 +1467,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             try {
                                 val jjgJsonString = data["jjg_json"].toString()
                                 val jjgJson = JSONObject(jjgJsonString)
-                                val key = if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
+                                val key =
+                                    if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
+
                                 totalJjgCount += jjgJson.optInt(key, 0)
                             } catch (e: Exception) {
                                 AppLogger.e("Error parsing jjg_json: ${e.message}")
@@ -1393,7 +1483,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             .count()
 
                         // Update TextViews
-                        if (featureName != "Detail eSPB"){
+                        if (featureName != "Detail eSPB") {
                             blokSection.visibility = View.VISIBLE
                             totalSection.visibility = View.VISIBLE
                         }
