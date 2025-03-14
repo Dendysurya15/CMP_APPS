@@ -29,12 +29,7 @@
             android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
-            <com.google.android.material.checkbox.MaterialCheckBox
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:text="Mekanisasi Panen"
-                android:layout_marginHorizontal="20dp"
-                android:id="@+id/cbFormEspbMekanisasi"/>
+
             <com.google.android.material.checkbox.MaterialCheckBox
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
@@ -86,6 +81,12 @@
                 android:layout_marginHorizontal="20dp"
                 layout="@layout/pertanyaan_spinner_layout"
                 android:id="@+id/formEspbMill"/>
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:text="Simpan sebagai draft"
+                android:layout_marginHorizontal="20dp"
+                android:id="@+id/cbFormEspbMekanisasi"/>
             <ImageView
                 android:layout_width="match_parent"
                 android:layout_height="250dp"

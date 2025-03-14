@@ -2,6 +2,7 @@ package com.cbi.cmp_project.ui.adapter
 
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -186,6 +187,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
         fun bind(
             data: Map<String, Any>,
+            context: android.content.Context,
             isSelected: Boolean,
             archiveState: Int,
             onCheckedChange: (Boolean) -> Unit,
@@ -220,6 +222,14 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 // Set state based on selection and whether it's from a scan
                 binding.checkBoxPanen.isChecked = isSelected
                 binding.checkBoxPanen.isEnabled = !isScannedItem
+                if (!isScannedItem){
+                    // Set the color of the checkbox to blue when checked
+                    val colorStateList = ColorStateList(
+                        arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                        intArrayOf(Color.RED, Color.GRAY)
+                    )
+                    binding.checkBoxPanen.buttonTintList = colorStateList
+                }
 
                 // Add listener AFTER setting state
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
@@ -266,8 +276,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         )
         return ListPanenTPHViewHolder(binding)
     }
-
-
     fun selectAll(select: Boolean) {
         selectAllState = select
         selectedItems.clear()
@@ -278,8 +286,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 }
             }
         }
-        // Remove this line
-        // areCheckboxesEnabled = !select  // Disable checkboxes when selecting all
         Handler(Looper.getMainLooper()).post {
             notifyDataSetChanged()
             onSelectionChangeListener?.invoke(selectedItems.size)
@@ -305,6 +311,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         // Setup the view holder with correct state
         holder.bind(
             data = item,
+            context = holder.itemView.context,
             isSelected = selectedItems.contains(originalPosition) || isScannedItem,
             archiveState = currentArchiveState,
             onCheckedChange = { isChecked ->

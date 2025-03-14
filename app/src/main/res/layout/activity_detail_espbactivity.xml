@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+android:orientation="vertical"
+    android:id="@+id/parent_espb"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <include
+        android:layout_marginTop="5dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        layout="@layout/tv_title_with_subtitle"
+        android:id="@+id/tv_no_espb"/>
+
+    <include
+        android:layout_marginTop="5dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        layout="@layout/tv_title_with_subtitle"
+        android:id="@+id/tv_blok"/>
+
+    <include
+        android:layout_marginTop="5dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        layout="@layout/tv_title_with_subtitle"
+        android:id="@+id/tv_no_pol"/>
+
+    <include
+        android:layout_marginTop="5dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        layout="@layout/tv_title_with_subtitle"
+        android:id="@+id/tv_transporter"/>
+
+    <include
+        android:layout_marginTop="5dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        layout="@layout/tv_title_with_subtitle"
+        android:id="@+id/tv_driver"/>
+
+    <include
+        android:layout_marginTop="5dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        layout="@layout/tv_title_with_subtitle"
+        android:id="@+id/tv_mill"/>
+
+    <include
+        android:layout_marginTop="5dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        layout="@layout/tv_title_with_subtitle"
+        android:id="@+id/tv_mekanisasi"/>
+
+    <include
+        android:layout_marginTop="5dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        layout="@layout/tv_title_with_subtitle"
+        android:id="@+id/tv_draft"/>
+</LinearLayout>

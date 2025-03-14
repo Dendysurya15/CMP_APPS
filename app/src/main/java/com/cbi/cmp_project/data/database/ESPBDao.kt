@@ -20,7 +20,6 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table")
     abstract fun getAll(): List<ESPBEntity>
 
-    //    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
     @Query("SELECT * FROM espb_table where scan_status = 1")
     abstract fun getAllESPBUploaded(): List<ESPBEntity>
 
@@ -87,7 +86,4 @@ abstract class ESPBDao {
 
     @Query("SELECT * FROM espb_table")
     abstract fun getAllESPBS(): List<ESPBEntity>
-
-
-
 }

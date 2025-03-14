@@ -1,6 +1,8 @@
 package com.cbi.cmp_project.ui.adapter
 
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -10,10 +12,11 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
-import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.ui.view.panenTBS.ListPanenTBSActivity
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -24,12 +27,14 @@ data class ESPBData(
     val tphCount: String,
     val status_mekanisasi: Int?,
     val status_scan: Int?,
+    val id: Int?
 )
 
-class ESPBAdapter(private var items: List<ESPBData>) :
+class ESPBAdapter(private var items: List<ESPBData>, private val context: Activity) :
     RecyclerView.Adapter<ESPBAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val constraint_table_item_row: ConstraintLayout = view.findViewById(R.id.constraint_table_item_row)
         val td1: TextView = view.findViewById(R.id.td1)
         val td2: TextView = view.findViewById(R.id.td2)
         val td3: TextView = view.findViewById(R.id.td3)
@@ -61,6 +66,12 @@ class ESPBAdapter(private var items: List<ESPBData>) :
         holder.td3.text = item.janjang
         holder.td4.text = item.tphCount
 
+        holder.constraint_table_item_row.setOnClickListener {
+            val intent = Intent(context, ListPanenTBSActivity::class.java).putExtra("FEATURE_NAME", "Detail eSPB").putExtra("id_espb", "${item.id}")
+            context.startActivity(intent)
+            (context).overridePendingTransition(0, 0)
+        }
+
         if (item.status_mekanisasi == 1 && item.status_scan == 1){
             holder.checkbox.apply {
                 isChecked = true
@@ -77,7 +88,6 @@ class ESPBAdapter(private var items: List<ESPBData>) :
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
 
-            //
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
@@ -106,7 +116,6 @@ class ESPBAdapter(private var items: List<ESPBData>) :
 
         holder.td5.removeAllViews()
         holder.td5.addView(statusMekanisasi)
-
 
         val statusScan = LinearLayout(holder.itemView.context).apply {
             orientation = LinearLayout.VERTICAL
@@ -172,7 +181,6 @@ class ESPBAdapter(private var items: List<ESPBData>) :
             return dateTimeStr
         }
     }
-
 
     override fun getItemCount() = items.size
 }

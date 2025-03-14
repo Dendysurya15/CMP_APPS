@@ -100,7 +100,6 @@ class FormESPBActivity : AppCompatActivity() {
     var formattedJanjangString = ""
     var tph1IdPanen = ""
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_form_espbactivity)
@@ -134,7 +133,7 @@ class FormESPBActivity : AppCompatActivity() {
             Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 0 $e", Toasty.LENGTH_LONG).show()
         }
         try {
-            tph1 = intent.getStringExtra("tph_1").toString()
+            tph1 = removeRecordsWithStatus2(intent.getStringExtra("tph_1").toString())
             Log.d("FormESPBActivityTPH1", "tph1: $tph1")
         }catch (e: Exception){
             Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 1 $e", Toasty.LENGTH_LONG).show()
@@ -560,11 +559,8 @@ class FormESPBActivity : AppCompatActivity() {
     }
 
     private fun initViewModel() {
-
         val factory = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
-
-
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -899,7 +895,6 @@ class FormESPBActivity : AppCompatActivity() {
         return gson.toJson(rootObject)
     }
 
-
     class ESPBViewModelFactory(private val repository: AppRepository) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(ESPBViewModel::class.java)) {
@@ -953,7 +948,7 @@ class FormESPBActivity : AppCompatActivity() {
         try {
             vM.insertESPB(espbList)
             Toasty.success(this, "ESPB data inserted successfully", Toasty.LENGTH_LONG).show()
-            viewModel.updateESPBStatus(idsToUpdate, 1)
+            viewModel.updateESPBStatus(idsToUpdate, 1, noESPB)
             val intent = Intent(this, HomePageActivity::class.java)
             startActivity(intent)
             finishAffinity()
@@ -970,5 +965,23 @@ class FormESPBActivity : AppCompatActivity() {
             }
     }
 
+    private fun removeRecordsWithStatus2(dataString: String): String {
+        // Parse the string into individual records
+        val records = dataString.split(";")
+
+        // Filter out records where status_espb = 2
+        val filteredRecords = records.filter { record ->
+            val fields = record.split(",")
+            if (fields.size >= 4) {
+                val statusEspb = fields[3].trim()
+                statusEspb != "2"
+            } else {
+                true // Keep records that don't match our expected format
+            }
+        }
+
+        // Join the filtered records back into a string
+        return filteredRecords.joinToString(";")
+    }
 
 }

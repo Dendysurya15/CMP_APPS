@@ -20,6 +20,7 @@ class AppRepository(context: Context) {
     private val espbDao = database.espbDao()
     private val tphDao = database.tphDao()
     private val millDao = database.millDao()
+    private val transporterDao = database.transporterDao()
 
     sealed class SaveResultPanen {
         object Success : SaveResultPanen()
@@ -134,6 +135,15 @@ class AppRepository(context: Context) {
 
     suspend fun getAllPanen(): List<PanenEntity> = withContext(Dispatchers.IO) {
         panenDao.getAll()
+    }
+
+    suspend fun getAllPanenWhereESPB(no_esp: String): Result<List<PanenEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val data = panenDao.getAllPanenWhereESPB(no_esp)
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun getActivePanen(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
@@ -306,8 +316,8 @@ class AppRepository(context: Context) {
     }
 
     // Add this to your AppRepository
-    suspend fun updatePanenESPBStatus(ids: List<Int>, status: Int) = withContext(Dispatchers.IO) {
-        panenDao.updateESPBStatusByIds(ids, status)
+    suspend fun updatePanenESPBStatus(ids: List<Int>, status: Int, no_espb: String) = withContext(Dispatchers.IO) {
+        panenDao.updateESPBStatusByIds(ids, status, no_espb)
     }
 
     suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
@@ -319,9 +329,16 @@ class AppRepository(context: Context) {
         }
     }
 
-
-    suspend fun getBlokById( listBlokId: List<Int>): List<TPHNewModel> {
+    fun getBlokById( listBlokId: List<Int>): List<TPHNewModel> {
         return tphDao.getBlokById(listBlokId)
+    }
+
+    suspend fun getTransporterNameById(id: Int): String? {
+        return transporterDao.getTransporterNameById(id)
+    }
+
+    suspend fun getMillNameById(id: Int): String? {
+        return millDao.getMillNameById(id)
     }
 
 }

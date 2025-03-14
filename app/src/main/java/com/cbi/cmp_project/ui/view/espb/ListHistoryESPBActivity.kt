@@ -123,7 +123,8 @@ class ListHistoryESPBActivity : AppCompatActivity() {
                                         janjang = blokJjgList.sumOf { it.second ?: 0 }.toString(),
                                         tphCount = tphCount.toString(),
                                         status_mekanisasi = item.status_mekanisasi,
-                                        status_scan = item.status_draft
+                                        status_scan = item.status_draft,
+                                        id = item.id
                                     )
 
                                 }
@@ -150,7 +151,7 @@ class ListHistoryESPBActivity : AppCompatActivity() {
 
         recyclerView = findViewById(R.id.wbTableData)
         recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = ESPBAdapter(emptyList())
+        adapter = ESPBAdapter(emptyList(), this@ListHistoryESPBActivity)
         recyclerView.adapter = adapter
     }
 
@@ -213,11 +214,8 @@ class ListHistoryESPBActivity : AppCompatActivity() {
     @SuppressLint("MissingSuperCall")
     override fun onBackPressed() {
         vibrate()
-
         val intent = Intent(this, HomePageActivity::class.java)
         startActivity(intent)
         finishAffinity()
-
-
     }
 }
