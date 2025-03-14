@@ -4,6 +4,9 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.annotation.SuppressLint
+import android.content.Context
+import android.graphics.Rect
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -13,6 +16,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.databinding.TableItemRowBinding
@@ -20,8 +24,10 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -241,7 +247,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 // Set state based on selection and whether it's from a scan
                 binding.checkBoxPanen.isChecked = isSelected
                 binding.checkBoxPanen.isEnabled = !isScannedItem
-                if (!isScannedItem){
+                if (!isScannedItem) {
                     // Set the color of the checkbox to blue when checked
                     val colorStateList = ColorStateList(
                         arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
@@ -296,6 +302,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         )
         return ListPanenTPHViewHolder(binding)
     }
+
     fun selectAll(select: Boolean) {
         selectAllState = select
         selectedItems.clear()
@@ -331,7 +338,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             scannedTphIdsSet.add(tphId)
         }
 
-        if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen){
+        if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
             holder.itemView.setOnClickListener {
                 val context = holder.itemView.context
                 val bottomSheetDialog = BottomSheetDialog(context)
@@ -344,6 +351,63 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 view.findViewById<Button>(R.id.btnCloseDetailTable).setOnClickListener {
                     bottomSheetDialog.dismiss()
                 }
+
+                val recyclerView = view.findViewById<RecyclerView>(R.id.rvPhotoAttachments)
+                Log.d("BottomSheet", "RecyclerView found: ${recyclerView != null}")
+
+                if (recyclerView != null) {
+
+                    val recyclerView = view.findViewById<RecyclerView>(R.id.rvPhotoAttachments)
+
+// Disable scrolling with custom layout manager
+                    val nonScrollLayoutManager = object : LinearLayoutManager(context, HORIZONTAL, false) {
+                        override fun canScrollHorizontally(): Boolean {
+                            return false // Disable horizontal scrolling
+                        }
+                    }
+                    recyclerView.layoutManager = nonScrollLayoutManager
+
+// Add item decoration for even spacing
+                    val itemSpacing = (8 * context.resources.displayMetrics.density).toInt()
+                    recyclerView.addItemDecoration(object : RecyclerView.ItemDecoration() {
+                        override fun getItemOffsets(
+                            outRect: Rect,
+                            view: View,
+                            parent: RecyclerView,
+                            state: RecyclerView.State
+                        ) {
+                            outRect.left = itemSpacing / 2
+                            outRect.right = itemSpacing / 2
+                        }
+                    })
+
+// Disable overscroll effect
+                    recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
+
+// Get photo URLs from item["foto"] using the updated function
+                    val photoUrls = getPhotoUrlsFromItem(item, context)
+
+// Create adapter - always shows 3 items
+                    val photoAdapter = PhotoAttachmentAdapterDetailTable(photoUrls) { position ->
+                        // Handle photo click - maybe show fullscreen
+                        if (position < photoUrls.size) {
+                            // Check if file exists before showing
+                            val photoFile = File(photoUrls[position])
+                            if (photoFile.exists()) {
+                                // Show fullscreen photo viewer or whatever action you want
+                                showFullScreenPhoto(context, photoFile)
+                            } else {
+                                Toast.makeText(context, "Photo file not found", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+
+// Set the adapter
+                    recyclerView.adapter = photoAdapter
+                } else {
+                    Log.e("BottomSheet", "RecyclerView not found in layout!")
+                }
+
 
                 bottomSheetDialog.setContentView(view)
 
@@ -361,10 +425,11 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     val date = originalFormat.parse(dateCreatedRaw)
                     date?.let { displayFormat.format(it) } ?: "-"
                 } catch (e: Exception) {
-                    "-" // Fallback if parsing fails
+                    "-"
                 }
 
-                val jjgJsonStr = item["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
+                val jjgJsonStr =
+                    item["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
                 val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
 
                 val infoItems = listOf(
@@ -437,6 +502,40 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             isScannedItem = isScannedItem
         )
     }
+
+    // Helper function to show fullscreen photo
+    private fun showFullScreenPhoto(context: Context, photoFile: File) {
+        // Implement your fullscreen photo viewer here
+        // For example, you could open a new activity or dialog
+        Toast.makeText(context, "Viewing photo: ${photoFile.name}", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun getPhotoUrlsFromItem(item: Map<String, Any?>, context: Context): List<String> {
+        // Get the root directory for storing photos
+        val rootApp = File(
+            context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+            "CMP-${AppUtils.WaterMarkFotoDanFolder.WMPanenTPH}" // Store under "CMP-featureName"
+        ).toString()
+
+        // Get photos string from item
+        val photoString = item["foto"] as? String
+
+        if (photoString.isNullOrEmpty()) {
+            Log.d("PhotoAdapter", "No photos found in item")
+            return emptyList()
+        }
+
+        // Split the string by semicolons to get individual photo filenames
+        val photoFileNames = photoString.split(";")
+
+        // Create full file paths (up to maximum 3)
+        return photoFileNames
+            .take(3) // Limit to maximum 3 photos
+            .map { fileName ->
+                "$rootApp/$fileName" // Full path to the photo file
+            }
+    }
+
 
     fun updateArchiveState(state: Int) {
         currentArchiveState = state

@@ -261,7 +261,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     }
                 }
             } else if (featureName == "Detail eSPB") {
-                panenViewModel.loadActivePanenRestan(1)
+                panenViewModel.loadActivePanenRestan(2)
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
                 ll_detail_espb.visibility = View.VISIBLE
                 espbViewModel.getESPBById(espbId)

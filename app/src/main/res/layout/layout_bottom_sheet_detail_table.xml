@@ -239,6 +239,7 @@
                 android:layout_marginTop="8dp" />
 
             <TextView
+                android:id="@+id/tvPhotoAttachmentTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/manrope_bold"
@@ -247,6 +248,13 @@
                 android:textColor="@color/greenDarker"
                 android:textSize="20sp"
                 android:textStyle="bold" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvPhotoAttachments"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:clipToPadding="false" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
