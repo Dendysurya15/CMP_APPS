@@ -354,6 +354,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 "-" // Fallback if parsing fails
             }
 
+            val jjgJsonStr = item["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
+            val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
+
             val infoItems = listOf(
                 DetailInfoType.TANGGAL_BUAT to formattedDate,
                 DetailInfoType.BLOK_BANJIR to item["blok_banjir"],
@@ -363,8 +366,18 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 DetailInfoType.NO_TPH to data.tphText,
                 DetailInfoType.KEMANDORAN to "${item["nama_kemandorans"]}",
                 DetailInfoType.NAMA_PEMANEN to "${item["nama_karyawans"]}",
-                DetailInfoType.TOTAL_JANJANG to ""
+                DetailInfoType.TOTAL_JANJANG to (jjgJson["TO"]?.toString() ?: "0"),
+                DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK to (jjgJson["KP"]?.toString() ?: "0"),
+                DetailInfoType.TOTAL_JANJANG_DI_BAYAR to (jjgJson["PA"]?.toString() ?: "0"),
+                DetailInfoType.TOTAL_DATA_BUAH_MENTAH to (jjgJson["UN"]?.toString() ?: "0"),
+                DetailInfoType.TOTAL_DATA_LEWAT_MASAK to (jjgJson["OV"]?.toString() ?: "0"),
+                DetailInfoType.TOTAL_DATA_JJG_KOSONG to (jjgJson["EM"]?.toString() ?: "0"),
+                DetailInfoType.TOTAL_DATA_ABNORMAL to (jjgJson["AB"]?.toString() ?: "0"),
+                DetailInfoType.TOTAL_DATA_SERANGAN_TIKUS to (jjgJson["RA"]?.toString() ?: "0"),
+                DetailInfoType.TOTAL_DATA_TANGKAI_PANJANG to (jjgJson["LO"]?.toString() ?: "0"),
+                DetailInfoType.TOTAL_DATA_TIDAK_VCUT to (jjgJson["TI"]?.toString() ?: "0"),
             )
+
 
             // Set values for all items
             infoItems.forEach { (type, value) ->
@@ -428,14 +441,32 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         NO_TPH(R.id.DataNoTPH, "No TPH"),
         KEMANDORAN(R.id.DataKemandoran, "Kemandoran"),
         NAMA_PEMANEN(R.id.DataNamaPemanen, "Nama Pemanen"),
-        TOTAL_JANJANG(R.id.DataTotalJanjang, "Total Janjang")
+        TOTAL_JANJANG(R.id.DataTotalJanjang, "Total Janjang"),
+        TOTAL_DIKIRIM_KE_PABRIK(R.id.DataDikirimKePabrik, "Dikirim Ke Pabrik"),
+        TOTAL_JANJANG_DI_BAYAR(R.id.DataJanjangDibayar, "Janjang DiBayar"),
+        TOTAL_DATA_BUAH_MENTAH(R.id.DataBuahMentah, "Buah Mentah"),
+        TOTAL_DATA_LEWAT_MASAK(R.id.DataBuahLewatMasak, "Buah Lewat Masak"),
+        TOTAL_DATA_JJG_KOSONG(R.id.DataBuahJjgKosong, "Janjang Kosong"),
+        TOTAL_DATA_ABNORMAL(R.id.DataBuahAbnormal, "Buah Abnormal"),
+        TOTAL_DATA_SERANGAN_TIKUS(R.id.DataBuahSeranganTikus, "Serangan Tikus"),
+        TOTAL_DATA_TANGKAI_PANJANG(R.id.DataBuahTangkaiPanjang, "Tangkai Panjang"),
+        TOTAL_DATA_TIDAK_VCUT(R.id.DataBuahTidakVcut, "Tidak V-Cut"),
     }
 
     @SuppressLint("SetTextI18n")
     private fun setInfoItemValues(view: View, label: String, value: String) {
-        view.findViewById<TextView>(R.id.tvLabel)?.text = label
-        view.findViewById<TextView>(R.id.tvValue)?.text = ": $value"
+        val textViewLabel = view.findViewById<TextView>(R.id.tvLabel)
+        val textViewValue = view.findViewById<TextView>(R.id.tvValue)
+
+        textViewLabel?.text = label
+
+        if (label == DetailInfoType.KEMANDORAN.label) {
+            textViewValue?.text = value
+        } else {
+            textViewValue?.text = ": $value"
+        }
     }
+
 
     private var onSelectionChangedListener: ((Int) -> Unit)? = null
 

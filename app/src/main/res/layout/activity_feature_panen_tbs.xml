@@ -481,6 +481,7 @@
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text="Dikirim ke Pabrik"
                                     android:textSize="21sp"
+                                    android:textColor="@color/black"
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterKirimPabrik"
                                     app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintWidth_percent="0.5"
@@ -515,6 +516,8 @@
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text="Janjang Dibayar"
                                     android:textSize="21sp"
+                                    android:textColor="@color/black"
+
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterTBSDibayar"
                                     app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintWidth_percent="0.5"

@@ -98,8 +98,8 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/manrope_bold"
                 android:text="Keterangan Panen"
-                android:textColor="@color/black"
-                android:textSize="19sp"
+                android:textColor="@color/greenDarker"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
             <include
@@ -163,9 +163,11 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/manrope_bold"
                 android:text="Data Grading"
-                android:textColor="@color/black"
-                android:textSize="19sp"
-                android:textStyle="bold" />
+                android:textColor="@color/greenDarker"
+                android:layout_marginTop="10dp"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                tools:ignore="HardcodedText" />
 
             <include
                 android:id="@+id/DataTotalJanjang"
@@ -174,14 +176,76 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp" />
 
+            <include
+                android:id="@+id/DataDikirimKePabrik"
+                layout="@layout/layout_data_info_detail_table"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+
+            <include
+                android:id="@+id/DataJanjangDibayar"
+                layout="@layout/layout_data_info_detail_table"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+
+            <include
+                android:id="@+id/DataBuahMentah"
+                layout="@layout/layout_data_info_detail_table"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+            <include
+                android:id="@+id/DataBuahLewatMasak"
+                layout="@layout/layout_data_info_detail_table"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+
+            <include
+                android:id="@+id/DataBuahJjgKosong"
+                layout="@layout/layout_data_info_detail_table"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+
+            <include
+                android:id="@+id/DataBuahAbnormal"
+                layout="@layout/layout_data_info_detail_table"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+
+            <include
+                android:id="@+id/DataBuahSeranganTikus"
+                layout="@layout/layout_data_info_detail_table"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+
+            <include
+                android:id="@+id/DataBuahTangkaiPanjang"
+                layout="@layout/layout_data_info_detail_table"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+
+            <include
+                android:id="@+id/DataBuahTidakVcut"
+                layout="@layout/layout_data_info_detail_table"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/manrope_bold"
                 android:text="Lampiran Foto TPH"
-                android:textColor="@color/black"
-                android:textSize="19sp"
+                android:layout_marginTop="10dp"
+                android:textColor="@color/greenDarker"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
         </LinearLayout>

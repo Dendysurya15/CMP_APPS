@@ -1172,7 +1172,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                 val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
                                     ?.takeIf { it.isNotEmpty() }
-                                    ?.joinToString("\n") ?: "-"
+                                    ?.joinToString("\n") { "• $it" } ?: "-"
+
 
                                 val karyawanNamas = pemuatData?.mapNotNull { it.nama }
                                     ?.takeIf { it.isNotEmpty() }

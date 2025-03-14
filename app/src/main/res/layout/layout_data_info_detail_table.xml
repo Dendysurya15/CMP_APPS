@@ -9,20 +9,20 @@
         android:id="@+id/tvLabel"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="0.3"
-        android:fontFamily="@font/manrope_medium"
+        android:layout_weight="0.4"
+        android:fontFamily="@font/manrope_semibold"
         android:textColor="@color/black"
         android:textStyle="italic"
-        android:textSize="17sp" />
+        android:textSize="18sp" />
 
     <TextView
         android:id="@+id/tvValue"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="0.7"
-        android:fontFamily="@font/manrope_medium"
+        android:layout_weight="0.6"
+        android:fontFamily="@font/manrope_semibold"
         android:text="-"
         android:textColor="@color/black"
-        android:textSize="17sp" />
+        android:textSize="18sp" />
 
 </LinearLayout>
