@@ -406,21 +406,25 @@ class HomePageActivity : AppCompatActivity() {
                 ).filterNotNull()
 
                 AppUtils.ListFeatureByRoleUser.Mandor1 -> listOf(
-                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanHasilPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.BuatESPB },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                 ).filterNotNull()
 
                 AppUtils.ListFeatureByRoleUser.Asisten -> listOf(
-                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanHasilPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.BuatESPB },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                 ).filterNotNull()
 
                 AppUtils.ListFeatureByRoleUser.IT -> features
@@ -757,6 +761,7 @@ class HomePageActivity : AppCompatActivity() {
                                         mapOf(
                                             "id" to data.id,
                                             "blok_id" to concatenatedIds,
+                                            "blok_jjg" to data.blok_jjg,
                                             "jjg" to totalJjg,
                                             "created_by_id" to data.created_by_id,
                                             "created_at" to data.created_at,
@@ -764,10 +769,11 @@ class HomePageActivity : AppCompatActivity() {
                                             "driver" to data.driver,
                                             "transporter_id" to data.transporter_id,
                                             "mill_id" to data.mill_id,
-                                            "info_app" to data.creator_info,
+                                            "creator_info" to data.creator_info,
                                             "no_espb" to data.noESPB,
                                             "tph0" to data.tph0,
                                             "tph1" to data.tph1,
+                                            "update_info_sp" to data.update_info_sp,
                                             "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
                                                 .toString(),
                                             "jabatan" to prefManager!!.jabatanUserLogin.toString(),

@@ -14,6 +14,7 @@ import com.cbi.mobile_plantation.data.network.StagingApiClient
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -323,7 +324,7 @@ class WeighBridgeRepository(context: Context) {
                                     progressRequestBody
                                 )
 
-                                val response = CMPApiClient.instance.uploadZip(filePart)
+                                val response = TestingAPIClient.instance.uploadZip(filePart)
 
                                 if (response.isSuccessful) {
                                     val responseBody = response.body()

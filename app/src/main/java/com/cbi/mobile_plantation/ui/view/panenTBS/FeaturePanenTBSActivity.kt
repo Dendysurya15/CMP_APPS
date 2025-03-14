@@ -1874,17 +1874,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 val selectedDivisiIdList = selectedDivisiId?.let { listOf(it) } ?: emptyList()
                 selectedDivisiValue = selectedDivisiId
 
-                val nonSelectedAfdelingKemandoran = try {
-                    divisiList.filter { it.divisi_abbr != selectedAfdeling }
+                val allIdAfdeling = try {
+                    divisiList.map { it.divisi }
                 } catch (e: Exception) {
-                    AppLogger.e("Error filtering nonSelectedAfdelingKemandoran: ${e.message}")
-                    emptyList()
-                }
-
-                val nonSelectedIdAfdeling = try {
-                    nonSelectedAfdelingKemandoran.map { it.divisi }
-                } catch (e: Exception) {
-                    AppLogger.e("Error mapping nonSelectedIdAfdeling: ${e.message}")
+                    AppLogger.e("Error mapping allIdAfdeling: ${e.message}")
                     emptyList()
                 }
 
@@ -1915,7 +1908,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             try {
                                 datasetViewModel.getKemandoranList(
                                     estateId!!.toInt(),
-                                    nonSelectedIdAfdeling as List<Int>
+                                    allIdAfdeling as List<Int>
                                 )
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching kemandoranLainList: ${e.message}")

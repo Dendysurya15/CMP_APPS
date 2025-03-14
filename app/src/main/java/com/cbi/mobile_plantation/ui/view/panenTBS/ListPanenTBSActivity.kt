@@ -89,13 +89,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private lateinit var cardTerscan: MaterialCardView
     private lateinit var counterTersimpan: TextView
     private lateinit var counterTerscan: TextView
-    private lateinit var tvEmptyState: TextView // Add this
-    private lateinit var recyclerView: RecyclerView // Add this
+    private lateinit var tvEmptyState: TextView
+    private lateinit var recyclerView: RecyclerView
     private lateinit var speedDial: SpeedDialView
 
-    private var isAscendingOrder = true // Add this property at class level
+    private var isAscendingOrder = true
 
-    private lateinit var searchEditText: EditText  // Add this as class property
+    private lateinit var searchEditText: EditText
     private lateinit var sortButton: ImageView // Add this at class level
     private lateinit var filterSection: LinearLayout
     private lateinit var filterName: TextView
