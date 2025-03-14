@@ -9,6 +9,8 @@ import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.mobile_plantation.data.model.TphRvData
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.KaryawanModel
+import com.cbi.mobile_plantation.data.model.KemandoranModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,6 +22,8 @@ class AppRepository(context: Context) {
     private val espbDao = database.espbDao()
     private val tphDao = database.tphDao()
     private val millDao = database.millDao()
+    private val karyawanDao = database.karyawanDao()
+    private val kemandoranDao = database.kemandoranDao()
 
     sealed class SaveResultPanen {
         object Success : SaveResultPanen()
@@ -30,6 +34,13 @@ class AppRepository(context: Context) {
         panenDao.insert(data)
     }
 
+    suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
+        return karyawanDao.getPemuatByIdList(idPemuat)
+    }
+
+    suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {
+        return kemandoranDao.getKemandoranById(idKemandoran)
+    }
 
     suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<List<Long>> =
         withContext(Dispatchers.IO) {

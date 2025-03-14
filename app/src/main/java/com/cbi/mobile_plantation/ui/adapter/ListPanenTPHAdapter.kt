@@ -361,8 +361,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 DetailInfoType.BLOK_TAHUN to "${data.blokText} / ${item["tahun_tanam"]}",
                 DetailInfoType.ANCAK to "${item["ancak"]}",
                 DetailInfoType.NO_TPH to data.tphText,
-                DetailInfoType.KEMANDORAN to "",
-                DetailInfoType.NAMA_PEMANEN to "",
+                DetailInfoType.KEMANDORAN to "${item["nama_kemandorans"]}",
+                DetailInfoType.NAMA_PEMANEN to "${item["nama_karyawans"]}",
                 DetailInfoType.TOTAL_JANJANG to ""
             )
 
