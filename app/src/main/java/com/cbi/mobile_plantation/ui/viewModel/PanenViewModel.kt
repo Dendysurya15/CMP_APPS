@@ -7,14 +7,18 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.mobile_plantation.data.model.KaryawanModel
+import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.utils.AppLogger
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 sealed class SaveDataPanenState {
@@ -79,6 +83,16 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         val count = repository.getPanenCountApproval()
         _panenCount.value = count
         return count
+    }
+
+    suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
+        return repository.getPemuatByIdList(idPemuat)
+    }
+
+    suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {
+        return withContext(Dispatchers.IO) {  // Run on background thread
+            repository.getKemandoranById(idKemandoran)
+        }
     }
 
     fun loadActivePanen() {

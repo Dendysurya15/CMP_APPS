@@ -35,6 +35,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.KaryawanModel
+import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.ui.adapter.ListPanenTPHAdapter
 import com.cbi.mobile_plantation.ui.view.espb.FormESPBActivity
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
@@ -62,6 +64,7 @@ import com.leinardi.android.speeddial.SpeedDialActionItem
 import com.leinardi.android.speeddial.SpeedDialView
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -665,7 +668,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
                 val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
                 val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
-                tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F,25F)
+                tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
                 val dashedLine: View = view.findViewById(R.id.dashedLine)
                 val loadingContainer: LinearLayout =
                     view.findViewById(R.id.loadingDotsContainerBottomSheet)
@@ -727,10 +730,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 val dataQR: TextView? = view.findViewById(R.id.dataQR)
                                 val titleQRConfirm: TextView =
                                     view.findViewById(R.id.titleAfterScanQR)
-                                titleQRConfirm.setResponsiveTextSizeWithConstraints(17F, 17F,19F)
+                                titleQRConfirm.setResponsiveTextSizeWithConstraints(17F, 17F, 19F)
                                 val descQRConfirm: TextView =
                                     view.findViewById(R.id.descAfterScanQR)
-                                descQRConfirm.setResponsiveTextSizeWithConstraints(17F, 15F,19F)
+                                descQRConfirm.setResponsiveTextSizeWithConstraints(17F, 15F, 19F)
                                 val btnConfirmScanPanenTPH: MaterialButton =
                                     view.findViewById(R.id.btnConfirmScanPanenTPH)
 
@@ -1131,84 +1134,127 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 listAdapter.updateData(emptyList())
                 Handler(Looper.getMainLooper()).postDelayed({
                     loadingDialog.dismiss()
-                    if (panenList.isNotEmpty()) {
-                        tvEmptyState.visibility = View.GONE
-                        recyclerView.visibility = View.VISIBLE
 
-                        mappedData = panenList.map { panenWithRelations ->
+                    lifecycleScope.launch {
 
 
+                        if (panenList.isNotEmpty()) {
+                            tvEmptyState.visibility = View.GONE
+                            recyclerView.visibility = View.VISIBLE
 
-                            mapOf<String, Any>(
-                                "id" to (panenWithRelations.panen.id as Any),
-                                "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                "date_created" to (panenWithRelations.panen.date_created as Any),
-                                "blok_name" to (panenWithRelations.tph?.blok_kode
-                                    ?: "Unknown"), // Handle null safely
-                                "nomor" to (panenWithRelations.tph!!.nomor as Any),
-                                "created_by" to (panenWithRelations.panen.created_by as Any),
-                                "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
-                                "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
-                                "foto" to (panenWithRelations.panen.foto as Any),
-                                "komentar" to (panenWithRelations.panen.komentar as Any),
-                                "asistensi" to (panenWithRelations.panen.asistensi as Any),
-                                "lat" to (panenWithRelations.panen.lat as Any),
-                                "lon" to (panenWithRelations.panen.lon as Any),
-                                "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
-                                "ancak" to (panenWithRelations.panen.ancak as Any),
-                                "archive" to (panenWithRelations.panen.archive as Any),
-                                "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
-                                "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
-                                "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
-                                "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
-                            )
-                        }
+                            mappedData = panenList.map { panenWithRelations ->
+
+                                val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
+                                    .map { it.trim() }
+                                    .filter { it.isNotEmpty() }
+
+                                val pemuatData: List<KaryawanModel>? = withContext(Dispatchers.IO) {
+                                    try {
+                                        panenViewModel.getPemuatByIdList(pemuatList)
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error fetching Pemuat Data: ${e.message}")
+                                        null
+                                    }
+                                }
+
+                                val rawKemandoran: List<String> = pemuatData
+                                    ?.mapNotNull { it.kemandoran_id?.toString() }
+                                    ?.distinct() ?: emptyList()
+
+                                val kemandoranData: List<KemandoranModel>? = withContext(Dispatchers.IO) {
+                                    try {
+                                        panenViewModel.getKemandoranById(rawKemandoran)
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error fetching Kemandoran Data: ${e.message}")
+                                        null
+                                    }
+                                }
+
+                                val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
+                                    ?.takeIf { it.isNotEmpty() }
+                                    ?.joinToString("\n") ?: "-"
+
+                                val karyawanNamas = pemuatData?.mapNotNull { it.nama }
+                                    ?.takeIf { it.isNotEmpty() }
+                                    ?.joinToString(", ") ?: "-"
 
 
-                        val distinctBlokNames = mappedData
-                            .map { it["blok_name"].toString() }
-                            .distinct()
-                            .filter { it != "-" }
-                            .sorted()
-                            .joinToString(", ")
+                                mapOf<String, Any>(
+                                    "id" to (panenWithRelations.panen.id as Any),
+                                    "tph_id" to (panenWithRelations.panen.tph_id as Any),
+                                    "date_created" to (panenWithRelations.panen.date_created as Any),
+                                    "blok_name" to (panenWithRelations.tph?.blok_kode
+                                        ?: "Unknown"), // Handle null safely
+                                    "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                    "created_by" to (panenWithRelations.panen.created_by as Any),
+//                                    "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
+                                    "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
+                                    "foto" to (panenWithRelations.panen.foto as Any),
+                                    "komentar" to (panenWithRelations.panen.komentar as Any),
+                                    "asistensi" to (panenWithRelations.panen.asistensi as Any),
+                                    "lat" to (panenWithRelations.panen.lat as Any),
+                                    "lon" to (panenWithRelations.panen.lon as Any),
+                                    "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
+                                    "ancak" to (panenWithRelations.panen.ancak as Any),
+                                    "archive" to (panenWithRelations.panen.archive as Any),
+                                    "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
+                                    "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
+                                    "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
+                                    "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
+                                    "nama_karyawans" to karyawanNamas as Any,
+                                    "nama_kemandorans" to kemandoranNamas as Any,
 
-                        var totalJjgCount = 0
-                        mappedData.forEach { data ->
-                            try {
-                                val jjgJsonString = data["jjg_json"].toString()
-                                val jjgJson = JSONObject(jjgJsonString)
-                                val key = if (featureName == "Rekap panen dan restan") "KP" else "TO"
-                                totalJjgCount += jjgJson.optInt(key, 0)
-                            } catch (e: Exception) {
-                                AppLogger.e("Error parsing jjg_json: ${e.message}")
+                                )
                             }
+
+
+                            val distinctBlokNames = mappedData
+                                .map { it["blok_name"].toString() }
+                                .distinct()
+                                .filter { it != "-" }
+                                .sorted()
+                                .joinToString(", ")
+
+                            var totalJjgCount = 0
+                            mappedData.forEach { data ->
+                                try {
+                                    val jjgJsonString = data["jjg_json"].toString()
+                                    val jjgJson = JSONObject(jjgJsonString)
+                                    val key =
+                                        if (featureName == "Rekap panen dan restan") "KP" else "TO"
+                                    totalJjgCount += jjgJson.optInt(key, 0)
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error parsing jjg_json: ${e.message}")
+                                }
+                            }
+
+                            // Calculate distinct TPH count
+                            val distinctTphCount = mappedData
+                                .mapNotNull { it["tph_id"].toString().toIntOrNull() }
+                                .distinct()
+                                .count()
+
+                            // Update TextViews
+
+                            blokSection.visibility = View.VISIBLE
+                            totalSection.visibility = View.VISIBLE
+                            listBlok.text = distinctBlokNames.ifEmpty { "-" }
+                            totalJjg.text = totalJjgCount.toString()
+                            totalTPH.text = distinctTphCount.toString()
+
+                            listAdapter.updateData(mappedData)
+                            originalData =
+                                emptyList() // Reset original data when new data is loaded
+                            filterSection.visibility =
+                                View.GONE // Hide filter section for new data
+                        } else {
+                            tvEmptyState.text = "No saved data available"
+                            tvEmptyState.visibility = View.VISIBLE
+                            recyclerView.visibility = View.GONE
+                            blokSection.visibility = View.GONE
+                            totalSection.visibility = View.GONE
                         }
 
-                        // Calculate distinct TPH count
-                        val distinctTphCount = mappedData
-                            .mapNotNull { it["tph_id"].toString().toIntOrNull() }
-                            .distinct()
-                            .count()
-
-                        // Update TextViews
-
-                        blokSection.visibility = View.VISIBLE
-                        totalSection.visibility = View.VISIBLE
-                        listBlok.text = distinctBlokNames.ifEmpty { "-" }
-                        totalJjg.text = totalJjgCount.toString()
-                        totalTPH.text = distinctTphCount.toString()
-
-                        listAdapter.updateData(mappedData)
-                        originalData =
-                            emptyList() // Reset original data when new data is loaded
-                        filterSection.visibility =
-                            View.GONE // Hide filter section for new data
-                    } else {
-                        tvEmptyState.text = "No saved data available"
-                        tvEmptyState.visibility = View.VISIBLE
-                        recyclerView.visibility = View.GONE
-                        blokSection.visibility = View.GONE
-                        totalSection.visibility = View.GONE
                     }
                     counterTersimpan.text = panenList.size.toString()
 
@@ -1272,7 +1318,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             try {
                                 val jjgJsonString = data["jjg_json"].toString()
                                 val jjgJson = JSONObject(jjgJsonString)
-                                val key = if (featureName == "Rekap panen dan restan") "KP" else "TO"
+                                val key =
+                                    if (featureName == "Rekap panen dan restan") "KP" else "TO"
                                 totalJjgCount += jjgJson.optInt(key, 0)
                             } catch (e: Exception) {
                                 AppLogger.e("Error parsing jjg_json: ${e.message}")
