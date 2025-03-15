@@ -8,6 +8,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
+import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -30,6 +31,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.os.postDelayed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -69,6 +71,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.logging.Handler
 
 class FormESPBActivity : AppCompatActivity() {
     var featureName = ""
@@ -103,6 +106,8 @@ class FormESPBActivity : AppCompatActivity() {
     private var userId: Int? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
+
+    private var noESPBStr = "NULL"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -461,7 +466,7 @@ class FormESPBActivity : AppCompatActivity() {
                 Log.e("DeviceInfo", "Failed to get phone model", e)
                 "Unknown"
             }
-            val noESPBStr = "$companyAbbr-$estatePetugas/$divisiAbbr/$espbDate"
+            noESPBStr = "$companyAbbr-$estatePetugas/$divisiAbbr/$espbDate"
             var transporter_id = 0
             transporter_id = if (cbFormEspbTransporter.isChecked) {
                 0
@@ -937,7 +942,7 @@ class FormESPBActivity : AppCompatActivity() {
         created_at: String,
         nopol: String,
         driver: String,
-        transporter_id:Int,
+        transporter_id: Int,
         pemuat_id: String,
         mill_id: Int,
         tph0: String,
@@ -946,41 +951,81 @@ class FormESPBActivity : AppCompatActivity() {
         noESPB: String,
         status_draft: Int,
         status_mekanisasi: Int
-    ){
-        val vM = ViewModelProvider(this)[ESPBViewModel::class.java]
+    ) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // Create ESPB entity
+                val espbEntity = ESPBEntity(
+                    blok_jjg = blok_jjg,
+                    created_by_id = created_by_id,
+                    created_at = created_at,
+                    nopol = nopol,
+                    driver = driver,
+                    transporter_id = transporter_id,
+                    pemuat_id = pemuat_id,
+                    mill_id = mill_id,
+                    archive = 0,
+                    tph0 = tph0,
+                    tph1 = tph1,
+                    creator_info = creator_info,
+                    noESPB = noESPB,
+                    status_draft = status_draft,
+                    status_mekanisasi = status_mekanisasi
+                )
 
-        // Example: Create ESPB data
-        val espbList = listOf(
-            ESPBEntity(
-                blok_jjg = blok_jjg,
-                created_by_id = created_by_id,
-                created_at = created_at,
-                nopol = nopol,
-                driver = driver,
-                transporter_id = transporter_id,
-                pemuat_id = pemuat_id,
-                mill_id = mill_id,
-                archive = 0,
-                tph0 = tph0,
-                tph1 = tph1,
-                creator_info = creator_info,
-                noESPB = noESPB,
-                status_draft = status_draft,
-                status_mekanisasi = status_mekanisasi
-            )
-        )
+                // Insert ESPB and get the ID
+                val espbId = viewModel.insertESPBAndGetId(espbEntity)
 
-        // Insert ESPB data
-        try {
-            vM.insertESPB(espbList)
-            Toasty.success(this, "ESPB data inserted successfully", Toasty.LENGTH_LONG).show()
-            viewModel.updateESPBStatus(idsToUpdate, 1, noESPB)
+                // Update related records with the ESPB reference
+                if (espbId > 0) {
+                    viewModel.updateESPBStatus(idsToUpdate, 1, noESPB)
+
+                    // Log successful operation
+                    AppLogger.i("ESPB saved successfully with ID: $espbId")
+
+                    // Update UI on main thread
+                    withContext(Dispatchers.Main) {
+                        showSuccessAndNavigate()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toasty.error(this@FormESPBActivity, "Gagal menyimpan ESPB: ID tidak valid", Toasty.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error saving ESPB data", e.toString())
+
+                withContext(Dispatchers.Main) {
+
+                    // Show specific error message based on exception type
+                    val errorMessage = when {
+                        e.message?.contains("UNIQUE constraint failed") == true ->
+                            "ESPB dengan nomor tersebut sudah ada"
+                        e.message?.contains("foreign key constraint") == true ->
+                            "Referensi data tidak valid"
+                        else -> "Gagal menyimpan data ESPB: ${e.message}"
+                    }
+
+                    Toasty.error(this@FormESPBActivity, errorMessage, Toasty.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun showSuccessAndNavigate() {
+        // Use a more descriptive success message
+        val successDialog = AlertDialogUtility.withSingleAction(
+            this,
+            "OK",
+            "eSPB Telah Disimpan!",
+            "Data ESPB berhasil disimpan dengan nomor: $noESPBStr",
+            "success.json"
+        ) {
+            // Navigate back when dialog is dismissed
             val intent = Intent(this, HomePageActivity::class.java)
+            intent.putExtra("REFRESH_ESPB_LIST", true)
             startActivity(intent)
             finishAffinity()
-        }catch (e: Exception){
-            AppLogger.e("Error inserting ESPB data: ${e.message}")
-            Toasty.error(this, "Error inserting ESPB data: ${e.message}", Toasty.LENGTH_LONG).show()
         }
     }
 

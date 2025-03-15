@@ -2,6 +2,7 @@ package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
 import android.util.Log
+import androidx.room.withTransaction
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.PanenEntity
@@ -148,7 +149,7 @@ class AppRepository(context: Context) {
         panenDao.getAll()
     }
 
-    suspend fun getAllPanenWhereESPB(no_esp: String): Result<List<PanenEntity>> = withContext(Dispatchers.IO) {
+    suspend fun getAllPanenWhereESPB(no_esp: String): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
         try {
             val data = panenDao.getAllPanenWhereESPB(no_esp)
             Result.success(data)
@@ -183,6 +184,8 @@ class AppRepository(context: Context) {
             Result.failure(e)
         }
     }
+
+
 
     suspend fun getArchivedPanen(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
         try {
@@ -326,9 +329,10 @@ class AppRepository(context: Context) {
             }
     }
 
-    // Add this to your AppRepository
-    suspend fun updatePanenESPBStatus(ids: List<Int>, status: Int, no_espb: String) = withContext(Dispatchers.IO) {
-        panenDao.updateESPBStatusByIds(ids, status, no_espb)
+    suspend fun updateESPBStatusForMultipleIds(idsList: List<Int>, status: Int, noESPB: String): Int {
+        return database.withTransaction {
+            panenDao.updateESPBStatusByIds(idsList, status, noESPB)
+        }
     }
 
     suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
@@ -350,6 +354,11 @@ class AppRepository(context: Context) {
 
     suspend fun getMillNameById(id: Int): String? {
         return millDao.getMillNameById(id)
+    }
+
+    // Add to AppRepository.kt
+    suspend fun insertESPBAndGetId(espbEntity: ESPBEntity): Long {
+        return espbDao.insertAndGetId(espbEntity)
     }
 
 }

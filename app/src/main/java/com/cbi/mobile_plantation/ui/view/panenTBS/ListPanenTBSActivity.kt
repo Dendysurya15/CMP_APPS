@@ -121,6 +121,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var tph1 = ""
     private var tph0 = ""
     private var espbId = 0
+    private var jjg = 0
+    private var noespb = "NULL"
+    private var blok = "NULL"
+    private var tph = 0
 
     private lateinit var ll_detail_espb: LinearLayout
 
@@ -261,7 +265,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     }
                 }
             } else if (featureName == "Detail eSPB") {
-                panenViewModel.loadActivePanenRestan(1)
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
                 ll_detail_espb.visibility = View.VISIBLE
                 espbViewModel.getESPBById(espbId)
@@ -273,7 +276,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                             // Find all included layouts
                             val tvNoEspb = findViewById<View>(R.id.tv_no_espb)
-                            val tvBlok = findViewById<View>(R.id.tv_blok)
                             val tvNoPol = findViewById<View>(R.id.tv_no_pol)
                             val tvTransporter = findViewById<View>(R.id.tv_transporter)
                             val tvDriver = findViewById<View>(R.id.tv_driver)
@@ -281,13 +283,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             val tvMekanisasi = findViewById<View>(R.id.tv_mekanisasi)
                             val tvDraft = findViewById<View>(R.id.tv_draft)
 
+
                             // Set No eSPB
                             tvNoEspb.findViewById<TextView>(R.id.tvTitleEspb).text = "No eSPB"
+                            noespb= espb.noESPB
+                            panenViewModel.getAllPanenWhereESPB(noespb)
                             tvNoEspb.findViewById<TextView>(R.id.tvSubTitleEspb).text = espb.noESPB
-
-                            // Set Blok
-                            tvBlok.findViewById<TextView>(R.id.tvTitleEspb).text = "Blok JJG"
-                            tvBlok.findViewById<TextView>(R.id.tvSubTitleEspb).text = espb.blok_jjg
 
                             // Set No Polisi
                             tvNoPol.findViewById<TextView>(R.id.tvTitleEspb).text = "No Polisi"
@@ -374,7 +375,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         ll_detail_espb.visibility = View.GONE
                     }
                 }
-
             } else {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.VISIBLE
                 panenViewModel.loadActivePanen()
@@ -1260,9 +1260,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val totalSection = findViewById<LinearLayout>(R.id.total_section)
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
 
+        blokSection.visibility = View.GONE
+        totalSection.visibility = View.GONE
+
         loadingDialog.show()
         loadingDialog.setMessage("Loading data...")
-
 
         panenViewModel.archivedCount.observe(this) { count ->
             counterTerscan.text = count.toString()
@@ -1376,21 +1378,33 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 .distinct()
                                 .count()
 
-                            // Update TextViews
-
-                            blokSection.visibility = View.VISIBLE
-                            totalSection.visibility = View.VISIBLE
-                            listBlok.text = distinctBlokNames.ifEmpty { "-" }
-                            totalJjg.text = totalJjgCount.toString()
-                            totalTPH.text = distinctTphCount.toString()
-                            // Update TextViews
                             if (featureName != "Detail eSPB") {
                                 blokSection.visibility = View.VISIBLE
                                 totalSection.visibility = View.VISIBLE
                             }
-                            listBlok.text = distinctBlokNames.ifEmpty { "-" }
-                            totalJjg.text = totalJjgCount.toString()
-                            totalTPH.text = distinctTphCount.toString()
+
+                            blok = distinctBlokNames.ifEmpty { "-" }
+                            listBlok.text = blok
+                            jjg = totalJjgCount
+                            totalJjg.text = jjg.toString()
+                            tph = distinctTphCount
+                            totalTPH.text = tph.toString()
+
+                            // Set Blok
+                            val tvBlok = findViewById<View>(R.id.tv_blok)
+                            tvBlok.findViewById<TextView>(R.id.tvTitleEspb).text = "Blok"
+                            tvBlok.findViewById<TextView>(R.id.tvSubTitleEspb).text = blok
+
+                            // Set jjg
+                            val tvJjg = findViewById<View>(R.id.tv_jjg)
+                            tvJjg.findViewById<TextView>(R.id.tvTitleEspb).text = "Janjang"
+                            tvJjg.findViewById<TextView>(R.id.tvSubTitleEspb).text = jjg.toString()
+
+                            // Set jjg
+                            val tvTph = findViewById<View>(R.id.tv_total_tph)
+                            tvTph.findViewById<TextView>(R.id.tvTitleEspb).text = "Jumalh TPH"
+                            tvTph.findViewById<TextView>(R.id.tvSubTitleEspb).text = tph.toString()
+
 
                             listAdapter.updateData(mappedData)
                             originalData =
@@ -1482,11 +1496,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             .distinct()
                             .count()
 
-                        // Update TextViews
                         if (featureName != "Detail eSPB") {
                             blokSection.visibility = View.VISIBLE
                             totalSection.visibility = View.VISIBLE
                         }
+
                         listBlok.text = distinctBlokNames.ifEmpty { "-" }
                         totalJjg.text = totalJjgCount.toString()
                         totalTPH.text = distinctTphCount.toString()

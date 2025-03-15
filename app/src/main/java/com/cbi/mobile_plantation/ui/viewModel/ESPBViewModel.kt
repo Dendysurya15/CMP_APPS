@@ -124,16 +124,15 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
     private val _updateResult = MutableLiveData<Result<Int>>()
     val updateResult: LiveData<Result<Int>> = _updateResult
 
-    fun updateESPBStatus(idList: List<Int>, newStatus: Int, no_espb: String) {
-        viewModelScope.launch {
-            try {
-                val updatedCount = repository.updatePanenESPBStatus(idList, newStatus, no_espb)
-                _updateResult.postValue(Result.success(updatedCount))
-            } catch (e: Exception) {
-                _updateResult.postValue(Result.failure(e))
-            }
-        }
+    // Add to ESPBViewModel.kt
+    suspend fun insertESPBAndGetId(espbEntity: ESPBEntity): Long {
+        return repository.insertESPBAndGetId(espbEntity)
     }
+
+    suspend fun updateESPBStatus(idsList: List<Int>, status: Int, noESPB: String): Int {
+        return repository.updateESPBStatusForMultipleIds(idsList, status, noESPB)
+    }
+
 
     class ESPBViewModelFactory(
         private val application: AppRepository
