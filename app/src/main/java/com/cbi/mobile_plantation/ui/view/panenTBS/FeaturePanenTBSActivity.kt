@@ -394,6 +394,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             val photoFilesString = photoFiles.joinToString(";")
                             val komentarFotoString = komentarFoto.joinToString(";")
 
+                            val uniquePemanenIds = (selectedPemanenIds + selectedPemanenLainIds).distinct().joinToString(",")
+
                             val result = withContext(Dispatchers.IO) {
                                 panenViewModel.saveDataPanen(
                                     tph_id = selectedTPHValue?.toString() ?: "",
@@ -402,9 +404,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         Locale.getDefault()
                                     ).format(Date()),
                                     created_by = userId!!,  // Prevent crash if userId is null
-                                    karyawan_id = (selectedPemanenIds + selectedPemanenLainIds).joinToString(
-                                        ","
-                                    ),
+                                    karyawan_id = uniquePemanenIds,
                                     jjg_json = jjg_json,
                                     foto = photoFilesString,
                                     komentar = komentarFotoString,
@@ -561,25 +561,35 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
         setupSpinnerView(findViewById(R.id.layoutAfdeling), divisiNames)
-        val layoutAfdeling = findViewById<View>(R.id.layoutAfdeling)
-        val tvUnderFormFieldAfdeling =
-            layoutAfdeling.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-        tvUnderFormFieldAfdeling.text = "Pilih kembali Afdeling diatas!"
-        tvUnderFormFieldAfdeling.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-        tvUnderFormFieldAfdeling.setTextColor(Color.BLACK)
-        tvUnderFormFieldAfdeling.visibility = View.VISIBLE
+
+        val afdelingLayout = findViewById<LinearLayout>(R.id.layoutAfdeling)
+        val afdelingSpinner = afdelingLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+        afdelingSpinner.setSelectedIndex(selectedAfdelingIdSpinner)
+
+        if (selectedAfdelingIdSpinner >= 0 && selectedAfdelingIdSpinner < divisiNames.size) {
+            val selectedItem = divisiNames[selectedAfdelingIdSpinner]
+            handleItemSelection(afdelingLayout, selectedAfdelingIdSpinner, selectedItem)
+        }
 
         setupSpinnerView(findViewById(R.id.layoutTahunTanam), emptyList())
         setupSpinnerView(findViewById(R.id.layoutBlok), emptyList())
-        val tipePanenOptions =
-            resources.getStringArray(R.array.tipe_panen_options).toList()
+
+        val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         setupSpinnerView(findViewById(R.id.layoutTipePanen), tipePanenOptions)
-        val tvUnderFormFieldTipePanen =
-            layoutTipePanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-        tvUnderFormFieldTipePanen.text = "Pilih kembali Tipe Panen diatas!"
-        tvUnderFormFieldTipePanen.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-        tvUnderFormFieldTipePanen.setTextColor(Color.BLACK)
-        tvUnderFormFieldTipePanen.visibility = View.VISIBLE
+
+        val tipePanenLayout = findViewById<LinearLayout>(R.id.layoutTipePanen)
+        val tipePanenSpinner = tipePanenLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+        if (selectedTipePanen != null && selectedTipePanen.isNotEmpty()) {
+            val tipePanenPosition = selectedTipePanen.toIntOrNull() ?: 0
+            tipePanenSpinner.setSelectedIndex(tipePanenPosition)
+
+            if (tipePanenPosition >= 0 && tipePanenPosition < tipePanenOptions.size) {
+                val selectedItem = tipePanenOptions[tipePanenPosition]
+                handleItemSelection(tipePanenLayout, tipePanenPosition, selectedItem)
+            }
+        }
 
         setupSpinnerView(findViewById(R.id.layoutKemandoran), emptyList())
         setupSpinnerView(findViewById(R.id.layoutPemanen), emptyList())
@@ -2083,7 +2093,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         val idList = listOf(tphId)
 
-                        // Use lifecycleScope to launch a coroutine
                         lifecycleScope.launch {
                             try {
                                 val tphList = datasetViewModel.getTPHsByIds(idList)

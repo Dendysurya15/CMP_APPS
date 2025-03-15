@@ -1428,80 +1428,128 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
                     loadingDialog.dismiss()
-                    if (panenList.isNotEmpty()) {
-                        tvEmptyState.visibility = View.GONE
-                        recyclerView.visibility = View.VISIBLE
-                        mappedData = panenList.map { panenWithRelations ->
-                            mapOf<String, Any>(
-                                "id" to (panenWithRelations.panen.id as Any),
-                                "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                "blok_name" to (panenWithRelations.tph?.blok_kode
-                                    ?: "-"),  // Handle null
-                                "nomor" to (panenWithRelations.tph?.nomor
-                                    ?: "-"),  // Handle null
-                                "date_created" to (panenWithRelations.panen.date_created as Any),
-                                "created_by" to (panenWithRelations.panen.created_by as Any),
-                                "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
-                                "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
-                                "foto" to (panenWithRelations.panen.foto as Any),
-                                "komentar" to (panenWithRelations.panen.komentar as Any),
-                                "asistensi" to (panenWithRelations.panen.asistensi as Any),
-                                "lat" to (panenWithRelations.panen.lat as Any),
-                                "lon" to (panenWithRelations.panen.lon as Any),
-                                "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
-                                "ancak" to (panenWithRelations.panen.ancak as Any),
-                                "archive" to (panenWithRelations.panen.archive as Any)
-                            )
-                        }
 
-                        val distinctBlokNames = mappedData
-                            .map { it["blok_name"]?.toString() ?: "-" }
-                            .distinct()
-                            .filter { it != "-" }
-                            .sorted()
-                            .joinToString(", ")
+                    lifecycleScope.launch {
 
-                        // Calculate total JJG by parsing JSON and summing TO values
-                        var totalJjgCount = 0
-                        mappedData.forEach { data ->
-                            try {
-                                val jjgJsonString = data["jjg_json"].toString()
-                                val jjgJson = JSONObject(jjgJsonString)
-                                val key =
-                                    if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
 
-                                totalJjgCount += jjgJson.optInt(key, 0)
-                            } catch (e: Exception) {
-                                AppLogger.e("Error parsing jjg_json: ${e.message}")
+                        if (panenList.isNotEmpty()) {
+                            tvEmptyState.visibility = View.GONE
+                            recyclerView.visibility = View.VISIBLE
+                            mappedData = panenList.map { panenWithRelations ->
+                                val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
+                                    .map { it.trim() }
+                                    .filter { it.isNotEmpty() }
+
+                                val pemuatData: List<KaryawanModel>? = withContext(Dispatchers.IO) {
+                                    try {
+                                        panenViewModel.getPemuatByIdList(pemuatList)
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error fetching Pemuat Data: ${e.message}")
+                                        null
+                                    }
+                                }
+
+                                val rawKemandoran: List<String> = pemuatData
+                                    ?.mapNotNull { it.kemandoran_id?.toString() }
+                                    ?.distinct() ?: emptyList()
+
+                                val kemandoranData: List<KemandoranModel>? =
+                                    withContext(Dispatchers.IO) {
+                                        try {
+                                            panenViewModel.getKemandoranById(rawKemandoran)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error fetching Kemandoran Data: ${e.message}")
+                                            null
+                                        }
+                                    }
+
+                                val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
+                                    ?.takeIf { it.isNotEmpty() }
+                                    ?.joinToString("\n") { "• $it" } ?: "-"
+
+
+                                val karyawanNamas = pemuatData?.mapNotNull { it.nama }
+                                    ?.takeIf { it.isNotEmpty() }
+                                    ?.joinToString(", ") ?: "-"
+
+
+                                mapOf<String, Any>(
+                                    "id" to (panenWithRelations.panen.id as Any),
+                                    "tph_id" to (panenWithRelations.panen.tph_id as Any),
+                                    "date_created" to (panenWithRelations.panen.date_created as Any),
+                                    "blok_name" to (panenWithRelations.tph?.blok_kode
+                                        ?: "Unknown"), // Handle null safely
+                                    "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                    "created_by" to (panenWithRelations.panen.created_by as Any),
+//                                    "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
+                                    "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
+                                    "foto" to (panenWithRelations.panen.foto as Any),
+                                    "komentar" to (panenWithRelations.panen.komentar as Any),
+                                    "asistensi" to (panenWithRelations.panen.asistensi as Any),
+                                    "lat" to (panenWithRelations.panen.lat as Any),
+                                    "lon" to (panenWithRelations.panen.lon as Any),
+                                    "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
+                                    "ancak" to (panenWithRelations.panen.ancak as Any),
+                                    "archive" to (panenWithRelations.panen.archive as Any),
+                                    "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
+                                    "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
+                                    "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
+                                    "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
+                                    "nama_karyawans" to karyawanNamas as Any,
+                                    "nama_kemandorans" to kemandoranNamas as Any,
+
+                                    )
                             }
+
+                            val distinctBlokNames = mappedData
+                                .map { it["blok_name"]?.toString() ?: "-" }
+                                .distinct()
+                                .filter { it != "-" }
+                                .sorted()
+                                .joinToString(", ")
+
+                            // Calculate total JJG by parsing JSON and summing TO values
+                            var totalJjgCount = 0
+                            mappedData.forEach { data ->
+                                try {
+                                    val jjgJsonString = data["jjg_json"].toString()
+                                    val jjgJson = JSONObject(jjgJsonString)
+                                    val key =
+                                        if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
+
+                                    totalJjgCount += jjgJson.optInt(key, 0)
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error parsing jjg_json: ${e.message}")
+                                }
+                            }
+
+                            // Calculate distinct TPH count
+                            val distinctTphCount = mappedData
+                                .mapNotNull { it["tph_id"].toString().toIntOrNull() }
+                                .distinct()
+                                .count()
+
+                            // Update TextViews
+                            if (featureName != "Detail eSPB") {
+                                blokSection.visibility = View.VISIBLE
+                                totalSection.visibility = View.VISIBLE
+                            }
+                            listBlok.text = distinctBlokNames.ifEmpty { "-" }
+                            totalJjg.text = totalJjgCount.toString()
+                            totalTPH.text = distinctTphCount.toString()
+
+                            listAdapter.updateData(mappedData)
+                            originalData =
+                                emptyList() // Reset original data when new data is loaded
+                            filterSection.visibility =
+                                View.GONE // Hide filter section for new data
+                        } else {
+                            tvEmptyState.text = "No scanned data available"
+                            tvEmptyState.visibility = View.VISIBLE
+                            recyclerView.visibility = View.GONE
+                            blokSection.visibility = View.GONE
+                            totalSection.visibility = View.GONE
                         }
-
-                        // Calculate distinct TPH count
-                        val distinctTphCount = mappedData
-                            .mapNotNull { it["tph_id"].toString().toIntOrNull() }
-                            .distinct()
-                            .count()
-
-                        // Update TextViews
-                        if (featureName != "Detail eSPB") {
-                            blokSection.visibility = View.VISIBLE
-                            totalSection.visibility = View.VISIBLE
-                        }
-                        listBlok.text = distinctBlokNames.ifEmpty { "-" }
-                        totalJjg.text = totalJjgCount.toString()
-                        totalTPH.text = distinctTphCount.toString()
-
-                        listAdapter.updateData(mappedData)
-                        originalData =
-                            emptyList() // Reset original data when new data is loaded
-                        filterSection.visibility =
-                            View.GONE // Hide filter section for new data
-                    } else {
-                        tvEmptyState.text = "No scanned data available"
-                        tvEmptyState.visibility = View.VISIBLE
-                        recyclerView.visibility = View.GONE
-                        blokSection.visibility = View.GONE
-                        totalSection.visibility = View.GONE
                     }
                     counterTerscan.text = panenList.size.toString()
                 }, 500)

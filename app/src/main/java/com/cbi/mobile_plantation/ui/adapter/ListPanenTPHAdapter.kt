@@ -4,26 +4,37 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Context
 import android.graphics.Rect
+import android.graphics.drawable.ColorDrawable
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
+import android.view.WindowManager
 import android.widget.Button
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.databinding.TableItemRowBinding
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.card.MaterialCardView
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -248,11 +259,20 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 binding.checkBoxPanen.isChecked = isSelected
                 binding.checkBoxPanen.isEnabled = !isScannedItem
                 if (!isScannedItem) {
-                    // Set the color of the checkbox to blue when checked
+                    // Define the checked color based on feature name
+                    val checkedColor = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                        ContextCompat.getColor(context, R.color.greenDarker)
+                    } else {
+                        Color.RED
+                    }
+
+                    // Create the ColorStateList with the appropriate checked color
                     val colorStateList = ColorStateList(
                         arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-                        intArrayOf(Color.RED, Color.GRAY)
+                        intArrayOf(checkedColor, Color.GRAY)
                     )
+
+                    // Apply the tint
                     binding.checkBoxPanen.buttonTintList = colorStateList
                 }
 
@@ -353,21 +373,21 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 }
 
                 val recyclerView = view.findViewById<RecyclerView>(R.id.rvPhotoAttachments)
-                Log.d("BottomSheet", "RecyclerView found: ${recyclerView != null}")
 
                 if (recyclerView != null) {
 
                     val recyclerView = view.findViewById<RecyclerView>(R.id.rvPhotoAttachments)
 
-// Disable scrolling with custom layout manager
-                    val nonScrollLayoutManager = object : LinearLayoutManager(context, HORIZONTAL, false) {
-                        override fun canScrollHorizontally(): Boolean {
-                            return false // Disable horizontal scrolling
+                    // Disable scrolling with custom layout manager
+                    val nonScrollLayoutManager =
+                        object : LinearLayoutManager(context, HORIZONTAL, false) {
+                            override fun canScrollHorizontally(): Boolean {
+                                return false // Disable horizontal scrolling
+                            }
                         }
-                    }
                     recyclerView.layoutManager = nonScrollLayoutManager
 
-// Add item decoration for even spacing
+                    // Add item decoration for even spacing
                     val itemSpacing = (8 * context.resources.displayMetrics.density).toInt()
                     recyclerView.addItemDecoration(object : RecyclerView.ItemDecoration() {
                         override fun getItemOffsets(
@@ -381,28 +401,29 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         }
                     })
 
-// Disable overscroll effect
+                    // Disable overscroll effect
                     recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
-// Get photo URLs from item["foto"] using the updated function
+                    // Get photo URLs from item["foto"] using the updated function
                     val photoUrls = getPhotoUrlsFromItem(item, context)
 
-// Create adapter - always shows 3 items
+                    // Create adapter - always shows 3 items
                     val photoAdapter = PhotoAttachmentAdapterDetailTable(photoUrls) { position ->
-                        // Handle photo click - maybe show fullscreen
+                        // Handle photo click - show fullscreen
                         if (position < photoUrls.size) {
                             // Check if file exists before showing
                             val photoFile = File(photoUrls[position])
                             if (photoFile.exists()) {
-                                // Show fullscreen photo viewer or whatever action you want
-                                showFullScreenPhoto(context, photoFile)
+                                // Show fullscreen photo
+                                showFullscreenImage(context, photoFile)
                             } else {
-                                Toast.makeText(context, "Photo file not found", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Photo file not found", Toast.LENGTH_SHORT)
+                                    .show()
                             }
                         }
                     }
 
-// Set the adapter
+                    // Set the adapter
                     recyclerView.adapter = photoAdapter
                 } else {
                     Log.e("BottomSheet", "RecyclerView not found in layout!")
@@ -503,11 +524,42 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         )
     }
 
-    // Helper function to show fullscreen photo
-    private fun showFullScreenPhoto(context: Context, photoFile: File) {
-        // Implement your fullscreen photo viewer here
-        // For example, you could open a new activity or dialog
-        Toast.makeText(context, "Viewing photo: ${photoFile.name}", Toast.LENGTH_SHORT).show()
+    private fun showFullscreenImage(context: Context, imageFile: File) {
+        // Create dialog
+        val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.BLACK))
+        dialog.setCancelable(true)
+
+        // Set fullscreen flags
+        dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+
+        // Inflate layout
+        val view = LayoutInflater.from(context).inflate(R.layout.camera_edit, null)
+        dialog.setContentView(view)
+
+        // Find views
+        val fullscreenImageView = view.findViewById<ImageView>(R.id.fotoZoom)
+        val cardCloseZoom = view.findViewById<MaterialCardView>(R.id.cardCloseZoom)
+        val btnCloseAlternative = view.findViewById<Button>(R.id.btnCloseAlternative)
+
+        btnCloseAlternative.visibility = View.VISIBLE
+        view.findViewById<MaterialCardView>(R.id.cardDeletePhoto).visibility = View.GONE
+        view.findViewById<MaterialCardView>(R.id.cardChangePhoto).visibility = View.GONE
+        cardCloseZoom.visibility = View.GONE
+
+        Glide.with(context)
+            .load(imageFile)
+            .error(R.drawable.baseline_add_a_photo_24)
+            .into(fullscreenImageView)
+
+        // Set close button click listener
+        btnCloseAlternative.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        // Show the dialog
+        dialog.show()
     }
 
     private fun getPhotoUrlsFromItem(item: Map<String, Any?>, context: Context): List<String> {

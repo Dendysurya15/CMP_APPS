@@ -29,7 +29,6 @@ class PhotoAttachmentAdapterDetailTable(
         return PhotoViewHolder(view)
     }
 
-    // Always return 3 items, regardless of photos list size
     override fun getItemCount(): Int {
         return 3
     }
@@ -70,11 +69,7 @@ class PhotoAttachmentAdapterDetailTable(
                     .error(R.drawable.baseline_add_a_photo_24)
                     .centerCrop()
                     .into(holder.imageView)
-
-                Log.d("PhotoAdapter", "Loading from file: ${photoFile.absolutePath}")
             } else {
-                // File doesn't exist, show error placeholder
-                Log.e("PhotoAdapter", "File doesn't exist: ${photoFile.absolutePath}")
                 holder.imageView.setImageResource(R.drawable.baseline_add_a_photo_24)
             }
 
