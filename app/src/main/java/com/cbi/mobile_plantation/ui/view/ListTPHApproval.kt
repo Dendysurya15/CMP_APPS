@@ -75,15 +75,19 @@ class ListTPHApproval : AppCompatActivity() {
                     "KEMBALI",
                     "Kembali ke Menu utama?",
                    "Data scan sebelumnya akan terhapus",
-                    "warning.json"
-                ) {
-                    startActivity(
-                        Intent(
-                            this@ListTPHApproval,
-                            HomePageActivity::class.java
-                        ))
-                    finishAffinity()
-                }
+                    "warning.json",
+                    function = {
+                        startActivity(
+                            Intent(
+                                this@ListTPHApproval,
+                                HomePageActivity::class.java
+                            ))
+                        finishAffinity()
+                    },
+                    cancelFunction = {
+
+                    }
+                )
             }
         })
 
@@ -99,16 +103,22 @@ class ListTPHApproval : AppCompatActivity() {
         val backButton = findViewById<ImageView>(R.id.btn_back)
 
         backButton.setOnClickListener {
+            backButton.isEnabled = false
             AlertDialogUtility.withTwoActions(
                 this@ListTPHApproval,
                 "KEMBALI",
                 "Kembali ke Menu utama?",
                 "Data scan sebelumnya akan terhapus",
-                "warning.json"
-            ) {
-                startActivity(Intent(this@ListTPHApproval, HomePageActivity::class.java))
-                finishAffinity()
-            }
+                "warning.json",
+                function = {
+                    startActivity(Intent(this@ListTPHApproval, HomePageActivity::class.java))
+                    finishAffinity()
+                    backButton.isEnabled = true
+                },
+                cancelFunction ={
+                    backButton.isEnabled = true
+                }
+            )
         }
 
         setupRecyclerView()
@@ -163,65 +173,71 @@ class ListTPHApproval : AppCompatActivity() {
         )
 
         btnGenerateQRTPH.setOnClickListener {
+            btnGenerateQRTPH.isEnabled = false
             AlertDialogUtility.withTwoActions(
                 this,
                 "Simpan",
                 "Apakah anda ingin menyimpan data ini?",
                 getString(R.string.confirmation_dialog_description),
-                "warning.json"
-            ) {
-                lifecycleScope.launch {
-                    try {
-                        _saveDataPanenState.value = SaveDataPanenState.Loading
+                "warning.json",
+                function ={
+                    lifecycleScope.launch {
+                        try {
+                            _saveDataPanenState.value = SaveDataPanenState.Loading
 
-                        val result = repository.saveTPHDataList(saveData)
+                            val result = repository.saveTPHDataList(saveData)
 
-                        result.fold(
-                            onSuccess = { savedIds ->
-                                _saveDataPanenState.value = SaveDataPanenState.Success(savedIds)
-                                Toasty.success(
-                                    this@ListTPHApproval,
-                                    "Data berhasil disimpan",
-                                    Toast.LENGTH_LONG,
-                                    true
-                                ).show()
-                                startActivity(
-                                    Intent(
+                            result.fold(
+                                onSuccess = { savedIds ->
+                                    _saveDataPanenState.value = SaveDataPanenState.Success(savedIds)
+                                    Toasty.success(
                                         this@ListTPHApproval,
-                                        HomePageActivity::class.java
-                                    )
-                                )
-                                finish()
-                            },
-                            onFailure = { exception ->
-                                _saveDataPanenState.value = SaveDataPanenState.Error(
-                                    exception.message ?: "Unknown error occurred"
-                                )
-                                if (exception.message?.contains("Duplicate data found") == true) {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@ListTPHApproval,
-                                        "OK",
-                                        "Data duplikat, anda telah melakukan scan untuk data panen ini!",
-                                        "Error: ${exception.message}",
-                                        "warning.json"
-                                    ) {
-                                    }
-                                } else {
-                                    Toasty.error(
-                                        this@ListTPHApproval,
-                                        "Error: ${exception.message}",
-                                        Toast.LENGTH_LONG
+                                        "Data berhasil disimpan",
+                                        Toast.LENGTH_LONG,
+                                        true
                                     ).show()
+                                    startActivity(
+                                        Intent(
+                                            this@ListTPHApproval,
+                                            HomePageActivity::class.java
+                                        )
+                                    )
+                                    finish()
+                                },
+                                onFailure = { exception ->
+                                    _saveDataPanenState.value = SaveDataPanenState.Error(
+                                        exception.message ?: "Unknown error occurred"
+                                    )
+                                    if (exception.message?.contains("Duplicate data found") == true) {
+                                        AlertDialogUtility.withSingleAction(
+                                            this@ListTPHApproval,
+                                            "OK",
+                                            "Data duplikat, anda telah melakukan scan untuk data panen ini!",
+                                            "Error: ${exception.message}",
+                                            "warning.json"
+                                        ) {
+                                        }
+                                    } else {
+                                        Toasty.error(
+                                            this@ListTPHApproval,
+                                            "Error: ${exception.message}",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
                                 }
-                            }
-                        )
-                    } catch (e: Exception) {
-                        _saveDataPanenState.value = SaveDataPanenState.Error(
-                            e.message ?: "Unknown error occurred"
-                        )
+                            )
+                        } catch (e: Exception) {
+                            _saveDataPanenState.value = SaveDataPanenState.Error(
+                                e.message ?: "Unknown error occurred"
+                            )
+                        }
                     }
+                    btnGenerateQRTPH.isEnabled = true
+                },
+                cancelFunction = {
+                    btnGenerateQRTPH.isEnabled = true
                 }
-            }
+            )
         }
     }
 

@@ -773,414 +773,499 @@ class ListPanenTBSActivity : AppCompatActivity() {
         if (featureName == "Buat eSPB") {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
             btnGenerateQRTPH.setOnClickListener {
+                btnGenerateQRTPH.isEnabled = false
                 getAllDataFromList()
                 AlertDialogUtility.withTwoActions(
                     this,
                     "LANJUT",
                     "PERHATIAN!",
                     "Apakah anda ingin membuat eSPB dengan data ini?",
-                    "warning.json"
-                ) {
-                    val intent = Intent(this, FormESPBActivity::class.java)
-                    intent.putExtra("tph_1", tph1)
-                    intent.putExtra("tph_0", tph0)
-                    intent.putExtra("tph_1_id_panen", tph1IdPanen)
-                    intent.putExtra("FEATURE_NAME", featureName)
-                    startActivity(intent)
-                    finishAffinity()
-                }
+                    "warning.json",
+                    function = {
+                        val intent = Intent(this, FormESPBActivity::class.java)
+                        intent.putExtra("tph_1", tph1)
+                        intent.putExtra("tph_0", tph0)
+                        intent.putExtra("tph_1_id_panen", tph1IdPanen)
+                        intent.putExtra("FEATURE_NAME", featureName)
+                        startActivity(intent)
+                        finishAffinity()
+                        btnGenerateQRTPH.isEnabled = true
+                    },
+                    cancelFunction = {
+                        btnGenerateQRTPH.isEnabled = true
+                    }
+                )
             }
         } else if (featureName == "Rekap panen dan restan") {
             btnGenerateQRTPH.visibility = View.GONE
         } else {
             btnGenerateQRTPH.setOnClickListener {
-                val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
-                view.background = ContextCompat.getDrawable(
-                    this@ListPanenTBSActivity,
-                    R.drawable.rounded_top_right_left
-                )
+                btnGenerateQRTPH.isEnabled = false
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Generate QR",
+                    getString(R.string.confirmation_dialog_title),
+                    getString(R.string.al_confirm_generate_qr),
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = {
+                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
+                        view.background = ContextCompat.getDrawable(
+                            this@ListPanenTBSActivity,
+                            R.drawable.rounded_top_right_left
+                        )
 
-                val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
-                dialog.setContentView(view)
+                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
+                        dialog.setContentView(view)
 
-                // Get references to views
-                val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
-                val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-                val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
-                tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
-                val dashedLine: View = view.findViewById(R.id.dashedLine)
-                val loadingContainer: LinearLayout =
-                    view.findViewById(R.id.loadingDotsContainerBottomSheet)
+                        // Get references to views
+                        val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
+                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
+                        val tvTitleQRGenerate: TextView =
+                            view.findViewById(R.id.textTitleQRGenerate)
+                        tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
+                        val dashedLine: View = view.findViewById(R.id.dashedLine)
+                        val loadingContainer: LinearLayout =
+                            view.findViewById(R.id.loadingDotsContainerBottomSheet)
 
-                // Initially hide QR code and dashed line, show loading
-                qrCodeImageView.visibility = View.GONE
+                        // Initially hide QR code and dashed line, show loading
+                        qrCodeImageView.visibility = View.GONE
 
-                loadingLogo.visibility = View.VISIBLE
-                loadingContainer.visibility = View.VISIBLE
+                        loadingLogo.visibility = View.VISIBLE
+                        loadingContainer.visibility = View.VISIBLE
 
-                // Load and start bounce animation
-                val bounceAnimation = AnimationUtils.loadAnimation(this, R.anim.bounce)
-                loadingLogo.startAnimation(bounceAnimation)
+                        // Load and start bounce animation
+                        val bounceAnimation = AnimationUtils.loadAnimation(this, R.anim.bounce)
+                        loadingLogo.startAnimation(bounceAnimation)
 
-                // Setup dots animation
-                val dots = listOf(
-                    loadingContainer.findViewById<View>(R.id.dot1),
-                    loadingContainer.findViewById<View>(R.id.dot2),
-                    loadingContainer.findViewById<View>(R.id.dot3),
-                    loadingContainer.findViewById<View>(R.id.dot4)
-                )
+                        // Setup dots animation
+                        val dots = listOf(
+                            loadingContainer.findViewById<View>(R.id.dot1),
+                            loadingContainer.findViewById<View>(R.id.dot2),
+                            loadingContainer.findViewById<View>(R.id.dot3),
+                            loadingContainer.findViewById<View>(R.id.dot4)
+                        )
 
-                dots.forEachIndexed { index, dot ->
-                    val translateAnimation =
-                        ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
-                    val scaleXAnimation = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 0.8f, 1f)
-                    val scaleYAnimation = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 0.8f, 1f)
+                        dots.forEachIndexed { index, dot ->
+                            val translateAnimation =
+                                ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
+                            val scaleXAnimation =
+                                ObjectAnimator.ofFloat(dot, "scaleX", 1f, 0.8f, 1f)
+                            val scaleYAnimation =
+                                ObjectAnimator.ofFloat(dot, "scaleY", 1f, 0.8f, 1f)
 
-                    listOf(
-                        translateAnimation,
-                        scaleXAnimation,
-                        scaleYAnimation
-                    ).forEach { animation ->
-                        animation.duration = 500
-                        animation.repeatCount = ObjectAnimator.INFINITE
-                        animation.repeatMode = ObjectAnimator.REVERSE
-                        animation.startDelay = (index * 100).toLong()
-                        animation.start()
-                    }
-                }
+                            listOf(
+                                translateAnimation,
+                                scaleXAnimation,
+                                scaleYAnimation
+                            ).forEach { animation ->
+                                animation.duration = 500
+                                animation.repeatCount = ObjectAnimator.INFINITE
+                                animation.repeatMode = ObjectAnimator.REVERSE
+                                animation.startDelay = (index * 100).toLong()
+                                animation.start()
+                            }
+                        }
 
-                dialog.setOnShowListener {
-                    val bottomSheet =
-                        dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                    val behavior = BottomSheetBehavior.from(bottomSheet!!)
-                    behavior.state = BottomSheetBehavior.STATE_EXPANDED
-                }
+                        dialog.setOnShowListener {
+                            val bottomSheet =
+                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
+                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                        }
 
-                dialog.show()
+                        dialog.show()
 
-                lifecycleScope.launch(Dispatchers.Default) {
-                    delay(1000)
-                    try {
-                        val dataQR: TextView? = view.findViewById(R.id.dataQR)
-                        val dataQRTitle: TextView? = view.findViewById(R.id.dataQRTitle)
                         lifecycleScope.launch(Dispatchers.Default) {
                             delay(1000)
                             try {
                                 val dataQR: TextView? = view.findViewById(R.id.dataQR)
-                                val titleQRConfirm: TextView =
-                                    view.findViewById(R.id.titleAfterScanQR)
-                                titleQRConfirm.setResponsiveTextSizeWithConstraints(17F, 17F, 19F)
-                                val descQRConfirm: TextView =
-                                    view.findViewById(R.id.descAfterScanQR)
-                                descQRConfirm.setResponsiveTextSizeWithConstraints(17F, 15F, 19F)
-                                val btnConfirmScanPanenTPH: MaterialButton =
-                                    view.findViewById(R.id.btnConfirmScanPanenTPH)
-
-                                btnConfirmScanPanenTPH.setOnClickListener {
-
-                                    AlertDialogUtility.withTwoActions(
-                                        this@ListPanenTBSActivity,
-                                        getString(R.string.al_delete),
-                                        getString(R.string.confirmation_dialog_title),
-                                        "${getString(R.string.al_make_sure_scanned_qr)}  data?",
-                                        "warning.json",
-                                        ContextCompat.getColor(
-                                            this@ListPanenTBSActivity,
-                                            R.color.greendarkerbutton
+                                val dataQRTitle: TextView? = view.findViewById(R.id.dataQRTitle)
+                                lifecycleScope.launch(Dispatchers.Default) {
+                                    delay(1000)
+                                    try {
+                                        val dataQR: TextView? = view.findViewById(R.id.dataQR)
+                                        val titleQRConfirm: TextView =
+                                            view.findViewById(R.id.titleAfterScanQR)
+                                        titleQRConfirm.setResponsiveTextSizeWithConstraints(
+                                            17F,
+                                            17F,
+                                            19F
                                         )
-                                    ) {
-                                        lifecycleScope.launch(Dispatchers.IO) {
-                                            try {
-                                                withContext(Dispatchers.Main) {
-                                                    loadingDialog.show()
-                                                }
+                                        val descQRConfirm: TextView =
+                                            view.findViewById(R.id.descAfterScanQR)
+                                        descQRConfirm.setResponsiveTextSizeWithConstraints(
+                                            17F,
+                                            15F,
+                                            19F
+                                        )
+                                        val btnConfirmScanPanenTPH: MaterialButton =
+                                            view.findViewById(R.id.btnConfirmScanPanenTPH)
 
-                                                // Validate data first
-                                                if (mappedData.isEmpty()) {
-                                                    throw Exception("No data to archive")
-                                                }
-
-                                                var hasError = false
-                                                var successCount = 0
-                                                val errorMessages = mutableListOf<String>()
-
-                                                mappedData.forEach { item ->
-                                                    try {
-                                                        // Null check for item
-                                                        if (item == null) {
-                                                            errorMessages.add("Found null item in data")
-                                                            hasError = true
-                                                            return@forEach
-                                                        }
-
-                                                        // ID validation
-                                                        val id = when (val idValue = item["id"]) {
-                                                            null -> {
-                                                                errorMessages.add("ID is null")
-                                                                hasError = true
-                                                                return@forEach
-                                                            }
-
-                                                            !is Number -> {
-                                                                errorMessages.add("Invalid ID format: $idValue")
-                                                                hasError = true
-                                                                return@forEach
-                                                            }
-
-                                                            else -> idValue.toInt()
-                                                        }
-
-                                                        if (id <= 0) {
-                                                            errorMessages.add("Invalid ID value: $id")
-                                                            hasError = true
-                                                            return@forEach
-                                                        }
-
+                                        btnConfirmScanPanenTPH.setOnClickListener {
+                                            btnConfirmScanPanenTPH.isEnabled = false
+                                            AlertDialogUtility.withTwoActions(
+                                                this@ListPanenTBSActivity,
+                                                getString(R.string.al_delete),
+                                                getString(R.string.confirmation_dialog_title),
+                                                "${getString(R.string.al_make_sure_scanned_qr)}  data?",
+                                                "warning.json",
+                                                ContextCompat.getColor(
+                                                    this@ListPanenTBSActivity,
+                                                    R.color.greendarkerbutton
+                                                ),
+                                                function = {
+                                                    lifecycleScope.launch(Dispatchers.IO) {
                                                         try {
-                                                            panenViewModel.archivePanenById(id)
-                                                            successCount++
-                                                        } catch (e: SQLiteException) {
-                                                            errorMessages.add("Database error for ID $id: ${e.message}")
-                                                            hasError = true
+                                                            withContext(Dispatchers.Main) {
+                                                                loadingDialog.show()
+                                                            }
+
+                                                            // Validate data first
+                                                            if (mappedData.isEmpty()) {
+                                                                throw Exception("No data to archive")
+                                                            }
+
+                                                            var hasError = false
+                                                            var successCount = 0
+                                                            val errorMessages =
+                                                                mutableListOf<String>()
+
+                                                            mappedData.forEach { item ->
+                                                                try {
+                                                                    // Null check for item
+                                                                    if (item == null) {
+                                                                        errorMessages.add("Found null item in data")
+                                                                        hasError = true
+                                                                        return@forEach
+                                                                    }
+
+                                                                    // ID validation
+                                                                    val id = when (val idValue =
+                                                                        item["id"]) {
+                                                                        null -> {
+                                                                            errorMessages.add("ID is null")
+                                                                            hasError = true
+                                                                            return@forEach
+                                                                        }
+
+                                                                        !is Number -> {
+                                                                            errorMessages.add("Invalid ID format: $idValue")
+                                                                            hasError = true
+                                                                            return@forEach
+                                                                        }
+
+                                                                        else -> idValue.toInt()
+                                                                    }
+
+                                                                    if (id <= 0) {
+                                                                        errorMessages.add("Invalid ID value: $id")
+                                                                        hasError = true
+                                                                        return@forEach
+                                                                    }
+
+                                                                    try {
+                                                                        panenViewModel.archivePanenById(
+                                                                            id
+                                                                        )
+                                                                        successCount++
+                                                                    } catch (e: SQLiteException) {
+                                                                        errorMessages.add("Database error for ID $id: ${e.message}")
+                                                                        hasError = true
+                                                                    } catch (e: Exception) {
+                                                                        errorMessages.add("Error archiving ID $id: ${e.message}")
+                                                                        hasError = true
+                                                                    }
+
+                                                                } catch (e: Exception) {
+                                                                    errorMessages.add("Unexpected error processing item: ${e.message}")
+                                                                    hasError = true
+                                                                }
+                                                            }
+
+                                                            // Show results
+                                                            withContext(Dispatchers.Main) {
+                                                                try {
+                                                                    loadingDialog.dismiss()
+
+                                                                    when {
+                                                                        successCount == 0 -> {
+                                                                            val errorDetail =
+                                                                                errorMessages.joinToString(
+                                                                                    "\n"
+                                                                                )
+                                                                            AppLogger.e("Archive failed. Errors:\n$errorDetail")
+                                                                            Toast.makeText(
+                                                                                this@ListPanenTBSActivity,
+                                                                                "Gagal mengarsipkan data",
+                                                                                Toast.LENGTH_SHORT
+                                                                            ).show()
+                                                                        }
+
+                                                                        hasError -> {
+                                                                            val errorDetail =
+                                                                                errorMessages.joinToString(
+                                                                                    "\n"
+                                                                                )
+                                                                            AppLogger.e("Partial success. Errors:\n$errorDetail")
+                                                                            Toast.makeText(
+                                                                                this@ListPanenTBSActivity,
+                                                                                "Beberapa data berhasil diarsipkan ($successCount/${mappedData.size})",
+                                                                                Toast.LENGTH_SHORT
+                                                                            ).show()
+                                                                        }
+
+                                                                        else -> {
+                                                                            AppLogger.d("All items archived successfully")
+                                                                            Toast.makeText(
+                                                                                this@ListPanenTBSActivity,
+                                                                                "Semua data berhasil diarsipkan",
+                                                                                Toast.LENGTH_SHORT
+                                                                            ).show()
+                                                                        }
+                                                                    }
+                                                                    dialog.dismiss()
+                                                                } catch (e: Exception) {
+                                                                    AppLogger.e("Error in UI update: ${e.message}")
+                                                                    Toast.makeText(
+                                                                        this@ListPanenTBSActivity,
+                                                                        "Terjadi kesalahan pada UI",
+                                                                        Toast.LENGTH_SHORT
+                                                                    ).show()
+                                                                }
+                                                            }
+
                                                         } catch (e: Exception) {
-                                                            errorMessages.add("Error archiving ID $id: ${e.message}")
-                                                            hasError = true
+                                                            AppLogger.e("Fatal error in archiving process: ${e.message}")
+                                                            withContext(Dispatchers.Main) {
+                                                                try {
+                                                                    loadingDialog.dismiss()
+                                                                    Toast.makeText(
+                                                                        this@ListPanenTBSActivity,
+                                                                        "Terjadi kesalahan saat mengarsipkan data: ${e.message}",
+                                                                        Toast.LENGTH_SHORT
+                                                                    ).show()
+                                                                    dialog.dismiss()
+                                                                } catch (dialogException: Exception) {
+                                                                    AppLogger.e("Error dismissing dialogs: ${dialogException.message}")
+                                                                }
+                                                            }
                                                         }
 
-                                                    } catch (e: Exception) {
-                                                        errorMessages.add("Unexpected error processing item: ${e.message}")
-                                                        hasError = true
+                                                        panenViewModel.loadActivePanen()
+                                                        panenViewModel.loadPanenCountArchive()
                                                     }
+                                                    btnConfirmScanPanenTPH.isEnabled = true
+                                                },
+                                                cancelFunction = {
+                                                    btnConfirmScanPanenTPH.isEnabled = true
                                                 }
+                                            )
+                                        }
 
-                                                // Show results
-                                                withContext(Dispatchers.Main) {
-                                                    try {
-                                                        loadingDialog.dismiss()
+                                        val jsonData = formatPanenDataForQR(mappedData)
+                                        val encodedData =
+                                            encodeJsonToBase64ZipQR(jsonData)
+                                                ?: throw Exception("Encoding failed")
 
-                                                        when {
-                                                            successCount == 0 -> {
-                                                                val errorDetail =
-                                                                    errorMessages.joinToString("\n")
-                                                                AppLogger.e("Archive failed. Errors:\n$errorDetail")
-                                                                Toast.makeText(
-                                                                    this@ListPanenTBSActivity,
-                                                                    "Gagal mengarsipkan data",
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
-                                                            }
+                                        withContext(Dispatchers.Main) {
+                                            try {
 
-                                                            hasError -> {
-                                                                val errorDetail =
-                                                                    errorMessages.joinToString("\n")
-                                                                AppLogger.e("Partial success. Errors:\n$errorDetail")
-                                                                Toast.makeText(
-                                                                    this@ListPanenTBSActivity,
-                                                                    "Beberapa data berhasil diarsipkan ($successCount/${mappedData.size})",
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
-                                                            }
-
-                                                            else -> {
-                                                                AppLogger.d("All items archived successfully")
-                                                                Toast.makeText(
-                                                                    this@ListPanenTBSActivity,
-                                                                    "Semua data berhasil diarsipkan",
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
-                                                            }
+                                                generateHighQualityQRCode(
+                                                    encodedData,
+                                                    qrCodeImageView
+                                                )
+                                                // Fade-out the loading elements
+                                                val fadeOut =
+                                                    ObjectAnimator.ofFloat(
+                                                        loadingLogo,
+                                                        "alpha",
+                                                        1f,
+                                                        0f
+                                                    )
+                                                        .apply {
+                                                            duration = 250
                                                         }
-                                                        dialog.dismiss()
-                                                    } catch (e: Exception) {
-                                                        AppLogger.e("Error in UI update: ${e.message}")
-                                                        Toast.makeText(
-                                                            this@ListPanenTBSActivity,
-                                                            "Terjadi kesalahan pada UI",
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
+                                                val fadeOutDots =
+                                                    ObjectAnimator.ofFloat(
+                                                        loadingContainer,
+                                                        "alpha",
+                                                        1f,
+                                                        0f
+                                                    )
+                                                        .apply {
+                                                            duration = 250
+                                                        }
+
+                                                // Ensure QR code, text, and button start fully invisible
+                                                qrCodeImageView.alpha = 0f
+                                                dashedLine.alpha = 0f
+                                                tvTitleQRGenerate.alpha = 0f
+                                                titleQRConfirm.alpha = 0f
+                                                descQRConfirm.alpha = 0f
+                                                btnConfirmScanPanenTPH.alpha = 0f
+
+                                                // Fade-in animations
+                                                val fadeInQR =
+                                                    ObjectAnimator.ofFloat(
+                                                        qrCodeImageView,
+                                                        "alpha",
+                                                        0f,
+                                                        1f
+                                                    )
+                                                        .apply {
+                                                            duration = 250
+                                                            startDelay = 150
+                                                        }
+                                                val fadeInDashedLine =
+                                                    ObjectAnimator.ofFloat(
+                                                        dashedLine,
+                                                        "alpha",
+                                                        0f,
+                                                        1f
+                                                    )
+                                                        .apply {
+                                                            duration = 250
+                                                            startDelay = 150
+                                                        }
+                                                val fadeInTitle =
+                                                    ObjectAnimator.ofFloat(
+                                                        tvTitleQRGenerate,
+                                                        "alpha",
+                                                        0f,
+                                                        1f
+                                                    )
+                                                        .apply {
+                                                            duration = 250
+                                                            startDelay = 150
+                                                        }
+                                                // Create fade-in animation for QR code and dashed line
+                                                val fadeIn =
+                                                    ObjectAnimator.ofFloat(
+                                                        qrCodeImageView,
+                                                        "alpha",
+                                                        0f,
+                                                        1f
+                                                    )
+                                                        .apply {
+                                                            duration = 250
+                                                            startDelay = 150
+                                                        }
+
+                                                tvTitleQRGenerate.alpha =
+                                                    0f  // Ensure title starts invisible
+
+                                                // Create fade-in for the dataQR text as well
+                                                val fadeInText =
+                                                    ObjectAnimator.ofFloat(dataQR, "alpha", 0f, 1f)
+                                                        .apply {
+                                                            duration = 250
+                                                            startDelay = 150
+                                                        }
+                                                val fadeInTitleConfirm =
+                                                    ObjectAnimator.ofFloat(
+                                                        titleQRConfirm,
+                                                        "alpha",
+                                                        0f,
+                                                        1f
+                                                    )
+                                                        .apply {
+                                                            duration = 250
+                                                            startDelay = 150
+                                                        }
+                                                val fadeInDescConfirm =
+                                                    ObjectAnimator.ofFloat(
+                                                        descQRConfirm,
+                                                        "alpha",
+                                                        0f,
+                                                        1f
+                                                    )
+                                                        .apply {
+                                                            duration = 250
+                                                            startDelay = 150
+                                                        }
+                                                val fadeInButton =
+                                                    ObjectAnimator.ofFloat(
+                                                        btnConfirmScanPanenTPH,
+                                                        "alpha",
+                                                        0f,
+                                                        1f
+                                                    )
+                                                        .apply {
+                                                            duration = 250
+                                                            startDelay = 150
+                                                        }
+
+                                                // Run animations together
+                                                AnimatorSet().apply {
+                                                    playTogether(fadeOut, fadeOutDots)
+                                                    addListener(object : AnimatorListenerAdapter() {
+                                                        override fun onAnimationEnd(animation: Animator) {
+                                                            // Hide loading elements
+                                                            loadingLogo.visibility = View.GONE
+                                                            loadingContainer.visibility = View.GONE
+
+                                                            // Show elements and start fade-in
+                                                            tvTitleQRGenerate.visibility =
+                                                                View.VISIBLE
+                                                            qrCodeImageView.visibility =
+                                                                View.VISIBLE
+                                                            dashedLine.visibility = View.VISIBLE
+                                                            titleQRConfirm.visibility = View.VISIBLE
+                                                            descQRConfirm.visibility = View.VISIBLE
+                                                            btnConfirmScanPanenTPH.visibility =
+                                                                View.VISIBLE
+
+                                                            fadeInQR.start()
+                                                            fadeInDashedLine.start()
+                                                            fadeInTitle.start()
+                                                            fadeInText.start()
+                                                            fadeInTitleConfirm.start()
+                                                            fadeInDescConfirm.start()
+                                                            fadeInButton.start()
+                                                        }
+                                                    })
+                                                    start()
                                                 }
 
                                             } catch (e: Exception) {
-                                                AppLogger.e("Fatal error in archiving process: ${e.message}")
-                                                withContext(Dispatchers.Main) {
-                                                    try {
-                                                        loadingDialog.dismiss()
-                                                        Toast.makeText(
-                                                            this@ListPanenTBSActivity,
-                                                            "Terjadi kesalahan saat mengarsipkan data: ${e.message}",
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                        dialog.dismiss()
-                                                    } catch (dialogException: Exception) {
-                                                        AppLogger.e("Error dismissing dialogs: ${dialogException.message}")
-                                                    }
-                                                }
+                                                loadingLogo.animation?.cancel()
+                                                loadingLogo.clearAnimation()
+                                                loadingLogo.visibility = View.GONE
+                                                loadingContainer.visibility = View.GONE
+                                                AppLogger.e("QR Generation Error: ${e.message}")
+                                                showErrorMessageGenerateQR(
+                                                    view,
+                                                    "Error Generating QR code: ${e.message}"
+                                                )
                                             }
-
-                                            panenViewModel.loadActivePanen()
-                                            panenViewModel.loadPanenCountArchive()
                                         }
-                                    }
-                                }
 
-                                val jsonData = formatPanenDataForQR(mappedData)
-                                val encodedData =
-                                    encodeJsonToBase64ZipQR(jsonData)
-                                        ?: throw Exception("Encoding failed")
-
-                                withContext(Dispatchers.Main) {
-                                    try {
-
-                                        generateHighQualityQRCode(encodedData, qrCodeImageView)
-                                        // Fade-out the loading elements
-                                        val fadeOut =
-                                            ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
-                                                .apply {
-                                                    duration = 250
-                                                }
-                                        val fadeOutDots =
-                                            ObjectAnimator.ofFloat(
-                                                loadingContainer,
-                                                "alpha",
-                                                1f,
-                                                0f
-                                            )
-                                                .apply {
-                                                    duration = 250
-                                                }
-
-                                        // Ensure QR code, text, and button start fully invisible
-                                        qrCodeImageView.alpha = 0f
-                                        dashedLine.alpha = 0f
-                                        tvTitleQRGenerate.alpha = 0f
-                                        titleQRConfirm.alpha = 0f
-                                        descQRConfirm.alpha = 0f
-                                        btnConfirmScanPanenTPH.alpha = 0f
-
-                                        // Fade-in animations
-                                        val fadeInQR =
-                                            ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-                                        val fadeInDashedLine =
-                                            ObjectAnimator.ofFloat(dashedLine, "alpha", 0f, 1f)
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-                                        val fadeInTitle =
-                                            ObjectAnimator.ofFloat(
-                                                tvTitleQRGenerate,
-                                                "alpha",
-                                                0f,
-                                                1f
-                                            )
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-                                        // Create fade-in animation for QR code and dashed line
-                                        val fadeIn =
-                                            ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-
-                                        tvTitleQRGenerate.alpha =
-                                            0f  // Ensure title starts invisible
-
-                                        // Create fade-in for the dataQR text as well
-                                        val fadeInText =
-                                            ObjectAnimator.ofFloat(dataQR, "alpha", 0f, 1f).apply {
-                                                duration = 250
-                                                startDelay = 150
-                                            }
-                                        val fadeInTitleConfirm =
-                                            ObjectAnimator.ofFloat(titleQRConfirm, "alpha", 0f, 1f)
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-                                        val fadeInDescConfirm =
-                                            ObjectAnimator.ofFloat(descQRConfirm, "alpha", 0f, 1f)
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-                                        val fadeInButton =
-                                            ObjectAnimator.ofFloat(
-                                                btnConfirmScanPanenTPH,
-                                                "alpha",
-                                                0f,
-                                                1f
-                                            )
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-
-                                        // Run animations together
-                                        AnimatorSet().apply {
-                                            playTogether(fadeOut, fadeOutDots)
-                                            addListener(object : AnimatorListenerAdapter() {
-                                                override fun onAnimationEnd(animation: Animator) {
-                                                    // Hide loading elements
-                                                    loadingLogo.visibility = View.GONE
-                                                    loadingContainer.visibility = View.GONE
-
-                                                    // Show elements and start fade-in
-                                                    tvTitleQRGenerate.visibility = View.VISIBLE
-                                                    qrCodeImageView.visibility = View.VISIBLE
-                                                    dashedLine.visibility = View.VISIBLE
-                                                    titleQRConfirm.visibility = View.VISIBLE
-                                                    descQRConfirm.visibility = View.VISIBLE
-                                                    btnConfirmScanPanenTPH.visibility = View.VISIBLE
-
-                                                    fadeInQR.start()
-                                                    fadeInDashedLine.start()
-                                                    fadeInTitle.start()
-                                                    fadeInText.start()
-                                                    fadeInTitleConfirm.start()
-                                                    fadeInDescConfirm.start()
-                                                    fadeInButton.start()
-                                                }
-                                            })
-                                            start()
-                                        }
 
                                     } catch (e: Exception) {
-                                        loadingLogo.animation?.cancel()
-                                        loadingLogo.clearAnimation()
-                                        loadingLogo.visibility = View.GONE
-                                        loadingContainer.visibility = View.GONE
-                                        AppLogger.e("QR Generation Error: ${e.message}")
-                                        showErrorMessageGenerateQR(
-                                            view,
-                                            "Error Generating QR code: ${e.message}"
-                                        )
+                                        AppLogger.e("Error in QR process: ${e.message}")
+                                        withContext(Dispatchers.Main) {
+                                            stopLoadingAnimation(loadingLogo, loadingContainer)
+                                            showErrorMessageGenerateQR(
+                                                view,
+                                                "Error Processing QR code: ${e.message}"
+                                            )
+                                        }
                                     }
                                 }
-
-
                             } catch (e: Exception) {
                                 AppLogger.e("Error in QR process: ${e.message}")
-                                withContext(Dispatchers.Main) {
-                                    stopLoadingAnimation(loadingLogo, loadingContainer)
-                                    showErrorMessageGenerateQR(
-                                        view,
-                                        "Error Processing QR code: ${e.message}"
-                                    )
-                                }
                             }
                         }
-                    } catch (e: Exception) {
-                        AppLogger.e("Error in QR process: ${e.message}")
+
+                        btnGenerateQRTPH.isEnabled = true
+                    },
+                    cancelFunction = {
+                        btnGenerateQRTPH.isEnabled = true // Re-enable button when user cancels
                     }
-                }
+                )
+
+
             }
         }
     }
@@ -1702,50 +1787,54 @@ class ListPanenTBSActivity : AppCompatActivity() {
             getString(R.string.confirmation_dialog_title),
             "${getString(R.string.al_make_sure_delete)} ${selectedItems.size} data?",
             "warning.json",
-            ContextCompat.getColor(this, R.color.colorRedDark)
-        ) {
-            loadingDialog.show()
-            loadingDialog.setMessage("Deleting items...")
+            ContextCompat.getColor(this, R.color.colorRedDark),
+            function = {
+                loadingDialog.show()
+                loadingDialog.setMessage("Deleting items...")
 
-            panenViewModel.deleteMultipleItems(selectedItems)
+                panenViewModel.deleteMultipleItems(selectedItems)
 
-            // Observe delete result
-            panenViewModel.deleteItemsResult.observe(this) { isSuccess ->
-                loadingDialog.dismiss()
-                if (isSuccess) {
-                    Toast.makeText(
-                        this,
-                        "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    // Reload data based on current state
-                    if (currentState == 0) {
-                        panenViewModel.loadActivePanen()
+                // Observe delete result
+                panenViewModel.deleteItemsResult.observe(this) { isSuccess ->
+                    loadingDialog.dismiss()
+                    if (isSuccess) {
+                        Toast.makeText(
+                            this,
+                            "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        // Reload data based on current state
+                        if (currentState == 0) {
+                            panenViewModel.loadActivePanen()
+                        } else {
+                            panenViewModel.loadArchivedPanen()
+                        }
                     } else {
-                        panenViewModel.loadArchivedPanen()
+                        Toast.makeText(
+                            this,
+                            "${getString(R.string.al_failed_delete)} data",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
-                } else {
-                    Toast.makeText(
-                        this,
-                        "${getString(R.string.al_failed_delete)} data",
-                        Toast.LENGTH_SHORT
-                    ).show()
+
+                    // Reset UI state
+                    val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                        .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                    headerCheckBox.isChecked = false
+                    listAdapter.clearSelections()
+                    speedDial.visibility = View.GONE
                 }
 
-                // Reset UI state
-                val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
-                    .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
-                headerCheckBox.isChecked = false
-                listAdapter.clearSelections()
-                speedDial.visibility = View.GONE
-            }
+                // Observe errors
+                panenViewModel.error.observe(this) { errorMessage ->
+                    loadingDialog.dismiss()
+                    Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+                }
+            },
+            cancelFunction = {
 
-            // Observe errors
-            panenViewModel.error.observe(this) { errorMessage ->
-                loadingDialog.dismiss()
-                Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
             }
-        }
+        )
     }
 
 

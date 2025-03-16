@@ -55,14 +55,24 @@ import java.util.Calendar
 import java.util.Locale
 
 
-
-
-
-class CameraRepository(private val context: Context, private val window: Window, private val view: View, private val zoomView: View) {
+class CameraRepository(
+    private val context: Context,
+    private val window: Window,
+    private val view: View,
+    private val zoomView: View
+) {
 
     interface PhotoCallback {
-        fun onPhotoTaken(photoFile: File, fname: String, resultCode: String, deletePhoto: View?, pageForm: Int, komentar: String?)
+        fun onPhotoTaken(
+            photoFile: File,
+            fname: String,
+            resultCode: String,
+            deletePhoto: View?,
+            pageForm: Int,
+            komentar: String?
+        )
     }
+
     private var photoCallback: PhotoCallback? = null
 
 
@@ -185,7 +195,15 @@ class CameraRepository(private val context: Context, private val window: Window,
         return resultBitmap
     }
 
-    fun takeCameraPhotos(resultCode: String, imageView: ImageView, pageForm : Int, deletePhoto : View?, komentar: String? = null, kodeFoto:String, featureName : String?) {
+    fun takeCameraPhotos(
+        resultCode: String,
+        imageView: ImageView,
+        pageForm: Int,
+        deletePhoto: View?,
+        komentar: String? = null,
+        kodeFoto: String,
+        featureName: String?
+    ) {
 
 //        val rootDCIM = File(
 //            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
@@ -298,7 +316,15 @@ class CameraRepository(private val context: Context, private val window: Window,
                                                 0
                                             }
 
-                                            takeCameraPhotos(resultCode, imageView, pageForm,deletePhoto, komentar,  kodeFoto,featureName)
+                                            takeCameraPhotos(
+                                                resultCode,
+                                                imageView,
+                                                pageForm,
+                                                deletePhoto,
+                                                komentar,
+                                                kodeFoto,
+                                                featureName
+                                            )
                                         }
                                     }
 
@@ -325,7 +351,8 @@ class CameraRepository(private val context: Context, private val window: Window,
 
                                             val dateFormat =
                                                 SimpleDateFormat("yyyyMdd_HHmmss").format(Calendar.getInstance().time)
-                                            fileName = "${featureName}_${kodeFoto}_${dateFormat}.jpg"
+                                            fileName =
+                                                "${featureName}_${kodeFoto}_${dateFormat}.jpg"
                                             file = File(dirApp, fileName)
 
 //                                            fileDCIM = File(dirDCIM, fileName)
@@ -357,13 +384,15 @@ class CameraRepository(private val context: Context, private val window: Window,
                                         var commentWm = komentar
                                         commentWm = commentWm?.replace("|", ",")?.replace("\n", "")
                                         commentWm = AppUtils.splitStringWatermark(commentWm!!, 60)
-                                        val watermarkText = if (resultCode == "0" || commentWm.isEmpty()) {
-                                            "CMP-$featureName\n${dateWM}"
-                                        } else {
-                                            "CMP-$featureName\n${commentWm}\n${dateWM}"
-                                        }
+                                        val watermarkText =
+                                            if (resultCode == "0" || commentWm.isEmpty()) {
+                                                "CMP-$featureName\n${dateWM}"
+                                            } else {
+                                                "CMP-$featureName\n${commentWm}\n${dateWM}"
+                                            }
 
-                                        val watermarkedBitmap = addWatermark(takenImage, watermarkText)
+                                        val watermarkedBitmap =
+                                            addWatermark(takenImage, watermarkText)
 
                                         try {
                                             val targetSizeBytes = 100 * 1024
@@ -451,7 +480,14 @@ class CameraRepository(private val context: Context, private val window: Window,
 
 
 
-                                            photoCallback?.onPhotoTaken(file, fileName, resultCode,deletePhoto, pageForm, komentar)
+                                            photoCallback?.onPhotoTaken(
+                                                file,
+                                                fileName,
+                                                resultCode,
+                                                deletePhoto,
+                                                pageForm,
+                                                komentar
+                                            )
                                         }
                                     }, handler)
 
@@ -507,7 +543,8 @@ class CameraRepository(private val context: Context, private val window: Window,
             setOnClickListener {
                 isEnabled = false
                 if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
-                    capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                    capReq =
+                        cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
                     capReq.addTarget(imageReader!!.surface)
                     cameraCaptureSession?.capture(capReq.build(), null, null)
                     postDelayed({ isEnabled = true }, 2000)
@@ -555,9 +592,15 @@ class CameraRepository(private val context: Context, private val window: Window,
         }
     }
 
-    fun openZoomPhotos(file: File, position: String, onChangePhoto: () -> Unit, onDeletePhoto: (String) -> Unit) {
+    fun openZoomPhotos(
+        file: File,
+        position: String,
+        onChangePhoto: () -> Unit,
+        onDeletePhoto: (String) -> Unit
+    ) {
         val fotoZoom = zoomView.findViewById<ImageView>(R.id.fotoZoom)
-        val backgroundView = zoomView.findViewById<View>(R.id.backgroundOverlay) // Add this to your layout
+        val backgroundView =
+            zoomView.findViewById<View>(R.id.backgroundOverlay) // Add this to your layout
 
         // Make both visible
         zoomView.visibility = View.VISIBLE
@@ -575,20 +618,25 @@ class CameraRepository(private val context: Context, private val window: Window,
             zoomView.visibility = View.GONE
             backgroundView.visibility = View.GONE
         }
-
-        zoomView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)?.setOnClickListener {
+        val zoomview = zoomView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
+        zoomview.setOnClickListener {
+            zoomview.isEnabled = false
             AlertDialogUtility.withTwoActions(
                 context,
                 "Hapus",
                 context.getString(R.string.confirmation_dialog_title),
                 context.getString(R.string.al_confirm_delete_photo),
                 "warning.json",
-                ContextCompat.getColor(context, R.color.greenDarker)
-            ) {
-                onDeletePhoto.invoke(position)
-                zoomView.visibility = View.GONE
-                backgroundView.visibility = View.GONE
-            }
+                ContextCompat.getColor(context, R.color.greenDarker),
+                function = {
+                    onDeletePhoto.invoke(position)
+                    zoomView.visibility = View.GONE
+                    backgroundView.visibility = View.GONE
+                },
+                cancelFunction = {
+                    zoomview.isEnabled = true
+                }
+            )
         }
 
         zoomView.findViewById<MaterialCardView>(R.id.cardChangePhoto)?.setOnClickListener {
@@ -686,6 +734,7 @@ class CameraRepository(private val context: Context, private val window: Window,
 
         return deleted
     }
+
     private fun setDefaultIcon(view: View) {
         val torchButton = view.findViewById<Button>(R.id.torchButton)
         torchButton.setBackgroundResource(R.drawable.baseline_flash_off_24)

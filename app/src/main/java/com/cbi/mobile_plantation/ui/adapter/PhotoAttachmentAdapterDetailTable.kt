@@ -62,23 +62,22 @@ class PhotoAttachmentAdapterDetailTable(
             val photoFile = File(photos[position])
 
             if (photoFile.exists()) {
-                // Load from file if it exists
                 Glide.with(holder.itemView.context)
                     .load(photoFile)
-                    .placeholder(R.drawable.baseline_add_a_photo_24)
-                    .error(R.drawable.baseline_add_a_photo_24)
+                    .placeholder(R.drawable.no_image_svgrepo_com)
+                    .error(R.drawable.no_image_svgrepo_com)
                     .centerCrop()
                     .into(holder.imageView)
             } else {
-                holder.imageView.setImageResource(R.drawable.baseline_add_a_photo_24)
+                holder.imageView.setImageResource(R.drawable.no_image_svgrepo_com)
             }
 
             holder.imageView.setOnClickListener {
                 onItemClick(position)
             }
         } else {
-            // No photo for this position, just show the placeholder
-            holder.imageView.setImageResource(R.drawable.baseline_add_a_photo_24)
+            holder.imageView.setImageResource(R.drawable.no_image_svgrepo_com)
+
             holder.imageView.setOnClickListener(null) // Remove click listener
         }
     }

@@ -145,6 +145,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var alertCardScanRadius: MaterialCardView
     private lateinit var alertTvScannedRadius: TextView
 
+
+    private lateinit var backButton: ImageView
+
     // Global Variables
     private lateinit var layoutAncak: View
     private lateinit var layoutKemandoran: LinearLayout
@@ -157,6 +160,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var layoutBlok: LinearLayout
     private lateinit var layoutSelAsistensi: LinearLayout
     private lateinit var tvErrorScannedNotSelected: TextView
+    private lateinit var mbSaveDataPanenTBS: MaterialButton
 
     private var keyboardBeingDismissed = false
 
@@ -272,8 +276,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         userId = prefManager!!.idUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
 
-        val backButton = findViewById<ImageView>(R.id.btn_back)
-        backButton.setOnClickListener { onBackPressed() }
+
+        backButton.setOnClickListener {
+            onBackPressed()
+        }
         setupTitleEachGroupInput()
         setupHeader()
 
@@ -372,105 +378,112 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             false // Don't consume the event so other touch handlers still work
         }
 
-        val mbSaveDataPanenTBS = findViewById<MaterialButton>(R.id.mbSaveDataPanenTBS)
 
         mbSaveDataPanenTBS.setOnClickListener {
+            mbSaveDataPanenTBS.isEnabled = false
             if (validateAndShowErrors()) {
                 AlertDialogUtility.withTwoActions(
                     this,
                     "Simpan Data",
                     getString(R.string.confirmation_dialog_title),
                     getString(R.string.confirmation_dialog_description),
-                    "warning.json"
-                ) {
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        try {
-                            val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
-                            val selectedPemanenLain =
-                                selectedPemanenLainAdapter.getSelectedWorkers()
-                            val selectedPemanenIds = selectedPemanen.map { it.id }
-                            val selectedPemanenLainIds = selectedPemanenLain.map { it.id }
+                    "warning.json",
+                    function = {
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            try {
+                                val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
+                                val selectedPemanenLain =
+                                    selectedPemanenLainAdapter.getSelectedWorkers()
+                                val selectedPemanenIds = selectedPemanen.map { it.id }
+                                val selectedPemanenLainIds = selectedPemanenLain.map { it.id }
 
-                            val photoFilesString = photoFiles.joinToString(";")
-                            val komentarFotoString = komentarFoto.joinToString(";")
+                                val photoFilesString = photoFiles.joinToString(";")
+                                val komentarFotoString = komentarFoto.joinToString(";")
 
-                            val uniquePemanenIds = (selectedPemanenIds + selectedPemanenLainIds).distinct().joinToString(",")
+                                val uniquePemanenIds =
+                                    (selectedPemanenIds + selectedPemanenLainIds).distinct()
+                                        .joinToString(",")
 
-                            val result = withContext(Dispatchers.IO) {
-                                panenViewModel.saveDataPanen(
-                                    tph_id = selectedTPHValue?.toString() ?: "",
-                                    date_created = SimpleDateFormat(
-                                        "yyyy-MM-dd HH:mm:ss",
-                                        Locale.getDefault()
-                                    ).format(Date()),
-                                    created_by = userId!!,  // Prevent crash if userId is null
-                                    karyawan_id = uniquePemanenIds,
-                                    jjg_json = jjg_json,
-                                    foto = photoFilesString,
-                                    komentar = komentarFotoString,
-                                    asistensi = asistensi ?: 0, // Default to 0 if null
-                                    lat = lat ?: 0.0, // Default to 0.0 if null
-                                    lon = lon ?: 0.0, // Default to 0.0 if null
-                                    jenis_panen = selectedTipePanen?.toIntOrNull()
-                                        ?: 0, // Avoid NumberFormatException
-                                    ancakInput = ancakInput.toInt(), // Default to "0" if null
-                                    info = infoApp ?: "",
-                                    archive = 0,
-                                    blokBanjir = blokBanjir
-                                )
-                            }
+                                val result = withContext(Dispatchers.IO) {
+                                    panenViewModel.saveDataPanen(
+                                        tph_id = selectedTPHValue?.toString() ?: "",
+                                        date_created = SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss",
+                                            Locale.getDefault()
+                                        ).format(Date()),
+                                        created_by = userId!!,  // Prevent crash if userId is null
+                                        karyawan_id = uniquePemanenIds,
+                                        jjg_json = jjg_json,
+                                        foto = photoFilesString,
+                                        komentar = komentarFotoString,
+                                        asistensi = asistensi ?: 0, // Default to 0 if null
+                                        lat = lat ?: 0.0, // Default to 0.0 if null
+                                        lon = lon ?: 0.0, // Default to 0.0 if null
+                                        jenis_panen = selectedTipePanen?.toIntOrNull()
+                                            ?: 0, // Avoid NumberFormatException
+                                        ancakInput = ancakInput.toInt(), // Default to "0" if null
+                                        info = infoApp ?: "",
+                                        archive = 0,
+                                        blokBanjir = blokBanjir
+                                    )
+                                }
 
 
-                            when (result) {
-                                is AppRepository.SaveResultPanen.Success -> {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@FeaturePanenTBSActivity,
-                                        stringXML(R.string.al_back),
-                                        stringXML(R.string.al_success_save_local),
-                                        stringXML(R.string.al_description_success_save_local),
-                                        "success.json",
-                                        R.color.greenDefault
-                                    ) {
+                                when (result) {
+                                    is AppRepository.SaveResultPanen.Success -> {
+                                        AlertDialogUtility.withSingleAction(
+                                            this@FeaturePanenTBSActivity,
+                                            stringXML(R.string.al_back),
+                                            stringXML(R.string.al_success_save_local),
+                                            stringXML(R.string.al_description_success_save_local),
+                                            "success.json",
+                                            R.color.greenDefault
+                                        ) {
 
-                                        panenStoredLocal.add(selectedTPHValue!!.toInt())
-                                        resetFormAfterSaveData()
+                                            panenStoredLocal.add(selectedTPHValue!!.toInt())
+                                            resetFormAfterSaveData()
+                                        }
                                     }
+
+                                    is AppRepository.SaveResultPanen.Error -> {
+                                        AlertDialogUtility.withSingleAction(
+                                            this@FeaturePanenTBSActivity,
+                                            stringXML(R.string.al_back),
+                                            stringXML(R.string.al_failed_save_local),
+                                            "${stringXML(R.string.al_description_failed_save_local)} : ${result.exception.message}",
+                                            "warning.json",
+                                            R.color.colorRedDark
+                                        ) {}
+                                    }
+
+
                                 }
 
-                                is AppRepository.SaveResultPanen.Error -> {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@FeaturePanenTBSActivity,
-                                        stringXML(R.string.al_back),
-                                        stringXML(R.string.al_failed_save_local),
-                                        "${stringXML(R.string.al_description_failed_save_local)} : ${result.exception.message}",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) {}
-                                }
+                            } catch (e: Exception) {
+                                AppLogger.d("Unexpected error: ${e.message}")
 
-
+                                AlertDialogUtility.withSingleAction(
+                                    this@FeaturePanenTBSActivity,
+                                    stringXML(R.string.al_back),
+                                    stringXML(R.string.al_failed_save_local),
+                                    "${stringXML(R.string.al_description_failed_save_local)} : ${e.message}",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ) {}
                             }
 
-                        } catch (e: Exception) {
-                            AppLogger.d("Unexpected error: ${e.message}")
-
-                            AlertDialogUtility.withSingleAction(
-                                this@FeaturePanenTBSActivity,
-                                stringXML(R.string.al_back),
-                                stringXML(R.string.al_failed_save_local),
-                                "${stringXML(R.string.al_description_failed_save_local)} : ${e.message}",
-                                "warning.json",
-                                R.color.colorRedDark
-                            ) {}
                         }
-
+                        mbSaveDataPanenTBS.isEnabled = true
+                    },
+                    cancelFunction = {
+                        mbSaveDataPanenTBS.isEnabled = true
                     }
-                }
+                )
             }
         }
     }
 
-    fun initializeJjgJson() {
+    private fun initializeJjgJson() {
         jjg_json = JSONObject().apply {
             put("TO", jumTBS)
             put("UN", bMentah)
@@ -514,6 +527,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
     private fun initUI() {
+        backButton = findViewById<ImageView>(R.id.btn_back)
 
         alertCardScanRadius = findViewById(R.id.alertCardScanRadius)
         alertTvScannedRadius = findViewById(R.id.alertTvScannedRadius)
@@ -522,6 +536,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         titleScannedTPHInsideRadius = findViewById(R.id.titleScannedTPHInsideRadius)
         descScannedTPHInsideRadius = findViewById(R.id.descScannedTPHInsideRadius)
         emptyScannedTPHInsideRadius = findViewById(R.id.emptyScanTPHInsideRadius)
+
+        mbSaveDataPanenTBS = findViewById(R.id.mbSaveDataPanenTBS)
 
         layoutAncak = findViewById(R.id.layoutAncak)
         layoutPemanen = findViewById(R.id.layoutPemanen)
@@ -925,6 +941,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         tphScannedResultRecyclerView.removeItemDecoration(decoration) // Remove if applied
 
         btnScanTPHRadius.setOnClickListener {
+            btnScanTPHRadius.isEnabled = false
             isTriggeredBtnScanned = true
             if (currentAccuracy > boundaryAccuracy) {
                 AlertDialogUtility.withTwoActions(
@@ -933,10 +950,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     getString(R.string.confirmation_dialog_title),
                     "Gps terdeteksi diluar dari ${boundaryAccuracy.toInt()} meter. Apakah tetap akan melanjutkan?",
                     "warning.json",
-                    ContextCompat.getColor(this@FeaturePanenTBSActivity, R.color.greendarkerbutton)
-                ) {
-                    checkScannedTPHInsideRadius()
-                }
+                    ContextCompat.getColor(this@FeaturePanenTBSActivity, R.color.greendarkerbutton),
+                    function = {
+                        checkScannedTPHInsideRadius()
+                    },
+                    cancelFunction = {
+                        btnScanTPHRadius.isEnabled = true
+                    }
+                )
             } else {
                 checkScannedTPHInsideRadius()
             }
@@ -1757,7 +1778,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
-        if (!isSwitchBlokBanjirEnabled && !isTriggeredBtnScanned) {
+        if (!isSwitchBlokBanjirEnabled && !isTriggeredBtnScanned && selectedAfdeling.isNotEmpty()) {
             isValid = false
             errorMessages.add(stringXML(R.string.al_for_attempting_get_tph_in_radius))
             tvErrorScannedNotSelected.text = stringXML(R.string.al_for_attempting_get_tph_in_radius)
@@ -1812,6 +1833,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
         if (!isValid) {
+            mbSaveDataPanenTBS.isEnabled = true
             vibrate()
             val combinedErrorMessage = buildString {
                 val allMessages = mutableListOf<String>()
@@ -2884,29 +2906,52 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     override fun onBackPressed() {
         when {
             cameraViewModel.statusCamera() -> {
-                // If in camera mode, close camera and return to previous screen
                 cameraViewModel.closeCamera()
+            }
+
+            !isAnySelectionFilled() -> {
+                // If at least one field is filled, simply return without showing the alert
+                vibrate()
+                val intent = Intent(this, HomePageActivity::class.java)
+                startActivity(intent)
+                finishAffinity()
             }
 
             else -> {
                 vibrate()
+                backButton.isEnabled = false
+
                 AlertDialogUtility.withTwoActions(
                     this,
                     "Keluar",
                     getString(R.string.confirmation_dialog_title),
                     getString(R.string.al_confirm_feature),
                     "warning.json",
-                    ContextCompat.getColor(this, R.color.bluedarklight)
-                ) {
-                    val intent = Intent(this, HomePageActivity::class.java)
-                    startActivity(intent)
-                    finishAffinity()
-                }
-
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = {
+                        backButton.isEnabled = true // Re-enable button when user cancels
+                        val intent = Intent(this, HomePageActivity::class.java)
+                        startActivity(intent)
+                        finishAffinity()
+                    },
+                    cancelFunction = {
+                        backButton.isEnabled = true // Re-enable button when user cancels
+                    }
+                )
             }
         }
-
     }
+
+
+    private fun isAnySelectionFilled(): Boolean {
+        return selectedAfdeling.isNotEmpty() ||
+                selectedTipePanen.isNotEmpty() ||
+                selectedKemandoran.isNotEmpty() ||
+                selectedPemanen.isNotEmpty() ||
+                (blokBanjir == 1 && selectedTPH.isNotEmpty()) ||
+                (blokBanjir == 1 && selectedBlok.isNotEmpty())
+    }
+
 
     @Override
     @SuppressLint("DefaultLocale")

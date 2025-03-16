@@ -310,39 +310,43 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             getString(R.string.confirmation_dialog_title),
             "${getString(R.string.al_make_sure_delete)} ${selectedItems.size} data?",
             "warning.json",
-            ContextCompat.getColor(this, R.color.colorRedDark)
-        ) {
-            loadingDialog.show()
-            loadingDialog.setMessage("Deleting items...")
+            ContextCompat.getColor(this, R.color.colorRedDark),
+            function = {
+                loadingDialog.show()
+                loadingDialog.setMessage("Deleting items...")
 
-            weightBridgeViewModel.deleteMultipleItems(selectedItems)
+                weightBridgeViewModel.deleteMultipleItems(selectedItems)
 
-            weightBridgeViewModel.deleteItemsResult.observe(this) { isSuccess ->
-                loadingDialog.dismiss()
-                if (isSuccess) {
-                    Toast.makeText(
-                        this,
-                        "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    // Reload data based on current state
-                    weightBridgeViewModel.loadHistoryUploadeSPB()
-                } else {
-                    Toast.makeText(
-                        this,
-                        "${getString(R.string.al_failed_delete)} data",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                weightBridgeViewModel.deleteItemsResult.observe(this) { isSuccess ->
+                    loadingDialog.dismiss()
+                    if (isSuccess) {
+                        Toast.makeText(
+                            this,
+                            "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        // Reload data based on current state
+                        weightBridgeViewModel.loadHistoryUploadeSPB()
+                    } else {
+                        Toast.makeText(
+                            this,
+                            "${getString(R.string.al_failed_delete)} data",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+
+                    speedDial.visibility = View.GONE
                 }
 
-                speedDial.visibility = View.GONE
-            }
+                weightBridgeViewModel.error.observe(this) { errorMessage ->
+                    loadingDialog.dismiss()
+                    Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+                }
+            },
+            cancelFunction = {
 
-            weightBridgeViewModel.error.observe(this) { errorMessage ->
-                loadingDialog.dismiss()
-                Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
             }
-        }
+        )
     }
 
     private fun setupSpeedDial() {

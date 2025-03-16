@@ -174,6 +174,7 @@ class ListAbsensiActivity : AppCompatActivity() {
     private fun setupQRAbsensi() {
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
         btnGenerateQRAbsensi.setOnClickListener {
+            btnGenerateQRAbsensi.isEnabled = false
             val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
             view.background = ContextCompat.getDrawable(
                 this@ListAbsensiActivity,
@@ -262,142 +263,147 @@ class ListAbsensiActivity : AppCompatActivity() {
                                     ContextCompat.getColor(
                                         this@ListAbsensiActivity,
                                         R.color.greendarkerbutton
-                                    )
-                                ) {
-                                    lifecycleScope.launch(Dispatchers.IO) {
-                                        try {
-                                            withContext(Dispatchers.Main) {
-                                                loadingDialog.show()
-                                            }
+                                    ),
+                                    function={
+                                        lifecycleScope.launch(Dispatchers.IO) {
+                                            try {
+                                                withContext(Dispatchers.Main) {
+                                                    loadingDialog.show()
+                                                }
 
-                                            // Validate data first
-                                            if (mappedData.isEmpty()) {
-                                                throw Exception("No data to archive")
-                                            }
+                                                // Validate data first
+                                                if (mappedData.isEmpty()) {
+                                                    throw Exception("No data to archive")
+                                                }
 
-                                            var hasError = false
-                                            var successCount = 0
-                                            val errorMessages = mutableListOf<String>()
+                                                var hasError = false
+                                                var successCount = 0
+                                                val errorMessages = mutableListOf<String>()
 
-                                            mappedData.forEach { item ->
-                                                try {
-                                                    // Null check for item
-                                                    if (item == null) {
-                                                        errorMessages.add("Found null item in data")
-                                                        hasError = true
-                                                        return@forEach
-                                                    }
-
-                                                    // ID validation
-                                                    val id = when (val idValue = item["id"]) {
-                                                        null -> {
-                                                            errorMessages.add("ID is null")
-                                                            hasError = true
-                                                            return@forEach
-                                                        }
-
-                                                        !is Number -> {
-                                                            errorMessages.add("Invalid ID format: $idValue")
-                                                            hasError = true
-                                                            return@forEach
-                                                        }
-
-                                                        else -> idValue.toInt()
-                                                    }
-
-                                                    AppLogger.d(id.toString())
-                                                    if (id <= 0) {
-                                                        errorMessages.add("Invalid ID value: $id")
-                                                        hasError = true
-                                                        return@forEach
-                                                    }
-
+                                                mappedData.forEach { item ->
                                                     try {
-                                                        absensiViewModel.archiveAbsensiById(id)
-                                                        successCount++
-                                                    } catch (e: SQLiteException) {
-                                                        errorMessages.add("Database error for ID $id: ${e.message}")
-                                                        hasError = true
+                                                        // Null check for item
+                                                        if (item == null) {
+                                                            errorMessages.add("Found null item in data")
+                                                            hasError = true
+                                                            return@forEach
+                                                        }
+
+                                                        // ID validation
+                                                        val id = when (val idValue = item["id"]) {
+                                                            null -> {
+                                                                errorMessages.add("ID is null")
+                                                                hasError = true
+                                                                return@forEach
+                                                            }
+
+                                                            !is Number -> {
+                                                                errorMessages.add("Invalid ID format: $idValue")
+                                                                hasError = true
+                                                                return@forEach
+                                                            }
+
+                                                            else -> idValue.toInt()
+                                                        }
+
+                                                        AppLogger.d(id.toString())
+                                                        if (id <= 0) {
+                                                            errorMessages.add("Invalid ID value: $id")
+                                                            hasError = true
+                                                            return@forEach
+                                                        }
+
+                                                        try {
+                                                            absensiViewModel.archiveAbsensiById(id)
+                                                            successCount++
+                                                        } catch (e: SQLiteException) {
+                                                            errorMessages.add("Database error for ID $id: ${e.message}")
+                                                            hasError = true
+                                                        } catch (e: Exception) {
+                                                            errorMessages.add("Error archiving ID $id: ${e.message}")
+                                                            hasError = true
+                                                        }
+
                                                     } catch (e: Exception) {
-                                                        errorMessages.add("Error archiving ID $id: ${e.message}")
+                                                        errorMessages.add("Unexpected error processing item: ${e.message}")
                                                         hasError = true
                                                     }
-
-                                                } catch (e: Exception) {
-                                                    errorMessages.add("Unexpected error processing item: ${e.message}")
-                                                    hasError = true
                                                 }
-                                            }
 
-                                            // Show results
-                                            withContext(Dispatchers.Main) {
-                                                try {
-                                                    loadingDialog.dismiss()
+                                                // Show results
+                                                withContext(Dispatchers.Main) {
+                                                    try {
+                                                        loadingDialog.dismiss()
 
-                                                    when {
-                                                        successCount == 0 -> {
-                                                            val errorDetail =
-                                                                errorMessages.joinToString("\n")
-                                                            AppLogger.e("Archive failed. Errors:\n$errorDetail")
-                                                            Toast.makeText(
-                                                                this@ListAbsensiActivity,
-                                                                "Gagal mengarsipkan data",
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
+                                                        when {
+                                                            successCount == 0 -> {
+                                                                val errorDetail =
+                                                                    errorMessages.joinToString("\n")
+                                                                AppLogger.e("Archive failed. Errors:\n$errorDetail")
+                                                                Toast.makeText(
+                                                                    this@ListAbsensiActivity,
+                                                                    "Gagal mengarsipkan data",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+
+                                                            hasError -> {
+                                                                val errorDetail =
+                                                                    errorMessages.joinToString("\n")
+                                                                AppLogger.e("Partial success. Errors:\n$errorDetail")
+                                                                Toast.makeText(
+                                                                    this@ListAbsensiActivity,
+                                                                    "Beberapa data berhasil diarsipkan ($successCount/${mappedData.size})",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+
+                                                            else -> {
+                                                                AppLogger.d("All items archived successfully")
+                                                                Toast.makeText(
+                                                                    this@ListAbsensiActivity,
+                                                                    "Semua data berhasil diarsipkan",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
                                                         }
-
-                                                        hasError -> {
-                                                            val errorDetail =
-                                                                errorMessages.joinToString("\n")
-                                                            AppLogger.e("Partial success. Errors:\n$errorDetail")
-                                                            Toast.makeText(
-                                                                this@ListAbsensiActivity,
-                                                                "Beberapa data berhasil diarsipkan ($successCount/${mappedData.size})",
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
-                                                        }
-
-                                                        else -> {
-                                                            AppLogger.d("All items archived successfully")
-                                                            Toast.makeText(
-                                                                this@ListAbsensiActivity,
-                                                                "Semua data berhasil diarsipkan",
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
-                                                        }
+                                                        dialog.dismiss()
+                                                    } catch (e: Exception) {
+                                                        AppLogger.e("Error in UI update: ${e.message}")
+                                                        Toast.makeText(
+                                                            this@ListAbsensiActivity,
+                                                            "Terjadi kesalahan pada UI",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
                                                     }
-                                                    dialog.dismiss()
-                                                } catch (e: Exception) {
-                                                    AppLogger.e("Error in UI update: ${e.message}")
-                                                    Toast.makeText(
-                                                        this@ListAbsensiActivity,
-                                                        "Terjadi kesalahan pada UI",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
+                                                }
+
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Fatal error in archiving process: ${e.message}")
+                                                withContext(Dispatchers.Main) {
+                                                    try {
+                                                        loadingDialog.dismiss()
+                                                        Toast.makeText(
+                                                            this@ListAbsensiActivity,
+                                                            "Terjadi kesalahan saat mengarsipkan data: ${e.message}",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                        dialog.dismiss()
+                                                    } catch (dialogException: Exception) {
+                                                        AppLogger.e("Error dismissing dialogs: ${dialogException.message}")
+                                                    }
                                                 }
                                             }
 
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Fatal error in archiving process: ${e.message}")
-                                            withContext(Dispatchers.Main) {
-                                                try {
-                                                    loadingDialog.dismiss()
-                                                    Toast.makeText(
-                                                        this@ListAbsensiActivity,
-                                                        "Terjadi kesalahan saat mengarsipkan data: ${e.message}",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                    dialog.dismiss()
-                                                } catch (dialogException: Exception) {
-                                                    AppLogger.e("Error dismissing dialogs: ${dialogException.message}")
-                                                }
-                                            }
+                                            absensiViewModel.loadActiveAbsensi()
+                                            absensiViewModel.loadAbsensiCountArchive()
                                         }
-
-                                        absensiViewModel.loadActiveAbsensi()
-                                        absensiViewModel.loadAbsensiCountArchive()
+                                        btnGenerateQRAbsensi.isEnabled = true
+                                    },
+                                    cancelFunction = {
+                                        btnGenerateQRAbsensi.isEnabled = true
                                     }
-                                }
+                                )
                             }
                             AppLogger.d(mappedData.toString())
                             val jsonData = formatPanenDataForQR(mappedData)

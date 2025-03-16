@@ -1457,43 +1457,49 @@ class HomePageActivity : AppCompatActivity() {
 
         btnLogout.setOnClickListener {
             vibrate()
+            btnLogout.isEnabled = false
             AlertDialogUtility.withTwoActions(
                 this,
                 "Keluar",
                 getString(R.string.confirmation_dialog_title),
                 getString(R.string.al_confirm_logout),
                 "warning.json",
-                ContextCompat.getColor(this, R.color.bluedarklight)
-            ) {
+                ContextCompat.getColor(this, R.color.bluedarklight),
+                function = {
+                    prefManager!!.isFirstTimeLaunch = false
+                    prefManager!!.rememberLogin = false
+                    prefManager!!.token = null
+                    prefManager!!.username = null
+                    prefManager!!.password = null
+                    prefManager!!.nameUserLogin = null
+                    prefManager!!.idUserLogin = 0  // Resetting Int to 0
+                    prefManager!!.jabatanUserLogin = null
+                    prefManager!!.estateUserLogin = null
+                    prefManager!!.estateUserLengkapLogin = null
+                    prefManager!!.estateIdUserLogin = null
+                    prefManager!!.regionalIdUserLogin = null
+                    prefManager!!.companyIdUserLogin = null
+                    prefManager!!.companyAbbrUserLogin = null
+                    prefManager!!.companyNamaUserLogin = null
+                    prefManager!!.lastModifiedDatasetTPH = null
+                    prefManager!!.lastModifiedDatasetKemandoran = null
+                    prefManager!!.lastModifiedDatasetPemanen = null
+                    prefManager!!.lastModifiedDatasetTransporter = null
+                    prefManager!!.clearDatasetMustUpdate()
 
-                prefManager!!.isFirstTimeLaunch = false
-                prefManager!!.rememberLogin = false
-                prefManager!!.token = null
-                prefManager!!.username = null
-                prefManager!!.password = null
-                prefManager!!.nameUserLogin = null
-                prefManager!!.idUserLogin = 0  // Resetting Int to 0
-                prefManager!!.jabatanUserLogin = null
-                prefManager!!.estateUserLogin = null
-                prefManager!!.estateUserLengkapLogin = null
-                prefManager!!.estateIdUserLogin = null
-                prefManager!!.regionalIdUserLogin = null
-                prefManager!!.companyIdUserLogin = null
-                prefManager!!.companyAbbrUserLogin = null
-                prefManager!!.companyNamaUserLogin = null
-                prefManager!!.lastModifiedDatasetTPH = null
-                prefManager!!.lastModifiedDatasetKemandoran = null
-                prefManager!!.lastModifiedDatasetPemanen = null
-                prefManager!!.lastModifiedDatasetTransporter = null
-                prefManager!!.clearDatasetMustUpdate()
+                    datasetViewModel.clearAllData()
 
-                datasetViewModel.clearAllData()
+                    val intent = Intent(this, LoginActivity::class.java)
+                    Toasty.success(this, "Berhasil Logout", Toast.LENGTH_LONG, true).show()
+                    startActivity(intent)
+                    finishAffinity()
+                    btnLogout.isEnabled = true
+                },
+                cancelFunction = {
 
-                val intent = Intent(this, LoginActivity::class.java)
-                Toasty.success(this, "Berhasil Logout", Toast.LENGTH_LONG, true).show()
-                startActivity(intent)
-                finishAffinity()
-            }
+                    btnLogout.isEnabled = true
+                }
+            )
         }
 
     }

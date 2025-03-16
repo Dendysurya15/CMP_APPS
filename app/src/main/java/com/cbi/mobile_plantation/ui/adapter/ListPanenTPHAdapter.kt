@@ -7,6 +7,7 @@ import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Context
 import android.graphics.Rect
+import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.os.Environment
 import android.os.Handler
@@ -358,7 +359,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             scannedTphIdsSet.add(tphId)
         }
 
-        if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+        if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && featureName == AppUtils.ListFeatureNames.RekapESPBTimbanganMill) {
             holder.itemView.setOnClickListener {
                 val context = holder.itemView.context
                 val bottomSheetDialog = BottomSheetDialog(context)
@@ -629,42 +630,26 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         } else {
             textViewValue?.text = ": $value"
         }
+
+        if (label in listOf(
+                DetailInfoType.TOTAL_JANJANG.label,
+                DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK.label,
+                DetailInfoType.TOTAL_JANJANG_DI_BAYAR.label
+            )
+        ) {
+            textViewLabel?.setTypeface(null, Typeface.BOLD)
+            textViewValue?.setTypeface(null, Typeface.BOLD)
+        }
     }
-
-
-    private var onSelectionChangedListener: ((Int) -> Unit)? = null
 
     fun setOnSelectionChangedListener(listener: (Int) -> Unit) {
         onSelectionChangeListener = listener
     }
 
-    private fun notifySelectedItemsChanged() {
-        onSelectionChangedListener?.invoke(selectedItems.size)
-    }
 
-    fun clearAll() {
-        selectedItems.clear()
-        tphList.clear()
-        selectAllState = false
-        notifyDataSetChanged()
-        onSelectionChangeListener?.invoke(0)
-    }
-
-//    fun updateData(newData: List<Map<String, Any>>) {
-//        tphList.clear()
-//        selectedItems.clear()
-//        selectAllState = false
-//        isSortAscending = null  // Add this line
-//        tphList.addAll(newData)
-//        filteredList = tphList.toMutableList()
-//        notifyDataSetChanged()
-//        onSelectionChangeListener?.invoke(0)
-//    }
-
-
-    // Then modify the updateData method to preserve selections from scanned items
+    @SuppressLint("NotifyDataSetChanged")
     fun updateData(newData: List<Map<String, Any>>) {
-        // Keep track of tphListScan before clearing selections
+
         preselectedTphIds.clear()
         preselectedTphIds.addAll(tphListScan)
 
