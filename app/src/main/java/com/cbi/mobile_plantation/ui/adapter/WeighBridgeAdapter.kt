@@ -1,10 +1,12 @@
 package com.cbi.mobile_plantation.ui.adapter
 
 import android.content.Context
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -13,7 +15,12 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity.InfoType
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.card.MaterialCardView
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 data class WBData(
@@ -33,8 +40,17 @@ data class WBData(
     val estate: String,
     val afdeling: String,
     val datetime: String,
-    val status_cmp: Int?,
-    val status_ppro: Int?,
+    val status_upload_cmp_wb: Int?,
+    val status_upload_ppro_wb: Int?,
+    val uploaded_at_wb: String?,
+    val uploaded_at_ppro_wb: String?,
+    val uploaded_wb_response:String?,
+    val uploaded_ppro_response:String?,
+    val formattedBlokList :String?,
+    val pemuat_nama :String?,
+    val totalJjg :Int?,
+    val mill_name :String?,
+    val transporter_name :String?,
 )
 
 class WeighBridgeAdapter(private var items: List<WBData>) :
@@ -46,7 +62,6 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         val td1: TextView = view.findViewById(R.id.td1)
         val td2: TextView = view.findViewById(R.id.td2)
         val td3: TextView = view.findViewById(R.id.td3)
-        val td4: TextView = view.findViewById(R.id.td4)
         val td5: LinearLayout = view.findViewById(R.id.td5) // Change to LinearLayout
         val checkbox: CheckBox = view.findViewById(R.id.checkBoxPanen) // Add this
     }
@@ -62,13 +77,73 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         holder.td1.visibility = View.VISIBLE
         holder.td2.visibility = View.VISIBLE
         holder.td3.visibility = View.VISIBLE
-        holder.td4.visibility = View.VISIBLE
         holder.td5.visibility = View.VISIBLE
 
+        holder.itemView.setOnClickListener {
+            val context = holder.itemView.context
+            val bottomSheetDialog = BottomSheetDialog(context)
+            val view = LayoutInflater.from(context)
+                .inflate(R.layout.layout_bottom_sheet_detail_table_wb, null)
+
+            view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
+                "Detail E-SPB ${item.noSPB}"
+
+            view.findViewById<Button>(R.id.btnCloseDetailTable).setOnClickListener {
+                bottomSheetDialog.dismiss()
+            }
+
+            bottomSheetDialog.setContentView(view)
+
+            val maxHeight = (context.resources.displayMetrics.heightPixels * 0.85).toInt()
+
+            bottomSheetDialog.show()
+
+            val infoItems = listOf(
+                Info.ESPB to item.noSPB,
+                Info.DATE to item.datetime,
+                Info.ESTATE to item.estate,
+                Info.AFDELING to item.afdeling,
+                Info.NOPOL to item.nopol,
+                Info.BLOK to item.formattedBlokList,
+                Info.TOTAL_JJG to item.totalJjg.toString(),
+                Info.PEMUAT to item.pemuat_id,
+                Info.DRIVER to item.driver,
+                Info.MILL to item.mill_name,
+                Info.TRANSPORTER to item.transporter_name,
+            )
+            val statusContainer = view.findViewById<LinearLayout>(R.id.statusContainer)
+
+            setStatusCard("CMP", statusContainer, item.status_upload_cmp_wb!!, item.uploaded_at_wb ?: "", item.uploaded_wb_response ?:"")
+            setStatusCard("PPRO", statusContainer, item.status_upload_ppro_wb!!, item.uploaded_at_ppro_wb ?: "", item.uploaded_ppro_response ?:"")
+
+            infoItems.forEach { (type, value) ->
+                val itemView = view.findViewById<View>(type.id)
+
+                if (itemView != null) {
+                    if (value != null) {
+                        setInfoItemValues(itemView, type.label, value)
+                    }
+                }
+            }
+
+            bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                ?.let { bottomSheet ->
+                    val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                    behavior.apply {
+                        this.peekHeight = maxHeight
+                        this.state = BottomSheetBehavior.STATE_EXPANDED
+                        this.isFitToContents = true
+                        this.isDraggable = false
+                    }
+
+                    bottomSheet.layoutParams?.height = maxHeight
+                }
+        }
         holder.td1.text = item.noSPB
-        holder.td2.text = item.estate
-        holder.td3.text = item.afdeling
-        holder.td4.text = formatToIndonesianDateTime(item.datetime)
+        holder.td2.text = "${item.estate}\n${item.afdeling}"
+        holder.td3.text = item.datetime
+
 
         holder.checkbox.isChecked = selectedItems.contains(item)
 
@@ -81,7 +156,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
             }
         }
 
-        if (item.status_cmp == 1 && item.status_ppro == 1) {
+        if (item.status_upload_cmp_wb == 1 && item.status_upload_ppro_wb == 1) {
             holder.checkbox.apply {
 //                isChecked = true
                 isEnabled = false
@@ -127,14 +202,14 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
                 // CMP Icon
                 addView(ImageView(context).apply {
                     setImageResource(
-                        if (item.status_cmp == 1) R.drawable.baseline_check_box_24
+                        if (item.status_upload_cmp_wb == 1) R.drawable.baseline_check_box_24
                         else R.drawable.baseline_close_24
                     )
                     layoutParams = LinearLayout.LayoutParams(
                         24.dpToPx(context),
                         24.dpToPx(context)
                     )
-                    val color = if (item.status_cmp == 1) {
+                    val color = if (item.status_upload_cmp_wb == 1) {
                         ContextCompat.getColor(context, R.color.greendarkerbutton)
                     } else {
                         ContextCompat.getColor(context, R.color.colorRedDark)
@@ -169,14 +244,14 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
                 // PPRO Icon
                 addView(ImageView(context).apply {
                     setImageResource(
-                        if (item.status_ppro == 1) R.drawable.baseline_check_box_24
+                        if (item.status_upload_ppro_wb == 1) R.drawable.baseline_check_box_24
                         else R.drawable.baseline_close_24
                     )
                     layoutParams = LinearLayout.LayoutParams(
                         24.dpToPx(context),
                         24.dpToPx(context)
                     )
-                    val color = if (item.status_ppro == 1) {
+                    val color = if (item.status_upload_ppro_wb == 1) {
                         ContextCompat.getColor(context, R.color.greendarkerbutton)
                     } else {
                         ContextCompat.getColor(context, R.color.colorRedDark)
@@ -190,25 +265,95 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         holder.td5.addView(statusLayout)
     }
 
+    fun setStatusCard(
+        type: String,
+        parentView: ViewGroup,
+        status: Int,
+        uploadedAt: String,
+        uploaded_response:String,
+    ) {
+        val inflater = LayoutInflater.from(parentView.context)
+        val cardView = inflater.inflate(R.layout.layout_status_upload_wb, parentView, false) as MaterialCardView
+
+        val iconStatusAlertMessage = cardView.findViewById<ImageView>(R.id.iconStatusAlertMessage)
+        val statusAlertMessage = cardView.findViewById<TextView>(R.id.statusAlertMessage)
+        val uploadDate = cardView.findViewById<TextView>(R.id.upload_date)
+        val titleEndpoint = cardView.findViewById<TextView>(R.id.titleEndpoint)
+        val messageResponseUpload = cardView.findViewById<TextView>(R.id.messageResponseUpload)
+
+        titleEndpoint.text = "#$type:"
+
+        val formattedDate = try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+            val outputFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
+            val date = inputFormat.parse(uploadedAt)
+            outputFormat.format(date ?: Date())
+        } catch (e: Exception) {
+            "-"
+        }
+
+        uploadDate.text = formattedDate
+
+        val statusText = when (status) {
+            1 -> "SUCCESS"
+            0 -> "FAILED"
+            else -> "PENDING"
+        }
+
+        when (statusText) {
+            "SUCCESS" -> {
+                statusAlertMessage.text = "SUCCESS"
+                statusAlertMessage.setTextColor(ContextCompat.getColor(parentView.context, R.color.greendarkerbutton))
+                iconStatusAlertMessage.setImageResource(R.drawable.baseline_check_24)
+            }
+            "FAILED" -> {
+
+                statusAlertMessage.text = "FAILED"
+                statusAlertMessage.setTextColor(ContextCompat.getColor(parentView.context, R.color.colorRedDark))
+                iconStatusAlertMessage.setImageResource(R.drawable.baseline_close_24)
+                iconStatusAlertMessage.setColorFilter(
+                    ContextCompat.getColor(parentView.context, R.color.colorRedDark),
+                )
+            }
+            else -> {
+                statusAlertMessage.text = "PENDING"
+                statusAlertMessage.setTextColor(ContextCompat.getColor(parentView.context, R.color.graytextdark))
+                iconStatusAlertMessage.setImageResource(R.drawable.baseline_file_upload_24)
+                iconStatusAlertMessage.setColorFilter(
+                    ContextCompat.getColor(parentView.context, R.color.graytextdark),
+                )
+            }
+        }
+
+        messageResponseUpload.text = when {
+            type == "CMP" && uploaded_response.isNotEmpty() -> "Upload Berhasil"
+            type == "PPRO" && status == 1 -> "Upload Berhasil"
+            else -> status.toString()
+        }
+
+        parentView.addView(cardView)
+    }
+
+
+
     private fun Int.dpToPx(context: Context): Int {
         return (this * context.resources.displayMetrics.density).toInt()
+    }
+
+    private fun setInfoItemValues(view: View, label: String, value: String) {
+
+        view.findViewById<TextView>(R.id.tvLabel)?.text = label
+
+        view.findViewById<TextView>(R.id.tvValue)?.text = when (view.id) {
+            R.id.infoBlok -> value
+            else -> ": $value"
+        }
     }
 
     fun updateList(newList: List<WBData>) {
         items = newList
         selectedItems.clear() // Clear selection on update
         notifyDataSetChanged()
-    }
-
-    fun formatToIndonesianDateTime(dateTimeStr: String): String {
-        try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val date = inputFormat.parse(dateTimeStr) ?: return dateTimeStr
-            val outputFormat = SimpleDateFormat("d MMM yy\nHH:mm", Locale("id"))
-            return outputFormat.format(date)
-        } catch (e: Exception) {
-            return dateTimeStr
-        }
     }
 
     fun getSelectedItemsIdLocal(): List<Map<String, Any>> {
@@ -241,11 +386,25 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
 
     fun selectAllItems(selectAll: Boolean) {
         if (selectAll) {
-            selectedItems.addAll(items.filter { it.status_cmp != 1 || it.status_ppro != 1 })
+            selectedItems.addAll(items.filter { it.status_upload_cmp_wb != 1 || it.status_upload_ppro_wb != 1 })
         } else {
             selectedItems.clear()
         }
         notifyDataSetChanged()
+    }
+
+    enum class Info(val id: Int, val label: String) {
+        ESPB(R.id.noEspbTitleScanWB, "e-SPB"),
+        DATE(R.id.infoCreatedAt, "Tanggal Buat"),
+        ESTATE(R.id.infoEstate, "Estate"),
+        AFDELING(R.id.infoAfdeling, "Afdeling"),
+        NOPOL(R.id.infoNoPol, "No. Polisi"),
+        BLOK(R.id.infoBlok, "Blok"),
+        TOTAL_JJG(R.id.infoTotalJjg, "Total Janjang"),
+        PEMUAT(R.id.infoPemuat, "Pemuat"),
+        DRIVER(R.id.infoNoDriver, "Driver"),
+        MILL(R.id.infoMill, "Mill"),
+        TRANSPORTER(R.id.infoTransporter, "Transporter")
     }
 
 

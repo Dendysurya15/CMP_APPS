@@ -7,6 +7,7 @@
     android:layout_height="0dp"
     android:layout_weight="0.7"
     android:orientation="vertical"
+    android:background="@drawable/bottom_sheet_background"
     android:padding="16dp">
 
     <androidx.coordinatorlayout.widget.CoordinatorLayout

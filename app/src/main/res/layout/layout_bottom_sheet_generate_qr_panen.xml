@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:paddingHorizontal="16dp"
+    android:background="@drawable/bottom_sheet_background"
     android:paddingVertical="13dp">
 
     <ImageView

@@ -24,18 +24,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
-import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
-import com.cbi.mobile_plantation.ui.adapter.AbsensiAdapter
 import com.cbi.mobile_plantation.ui.adapter.AbsensiDataRekap
 import com.cbi.mobile_plantation.ui.adapter.ListAbsensiAdapter
-import com.cbi.mobile_plantation.ui.adapter.UploadItem
-import com.cbi.mobile_plantation.ui.adapter.UploadProgressAdapter
-import com.cbi.mobile_plantation.ui.adapter.WBData
-import com.cbi.mobile_plantation.ui.adapter.WeighBridgeAdapter
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
-import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
-import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
@@ -175,7 +167,7 @@ class ListAbsensiActivity : AppCompatActivity() {
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
         btnGenerateQRAbsensi.setOnClickListener {
             btnGenerateQRAbsensi.isEnabled = false
-            val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
+            val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_generate_qr_panen, null)
             view.background = ContextCompat.getDrawable(
                 this@ListAbsensiActivity,
                 R.drawable.rounded_top_right_left

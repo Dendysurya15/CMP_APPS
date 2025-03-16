@@ -359,7 +359,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             scannedTphIdsSet.add(tphId)
         }
 
-        if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && featureName == AppUtils.ListFeatureNames.RekapESPBTimbanganMill) {
+        if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
             holder.itemView.setOnClickListener {
                 val context = holder.itemView.context
                 val bottomSheetDialog = BottomSheetDialog(context)

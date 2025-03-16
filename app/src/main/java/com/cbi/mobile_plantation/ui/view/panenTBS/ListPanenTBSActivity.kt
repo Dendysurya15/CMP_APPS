@@ -30,7 +30,6 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -67,7 +66,6 @@ import com.leinardi.android.speeddial.SpeedDialActionItem
 import com.leinardi.android.speeddial.SpeedDialView
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -809,7 +807,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     "warning.json",
                     ContextCompat.getColor(this, R.color.bluedarklight),
                     function = {
-                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
+                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_generate_qr_panen, null)
                         view.background = ContextCompat.getDrawable(
                             this@ListPanenTBSActivity,
                             R.drawable.rounded_top_right_left

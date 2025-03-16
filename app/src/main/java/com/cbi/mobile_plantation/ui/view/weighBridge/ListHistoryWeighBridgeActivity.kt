@@ -35,6 +35,7 @@ import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.AppUtils.formatToIndonesianDate
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
@@ -425,7 +426,10 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
 
                                 allUploadZipFilesToday =
-                                    AppUtils.checkUploadZipReadyToday(prefManager!!.idUserLogin.toString(), this@ListHistoryWeighBridgeActivity)
+                                    AppUtils.checkUploadZipReadyToday(
+                                        prefManager!!.idUserLogin.toString(),
+                                        this@ListHistoryWeighBridgeActivity
+                                    )
                                         .toMutableList()
 
 
@@ -492,32 +496,11 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                 val concatenatedIds = idBlokList.joinToString(",")
                                                 val totalJjg =
                                                     blokJjgList.mapNotNull { it.second }.sum()
-                                                val blokData = withContext(Dispatchers.IO) {
-                                                    try {
-                                                        weightBridgeViewModel.getBlokById(idBlokList)
-                                                    } catch (e: Exception) {
-                                                        Log.e(
-                                                            "UploadCheck",
-                                                            "❌ Error fetching Blok Data: ${e.message}"
-                                                        )
-                                                        null
-                                                    }
-                                                }
-                                                    ?: throw Exception("Failed to fetch Blok Data! Please check the dataset.")
-
-                                                val regional =
-                                                    blokData.firstOrNull()?.regional ?: ""
-                                                val company = blokData.firstOrNull()?.company ?: ""
-                                                val dept = blokData.firstOrNull()?.dept ?: ""
-                                                val divisi = blokData.firstOrNull()?.divisi ?: ""
 
                                                 mapOf(
                                                     "id" to data.id,
-                                                    "regional" to regional,
-                                                    "company" to company,
-                                                    "dept" to dept,
-                                                    "divisi" to divisi,
                                                     "blok_id" to concatenatedIds,
+                                                    "blok_jjg" to data.blok_jjg,
                                                     "jjg" to totalJjg,
                                                     "created_by_id" to data.created_by_id,
                                                     "created_at" to data.created_at,
@@ -525,8 +508,14 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                     "driver" to data.driver,
                                                     "transporter_id" to data.transporter_id,
                                                     "mill_id" to data.mill_id,
-                                                    "info_app" to data.creator_info,
-                                                    "no_espb" to data.noESPB
+                                                    "creator_info" to data.creator_info,
+                                                    "no_espb" to data.noESPB,
+                                                    "tph0" to data.tph0,
+                                                    "tph1" to data.tph1,
+                                                    "update_info_sp" to data.update_info_sp,
+                                                    "app_version" to AppUtils.getDeviceInfo(this@ListHistoryWeighBridgeActivity)
+                                                        .toString(),
+                                                    "jabatan" to prefManager!!.jabatanUserLogin.toString(),
                                                 )
                                             }
                                             globalESPBIds = mappedESPBData.map { it["id"] as Int }
@@ -648,28 +637,76 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                 }
                                         }
 
-
                                     val idBlokList = blokJjgList.map { it.first }
+                                    val pemuatList = item.pemuat_id.split(",")?.map { it.trim() }
+                                        ?.filter { it.isNotEmpty() } ?: emptyList()
 
-                                    val blokData = try {
-                                        withContext(Dispatchers.IO) { // Database operation on IO thread
-                                            weightBridgeViewModel.getBlokById(idBlokList)
+                                    val pemuatData = withContext(Dispatchers.IO) {
+                                        try {
+                                            weightBridgeViewModel.getPemuatByIdList(pemuatList)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error fetching Pemuat Data: ${e.message}")
+                                            null
                                         }
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error fetching Blok Data: ${e.message}")
-                                        null
                                     }
 
-                                    val deptAbbr = blokData?.firstOrNull()?.dept_abbr
-                                        ?: "-"
+                                    val pemuatNama = pemuatData?.mapNotNull { it.nama }
+                                        ?.takeIf { it.isNotEmpty() }
+                                        ?.joinToString(", ") ?: "-"
 
-                                    val deptPPRO = blokData?.firstOrNull()?.dept_ppro
-                                        ?: 0
+                                    val blokData = withContext(Dispatchers.IO) {
+                                        try {
+                                            weightBridgeViewModel.getBlokById(idBlokList)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error fetching Blok Data: ${e.message}")
+                                            null
+                                        }
+                                    }
 
+                                    val deptAbbr = blokData?.firstOrNull()?.dept_abbr ?: "-"
                                     val divisiAbbr = blokData?.firstOrNull()?.divisi_abbr ?: "-"
+                                    val deptPPRO = blokData?.firstOrNull()?.dept_ppro ?: 0
+                                    val divisiPPRO = blokData?.firstOrNull()?.dept_ppro ?: 0
 
-                                    val divisiPPRO = blokData?.firstOrNull()?.dept_ppro
-                                        ?: 0
+                                    val formattedBlokList =
+                                        blokJjgList.mapNotNull { (idBlok, totalJjg) ->
+                                            val blokKode =
+                                                blokData?.find { it.blok == idBlok }?.blok_kode
+                                            if (blokKode != null && totalJjg != null) {
+                                                "• $blokKode ($totalJjg jjg)"
+                                            } else null
+                                        }.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
+
+                                    val millId = item.mill_id ?: 0
+                                    val transporterId = item.transporter_id ?: 0
+                                    val createdAt = item.created_at
+                                    val createAtFormatted = formatToIndonesianDate(createdAt)
+
+
+                                    val millData = withContext(Dispatchers.IO) {
+                                        try {
+                                            weightBridgeViewModel.getMillName(millId)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error fetching Mill Data: ${e.message}")
+                                            null
+                                        }
+                                    } ?: emptyList()
+
+                                    val millAbbr =
+                                        millData.firstOrNull()?.let { "${it.abbr} (${it.nama})" }
+                                            ?: "-"
+
+                                    val transporterData = withContext(Dispatchers.IO) {
+                                        try {
+                                            weightBridgeViewModel.getTransporterName(transporterId)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error fetching Transporter Data: ${e.message}")
+                                            null
+                                        }
+                                    } ?: emptyList()
+
+                                    val transporterName = transporterData.firstOrNull()?.nama ?: "-"
+                                    val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
 
                                     WBData(
                                         //data untuk upload staging
@@ -686,12 +723,20 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         created_by_id = item.created_by_id,
                                         created_at = item.created_at,
                                         noSPB = item.noESPB.ifEmpty { "-" },
-                                        //untuk table
                                         estate = deptAbbr.ifEmpty { "-" },
                                         afdeling = divisiAbbr.ifEmpty { "-" },
-                                        datetime = item.created_at.ifEmpty { "-" },
-                                        status_cmp = item.status_upload_cmp_wb,
-                                        status_ppro = item.status_upload_ppro_wb
+                                        datetime = createAtFormatted,
+                                        status_upload_cmp_wb = item.status_upload_cmp_wb,
+                                        status_upload_ppro_wb = item.status_upload_ppro_wb,
+                                        uploaded_at_wb = item.uploaded_at_wb,
+                                        uploaded_at_ppro_wb = item.uploaded_at_ppro_wb,
+                                        uploaded_wb_response = item.uploaded_wb_response,
+                                        uploaded_ppro_response = item.uploaded_ppro_response,
+                                        formattedBlokList = formattedBlokList,
+                                        pemuat_nama = pemuatNama,
+                                        totalJjg = totalJjg,
+                                        mill_name = millAbbr,
+                                        transporter_name = transporterName,
                                     )
 
                                 }
@@ -722,7 +767,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        val headers = listOf("e-SPB", "ESTATE", "AFDELING", "TGL PROSES", "STATUS UPLOAD")
+        val headers = listOf("E-SPB", "ESTATE\nAFDELING", "TGL BUAT", "STATUS UPLOAD")
         updateTableHeaders(headers)
 
         recyclerView = findViewById(R.id.wbTableData)
@@ -738,7 +783,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         headerCheckBoxWB.setOnCheckedChangeListener { _, isChecked ->
             adapter.selectAllItems(isChecked)
         }
-        val headerIds = listOf(R.id.th1, R.id.th2, R.id.th3, R.id.th4, R.id.th5)
+        val headerIds = listOf(R.id.th1, R.id.th2, R.id.th3, R.id.th5)
 
         for (i in headerNames.indices) {
             val textView = tableHeader.findViewById<TextView>(headerIds[i])

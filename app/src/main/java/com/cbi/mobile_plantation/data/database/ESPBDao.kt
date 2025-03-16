@@ -75,7 +75,7 @@ abstract class ESPBDao {
     UPDATE espb_table 
     SET uploader_info_wb = :uploaderInfoWb, 
         uploaded_by_id_wb = :uploadedByIdWb, 
-        uploaded_at_wb = :uploadedAtWb, 
+        uploaded_at_ppro_wb = :uploadedAtWb,
         status_upload_ppro_wb = :status 
     WHERE id = :id
 """

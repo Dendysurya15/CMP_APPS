@@ -55,7 +55,7 @@
             android:visibility="gone"
             android:gravity="center"
             android:textColor="@color/black"
-            android:textSize="14dp"
+            android:textSize="17sp"
             android:textStyle="bold" />
 
         <TextView
@@ -68,7 +68,7 @@
             android:fontFamily="@font/manrope_semibold"
             android:padding="5dp"
             android:textColor="@color/black"
-            android:textSize="14dp"
+            android:textSize="17sp"
             android:textStyle="bold" />
 
         <TextView
@@ -81,7 +81,7 @@
             android:fontFamily="@font/manrope_semibold"
             android:padding="5dp"
             android:textColor="@color/black"
-            android:textSize="14dp"
+            android:textSize="17sp"
             android:textStyle="bold" />
 
         <TextView
@@ -93,7 +93,7 @@
             android:fontFamily="@font/manrope_semibold"
             android:padding="5dp"
             android:visibility="gone"
-            android:textSize="14dp"
+            android:textSize="17sp"
             android:textColor="@color/black"
             android:textStyle="bold" />
 
