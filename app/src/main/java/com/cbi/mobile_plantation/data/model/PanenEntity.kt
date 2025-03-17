@@ -11,6 +11,8 @@ data class PanenEntity(
     val date_created: String,
     val created_by: Int,
     val karyawan_id: String,
+    val kemandoran_id: String,
+    val karyawan_nik: String,
     val jjg_json: String,
     val foto: String,
     val komentar:  String,

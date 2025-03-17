@@ -177,6 +177,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         driver = globalDriver,
                                         transporter_id = globalTransporterId ?: 0,
                                         pemuat_id = globalPemuatId,
+                                        kemandoran_id = "",
+                                        pemuat_nik = "",
                                         mill_id = globalMillId!!,
                                         archive = 0,
                                         tph0 = globalTph0,

@@ -58,7 +58,7 @@ import com.cbi.markertph.data.model.TPHNewModel
         UploadCMPModel::class,
         AbsensiModel::class,
     ],
-    version = 16
+    version = 17
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao

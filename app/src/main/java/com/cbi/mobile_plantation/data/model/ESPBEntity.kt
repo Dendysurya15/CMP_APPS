@@ -14,6 +14,8 @@ data class ESPBEntity(
     val driver: String, //X
     val transporter_id: Int, //X
     val pemuat_id: String, // "1,3,4" //X
+    val kemandoran_id :String,
+    val pemuat_nik : String,
     val mill_id: Int, //X
     val archive: Int,
     val tph0: String, // {tph_id,date_created,jjg,status_espb=0 //X

@@ -69,6 +69,8 @@ class AppRepository(context: Context) {
                             date_created = tphData.time,
                             created_by = 0,
                             karyawan_id = "",
+                            kemandoran_id = "",
+                            karyawan_nik = "",
                             jjg_json = "{\"KP\": ${tphData.jjg}}",
                             foto = "",
                             komentar = "",

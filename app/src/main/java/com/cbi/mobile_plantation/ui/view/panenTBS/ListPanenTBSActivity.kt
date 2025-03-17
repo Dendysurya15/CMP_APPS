@@ -1346,7 +1346,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         loadingDialog.show()
         loadingDialog.setMessage("Loading data...")
 
-
         panenViewModel.archivedCount.observe(this) { count ->
             counterTerscan.text = count.toString()
         }
