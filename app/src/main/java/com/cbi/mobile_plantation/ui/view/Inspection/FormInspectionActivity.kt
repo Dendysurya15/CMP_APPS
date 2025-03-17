@@ -177,14 +177,20 @@ class FormInspectionActivity : AppCompatActivity() {
                             ContextCompat.getColor(
                                 this@FormInspectionActivity,
                                 R.color.bluedarklight
-                            )
-                        ) {
-                            val intent =
-                                Intent(this@FormInspectionActivity, HomePageActivity::class.java)
-                            startActivity(intent)
-                            finishAffinity()
-                        }
+                            ),
+                            function = {
+                                val intent =
+                                    Intent(
+                                        this@FormInspectionActivity,
+                                        HomePageActivity::class.java
+                                    )
+                                startActivity(intent)
+                                finishAffinity()
+                            },
+                            cancelFunction = {
 
+                            }
+                        )
                     }
                 }
             }

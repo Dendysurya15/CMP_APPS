@@ -106,8 +106,19 @@ class AlertDialogUtility {
             }
         }
 
+
+
         @SuppressLint("InflateParams")
-        fun withTwoActions(context: Context, actionText: String, titleText: String, alertText: String,animAsset: String,  buttonColor: Int? = null, function: () -> Unit) {
+        fun withTwoActions(
+            context: Context,
+            actionText: String,
+            titleText: String,
+            alertText: String,
+            animAsset: String,
+            buttonColor: Int? = null,
+            function: () -> Unit,
+            cancelFunction: (() -> Unit)? = null // Add cancel callback
+        ) {
             if (context is Activity && !context.isFinishing) {
                 val rootView = context.findViewById<View>(android.R.id.content)
                 rootView.foreground = ColorDrawable(Color.parseColor("#F0000000"))
@@ -119,7 +130,6 @@ class AlertDialogUtility {
                     AlertDialog.Builder(context).setView(layoutBuilder).setCancelable(false)
                 val alertDialog: AlertDialog = builder.create()
 
-
                 val tvTitleDialog = layoutBuilder.findViewById<TextView>(R.id.tvTitleDialog)
                 tvTitleDialog.visibility = View.VISIBLE
 
@@ -130,14 +140,16 @@ class AlertDialogUtility {
 
                 val mbSuccessDialog = layoutBuilder.findViewById<MaterialButton>(R.id.mbSuccessDialog)
                 mbSuccessDialog.text = actionText
+
                 val lottieAnim = layoutBuilder.findViewById<LottieAnimationView>(R.id.lottie_anim)
                 lottieAnim.setAnimation(animAsset)
                 lottieAnim.loop(true)
                 lottieAnim.playAnimation()
+
                 if (buttonColor != null) {
                     val colorStateList = ColorStateList.valueOf(buttonColor)
                     mbSuccessDialog.backgroundTintList = colorStateList
-                    mbSuccessDialog.rippleColor =  ColorStateList.valueOf(Color.argb(70, 255, 255, 255))
+                    mbSuccessDialog.rippleColor = ColorStateList.valueOf(Color.argb(70, 255, 255, 255))
                 } else {
                     val defaultColorStateList = ColorStateList.valueOf(
                         ContextCompat.getColor(context, R.color.greendarkerbutton)
@@ -147,13 +159,19 @@ class AlertDialogUtility {
                 }
 
                 mbSuccessDialog.setOnClickListener {
+                    mbSuccessDialog.isEnabled = false
                     alertDialog.dismiss()
-                    function()
-                }
-                val mbCancelDialog = layoutBuilder.findViewById<MaterialButton>(R.id.mbCancelDialog)
+                    function() // Execute main action
 
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        mbSuccessDialog.isEnabled = true
+                    }, 500) // Prevent spam clicking
+                }
+
+                val mbCancelDialog = layoutBuilder.findViewById<MaterialButton>(R.id.mbCancelDialog)
                 mbCancelDialog.setOnClickListener {
                     alertDialog.dismiss()
+                    cancelFunction?.invoke() // Call cancel function if provided
                 }
 
                 if (alertDialog.window != null) {
@@ -207,10 +225,12 @@ class AlertDialogUtility {
                     }
                 })
 
+
                 val mbSuccessDialog = layoutBuilder.findViewById<MaterialButton>(R.id.mbSuccessDialog)
                 val colorStateList = ColorStateList.valueOf(ContextCompat.getColor(context, color))
                 mbSuccessDialog.backgroundTintList = colorStateList
                 mbSuccessDialog.text = actionText
+
 
                 val lottieAnim = layoutBuilder.findViewById<LottieAnimationView>(R.id.lottie_anim)
                 lottieAnim.setAnimation(animAsset)
@@ -218,8 +238,13 @@ class AlertDialogUtility {
                 lottieAnim.playAnimation()
 
                 mbSuccessDialog.setOnClickListener {
+                    mbSuccessDialog.isEnabled = false
                     alertDialog.dismiss()
                     function()
+
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        mbSuccessDialog.isEnabled = true
+                    }, 500) // Adjust the delay as needed
                 }
 
                 if (alertDialog.window != null) {

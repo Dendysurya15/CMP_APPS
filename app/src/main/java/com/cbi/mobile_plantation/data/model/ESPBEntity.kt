@@ -20,7 +20,10 @@ data class ESPBEntity(
     val tph1: String,// {tph_id,date_created,jjg,status_espb=1 jadi 2 pas diupload + no espb=noESPB //X
     val update_info_sp: String = "NULL", // JSON {alasan, datetime, loc} //X
     val uploaded_by_id_wb: Int = 0, //X
+    val uploaded_wb_response: String = "", //X
+    val uploaded_ppro_response: String = "", //X
     val uploaded_at_wb: String = "NULL", //X
+    val uploaded_at_ppro_wb: String = "", //X
     val uploaded_by_id_sp: Int = 0, //X
     val uploaded_at_sp: String = "NULL", //X
     val status_upload_cmp_sp: Int = 0,  //X

@@ -122,28 +122,28 @@ class TakeFotoPreviewAdapter(
         imm.hideSoftInputFromWindow(view.windowToken, 0)
     }
 
-    private fun handleCameraAction(position: Int, holder: FotoViewHolder) {
+        private fun handleCameraAction(position: Int, holder: FotoViewHolder) {
 
-        hideKeyboardFromView()
+            hideKeyboardFromView()
 
-        val uniqueKodeFoto = "${position + 1}"
+            val uniqueKodeFoto = "${position + 1}"
 
-        if (listFileFoto.containsKey(position.toString())) {
-            val existingFile = listFileFoto[position.toString()]!!
-            cameraViewModel.openZoomPhotos(
-                file = existingFile,
-                position = position.toString(),
-                onChangePhoto = {
-                    cameraViewModel.takeCameraPhotos(
-                        uniqueKodeFoto,
-                        holder.imageView,
-                        position,
-                        null,
-                        comments[position],
-                        uniqueKodeFoto,
-                        featureName
-                    )
-                },
+            if (listFileFoto.containsKey(position.toString())) {
+                val existingFile = listFileFoto[position.toString()]!!
+                cameraViewModel.openZoomPhotos(
+                    file = existingFile,
+                    position = position.toString(),
+                    onChangePhoto = {
+                        cameraViewModel.takeCameraPhotos(
+                            uniqueKodeFoto,
+                            holder.imageView,
+                            position,
+                            null,
+                            comments[position],
+                            uniqueKodeFoto,
+                            featureName
+                        )
+                    },
                 onDeletePhoto = { pos ->
                     // Remove the photo and clear comment
                     listFileFoto.remove(pos)

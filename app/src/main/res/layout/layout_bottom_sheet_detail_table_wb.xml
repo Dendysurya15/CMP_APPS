@@ -97,164 +97,130 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/manrope_bold"
-                android:text="Keterangan Panen"
-                android:textColor="@color/greenDarker"
-                android:textSize="20sp"
+                android:text="Informasi e-SPB"
+                android:textColor="@color/black"
+                android:textSize="19sp"
                 android:textStyle="bold" />
 
             <include
-                android:id="@+id/DataTanggalBuat"
-                layout="@layout/layout_data_info_detail_table"
+                android:id="@+id/noEspbTitleScanWB"
+                layout="@layout/layout_wb_data_info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp" />
 
             <include
-                android:id="@+id/DataBlokBanjir"
-                layout="@layout/layout_data_info_detail_table"
+                android:id="@+id/infoCreatedAt"
+                layout="@layout/layout_wb_data_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp" />
+
+            <!-- Location Info Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:fontFamily="@font/manrope_bold"
+                android:text="Informasi Blok Janjang"
+                android:textColor="@color/black"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+            <include
+                android:id="@+id/infoEstate"
+                layout="@layout/layout_wb_data_info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp" />
 
             <include
-                android:id="@+id/DataEstateAfdeling"
-                layout="@layout/layout_data_info_detail_table"
+                android:id="@+id/infoAfdeling"
+                layout="@layout/layout_wb_data_info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
+                android:layout_marginTop="4dp" />
 
             <include
-                android:id="@+id/DataBlokTahunTanam"
-                layout="@layout/layout_data_info_detail_table"
+                android:id="@+id/infoBlok"
+                layout="@layout/layout_wb_data_info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
+                android:layout_marginTop="4dp" />
 
             <include
-                android:id="@+id/DataAncak"
-                layout="@layout/layout_data_info_detail_table"
+                android:id="@+id/infoTotalJjg"
+                layout="@layout/layout_wb_data_info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
+                android:layout_marginTop="4dp" />
 
             <include
-                android:id="@+id/DataNoTPH"
-                layout="@layout/layout_data_info_detail_table"
+                android:id="@+id/infoPemuat"
+                layout="@layout/layout_wb_data_info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-
-            <include
-                android:id="@+id/DataKemandoran"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-
-            <include
-                android:id="@+id/DataNamaPemanen"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
+                android:layout_marginTop="4dp" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
                 android:fontFamily="@font/manrope_bold"
-                android:text="Data Grading"
-                android:textColor="@color/greenDarker"
-                android:layout_marginTop="10dp"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                tools:ignore="HardcodedText" />
-
-            <include
-                android:id="@+id/DataTotalJanjang"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-
-            <include
-                android:id="@+id/DataDikirimKePabrik"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-
-            <include
-                android:id="@+id/DataJanjangDibayar"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-
-            <include
-                android:id="@+id/DataBuahMentah"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-            <include
-                android:id="@+id/DataBuahLewatMasak"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-
-            <include
-                android:id="@+id/DataBuahJjgKosong"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-
-            <include
-                android:id="@+id/DataBuahAbnormal"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-
-            <include
-                android:id="@+id/DataBuahSeranganTikus"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-
-            <include
-                android:id="@+id/DataBuahTangkaiPanjang"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-
-            <include
-                android:id="@+id/DataBuahTidakVcut"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-
-            <TextView
-                android:id="@+id/tvPhotoAttachmentTitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/manrope_bold"
-                android:text="Lampiran Foto TPH"
-                android:layout_marginTop="10dp"
-                android:textColor="@color/greenDarker"
-                android:textSize="20sp"
+                android:text="Informasi Transport"
+                android:textColor="@color/black"
+                android:textSize="19sp"
                 android:textStyle="bold" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvPhotoAttachments"
+            <include
+                android:id="@+id/infoNoDriver"
+                layout="@layout/layout_wb_data_info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:clipToPadding="false" />
+                android:layout_marginTop="8dp" />
+
+            <include
+                android:id="@+id/infoNoPol"
+                layout="@layout/layout_wb_data_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp" />
+
+            <include
+                android:id="@+id/infoTransporter"
+                layout="@layout/layout_wb_data_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp" />
+
+            <include
+                android:id="@+id/infoMill"
+                layout="@layout/layout_wb_data_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:fontFamily="@font/manrope_bold"
+                android:text="Status Upload"
+                android:textColor="@color/black"
+                android:textSize="19sp"
+                android:layout_marginBottom="5dp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/statusContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+
+            </LinearLayout>
+
+
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

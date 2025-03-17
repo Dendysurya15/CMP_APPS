@@ -75,7 +75,8 @@ abstract class ESPBDao {
     UPDATE espb_table 
     SET uploader_info_wb = :uploaderInfoWb, 
         uploaded_by_id_wb = :uploadedByIdWb, 
-        uploaded_at_wb = :uploadedAtWb, 
+        uploaded_at_ppro_wb = :uploadedAtWb,
+        uploaded_ppro_response = :response,
         status_upload_ppro_wb = :status 
     WHERE id = :id
 """
@@ -85,7 +86,8 @@ abstract class ESPBDao {
         status: Int,
         uploaderInfoWb: String,
         uploadedAtWb: String,
-        uploadedByIdWb: Int
+        uploadedByIdWb: Int,
+        response:String?
     ): Int
 
     @Query(
@@ -94,7 +96,8 @@ abstract class ESPBDao {
     SET uploader_info_wb = :uploaderInfoWb, 
         uploaded_by_id_wb = :uploadedByIdWb, 
         uploaded_at_wb = :uploadedAtWb, 
-        status_upload_cmp_wb = :status 
+        uploaded_wb_response = :response,
+        status_upload_cmp_wb = :status
     WHERE id = :id
 """
     )
@@ -103,7 +106,8 @@ abstract class ESPBDao {
         status: Int,
         uploaderInfoWb: String,
         uploadedAtWb: String,
-        uploadedByIdWb: Int
+        uploadedByIdWb: Int,
+        response:String?
     ): Int
 
 

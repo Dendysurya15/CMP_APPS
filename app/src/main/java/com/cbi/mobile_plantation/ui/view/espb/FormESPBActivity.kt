@@ -119,33 +119,42 @@ class FormESPBActivity : AppCompatActivity() {
                     "KEMBALI",
                     "Kembali ke Menu utama?",
                     "Data scan sebelumnya akan terhapus",
-                    "warning.json"
+                    "warning.json",
+                    function = {
+                        startActivity(
+                            Intent(
+                                this@FormESPBActivity,
+                                HomePageActivity::class.java
+                            )
+                        )
+                        finishAffinity()
+                    }
                 ) {
-                    startActivity(
-                        Intent(
-                            this@FormESPBActivity,
-                            HomePageActivity::class.java
-                        ))
-                    finishAffinity()
                 }
             }
         })
         try {
             featureName = intent.getStringExtra("FEATURE_NAME").toString()
-        }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil FEATURE NAME $e", Toasty.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toasty.error(
+                this,
+                "Terjadi Kesalahan saat mengambil FEATURE NAME $e",
+                Toasty.LENGTH_LONG
+            ).show()
         }
         try {
             tph0 = intent.getStringExtra("tph_0").toString()
             Log.d("FormESPBActivityTPH0", "tph0: $tph0")
-        }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 0 $e", Toasty.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 0 $e", Toasty.LENGTH_LONG)
+                .show()
         }
         try {
             tph1 = removeRecordsWithStatus2(intent.getStringExtra("tph_1").toString())
             Log.d("FormESPBActivityTPH1", "tph1: $tph1")
-        }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 1 $e", Toasty.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 1 $e", Toasty.LENGTH_LONG)
+                .show()
         }
         try {
             ///tph1IdPanen is sometin like 1,23,4,5,2,3
@@ -160,8 +169,12 @@ class FormESPBActivity : AppCompatActivity() {
             }
             Log.d("FormESPBActivityIDS", "idsToUpdate: $idsToUpdate")
 
-        }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 1 ID PANEN $e", Toasty.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toasty.error(
+                this,
+                "Terjadi Kesalahan saat mengambil TPH 1 ID PANEN $e",
+                Toasty.LENGTH_LONG
+            ).show()
         }
 
         initViewModel()
@@ -197,10 +210,10 @@ class FormESPBActivity : AppCompatActivity() {
 
         val formEspbTransporter = findViewById<LinearLayout>(R.id.formEspbTransporter)
 
-        setupSpinnerText(R.id.formEspbMill,"Pilih Mill", "Mill")
-        setupSpinnerText(R.id.formEspbKemandoran,"Pilih Kemandoran", "Kemandoran")
-        setupSpinnerText(R.id.formEspbTransporter,"Pilih Transporter", "Transporter")
-        setupSpinnerText(R.id.formEspbPemuat,"Pilih Pemuat", "Pemuat")
+        setupSpinnerText(R.id.formEspbMill, "Pilih Mill", "Mill")
+        setupSpinnerText(R.id.formEspbKemandoran, "Pilih Kemandoran", "Kemandoran")
+        setupSpinnerText(R.id.formEspbTransporter, "Pilih Transporter", "Transporter")
+        setupSpinnerText(R.id.formEspbPemuat, "Pilih Pemuat", "Pemuat")
 
         rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvPemuat)
         selectedPemuatAdapter = SelectedWorkerAdapter()
@@ -223,32 +236,37 @@ class FormESPBActivity : AppCompatActivity() {
 
         val idPetugas = try {
             prefManager.idUserLogin
-        }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Petugas $e", Toasty.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Petugas $e", Toasty.LENGTH_LONG)
+                .show()
             0
         }
         val estatePetugas = try {
             prefManager.estateUserLogin
-        }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil Estate Petugas $e", Toasty.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toasty.error(
+                this,
+                "Terjadi Kesalahan saat mengambil Estate Petugas $e",
+                Toasty.LENGTH_LONG
+            ).show()
             "NULL"
         }
         idEstate = try {
             prefManager.estateIdUserLogin.toString().toInt()
-        }catch (e: Exception){
-            Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Estate $e", Toasty.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Estate $e", Toasty.LENGTH_LONG)
+                .show()
             0
         }
 
         val cbFormEspbMekanisasi = findViewById<MaterialCheckBox>(R.id.cbFormEspbMekanisasi)
-        cbFormEspbMekanisasi.setOnCheckedChangeListener {
-                _, isChecked ->
+        cbFormEspbMekanisasi.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
 //                formEspbTransporter.visibility = View.GONE
 //                formEspbDriver.visibility = View.GONE
 //                formEspbNopol.visibility = View.GONE
                 mekanisasi = 1
-            }else{
+            } else {
                 formEspbTransporter.visibility = View.VISIBLE
                 formEspbDriver.visibility = View.VISIBLE
                 formEspbNopol.visibility = View.VISIBLE
@@ -273,7 +291,8 @@ class FormESPBActivity : AppCompatActivity() {
                     setupSpinner(R.id.formEspbKemandoran, nameKemandoran)
                 }
                 val formEspbKemandoran = findViewById<LinearLayout>(R.id.formEspbKemandoran)
-                val spEspbKemandoran= formEspbKemandoran.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                val spEspbKemandoran =
+                    formEspbKemandoran.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                 spEspbKemandoran.setOnItemSelectedListener { view, position, id, item ->
                     val selectedKemandoran = item.toString()
 
@@ -283,7 +302,10 @@ class FormESPBActivity : AppCompatActivity() {
                         AppLogger.e("Error finding selectedKemandoranId: ${e.message}")
                         0
                     }
-                    Log.d("FormESPBActivityKemandoran", "selectedKemandoranId: $selectedKemandoranId")
+                    Log.d(
+                        "FormESPBActivityKemandoran",
+                        "selectedKemandoranId: $selectedKemandoranId"
+                    )
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         try {
@@ -343,7 +365,8 @@ class FormESPBActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     setupSpinner(R.id.formEspbTransporter, nameTransporter)
                 }
-                val spEspbTransporter= formEspbTransporter.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                val spEspbTransporter =
+                    formEspbTransporter.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                 spEspbTransporter.setOnItemSelectedListener { view, position, id, item ->
                     val selectedTransporter = item.toString()
 
@@ -353,7 +376,10 @@ class FormESPBActivity : AppCompatActivity() {
                         AppLogger.e("Error finding selectedTransporterId: ${e.message}")
                         0
                     }
-                    Log.d("FormESPBActivityTransporter", "selectedTransporterId: $selectedTransporterId")
+                    Log.d(
+                        "FormESPBActivityTransporter",
+                        "selectedTransporterId: $selectedTransporterId"
+                    )
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error fetching transporter data: ${e.message}")
@@ -381,7 +407,7 @@ class FormESPBActivity : AppCompatActivity() {
                 // Split the first record by comma and get the first part (ID)
                 firstTphId = firstTphRecord.split(",")[0].toInt()
                 Log.d("FormESPBActivityDivisiAbbr", "firstTphId: $firstTphId")
-            }catch (e: Exception){
+            } catch (e: Exception) {
                 Toasty.error(
                     this@FormESPBActivity,
                     "Terjadi Kesalahan saat mengambil firstTphId $e",
@@ -413,36 +439,45 @@ class FormESPBActivity : AppCompatActivity() {
         }
 
         val cbFormEspbTransporter = findViewById<MaterialCheckBox>(R.id.cbFormEspbTransporter)
-        cbFormEspbTransporter.setOnCheckedChangeListener {
-                _, isChecked ->
+        cbFormEspbTransporter.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 formEspbTransporter.visibility = View.GONE
                 selectedTransporterId = 0
-            }else{
+            } else {
                 formEspbTransporter.visibility = View.VISIBLE
             }
         }
 
         val btnGenerateQRESPB = findViewById<FloatingActionButton>(R.id.btnGenerateQRESPB)
         btnGenerateQRESPB.setOnClickListener {
+            btnGenerateQRESPB.isEnabled = false
             val nopol = try {
-                etEspbNopol.text.toString().replace(" ","").uppercase()
-            }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil No Polisi $e", Toasty.LENGTH_LONG).show()
+                etEspbNopol.text.toString().replace(" ", "").uppercase()
+            } catch (e: Exception) {
+                Toasty.error(
+                    this,
+                    "Terjadi Kesalahan saat mengambil No Polisi $e",
+                    Toasty.LENGTH_LONG
+                ).show()
                 "NULL"
             }
 
             val driver = try {
-                etEspbDriver.text.toString().replace(" ","").uppercase()
-            }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil Driver $e", Toasty.LENGTH_LONG).show()
+                etEspbDriver.text.toString().replace(" ", "").uppercase()
+            } catch (e: Exception) {
+                Toasty.error(this, "Terjadi Kesalahan saat mengambil Driver $e", Toasty.LENGTH_LONG)
+                    .show()
                 "NULL"
             }
 
             val espbDate: String = try {
                 getFormattedDateTime().toString()
-            }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil Tanggal ESPB $e", Toasty.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toasty.error(
+                    this,
+                    "Terjadi Kesalahan saat mengambil Tanggal ESPB $e",
+                    Toasty.LENGTH_LONG
+                ).show()
                 "NULL"
             }
 
@@ -466,11 +501,11 @@ class FormESPBActivity : AppCompatActivity() {
                 Log.e("DeviceInfo", "Failed to get phone model", e)
                 "Unknown"
             }
-            noESPBStr = "$companyAbbr-$estatePetugas/$divisiAbbr/$espbDate"
+            val noESPBStr = "$companyAbbr-$estatePetugas/$divisiAbbr/$espbDate"
             var transporter_id = 0
             transporter_id = if (cbFormEspbTransporter.isChecked) {
                 0
-            }else{
+            } else {
                 selectedTransporterId
             }
             val creatorInfo = createCreatorInfo(
@@ -480,76 +515,106 @@ class FormESPBActivity : AppCompatActivity() {
             )
             val blok_jjg = try {
                 formattedJanjangString
-            }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil Janjang Blok $e", Toasty.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toasty.error(
+                    this,
+                    "Terjadi Kesalahan saat mengambil Janjang Blok $e",
+                    Toasty.LENGTH_LONG
+                ).show()
                 "NULL"
             }
             val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
             val pemuatListId = selectedPemanen.map { it.id }
-            if (nopol == "NULL" || nopol == ""){
-                Toasty.error(this, "Mohon lengkapi data No Polisi terlebih dahulu", Toasty.LENGTH_LONG).show()
+            if (nopol == "NULL" || nopol == "") {
+                Toasty.error(
+                    this,
+                    "Mohon lengkapi data No Polisi terlebih dahulu",
+                    Toasty.LENGTH_LONG
+                ).show()
                 return@setOnClickListener
             }
-            if (driver == "NULL" || driver == ""){
-                Toasty.error(this, "Mohon lengkapi data Driver terlebih dahulu", Toasty.LENGTH_LONG).show()
+            if (driver == "NULL" || driver == "") {
+                Toasty.error(this, "Mohon lengkapi data Driver terlebih dahulu", Toasty.LENGTH_LONG)
+                    .show()
                 return@setOnClickListener
             }
-            if (selectedTransporterId == 0 && !cbFormEspbTransporter.isChecked){
-                Toasty.error(this, "Mohon lengkapi data Transporter terlebih dahulu", Toasty.LENGTH_LONG).show()
+            if (selectedTransporterId == 0 && !cbFormEspbTransporter.isChecked) {
+                Toasty.error(
+                    this,
+                    "Mohon lengkapi data Transporter terlebih dahulu",
+                    Toasty.LENGTH_LONG
+                ).show()
                 return@setOnClickListener
             }
-            if (selectedMillId == 0){
-                Toasty.error(this, "Mohon lengkapi data Mill terlebih dahulu", Toasty.LENGTH_LONG).show()
+            if (selectedMillId == 0) {
+                Toasty.error(this, "Mohon lengkapi data Mill terlebih dahulu", Toasty.LENGTH_LONG)
+                    .show()
                 return@setOnClickListener
             }
-            AlertDialogUtility.Companion.withTwoActions(this, "SIMPAN", "KONFIRMASI BUAT QR ESPB?", "Pastikan seluruh data sudah valid!", "warning.json"){
-                val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
-                btKonfirmScanESPB.visibility = View.VISIBLE
-                btKonfirmScanESPB.setOnClickListener {
-                    val statusDraft = if (mekanisasi == 0){
-                        1
-                    }else{
-                        0
+            AlertDialogUtility.Companion.withTwoActions(
+                this,
+                "SIMPAN",
+                "KONFIRMASI BUAT QR ESPB?",
+                "Pastikan seluruh data sudah valid!",
+                "warning.json",
+                function = {
+                    val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
+                    btKonfirmScanESPB.visibility = View.VISIBLE
+                    btKonfirmScanESPB.setOnClickListener {
+                        btKonfirmScanESPB.isEnabled = false
+                        val statusDraft = if (mekanisasi == 0) {
+                            1
+                        } else {
+                            0
+                        }
+                        saveESPB(
+                            blok_jjg = blok_jjg,
+                            nopol = nopol,
+                            driver = driver,
+                            pemuat_id = pemuatListId.joinToString(","),
+                            transporter_id = transporter_id,
+                            mill_id = selectedMillId!!,
+                            created_by_id = idPetugas!!,
+                            creator_info = creatorInfo.toString(),
+                            noESPB = noESPBStr,
+                            created_at = getCurrentDateTime(),
+                            tph0 = tph0,
+                            tph1 = tph1,
+                            status_draft = statusDraft,
+                            status_mekanisasi = mekanisasi
+                        )
                     }
-                    saveESPB(
-                        blok_jjg = blok_jjg,
-                        nopol = nopol,
-                        driver = driver,
-                        pemuat_id = pemuatListId.joinToString(","),
-                        transporter_id = transporter_id,
-                        mill_id = selectedMillId!!,
-                        created_by_id = idPetugas!!,
-                        creator_info = creatorInfo.toString(),
-                        noESPB = noESPBStr,
-                        created_at = getCurrentDateTime(),
-                        tph0 = tph0,
-                        tph1 = tph1,
-                        status_draft = statusDraft,
-                        status_mekanisasi = mekanisasi
-                    )
+                    if (mekanisasi == 0) {
+                        val json = constructESPBJson(
+                            blok_jjg = blok_jjg,
+                            nopol = nopol,
+                            driver = driver,
+                            pemuat_id = pemuatListId.joinToString(","),
+                            transporter_id = transporter_id,
+                            mill_id = selectedMillId!!,
+                            created_by_id = idPetugas!!,
+                            no_espb = noESPBStr,
+                            tph0 = tph0,
+                            tph1 = tph1,
+                            appVersion = appVersion,
+                            osVersion = osVersion,
+                            phoneModel = phoneModel
+                        )
+                        val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
+                        val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
+                        ListPanenTBSActivity().generateHighQualityQRCode(
+                            encodedData!!,
+                            qrCodeImageView
+                        )
+                        setMaxBrightness(this, true)
+                        btKonfirmScanESPB.isEnabled = true
+                    }
+                    btnGenerateQRESPB.isEnabled = true
+                },
+                cancelFunction = {
+                    btnGenerateQRESPB.isEnabled = true
                 }
-                if (mekanisasi == 0) {
-                    val json = constructESPBJson(
-                        blok_jjg = blok_jjg,
-                        nopol = nopol,
-                        driver = driver,
-                        pemuat_id = pemuatListId.joinToString(","),
-                        transporter_id = transporter_id,
-                        mill_id = selectedMillId!!,
-                        created_by_id = idPetugas!!,
-                        no_espb = noESPBStr,
-                        tph0 = tph0,
-                        tph1 = tph1,
-                        appVersion = appVersion,
-                        osVersion = osVersion,
-                        phoneModel = phoneModel
-                    )
-                    val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
-                    val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
-                    ListPanenTBSActivity().generateHighQualityQRCode(encodedData!!, qrCodeImageView)
-                    setMaxBrightness(this, true)
-                }
-            }
+            )
         }
 
         val formEspbMill = findViewById<LinearLayout>(R.id.formEspbMill)
@@ -558,8 +623,12 @@ class FormESPBActivity : AppCompatActivity() {
             val selectedMill = viewModel.millList.value?.get(position)
             selectedMillId = try {
                 selectedMill?.id!!
-            }catch (e: Exception){
-                Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Mill $e", Toasty.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toasty.error(
+                    this,
+                    "Terjadi Kesalahan saat mengambil ID Mill $e",
+                    Toasty.LENGTH_LONG
+                ).show()
                 0
             }
         }
@@ -581,7 +650,7 @@ class FormESPBActivity : AppCompatActivity() {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun setupSpinner(idSpinner: Int, list: List<String>):Int{
+    private fun setupSpinner(idSpinner: Int, list: List<String>): Int {
         var selectedID = 0
         val formEspbMill = findViewById<LinearLayout>(idSpinner)
         val editText = findViewById<EditText>(R.id.etHomeMarkerTPH)
@@ -589,7 +658,12 @@ class FormESPBActivity : AppCompatActivity() {
         spinner.setItems(list)
         spinner.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_UP) {
-                showPopupSearchDropdown(spinner, list, editText, formEspbMill) { selectedItem, position ->
+                showPopupSearchDropdown(
+                    spinner,
+                    list,
+                    editText,
+                    formEspbMill
+                ) { selectedItem, position ->
                     spinner.text = selectedItem // Update spinner UI
                 }
             }
@@ -628,6 +702,7 @@ class FormESPBActivity : AppCompatActivity() {
             spinner.setItems(millNames)
         }
     }
+
     private fun getCurrentDateTime(): String {
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         return sdf.format(Date())
@@ -659,7 +734,8 @@ class FormESPBActivity : AppCompatActivity() {
         linearLayout: LinearLayout,
         onItemSelected: (String, Int) -> Unit
     ) {
-        val popupView = LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
+        val popupView =
+            LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
         val listView = popupView.findViewById<ListView>(R.id.listViewChoices)
         val editTextSearch = popupView.findViewById<EditText>(R.id.searchEditText)
 
@@ -699,7 +775,8 @@ class FormESPBActivity : AppCompatActivity() {
 
                     // If keyboard hides the EditText, scroll up
                     if (spinnerLocation[1] + spinner.height + popupWindow.height > rect.bottom) {
-                        val scrollAmount = spinnerLocation[1] - 400 // Scroll to show dropdown with extra space
+                        val scrollAmount =
+                            spinnerLocation[1] - 400 // Scroll to show dropdown with extra space
                         scrollView?.smoothScrollBy(0, scrollAmount)
                     }
                 }
@@ -713,7 +790,11 @@ class FormESPBActivity : AppCompatActivity() {
         }
 
         var filteredData = data
-        val adapter = object : ArrayAdapter<String>(spinner.context, android.R.layout.simple_list_item_1, filteredData) {
+        val adapter = object : ArrayAdapter<String>(
+            spinner.context,
+            android.R.layout.simple_list_item_1,
+            filteredData
+        ) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val view = super.getView(position, convertView, parent)
                 val textView = view.findViewById<TextView>(android.R.id.text1)
@@ -744,12 +825,21 @@ class FormESPBActivity : AppCompatActivity() {
                         filteredData
                     }
                 ) {
-                    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    override fun getView(
+                        position: Int,
+                        convertView: View?,
+                        parent: ViewGroup
+                    ): View {
                         val view = super.getView(position, convertView, parent)
                         val textView = view.findViewById<TextView>(android.R.id.text1)
 
                         if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                            textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
+                            textView.setTextColor(
+                                ContextCompat.getColor(
+                                    context,
+                                    R.color.colorRedDark
+                                )
+                            )
                             textView.setTypeface(textView.typeface, Typeface.ITALIC)
                             view.isEnabled = false
                         } else {
@@ -798,7 +888,11 @@ class FormESPBActivity : AppCompatActivity() {
         return null
     }
 
-    private fun handleItemSelection(linearLayout: LinearLayout, position: Int, selectedItem: String) {
+    private fun handleItemSelection(
+        linearLayout: LinearLayout,
+        position: Int,
+        selectedItem: String
+    ) {
         when (linearLayout.id) {
             R.id.formEspbKemandoran -> {
                 selectedKemandoranId = try {
@@ -837,6 +931,7 @@ class FormESPBActivity : AppCompatActivity() {
                     }
                 }
             }
+
             R.id.formEspbTransporter -> {
                 selectedTransporterId = try {
                     transporterList.find { it.nama == selectedItem }?.id!!
@@ -844,8 +939,12 @@ class FormESPBActivity : AppCompatActivity() {
                     AppLogger.e("Error finding selectedTransporterId: ${e.message}")
                     0
                 }
-                Log.d("FormESPBActivityTransporter", "selectedTransporterId: $selectedTransporterId")
+                Log.d(
+                    "FormESPBActivityTransporter",
+                    "selectedTransporterId: $selectedTransporterId"
+                )
             }
+
             R.id.formEspbPemuat -> {
                 val karyawanMap = pemuatList.associateBy({ it.nama }, { it.id })
                 Log.d("karyawanMap", "karyawanMap: $karyawanMap")

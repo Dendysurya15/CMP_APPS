@@ -131,6 +131,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
     private var selectedKemandoranLain: String = ""
     private var infoApp: String = ""
 
+    private lateinit var backButton: ImageView
+
     private var selectedDivisiValue: Int? = null
     private var selectedDivisionSpinnerIndex: Int? = null
 
@@ -155,7 +157,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
 
         prefManager = PrefManager(this)
         initViewModel()
-
+        initUI()
         regionalId = prefManager!!.regionalIdUserLogin
         estateId = prefManager!!.estateIdUserLogin
         estateName = prefManager!!.estateUserLogin
@@ -164,7 +166,10 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         jabatanUser = prefManager!!.jabatanUserLogin
 
         val backButton = findViewById<ImageView>(R.id.btn_back)
-        backButton.setOnClickListener { onBackPressed() }
+        backButton.setOnClickListener {
+            backButton.isEnabled = false
+            onBackPressed()
+        }
 
         setupHeader()
 
@@ -208,107 +213,135 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         val recyclerView = findViewById<RecyclerView>(R.id.rvTableDataAbsensi)
 
         // Inisialisasi Adapter dengan List kosong
-        absensiAdapter = AbsensiAdapter(mutableListOf()) // Gunakan mutableListOf() agar sesuai dengan MutableList
+        absensiAdapter =
+            AbsensiAdapter(mutableListOf()) // Gunakan mutableListOf() agar sesuai dengan MutableList
         recyclerView.adapter = absensiAdapter
         recyclerView.layoutManager = LinearLayoutManager(this)
 
         val mbSaveDataAbsensi = findViewById<MaterialButton>(R.id.mbSaveDataAbsensi)
         mbSaveDataAbsensi.setOnClickListener {
             if (validateAndShowErrors()) {
+                mbSaveDataAbsensi.isEnabled = false
                 AlertDialogUtility.withTwoActions(
                     this,
                     "Simpan Data",
                     getString(R.string.confirmation_dialog_title),
                     getString(R.string.confirmation_dialog_description),
-                    "warning.json"
-                ) {
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        try {
-                            val result = withContext(Dispatchers.IO) {
-                                val absensiList = absensiAdapter.getItems()
-                                val (karyawanMasuk, karyawanTidakMasuk) = absensiList.partition { it.isChecked }
+                    "warning.json",
+                    function = {
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            try {
+                                val result = withContext(Dispatchers.IO) {
+                                    val absensiList = absensiAdapter.getItems()
+                                    val (karyawanMasuk, karyawanTidakMasuk) = absensiList.partition { it.isChecked }
 
-                                val karyawanMskId = karyawanMasuk.joinToString(",") { it.id.toString() }
-                                val karyawanTdkMskId = karyawanTidakMasuk.joinToString(",") { it.id.toString() }
+                                    val karyawanMskId =
+                                        karyawanMasuk.joinToString(",") { it.id.toString() }
+                                    val karyawanTdkMskId =
+                                        karyawanTidakMasuk.joinToString(",") { it.id.toString() }
 
-                                val dateAbsen = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                                    val dateAbsen =
+                                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
+                                            Date()
+                                        )
 
-                                val karyawanMskIdList = karyawanMskId.split(",") // Konversi ke List<String>
-                                val isDuplicate = absensiViewModel.isAbsensiExist(dateAbsen, karyawanMskIdList)
-                                if (isDuplicate) {
-                                    return@withContext SaveDataAbsensiState.Error("Data absensi sudah ada untuk sebagian karyawan.")
-                                }
-
-                                AppLogger.d("Tgl ${dateAbsen} + idKar ${karyawanMskId}")
-
-                                val listKemandoran = listOfNotNull(filteredKemandoranId, selectedKemandoranIdLainAbsensi)
-                                    .joinToString(",")
-
-                                val photoFilesString = photoFiles.joinToString(";")
-                                val komentarFotoString = komentarFoto.joinToString(";")
-
-                                absensiViewModel.saveDataAbsensi(
-                                    kemandoran_id = listKemandoran,
-                                    date_absen = dateAbsen,
-                                    created_by = userId!!,
-                                    karyawan_msk_id = karyawanMskId,
-                                    karyawan_tdk_msk_id = karyawanTdkMskId,
-                                    foto = photoFilesString,
-                                    komentar = komentarFotoString,
-                                    asistensi = asistensi ?: 0,
-                                    lat = lat ?: 0.0,
-                                    lon = lon ?: 0.0,
-                                    info = infoApp ?: "",
-                                    archive = 0
-                                )
-                            }
-
-                            when (result) {
-                                is SaveDataAbsensiState.Success -> {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@FeatureAbsensiActivity,
-                                        stringXML(R.string.al_back),
-                                        stringXML(R.string.al_success_save_local),
-                                        stringXML(R.string.al_description_success_save_local),
-                                        "success.json",
-                                        R.color.greenDefault
-                                    ) {
-                                        val intent = Intent(this@FeatureAbsensiActivity, ListAbsensiActivity::class.java)
-                                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                                        startActivity(intent)
-                                        finish()
+                                    val karyawanMskIdList =
+                                        karyawanMskId.split(",") // Konversi ke List<String>
+                                    val isDuplicate = absensiViewModel.isAbsensiExist(
+                                        dateAbsen,
+                                        karyawanMskIdList
+                                    )
+                                    if (isDuplicate) {
+                                        return@withContext SaveDataAbsensiState.Error("Data absensi sudah ada untuk sebagian karyawan.")
                                     }
+
+                                    AppLogger.d("Tgl ${dateAbsen} + idKar ${karyawanMskId}")
+
+                                    val listKemandoran = listOfNotNull(
+                                        filteredKemandoranId,
+                                        selectedKemandoranIdLainAbsensi
+                                    )
+                                        .joinToString(",")
+
+                                    val photoFilesString = photoFiles.joinToString(";")
+                                    val komentarFotoString = komentarFoto.joinToString(";")
+
+                                    absensiViewModel.saveDataAbsensi(
+                                        kemandoran_id = listKemandoran,
+                                        date_absen = dateAbsen,
+                                        created_by = userId!!,
+                                        karyawan_msk_id = karyawanMskId,
+                                        karyawan_tdk_msk_id = karyawanTdkMskId,
+                                        foto = photoFilesString,
+                                        komentar = komentarFotoString,
+                                        asistensi = asistensi ?: 0,
+                                        lat = lat ?: 0.0,
+                                        lon = lon ?: 0.0,
+                                        info = infoApp ?: "",
+                                        archive = 0
+                                    )
                                 }
 
-                                is SaveDataAbsensiState.Error -> {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@FeatureAbsensiActivity,
-                                        stringXML(R.string.al_back),
-                                        stringXML(R.string.al_failed_save_local),
-                                        "${stringXML(R.string.al_description_failed_save_local)} : ${result.message}",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) { }
-                                }
+                                when (result) {
+                                    is SaveDataAbsensiState.Success -> {
+                                        AlertDialogUtility.withSingleAction(
+                                            this@FeatureAbsensiActivity,
+                                            stringXML(R.string.al_back),
+                                            stringXML(R.string.al_success_save_local),
+                                            stringXML(R.string.al_description_success_save_local),
+                                            "success.json",
+                                            R.color.greenDefault
+                                        ) {
+                                            val intent = Intent(
+                                                this@FeatureAbsensiActivity,
+                                                ListAbsensiActivity::class.java
+                                            )
+                                            intent.flags =
+                                                Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                            startActivity(intent)
+                                            finish()
+                                        }
+                                    }
 
-                                SaveDataAbsensiState.Loading -> TODO()
+                                    is SaveDataAbsensiState.Error -> {
+                                        AlertDialogUtility.withSingleAction(
+                                            this@FeatureAbsensiActivity,
+                                            stringXML(R.string.al_back),
+                                            stringXML(R.string.al_failed_save_local),
+                                            "${stringXML(R.string.al_description_failed_save_local)} : ${result.message}",
+                                            "warning.json",
+                                            R.color.colorRedDark
+                                        ) { }
+                                    }
+
+                                    SaveDataAbsensiState.Loading -> TODO()
+                                }
+                            } catch (e: Exception) {
+                                loadingDialog.dismiss()
+                                AppLogger.e("Error in saveDataAbsensi", e.toString())
+                                AlertDialogUtility.withSingleAction(
+                                    this@FeatureAbsensiActivity,
+                                    stringXML(R.string.al_back),
+                                    stringXML(R.string.al_failed_save_local),
+                                    "${stringXML(R.string.al_description_failed_save_local)} : ${e.message ?: "Unknown error"}",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ) { }
                             }
-                        } catch (e: Exception) {
-                            loadingDialog.dismiss()
-                            AppLogger.e("Error in saveDataAbsensi", e.toString())
-                            AlertDialogUtility.withSingleAction(
-                                this@FeatureAbsensiActivity,
-                                stringXML(R.string.al_back),
-                                stringXML(R.string.al_failed_save_local),
-                                "${stringXML(R.string.al_description_failed_save_local)} : ${e.message ?: "Unknown error"}",
-                                "warning.json",
-                                R.color.colorRedDark
-                            ) { }
                         }
+
+                        mbSaveDataAbsensi.isEnabled = true
+                    },
+                    cancelFunction = {
+                        mbSaveDataAbsensi.isEnabled = true
                     }
-                }
+                )
             }
         }
+    }
+
+    private fun initUI() {
+        backButton = findViewById(R.id.btn_back)
     }
 
     private fun initViewModel() {
@@ -331,7 +364,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
 
         val factoryAbsensiViewModel = AbsensiViewModel.AbsensiViewModelFactory(application)
-        absensiViewModel = ViewModelProvider(this, factoryAbsensiViewModel)[AbsensiViewModel::class.java]
+        absensiViewModel =
+            ViewModelProvider(this, factoryAbsensiViewModel)[AbsensiViewModel::class.java]
     }
 
     private fun setupHeader() {
@@ -446,7 +480,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         selectedKemandoranLainAdapter = SelectedWorkerAdapter()
         rvSelectedKemandoranLain.adapter = selectedKemandoranLainAdapter
 
-        val layoutKemandoranLainAbsensi = findViewById<LinearLayout>(R.id.layoutKemandoranLainAbsensi)
+        val layoutKemandoranLainAbsensi =
+            findViewById<LinearLayout>(R.id.layoutKemandoranLainAbsensi)
         val parentLayoutLain = layoutKemandoranLainAbsensi.parent as ViewGroup
         val index2 = parentLayoutLain.indexOfChild(layoutKemandoranLainAbsensi)
         parentLayoutLain.addView(rvSelectedKemandoranLain, index2 + 1)
@@ -682,12 +717,17 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
 
         spinner.setItems(data)
 
-        if (linearLayout.id == R.id.layoutkemandoranAbsensi || linearLayout.id == R.id.layoutKemandoranLainAbsensi){
+        if (linearLayout.id == R.id.layoutkemandoranAbsensi || linearLayout.id == R.id.layoutKemandoranLainAbsensi) {
 //            Spinner khusus saerch
             spinner.setOnTouchListener { _, event ->
                 if (event.action == MotionEvent.ACTION_UP) {
                     // ✅ Pass `linearLayout` to avoid error
-                    showPopupSearchDropdown(spinner, data, editText, linearLayout) { selectedItem, position ->
+                    showPopupSearchDropdown(
+                        spinner,
+                        data,
+                        editText,
+                        linearLayout
+                    ) { selectedItem, position ->
                         spinner.text = selectedItem // Update spinner UI
                         tvError.visibility = View.GONE
                         onItemSelected(position) // Ensure selection callback works
@@ -736,7 +776,11 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         absensiAdapter.clearList()
     }
 
-    private fun handleItemSelection(linearLayout: LinearLayout, position: Int, selectedItem: String) {
+    private fun handleItemSelection(
+        linearLayout: LinearLayout,
+        position: Int,
+        selectedItem: String
+    ) {
         when (linearLayout.id) {
             R.id.layoutAfdelingAbsensi -> {
                 resetDependentSpinners(linearLayout.rootView)
@@ -930,6 +974,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                     AppLogger.e("Filtered Kemandoran ID is null, skipping data fetch.")
                 }
             }
+
             R.id.layoutKemandoranLainAbsensi -> {
                 selectedKemandoranLain = selectedItem.toString()
 
@@ -952,7 +997,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                 }
 
                 AppLogger.d(kemandoranLainList.toString())
-                selectedKemandoranIdLainAbsensi= try {
+                selectedKemandoranIdLainAbsensi = try {
                     kemandoranLainList.find {
                         it.nama == selectedKemandoranLain
                     }?.id
@@ -1022,7 +1067,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         linearLayout: LinearLayout,
         onItemSelected: (String, Int) -> Unit
     ) {
-        val popupView = LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
+        val popupView =
+            LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
         val listView = popupView.findViewById<ListView>(R.id.listViewChoices)
         val editTextSearch = popupView.findViewById<EditText>(R.id.searchEditText)
 
@@ -1062,7 +1108,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
 
                     // If keyboard hides the EditText, scroll up
                     if (spinnerLocation[1] + spinner.height + popupWindow.height > rect.bottom) {
-                        val scrollAmount = spinnerLocation[1] - 400 // Scroll to show dropdown with extra space
+                        val scrollAmount =
+                            spinnerLocation[1] - 400 // Scroll to show dropdown with extra space
                         scrollView?.smoothScrollBy(0, scrollAmount)
                     }
                 }
@@ -1076,7 +1123,11 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         }
 
         var filteredData = data
-        val adapter = object : ArrayAdapter<String>(spinner.context, android.R.layout.simple_list_item_1, filteredData) {
+        val adapter = object : ArrayAdapter<String>(
+            spinner.context,
+            android.R.layout.simple_list_item_1,
+            filteredData
+        ) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val view = super.getView(position, convertView, parent)
                 val textView = view.findViewById<TextView>(android.R.id.text1)
@@ -1107,12 +1158,21 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                         filteredData
                     }
                 ) {
-                    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    override fun getView(
+                        position: Int,
+                        convertView: View?,
+                        parent: ViewGroup
+                    ): View {
                         val view = super.getView(position, convertView, parent)
                         val textView = view.findViewById<TextView>(android.R.id.text1)
 
                         if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                            textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
+                            textView.setTextColor(
+                                ContextCompat.getColor(
+                                    context,
+                                    R.color.colorRedDark
+                                )
+                            )
                             textView.setTypeface(textView.typeface, Typeface.ITALIC)
                             view.isEnabled = false
                         } else {
@@ -1145,7 +1205,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         popupWindow.showAsDropDown(spinner)
 
         editTextSearch.requestFocus()
-        val imm = spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val imm =
+            spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
     }
 
@@ -1158,6 +1219,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
             }
 
             else -> {
+                backButton.isEnabled = false
                 vibrate()
                 AlertDialogUtility.withTwoActions(
                     this,
@@ -1165,12 +1227,16 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                     getString(R.string.confirmation_dialog_title),
                     getString(R.string.al_confirm_feature),
                     "warning.json",
-                    ContextCompat.getColor(this, R.color.bluedarklight)
-                ) {
-                    val intent = Intent(this, HomePageActivity::class.java)
-                    startActivity(intent)
-                    finishAffinity()
-                }
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = {
+                        val intent = Intent(this, HomePageActivity::class.java)
+                        startActivity(intent)
+                        finishAffinity()
+                        backButton.isEnabled = true
+                    }, cancelFunction = {
+                        backButton.isEnabled = true
+                    }
+                )
 
             }
         }
