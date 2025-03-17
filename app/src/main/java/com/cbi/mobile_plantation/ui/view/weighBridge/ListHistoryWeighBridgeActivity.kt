@@ -708,6 +708,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                     val transporterName = transporterData.firstOrNull()?.nama ?: "-"
                                     val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
 
+
                                     WBData(
                                         //data untuk upload staging
                                         id = item.id,

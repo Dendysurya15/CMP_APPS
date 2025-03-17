@@ -2347,9 +2347,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 selectedPemanen = selectedItem.toString()
                 val selectedNama = selectedPemanen.substringBefore(" - ").trim()
 
-                val karyawanMap = karyawanList.associateBy({ it.nama!!.trim() }, { it.id })
+                val karyawanMap = karyawanList.associateBy({ it.nama!!.trim() }, { it.nik })
 
                 val selectedPemanenId = karyawanMap[selectedNama]
+
+                AppLogger.d(selectedPemanenId.toString())
                 if (selectedPemanenId != null) {
                     val worker = Worker(selectedPemanenId.toString(), selectedPemanen)
                     selectedPemanenAdapter.addWorker(worker)
@@ -2440,7 +2442,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 selectedPemanenLain = selectedItem.toString()
                 val selectedNamaPemanenLain = selectedPemanenLain.substringBefore(" - ").trim()
 
-                val karyawanMap = karyawanLainList.associateBy({ it.nama }, { it.id })
+                val karyawanMap = karyawanLainList.associateBy({ it.nama }, { it.nik })
 
                 val selectedPemanenLainId = karyawanMap[selectedNamaPemanenLain]
 

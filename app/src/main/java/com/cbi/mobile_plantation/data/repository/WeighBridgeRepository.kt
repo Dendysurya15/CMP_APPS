@@ -110,9 +110,10 @@ class WeighBridgeRepository(context: Context) {
         statusUploadPpro: Int,
         uploaderInfo: String,
         uploaderAt: String,
-        uploadedById: Int
+        uploadedById: Int,
+        message: String? = null
     ) {
-        espbDao.updateUploadStatusPPRO(id, statusUploadPpro, uploaderInfo, uploaderAt, uploadedById)
+        espbDao.updateUploadStatusPPRO(id, statusUploadPpro, uploaderInfo, uploaderAt, uploadedById, message)
     }
 
     private suspend fun updateUploadStatusCMP(
@@ -120,9 +121,10 @@ class WeighBridgeRepository(context: Context) {
         statusUploadCMP: Int,
         uploaderInfo: String,
         uploaderAt: String,
-        uploadedById: Int
+        uploadedById: Int,
+        message: String? = null
     ) {
-        espbDao.updateUploadStatusCMP(id, statusUploadCMP, uploaderInfo, uploaderAt, uploadedById)
+        espbDao.updateUploadStatusCMP(id, statusUploadCMP, uploaderInfo, uploaderAt, uploadedById, message)
     }
 
     suspend fun updateDataIsZippedESPB(ids: List<Int>, statusArchive: Int) {
@@ -148,7 +150,6 @@ class WeighBridgeRepository(context: Context) {
                 val idsESPB = mutableListOf<Int>() // ✅ Define list outside loop
                 AppLogger.d("Starting upload for ${dataList.size} items")
                 AppLogger.d(globalIdESPB.toString())
-                AppLogger.d("Starting upload for ${dataList.size} items")
                 AppLogger.d(dataList.toString())
 
                 for (item in dataList) {
@@ -222,7 +223,8 @@ class WeighBridgeRepository(context: Context) {
                                                     1,
                                                     uploaderInfo,
                                                     uploadedAt,
-                                                    uploadedById
+                                                    uploadedById,
+                                                    ""
                                                 )
                                                 AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
                                             } catch (e: Exception) {
@@ -247,6 +249,21 @@ class WeighBridgeRepository(context: Context) {
                                                 "API Error: ${rawErrorMessage.take(100)}"
                                             }
 
+                                            try {
+                                                AppLogger.d("PPRO: Updating local database status")
+                                                updateUploadStatusPPRO(
+                                                    itemId,
+                                                    0,
+                                                    uploaderInfo,
+                                                    uploadedAt,
+                                                    uploadedById,
+                                                    "${extractedMessage.take(150)}..."
+                                                )
+                                                AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("PPRO: Failed to update espb table for Item ID: $itemId - ${e.message}")
+                                            }
+
                                             AppLogger.e("PPRO: APIError Item ID: $itemId - $rawErrorMessage")
                                             errors.add(UploadError(num, extractedMessage, "API_ERROR"))
                                             results[num] = false
@@ -254,6 +271,21 @@ class WeighBridgeRepository(context: Context) {
                                         }
                                     } else {
                                         errorMessage = response.errorBody()?.string() ?: "Server error: ${response.code()}"
+
+                                        try {
+                                            AppLogger.d("PPRO: Updating local database status")
+                                            updateUploadStatusPPRO(
+                                                itemId,
+                                                0,
+                                                uploaderInfo,
+                                                uploadedAt,
+                                                uploadedById,
+                                                "${errorMessage.take(150)}..."
+                                            )
+                                            AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
+                                        } catch (e: Exception) {
+                                            AppLogger.e("PPRO: Failed to update espb table for Item ID: $itemId - ${e.message}")
+                                        }
                                         AppLogger.e("PPRO: ServerError Item ID: $num - $errorMessage")
                                         errors.add(UploadError(num, errorMessage!!, "SERVER_ERROR"))
                                         results[num] = false
@@ -263,6 +295,21 @@ class WeighBridgeRepository(context: Context) {
                                     AppLogger.e("PPRO: Network error: ${e.message}")
                                     AppLogger.e("PPRO: Stack trace: ${e.stackTraceToString()}")
                                     errorMessage = "Network error: ${e.message}"
+
+                                    try {
+                                        AppLogger.d("PPRO: Updating local database status")
+                                        updateUploadStatusPPRO(
+                                            itemId,
+                                            0,
+                                            uploaderInfo,
+                                            uploadedAt,
+                                            uploadedById,
+                                            "${errorMessage.take(150)}..."
+                                        )
+                                        AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
+                                    } catch (e: Exception) {
+                                        AppLogger.e("PPRO: Failed to update espb table for Item ID: $itemId - ${e.message}")
+                                    }
                                     AppLogger.e("PPRO: NetworkError Item ID: $num - $errorMessage")
                                     errors.add(UploadError(num, errorMessage!!, "NETWORK_ERROR"))
                                     results[num] = false
@@ -271,6 +318,20 @@ class WeighBridgeRepository(context: Context) {
                                     AppLogger.e("PPRO: Exception during API call: ${e.javaClass.simpleName} - ${e.message}")
                                     AppLogger.e("PPRO: Stack trace: ${e.stackTraceToString()}")
                                     errorMessage = "API error: ${e.message}"
+                                    try {
+                                        AppLogger.d("PPRO: Updating local database status")
+                                        updateUploadStatusPPRO(
+                                            itemId,
+                                            0,
+                                            uploaderInfo,
+                                            uploadedAt,
+                                            uploadedById,
+                                            "${errorMessage.take(150)}..."
+                                        )
+                                        AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
+                                    } catch (e: Exception) {
+                                        AppLogger.e("PPRO: Failed to update espb table for Item ID: $itemId - ${e.message}")
+                                    }
                                     AppLogger.e("PPRO: APIError Item ID: $num - $errorMessage")
                                     errors.add(UploadError(num, errorMessage!!, "API_ERROR"))
                                     results[num] = false
@@ -280,6 +341,20 @@ class WeighBridgeRepository(context: Context) {
                                 AppLogger.e("PPRO: Top-level exception in PPRO block: ${e.javaClass.simpleName} - ${e.message}")
                                 AppLogger.e("PPRO: Stack trace: ${e.stackTraceToString()}")
                                 errorMessage = "Fatal error in PPRO upload: ${e.message}"
+                                try {
+                                    AppLogger.d("PPRO: Updating local database status")
+                                    updateUploadStatusPPRO(
+                                        itemId,
+                                        0,
+                                        uploaderInfo,
+                                        uploadedAt,
+                                        uploadedById,
+                                        "${errorMessage.take(150)}..."
+                                    )
+                                    AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
+                                } catch (e: Exception) {
+                                    AppLogger.e("PPRO: Failed to update espb table for Item ID: $itemId - ${e.message}")
+                                }
                                 errors.add(UploadError(num, errorMessage!!, "FATAL_ERROR"))
                                 results[num] = false
                                 onProgressUpdate(num, 100, false, errorMessage)
@@ -293,6 +368,23 @@ class WeighBridgeRepository(context: Context) {
                             if (filePath.isNullOrEmpty()) {
                                 errorMessage = "File .zip is missing or error when generating .zip"
                                 AppLogger.e(errorMessage!!)
+                                for (id in idsESPB) {
+                                    try {
+                                        withContext(Dispatchers.IO) { // Ensures it runs in background & waits
+                                            updateUploadStatusCMP(
+                                                id, // ✅ Replace itemId with id from idsESPB
+                                                0,
+                                                uploaderInfo,
+                                                uploadedAt,
+                                                uploadedById,
+                                                "${errorMessage!!.take(150)}..."
+                                            )
+                                        }
+                                        AppLogger.d("ESPB table dengan id $id has been updated")
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                                    }
+                                }
                                 errors.add(UploadError(num, errorMessage!!, "FILE_ERROR"))
                                 results[num] = false
                                 onProgressUpdate(num, 100, false, errorMessage)
@@ -303,6 +395,23 @@ class WeighBridgeRepository(context: Context) {
                             if (!file.exists() || !file.isFile) {
                                 errorMessage = "File not found or invalid: $filePath"
                                 AppLogger.e(errorMessage!!)
+                                for (id in idsESPB) {
+                                    try {
+                                        withContext(Dispatchers.IO) { // Ensures it runs in background & waits
+                                            updateUploadStatusCMP(
+                                                id, // ✅ Replace itemId with id from idsESPB
+                                                0,
+                                                uploaderInfo,
+                                                uploadedAt,
+                                                uploadedById,
+                                                "${errorMessage!!.take(150)}..."
+                                            )
+                                        }
+                                        AppLogger.d("ESPB table dengan id $id has been updated")
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                                    }
+                                }
                                 errors.add(UploadError(num, errorMessage!!, "INVALID_FILE"))
                                 results[num] = false
                                 onProgressUpdate(num, 100, false, errorMessage)
@@ -387,12 +496,47 @@ class WeighBridgeRepository(context: Context) {
                                             "ZIP_UPLOAD_ERROR"
                                         )
                                     )
+
+                                    for (id in idsESPB) {
+                                        try {
+                                            withContext(Dispatchers.IO) { // Ensures it runs in background & waits
+                                                updateUploadStatusCMP(
+                                                    id, // ✅ Replace itemId with id from idsESPB
+                                                    0,
+                                                    uploaderInfo,
+                                                    uploadedAt,
+                                                    uploadedById,
+                                                    "${errorMessage!!.take(150)}..."
+                                                )
+                                            }
+                                            AppLogger.d("ESPB table dengan id $id has been updated")
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                                        }
+                                    }
                                     results[num] = false
                                     onProgressUpdate(num, 100, false, errorMessage)
                                 }
                             } catch (e: Exception) {
                                 errorMessage = "ZIP upload error: ${e.message}"
                                 AppLogger.e("ZipUploadError Item ID: $num - $errorMessage")
+                                for (id in idsESPB) {
+                                    try {
+                                        withContext(Dispatchers.IO) { // Ensures it runs in background & waits
+                                            updateUploadStatusCMP(
+                                                id, // ✅ Replace itemId with id from idsESPB
+                                                0,
+                                                uploaderInfo,
+                                                uploadedAt,
+                                                uploadedById,
+                                                "${errorMessage!!.take(150)}..."
+                                            )
+                                        }
+                                        AppLogger.d("ESPB table dengan id $id has been updated")
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                                    }
+                                }
                                 errors.add(UploadError(num, errorMessage!!, "ZIP_UPLOAD_ERROR"))
                                 results[num] = false
                                 onProgressUpdate(num, 100, false, errorMessage)
@@ -403,6 +547,38 @@ class WeighBridgeRepository(context: Context) {
                         else {
                             errorMessage = "Unknown endpoint for item ID: $itemId -> $endpoint"
                             AppLogger.e(errorMessage!!)
+                            for (id in idsESPB) {
+                                try {
+                                    withContext(Dispatchers.IO) { // Ensures it runs in background & waits
+                                        updateUploadStatusCMP(
+                                            id, // ✅ Replace itemId with id from idsESPB
+                                            0,
+                                            uploaderInfo,
+                                            uploadedAt,
+                                            uploadedById,
+                                            "${errorMessage!!.take(150)}..."
+                                        )
+                                    }
+                                    AppLogger.d("ESPB table dengan id $id has been updated")
+                                } catch (e: Exception) {
+                                    AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                                }
+                            }
+
+                            try {
+                                AppLogger.d("PPRO: Updating local database status")
+                                updateUploadStatusPPRO(
+                                    itemId,
+                                    0,
+                                    uploaderInfo,
+                                    uploadedAt,
+                                    uploadedById,
+                                    "${errorMessage.take(150)}..."
+                                )
+                                AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
+                            } catch (e: Exception) {
+                                AppLogger.e("PPRO: Failed to update espb table for Item ID: $itemId - ${e.message}")
+                            }
                             errors.add(UploadError(num, errorMessage!!, "UNKNOWN_ENDPOINT"))
                             results[num] = false
                             onProgressUpdate(itemId, 100, false, errorMessage)
@@ -410,6 +586,24 @@ class WeighBridgeRepository(context: Context) {
                     } catch (e: Exception) {
                         errorMessage = "Unknown error: ${e.message}"
                         AppLogger.e("UnknownError Item ID: $num - $errorMessage")
+
+                        for (id in idsESPB) {
+                            try {
+                                withContext(Dispatchers.IO) { // Ensures it runs in background & waits
+                                    updateUploadStatusCMP(
+                                        id, // ✅ Replace itemId with id from idsESPB
+                                        0,
+                                        uploaderInfo,
+                                        uploadedAt,
+                                        uploadedById,
+                                        "${errorMessage!!.take(150)}..."
+                                    )
+                                }
+                                AppLogger.d("ESPB table dengan id $id has been updated")
+                            } catch (e: Exception) {
+                                AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                            }
+                        }
                         errors.add(UploadError(num, errorMessage!!, "UNKNOWN_ERROR"))
                         results[num] = false
                         onProgressUpdate(num, 100, false, errorMessage)

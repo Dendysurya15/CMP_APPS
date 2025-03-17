@@ -307,7 +307,6 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
                 iconStatusAlertMessage.setImageResource(R.drawable.baseline_check_24)
             }
             "FAILED" -> {
-
                 statusAlertMessage.text = "FAILED"
                 statusAlertMessage.setTextColor(ContextCompat.getColor(parentView.context, R.color.colorRedDark))
                 iconStatusAlertMessage.setImageResource(R.drawable.baseline_close_24)
@@ -328,7 +327,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         messageResponseUpload.text = when {
             type == "CMP" && uploaded_response.isNotEmpty() -> "Upload Berhasil"
             type == "PPRO" && status == 1 -> "Upload Berhasil"
-            else -> status.toString()
+            else -> uploaded_response
         }
 
         parentView.addView(cardView)
