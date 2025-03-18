@@ -2,7 +2,7 @@ package com.cbi.cmp_project.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.cbi.cmp_project.utils.AppUtils
+import com.cbi.mobile_plantation.utils.AppUtils
 
 @Entity(tableName = AppUtils.DatabaseTables.INSPEKSI_PATH)
 data class InspectionPathModel(

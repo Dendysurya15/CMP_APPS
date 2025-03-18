@@ -2,16 +2,12 @@ package com.cbi.cmp_project.ui.viewModel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
 import com.cbi.cmp_project.data.model.InspectionModel
 import com.cbi.cmp_project.data.model.InspectionPathModel
-import com.cbi.cmp_project.data.repository.AppRepository
+import com.cbi.mobile_plantation.data.repository.AppRepository
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Suppress("UNCHECKED_CAST")

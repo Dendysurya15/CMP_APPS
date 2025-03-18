@@ -6,12 +6,15 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.cbi.cmp_project.data.database.InspectionDao
+import com.cbi.cmp_project.data.database.InspectionPathDao
+import com.cbi.cmp_project.data.model.InspectionModel
+import com.cbi.cmp_project.data.model.InspectionPathModel
 import com.cbi.mobile_plantation.data.model.AbsensiModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.FlagESPBModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
-
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.TransporterModel
