@@ -92,7 +92,6 @@ class FormESPBActivity : AppCompatActivity() {
     private lateinit var rvSelectedPemanen: RecyclerView
     private lateinit var thp1Map: Map<Int, Int>
     private lateinit var kemandoranMap: Map<String, Int>
-    private lateinit var karyawanIdMap: Map<String, Int>
     private lateinit var karyawanNikMap: Map<String, String>
 
     var idsToUpdate = listOf<Int>()
@@ -609,7 +608,7 @@ class FormESPBActivity : AppCompatActivity() {
                             status_draft = statusDraft,
                             status_mekanisasi = mekanisasi,
                             pemuat_nik = uniqueNikPemanen,
-                            kemandoran_id = kemandoranIdList.joinToString(",")
+                            kemandoran_id = uniqueKemandoranId
                         )
                     }
                     if (mekanisasi == 0) {
@@ -617,7 +616,7 @@ class FormESPBActivity : AppCompatActivity() {
                             blok_jjg = blok_jjg,
                             nopol = nopol,
                             driver = driver,
-                            pemuat_id = pemuatListId.joinToString(","),
+                            pemuat_id = uniqueIdKaryawan,
                             transporter_id = transporter_id,
                             mill_id = selectedMillId!!,
                             created_by_id = idPetugas!!,
@@ -627,8 +626,8 @@ class FormESPBActivity : AppCompatActivity() {
                             appVersion = appVersion,
                             osVersion = osVersion,
                             phoneModel = phoneModel,
-                            pemuat_nik = nikKaryawanList.joinToString(","),
-                            kemandoran_id = kemandoranIdList.joinToString(",")
+                            pemuat_nik = uniqueNikPemanen,
+                            kemandoran_id = uniqueKemandoranId
                         )
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
                         val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
@@ -1100,8 +1099,6 @@ class FormESPBActivity : AppCompatActivity() {
         noESPB: String,
         status_draft: Int,
         status_mekanisasi: Int,
-        kemandoran_id: String,
-        pemuat_nik: String
     ) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {

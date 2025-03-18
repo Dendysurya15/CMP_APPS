@@ -237,8 +237,6 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         uploader_info_wb: String,
         noESPB: String,
         scan_status: Int = 1,
-        kemandoran_id: String,
-        pemuat_nik: String
     ): WeighBridgeRepository.SaveResultESPBKrani {
         return try {
             val exists = repository.isNoESPBExists(noESPB)

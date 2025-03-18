@@ -73,8 +73,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     var globalNoESPB: String = ""
     var globalDeptPPRO: Int = 0
     var globalDivisiPPRO: Int = 0
-    var globalKemandoranId = ""
-    var globalPemuatNik = ""
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -196,8 +194,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         uploader_info_wb = "", // New field for WB
                                         noESPB = globalNoESPB,
                                         scan_status = 1, // Default scan_status
-                                        kemandoran_id = globalKemandoranId,
-                                        pemuat_nik = globalPemuatNik
                                     )
 
                                 }
