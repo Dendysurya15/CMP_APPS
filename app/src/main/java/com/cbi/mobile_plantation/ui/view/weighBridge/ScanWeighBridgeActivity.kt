@@ -220,9 +220,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             "uploaded_by_id" to (globalCreatedById ?: 0),
                                             "dept_ppro" to globalDeptPPRO,
                                             "divisi_ppro" to globalDivisiPPRO,
-                                            "globalKemandoranId" to globalKemandoranId,
-                                            "globalPemuatNik" to globalPemuatNik,
-                                            "commodity" to "0",
+//                                            "globalKemandoranId" to globalKemandoranId,
+//                                            "globalPemuatNik" to globalPemuatNik,
+                                            "commodity" to "2",
                                             "blok_jjg" to globalBlokJjg,
                                             "nopol" to globalNopol,
                                             "driver" to globalDriver,
@@ -231,10 +231,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 ?: 0).toString(),
                                             "mill_id" to globalMillId.toString(),
                                             "created_by_id" to (globalCreatedById ?: 0).toString(),
-                                            "created_at" to SimpleDateFormat(
-                                                "yyyy-MM-dd HH:mm:ss",
-                                                Locale.getDefault()
-                                            ).format(Date()),
+                                            "created_at" to globalCreatedAt,
                                             "no_espb" to globalNoESPB
                                         )
 
