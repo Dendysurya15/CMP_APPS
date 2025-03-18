@@ -975,8 +975,6 @@ class FormESPBActivity : AppCompatActivity() {
             }
 
             R.id.formEspbPemuat -> {
-
-
                 val karyawanNikMap = pemuatList.associateBy({ it.nama!!.trim() }, { it.nik!! })
                 pemuatList.forEach {
                     it.nama?.trim()?.let { nama ->
@@ -987,15 +985,8 @@ class FormESPBActivity : AppCompatActivity() {
 
                 val selectedPemanenId = karyawanNikMap[selectedItem]
 
-                pemuat_id = karyawanIdMap[selectedItem].toString()
-                Log.d("karyawanMap", "pemuat_nik: $pemuat_id")
-                kemandoran_id = kemandoranMap[selectedItem].toString()
-                Log.d("karyawanMap", "kemandoran_id: $kemandoran_id")
-                pemuat_nik = karyawanNikMap[selectedItem].toString()
-                Log.d("karyawanMap", "pemuat_id: $pemuat_nik")
-
-                if (pemuat_id != null) {
-                    val worker = Worker(pemuat_id.toString(), selectedItem)
+                if (selectedPemanenId != null) {
+                    val worker = Worker(selectedPemanenId.toString(), selectedItem)
                     selectedPemuatAdapter.addWorker(worker)
                     pemuatListId.add(selectedPemanenId.toString())
 
@@ -1012,7 +1003,7 @@ class FormESPBActivity : AppCompatActivity() {
                         setupSpinner(R.id.formEspbPemuat, availableWorkers.map { it.name })
                     }
 
-                    AppLogger.d("Selected Worker: $selectedItem, ID: $pemuat_id")
+                    AppLogger.d("Selected Worker: $selectedItem, ID: $selectedPemanenId")
                 }
             }
         }

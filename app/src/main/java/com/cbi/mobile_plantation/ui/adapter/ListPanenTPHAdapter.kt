@@ -259,23 +259,21 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 // Set state based on selection and whether it's from a scan
                 binding.checkBoxPanen.isChecked = isSelected
                 binding.checkBoxPanen.isEnabled = !isScannedItem
-                if (!isScannedItem) {
-                    // Define the checked color based on feature name
-                    val checkedColor = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
-                        ContextCompat.getColor(context, R.color.greenDarker)
-                    } else {
-                        Color.RED
-                    }
 
-                    // Create the ColorStateList with the appropriate checked color
-                    val colorStateList = ColorStateList(
-                        arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-                        intArrayOf(checkedColor, Color.GRAY)
-                    )
-
-                    // Apply the tint
-                    binding.checkBoxPanen.buttonTintList = colorStateList
+                val checkedColor = if (isScannedItem) {
+                    ContextCompat.getColor(context, R.color.greenDarker)
+                } else {
+                    Color.RED
                 }
+
+                // Create the ColorStateList with the appropriate checked color
+                val colorStateList = ColorStateList(
+                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf(checkedColor, Color.GRAY)
+                )
+
+                // Apply the tint
+                binding.checkBoxPanen.buttonTintList = colorStateList
 
                 // Add listener AFTER setting state
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
