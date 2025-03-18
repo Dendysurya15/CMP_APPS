@@ -62,6 +62,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     var globalDriver: String = ""
     var globalTransporterId: Int? = null
     var globalPemuatId: String = ""
+    var globalKemandoranId: String = ""
+    var globalPemuatNik: String = ""
     var globalMillId: Int? = null
     var globalTph0: String = ""
     var globalTph1: String = ""
@@ -177,8 +179,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         driver = globalDriver,
                                         transporter_id = globalTransporterId ?: 0,
                                         pemuat_id = globalPemuatId,
-                                        kemandoran_id = "",
-                                        pemuat_nik = "",
+                                        kemandoran_id = globalKemandoranId,
+                                        pemuat_nik = globalPemuatNik,
                                         mill_id = globalMillId!!,
                                         archive = 0,
                                         tph0 = globalTph0,
@@ -256,6 +258,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 "jjg" to globalTotalJjg,
                                                 "created_by_id" to (globalCreatedById ?: 0),
                                                 "created_at" to globalCreatedAt,
+                                                "pemuat_id" to globalPemuatId,
+                                                "kemandoran_id" to globalKemandoranId,
+                                                "pemuat_nik" to globalPemuatNik,
                                                 "nopol" to globalNopol,
                                                 "driver" to globalDriver,
                                                 "transporter_id" to (globalTransporterId ?: 0),
@@ -760,6 +765,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalDriver = parsedData?.espb?.driver ?: "-"
                     globalTransporterId = transporterId
                     globalPemuatId = parsedData?.espb?.pemuat_id ?: "-"
+                    globalKemandoranId = parsedData?.espb?.kemandoran_id ?: "-"
+                    globalPemuatNik = parsedData?.espb?.pemuat_nik ?: "-"
                     globalMillId = millId
                     globalTph0 = parsedData?.tph0 ?: "-"
                     globalTph1 = parsedData?.tph1 ?: "-"
