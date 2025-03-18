@@ -253,12 +253,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var isTriggeredBtnScanned = false
 
     //    private lateinit var karyawanNikMap: Map<String, String>
-    private lateinit var karyawanIdMap: Map<String, Int>
-    private lateinit var kemandoranIdMap: Map<String, Int>
+    private val karyawanIdMap: MutableMap<String, Int> = mutableMapOf()
+    private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
 
     //    private lateinit var karyawanLainNikMap: Map<String, String>
-    private lateinit var karyawanLainIdMap: Map<String, Int>
-    private lateinit var kemandoranLainIdMap: Map<String, Int>
+    private val karyawanLainIdMap: MutableMap<String, Int> = mutableMapOf()
+    private val kemandoranLainIdMap: MutableMap<String, Int> = mutableMapOf()
 
 
     @SuppressLint("ClickableViewAccessibility")
@@ -417,7 +417,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                 val selectedNikPemanenIds = selectedPemanen.map { it.id }
                                 val selectedNikPemanenLainIds = selectedPemanenLain.map { it.id }
-                                val uniqueNikPemanenIds = (selectedNikPemanenIds + selectedNikPemanenLainIds)
+                                val uniqueNikPemanen = (selectedNikPemanenIds + selectedNikPemanenLainIds)
                                     .distinct()
                                     .joinToString(",")
 
@@ -429,6 +429,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                 val uniqueKemandoranId = (kemandoranIdList + kemandoranLainIdList)
                                     .map { it.toString() }
                                     .joinToString(",")
+
+                                AppLogger.d(uniqueNikPemanen)
+                                AppLogger.d(uniqueIdKaryawan)
+                                AppLogger.d(uniqueKemandoranId)
 
                                 val photoFilesString = photoFiles.joinToString(";")
                                 val komentarFotoString = komentarFoto.joinToString(";")
@@ -444,7 +448,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         created_by = userId!!,  // Prevent crash if userId is null
                                         karyawan_id = uniqueIdKaryawan,
                                         kemandoran_id = uniqueKemandoranId,
-                                        karyawan_nik = uniqueNikPemanenIds,
+                                        karyawan_nik = uniqueNikPemanen,
                                         jjg_json = jjg_json,
                                         foto = photoFilesString,
                                         komentar = komentarFotoString,
@@ -2379,14 +2383,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 val selectedNama = selectedPemanen.substringBefore(" - ").trim()
 
                 val karyawanNikMap = karyawanList.associateBy({ it.nama!!.trim() }, { it.nik!! })
-                karyawanIdMap = karyawanList.associateBy({ it.nama!!.trim() }, { it.id!! })
-                kemandoranIdMap =
-                    karyawanList.associateBy({ it.nama!!.trim() }, { it.kemandoran_id!! })
-
-//                AppLogger.d(karyawanNikMap.toString())
-//                AppLogger.d(karyawanIdMap.toString())
-//                AppLogger.d(kemandoranIdMap.toString())
-
+                karyawanList.forEach {
+                    it.nama?.trim()?.let { nama ->
+                        karyawanIdMap[nama] = it.id!!
+                        kemandoranIdMap[nama] = it.kemandoran_id!!
+                    }
+                }
                 val selectedPemanenId = karyawanNikMap[selectedNama]
                 if (selectedPemanenId != null) {
                     val worker = Worker(selectedPemanenId.toString(), selectedPemanen)
@@ -2479,9 +2481,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 val selectedNamaPemanenLain = selectedPemanenLain.substringBefore(" - ").trim()
                 val karyawanLainNikMap =
                     karyawanLainList.associateBy({ it.nama!!.trim() }, { it.nik!! })
-                karyawanLainIdMap = karyawanLainList.associateBy({ it.nama!!.trim() }, { it.id!! })
-                kemandoranLainIdMap =
-                    karyawanLainList.associateBy({ it.nama!!.trim() }, { it.kemandoran_id!! })
+                karyawanLainList.forEach {
+                    it.nama?.trim()?.let { nama ->
+                        karyawanLainIdMap[nama] = it.id!!
+                        kemandoranLainIdMap[nama] = it.kemandoran_id!!
+                    }
+                }
 
                 val selectedPemanenLainId = karyawanLainNikMap[selectedNamaPemanenLain]
 
@@ -2520,10 +2525,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         )
         recyclerView.adapter = takeFotoPreviewAdapter
     }
-
-    /**
-     * Updates the text of a spinner's label in the included layout.
-     */
 
     private fun updateTextInPertanyaan(linearLayout: LinearLayout, text: String) {
         // Assuming the TextView inside the LinearLayout has an ID, e.g., `tvTitleFormPanenTBS`

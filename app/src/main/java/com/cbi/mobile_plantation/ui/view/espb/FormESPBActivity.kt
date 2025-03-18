@@ -90,7 +90,7 @@ class FormESPBActivity : AppCompatActivity() {
 
     private lateinit var inputMappings: List<Triple<LinearLayout, String, FeaturePanenTBSActivity.InputType>>
     private lateinit var viewModelFactory: ESPBViewModelFactory
-    private var pemuatListId: ArrayList<Int> = ArrayList()
+    private var pemuatListId: ArrayList<String> = ArrayList()
     private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
     private lateinit var thp1Map: Map<Int, Int>
@@ -106,6 +106,8 @@ class FormESPBActivity : AppCompatActivity() {
     private var userId: Int? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
+    private val karyawanIdMap: MutableMap<String, Int> = mutableMapOf()
+    private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
 
     private var noESPBStr = "NULL"
 
@@ -450,7 +452,7 @@ class FormESPBActivity : AppCompatActivity() {
 
         val btnGenerateQRESPB = findViewById<FloatingActionButton>(R.id.btnGenerateQRESPB)
         btnGenerateQRESPB.setOnClickListener {
-            btnGenerateQRESPB.isEnabled = false
+//            btnGenerateQRESPB.isEnabled = false
             val nopol = try {
                 etEspbNopol.text.toString().replace(" ", "").uppercase()
             } catch (e: Exception) {
@@ -524,6 +526,30 @@ class FormESPBActivity : AppCompatActivity() {
                 "NULL"
             }
             val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
+
+            AppLogger.d(selectedPemanen.toString())
+            val selectedNikPemanenIds = selectedPemanen.map { it.id }
+            val uniqueNikPemanen = selectedNikPemanenIds
+                .joinToString(",")
+
+            val idKaryawanList = selectedPemanen.mapNotNull {
+                karyawanIdMap[it.name.substringBefore(" - ").trim()]
+            }
+            val uniqueIdKaryawan = idKaryawanList
+                .map { it.toString() }
+                .joinToString(",")
+            val kemandoranIdList = selectedPemanen.mapNotNull {
+                kemandoranIdMap[it.name.substringBefore(" - ").trim()]
+            }
+            val uniqueKemandoranId = kemandoranIdList
+                .map { it.toString() }
+                .joinToString(",")
+
+
+            AppLogger.d(uniqueNikPemanen.toString())
+            AppLogger.d(uniqueIdKaryawan.toString())
+            AppLogger.d(uniqueKemandoranId.toString())
+
             val pemuatListId = selectedPemanen.map { it.id }
             if (nopol == "NULL" || nopol == "") {
                 Toasty.error(
@@ -551,6 +577,7 @@ class FormESPBActivity : AppCompatActivity() {
                     .show()
                 return@setOnClickListener
             }
+            btnGenerateQRESPB.isEnabled = true
             AlertDialogUtility.Companion.withTwoActions(
                 this,
                 "SIMPAN",
@@ -611,10 +638,10 @@ class FormESPBActivity : AppCompatActivity() {
                         setMaxBrightness(this, true)
                         btKonfirmScanESPB.isEnabled = true
                     }
-                    btnGenerateQRESPB.isEnabled = true
+//                    btnGenerateQRESPB.isEnabled = true
                 },
                 cancelFunction = {
-                    btnGenerateQRESPB.isEnabled = true
+//                    btnGenerateQRESPB.isEnabled = true
                 }
             )
         }
@@ -948,15 +975,22 @@ class FormESPBActivity : AppCompatActivity() {
             }
 
             R.id.formEspbPemuat -> {
-                val karyawanMap = pemuatList.associateBy({ it.nama }, { it.id })
-                Log.d("karyawanMap", "karyawanMap: $karyawanMap")
-                val selectedPemanenId = karyawanMap[selectedItem]
-                Log.d("karyawanMap", "selectedPemanenId: $selectedPemanenId")
+
+
+                val karyawanNikMap = pemuatList.associateBy({ it.nama!!.trim() }, { it.nik!! })
+                pemuatList.forEach {
+                    it.nama?.trim()?.let { nama ->
+                        karyawanIdMap[nama] = it.id!!
+                        kemandoranIdMap[nama] = it.kemandoran_id!!
+                    }
+                }
+
+                val selectedPemanenId = karyawanNikMap[selectedItem]
 
                 if (selectedPemanenId != null) {
                     val worker = Worker(selectedPemanenId.toString(), selectedItem)
                     selectedPemuatAdapter.addWorker(worker)
-                    pemuatListId.add(selectedPemanenId) // Add the ID to your list
+                    pemuatListId.add(selectedPemanenId.toString())
 
                     // Update available workers in adapter
                     selectedPemuatAdapter.setAvailableWorkers(pemuatList.map {
