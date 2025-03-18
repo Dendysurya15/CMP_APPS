@@ -29,6 +29,10 @@ sealed class SaveDataPanenState {
 class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: AppRepository = AppRepository(application)
 
+
+    private val _panenCountTPHESPB = MutableLiveData<Int>()
+    val panenCountTPHESPB: LiveData<Int> get() = _panenCountTPHESPB
+
     private val _panenList = MutableLiveData<List<PanenEntity>>()
     val panenList: LiveData<List<PanenEntity>> get() = _panenList
 
@@ -77,6 +81,13 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         val count = repository.getPanenCount()
         _panenCount.value = count
         return count
+    }
+
+    fun loadPanenCountTPHStoredESPB() {
+        viewModelScope.launch {
+            val count = repository.getCountTPHESPB()
+            _panenCountTPHESPB.value = count
+        }
     }
 
     suspend fun loadPanenCountApproval(): Int {

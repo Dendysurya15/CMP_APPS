@@ -103,7 +103,7 @@ class ListTPHApproval : AppCompatActivity() {
         val backButton = findViewById<ImageView>(R.id.btn_back)
 
         backButton.setOnClickListener {
-            backButton.isEnabled = false
+//            backButton.isEnabled = false
             AlertDialogUtility.withTwoActions(
                 this@ListTPHApproval,
                 "KEMBALI",
@@ -113,10 +113,10 @@ class ListTPHApproval : AppCompatActivity() {
                 function = {
                     startActivity(Intent(this@ListTPHApproval, HomePageActivity::class.java))
                     finishAffinity()
-                    backButton.isEnabled = true
+//                    backButton.isEnabled = true
                 },
                 cancelFunction ={
-                    backButton.isEnabled = true
+//                    backButton.isEnabled = true
                 }
             )
         }
@@ -173,7 +173,7 @@ class ListTPHApproval : AppCompatActivity() {
         )
 
         btnGenerateQRTPH.setOnClickListener {
-            btnGenerateQRTPH.isEnabled = false
+//            btnGenerateQRTPH.isEnabled = false
             AlertDialogUtility.withTwoActions(
                 this,
                 "Simpan",
@@ -232,10 +232,10 @@ class ListTPHApproval : AppCompatActivity() {
                             )
                         }
                     }
-                    btnGenerateQRTPH.isEnabled = true
+//                    btnGenerateQRTPH.isEnabled = true
                 },
                 cancelFunction = {
-                    btnGenerateQRTPH.isEnabled = true
+//                    btnGenerateQRTPH.isEnabled = true
                 }
             )
         }

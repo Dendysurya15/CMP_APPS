@@ -126,6 +126,10 @@ class AppRepository(context: Context) {
         return panenDao.getCount()
     }
 
+    suspend fun getCountTPHESPB(): Int {
+        return panenDao.getCountTPHESPB()
+    }
+
     suspend fun getCountDraftESPB(): Int {
         return espbDao.getCountDraft()
     }
