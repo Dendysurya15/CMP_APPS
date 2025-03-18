@@ -202,7 +202,9 @@ class CameraRepository(
         deletePhoto: View?,
         komentar: String? = null,
         kodeFoto: String,
-        featureName: String?
+        featureName: String?,
+        latitude: Double?=null,
+        longitude: Double?=null
     ) {
 
 //        val rootDCIM = File(
@@ -323,7 +325,9 @@ class CameraRepository(
                                                 deletePhoto,
                                                 komentar,
                                                 kodeFoto,
-                                                featureName
+                                                featureName,
+                                                latitude,
+                                                longitude
                                             )
                                         }
                                     }
@@ -384,16 +388,34 @@ class CameraRepository(
                                         var commentWm = komentar
                                         commentWm = commentWm?.replace("|", ",")?.replace("\n", "")
                                         commentWm = AppUtils.splitStringWatermark(commentWm!!, 60)
-                                        val watermarkText =
-                                            if (resultCode == "0" || commentWm.isEmpty()) {
-                                                "CMP-$featureName\n${dateWM}"
+
+                                        // Build the location string if coordinates are available
+                                        val locationText =
+                                            if (latitude != null && longitude != null) {
+                                                "Lat: $latitude, Lon: $longitude"
                                             } else {
-                                                "CMP-$featureName\n${commentWm}\n${dateWM}"
+                                                ""
                                             }
+
+                                        val watermarkText = when {
+                                            resultCode == "0" || commentWm.isEmpty() -> {
+                                                if (locationText.isNotEmpty()) {
+                                                    "CMP-$featureName\n$locationText\n${dateWM}"
+                                                } else {
+                                                    "CMP-$featureName\n${dateWM}"
+                                                }
+                                            }
+                                            else -> {
+                                                if (locationText.isNotEmpty()) {
+                                                    "CMP-$featureName\n$locationText\n${commentWm}\n${dateWM}"
+                                                } else {
+                                                    "CMP-$featureName\n${commentWm}\n${dateWM}"
+                                                }
+                                            }
+                                        }
 
                                         val watermarkedBitmap =
                                             addWatermark(takenImage, watermarkText)
-
                                         try {
                                             val targetSizeBytes = 100 * 1024
                                             var quality = 100

@@ -27,6 +27,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.repository.CameraRepository
+import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -45,6 +46,9 @@ class TakeFotoPreviewAdapter(
     private val comments = mutableListOf<String>()
     private val listFileFoto = mutableMapOf<String, File>()
     private val activeItems = mutableListOf<Boolean>()
+    private var currentLatitude: Double? = null
+    private var currentLongitude: Double? = null
+
 
     init {
         // Clear any existing data
@@ -64,8 +68,14 @@ class TakeFotoPreviewAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FotoViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.take_and_preview_foto_layout, parent, false)
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.take_and_preview_foto_layout, parent, false)
         return FotoViewHolder(view)
+    }
+
+    fun updateCoordinates(latitude: Double?, longitude: Double?) {
+        this.currentLatitude = latitude
+        this.currentLongitude = longitude
     }
 
     override fun onBindViewHolder(holder: FotoViewHolder, position: Int) {
@@ -105,7 +115,11 @@ class TakeFotoPreviewAdapter(
             vibrator.vibrate(80)
         }
 
-        Toast.makeText(context, "Harap Mengisi Komentar Foto Sebelumnya Terlebih Dahulu!", Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            context,
+            "Harap Mengisi Komentar Foto Sebelumnya Terlebih Dahulu!",
+            Toast.LENGTH_SHORT
+        ).show()
 
     }
 
@@ -122,28 +136,30 @@ class TakeFotoPreviewAdapter(
         imm.hideSoftInputFromWindow(view.windowToken, 0)
     }
 
-        private fun handleCameraAction(position: Int, holder: FotoViewHolder) {
+    private fun handleCameraAction(position: Int, holder: FotoViewHolder) {
 
-            hideKeyboardFromView()
+        hideKeyboardFromView()
 
-            val uniqueKodeFoto = "${position + 1}"
+        val uniqueKodeFoto = "${position + 1}"
 
-            if (listFileFoto.containsKey(position.toString())) {
-                val existingFile = listFileFoto[position.toString()]!!
-                cameraViewModel.openZoomPhotos(
-                    file = existingFile,
-                    position = position.toString(),
-                    onChangePhoto = {
-                        cameraViewModel.takeCameraPhotos(
-                            uniqueKodeFoto,
-                            holder.imageView,
-                            position,
-                            null,
-                            comments[position],
-                            uniqueKodeFoto,
-                            featureName
-                        )
-                    },
+        if (listFileFoto.containsKey(position.toString())) {
+            val existingFile = listFileFoto[position.toString()]!!
+            cameraViewModel.openZoomPhotos(
+                file = existingFile,
+                position = position.toString(),
+                onChangePhoto = {
+                    cameraViewModel.takeCameraPhotos(
+                        uniqueKodeFoto,
+                        holder.imageView,
+                        position,
+                        null,
+                        comments[position],
+                        uniqueKodeFoto,
+                        featureName,
+                        currentLatitude,
+                        currentLongitude
+                    )
+                },
                 onDeletePhoto = { pos ->
                     // Remove the photo and clear comment
                     listFileFoto.remove(pos)
@@ -151,8 +167,9 @@ class TakeFotoPreviewAdapter(
                     holder.imageView.setImageResource(R.drawable.baseline_add_a_photo_24)
 
                     // Check if we should remove this section
-                    val shouldRemoveSection = position == activeItems.size - 1 && // Is this the last section?
-                            !hasPhotosAfterPosition(position) // No photos in later positions
+                    val shouldRemoveSection =
+                        position == activeItems.size - 1 && // Is this the last section?
+                                !hasPhotosAfterPosition(position) // No photos in later positions
 
                     if (shouldRemoveSection && activeItems.size > 1) { // Keep at least one section
                         activeItems.removeAt(position)
@@ -164,7 +181,8 @@ class TakeFotoPreviewAdapter(
                 }
             )
         } else {
-            AppLogger.d("coba ges")
+            AppLogger.d(currentLatitude.toString())
+            AppLogger.d(currentLongitude.toString())
             cameraViewModel.takeCameraPhotos(
                 uniqueKodeFoto,
                 holder.imageView,
@@ -172,7 +190,9 @@ class TakeFotoPreviewAdapter(
                 null,
                 comments[position],
                 uniqueKodeFoto,
-                featureName
+                featureName,
+                currentLatitude,
+                currentLongitude
             )
         }
     }
@@ -232,12 +252,19 @@ class TakeFotoPreviewAdapter(
             return false
         }
 
-        return !ActivityCompat.shouldShowRequestPermissionRationale(activity, android.Manifest.permission.CAMERA)
+        return !ActivityCompat.shouldShowRequestPermissionRationale(
+            activity,
+            android.Manifest.permission.CAMERA
+        )
     }
 
     // ✅ Show Snackbar to open Settings if permanently denied
     private fun showSnackbarWithSettings(message: String) {
-        Snackbar.make((context as Activity).findViewById(android.R.id.content), message, Snackbar.LENGTH_INDEFINITE)
+        Snackbar.make(
+            (context as Activity).findViewById(android.R.id.content),
+            message,
+            Snackbar.LENGTH_INDEFINITE
+        )
             .setAction("Settings") {
                 val intent = Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
@@ -348,7 +375,8 @@ class TakeFotoPreviewAdapter(
         }
 
         dialog.setOnShowListener {
-            val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            val bottomSheet =
+                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             val behavior = BottomSheetBehavior.from(bottomSheet!!)
             behavior.state = BottomSheetBehavior.STATE_EXPANDED
         }
@@ -370,7 +398,14 @@ class TakeFotoPreviewAdapter(
         notifyDataSetChanged()
     }
 
-    override fun onPhotoTaken(photoFile: File, fname: String, resultCode: String, deletePhoto: View?, position: Int, komentar: String?) {
+    override fun onPhotoTaken(
+        photoFile: File,
+        fname: String,
+        resultCode: String,
+        deletePhoto: View?,
+        position: Int,
+        komentar: String?
+    ) {
         Log.d("TakeFotoAdapter", "onPhotoTaken START - position: $position")
 
         // Add the photo to our list

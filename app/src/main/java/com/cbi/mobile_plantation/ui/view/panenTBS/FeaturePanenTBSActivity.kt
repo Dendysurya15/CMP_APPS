@@ -3034,6 +3034,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             locationEnable = true
             lat = location.latitude
             lon = location.longitude
+            takeFotoPreviewAdapter.updateCoordinates(lat, lon)
         }
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
