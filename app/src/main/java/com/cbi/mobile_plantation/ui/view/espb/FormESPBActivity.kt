@@ -1085,6 +1085,8 @@ class FormESPBActivity : AppCompatActivity() {
         driver: String,
         transporter_id: Int,
         pemuat_id: String,
+        kemandoran_id: String,
+        pemuat_nik:String,
         mill_id: Int,
         tph0: String,
         tph1: String,

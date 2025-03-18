@@ -222,6 +222,8 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         driver: String,
         transporter_id: Int,
         pemuat_id: String,
+        kemandoran_id: String,
+        pemuat_nik: String,
         mill_id: Int,
         archive: Int,
         tph0: String,

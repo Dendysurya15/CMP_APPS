@@ -252,6 +252,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var isEmptyScannedTPH = true
     private var isTriggeredBtnScanned = false
 
+    //    private lateinit var karyawanNikMap: Map<String, String>
+    private lateinit var karyawanIdMap: Map<String, Int>
+    private lateinit var kemandoranIdMap: Map<String, Int>
+
+    //    private lateinit var karyawanLainNikMap: Map<String, String>
+    private lateinit var karyawanLainIdMap: Map<String, Int>
+    private lateinit var kemandoranLainIdMap: Map<String, Int>
+
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -392,17 +400,39 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         lifecycleScope.launch(Dispatchers.Main) {
                             try {
                                 val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
+                                val idKaryawanList = selectedPemanen.mapNotNull {
+                                    karyawanIdMap[it.name.substringBefore(" - ").trim()]
+                                }
+                                val kemandoranIdList = selectedPemanen.mapNotNull {
+                                    kemandoranIdMap[it.name.substringBefore(" - ").trim()]
+                                }
                                 val selectedPemanenLain =
                                     selectedPemanenLainAdapter.getSelectedWorkers()
-                                val selectedPemanenIds = selectedPemanen.map { it.id }
-                                val selectedPemanenLainIds = selectedPemanenLain.map { it.id }
+                                val idKaryawanLainList = selectedPemanenLain.mapNotNull {
+                                    karyawanLainIdMap[it.name.substringBefore(" - ").trim()]
+                                }
+                                val kemandoranLainIdList = selectedPemanenLain.mapNotNull {
+                                    kemandoranLainIdMap[it.name.substringBefore(" - ").trim()]
+                                }
+
+                                val selectedNikPemanenIds = selectedPemanen.map { it.id }
+                                val selectedNikPemanenLainIds = selectedPemanenLain.map { it.id }
+                                val uniqueNikPemanenIds = (selectedNikPemanenIds + selectedNikPemanenLainIds)
+                                    .distinct()
+                                    .joinToString(",")
+
+                                val uniqueIdKaryawan = (idKaryawanList + idKaryawanLainList)
+                                    .distinct()
+                                    .map { it.toString() }
+                                    .joinToString(",")
+
+                                val uniqueKemandoranId = (kemandoranIdList + kemandoranLainIdList)
+                                    .map { it.toString() }
+                                    .joinToString(",")
 
                                 val photoFilesString = photoFiles.joinToString(";")
                                 val komentarFotoString = komentarFoto.joinToString(";")
 
-                                val uniquePemanenIds =
-                                    (selectedPemanenIds + selectedPemanenLainIds).distinct()
-                                        .joinToString(",")
 
                                 val result = withContext(Dispatchers.IO) {
                                     panenViewModel.saveDataPanen(
@@ -412,7 +442,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             Locale.getDefault()
                                         ).format(Date()),
                                         created_by = userId!!,  // Prevent crash if userId is null
-                                        karyawan_id = uniquePemanenIds,
+                                        karyawan_id = uniqueIdKaryawan,
+                                        kemandoran_id = uniqueKemandoranId,
+                                        karyawan_nik = uniqueNikPemanenIds,
                                         jjg_json = jjg_json,
                                         foto = photoFilesString,
                                         komentar = komentarFotoString,
@@ -2341,17 +2373,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     AppLogger.e("Filtered Kemandoran ID is null, skipping data fetch.")
                 }
             }
-//
-//
+
             R.id.layoutPemanen -> {
                 selectedPemanen = selectedItem.toString()
                 val selectedNama = selectedPemanen.substringBefore(" - ").trim()
 
-                val karyawanMap = karyawanList.associateBy({ it.nama!!.trim() }, { it.nik })
+                val karyawanNikMap = karyawanList.associateBy({ it.nama!!.trim() }, { it.nik!! })
+                karyawanIdMap = karyawanList.associateBy({ it.nama!!.trim() }, { it.id!! })
+                kemandoranIdMap =
+                    karyawanList.associateBy({ it.nama!!.trim() }, { it.kemandoran_id!! })
 
-                val selectedPemanenId = karyawanMap[selectedNama]
+//                AppLogger.d(karyawanNikMap.toString())
+//                AppLogger.d(karyawanIdMap.toString())
+//                AppLogger.d(kemandoranIdMap.toString())
 
-                AppLogger.d(selectedPemanenId.toString())
+                val selectedPemanenId = karyawanNikMap[selectedNama]
                 if (selectedPemanenId != null) {
                     val worker = Worker(selectedPemanenId.toString(), selectedPemanen)
                     selectedPemanenAdapter.addWorker(worker)
@@ -2441,10 +2477,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             R.id.layoutPemanenLain -> {
                 selectedPemanenLain = selectedItem.toString()
                 val selectedNamaPemanenLain = selectedPemanenLain.substringBefore(" - ").trim()
+                val karyawanLainNikMap =
+                    karyawanLainList.associateBy({ it.nama!!.trim() }, { it.nik!! })
+                karyawanLainIdMap = karyawanLainList.associateBy({ it.nama!!.trim() }, { it.id!! })
+                kemandoranLainIdMap =
+                    karyawanLainList.associateBy({ it.nama!!.trim() }, { it.kemandoran_id!! })
 
-                val karyawanMap = karyawanLainList.associateBy({ it.nama }, { it.nik })
-
-                val selectedPemanenLainId = karyawanMap[selectedNamaPemanenLain]
+                val selectedPemanenLainId = karyawanLainNikMap[selectedNamaPemanenLain]
 
                 if (selectedPemanenLainId != null) {
                     val worker = Worker(selectedPemanenLainId.toString(), selectedPemanenLain)
