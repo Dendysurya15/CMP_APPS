@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="16dp"
+    android:background="@drawable/bottom_sheet_background"
+    android:paddingVertical="13dp">
+
+    <ImageView
+        android:id="@+id/loading_logo"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_marginTop="20dp"
+        android:src="@drawable/cbi"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/dataQRTitle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/errorCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/bgPinkRed"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:strokeColor="@color/bgpinkBrown"
+        app:strokeWidth="2dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="16dp">
+
+            <ImageView
+                android:id="@+id/errorIcon"
+                android:layout_width="30dp"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/circle_exclamation_solid"
+                android:tint="@color/colorRedDark"
+                tools:ignore="ContentDescription,UseAppTint" />
+
+            <TextView
+                android:id="@+id/errorText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/manrope_bold"
+                android:textColor="@color/grayDefault"
+                android:textSize="17dp" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <LinearLayout
+        android:id="@+id/loadingDotsContainerBottomSheet"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:orientation="horizontal"
+        android:paddingBottom="10dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/loading_logo">
+
+
+        <TextView
+            android:id="@+id/dot1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="."
+            android:textColor="@color/greendarkerbutton"
+            android:textSize="50dp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/dot2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="."
+            android:textColor="@color/greendarkerbutton"
+            android:textSize="50dp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/dot3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="."
+            android:textColor="@color/greendarkerbutton"
+            android:textSize="50dp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/dot4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="."
+            android:textColor="@color/greendarkerbutton"
+            android:textSize="50dp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textTitleQRGenerate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="15dp"
+        android:fontFamily="@font/manrope_extrabold"
+        android:gravity="center"
+        android:text="Hasil Generate QR TPH"
+        android:textSize="25sp"
+
+        android:textColor="@color/black"
+        android:visibility="gone"
+        tools:ignore="MissingConstraints" />
+
+    <ImageView
+        android:id="@+id/qrCodeImageView"
+        android:layout_width="match_parent"
+        android:layout_height="320sp"
+        android:layout_marginTop="10dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@+id/textTitleQRGenerate"
+        tools:ignore="MissingConstraints" /> <!-- Center ImageView -->
+
+
+    <View
+        android:id="@+id/dashedLine"
+        android:layout_width="match_parent"
+        android:layout_height="10dp"
+        android:layout_marginVertical="16dp"
+        android:background="@drawable/dashed_straight_line"
+        android:layerType="software"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/dataQRTitle"
+        app:layout_constraintTop_toBottomOf="@id/qrCodeImageView" />
+
+
+    <TextView
+        android:id="@+id/titleAfterScanQR"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:fontFamily="@font/manrope_bold"
+        android:gravity="left"
+        android:text="Konfirmasi Scan QR"
+        android:textSize="21sp"
+        android:textColor="@color/black"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@+id/dashedLine"
+        tools:ignore="MissingConstraints" />
+
+    <TextView
+        android:id="@+id/descAfterScanQR"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/manrope_medium"
+        android:gravity="left"
+        android:textColor="@color/black"
+        android:text="Jika sudah melakukan scan QR harap konfirmasi dengan tombol berikut!"
+        android:textSize="17sp"
+        android:textStyle="italic"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@+id/titleAfterScanQR"
+        tools:ignore="MissingConstraints" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toBottomOf="@id/descAfterScanQR">
+
+
+        <!--        <com.google.android.material.button.MaterialButton-->
+        <!--            android:id="@+id/btnCancelScanPanenTPH"-->
+        <!--            android:layout_width="0dp"-->
+        <!--            android:layout_height="wrap_content"-->
+        <!--            android:layout_weight="1"-->
+        <!--            android:text="Sudah Scan"-->
+        <!--            android:visibility="visible"-->
+        <!--            android:textAllCaps="false"-->
+        <!--            android:textSize="20sp"-->
+        <!--            android:textColor="@color/black"-->
+        <!--            android:backgroundTint="@color/graylight"-->
+        <!--            app:cornerRadius="8dp"-->
+        <!--            app:icon="@drawable/baseline_delete_forever_24"-->
+        <!--            app:iconGravity="textStart"-->
+        <!--            app:iconTint="@color/graytextdark"-->
+        <!--            app:iconPadding="8dp"-->
+        <!--            />-->
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnConfirmScanPanenTPH"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:backgroundTint="@color/greenDarker"
+            android:text="Sudah Scan"
+            android:textAllCaps="false"
+            android:textSize="20sp"
+            android:visibility="gone"
+            app:cornerRadius="8dp"
+            app:icon="@drawable/baseline_qr_code_scanner_24"
+            app:iconGravity="textStart"
+            app:iconPadding="8dp" />
+
+
+    </LinearLayout>
+
+
+    <TextView
+        android:id="@+id/dataQRTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="15dp"
+        android:fontFamily="@font/manrope_extrabold"
+        android:text="Daftar TPH: "
+
+        android:textSize="20sp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/dashedLine" />
+
+
+    <ScrollView
+        android:id="@+id/scrollViewDataQRTPH"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="5dp"
+        android:nestedScrollingEnabled="true"
+        android:paddingBottom="20dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/dataQRTitle"> <!-- Initially hidden -->
+
+        <!-- Your TextView inside ScrollView -->
+        <TextView
+            android:id="@+id/dataQR"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/manrope_semibold"
+            android:scrollbars="vertical"
+            android:textSize="18sp" />
+    </ScrollView>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

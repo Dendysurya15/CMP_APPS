@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="center_horizontal"
-    android:layout_margin="5dp">
+    >
 
     <ImageView
         android:id="@+id/ivAddFoto"
@@ -27,11 +27,9 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:layout_marginStart="5dp"
-        android:layout_marginEnd="5dp"
         android:textStyle="italic"
         android:fontFamily="@font/manrope_semibold"
-        android:textSize="15dp"
+        android:textSize="15sp"
         android:text="Komentar"
         android:textColor="@color/black"
         app:layout_constraintTop_toBottomOf="@id/ivAddFoto"
@@ -43,11 +41,10 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="5dp"
-        android:layout_marginStart="5dp"
-        android:layout_marginEnd="5dp"
         android:layout_marginBottom="8dp"
         android:hint="Tambah Komentar disini!"
         android:inputType="text"
+        android:textColor="@color/black"
         android:maxLines="3"
         android:gravity="top|start"
         android:background="@drawable/border_radius"
@@ -57,7 +54,8 @@
         app:layout_constraintTop_toBottomOf="@id/titleComment"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:ignore="TextViewEdits" />
 
     <EditText
         android:id="@+id/etPhotoComment"

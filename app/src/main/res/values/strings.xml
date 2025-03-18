@@ -1,5 +1,4 @@
 <resources>
-    <string name="app_name">cmp_project</string>
     <string name="welcome_splash">Selamat Datang, </string>
     <string name="name_app">CBI Mobile Plantation</string>
     <string name="description_short">Aplikasi Input Panen TBS dan Inspeksi Panen Para Pemanen Kebun Regional I</string>
@@ -15,8 +14,10 @@
     <string name="confirmation_dialog_description">Pastikan Anda telah memeriksa dengan teliti sebelum melanjutkan.</string>
     <string name="al_yes">Ya</string>
     <string name="al_confirm_out">Apakah anda yakin untuk keluar dari aplikasi ini?</string>
-    <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah anda yakin untuk simpan data e-SPB ini?</string>
+    <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah anda yakin untuk simpan &amp; upload data e-SPB ini?</string>
+    <string name="al_confirm_generate_qr">Apakah anda yakin untuk Generate data menjadi QR?</string>
     <string name="al_confirm_feature">Apakah anda yakin untuk keluar dari Menu ini?</string>
+    <string name="al_confirm_logout">Apakah anda yakin Logout dari user ini?</string>
     <string name="al_confirm_delete_photo">Apakah anda yakin untuk menghapus foto ini?</string>
     <string name="al_location_not_ready">GPS Tidak terdeteksi!</string>
     <string name="al_location_description_failed"> Perangkat tidak dapat mendeteksi lokasi Anda saat ini. Pastikan layanan lokasi di perangkat Anda aktif!</string>
@@ -27,6 +28,9 @@
     <string name="al_total_tbs">Total TBS 0</string>
     <string name="al_total_tbs_description">Jumlah TBS harus lebih dari 0</string>
     <string name="al_photo_minimal_one">Minimal 1 foto yang terlampir</string>
+    <string name="al_no_tph_selected_by_scanned">Nomor TPH belum dipilih!</string>
+    <string name="al_no_tph_detected_trigger_submit">Tidak ada Nomor TPH yang terdeteksi. Pastikan anda berada dalam radius tersebut!</string>
+    <string name="al_for_attempting_get_tph_in_radius">Harap menekan tombol refresh untuk mendapatkan TPH Terdekat</string>
 
     <string name="al_failed_fetch_data_desc">Gagal Mengambil Data!</string>
     <string name="al_failed_fetch_data">Terjadi Kesalahan!</string>
@@ -37,7 +41,7 @@
 
 
     <string name="desc_informasi_blok">Keterangan Blok Panen TPH</string>
-    <string name="desc_lampiran_foto">Minimal Upload 1 Foto</string>
+    <string name="desc_lampiran_foto">Upload foto sebagai bukti pengisian form panen</string>
     <string name="desc_data_grading">Input Data Grading</string>
 
     <string name="alert_login_username_field_empty">Username Tidak Boleh Kosong!</string>
@@ -70,9 +74,12 @@
     <string name="field_pemanen">Pemanen</string>
     <string name="field_kemandoran_lain">Kemandoran Lain</string>
     <string name="field_pemanen_lain">Pemanen Lain</string>
+    <string name="last_update_TPH">Terakhir diperbarui:</string>
 
     <string name="al_back">Kembali</string>
     <string name="al_no_internet_connection">Tidak Ada Internet!</string>
+    <string name="al_features_still_in_development">Segera Hadir</string>
+    <string name="al_desc_features_still_in_development">Fitur masih dalam tahap pengembangan!</string>
     <string name="al_data_cmp">Tidak Ada Internet!</string>
     <string name="al_no_internet_connection_description_download_dataset">Pastikan perangkat terhubung agar dapat mengunduh dataset sistem!</string>
     <string name="al_no_internet_connection_description_upload_espb_krani">Pastikan perangkat terhubung agar dapat mengunggah data e-SPB</string>
@@ -85,10 +92,13 @@
     <string name="al_success_delete">Berhasil Hapus</string>
     <string name="al_success_update">Berhasil Update Data</string>
     <string name="al_failed_delete">Gagal Hapus</string>
+    <string name="text_scan_tph_form_panen"></string>
     <string name="al_failed_save_local">Gagal Simpan</string>
+
     <string name="al_failed_save_local_krani_timbang">Gagal simpan data e-SPB!</string>
     <string name="al_description_failed_save_local">Data gagal disimpan!</string>
     <string name="download_dataset">Sedang mengunduh dataset</string>
+    <string name="no_detect_tph">Tidak terdeteksi TPH dalam radius ini</string>
     <string name="fetching_dataset">Sedang mengambil dataset</string>
 
     <string-array name="tipe_panen_options">
@@ -96,5 +106,10 @@
         <item>Cut &amp; Carry</item>
         <item>MAIC</item>
     </string-array>
+
+    <array name="autosize_text_sizes">
+        <item>12sp</item>
+        <item>17sp</item>
+    </array>
 
 </resources>

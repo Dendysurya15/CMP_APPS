@@ -60,10 +60,10 @@
 -keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
 
 # Ensure ProGuard does not strip data models used in API responses
--keep class com.cbi.cmp_project.data.model.** { *; }
+-keep class com.cbi.mobile_plantation.data.model.** { *; }
 
 # Keep constructors for serialization
--keepclassmembers,allowobfuscation class com.cbi.cmp_project.data.model.** {
+-keepclassmembers,allowobfuscation class com.cbi.mobile_plantation.data.model.** {
     public <init>();
 }
 
@@ -83,17 +83,17 @@
 }
 
 # Keep the entire DatasetViewModel
--keep class com.cbi.cmp_project.ui.viewModel.DatasetViewModel { *; }
+-keep class com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel { *; }
 
 # Keep specific parsing method
--keepclassmembers class com.cbi.cmp_project.ui.viewModel.DatasetViewModel {
+-keepclassmembers class com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel {
     private java.util.List parseStructuredJsonToList(java.lang.String, java.lang.Class);
 }
 
 # Keep all your models
--keep class com.cbi.cmp_project.data.model.** { *; }
--keep class com.cbi.cmp_project.domain.model.** { *; }
--keep class com.cbi.cmp_project.ui.model.** { *; }
+-keep class com.cbi.mobile_plantation.data.model.** { *; }
+-keep class com.cbi.mobile_plantation.domain.model.** { *; }
+-keep class com.cbi.mobile_plantation.ui.model.** { *; }
 
 # Keep Gson stuff
 -keepattributes Signature
@@ -109,12 +109,12 @@
 -keep class * extends com.google.gson.reflect.TypeToken
 
 # Keep all constructors in your models
--keepclassmembers class com.cbi.cmp_project.** {
+-keepclassmembers class com.cbi.mobile_plantation.** {
     <init>();
 }
 
 # Keep all fields in your models
--keepclassmembers class com.cbi.cmp_project.** {
+-keepclassmembers class com.cbi.mobile_plantation.** {
     <fields>;
 }
 

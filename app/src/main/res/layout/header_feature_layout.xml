@@ -69,7 +69,7 @@
                     android:fontFamily="@font/manrope_extrabold"
                     android:gravity="bottom"
                     android:lineSpacingExtra="2dp"
-                    android:text="Menuy - List History Panen TBS"
+                    android:text="Menu - List History Panen TBS"
                     android:textColor="@color/black"
                     android:textSize="17dp" />
 

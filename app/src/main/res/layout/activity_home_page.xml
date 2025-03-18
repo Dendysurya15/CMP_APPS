@@ -3,25 +3,24 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".ui.view.ui.home.HomeFragment">
+    android:layout_height="match_parent">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
 
-        android:orientation="vertical"
         android:layout_marginBottom="0dp"
         android:background="@color/zxing_transparent"
+        android:orientation="vertical"
 
-        app:layout_constraintHeight_percent="0.2"
+        app:layout_constraintHeight_percent="0.25"
         tools:ignore="MissingConstraints">
 
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:background="@color/zxing_transparent"
-            android:layout_weight="1">
+            android:layout_weight="1"
+            android:background="@color/zxing_transparent">
 
             <ImageView
                 android:layout_width="match_parent"
@@ -32,7 +31,7 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="#99000000" /> <!-- Semi-transparent green overlay -->
+                android:background="#99000000" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -42,39 +41,60 @@
                 android:padding="16dp">
 
                 <LinearLayout
-                    android:background="@color/zxing_transparent"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:background="@color/zxing_transparent"
+                    android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="10dp">
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp">
 
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_gravity="center"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/cbi" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <!-- Left Side: Logo and App Name -->
+                    <LinearLayout
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginLeft="10dp"
-                        android:layout_gravity="center"
-                        android:fontFamily="@font/manrope_medium"
-                        android:text="@string/name_app"
+                        android:layout_weight="1"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/cbi" />
+
+                        <TextView
+                            android:id="@+id/titleAppNameAndVersion"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginLeft="10dp"
+                            android:fontFamily="@font/manrope_medium"
+                            android:textColor="@android:color/white"
+                            android:textSize="17sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnLogout"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:text="Keluar"
                         android:textColor="@android:color/white"
-                        android:textSize="15dp"
-                        android:textStyle="bold" />
-
-
+                        android:textSize="17sp"
+                        app:backgroundTint="@color/colorRedDark"
+                        app:cornerRadius="8dp"
+                        app:icon="@drawable/baseline_logout_24"
+                        app:iconPadding="3dp"
+                        app:rippleColor="@color/colorRed" />
                 </LinearLayout>
+
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:orientation="horizontal"
-                    android:gravity="center"
+                    android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:layout_height="wrap_content">
+                    android:gravity="center"
+                    android:orientation="horizontal">
 
                     <FrameLayout
                         android:layout_width="50dp"
@@ -92,16 +112,16 @@
                             android:background="@drawable/circle_white_background"
                             android:elevation="4dp"
                             android:padding="8dp"
-                            android:scaleType="fitCenter"/>
+                            android:scaleType="fitCenter" />
 
                         <TextView
+                            android:id="@+id/initalName"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            android:gravity="center"
-                            android:id="@+id/initalName"
-                            android:textColor="@color/greenDefault"
-                            android:textSize="20dp"
                             android:elevation="4dp"
+                            android:gravity="center"
+                            android:textColor="@color/greenDarker"
+                            android:textSize="20dp"
                             android:textStyle="bold" />
 
 
@@ -114,22 +134,31 @@
                         android:orientation="vertical">
 
                         <TextView
+                            android:id="@+id/userNameLogin"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:fontFamily="@font/manrope_bold"
                             android:textColor="@android:color/white"
-                            android:textSize="18sp"
-                            android:fontFamily="@font/manrope_light"
-                            android:id="@+id/userNameLogin"
+                            android:textSize="20sp"
                             android:textStyle="bold" />
 
                         <TextView
+                            android:id="@+id/jabatanUserLogin"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:id="@+id/jabatanUserLogin"
-                            android:textColor="#E0E0E0"
-                            android:fontFamily="@font/manrope_bold"
-                            android:textStyle="italic"
-                            android:textSize="14sp" />
+                            android:fontFamily="@font/manrope_medium"
+                            android:textColor="@android:color/white"
+                            android:textSize="17sp"
+                            android:textStyle="italic" />
+
+                        <TextView
+                            android:id="@+id/lastUpdateTPH"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/manrope_medium"
+                            android:textColor="@android:color/white"
+                            android:textSize="16sp"
+                            android:textStyle="italic" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -142,23 +171,70 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:layout_marginBottom="0dp"
         android:background="@drawable/splash_background_rounded"
         android:orientation="vertical"
-        android:layout_marginBottom="0dp"
-        app:layout_constraintHeight_percent="0.85"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintHeight_percent="0.8">
+
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_marginStart="20dp"
+
+            android:orientation="horizontal"
+            >
+
+            <TextView
+                android:id="@+id/daftar_fitur"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+
+                android:fontFamily="@font/manrope_bold"
+                android:text="Daftar Fitur"
+                android:textColor="@color/greenDarker"
+                android:textSize="20dp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="1dp"
+                app:strokeColor="@color/greenDarker"
+                app:strokeWidth="2dp"
+                android:layout_marginLeft="10dp"
+                android:backgroundTint="@color/greenDarker">
+
+                <TextView
+                    android:id="@+id/tvCountFeatures"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:paddingHorizontal="15dp"
+                    android:text="0"
+                    android:gravity="center"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/manrope_bold"
+                    android:textColor="@color/white" />
+            </com.google.android.material.card.MaterialCardView>
+
+
+        </LinearLayout>
+
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/features_recycler_view"
             android:layout_width="wrap_content"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:layout_marginTop="8dp"
             android:layout_gravity="center"
+            android:layout_marginTop="20dp"
+            android:layout_weight="1"
             android:clipToPadding="false"
-            tools:listitem="@layout/card_feature"
             tools:itemCount="4"
             tools:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+            tools:listitem="@layout/card_feature"
             tools:spanCount="2" />
 
     </LinearLayout>

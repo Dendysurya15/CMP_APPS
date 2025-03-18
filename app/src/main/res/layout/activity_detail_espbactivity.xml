@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/parent_espb"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:orientation="vertical">
+
+            <include
+                android:id="@+id/tv_no_espb"
+                layout="@layout/tv_title_with_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="5dp" />
+
+            <include
+                android:id="@+id/tv_blok"
+                layout="@layout/tv_title_with_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="5dp" />
+
+            <include
+                android:id="@+id/tv_jjg"
+                layout="@layout/tv_title_with_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="5dp" />
+
+            <include
+                android:id="@+id/tv_total_tph"
+                layout="@layout/tv_title_with_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="5dp" />
+
+
+            <include
+                android:id="@+id/tv_no_pol"
+                layout="@layout/tv_title_with_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="5dp" />
+
+            <include
+                android:id="@+id/tv_transporter"
+                layout="@layout/tv_title_with_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="5dp" />
+
+            <include
+                android:id="@+id/tv_driver"
+                layout="@layout/tv_title_with_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="5dp" />
+
+            <include
+                android:id="@+id/tv_mill"
+                layout="@layout/tv_title_with_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="5dp" />
+
+            <include
+                android:id="@+id/tv_mekanisasi"
+                layout="@layout/tv_title_with_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="5dp" />
+
+            <include
+                android:id="@+id/tv_draft"
+                layout="@layout/tv_title_with_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="5dp" />
+        </LinearLayout>
+
+    </ScrollView>
+</LinearLayout>

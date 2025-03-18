@@ -6,15 +6,15 @@ plugins {
 
 android {
 
-    def versionMajor = 2
-    def versionMinor = 2
-    def versionPatch = 0
+    def versionMajor = 0
+    def versionMinor = 6
+    def versionPatch = 5
 
-    namespace 'com.cbi.cmp_project'
+    namespace 'com.cbi.mobile_plantation'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.cbi.cmp_project"
+        applicationId "com.cbi.mobile_plantation"
         minSdk 27
         targetSdk 34
         versionCode((versionMajor * 10000) + (versionMinor * 100) + versionPatch)

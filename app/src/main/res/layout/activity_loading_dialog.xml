@@ -5,25 +5,44 @@
     android:background="#99000000">  <!-- 60% dark overlay -->
 
     <LinearLayout
+        android:id="@+id/content_container"
         android:layout_width="wrap_content"
-        android:layout_height="200dp"
+        android:layout_height="wrap_content"
         android:layout_centerInParent="true"
         android:orientation="vertical"
         android:gravity="center">
 
-        <ImageView
-            android:id="@+id/loading_logo"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:src="@drawable/cbi" />
+        <!-- Fixed height container for the logo to prevent bouncing issues -->
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="100dp"
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/loading_logo"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_gravity="center"
+                android:src="@drawable/cbi" />
+        </FrameLayout>
 
         <TextView
             android:id="@+id/loading_message"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
+            android:fontFamily="@font/manrope_extrabold"
             android:textColor="@color/white"
             android:textSize="16dp"/>
+
+        <!-- Container for status messages -->
+        <LinearLayout
+            android:id="@+id/status_messages_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"/>
 
     </LinearLayout>
 
