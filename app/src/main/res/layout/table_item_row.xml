@@ -37,6 +37,7 @@
                 android:layout_gravity="center"
                 android:id="@+id/numListTerupload"
                 android:text="1"
+                android:textColor="@color/black"
                 android:visibility="gone"
                 android:textSize="15dp"
                 android:padding="5dp"

@@ -272,11 +272,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
             } else if (featureName == "Rekap panen dan restan") {
 
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
-                findViewById<TextView>(R.id.list_item_tersimpan).text = "Hasil Rekap"
-                findViewById<TextView>(R.id.list_item_terscan).text = "TPH Selesai eSPB"
+                findViewById<TextView>(R.id.list_item_tersimpan).text = "Rekap TPH"
+                findViewById<TextView>(R.id.list_item_terscan).text = "TPH Menjadi E-SPB"
 
-                panenViewModel.loadActivePanenRestan(1)
-                panenViewModel.loadPanenCountTPHStoredESPB()
+                panenViewModel.loadTPHNonESPB(0, 0, 1)
+                panenViewModel.loadCountTPHESPB(0, 1, 1)
+
             } else if (featureName == "Detail eSPB") {
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
                 ll_detail_espb.visibility = View.VISIBLE
@@ -488,7 +489,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             currentState = 0
             setActiveCard(cardTersimpan)
             loadingDialog.show()
-            loadingDialog.setMessage("Loading data tersimpan...")
+
             // Reset visibility states before loading new data
             tvEmptyState.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
@@ -498,9 +499,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             if (featureName == "Buat eSPB") {
                 panenViewModel.loadActivePanenESPB()
             } else if (featureName == "Rekap panen dan restan") {
-                panenViewModel.loadESPB(0, 1, 0,"now")
-                panenViewModel.countESPB(1, )
+                loadingDialog.setMessage("Loading data tph...")
+                panenViewModel.loadTPHNonESPB(0, 0, 1)
             } else {
+                loadingDialog.setMessage("Loading data tersimpan...")
                 panenViewModel.loadActivePanen()
             }
         }
@@ -509,13 +511,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
             currentState = 1
             setActiveCard(cardTerscan)
             loadingDialog.show()
-            loadingDialog.setMessage("Loading data terscan...")
+
             // Reset visibility states before loading new data
             tvEmptyState.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
             speedDial.visibility = View.GONE
             listAdapter.updateArchiveState(1)
-            panenViewModel.loadArchivedPanen()
+            if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan){
+                loadingDialog.setMessage("Loading TPH menjadi E-SPB...")
+                panenViewModel.loadTPHESPB(0, 1, 1)
+            }else{
+                loadingDialog.setMessage("Loading data terscan...")
+                panenViewModel.loadArchivedPanen()
+            }
+
         }
     }
 
@@ -1361,6 +1370,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             panenViewModel.panenCountTPHESPB.observe(this) { count ->
                 counterTerscan.text = count.toString()
             }
+
         }
 
         panenViewModel.activePanenList.observe(this) { panenList ->
@@ -1371,8 +1381,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     lifecycleScope.launch {
 
-
                         if (panenList.isNotEmpty()) {
+
                             tvEmptyState.visibility = View.GONE
                             recyclerView.visibility = View.VISIBLE
 

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 
 sealed class SaveDataPanenState {
@@ -77,18 +78,44 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadTPHNonESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadESPB(archive, statusEspb, scanStatus, date)
+            _activePanenList.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB: ${e.message}")
+            _activePanenList.value = emptyList()  // Return empty list if there's an error
+        }
+    }
+
+
+    fun loadTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadESPB(archive, statusEspb, scanStatus, date)
+            _archivedPanenList.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB: ${e.message}")
+            _archivedPanenList.value = emptyList()  // Return empty list if there's an error
+        }
+    }
+
     suspend fun loadPanenCount(): Int {
         val count = repository.getPanenCount()
         _panenCount.value = count
         return count
     }
 
-    fun loadPanenCountTPHStoredESPB() {
-        viewModelScope.launch {
-            val count = repository.getCountTPHESPB()
+    fun loadCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val formattedDate = date?.take(10) // Ensures only YYYY-MM-DD is passed
+            val count = repository.loadCountTPHESPB(archive, statusEspb, scanStatus, formattedDate)
             _panenCountTPHESPB.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error loading TPH ESPB count: ${e.message}")
+            _panenCountTPHESPB.value = 0
         }
     }
+
 
     suspend fun loadPanenCountApproval(): Int {
         val count = repository.getPanenCountApproval()

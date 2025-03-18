@@ -12,6 +12,7 @@ import com.cbi.mobile_plantation.data.model.TphRvData
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -114,6 +115,15 @@ class AppRepository(context: Context) {
         tphDao.getDivisiAbbrByTphId(id)
     }
 
+    suspend fun loadESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null): List<PanenEntityWithRelations> {
+        return try {
+            panenDao.loadESPB(archive, statusEspb, scanStatus, date)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB: ${e.message}")
+            emptyList()  // Return empty list if there's an error
+        }
+    }
+
     suspend fun updateDataIsZippedPanen(ids: List<Int>,status:Int) {
         panenDao.updateDataIsZippedPanen(ids, status)
     }
@@ -126,8 +136,13 @@ class AppRepository(context: Context) {
         return panenDao.getCount()
     }
 
-    suspend fun getCountTPHESPB(): Int {
-        return panenDao.getCountTPHESPB()
+    suspend fun loadCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): Int {
+        return try {
+            panenDao.getCountTPHESPB(archive, statusEspb, scanStatus, date)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading TPH ESPB count: ${e.message}")
+            0  // Return 0 if an error occurs
+        }
     }
 
     suspend fun getCountDraftESPB(): Int {
