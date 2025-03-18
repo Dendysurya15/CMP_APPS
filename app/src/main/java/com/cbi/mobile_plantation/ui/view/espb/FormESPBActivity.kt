@@ -8,7 +8,6 @@ import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
-import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -31,7 +30,6 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.os.postDelayed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -71,7 +69,6 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.logging.Handler
 
 class FormESPBActivity : AppCompatActivity() {
     var featureName = ""
@@ -94,6 +91,10 @@ class FormESPBActivity : AppCompatActivity() {
     private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
     private lateinit var thp1Map: Map<Int, Int>
+    private lateinit var kemandoranMap: Map<String, Int>
+    private lateinit var karyawanIdMap: Map<String, Int>
+    private lateinit var karyawanNikMap: Map<String, String>
+
     var idsToUpdate = listOf<Int>()
     var divisiAbbr = ""
     var companyAbbr = ""
@@ -110,6 +111,9 @@ class FormESPBActivity : AppCompatActivity() {
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
 
     private var noESPBStr = "NULL"
+    private var pemuat_id = "NULL"
+    private var kemandoran_id = "NULL"
+    private var pemuat_nik = "NULL"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -503,7 +507,7 @@ class FormESPBActivity : AppCompatActivity() {
                 Log.e("DeviceInfo", "Failed to get phone model", e)
                 "Unknown"
             }
-            val noESPBStr = "$companyAbbr-$estatePetugas/$divisiAbbr/$espbDate"
+            noESPBStr = "$companyAbbr-$estatePetugas/$divisiAbbr/$espbDate"
             var transporter_id = 0
             transporter_id = if (cbFormEspbTransporter.isChecked) {
                 0
@@ -525,6 +529,7 @@ class FormESPBActivity : AppCompatActivity() {
                 ).show()
                 "NULL"
             }
+
             val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
 
             AppLogger.d(selectedPemanen.toString())
@@ -544,11 +549,6 @@ class FormESPBActivity : AppCompatActivity() {
             val uniqueKemandoranId = kemandoranIdList
                 .map { it.toString() }
                 .joinToString(",")
-
-
-            AppLogger.d(uniqueNikPemanen.toString())
-            AppLogger.d(uniqueIdKaryawan.toString())
-            AppLogger.d(uniqueKemandoranId.toString())
 
             val pemuatListId = selectedPemanen.map { it.id }
             if (nopol == "NULL" || nopol == "") {
@@ -577,7 +577,6 @@ class FormESPBActivity : AppCompatActivity() {
                     .show()
                 return@setOnClickListener
             }
-            btnGenerateQRESPB.isEnabled = true
             AlertDialogUtility.Companion.withTwoActions(
                 this,
                 "SIMPAN",
@@ -598,9 +597,7 @@ class FormESPBActivity : AppCompatActivity() {
                             blok_jjg = blok_jjg,
                             nopol = nopol,
                             driver = driver,
-                            pemuat_id = pemuatListId.joinToString(","),
-                            kemandoran_id = "",
-                            pemuat_nik = "",
+                            pemuat_id = uniqueIdKaryawan,
                             transporter_id = transporter_id,
                             mill_id = selectedMillId!!,
                             created_by_id = idPetugas!!,
@@ -610,7 +607,9 @@ class FormESPBActivity : AppCompatActivity() {
                             tph0 = tph0,
                             tph1 = tph1,
                             status_draft = statusDraft,
-                            status_mekanisasi = mekanisasi
+                            status_mekanisasi = mekanisasi,
+                            pemuat_nik = uniqueNikPemanen,
+                            kemandoran_id = kemandoranIdList.joinToString(",")
                         )
                     }
                     if (mekanisasi == 0) {
@@ -627,7 +626,9 @@ class FormESPBActivity : AppCompatActivity() {
                             tph1 = tph1,
                             appVersion = appVersion,
                             osVersion = osVersion,
-                            phoneModel = phoneModel
+                            phoneModel = phoneModel,
+                            pemuat_nik = nikKaryawanList.joinToString(","),
+                            kemandoran_id = kemandoranIdList.joinToString(",")
                         )
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
                         val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
@@ -987,8 +988,15 @@ class FormESPBActivity : AppCompatActivity() {
 
                 val selectedPemanenId = karyawanNikMap[selectedItem]
 
-                if (selectedPemanenId != null) {
-                    val worker = Worker(selectedPemanenId.toString(), selectedItem)
+                pemuat_id = karyawanIdMap[selectedItem].toString()
+                Log.d("karyawanMap", "pemuat_nik: $pemuat_id")
+                kemandoran_id = kemandoranMap[selectedItem].toString()
+                Log.d("karyawanMap", "kemandoran_id: $kemandoran_id")
+                pemuat_nik = karyawanNikMap[selectedItem].toString()
+                Log.d("karyawanMap", "pemuat_id: $pemuat_nik")
+
+                if (pemuat_id != null) {
+                    val worker = Worker(pemuat_id.toString(), selectedItem)
                     selectedPemuatAdapter.addWorker(worker)
                     pemuatListId.add(selectedPemanenId.toString())
 
@@ -1005,7 +1013,7 @@ class FormESPBActivity : AppCompatActivity() {
                         setupSpinner(R.id.formEspbPemuat, availableWorkers.map { it.name })
                     }
 
-                    AppLogger.d("Selected Worker: $selectedItem, ID: $selectedPemanenId")
+                    AppLogger.d("Selected Worker: $selectedItem, ID: $pemuat_id")
                 }
             }
         }
@@ -1033,7 +1041,9 @@ class FormESPBActivity : AppCompatActivity() {
         tph1: String,
         appVersion: String,
         osVersion: String,
-        phoneModel: String
+        phoneModel: String,
+        kemandoran_id: String,
+        pemuat_nik: String
     ): String {
         val gson = Gson()
 
@@ -1045,6 +1055,8 @@ class FormESPBActivity : AppCompatActivity() {
             addProperty("pemuat_id", pemuat_id)
             addProperty("transporter_id", transporter_id)
             addProperty("mill_id", mill_id)
+            addProperty("kemandoran_id", kemandoran_id)
+            addProperty("pemuat_nik", pemuat_nik)
             addProperty("created_by_id", created_by_id)
             add("creator_info", createCreatorInfo(appVersion, osVersion, phoneModel))
             addProperty("no_espb", no_espb)
@@ -1087,7 +1099,9 @@ class FormESPBActivity : AppCompatActivity() {
         creator_info: String,
         noESPB: String,
         status_draft: Int,
-        status_mekanisasi: Int
+        status_mekanisasi: Int,
+        kemandoran_id: String,
+        pemuat_nik: String
     ) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -1100,8 +1114,6 @@ class FormESPBActivity : AppCompatActivity() {
                     driver = driver,
                     transporter_id = transporter_id,
                     pemuat_id = pemuat_id,
-                    kemandoran_id = kemandoran_id,
-                    pemuat_nik = pemuat_nik,
                     mill_id = mill_id,
                     archive = 0,
                     tph0 = tph0,
@@ -1109,7 +1121,9 @@ class FormESPBActivity : AppCompatActivity() {
                     creator_info = creator_info,
                     noESPB = noESPB,
                     status_draft = status_draft,
-                    status_mekanisasi = status_mekanisasi
+                    status_mekanisasi = status_mekanisasi,
+                    kemandoran_id = kemandoran_id,
+                    pemuat_nik = pemuat_nik
                 )
 
                 // Insert ESPB and get the ID
@@ -1153,7 +1167,7 @@ class FormESPBActivity : AppCompatActivity() {
 
     private fun showSuccessAndNavigate() {
         // Use a more descriptive success message
-        val successDialog = AlertDialogUtility.withSingleAction(
+        AlertDialogUtility.withSingleAction(
             this,
             "OK",
             "eSPB Telah Disimpan!",

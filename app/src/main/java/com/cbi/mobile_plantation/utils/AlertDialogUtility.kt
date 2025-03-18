@@ -182,6 +182,7 @@ class AlertDialogUtility {
             }
         }
 
+
         @SuppressLint("InflateParams")
         fun withSingleAction(context: Context, actionText: String, titleText: String, alertText: String, animAsset: String, color: Int = R.color.greendarkerbutton, function: () -> Unit) {
             if (context is Activity && !context.isFinishing) {
