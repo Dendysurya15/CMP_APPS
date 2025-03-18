@@ -7,7 +7,6 @@ import android.os.Handler
 import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -18,12 +17,12 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import com.cbi.cmp_project.ui.viewModel.FormAncakViewModel
 import com.cbi.cmp_project.R
 import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
-import com.cbi.cmp_project.ui.viewModel.FormAncakViewModel.*
-import com.cbi.cmp_project.utils.AppLogger
+import com.cbi.cmp_project.ui.viewModel.FormAncakViewModel
+import com.cbi.cmp_project.ui.viewModel.FormAncakViewModel.PageData
 import com.google.android.flexbox.FlexboxLayout
 import com.google.android.material.card.MaterialCardView
 
@@ -109,6 +108,16 @@ class FormAncakFragment : Fragment() {
             tvTitleEst.text = est ?: "-"
         }
 
+        val tvTitleAfd = view.findViewById<TextView>(R.id.tvTitleAfdFormInspect)
+        viewModel.afdName.observe(viewLifecycleOwner) { afd ->
+            tvTitleAfd.text = afd ?: "-"
+        }
+
+        val tvTitleBlok = view.findViewById<TextView>(R.id.tvTitleBlokFormInspect)
+        viewModel.blokName.observe(viewLifecycleOwner) { blok ->
+            tvTitleBlok.text = blok ?: "-"
+        }
+
         val itemListMapping = mapOf(
             R.id.lyPrioritasInspect to "HighOrLow",
             R.id.lyRatAttackInspect to "ExistsOrNot",
@@ -125,6 +134,13 @@ class FormAncakFragment : Fragment() {
                 InputType.RADIO,
                 { currentData, value -> currentData.copy(emptyTree = value) },
                 { it.emptyTree }
+            ),
+            InputMapping(
+                R.id.lyJjgPanenAKPInspect,
+                "Janjang Panen",
+                InputType.EDITTEXT,
+                { currentData, value -> currentData.copy(jjgAkp = value) },
+                { it.jjgAkp }
             ),
             InputMapping(
                 R.id.lyPrioritasInspect,
@@ -274,7 +290,6 @@ class FormAncakFragment : Fragment() {
                     layoutId = layoutId,
                     titleText = label,
                     itemList = listRadioItems[itemListMapping[layoutId] ?: "YesOrNo"] ?: emptyMap(),
-                    isRequired = false,
                     dataField = dataField,
                     currentValue = currentValue,
                 )
@@ -331,46 +346,36 @@ class FormAncakFragment : Fragment() {
         layoutId: Int,
         titleText: String,
         itemList: Map<String, String>,
-        isRequired: Boolean = true,
         dataField: (PageData, Int) -> PageData,
         currentValue: (PageData) -> Int
     ) {
         val layoutView = view?.findViewById<View>(layoutId) ?: return
-
-        fun checkIsLayoutExistsTree(value: String) {
-            val dependentLayout = view?.findViewById<View>(R.id.lyDetailFormInspect)
-            val showDependentOn = "2" // Bukan titik kosong / janjang dipanen (AKP)
-
-            if (layoutId == R.id.lyExistsTreeInspect) {
-                dependentLayout?.visibility =
-                    if (value == showDependentOn) View.VISIBLE else View.GONE
-            }
-        }
-
         val titleTextView = layoutView.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
-//        if (isRequired) {
-//            val spannable = SpannableString("$questionTitle *")
-//            spannable.setSpan(
-//                ForegroundColorSpan(ContextCompat.getColor(requireContext(), R.color.colorRed)),
-//                questionTitle.length, spannable.length,
-//                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-//            )
-//            titleTextView.text = spannable
-//        } else {
-        titleTextView.text = titleText
-//        }
-
         val mcvSpinner = layoutView.findViewById<MaterialCardView>(R.id.MCVSpinner)
         val fblRadioComponents = layoutView.findViewById<FlexboxLayout>(R.id.fblRadioComponents)
         val errorTextView = layoutView.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
 
+        titleTextView.text = titleText
+
+        if (layoutId == R.id.lyExistsTreeInspect) {
+            viewModel.isInspection.observe(viewLifecycleOwner) { isInspection ->
+                titleTextView.text = if (isInspection) "Titik Kosong?" else "Pokok Dipanen?"
+
+                val currentData = viewModel.getPageData(pageNumber)
+                if (currentData != null) {
+                    updateDependentLayoutVisibility(currentData.emptyTree)
+                }
+            }
+        }
+
         mcvSpinner.visibility = View.GONE
         fblRadioComponents.visibility = View.VISIBLE
 
-        val savedData = viewModel.getPageData(pageNumber) ?: PageData()
         fblRadioComponents.removeAllViews()
 
         var lastSelectedRadioButton: RadioButton? = null
+
+        val savedData = viewModel.getPageData(pageNumber) ?: PageData()
         val fieldValue = currentValue(savedData)
 
         itemList.forEach { (id, label) ->
@@ -391,11 +396,9 @@ class FormAncakFragment : Fragment() {
                 isChecked = idValue == fieldValue
                 if (isChecked) {
                     lastSelectedRadioButton = this
-                    checkIsLayoutExistsTree(id)
                 }
 
                 setOnClickListener {
-                    checkIsLayoutExistsTree(id)
                     errorTextView.visibility = View.GONE
                     lastSelectedRadioButton?.isChecked = false
                     isChecked = true
@@ -404,6 +407,10 @@ class FormAncakFragment : Fragment() {
                     val currentData = viewModel.getPageData(pageNumber) ?: PageData()
                     val updatedData = dataField(currentData, idValue)
                     viewModel.savePageData(pageNumber, updatedData)
+
+                    if (layoutId == R.id.lyExistsTreeInspect) {
+                        updateDependentLayoutVisibility(idValue)
+                    }
                 }
             }
 
@@ -421,13 +428,12 @@ class FormAncakFragment : Fragment() {
         maxValue: Int? = null
     ) {
         val layoutView = view?.findViewById<View>(layoutId) ?: return
-
         val titleTextView = layoutView.findViewById<TextView>(R.id.tvNumberPanen)
-        titleTextView.text = titleText
-
         val editText = layoutView.findViewById<EditText>(R.id.etNumber)
         val btnMinus = layoutView.findViewById<CardView>(R.id.btDec)
         val btnPlus = layoutView.findViewById<CardView>(R.id.btInc)
+
+        titleTextView.text = titleText
 
         val savedData = viewModel.getPageData(pageNumber) ?: PageData()
         val value = currentValue(savedData)
@@ -485,6 +491,20 @@ class FormAncakFragment : Fragment() {
         })
     }
 
+    private fun updateDependentLayoutVisibility(selectedValue: Int) {
+        val detailFormLayout = view?.findViewById<View>(R.id.lyDetailFormInspect)
+        val jjgPanenLayout = view?.findViewById<View>(R.id.lyJjgPanenAKPInspect)
+
+        val isInspection = viewModel.isInspection.value ?: true
+        if (isInspection) {
+            detailFormLayout?.visibility = if (selectedValue == 2) View.VISIBLE else View.GONE
+            jjgPanenLayout?.visibility = View.GONE
+        } else {
+            detailFormLayout?.visibility = View.GONE
+            jjgPanenLayout?.visibility = if (selectedValue == 1) View.VISIBLE else View.GONE
+        }
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     private fun handleLongPress(
         editText: EditText,
@@ -540,8 +560,6 @@ class FormAncakFragment : Fragment() {
         val currentData = viewModel.getPageData(pageNumber) ?: PageData()
         val updatedData = dataField(currentData, value)
         viewModel.savePageData(pageNumber, updatedData)
-
-        AppLogger.d("Page $pageNumber: Updated numeric value to $value")
     }
 
     override fun onPause() {

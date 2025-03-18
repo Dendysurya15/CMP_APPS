@@ -10,6 +10,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.cbi.cmp_project.data.model.AbsensiModel
 import com.cbi.cmp_project.data.model.ESPBEntity
 import com.cbi.cmp_project.data.model.FlagESPBModel
+import com.cbi.cmp_project.data.model.InspectionModel
+import com.cbi.cmp_project.data.model.InspectionPathModel
 import com.cbi.cmp_project.data.model.KaryawanModel
 import com.cbi.cmp_project.data.model.KemandoranModel
 
@@ -59,6 +61,8 @@ import java.util.concurrent.Executors
         TransporterModel::class,
         UploadCMPModel::class,
         AbsensiModel::class,
+        InspectionModel::class,
+        InspectionPathModel::class,
     ],
     version = 11
 )
@@ -73,6 +77,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transporterDao(): TransporterDao
     abstract fun uploadCMPDao(): UploadCMPDao
     abstract fun absensiDao(): AbsensiDao
+    abstract fun inspectionDao(): InspectionDao
+    abstract fun inspectionPathDao(): InspectionPathDao
 
     companion object {
         @Volatile
@@ -265,10 +271,6 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("DROP TABLE ESPB_old")
             }
         }
-
-
-
-
 
 
         fun closeDatabase() {

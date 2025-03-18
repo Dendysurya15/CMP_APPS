@@ -139,11 +139,13 @@
 
             <include
                 android:id="@+id/lyMandor2Inspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+                layout="@layout/pertanyaan_spinner_layout"
+                android:visibility="gone" />
 
             <include
                 android:id="@+id/lyPemanen2Inspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+                layout="@layout/pertanyaan_spinner_layout"
+                android:visibility="gone" />
 
             <include
                 android:id="@+id/lyConditionType"
@@ -233,6 +235,70 @@
             android:layout_marginEnd="20dp"
             android:layout_marginBottom="15dp"
             android:src="@drawable/baseline_arrow_forward_24"
+            app:fabCustomSize="65dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:maxImageSize="30dp"
+            app:tint="@android:color/white"
+            tools:ignore="ContentDescription" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Summary Section -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/clSummaryInspection"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@+id/bottomNavInspect"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/headerFormInspection">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="20dp"
+                android:paddingBottom="30dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_marginVertical="10dp"
+                    android:fontFamily="@font/manrope_extrabold"
+                    android:gravity="center|left"
+                    android:text="Rekapitulasi Data"
+                    android:textColor="@color/black"
+                    android:textSize="23dp"
+                    tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+                <TableLayout
+                    android:id="@+id/tblLytSummaryInspect"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stretchColumns="1" />
+
+            </LinearLayout>
+
+        </ScrollView>
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabSaveFormInspect"
+            style="@style/RoundedFAB"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="15dp"
+            android:src="@drawable/baseline_save_24"
             app:fabCustomSize="65dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"

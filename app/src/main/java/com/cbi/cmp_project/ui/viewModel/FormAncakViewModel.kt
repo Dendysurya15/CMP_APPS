@@ -4,12 +4,12 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.cbi.cmp_project.R
-import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
 
 class FormAncakViewModel : ViewModel() {
     data class PageData(
         val emptyTree: Int = 0,
+        val jjgAkp: Int = 0,
         val priority: Int = 2,
         val harvestTree: Int = 0,
         val ratAttack: Int = 2,
@@ -30,8 +30,10 @@ class FormAncakViewModel : ViewModel() {
         val parit: Int = 0,
         val brdSegar: Int = 0,
         val brdBusuk: Int = 0,
-        val photo: String = "",
-        val comment: String = ""
+        val photo: String? = null,
+        val comment: String? = null,
+        val latIssue: Double? = null,
+        val lonIssue: Double? = null
     )
 
     data class ValidationResult(
@@ -48,6 +50,15 @@ class FormAncakViewModel : ViewModel() {
 
     private val _estName = MutableLiveData<String>("-")
     val estName: LiveData<String> = _estName
+
+    private val _afdName = MutableLiveData<String>("-")
+    val afdName: LiveData<String> = _afdName
+
+    private val _blokName = MutableLiveData<String>("-")
+    val blokName: LiveData<String> = _blokName
+
+    private val _isInspection = MutableLiveData<Boolean>(true)
+    val isInspection: LiveData<Boolean> = _isInspection
 
     private val _formData = MutableLiveData<MutableMap<Int, PageData>>(mutableMapOf())
     val formData: LiveData<MutableMap<Int, PageData>> = _formData
@@ -81,8 +92,14 @@ class FormAncakViewModel : ViewModel() {
         _formData.value = currentData
     }
 
-    fun updateEstName(estate: String) {
+    fun updateInfoFormAncak(estate: String, afdeling: String, blok: String) {
         _estName.value = estate
+        _afdName.value = afdeling
+        _blokName.value = blok
+    }
+
+    fun updateTypeInspection(newValue: Boolean) {
+        _isInspection.value = newValue
     }
 
     fun validateCurrentPage(): ValidationResult {

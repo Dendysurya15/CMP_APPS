@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import com.cbi.cmp_project.data.database.AppDatabase
 import com.cbi.cmp_project.data.model.ESPBEntity
+import com.cbi.cmp_project.data.model.InspectionModel
+import com.cbi.cmp_project.data.model.InspectionPathModel
 import com.cbi.cmp_project.data.model.PanenEntity
 import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.model.TPHBlokInfo
@@ -20,6 +22,8 @@ class AppRepository(context: Context) {
     private val espbDao = database.espbDao()
     private val tphDao = database.tphDao()
     private val millDao = database.millDao()
+    private val inspectionDao = database.inspectionDao()
+    private val inspectionPathDao = database.inspectionPathDao()
 
     sealed class SaveResultPanen {
         object Success : SaveResultPanen()
@@ -29,7 +33,6 @@ class AppRepository(context: Context) {
     suspend fun saveDataPanen(data: PanenEntity) {
         panenDao.insert(data)
     }
-
 
     suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<List<Long>> =
         withContext(Dispatchers.IO) {
@@ -322,6 +325,43 @@ class AppRepository(context: Context) {
 
     suspend fun getBlokById( listBlokId: List<Int>): List<TPHNewModel> {
         return tphDao.getBlokById(listBlokId)
+    }
+
+    suspend fun addDataInspection(data: List<InspectionModel>): Result<List<Long>> {
+        return try {
+            val insertedIds = inspectionDao.insertAll(data)
+            Result.success(insertedIds)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addPathDataInspection(data: InspectionPathModel): Result<Long> {
+        return try {
+            val insertedId = inspectionPathDao.insert(data)
+            if (insertedId != -1L) {
+                Result.success(insertedId)
+            } else {
+                Result.failure(Exception("Insert failed"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun deleteInspectionAndPathById(id: String): Result<Unit> {
+        return try {
+            val deletedInspection = inspectionDao.deleteByID(id)
+            val deletedPath = inspectionPathDao.deleteByID(id)
+
+            if (deletedInspection > 0 && deletedPath > 0) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to delete one or both records"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
 }

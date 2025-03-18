@@ -1,7 +1,8 @@
 package com.cbi.cmp_project.ui.view.Inspection
 
+import android.Manifest
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -10,19 +11,19 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
-import android.os.VibrationEffect
-import android.os.Vibrator
 import android.provider.Settings
 import android.text.Editable
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -41,56 +42,82 @@ import android.widget.ListView
 import android.widget.PopupWindow
 import android.widget.RadioButton
 import android.widget.ScrollView
+import android.widget.TableLayout
+import android.widget.TableRow
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
 import com.cbi.cmp_project.R
+import com.cbi.cmp_project.data.model.InspectionModel
+import com.cbi.cmp_project.data.model.InspectionPathModel
+import com.cbi.cmp_project.data.model.KaryawanModel
+import com.cbi.cmp_project.data.model.KemandoranModel
+import com.cbi.cmp_project.data.model.PanenEntityWithRelations
 import com.cbi.cmp_project.data.repository.CameraRepository
 import com.cbi.cmp_project.ui.adapter.FormAncakPagerAdapter
-import com.cbi.cmp_project.ui.adapter.TakeFotoPreviewAdapter
+import com.cbi.cmp_project.ui.adapter.SelectedWorkerAdapter
 import com.cbi.cmp_project.ui.adapter.TakeFotoPreviewAdapter.Companion.CAMERA_PERMISSION_REQUEST_CODE
+import com.cbi.cmp_project.ui.adapter.Worker
 import com.cbi.cmp_project.ui.fragment.FormAncakFragment
 import com.cbi.cmp_project.ui.view.HomePageActivity
-import com.cbi.cmp_project.ui.view.PanenTBS.FeaturePanenTBSActivity.InputType
+import com.cbi.cmp_project.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
 import com.cbi.cmp_project.ui.viewModel.CameraViewModel
+import com.cbi.cmp_project.ui.viewModel.DatasetViewModel
 import com.cbi.cmp_project.ui.viewModel.FormAncakViewModel
+import com.cbi.cmp_project.ui.viewModel.InspectionViewModel
+import com.cbi.cmp_project.ui.viewModel.LocationViewModel
+import com.cbi.cmp_project.ui.viewModel.PanenViewModel
 import com.cbi.cmp_project.utils.AlertDialogUtility
 import com.cbi.cmp_project.utils.AppLogger
 import com.cbi.cmp_project.utils.AppUtils
+import com.cbi.cmp_project.utils.AppUtils.WaterMarkFotoDanFolder
 import com.cbi.cmp_project.utils.AppUtils.stringXML
 import com.cbi.cmp_project.utils.AppUtils.vibrate
 import com.cbi.cmp_project.utils.LoadingDialog
 import com.cbi.cmp_project.utils.PrefManager
 import com.cbi.cmp_project.utils.SoftKeyboardStateWatcher
+import com.cbi.markertph.data.model.TPHNewModel
 import com.google.android.flexbox.FlexboxLayout
-import com.google.android.material.badge.BadgeDrawable
-import com.google.android.material.badge.BadgeUtils
+import com.google.android.flexbox.FlexboxLayoutManager
+import com.google.android.flexbox.JustifyContent
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.card.MaterialCardView
-import com.google.android.material.color.MaterialColors
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.jaredrummler.materialspinner.MaterialSpinner
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.reflect.KMutableProperty0
 
+@Suppress("UNCHECKED_CAST")
 class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallback {
+
+    data class SummaryItem(val title: String, val value: String)
+    data class Location(val lat: Double = 0.0, val lon: Double = 0.0)
+
     private lateinit var loadingDialog: LoadingDialog
     private var prefManager: PrefManager? = null
 
@@ -101,12 +128,16 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
     private var userName: String? = null
     private var userId: Int? = null
     private var jabatanUser: String? = null
+    private var infoApp: String = ""
 
-    private var jumBrdTglPath = 0
-    private var jumBuahTglPath = 0
+    private var lat: Double? = null
+    private var lon: Double? = null
+    private var currentAccuracy: Float = 0F
 
     private var shouldReopenBottomSheet = false
 
+    private var panenStoredLocal: MutableList<Int> = mutableListOf()
+    private val trackingLocation: MutableMap<String, Location> = mutableMapOf()
     private val listRadioItems: Map<String, Map<String, String>> = mapOf(
         "InspectionType" to mapOf(
             "1" to "Inspeksi",
@@ -115,23 +146,86 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         "ConditionType" to mapOf(
             "1" to "Datar",
             "2" to "Teras"
+        ),
+        "StatusPanen" to mapOf(
+            "1" to "H+1",
+            "2" to "H+2",
+            "3" to "H+3",
+            "4" to "H+4",
+            "5" to "H+5",
+        ),
+        "EntryPath" to mapOf(
+            "US" to "Utara - Selatan",
+            "SU" to "Selatan - Utara",
+            "BT" to "Barat - Timur",
+            "TB" to "Timur - Barat",
         )
     )
 
+    private var isTenthTrees = false
+    private var isSnackbarShown = false
+    private var locationEnable: Boolean = false
+
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
 
+    private var divisiList: List<TPHNewModel> = emptyList()
+    private var blokList: List<TPHNewModel> = emptyList()
+    private var tphList: List<TPHNewModel> = emptyList()
+    private var karyawanList: List<KaryawanModel> = emptyList()
+    private var karyawanLainList: List<KaryawanModel> = emptyList()
+    private var kemandoranList: List<KemandoranModel> = emptyList()
+    private var kemandoranLainList: List<KemandoranModel> = emptyList()
+
+    private var totalPokokInspection = 0
+    private var jumBrdTglPath = 0
+    private var jumBuahTglPath = 0
+
+    private var asistensi: Int = 0
+    private var selectedAfdeling: String = ""
+    private var selectedAfdelingIdSpinner: Int = 0
+    private var selectedDivisiValue: Int? = null
+    private var selectedTahunTanamValue: String? = null
+    private var selectedBlok: String = ""
+    private var selectedBlokValue: Int? = null
+    private var selectedTPH: String = ""
+    private var selectedTPHValue: Int? = null
+    private var selectedStatusPanen: String = ""
+    private var selectedJalurMasuk: String = ""
+    private var selectedInspeksiValue: String = ""
+    private var selectedKemandoran: String = ""
+    private var selectedPemanen: String = ""
+    private var selectedKemandoranLain: String = ""
+    private var selectedPemanenLain: String = ""
+    private var selectedKondisiValue: String = ""
+
+    private var ancakValue: String = ""
+    private var br1Value: String = ""
+    private var br2Value: String = ""
+
+    private lateinit var selectedPemanenAdapter: SelectedWorkerAdapter
+    private lateinit var selectedPemanenLainAdapter: SelectedWorkerAdapter
+    private lateinit var rvSelectedPemanen: RecyclerView
+    private lateinit var rvSelectedPemanenLain: RecyclerView
+
+    private lateinit var datasetViewModel: DatasetViewModel
+    private lateinit var panenViewModel: PanenViewModel
     private lateinit var cameraViewModel: CameraViewModel
     private lateinit var formAncakViewModel: FormAncakViewModel
+    private lateinit var locationViewModel: LocationViewModel
+    private lateinit var inspectionViewModel: InspectionViewModel
+
     private lateinit var formAncakPagerAdapter: FormAncakPagerAdapter
     private lateinit var keyboardWatcher: SoftKeyboardStateWatcher
 
     private lateinit var infoBlokView: ScrollView
     private lateinit var formInspectionView: ConstraintLayout
+    private lateinit var summaryView: ConstraintLayout
     private lateinit var bottomNavInspect: BottomNavigationView
     private lateinit var vpFormAncak: ViewPager2
     private lateinit var fabPrevFormAncak: FloatingActionButton
     private lateinit var fabNextFormAncak: FloatingActionButton
     private lateinit var fabPhotoFormAncak: FloatingActionButton
+    private lateinit var fabSaveFormAncak: FloatingActionButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -148,6 +242,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         userName = prefManager!!.nameUserLogin
         userId = prefManager!!.idUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
+        infoApp = AppUtils.getDeviceInfo(this@FormInspectionActivity).toString()
 
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
@@ -162,6 +257,41 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             }
 
             try {
+                val estateIdStr = estateId?.trim()
+
+                if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
+                    val estateIdInt = estateIdStr.toInt()
+                    val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
+
+                    panenViewModel.loadActivePanenESPB()
+                    delay(100)
+
+                    withContext(Dispatchers.Main) { // Ensure observation is on main thread
+                        panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
+                            panenDeferred.complete(list ?: emptyList()) // Ensure it's never null
+                        }
+                    }
+
+                    val panenList = panenDeferred.await()
+                    panenStoredLocal = panenList
+                        .mapNotNull { it.tph?.id }
+                        .toMutableList()
+
+                    val divisiDeferred = async {
+                        try {
+                            datasetViewModel.getDivisiList(estateIdInt)
+                        } catch (e: Exception) {
+                            emptyList() // Return an empty list to prevent crash
+                        }
+                    }
+
+                    divisiList = divisiDeferred.await()
+
+                    if (divisiList.isEmpty()) {
+                        throw Exception("Periksa kembali dataset dengan melakukan Sinkronisasi Data!")
+                    }
+                }
+
                 withContext(Dispatchers.Main) {
                     setupLayout()
                     setKeyboardVisibilityListener()
@@ -175,8 +305,6 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                         ?.let { "2. ID Estate User Login: \"$it\"" }
 
                     val fullMessage = listOfNotNull(errorMessage, estateInfo).joinToString("\n\n")
-
-                    AppLogger.e("Error fetching data: ${e.message}")
 
                     AlertDialogUtility.withSingleAction(
                         this@FormInspectionActivity,
@@ -200,6 +328,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
                         if (shouldReopenBottomSheet) {
                             shouldReopenBottomSheet = false
+                            bottomNavInspect.visibility = View.VISIBLE
                             Handler(Looper.getMainLooper()).postDelayed({
                                 showViewPhotoBottomSheet()
                             }, 100)
@@ -231,12 +360,69 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         })
     }
 
+    @SuppressLint("DefaultLocale")
+    override fun onResume() {
+        val isLocationGranted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (isLocationGranted) {
+            locationViewModel.startLocationUpdates()
+            isSnackbarShown = false // Reset snackbar flag
+        } else if (!isSnackbarShown) {
+            showSnackbarWithSettings("Location permission is required for this app. Enable it in Settings.")
+            isSnackbarShown = true // Prevent duplicate snackbars
+        }
+
+
+        locationViewModel.airplaneModeState.observe(this) { isAirplaneMode ->
+            if (isAirplaneMode) {
+                locationViewModel.stopLocationUpdates()
+            } else {
+                // Only restart if we have permission
+                if (ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    locationViewModel.startLocationUpdates()
+                }
+            }
+        }
+
+        // Observe location updates
+        locationViewModel.locationData.observe(this) { location ->
+            locationEnable = true
+            lat = location.latitude
+            lon = location.longitude
+        }
+
+        locationViewModel.locationAccuracy.observe(this) { accuracy ->
+            findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
+            currentAccuracy = accuracy
+        }
+
+        super.onResume()
+    }
+
+    override fun onPause() {
+        locationViewModel.stopLocationUpdates()
+        super.onPause()
+    }
+
     override fun onDestroy() {
+        locationViewModel.stopLocationUpdates()
         keyboardWatcher.unregister()
         super.onDestroy()
     }
 
     private fun initViewModel() {
+        val factory = DatasetViewModel.DatasetViewModelFactory(application)
+        datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
+
+        val factoryPanenViewModel = PanenViewModel.PanenViewModelFactory(application)
+        panenViewModel = ViewModelProvider(this, factoryPanenViewModel)[PanenViewModel::class.java]
+
         formAncakViewModel = ViewModelProvider(this)[FormAncakViewModel::class.java]
 
         val idTakeFotoLayout = findViewById<View>(R.id.incTakePhotoInspect)
@@ -247,6 +433,16 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             this,
             CameraViewModel.Factory(cameraRepository)
         )[CameraViewModel::class.java]
+
+        val status_location = findViewById<ImageView>(R.id.statusLocation)
+        locationViewModel = ViewModelProvider(
+            this,
+            LocationViewModel.Factory(application, status_location, this)
+        )[LocationViewModel::class.java]
+
+        val factoryInspection = InspectionViewModel.InspectionViewModelFactory(application)
+        inspectionViewModel =
+            ViewModelProvider(this, factoryInspection)[InspectionViewModel::class.java]
     }
 
     private fun setupViewPager() {
@@ -277,7 +473,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
     }
 
     private fun preloadAllPages() {
-        val totalPages = formAncakViewModel.totalPages.value ?: 10
+        val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
         for (i in 0 until totalPages) {
             vpFormAncak.setCurrentItem(i, false)
         }
@@ -334,49 +530,81 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         }
     }
 
-    private fun setupNavigation() {
+    private fun setupPressedFAB() {
         fabNextFormAncak.setOnClickListener {
-            val validationResult = formAncakViewModel.validateCurrentPage()
-            if (validationResult.isValid) {
-                val currentPage = formAncakViewModel.currentPage.value ?: 1
-                val nextPage = currentPage + 1
-                val totalPages =
-                    formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+            val currentPage = formAncakViewModel.currentPage.value ?: 1
+            val nextPage = currentPage + 1
+            val totalPages =
+                formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
 
-                logAllPagesEmptyTreeStatus()
+            val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+            val pageData = formData[currentPage]
+            val emptyTreeValue = pageData?.emptyTree ?: 0
+            val photoValue = pageData?.photo ?: ""
 
-                if (nextPage <= totalPages) {
-                    lifecycleScope.launch {
-                        withContext(Dispatchers.Main) {
-                            loadingDialog.show()
-                            loadingDialog.setMessage("Loading data...")
+            when {
+                emptyTreeValue == 2 && photoValue.isEmpty() -> {
+                    vibrate(500)
+                    showViewPhotoBottomSheet()
+                    AlertDialogUtility.withSingleAction(
+                        this,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_data_not_completed),
+                        "Mohon dapat mengambil foto temuan terlebih dahulu!",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {}
+                    return@setOnClickListener
+                }
 
-                            vpFormAncak.post {
-                                vpFormAncak.setCurrentItem(nextPage - 1, false)
-                                vpFormAncak.setCurrentItem(currentPage - 1, false)
+                else -> {
+                    val validationResult = formAncakViewModel.validateCurrentPage()
+                    if (validationResult.isValid && nextPage <= totalPages) {
+                        lifecycleScope.launch {
+                            withContext(Dispatchers.Main) {
+                                loadingDialog.show()
+                                loadingDialog.setMessage("Loading data...")
 
-                                Handler(Looper.getMainLooper()).post {
-                                    val pageChangeCallback = createPageChangeCallback()
-                                    vpFormAncak.registerOnPageChangeCallback(pageChangeCallback)
+                                vpFormAncak.post {
+                                    vpFormAncak.setCurrentItem(nextPage - 1, false)
+                                    vpFormAncak.setCurrentItem(currentPage - 1, false)
 
-                                    formAncakViewModel.nextPage()
+                                    Handler(Looper.getMainLooper()).post {
+                                        val pageChangeCallback = createPageChangeCallback()
+                                        vpFormAncak.registerOnPageChangeCallback(pageChangeCallback)
 
-                                    Handler(Looper.getMainLooper()).postDelayed({
-                                        if (loadingDialog.isShowing) {
-                                            scrollToTopOfFormAncak()
-                                            loadingDialog.dismiss()
-                                            vpFormAncak.unregisterOnPageChangeCallback(
-                                                pageChangeCallback
+                                        // Get the current location from user each 10 tree
+                                        if (currentPage % 10 == 0 && !trackingLocation.containsKey(
+                                                currentPage.toString()
                                             )
+                                        ) {
+                                            isTenthTrees = true
+                                            trackingLocation[currentPage.toString()] =
+                                                Location(lat ?: 0.0, lon ?: 0.0)
+                                        } else if (isTenthTrees) {
+                                            isTenthTrees = false
                                         }
-                                    }, 500)
+
+                                        formAncakViewModel.nextPage()
+
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            if (loadingDialog.isShowing) {
+                                                scrollToTopOfFormAncak()
+                                                loadingDialog.dismiss()
+                                                vpFormAncak.unregisterOnPageChangeCallback(
+                                                    pageChangeCallback
+                                                )
+                                            }
+                                        }, 500)
+                                    }
                                 }
                             }
                         }
+                    } else {
+                        vibrate(500)
+                        return@setOnClickListener
                     }
                 }
-            } else {
-                vibrate(500)
             }
         }
 
@@ -414,29 +642,223 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                 }
             }
         }
-    }
 
-    private fun logAllPagesEmptyTreeStatus() {
-        val currentPage = formAncakViewModel.currentPage.value ?: 1
-        val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
-        val formData = formAncakViewModel.formData.value ?: mutableMapOf()
-
-        AppLogger.d("--- EMPTY TREE STATUS FOR ALL PAGES ---")
-
-        for (page in 1..totalPages) {
-            val pageData = formData[page]
-            val emptyTreeValue = pageData?.emptyTree ?: 0
-            val photoValue = pageData?.photo ?: 0
-            val commentValue = pageData?.comment ?: 0
-
-            AppLogger.d("Page $page: EmptyTree = $emptyTreeValue")
-            AppLogger.d("Page $page: Photo = $photoValue")
-            AppLogger.d("Page $page: Comment = $commentValue")
-
-            if (page == currentPage) break
+        fabPhotoFormAncak.setOnClickListener {
+            val validationResult = formAncakViewModel.validateCurrentPage()
+            if (validationResult.isValid) {
+                showViewPhotoBottomSheet()
+            } else {
+                vibrate(500)
+            }
         }
 
-        AppLogger.d("--- END OF EMPTY TREE STATUS ---")
+        fabSaveFormAncak.setOnClickListener {
+            for (i in 1..50) {
+                AppLogger.d("index: $i")
+            }
+
+            AlertDialogUtility.withTwoActions(
+                this,
+                "Simpan Data",
+                getString(R.string.confirmation_dialog_title),
+                getString(R.string.confirmation_dialog_description),
+                "warning.json"
+            ) {
+                lifecycleScope.launch(Dispatchers.Main) {
+                    try {
+                        loadingDialog.show()
+                        loadingDialog.setMessage("Menyimpan data...")
+
+                        if (!isTenthTrees) {
+                            trackingLocation["end"] = Location(lat ?: 0.0, lon ?: 0.0)
+                        }
+
+                        val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
+                        val selectedPemanenLain =
+                            selectedPemanenLainAdapter.getSelectedWorkers()
+                        val selectedPemanenIds = selectedPemanen.map { it.id }
+                        val selectedPemanenLainIds = selectedPemanenLain.map { it.id }
+
+                        val datetimeFormattedForPath =
+                            SimpleDateFormat("yyMMddHHmmssSSS", Locale.getDefault()).format(Date())
+                        val uniquePathId = "$userId$datetimeFormattedForPath"
+
+                        val formattedTracking =
+                            trackingLocation.values.joinToString("#") { "${it.lat},${it.lon}" }
+
+                        val datetimeCreated = SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm:ss",
+                            Locale.getDefault()
+                        ).format(Date())
+
+                        // Check from radio button AKP/Inspeksi
+                        val isInspection = selectedInspeksiValue.toInt() == 1
+
+                        val totalPages =
+                            formAncakViewModel.totalPages.value
+                                ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+                        val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+
+                        val inspectionDataList = mutableListOf<InspectionModel>()
+                        for (i in 1..totalPages) {
+                            val pageData = formData[i]
+                            val emptyTreeValue = pageData?.emptyTree ?: 0
+                            val isEmpty =
+                                if (isInspection) emptyTreeValue == 1 else emptyTreeValue == 2
+
+                            if (emptyTreeValue > 0 && !isEmpty) {
+                                val inspection = InspectionModel(
+                                    id_path = uniquePathId,
+                                    tph_id = selectedTPHValue ?: 0,
+                                    ancak = ancakValue.toInt(),
+                                    status_panen = selectedStatusPanen.toInt(),
+                                    jalur_masuk = selectedJalurMasuk,
+                                    brd_tinggal = jumBrdTglPath,
+                                    buah_tinggal = jumBuahTglPath,
+                                    jenis_inspeksi = selectedInspeksiValue.toInt(),
+                                    karyawan_id = (selectedPemanenIds + selectedPemanenLainIds).joinToString(
+                                        ","
+                                    ),
+                                    asistensi = asistensi,
+                                    jenis_kondisi = selectedKondisiValue.toInt(),
+                                    baris1 = br1Value.toInt(),
+                                    baris2 = if (selectedKondisiValue.toInt() == 1) br2Value.toInt() else null,
+                                    no_pokok = i + 1,
+                                    jml_pokok = totalPokokInspection,
+                                    titik_kosong = emptyTreeValue,
+                                    jjg_akp = if (isInspection) null else (pageData?.jjgAkp ?: 0),
+                                    prioritas = if (isInspection) (pageData?.priority
+                                        ?: 0) else null,
+                                    pokok_panen = if (isInspection) (pageData?.harvestTree
+                                        ?: 0) else null,
+                                    serangan_tikus = if (isInspection) (pageData?.ratAttack
+                                        ?: 0) else null,
+                                    ganoderma = if (isInspection) (pageData?.ganoderma
+                                        ?: 0) else null,
+                                    susunan_pelepah = if (isInspection) (pageData?.neatPelepah
+                                        ?: 0) else null,
+                                    pelepah_sengkleh = if (isInspection) (pageData?.pelepahSengkleh
+                                        ?: 0) else null,
+                                    kondisi_pruning = if (isInspection) (pageData?.pruning
+                                        ?: 0) else null,
+                                    kentosan = if (isInspection) (pageData?.kentosan
+                                        ?: 0) else null,
+                                    buah_masak = if (isInspection) (pageData?.ripe ?: 0) else null,
+                                    buah_mentah = if (isInspection) (pageData?.buahM1
+                                        ?: 0) else null,
+                                    buah_matang = if (isInspection) (pageData?.buahM2
+                                        ?: 0) else null,
+                                    buah_matahari = if (isInspection) (pageData?.buahM3
+                                        ?: 0) else null,
+                                    brd_tidak_dikutip = if (isInspection) (pageData?.brdKtp
+                                        ?: 0) else null,
+                                    brd_dlm_piringan = if (isInspection) (pageData?.brdIn
+                                        ?: 0) else null,
+                                    brd_luar_piringan = if (isInspection) (pageData?.brdOut
+                                        ?: 0) else null,
+                                    brd_pasar_pikul = if (isInspection) (pageData?.pasarPikul
+                                        ?: 0) else null,
+                                    brd_ketiak = if (isInspection) (pageData?.ketiak
+                                        ?: 0) else null,
+                                    brd_parit = if (isInspection) (pageData?.parit ?: 0) else null,
+                                    brd_segar = if (isInspection) (pageData?.brdSegar
+                                        ?: 0) else null,
+                                    brd_busuk = if (isInspection) (pageData?.brdBusuk
+                                        ?: 0) else null,
+                                    foto = if (isInspection) pageData?.photo else null,
+                                    komentar = if (isInspection) pageData?.comment else null,
+                                    info = infoApp,
+                                    created_by = userId ?: 0,
+                                    created_date = datetimeCreated,
+                                )
+                                inspectionDataList.add(inspection)
+                            }
+                        }
+
+                        if (inspectionDataList.isNotEmpty()) {
+                            val pathData = InspectionPathModel(
+                                id = uniquePathId,
+                                tracking_path = formattedTracking
+                            )
+
+                            val pathInsertSuccess = withContext(Dispatchers.IO) {
+                                try {
+                                    val insertedPathId =
+                                        inspectionViewModel.insertPathDataSync(pathData)
+                                    insertedPathId != null
+                                } catch (e: Exception) {
+                                    AppLogger.d("Error inserting path: ${e.message}")
+                                    false
+                                }
+                            }
+
+                            if (!pathInsertSuccess) {
+                                val deleteResult =
+                                    inspectionViewModel.deleteInspectionAndPath(uniquePathId)
+                                deleteResult.onFailure { error ->
+                                    AppLogger.d("Failed to delete data path: $error")
+                                }
+                                throw Exception("Failed to insert path data")
+                            }
+
+                            val inspectionInsertSuccess = withContext(Dispatchers.IO) {
+                                try {
+                                    val insertedInspectionIds =
+                                        inspectionViewModel.insertInspectionDataSync(
+                                            inspectionDataList
+                                        )
+                                    insertedInspectionIds.isNotEmpty()
+                                } catch (e: Exception) {
+                                    AppLogger.d("Error inserting inspection: ${e.message}")
+                                    false
+                                }
+                            }
+
+                            if (!inspectionInsertSuccess) {
+                                val deleteResult =
+                                    inspectionViewModel.deleteInspectionAndPath(uniquePathId)
+                                deleteResult.onFailure { error ->
+                                    AppLogger.d("Failed to delete data inspection: $error")
+                                }
+                                throw Exception("Failed to insert inspection data")
+                            }
+
+                            AlertDialogUtility.withSingleAction(
+                                this@FormInspectionActivity,
+                                stringXML(R.string.al_back),
+                                stringXML(R.string.al_success_save_local),
+                                stringXML(R.string.al_description_success_save_local),
+                                "success.json",
+                                R.color.greenDefault
+                            ) {
+                                val intent = Intent(
+                                    this@FormInspectionActivity,
+                                    HomePageActivity::class.java
+                                )
+                                startActivity(intent)
+                                finishAffinity()
+                            }
+                        } else {
+                            throw Exception("Failed to add list inspection data")
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.d("Unexpected error: ${e.message}")
+                        AlertDialogUtility.withSingleAction(
+                            this@FormInspectionActivity,
+                            stringXML(R.string.al_back),
+                            stringXML(R.string.al_failed_save_local),
+                            "${stringXML(R.string.al_description_failed_save_local)} : ${e.message}",
+                            "warning.json",
+                            R.color.colorRedDark
+                        ) {}
+                    } finally {
+                        if (loadingDialog.isShowing) {
+                            loadingDialog.dismiss()
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun createPageChangeCallback(): ViewPager2.OnPageChangeCallback {
@@ -462,23 +884,15 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         }
     }
 
-    private fun setupAddPhotosView() {
-        fabPhotoFormAncak.setOnClickListener {
-            val validationResult = formAncakViewModel.validateCurrentPage()
-            if (validationResult.isValid) {
-                showViewPhotoBottomSheet()
-            } else {
-                vibrate(500)
-            }
-        }
-    }
-
-    @SuppressLint("SetTextI18n")
+    @SuppressLint("SetTextI18n", "InflateParams")
     private fun showViewPhotoBottomSheet(fileName: String? = null) {
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
-        val rootApp = this.getExternalFilesDir(Environment.DIRECTORY_PICTURES).toString()
+        val rootApp = File(
+            this.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+            "CMP-${WaterMarkFotoDanFolder.WMInspeksi}"
+        ).toString()
 
         val bottomSheetDialog = BottomSheetDialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_inspection_photo, null)
@@ -494,7 +908,8 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
         tvPhotoComment.visibility = View.GONE
 
-        ibDeletePhotoInspect.visibility = if (currentData.photo.isNotEmpty() || currentData.comment.isNotEmpty()) View.VISIBLE else View.GONE
+        ibDeletePhotoInspect.visibility =
+            if (currentData.photo != null || currentData.comment != null) View.VISIBLE else View.GONE
         ibDeletePhotoInspect.setOnClickListener {
             AlertDialogUtility.withTwoActions(
                 this,
@@ -504,17 +919,17 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                 "warning.json",
                 ContextCompat.getColor(this, R.color.greenDarker)
             ) {
+                ibDeletePhotoInspect.visibility = View.GONE
                 ivAddPhoto.setImageResource(R.drawable.baseline_add_a_photo_24)
                 etPhotoComment.setText("")
+                etPhotoComment.clearFocus()
 
                 formAncakViewModel.savePageData(
                     currentPage,
-                    currentData.copy(photo = "", comment = "")
+                    currentData.copy(photo = null, comment = null, latIssue = null, lonIssue = null)
                 )
 
-                ibDeletePhotoInspect.visibility = View.GONE
                 updatePhotoBadgeVisibility()
-                etPhotoComment.clearFocus()
             }
         }
 
@@ -545,11 +960,12 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             }
         })
 
-        var resultFileName = currentData.photo
+        var resultFileName = currentData.photo ?: ""
         if (fileName != null) {
             resultFileName = fileName
         }
 
+        val filePath = File(rootApp, resultFileName)
         ivAddPhoto.setOnClickListener {
             when {
                 ContextCompat.checkSelfPermission(
@@ -560,7 +976,6 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                     bottomSheetDialog.dismiss()
 
                     if (resultFileName.isNotEmpty()) {
-                        val filePath = File(File(rootApp, "CMP"), resultFileName)
                         Handler(Looper.getMainLooper()).postDelayed({
                             cameraViewModel.openZoomPhotos(
                                 file = filePath,
@@ -575,7 +990,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                                             null,
                                             "", // soon assign lat lon
                                             currentPage.toString(),
-                                            "IP"
+                                            WaterMarkFotoDanFolder.WMInspeksi
                                         )
                                     }, 100)
                                 },
@@ -607,7 +1022,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                                 null,
                                 "", // soon assign lat lon
                                 currentPage.toString(),
-                                "IP"
+                                WaterMarkFotoDanFolder.WMInspeksi
                             )
                         }, 100)
                     }
@@ -623,10 +1038,8 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                 else -> {
                     // If permission is permanently denied, show settings option
                     if (isPermissionPermanentlyDenied()) {
-                        AppLogger.d("Permission permanently denied. Redirecting to settings.")
                         showSnackbarWithSettings("Camera permission required to take photos. Enable it in Settings.")
                     } else {
-                        AppLogger.d("Requesting camera permission")
                         ActivityCompat.requestPermissions(
                             this,
                             arrayOf(android.Manifest.permission.CAMERA),
@@ -638,7 +1051,6 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         }
 
         if (resultFileName.isNotEmpty()) {
-            val filePath = File(File(rootApp, "CMP"), resultFileName)
             Glide.with(this)
                 .load(filePath)
                 .into(ivAddPhoto)
@@ -721,43 +1133,73 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         )
     }
 
+    @SuppressLint("CutPasteId")
     private fun setupLayout() {
         infoBlokView = findViewById(R.id.svInfoBlokInspection)
         formInspectionView = findViewById(R.id.clFormInspection)
+        summaryView = findViewById(R.id.clSummaryInspection)
         bottomNavInspect = findViewById(R.id.bottomNavInspect)
         vpFormAncak = findViewById(R.id.vpFormAncakInspect)
         fabPrevFormAncak = findViewById(R.id.fabPrevFormInspect)
         fabNextFormAncak = findViewById(R.id.fabNextFormInspect)
         fabPhotoFormAncak = findViewById(R.id.fabPhotoFormInspect)
+        fabSaveFormAncak = findViewById(R.id.fabSaveFormInspect)
+
+        fabSaveFormAncak.backgroundTintList =
+            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.bluedarklight))
 
         lifecycleScope.launch(Dispatchers.Default) {
             withContext(Dispatchers.Main) {
                 setupViewPager()
-                setupNavigation()
-                setupAddPhotosView()
                 observeViewModel()
+                setupSwitch()
+                setupPressedFAB()
             }
         }
 
         bottomNavInspect.setOnItemSelectedListener { item ->
+            val currentPage = formAncakViewModel.currentPage.value ?: 1
+            val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+            val pageData = formData[currentPage]
+            val emptyTreeValue = pageData?.emptyTree ?: 0
+            val photoValue = pageData?.photo ?: ""
+
             val activeBottomNavId = bottomNavInspect.selectedItemId
             if (activeBottomNavId == item.itemId) return@setOnItemSelectedListener false
-
-            val validationResult = formAncakViewModel.validateCurrentPage()
-            if (activeBottomNavId == R.id.navMenuAncakInspect && !validationResult.isValid) {
-                vibrate(500)
-                return@setOnItemSelectedListener false
-            }
 
             loadingDialog.show()
             loadingDialog.setMessage("Loading data...")
 
+            if (!validateAndShowErrors() || activeBottomNavId == R.id.navMenuAncakInspect && (emptyTreeValue == 2 && photoValue.isEmpty())) {
+                loadingDialog.dismiss()
+
+                if (activeBottomNavId == R.id.navMenuAncakInspect && emptyTreeValue == 2 && photoValue.isEmpty()) {
+                    vibrate(500)
+                    showViewPhotoBottomSheet()
+                    AlertDialogUtility.withSingleAction(
+                        this,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_data_not_completed),
+                        "Mohon dapat mengambil foto temuan terlebih dahulu!",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {}
+                }
+
+                return@setOnItemSelectedListener false
+            }
+
             lifecycleScope.launch {
+                fabPhotoFormAncak.visibility =
+                    if (selectedInspeksiValue.toInt() == 1) View.VISIBLE else View.GONE
+
                 when (item.itemId) {
                     R.id.navMenuBlokInspect -> {
                         withContext(Dispatchers.Main) {
                             infoBlokView.visibility = View.VISIBLE
                             formInspectionView.visibility = View.GONE
+                            summaryView.visibility = View.GONE
+
                             delay(200)
                             loadingDialog.dismiss()
                         }
@@ -765,9 +1207,20 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
                     R.id.navMenuAncakInspect -> {
                         withContext(Dispatchers.Main) {
-                            formAncakViewModel.updateEstName("UPE")
+                            if (!trackingLocation.containsKey("start")) {
+                                trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
+                            }
+
+                            val afdResult = selectedAfdeling.replaceFirst("AFD-", "")
+                            formAncakViewModel.updateInfoFormAncak(
+                                estateName ?: "",
+                                afdResult,
+                                selectedBlok
+                            )
+                            formAncakViewModel.updateTypeInspection(selectedInspeksiValue.toInt() == 1)
 
                             infoBlokView.visibility = View.GONE
+                            summaryView.visibility = View.GONE
                             formInspectionView.post {
                                 vpFormAncak.post {
                                     formInspectionView.visibility = View.VISIBLE
@@ -778,11 +1231,26 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                             }
                         }
                     }
+
+                    R.id.navMenuSummaryInspect -> {
+                        withContext(Dispatchers.Main) {
+                            setupSummaryPage()
+
+                            infoBlokView.visibility = View.GONE
+                            formInspectionView.visibility = View.GONE
+                            summaryView.post {
+                                summaryView.visibility = View.VISIBLE
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    loadingDialog.dismiss()
+                                }, 300)
+                            }
+                        }
+                    }
                 }
             }
 
             return@setOnItemSelectedListener when (item.itemId) {
-                R.id.navMenuBlokInspect, R.id.navMenuAncakInspect -> true
+                R.id.navMenuBlokInspect, R.id.navMenuAncakInspect, R.id.navMenuSummaryInspect -> true
                 else -> false
             }
         }
@@ -876,22 +1344,47 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             when (inputType) {
                 InputType.SPINNER -> {
                     when (layoutView.id) {
+                        R.id.lyEstInspect -> {
+                            val namaEstate = listOf(prefManager!!.estateUserLengkapLogin ?: "")
+                            setupSpinnerView(layoutView, namaEstate)
+                            findViewById<MaterialSpinner>(R.id.spPanenTBS).selectedIndex = 0
+                        }
+
+                        R.id.lyAfdInspect -> {
+                            val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
+                            setupSpinnerView(layoutView, divisiNames)
+                        }
+
+                        R.id.lyStatusPanenInspect -> setupSpinnerView(
+                            layoutView,
+                            (listRadioItems["StatusPanen"] ?: emptyMap()).values.toList()
+                        )
+
+                        R.id.lyJalurInspect -> setupSpinnerView(
+                            layoutView,
+                            (listRadioItems["EntryPath"] ?: emptyMap()).values.toList()
+                        )
+
                         else -> setupSpinnerView(layoutView, emptyList())
                     }
                 }
 
                 InputType.EDITTEXT -> setupEditTextView(layoutView)
+
                 InputType.RADIO -> {
                     when (layoutView.id) {
                         R.id.lyInspectionType -> setupRadioView(
                             layoutView,
-                            listRadioItems["InspectionType"] ?: emptyMap()
+                            listRadioItems["InspectionType"] ?: emptyMap(), ::selectedInspeksiValue
                         )
 
                         R.id.lyConditionType -> setupRadioView(
                             layoutView,
-                            listRadioItems["ConditionType"] ?: emptyMap()
-                        )
+                            listRadioItems["ConditionType"] ?: emptyMap(),
+                            ::selectedKondisiValue
+                        ) { id ->
+                            findViewById<LinearLayout>(R.id.lyBaris2Inspect).visibility = if (id.toInt() == 2) View.GONE else View.VISIBLE
+                        }
                     }
                 }
             }
@@ -902,8 +1395,48 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             Triple(R.id.lyBuahTglInspect, "Buah Tinggal", ::jumBuahTglPath),
         )
         counterMappings.forEach { (layoutId, labelText, counterVar) ->
-            setupPaneWithButtons(layoutId, R.id.tvNumberPanen, labelText, counterVar)
+            setupPanenWithButtons(layoutId, labelText, counterVar)
         }
+
+        rvSelectedPemanen = RecyclerView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = resources.getDimensionPixelSize(R.dimen.top_margin)
+            }
+            layoutManager = FlexboxLayoutManager(context).apply {
+                justifyContent = JustifyContent.FLEX_START
+            }
+            overScrollMode = View.OVER_SCROLL_NEVER
+        }
+        selectedPemanenAdapter = SelectedWorkerAdapter()
+        rvSelectedPemanen.adapter = selectedPemanenAdapter
+
+        val layoutPemanen = findViewById<LinearLayout>(R.id.lyPemanen1Inspect)
+        val parentLayout = layoutPemanen.parent as ViewGroup
+        val index = parentLayout.indexOfChild(layoutPemanen)
+        parentLayout.addView(rvSelectedPemanen, index + 1)
+
+        rvSelectedPemanenLain = RecyclerView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = resources.getDimensionPixelSize(R.dimen.top_margin)
+            }
+            layoutManager = FlexboxLayoutManager(context).apply {
+                justifyContent = JustifyContent.FLEX_START
+            }
+            overScrollMode = View.OVER_SCROLL_NEVER
+        }
+        selectedPemanenLainAdapter = SelectedWorkerAdapter()
+        rvSelectedPemanenLain.adapter = selectedPemanenLainAdapter
+
+        val layoutPemanenLain = findViewById<LinearLayout>(R.id.lyPemanen2Inspect)
+        val parentLayoutLain = layoutPemanenLain.parent as ViewGroup
+        val index2 = parentLayoutLain.indexOfChild(layoutPemanenLain)
+        parentLayoutLain.addView(rvSelectedPemanenLain, index2 + 1)
     }
 
     private fun updateLabelTextView(linearLayout: LinearLayout, text: String) {
@@ -925,18 +1458,82 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
 
         val badgePhotoInspect = findViewById<View>(R.id.badgePhotoInspect)
-        badgePhotoInspect.visibility = if (currentData.photo.isNotEmpty()) {
+        badgePhotoInspect.visibility = if (currentData.photo != null) {
             View.VISIBLE
         } else {
             View.GONE
         }
     }
 
+    private fun setupSummaryPage() {
+        fun createTextView(
+            text: String,
+            gravity: Int,
+            weight: Float,
+            isTitle: Boolean = false
+        ): TextView {
+            val textView = TextView(this)
+            textView.text = text
+            textView.setPadding(32, 32, 32, 32)
+            textView.setTextColor(Color.BLACK)
+            textView.textSize = 18f
+            textView.gravity = gravity
+            textView.setTypeface(null, if (isTitle) Typeface.NORMAL else Typeface.BOLD)
+
+            val params = TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, weight)
+            params.setMargins(5, 5, 5, 5)
+            textView.layoutParams = params
+
+            val shape = GradientDrawable()
+            shape.shape = GradientDrawable.RECTANGLE
+            shape.setColor(
+                ColorUtils.setAlphaComponent(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.greenDarker
+                    ), (0.2 * 255).toInt()
+                )
+            )
+            shape.cornerRadii = if (isTitle) {
+                floatArrayOf(20f, 20f, 0f, 0f, 0f, 0f, 20f, 20f)
+            } else {
+                floatArrayOf(0f, 0f, 20f, 20f, 20f, 20f, 0f, 0f)
+            }
+
+
+            textView.background = shape
+            return textView
+        }
+
+        val tableLayout = findViewById<TableLayout>(R.id.tblLytSummaryInspect)
+        tableLayout.removeAllViews()
+
+        val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+        val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+
+        totalPokokInspection = (0..totalPages).count { (formData[it]?.emptyTree ?: 0) > 0 }
+
+        val data = listOf(
+            SummaryItem("Jumlah Pokok", totalPokokInspection.toString()),
+        )
+
+        for (item in data) {
+            val tableRow = TableRow(this)
+
+            val titleTextView = createTextView(item.title, Gravity.START, 2f, true)
+            tableRow.addView(titleTextView)
+
+            val valueTextView = createTextView(item.value, Gravity.CENTER, 1f)
+            tableRow.addView(valueTextView)
+
+            tableLayout.addView(tableRow)
+        }
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     private fun setupSpinnerView(
         linearLayout: LinearLayout,
-        data: List<String>,
-        onItemSelected: (Int) -> Unit = {}
+        data: List<String>
     ) {
         val editText = linearLayout.findViewById<EditText>(R.id.etHomeMarkerTPH)
         val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
@@ -944,7 +1541,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
         spinner.setItems(data)
 
-        if (linearLayout.id == R.id.layoutKemandoran || linearLayout.id == R.id.layoutPemanen || linearLayout.id == R.id.layoutKemandoranLain || linearLayout.id == R.id.layoutPemanenLain) {
+        if (linearLayout.id == R.id.lyMandor1Inspect || linearLayout.id == R.id.lyPemanen1Inspect || linearLayout.id == R.id.lyMandor2Inspect || linearLayout.id == R.id.lyPemanen2Inspect) {
             spinner.setOnTouchListener { _, event ->
                 if (event.action == MotionEvent.ACTION_UP) {
                     showPopupSearchDropdown(
@@ -952,24 +1549,20 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                         data,
                         editText,
                         linearLayout
-                    ) { selectedItem, position ->
-                        spinner.text = selectedItem
-                        tvError.visibility = View.GONE
-                        onItemSelected(position)
-                    }
+                    )
                 }
                 true
             }
         }
 
 
-        if (linearLayout.id == R.id.layoutEstate) {
+        if (linearLayout.id == R.id.lyEstInspect) {
             spinner.isEnabled = false // Disable spinner
         }
 
         spinner.setOnItemSelectedListener { _, position, _, item ->
             tvError.visibility = View.GONE
-//            handleItemSelection(linearLayout, position, item.toString())
+            handleItemSelection(linearLayout, position, item.toString())
         }
     }
 
@@ -983,10 +1576,13 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         etHomeMarkerTPH.visibility = View.VISIBLE
 
         // Set input type based on layout ID
-        etHomeMarkerTPH.inputType = when (layoutView.id) {
-            R.id.layoutAncak -> android.text.InputType.TYPE_CLASS_NUMBER
-            else -> android.text.InputType.TYPE_CLASS_TEXT
-        }
+        etHomeMarkerTPH.inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        etHomeMarkerTPH.imeOptions = if (layoutView.id in listOf(
+                R.id.lyAncakInspect,
+                R.id.lyBaris1Inspect,
+                R.id.lyBaris2Inspect
+            )
+        ) EditorInfo.IME_ACTION_DONE else EditorInfo.IME_ACTION_NEXT
 
         etHomeMarkerTPH.setOnEditorActionListener { v, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) {
@@ -1018,9 +1614,19 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                     )
                 )
 
-//                if (layoutView.id == R.id.layoutAncak) {
-//                    ancakInput = s?.toString()?.trim() ?: ""
-//                }
+                when (layoutView.id) {
+                    R.id.lyAncakInspect -> {
+                        ancakValue = s?.toString()?.trim() ?: ""
+                    }
+
+                    R.id.lyBaris1Inspect -> {
+                        br1Value = s?.toString()?.trim() ?: ""
+                    }
+
+                    R.id.lyBaris2Inspect -> {
+                        br2Value = s?.toString()?.trim() ?: ""
+                    }
+                }
             }
 
             override fun afterTextChanged(s: Editable?) {}
@@ -1029,7 +1635,9 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
     private fun setupRadioView(
         layoutView: LinearLayout,
-        itemList: Map<String, String>
+        itemList: Map<String, String>,
+        nameVar: KMutableProperty0<String>,
+        onConditionChanged: ((String) -> Unit)? = null
     ) {
         val mcvSpinner = layoutView.findViewById<MaterialCardView>(R.id.MCVSpinner)
         val fblRadioComponents = layoutView.findViewById<FlexboxLayout>(R.id.fblRadioComponents)
@@ -1055,12 +1663,15 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                 if (id == isFirstIndex?.key) {
                     isChecked = true
                     lastSelectedRadioButton = this
+                    nameVar.set(id)
                 }
 
                 setOnClickListener {
+                    onConditionChanged?.invoke(id)
                     lastSelectedRadioButton?.isChecked = false
                     isChecked = true
                     lastSelectedRadioButton = this
+                    nameVar.set(id)
                 }
             }
 
@@ -1068,89 +1679,650 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         }
     }
 
-    private fun setupPaneWithButtons(
+    private fun setupPanenWithButtons(
         layoutId: Int,
-        textViewId: Int,
         labelText: String,
         counterVar: KMutableProperty0<Int>
     ) {
-        val includedLayout = findViewById<View>(layoutId)
-        val textView = includedLayout.findViewById<TextView>(textViewId)
-        val etNumber = includedLayout.findViewById<EditText>(R.id.etNumber)
-        val tvPercent = includedLayout.findViewById<TextView>(R.id.tvPercent)
+        val layoutView = findViewById<View>(layoutId) ?: return
 
-        textView.text = labelText
-        etNumber.setText(counterVar.get().toString())
+        val titleTextView = layoutView.findViewById<TextView>(R.id.tvNumberPanen)
+        titleTextView.text = labelText
 
-        etNumber.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(
-                s: CharSequence?,
-                start: Int,
-                count: Int,
-                after: Int
-            ) {
-            }
+        val editText = layoutView.findViewById<EditText>(R.id.etNumber)
+        val btnMinus = layoutView.findViewById<CardView>(R.id.btDec)
+        val btnPlus = layoutView.findViewById<CardView>(R.id.btInc)
+
+        editText.setText(counterVar.get().toString())
+
+        handleLongPress(editText, btnPlus)
+        btnPlus.setOnClickListener {
+            val currentVal = editText.text.toString().toIntOrNull() ?: 0
+            val newValue = currentVal + 1
+
+            editText.setText(newValue.toString())
+            counterVar.set(newValue)
+        }
+
+        handleLongPress(editText, btnMinus, false)
+        btnMinus.setOnClickListener {
+            val currentVal = editText.text.toString().toIntOrNull() ?: 0
+            val newValue = maxOf(currentVal - 1, 0)
+
+            editText.setText(newValue.toString())
+            counterVar.set(newValue)
+        }
+
+
+        editText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
+            @SuppressLint("SetTextI18n")
             override fun afterTextChanged(s: Editable?) {
-                etNumber.removeTextChangedListener(this)
+                if (!s.isNullOrBlank()) {
+                    try {
+                        val enteredValue = s.toString().toInt()
 
-                try {
-                    val newValue = if (s.isNullOrEmpty()) 0 else s.toString().toInt()
+                        val validatedValue = when {
+                            enteredValue < 0 -> 0
+                            else -> enteredValue
+                        }
 
-                } catch (e: NumberFormatException) {
-                    etNumber.setText(counterVar.get().toString())
-                    vibrate()
+                        if (enteredValue != validatedValue) {
+                            editText.setText(validatedValue.toString())
+                            editText.setSelection(editText.text.length)
+                        }
+
+                        counterVar.set(validatedValue)
+                    } catch (e: NumberFormatException) {
+                        editText.setText("0")
+                        counterVar.set(0)
+                    }
                 }
-
-                etNumber.addTextChangedListener(this)
             }
         })
-
-        val btDec = includedLayout.findViewById<CardView>(R.id.btDec)
-        val btInc = includedLayout.findViewById<CardView>(R.id.btInc)
-        fun vibrate() {
-            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            vibrator.vibrate(
-                VibrationEffect.createOneShot(
-                    50,
-                    VibrationEffect.DEFAULT_AMPLITUDE
-                )
-            )
-        }
-
-//        btDec.setOnClickListener {
-//            if (counterVar.get() > 0) {
-//                updateDependentCounters(
-//                    layoutId,
-//                    -1,
-//                    counterVar,
-//                    tvPercent
-//                )  // Decrement through dependent counter
-//                etNumber.setText(counterVar.get().toString())
-//            } else {
-//                vibrate()
-//            }
-//        }
-//
-//        btInc.setOnClickListener {
-//            updateDependentCounters(
-//                layoutId,
-//                1,
-//                counterVar,
-//                tvPercent
-//            )  // Increment through dependent counter
-//            etNumber.setText(counterVar.get().toString())
-//        }
     }
 
+    private fun setupSwitch() {
+        val switchAsistensi = findViewById<SwitchMaterial>(R.id.smAnotherKemandoran)
+        val layoutKemandoranLain = findViewById<LinearLayout>(R.id.lyMandor2Inspect)
+        val layoutPemanenLain = findViewById<LinearLayout>(R.id.lyPemanen2Inspect)
+
+        switchAsistensi.setOnCheckedChangeListener { _, isChecked ->
+            layoutKemandoranLain.visibility = if (isChecked) View.VISIBLE else View.GONE
+            layoutPemanenLain.visibility = if (isChecked) View.VISIBLE else View.GONE
+
+            asistensi = if (isChecked) 1 else 0
+
+            if (!isChecked) {
+                selectedPemanenLainAdapter.clearAllWorkers()
+            }
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun handleLongPress(
+        editText: EditText,
+        button: CardView,
+        isIncrement: Boolean = true
+    ) {
+        var isLongPressing = false
+        var runnableData: Runnable? = null
+        val handler = Handler(Looper.getMainLooper())
+        runnableData = Runnable {
+            if (isLongPressing) {
+                val currentVal = editText.text.toString().toIntOrNull() ?: 0
+                val newValue = if (isIncrement) currentVal + 1 else maxOf(currentVal - 1, 0)
+
+                editText.setText(newValue.toString())
+
+                if (isIncrement || newValue > 0) {
+                    val delay = if (isLongPressing) 100L else 300L
+                    handler.postDelayed(runnableData!!, delay)
+                } else {
+                    isLongPressing = false
+                }
+            }
+        }
+
+        button.setOnLongClickListener {
+            isLongPressing = true
+            handler.post(runnableData)
+            true
+        }
+
+        button.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+                isLongPressing = false
+            }
+            false
+        }
+    }
+
+    private fun handleItemSelection(
+        linearLayout: LinearLayout,
+        position: Int,
+        selectedItem: String
+    ) {
+        when (linearLayout.id) {
+            R.id.lyAfdInspect -> {
+                resetDependentSpinners(linearLayout.rootView)
+
+                selectedAfdeling = selectedItem
+                selectedAfdelingIdSpinner = position
+
+                val selectedDivisiId = try {
+                    divisiList.find { it.divisi_abbr == selectedAfdeling }?.divisi
+                } catch (e: Exception) {
+                    null
+                }
+
+                val selectedDivisiIdList = selectedDivisiId?.let { listOf(it) } ?: emptyList()
+                selectedDivisiValue = selectedDivisiId
+
+                val nonSelectedAfdelingKemandoran = try {
+                    divisiList.filter { it.divisi_abbr != selectedAfdeling }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+
+                val nonSelectedIdAfdeling = try {
+                    nonSelectedAfdelingKemandoran.map { it.divisi }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+
+                lifecycleScope.launch(Dispatchers.IO) {
+                    withContext(Dispatchers.Main) {
+                        animateLoadingDots(linearLayout)
+                        delay(1000) // 1 second delay
+                    }
+
+                    try {
+                        if (estateId == null || selectedDivisiId == null) {
+                            throw IllegalStateException("Estate ID or selectedDivisiId is null!")
+                        }
+
+                        val blokDeferred = async {
+                            try {
+                                datasetViewModel.getBlokList(
+                                    estateId!!.toInt(),
+                                    selectedDivisiId
+                                )
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+                        }
+
+                        val kemandoranDeferred = async {
+                            try {
+                                datasetViewModel.getKemandoranList(
+                                    estateId!!.toInt(),
+                                    selectedDivisiIdList
+                                )
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+                        }
+
+                        val kemandoranLainDeferred = async {
+                            try {
+                                datasetViewModel.getKemandoranList(
+                                    estateId!!.toInt(),
+                                    nonSelectedIdAfdeling as List<Int>
+                                )
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+                        }
+
+                        blokList = blokDeferred.await()
+                        kemandoranList = kemandoranDeferred.await()
+                        kemandoranLainList = kemandoranLainDeferred.await()
+
+                        val tahunTanamList = try {
+                            blokList.mapNotNull { it.tahun }.distinct()
+                                .sortedBy { it.toIntOrNull() }
+                        } catch (e: Exception) {
+                            emptyList()
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            try {
+                                val layoutTahunTanam =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.lyTtInspect)
+                                val layoutKemandoran =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.lyMandor1Inspect)
+                                val layoutKemandoranLain =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.lyMandor2Inspect)
+
+                                setupSpinnerView(
+                                    layoutTahunTanam,
+                                    if (tahunTanamList.isNotEmpty()) tahunTanamList else emptyList()
+                                )
+
+                                val kemandoranNames = kemandoranList.map { it.nama }
+                                setupSpinnerView(
+                                    layoutKemandoran,
+                                    if (kemandoranNames.isNotEmpty()) kemandoranNames as List<String> else emptyList()
+                                )
+
+                                val kemandoranLainListNames = kemandoranLainList.map { it.nama }
+                                setupSpinnerView(
+                                    layoutKemandoranLain,
+                                    if (kemandoranLainListNames.isNotEmpty()) kemandoranLainListNames as List<String> else emptyList()
+                                )
+                            } catch (e: Exception) {
+                                AppLogger.e("Error updating UI: ${e.message}")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@FormInspectionActivity,
+                                "Error loading afdeling data: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    } finally {
+                        withContext(Dispatchers.Main) {
+                            hideLoadingDots(linearLayout)
+                        }
+                    }
+                }
+            }
+
+            R.id.lyTtInspect -> {
+                resetTPHSpinner(linearLayout.rootView)
+                val selectedTahunTanam = selectedItem
+                selectedTahunTanamValue = selectedTahunTanam
+
+                val filteredBlokCodes = blokList.filter {
+                    it.dept == estateId!!.toInt() &&
+                            it.divisi == selectedDivisiValue &&
+                            it.tahun == selectedTahunTanamValue
+                }
+
+                val layoutBlok =
+                    linearLayout.rootView.findViewById<LinearLayout>(R.id.lyBlokInspect)
+                if (filteredBlokCodes.isNotEmpty()) {
+                    val blokNames = filteredBlokCodes.map { it.blok_kode }
+                    setupSpinnerView(layoutBlok, blokNames as List<String>)
+                    layoutBlok.visibility = View.VISIBLE
+                } else {
+                    setupSpinnerView(layoutBlok, emptyList())
+                }
+            }
+
+            R.id.lyBlokInspect -> {
+                resetTPHSpinner(linearLayout.rootView)
+                selectedBlok = selectedItem
+
+                val selectedFieldId = try {
+                    blokList.find { blok ->
+                        blok.dept == estateId?.toIntOrNull() &&
+                                blok.divisi == selectedDivisiValue &&
+                                blok.tahun == selectedTahunTanamValue &&
+                                blok.blok_kode == selectedBlok
+                    }?.blok
+                } catch (e: Exception) {
+                    null
+                }
+
+                if (selectedFieldId != null) {
+                    selectedBlokValue = selectedFieldId
+                } else {
+                    selectedBlokValue = null
+                    return
+                }
+
+                lifecycleScope.launch(Dispatchers.IO) {
+                    withContext(Dispatchers.Main) {
+                        animateLoadingDots(linearLayout)
+                        delay(1000)
+                    }
+
+                    try {
+                        if (estateId == null || selectedDivisiValue == null || selectedTahunTanamValue == null || selectedBlokValue == null) {
+                            throw IllegalStateException("One or more required parameters are null!")
+                        }
+
+                        val tphDeferred = async {
+                            datasetViewModel.getTPHList(
+                                estateId!!.toInt(),
+                                selectedDivisiValue!!,
+                                selectedTahunTanamValue!!,
+                                selectedBlokValue!!
+                            )
+                        }
+
+                        tphList = tphDeferred.await() // Avoid null crash
+
+                        //exclude no tph yang sudah pernah dipilih atau di store di database
+                        val storedTPHIds =
+                            panenStoredLocal.toSet()
+
+                        val filteredTPHList = tphList.filter {
+                            val isExcluded = it.id in storedTPHIds
+                            !isExcluded
+                        }
+                        val noTPHList = filteredTPHList.map { it.nomor }
+
+                        withContext(Dispatchers.Main) {
+                            val layoutNoTPH =
+                                linearLayout.rootView.findViewById<LinearLayout>(R.id.lyNoTphInspect)
+
+                            if (noTPHList.isNotEmpty()) {
+                                setupSpinnerView(layoutNoTPH, noTPHList as List<String>)
+                            } else {
+                                setupSpinnerView(layoutNoTPH, emptyList())
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@FormInspectionActivity,
+                                "Error loading afdeling data: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    } finally {
+                        withContext(Dispatchers.Main) {
+                            hideLoadingDots(linearLayout)
+                        }
+                    }
+                }
+            }
+
+            R.id.lyNoTphInspect -> {
+                selectedTPH = selectedItem
+
+                val selectedTPHId = try {
+                    tphList.find {
+                        it.dept == estateId?.toIntOrNull() && // Safe conversion to prevent crashes
+                                it.divisi == selectedDivisiValue &&
+                                it.blok == selectedBlokValue &&
+                                it.tahun == selectedTahunTanamValue &&
+                                it.nomor == selectedTPH
+                    }?.id
+                } catch (e: Exception) {
+                    AppLogger.e("Error finding selected TPH ID: ${e.message}")
+                    null
+                }
+
+                if (selectedTPHId != null) {
+                    if (!panenStoredLocal.contains(selectedTPHId)) {
+                        panenStoredLocal.add(selectedTPHId)
+                    }
+
+                    selectedTPHValue = selectedTPHId
+                } else {
+                    selectedTPHValue = null
+                }
+            }
+
+            R.id.lyStatusPanenInspect -> {
+                val mapData = listRadioItems["StatusPanen"] ?: emptyMap()
+                val selectedKey = mapData.entries.find { it.value == selectedItem }?.key
+                selectedStatusPanen = selectedKey ?: ""
+            }
+
+            R.id.lyJalurInspect -> {
+                val mapData = listRadioItems["EntryPath"] ?: emptyMap()
+                val selectedKey = mapData.entries.find { it.value == selectedItem }?.key
+                selectedJalurMasuk = selectedKey ?: ""
+            }
+
+            R.id.lyMandor1Inspect -> {
+                selectedKemandoran = selectedItem
+
+                val filteredKemandoranId: Int? = try {
+                    kemandoranList.find {
+                        it.dept == estateId?.toIntOrNull() && // Avoids force unwrap (!!)
+                                it.divisi == selectedDivisiValue &&
+                                it.nama == selectedKemandoran
+                    }?.id
+                } catch (e: Exception) {
+                    AppLogger.e("Error finding Kemandoran ID: ${e.message}")
+                    null
+                }
+
+                if (filteredKemandoranId != null) {
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        withContext(Dispatchers.Main) {
+                            animateLoadingDots(linearLayout)
+                            delay(1000) // 1 second delay
+                        }
+
+                        try {
+                            val karyawanDeferred = async {
+                                datasetViewModel.getKaryawanList(filteredKemandoranId)
+                            }
+
+                            karyawanList = karyawanDeferred.await()
+
+                            val karyawanNames = karyawanList.map { "${it.nik} - ${it.nama}" }
+                            withContext(Dispatchers.Main) {
+                                val layoutPemanen =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.lyPemanen1Inspect)
+                                if (karyawanNames.isNotEmpty()) {
+                                    setupSpinnerView(layoutPemanen, karyawanNames)
+                                } else {
+                                    setupSpinnerView(layoutPemanen, emptyList())
+                                }
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error fetching afdeling data: ${e.message}")
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    this@FormInspectionActivity,
+                                    "Error loading afdeling data: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        } finally {
+                            withContext(Dispatchers.Main) {
+                                hideLoadingDots(linearLayout)
+                            }
+                        }
+                    }
+                } else {
+                    AppLogger.e("Filtered Kemandoran ID is null, skipping data fetch.")
+                }
+            }
+
+            R.id.lyPemanen1Inspect -> {
+                selectedPemanen = selectedItem
+                val selectedNama = selectedPemanen.substringAfter(" - ")
+
+                val karyawanMap = karyawanList.associateBy({ it.nama }, { it.id })
+
+                val selectedPemanenId = karyawanMap[selectedNama]
+                if (selectedPemanenId != null) {
+                    val worker = Worker(selectedPemanenId.toString(), selectedPemanen)
+                    selectedPemanenAdapter.addWorker(worker)
+
+                    val availableWorkers = selectedPemanenAdapter.getAvailableWorkers()
+                    if (availableWorkers.isNotEmpty()) {
+                        setupSpinnerView(
+                            linearLayout,
+                            availableWorkers.map { it.name })  // Extract names
+                    }
+                }
+            }
+
+            R.id.lyMandor2Inspect -> {
+                selectedPemanenLainAdapter.clearAllWorkers()
+                selectedKemandoranLain = selectedItem
+
+                val selectedIdKemandoranLain: Int? = try {
+                    kemandoranLainList.find {
+                        it.nama == selectedKemandoranLain
+                    }?.id
+                } catch (e: Exception) {
+                    null
+                }
+
+                if (selectedIdKemandoranLain != null) {
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        withContext(Dispatchers.Main) {
+                            animateLoadingDots(linearLayout)
+                            delay(1000) // 1 second delay
+                        }
+
+                        try {
+                            val karyawanDeferred = async {
+                                datasetViewModel.getKaryawanList(selectedIdKemandoranLain)
+                            }
+
+                            karyawanLainList = karyawanDeferred.await()
+
+                            val namaKaryawanKemandoranLain =
+                                karyawanLainList.map { "${it.nik} - ${it.nama}" }
+
+                            withContext(Dispatchers.Main) {
+                                val layoutPemanenLain =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.lyPemanen2Inspect)
+                                if (namaKaryawanKemandoranLain.isNotEmpty()) {
+                                    setupSpinnerView(
+                                        layoutPemanenLain,
+                                        namaKaryawanKemandoranLain
+                                    )
+                                } else {
+                                    setupSpinnerView(layoutPemanenLain, emptyList())
+                                }
+                            }
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    this@FormInspectionActivity,
+                                    "Error loading kemandoran lain data: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        } finally {
+                            withContext(Dispatchers.Main) {
+                                hideLoadingDots(linearLayout)
+                            }
+                        }
+                    }
+                } else {
+                    AppLogger.e("Selected ID Kemandoran Lain is null, skipping data fetch.")
+                }
+            }
+
+            R.id.lyPemanen2Inspect -> {
+                selectedPemanenLain = selectedItem
+                val selectedNamaPemanenLain = selectedPemanenLain.substringAfter(" - ")
+
+                val karyawanMap = karyawanLainList.associateBy({ it.nama }, { it.id })
+
+                val selectedPemanenLainId = karyawanMap[selectedNamaPemanenLain]
+
+                if (selectedPemanenLainId != null) {
+                    val worker = Worker(selectedPemanenLainId.toString(), selectedPemanenLain)
+                    selectedPemanenLainAdapter.addWorker(worker)
+
+                    val availableWorkers = selectedPemanenLainAdapter.getAvailableWorkers()
+                    if (availableWorkers.isNotEmpty()) {
+                        setupSpinnerView(
+                            linearLayout,
+                            availableWorkers.map { it.name })
+                    }
+                }
+            }
+        }
+    }
+
+    private fun resetTPHSpinner(rootView: View) {
+        val layoutNoTPH = rootView.findViewById<LinearLayout>(R.id.lyNoTphInspect)
+        setupSpinnerView(layoutNoTPH, emptyList())
+        tphList = emptyList()
+        selectedTPH = ""
+        selectedTPHValue = null
+    }
+
+    private fun resetDependentSpinners(rootView: View) {
+        // List of all dependent layouts that need to be reset
+        val dependentLayouts = listOf(
+            R.id.lyTtInspect,
+            R.id.lyBlokInspect,
+            R.id.lyNoTphInspect,
+            R.id.lyMandor1Inspect,
+            R.id.lyPemanen1Inspect,
+            R.id.lyMandor2Inspect,
+            R.id.lyPemanen2Inspect
+        )
+
+        // Reset each dependent spinner
+        dependentLayouts.forEach { layoutId ->
+            val layout = rootView.findViewById<LinearLayout>(layoutId)
+            setupSpinnerView(layout, emptyList())
+        }
+
+        // Reset related data
+        blokList = emptyList()
+        kemandoranList = emptyList()
+        kemandoranLainList = emptyList()
+        tphList = emptyList()
+        karyawanList = emptyList()
+        karyawanLainList = emptyList()
+
+
+        // Reset selected values
+        selectedTahunTanamValue = null
+        selectedBlok = ""
+        selectedBlokValue = null
+        selectedTPH = ""
+        selectedTPHValue = null
+        selectedKemandoranLain = ""
+
+        // Clear adapters if they exist
+        selectedPemanenAdapter.clearAllWorkers()
+        selectedPemanenLainAdapter.clearAllWorkers()
+    }
+
+    private fun animateLoadingDots(linearLayout: LinearLayout) {
+        val loadingContainer = linearLayout.findViewById<LinearLayout>(R.id.loadingDotsContainer)
+        val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+        val dots = listOf(
+            loadingContainer.findViewById<TextView>(R.id.dot1),
+            loadingContainer.findViewById<TextView>(R.id.dot2),
+            loadingContainer.findViewById<TextView>(R.id.dot3),
+            loadingContainer.findViewById<TextView>(R.id.dot4)
+        )
+
+        spinner.visibility = View.INVISIBLE
+        loadingContainer.visibility = View.VISIBLE
+
+        // Animate each dot
+        dots.forEachIndexed { index, dot ->
+            val animation = ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
+            animation.duration = 600
+            animation.repeatCount = ObjectAnimator.INFINITE
+            animation.repeatMode = ObjectAnimator.REVERSE
+            animation.startDelay = (index * 100).toLong() // Stagger the animations
+            animation.start()
+        }
+    }
+
+    private fun hideLoadingDots(linearLayout: LinearLayout) {
+        val loadingContainer = linearLayout.findViewById<LinearLayout>(R.id.loadingDotsContainer)
+        val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+        loadingContainer.visibility = View.GONE
+        spinner.visibility = View.VISIBLE
+    }
+
+    @SuppressLint("InflateParams")
     private fun showPopupSearchDropdown(
         spinner: MaterialSpinner,
         data: List<String>,
         editText: EditText,
         linearLayout: LinearLayout,
-        onItemSelected: (String, Int) -> Unit
     ) {
         val popupView =
             LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
@@ -1286,7 +2458,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             val selectedItem = filteredData[position]
             spinner.text = selectedItem
             editText.setText(selectedItem)
-//            handleItemSelection(linearLayout, position, selectedItem)
+            handleItemSelection(linearLayout, position, selectedItem)
             popupWindow.dismiss()
         }
 
@@ -1296,6 +2468,130 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         val imm =
             spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun validateAndShowErrors(): Boolean {
+        var isValid = true
+        val missingFields = mutableListOf<String>()
+        val errorMessages = mutableListOf<String>()
+
+        if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
+            isValid = false
+            errorMessages.add(stringXML(R.string.al_location_description_failed))
+            missingFields.add("Location")
+        }
+
+        val switchAsistensi = findViewById<SwitchMaterial>(R.id.smAnotherKemandoran)
+        val isAsistensiEnabled = switchAsistensi.isChecked
+
+        inputMappings.forEach { (layout, key, inputType) ->
+            if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
+
+                val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
+                val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
+
+                val isEmpty = when (inputType) {
+                    InputType.SPINNER -> {
+                        when (layout.id) {
+                            R.id.lyEstInspect -> estateName!!.isEmpty()
+                            R.id.lyAfdInspect -> selectedAfdeling.isEmpty()
+                            R.id.lyTtInspect -> selectedTahunTanamValue?.isEmpty() ?: true
+                            R.id.lyBlokInspect -> selectedBlok.isEmpty()
+                            R.id.lyNoTphInspect -> selectedTPH.isEmpty()
+                            R.id.lyStatusPanenInspect -> selectedStatusPanen.isEmpty()
+                            R.id.lyJalurInspect -> selectedJalurMasuk.isEmpty()
+                            R.id.lyMandor1Inspect -> selectedKemandoran.isEmpty()
+                            R.id.lyPemanen1Inspect -> selectedPemanen.isEmpty()
+                            else -> spinner.selectedIndex == -1
+                        }
+                    }
+
+                    InputType.EDITTEXT -> {
+                        when (layout.id) {
+                            R.id.lyAncakInspect -> ancakValue.trim().isEmpty()
+                            R.id.lyBaris1Inspect -> br1Value.trim().isEmpty()
+                            R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim().isEmpty() else false
+                            else -> editText.text.toString().trim().isEmpty()
+                        }
+                    }
+
+                    InputType.RADIO -> {
+                        when (layout.id) {
+                            R.id.lyInspectionType -> selectedInspeksiValue.isEmpty()
+                            R.id.lyConditionType -> selectedKondisiValue.isEmpty()
+                            else -> false
+                        }
+                    }
+
+                }
+
+                if (isEmpty) {
+                    tvError.visibility = View.VISIBLE
+                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+                    missingFields.add(key)
+                    isValid = false
+                } else {
+                    tvError.visibility = View.GONE
+                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+                }
+            }
+        }
+
+        if (isAsistensiEnabled) {
+            val layoutKemandoranLain = findViewById<LinearLayout>(R.id.lyMandor2Inspect)
+            val layoutPemanenLain = findViewById<LinearLayout>(R.id.lyPemanen2Inspect)
+
+            val isKemandoranLainEmpty = selectedKemandoranLain.isEmpty()
+            val isPemanenLainEmpty = selectedPemanenLainAdapter.itemCount == 0
+
+            if (isKemandoranLainEmpty || isPemanenLainEmpty) {
+                if (isKemandoranLainEmpty) {
+                    layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                        View.VISIBLE
+                    layoutKemandoranLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                        ContextCompat.getColor(this, R.color.colorRedDark)
+                    missingFields.add(getString(R.string.field_kemandoran_lain))
+                }
+
+                if (isPemanenLainEmpty) {
+                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                        View.VISIBLE
+                    layoutPemanenLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                        ContextCompat.getColor(this, R.color.colorRedDark)
+                    missingFields.add(getString(R.string.field_pemanen_lain))
+                }
+                isValid = false
+            }
+        }
+
+        if (!isValid) {
+            vibrate(500)
+            val combinedErrorMessage = buildString {
+                val allMessages = mutableListOf<String>()
+                if (missingFields.isNotEmpty()) {
+                    allMessages.add(stringXML(R.string.al_pls_complete_data))
+                }
+
+                allMessages.addAll(errorMessages)
+                allMessages.forEachIndexed { index, message ->
+                    append("${index + 1}. $message")
+                    if (index < allMessages.size - 1) append("\n")
+                }
+            }
+
+            AlertDialogUtility.withSingleAction(
+                this,
+                stringXML(R.string.al_back),
+                stringXML(R.string.al_data_not_completed),
+                combinedErrorMessage,
+                "warning.json",
+                R.color.colorRedDark
+            ) {}
+        }
+
+        return isValid
     }
 
     private fun findScrollView(view: View): ScrollView? {
@@ -1318,7 +2614,10 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             return false
         }
 
-        return !ActivityCompat.shouldShowRequestPermissionRationale(this, android.Manifest.permission.CAMERA)
+        return !ActivityCompat.shouldShowRequestPermissionRationale(
+            this,
+            android.Manifest.permission.CAMERA
+        )
     }
 
     private fun showSnackbarWithSettings(message: String) {
@@ -1338,13 +2637,9 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         fname: String,
         resultCode: String,
         deletePhoto: View?,
-        position: Int,
+        pageForm: Int,
         komentar: String?
     ) {
-        AppLogger.d("fname: $fname")
-        AppLogger.d("resultCode: $resultCode")
-        AppLogger.d("position: $position")
-
         if (shouldReopenBottomSheet) {
             shouldReopenBottomSheet = false
 
@@ -1354,12 +2649,14 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             val currentData =
                 formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
 
-            formAncakViewModel.savePageData(currentPage, currentData.copy(photo = fname))
+            formAncakViewModel.savePageData(
+                currentPage,
+                currentData.copy(photo = fname, latIssue = lat, lonIssue = lon)
+            )
 
             Handler(Looper.getMainLooper()).postDelayed({
                 showViewPhotoBottomSheet(fname)
             }, 100)
         }
     }
-
 }

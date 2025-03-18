@@ -58,6 +58,8 @@ object AppUtils {
 
     object DatabaseTables {
         const val PANEN = "panen_table"
+        const val INSPEKSI = "inspeksi"
+        const val INSPEKSI_PATH = "inspeksi_path"
         const val ESPB = "espb_table"
         const val ABSENSI = "absensi"
         const val MILL = "mill"
@@ -72,6 +74,7 @@ object AppUtils {
 
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
+        const val WMInspeksi = "INSPEKSI"
     }
 
 
