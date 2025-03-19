@@ -318,6 +318,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             dateTime = espb.created_at
                             kemandoran_id = espb.kemandoran_id
                             pemuat_nik = espb.pemuat_nik
+                            tph1 = espb.tph1
+                            tph0 = espb.tph0
 
                             // Set No eSPB
                             tvNoEspb.findViewById<TextView>(R.id.tvTitleEspb).text = "No eSPB"
@@ -1078,7 +1080,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         addProperty("tph_0", tph0)
                                         addProperty("tph_1", tph1)
                                     }
-
+                                    Log.d("testJSON", gson.toJson(rootObject))
                                     gson.toJson(rootObject)
                                 } else {
                                     formatPanenDataForQR(mappedData)
