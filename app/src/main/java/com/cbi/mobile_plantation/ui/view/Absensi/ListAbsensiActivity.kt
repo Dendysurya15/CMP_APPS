@@ -166,7 +166,7 @@ class ListAbsensiActivity : AppCompatActivity() {
     private fun setupQRAbsensi() {
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
         btnGenerateQRAbsensi.setOnClickListener {
-            btnGenerateQRAbsensi.isEnabled = false
+//            btnGenerateQRAbsensi.isEnabled = false
             val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_generate_qr_panen, null)
             view.background = ContextCompat.getDrawable(
                 this@ListAbsensiActivity,
@@ -390,10 +390,10 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             absensiViewModel.loadActiveAbsensi()
                                             absensiViewModel.loadAbsensiCountArchive()
                                         }
-                                        btnGenerateQRAbsensi.isEnabled = true
+//                                        btnGenerateQRAbsensi.isEnabled = true
                                     },
                                     cancelFunction = {
-                                        btnGenerateQRAbsensi.isEnabled = true
+//                                        btnGenerateQRAbsensi.isEnabled = true
                                     }
                                 )
                             }

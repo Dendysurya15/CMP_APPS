@@ -221,7 +221,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         val mbSaveDataAbsensi = findViewById<MaterialButton>(R.id.mbSaveDataAbsensi)
         mbSaveDataAbsensi.setOnClickListener {
             if (validateAndShowErrors()) {
-                mbSaveDataAbsensi.isEnabled = false
+//                mbSaveDataAbsensi.isEnabled = false
                 AlertDialogUtility.withTwoActions(
                     this,
                     "Simpan Data",
@@ -330,10 +330,10 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                             }
                         }
 
-                        mbSaveDataAbsensi.isEnabled = true
+//                        mbSaveDataAbsensi.isEnabled = true
                     },
                     cancelFunction = {
-                        mbSaveDataAbsensi.isEnabled = true
+//                        mbSaveDataAbsensi.isEnabled = true
                     }
                 )
             }

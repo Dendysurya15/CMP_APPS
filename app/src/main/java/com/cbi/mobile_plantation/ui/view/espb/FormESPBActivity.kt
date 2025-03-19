@@ -990,7 +990,6 @@ class FormESPBActivity : AppCompatActivity() {
                     selectedPemuatAdapter.addWorker(worker)
                     pemuatListId.add(selectedPemanenId.toString())
 
-                    // Update available workers in adapter
                     selectedPemuatAdapter.setAvailableWorkers(pemuatList.map {
                         Worker(it.id.toString(), it.nama.toString())
                     })

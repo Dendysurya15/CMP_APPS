@@ -42,11 +42,33 @@ abstract class PanenDao {
     @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 0 AND status_espb = 0 AND date(date_created) = date('now', 'localtime') AND scan_status = 0")
     abstract suspend fun getCount(): Int
 
+    @Query("""
+    SELECT COUNT(*) FROM panen_table 
+    WHERE archive = :archive 
+    AND status_espb = :statusEspb 
+    AND scan_status = :scanStatus
+    AND (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
+""")
+    abstract suspend fun getCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): Int
+
+
     @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 1 AND status_espb = 0 AND date(date_created) = date('now', 'localtime')")
     abstract suspend fun getCountArchive(): Int
 
     @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 0 AND status_espb = 0 AND scan_status = 1")
     abstract suspend fun getCountApproval(): Int
+
+
+    @Query("""
+    SELECT * FROM panen_table 
+    WHERE archive = :archive 
+    AND status_espb = :statusEspb 
+    AND scan_status = :scanStatus
+    AND (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
+""")
+    abstract suspend fun loadESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): List<PanenEntityWithRelations>
+
+
 
     @Query("SELECT * FROM panen_table")
     abstract fun getAll(): List<PanenEntity>
