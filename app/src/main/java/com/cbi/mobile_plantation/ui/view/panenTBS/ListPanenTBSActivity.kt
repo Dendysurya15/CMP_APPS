@@ -22,6 +22,7 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AnimationUtils
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -62,6 +63,7 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -86,6 +88,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@Suppress("IMPLICIT_CAST_TO_ANY")
 class ListPanenTBSActivity : AppCompatActivity() {
     private var featureName = ""
     private var listTPHDriver = ""
@@ -100,6 +103,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     // Add views for buttons and counters
     private lateinit var cardTersimpan: MaterialCardView
     private lateinit var cardTerscan: MaterialCardView
+    private lateinit var cardRekapPerPemanen: MaterialCardView
     private lateinit var counterTersimpan: TextView
     private lateinit var counterTerscan: TextView
     private lateinit var tvEmptyState: TextView
@@ -495,7 +499,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
             // Reset visibility states before loading new data
             tvEmptyState.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
-            listAdapter.updateArchiveState(0)
+            listAdapter.updateArchiveState(currentState)
+            val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+            headerCheckBox.visibility  = View.VISIBLE
+            val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
+            flCheckBoxTableHeaderLayout.visibility  = View.VISIBLE
             speedDial.visibility =
                 if (listAdapter.getSelectedItems().isNotEmpty()) View.VISIBLE else View.GONE
             if (featureName == "Buat eSPB") {
@@ -518,21 +528,52 @@ class ListPanenTBSActivity : AppCompatActivity() {
             tvEmptyState.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
             speedDial.visibility = View.GONE
-            listAdapter.updateArchiveState(1)
-            if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan){
+            listAdapter.updateArchiveState(currentState)
+            val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+            headerCheckBox.visibility  = View.VISIBLE
+            val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
+            flCheckBoxTableHeaderLayout.visibility  = View.VISIBLE
+            if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                 loadingDialog.setMessage("Loading TPH menjadi E-SPB...")
                 panenViewModel.loadTPHESPB(0, 1, 1)
-            }else{
+            } else {
                 loadingDialog.setMessage("Loading data terscan...")
                 panenViewModel.loadArchivedPanen()
             }
 
         }
+
+        cardRekapPerPemanen.setOnClickListener {
+            currentState = 2
+            setActiveCard(cardRekapPerPemanen)
+            loadingDialog.show()
+
+            // Reset visibility states before loading new data
+            tvEmptyState.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+            speedDial.visibility = View.GONE
+            listAdapter.updateArchiveState(currentState)
+            val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+            headerCheckBox.visibility  = View.GONE
+            val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
+            flCheckBoxTableHeaderLayout.visibility  = View.GONE
+            loadingDialog.setMessage("Loading Rekap Per Pemanen...")
+            panenViewModel.loadTPHNonESPB(0, 0, 0)
+
+        }
+
     }
 
     private fun initializeViews() {
         cardTersimpan = findViewById(R.id.card_item_tersimpan)
         cardTerscan = findViewById(R.id.card_item_terscan)
+        cardRekapPerPemanen = findViewById(R.id.card_rekap_per_pemanen)
+        cardRekapPerPemanen.visibility =
+            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) View.VISIBLE else View.GONE
         counterTersimpan = findViewById(R.id.counter_item_tersimpan)
         counterTerscan = findViewById(R.id.counter_item_terscan)
         tvEmptyState = findViewById(R.id.tvEmptyState)
@@ -551,6 +592,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
             strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
         }
 
+        cardRekapPerPemanen.apply {
+            setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
+            strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
+        }
+
         // Set active card colors
         activeCard.apply {
             setCardBackgroundColor(ContextCompat.getColor(context, R.color.bgSelectWorkerGreen))
@@ -559,7 +605,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
     private fun formatPanenDataForQR(mappedData: List<Map<String, Any?>>): String {
-
         return try {
             if (mappedData.isEmpty()) {
                 throw IllegalArgumentException("Data TPH is empty.")
@@ -585,14 +630,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
 
                         val toValue = if (jjgJson.has(key)) {
-                            jjgJson.getInt(key) // Throws JSONException if the key is not an int
+                            jjgJson.getInt(key)
                         } else {
                             throw IllegalArgumentException("Missing '$key' key in jjg_json: $jjgJsonString")
                         }
 
                         val createdBy = data["created_by"]?.toString()
                             ?: throw IllegalArgumentException("Missing created_by.")
-
 
                         append("$tphId,$dateCreated,$toValue,$createdBy;")
                     } catch (e: Exception) {
@@ -601,14 +645,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 }
             }
 
+            // Extract last 3 characters before '@' using regex
+            val username = prefManager!!.username.orEmpty()
+            val extractedUsername = Regex("(.{3})@").find(username)?.groupValues?.get(1) ?: username
+
             return JSONObject().apply {
                 put("tph_0", formattedData)
+                put("username", extractedUsername)
             }.toString()
         } catch (e: Exception) {
             AppLogger.e("formatPanenDataForQR Error: ${e.message}")
             throw e
         }
     }
+
 
     fun convertToFormattedString(input: String, int: Int = 1): String {
         try {
@@ -829,7 +879,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         startActivity(intent)
                         finishAffinity()
                     }
-                ){
+                ) {
                 }
             }
         } else if (featureName == "Rekap panen dan restan") {
@@ -1379,7 +1429,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         panenViewModel.activePanenList.observe(this) { panenList ->
-            if (currentState == 0) {
+            if (currentState == 0 || currentState == 2) {
                 listAdapter.updateData(emptyList())
                 Handler(Looper.getMainLooper()).postDelayed({
                     loadingDialog.dismiss()
@@ -1389,73 +1439,336 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         if (panenList.isNotEmpty()) {
                             tvEmptyState.visibility = View.GONE
                             recyclerView.visibility = View.VISIBLE
+                            val allWorkerData = mutableListOf<Map<String, Any>>()
 
-                            mappedData = panenList.map { panenWithRelations ->
 
-                                val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
-                                    .map { it.trim() }
-                                    .filter { it.isNotEmpty() }
+                            panenList.map { panenWithRelations ->
 
-                                val pemuatData: List<KaryawanModel>? = withContext(Dispatchers.IO) {
-                                    try {
-                                        panenViewModel.getPemuatByIdList(pemuatList)
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error fetching Pemuat Data: ${e.message}")
-                                        null
+                                if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2) {
+                                    // Parse karyawan IDs, kemandoran IDs, and NIKs
+                                    val karyawanIds = panenWithRelations.panen.karyawan_id.toString().split(",")
+                                        .map { it.trim() }
+                                        .filter { it.isNotEmpty() }
+
+                                    val kemandoranIds = panenWithRelations.panen.kemandoran_id?.toString()?.split(",")
+                                        ?.map { it.trim() }
+                                        ?.filter { it.isNotEmpty() } ?: listOf()
+
+                                    val karyawanNiks = panenWithRelations.panen.karyawan_nik?.toString()?.split(",")
+                                        ?.map { it.trim() }
+                                        ?.filter { it.isNotEmpty() } ?: listOf()
+
+                                    val jjgJsonStr =
+                                        panenWithRelations.panen.jjg_json as? String ?: "{}" // Ensure it's a valid JSON string
+                                    val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
+
+                                    // Calculate total jjg count
+                                    val totalTO = jjgJson["TO"].toString().toInt()
+                                    val totalUN = jjgJson["UN"].toString().toInt()
+                                    val totalOV = jjgJson["OV"].toString().toInt()
+                                    val totalEM = jjgJson["EM"].toString().toInt()
+                                    val totalAB = jjgJson["AB"].toString().toInt()
+                                    val totalRA = jjgJson["RA"].toString().toInt()
+                                    val totalLO = jjgJson["LO"].toString().toInt()
+                                    val totalTI = jjgJson["TI"].toString().toInt()
+                                    val totalRI = jjgJson["RI"].toString().toInt()
+                                    val totalKP = jjgJson["KP"].toString().toInt()
+                                    val totalPA = jjgJson["PA"].toString().toInt()
+
+                                    // Determine how many workers we need to distribute the jjg to
+                                    val workerCount = maxOf(karyawanIds.size, kemandoranIds.size, 1)
+
+                                    // If there are multiple workers, create separate entries for each
+                                    val multiWorkerData = mutableListOf<Map<String, Any>>()
+
+                                    for (i in 0 until workerCount) {
+                                        // Get the corresponding IDs for this worker
+                                        val karyawanId = if (i < karyawanIds.size) karyawanIds[i] else ""
+                                        val kemandoranId = if (i < kemandoranIds.size) kemandoranIds[i] else ""
+                                        val karyawanNik = if (i < karyawanNiks.size) karyawanNiks[i] else ""
+
+                                        // Divide the jjg counts equally among workers as a decimal value
+                                        // Use toDouble() to ensure decimal division
+                                        val workerTO = totalTO.toDouble() / workerCount
+                                        val workerPA = totalPA.toDouble() / workerCount
+
+                                        // Create worker-specific jjg_json
+                                        val workerJjgJson = JsonObject().apply {
+                                            addProperty("TO", workerTO)
+                                            addProperty("PA", workerPA)
+                                        }
+
+                                        // Fetch karyawan name for this specific worker
+                                        val singlePemuatData = withContext(Dispatchers.IO) {
+                                            try {
+                                                panenViewModel.getPemuatByIdList(listOf(karyawanId))
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error fetching Single Pemuat Data: ${e.message}")
+                                                null
+                                            }
+                                        }
+
+                                        val singleKaryawanNama = singlePemuatData?.firstOrNull()?.nama ?: "-"
+
+                                        // Fetch kemandoran name for this specific worker
+                                        val singleKemandoranData = withContext(Dispatchers.IO) {
+                                            try {
+                                                panenViewModel.getKemandoranById(listOf(kemandoranId))
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error fetching Single Kemandoran Data: ${e.message}")
+                                                null
+                                            }
+                                        }
+
+                                        val singleKemandoranNama = singleKemandoranData?.firstOrNull()?.nama?.let { "• $it" } ?: "-"
+
+                                        // Create the map for this worker
+                                        val workerData = mapOf<String, Any>(
+                                            "id" to (panenWithRelations.panen.id as Any),
+                                            "tph_id" to (panenWithRelations.panen.tph_id as Any),
+                                            "date_created" to (panenWithRelations.panen.date_created as Any),
+                                            "blok_name" to (panenWithRelations.tph?.blok_kode ?: "Unknown"),
+                                            "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                            "created_by" to (panenWithRelations.panen.created_by as Any),
+                                            "karyawan_id" to (karyawanId as Any),
+                                            "kemandoran_id" to (kemandoranId as Any),
+                                            "karyawan_nik" to (karyawanNik as Any),
+                                            "jjg_json" to (workerJjgJson.toString() as Any),
+                                            "foto" to (panenWithRelations.panen.foto as Any),
+                                            "komentar" to (panenWithRelations.panen.komentar as Any),
+                                            "asistensi" to (panenWithRelations.panen.asistensi as Any),
+                                            "lat" to (panenWithRelations.panen.lat as Any),
+                                            "lon" to (panenWithRelations.panen.lon as Any),
+                                            "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
+                                            "ancak" to (panenWithRelations.panen.ancak as Any),
+                                            "archive" to (panenWithRelations.panen.archive as Any),
+                                            "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
+                                            "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
+                                            "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
+                                            "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
+                                            "nama_karyawans" to (singleKaryawanNama as Any),
+                                            "nama_kemandorans" to (singleKemandoranNama as Any)
+                                        )
+
+                                        multiWorkerData.add(workerData)
                                     }
-                                }
 
-                                val rawKemandoran: List<String> = pemuatData
-                                    ?.mapNotNull { it.kemandoran_id?.toString() }
-                                    ?.distinct() ?: emptyList()
+//                                    val mergedWorkerMap = mutableMapOf<String, MutableMap<String, Any>>()
+//
+//                                    for (workerData in multiWorkerData) {
+//                                        val workerName = workerData["nama_karyawans"].toString()
+//
+//                                        if (mergedWorkerMap.containsKey(workerName)) {
+//                                            // If we already have an entry for this worker, update JJG counts
+//                                            val existingWorkerData = mergedWorkerMap[workerName]!!
+//
+//                                            // Parse existing JJG JSON
+//                                            val existingJjgJson = JSONObject(existingWorkerData["jjg_json"].toString())
+//
+//                                            // Parse new JJG JSON
+//                                            val newJjgJson = JSONObject(workerData["jjg_json"].toString())
+//
+//                                            // Add the TO values
+//                                            val existingTO = existingJjgJson.optInt("TO", 0)
+//                                            val newTO = newJjgJson.optInt("TO", 0)
+//                                            existingJjgJson.put("TO", existingTO + newTO)
+//
+//                                            // Update the JJG JSON in the existing worker data
+//                                            existingWorkerData["jjg_json"] = existingJjgJson.toString()
+//                                        } else {
+//                                            // If this is the first time seeing this worker, add a new entry
+//                                            mergedWorkerMap[workerName] = workerData.toMutableMap()
+//                                        }
+//                                    }
+//
+//                                    val mergedWorkerData = mergedWorkerMap.values.toList()
+//
+                                    AppLogger.d("Merged Worker Data: $multiWorkerData")
+                                    allWorkerData.addAll(multiWorkerData)
 
-                                val kemandoranData: List<KemandoranModel>? =
-                                    withContext(Dispatchers.IO) {
+                                    emptyList<Map<String, Any>>()
+                                } else {
+                                    val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
+                                        .map { it.trim() }
+                                        .filter { it.isNotEmpty() }
+
+                                    val pemuatData: List<KaryawanModel>? = withContext(Dispatchers.IO) {
                                         try {
-                                            panenViewModel.getKemandoranById(rawKemandoran)
+                                            panenViewModel.getPemuatByIdList(pemuatList)
                                         } catch (e: Exception) {
-                                            AppLogger.e("Error fetching Kemandoran Data: ${e.message}")
+                                            AppLogger.e("Error fetching Pemuat Data: ${e.message}")
                                             null
                                         }
                                     }
 
-                                val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
-                                    ?.takeIf { it.isNotEmpty() }
-                                    ?.joinToString("\n") { "• $it" } ?: "-"
+                                    val rawKemandoran: List<String> = pemuatData
+                                        ?.mapNotNull { it.kemandoran_id?.toString() }
+                                        ?.distinct() ?: emptyList()
 
+                                    val kemandoranData: List<KemandoranModel>? =
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                panenViewModel.getKemandoranById(rawKemandoran)
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error fetching Kemandoran Data: ${e.message}")
+                                                null
+                                            }
+                                        }
 
-                                val karyawanNamas = pemuatData?.mapNotNull { it.nama }
-                                    ?.takeIf { it.isNotEmpty() }
-                                    ?.joinToString(", ") ?: "-"
+                                    val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
+                                        ?.takeIf { it.isNotEmpty() }
+                                        ?.joinToString("\n") { "• $it" } ?: "-"
 
+                                    val karyawanNamas = pemuatData?.mapNotNull { it.nama }
+                                        ?.takeIf { it.isNotEmpty() }
+                                        ?.joinToString(", ") ?: "-"
 
-                                mapOf<String, Any>(
-                                    "id" to (panenWithRelations.panen.id as Any),
-                                    "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                    "date_created" to (panenWithRelations.panen.date_created as Any),
-                                    "blok_name" to (panenWithRelations.tph?.blok_kode
-                                        ?: "Unknown"), // Handle null safely
-                                    "nomor" to (panenWithRelations.tph!!.nomor as Any),
-                                    "created_by" to (panenWithRelations.panen.created_by as Any),
-//                                    "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
-                                    "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
-                                    "foto" to (panenWithRelations.panen.foto as Any),
-                                    "komentar" to (panenWithRelations.panen.komentar as Any),
-                                    "asistensi" to (panenWithRelations.panen.asistensi as Any),
-                                    "lat" to (panenWithRelations.panen.lat as Any),
-                                    "lon" to (panenWithRelations.panen.lon as Any),
-                                    "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
-                                    "ancak" to (panenWithRelations.panen.ancak as Any),
-                                    "archive" to (panenWithRelations.panen.archive as Any),
-                                    "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
-                                    "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
-                                    "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
-                                    "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
-                                    "nama_karyawans" to karyawanNamas as Any,
-                                    "nama_kemandorans" to kemandoranNamas as Any,
-
+                                    val standardData = mapOf<String, Any>(
+                                        "id" to (panenWithRelations.panen.id as Any),
+                                        "tph_id" to (panenWithRelations.panen.tph_id as Any),
+                                        "date_created" to (panenWithRelations.panen.date_created as Any),
+                                        "blok_name" to (panenWithRelations.tph?.blok_kode ?: "Unknown"),
+                                        "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                        "created_by" to (panenWithRelations.panen.created_by as Any),
+                                        "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
+                                        "foto" to (panenWithRelations.panen.foto as Any),
+                                        "komentar" to (panenWithRelations.panen.komentar as Any),
+                                        "asistensi" to (panenWithRelations.panen.asistensi as Any),
+                                        "lat" to (panenWithRelations.panen.lat as Any),
+                                        "lon" to (panenWithRelations.panen.lon as Any),
+                                        "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
+                                        "ancak" to (panenWithRelations.panen.ancak as Any),
+                                        "archive" to (panenWithRelations.panen.archive as Any),
+                                        "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
+                                        "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
+                                        "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
+                                        "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
+                                        "nama_karyawans" to karyawanNamas as Any,
+                                        "nama_kemandorans" to kemandoranNamas as Any
                                     )
+
+                                    // Add this standard data to our global collection too
+                                    allWorkerData.add(standardData)
+
+                                    // Return this data for the map operation
+                                    listOf(standardData)
+                                }
+                            }.flatten() // Flatten the list of lists into a single list
+
+                            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2) {
+                                // Do global merging only in this specific case
+                                val globalMergedWorkerMap = mutableMapOf<String, MutableMap<String, Any>>()
+
+                                for (workerData in allWorkerData) {
+                                    val workerName = workerData["nama_karyawans"].toString()
+                                    AppLogger.d("Global processing: $workerName")
+
+                                    val blokName = workerData["blok_name"].toString()
+                                    val jjgJson = JSONObject(workerData["jjg_json"].toString())
+                                    val jjgTO = jjgJson.optDouble("TO", 0.0)
+                                    val jjgPA = jjgJson.optDouble("PA", 0.0)
+
+                                    if (globalMergedWorkerMap.containsKey(workerName)) {
+                                        AppLogger.d("Found duplicate worker globally: $workerName")
+                                        // Merge the JJG counts
+                                        val existingWorkerData = globalMergedWorkerMap[workerName]!!
+
+                                        // Parse existing JJG JSON
+                                        val existingJjgJson = JSONObject(existingWorkerData["jjg_json"].toString())
+
+                                        // Add the TO values - use optDouble for decimal support
+                                        val existingTO = existingJjgJson.optDouble("TO", 0.0)
+                                        val existingPA = existingJjgJson.optDouble("PA", 0.0)
+                                        val newTotalTO = existingTO + jjgTO
+                                        val newTotalPA = existingPA + jjgPA
+                                        existingJjgJson.put("TO", newTotalTO)
+                                        existingJjgJson.put("PA", newTotalPA)
+
+                                        // Update the JJG JSON in the existing worker data
+                                        existingWorkerData["jjg_json"] = existingJjgJson.toString()
+
+                                        // Update the jjg_dibayar field - just add the PA value
+                                        val existingJjgDibayar = existingWorkerData["jjg_dibayar"]?.toString()?.toDoubleOrNull() ?: existingPA
+                                        existingWorkerData["jjg_dibayar"] = String.format("%.1f", existingJjgDibayar + jjgPA)
+
+                                        // Update the jjg_total_blok field - format with one decimal place
+                                        existingWorkerData["jjg_total_blok"] = String.format("%.1f", newTotalTO)
+
+                                        // Update the jjg_each_blok field
+                                        val existingJjgEachBlok = existingWorkerData["jjg_each_blok"]?.toString() ?: ""
+
+                                        // Check if this blok already exists in our tracking (accounting for newlines)
+                                        if (existingJjgEachBlok.split("\n").any { it.startsWith("$blokName(") }) {
+                                            // Blok already exists, find and update its count
+                                            val lines = existingJjgEachBlok.split("\n")
+                                            val updatedLines = lines.map { line ->
+                                                if (line.startsWith("$blokName(")) {
+                                                    val regex = "$blokName\\(([0-9.]+)\\)".toRegex()
+                                                    val matchResult = regex.find(line)
+                                                    if (matchResult != null) {
+                                                        val currentCount = matchResult.groupValues[1].toDouble()
+                                                        val newCount = currentCount + jjgTO
+                                                        "$blokName(${String.format("%.1f", newCount)})"
+                                                    } else {
+                                                        line
+                                                    }
+                                                } else {
+                                                    line
+                                                }
+                                            }
+                                            existingWorkerData["jjg_each_blok"] = updatedLines.joinToString("\n")
+                                        } else {
+                                            // This is a new blok for this worker
+                                            val updatedJjgEachBlok = if (existingJjgEachBlok.isEmpty()) {
+                                                "$blokName(${String.format("%.1f", jjgTO)})"
+                                            } else {
+                                                "$existingJjgEachBlok\n$blokName(${String.format("%.1f", jjgTO)})"
+                                            }
+
+                                            existingWorkerData["jjg_each_blok"] = updatedJjgEachBlok
+                                        }
+                                    } else {
+                                        // If this is the first time seeing this worker globally, add a new entry
+                                        val mutableWorkerData = workerData.toMutableMap()
+
+                                        val formattedJjgTO = if (jjgTO == jjgTO.toInt().toDouble()) {
+                                            jjgTO.toInt().toString()
+                                        } else {
+                                            String.format("%.1f", jjgTO)
+                                        }
+                                        mutableWorkerData["jjg_each_blok"] = "$blokName($formattedJjgTO)"
+
+// Initialize jjg_total_blok field with appropriate number format
+                                        mutableWorkerData["jjg_total_blok"] = if (jjgTO == jjgTO.toInt().toDouble()) {
+                                            jjgTO.toInt().toString()
+                                        } else {
+                                            String.format("%.1f", jjgTO)
+                                        }
+
+// Initialize jjg_dibayar field with appropriate number format
+                                        mutableWorkerData["jjg_dibayar"] = if (jjgPA == jjgPA.toInt().toDouble()) {
+                                            jjgPA.toInt().toString()
+                                        } else {
+                                            String.format("%.1f", jjgPA)
+                                        }
+
+                                        globalMergedWorkerMap[workerName] = mutableWorkerData
+                                    }
+                                }
+
+                                val finalMergedData = globalMergedWorkerMap.values.toList().sortedBy {
+                                    it["nama_karyawans"].toString()
+                                }
+
+                                AppLogger.d("Final merged data: $finalMergedData")
+                                mappedData = finalMergedData
+                            } else {
+                                mappedData = allWorkerData
+                                AppLogger.d("Using standard data (no global merging): $mappedData")
                             }
+
+
+
 
 
                             val distinctBlokNames = mappedData
@@ -1485,9 +1798,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 .distinct()
                                 .count()
 
-                            if (featureName != "Detail eSPB") {
+                            if (featureName == "Detail eSPB" || !(featureName == "Rekap Hasil Panen" && currentState == 2)) {
                                 blokSection.visibility = View.VISIBLE
                                 totalSection.visibility = View.VISIBLE
+                            } else {
+                                blokSection.visibility = View.GONE
+                                totalSection.visibility = View.GONE
                             }
 
                             blok = distinctBlokNames.ifEmpty { "-" }
@@ -1518,6 +1834,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 emptyList() // Reset original data when new data is loaded
                             filterSection.visibility =
                                 View.GONE // Hide filter section for new data
+
+
                         } else {
                             tvEmptyState.text = "No saved data available"
                             tvEmptyState.visibility = View.VISIBLE
@@ -2077,7 +2395,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
 
-        val headers = listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+        val headers = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+            listOf("NAMA", "BLOK/JJG",  "JUMLAH TPH","TOTAL JJG/\nJJG DIBAYAR") // 5 Columns
+        } else {
+            listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM") // 4 Columns
+        }
         updateTableHeaders(headers)
 
         listAdapter = ListPanenTPHAdapter()
@@ -2088,19 +2410,33 @@ class ListPanenTBSActivity : AppCompatActivity() {
         listAdapter.setFeatureAndScanned(featureName, listTPHDriver)
     }
 
-    private fun updateTableHeaders(headerNames: List<String>) {
-        val tableHeader = findViewById<View>(R.id.tableHeader)
+        private fun updateTableHeaders(headerNames: List<String>) {
+            val tableHeader = findViewById<View>(R.id.tableHeader)
 
-        val headerIds = listOf(R.id.th1, R.id.th2, R.id.th3, R.id.th4)
+            // Adjust the header ID list to accommodate 5 columns if needed
+            val headerIds = if (headerNames.size == 5) {
+                listOf(R.id.th1, R.id.th2, R.id.th3, R.id.th4, R.id.th5)
 
-        for (i in headerNames.indices) {
-            val textView = tableHeader.findViewById<TextView>(headerIds[i])
-            textView.apply {
-                visibility = View.VISIBLE  // Make all headers visible
-                text = headerNames[i]
+            } else {
+                listOf(R.id.th1, R.id.th2, R.id.th3, R.id.th4)
+            }
+
+            for (i in headerNames.indices) {
+                val textView = tableHeader.findViewById<TextView>(headerIds[i])
+                textView.apply {
+                    visibility = View.VISIBLE  // Make all headers visible
+                    text = headerNames[i]
+                }
+            }
+
+            // Hide extra columns if not used (only applicable when switching from 5 to 4)
+            if (headerNames.size < headerIds.size) {
+                for (i in headerNames.size until headerIds.size) {
+                    tableHeader.findViewById<TextView>(headerIds[i]).visibility = View.GONE
+                }
             }
         }
-    }
+
 
     // Add a helper function to remove duplicate entries
     private fun removeDuplicateEntries(entries: String): String {

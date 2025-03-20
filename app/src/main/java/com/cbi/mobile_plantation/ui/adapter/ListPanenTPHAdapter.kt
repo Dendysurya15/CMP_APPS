@@ -106,7 +106,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         Log.d("ListPanenTPHAdapterTest", "extractData: $item")
 
 
-        AppLogger.d(item.toString())
         val panenId = item["id"] as? String ?: "0"
         val tphId = item["tph_id"] as? String ?: "0"
 
@@ -218,9 +217,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
     class ListPanenTPHViewHolder(private val binding: TableItemRowBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        // In ListPanenTPHAdapter.kt, update the bind method in ListPanenTPHViewHolder class:
-
-        // In the ListPanenTPHAdapter.kt, modify the ViewHolder bind method:
 
         fun bind(
             data: Map<String, Any>,
@@ -233,30 +229,42 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             tphListScan: List<String> = emptyList(),
             isScannedItem: Boolean = false
         ) {
-            val extractedData = extractData(data)
 
-            // Set cell content
+            val extractedData = extractData(data)
+//            AppLogger.d(data.toString())
             binding.td1.visibility = View.VISIBLE
             binding.td2.visibility = View.VISIBLE
             binding.td3.visibility = View.VISIBLE
             binding.td4.visibility = View.VISIBLE
-            binding.td1.text = extractedData.blokText
-            binding.td2.text = extractedData.tphText
-            binding.td3.text = extractedData.gradingText
-            binding.td4.text = extractedData.tanggalText
+
+            // Set text content based on the state
+            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 2) {
+//                binding.td5.visibility = View.VISIBLE
+                binding.td1.text = data["nama_karyawans"].toString()
+                binding.td2.text = data["jjg_each_blok"].toString()
+                binding.td3.text = ""
+                binding.td4.text = "${data["jjg_total_blok"]} (${data["jjg_dibayar"]})"
+            } else {
+//                binding.td5.visibility = View.GONE
+                binding.td1.text = extractedData.blokText
+                binding.td2.text = extractedData.tphText
+                binding.td3.text = extractedData.gradingText
+                binding.td4.text = extractedData.tanggalText
+            }
+
 
             if (archiveState == 1 || featureName == "Rekap panen dan restan") {
                 binding.checkBoxPanen.visibility = View.GONE
                 binding.numListTerupload.visibility = View.VISIBLE
                 binding.numListTerupload.text = "${adapterPosition + 1}."
+            } else if (archiveState == 2 && featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                binding.checkBoxPanen.visibility = View.GONE
+                binding.numListTerupload.visibility = View.GONE
+                binding.flCheckBoxItemTph.visibility = View.GONE
             } else {
                 binding.checkBoxPanen.visibility = View.VISIBLE
                 binding.numListTerupload.visibility = View.GONE
-
-                // IMPORTANT: Remove listener before setting state
                 binding.checkBoxPanen.setOnCheckedChangeListener(null)
-
-                // Set state based on selection and whether it's from a scan
                 binding.checkBoxPanen.isChecked = isSelected
                 binding.checkBoxPanen.isEnabled = !isScannedItem
 
@@ -265,8 +273,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 } else {
                     Color.RED
                 }
-
-                // Create the ColorStateList with the appropriate checked color
                 val colorStateList = ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(checkedColor, Color.GRAY)
@@ -347,7 +353,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     override fun onBindViewHolder(holder: ListPanenTPHViewHolder, position: Int) {
         val item = filteredList[position]
 
-        AppLogger.d(item.toString())
+
         val tphId = extractData(item).tphId.toString()
         val isScannedItem = tphListScan.contains(tphId)
         val originalPosition = tphList.indexOf(item)
@@ -357,8 +363,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             scannedTphIdsSet.add(tphId)
         }
 
-        if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+        if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentArchiveState == 0) {
             holder.itemView.setOnClickListener {
+
                 val context = holder.itemView.context
                 val bottomSheetDialog = BottomSheetDialog(context)
                 val view = LayoutInflater.from(context)
