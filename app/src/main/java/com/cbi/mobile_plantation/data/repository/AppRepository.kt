@@ -3,17 +3,18 @@ package com.cbi.mobile_plantation.data.repository
 import android.content.Context
 import android.util.Log
 import androidx.room.withTransaction
-import com.cbi.cmp_project.data.model.InspectionModel
-import com.cbi.cmp_project.data.model.InspectionPathModel
+import com.cbi.mobile_plantation.data.model.InspectionModel
+import com.cbi.mobile_plantation.data.model.InspectionPathModel
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.ESPBEntity
-import com.cbi.mobile_plantation.data.model.PanenEntity
-import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
-import com.cbi.mobile_plantation.data.model.TPHBlokInfo
-import com.cbi.mobile_plantation.data.model.TphRvData
-import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.PanenEntity
+import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
+import com.cbi.mobile_plantation.data.model.PathWithInspectionRelations
+import com.cbi.mobile_plantation.data.model.TPHBlokInfo
+import com.cbi.mobile_plantation.data.model.TphRvData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -402,4 +403,16 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getSavedInspection(): Result<List<PathWithInspectionRelations>> = withContext(Dispatchers.IO) {
+        try {
+            val data = inspectionPathDao.getAllSavedWithRelations()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getInspectionCountUploaded(): Int {
+        return inspectionDao.getCountUploaded()
+    }
 }

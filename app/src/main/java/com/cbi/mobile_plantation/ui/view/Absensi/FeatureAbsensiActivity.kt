@@ -40,7 +40,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.KaryawanModel
-//import com.cbi.cmp_project.data.model.KemandoranDetailModel
+//import com.cbi.mobile_plantation.data.model.KemandoranDetailModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.repository.CameraRepository
 import com.cbi.mobile_plantation.ui.adapter.AbsensiAdapter
@@ -57,7 +57,7 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
-//import com.cbi.cmp_project.utils.DataCacheManager
+//import com.cbi.mobile_plantation.utils.DataCacheManager
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.markertph.data.model.TPHNewModel

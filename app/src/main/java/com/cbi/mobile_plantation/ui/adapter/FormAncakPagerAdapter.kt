@@ -3,7 +3,7 @@ package com.cbi.mobile_plantation.ui.adapter
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
-import com.cbi.cmp_project.ui.fragment.FormAncakFragment
+import com.cbi.mobile_plantation.ui.fragment.FormAncakFragment
 
 class FormAncakPagerAdapter(
     fragmentActivity: FragmentActivity,

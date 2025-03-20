@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.ui.fragment
+package com.cbi.mobile_plantation.ui.fragment
 
 import android.annotation.SuppressLint
 import android.graphics.Color
@@ -19,8 +19,8 @@ import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import com.cbi.cmp_project.ui.viewModel.FormAncakViewModel
-import com.cbi.cmp_project.ui.viewModel.FormAncakViewModel.PageData
+import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel
+import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel.PageData
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
 import com.google.android.flexbox.FlexboxLayout

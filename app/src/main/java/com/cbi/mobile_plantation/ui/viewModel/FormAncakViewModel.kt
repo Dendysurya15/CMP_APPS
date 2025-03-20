@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.ui.viewModel
+package com.cbi.mobile_plantation.ui.viewModel
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData

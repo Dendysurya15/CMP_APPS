@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.data.model
+package com.cbi.mobile_plantation.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
