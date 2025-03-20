@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.content.res.Resources
 import android.database.sqlite.SQLiteException
@@ -519,10 +520,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             recyclerView.visibility = View.VISIBLE
             speedDial.visibility = View.GONE
             listAdapter.updateArchiveState(1)
-            if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan){
+            if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                 loadingDialog.setMessage("Loading TPH menjadi E-SPB...")
                 panenViewModel.loadTPHESPB(0, 1, 1)
-            }else{
+            } else {
                 loadingDialog.setMessage("Loading data terscan...")
                 panenViewModel.loadArchivedPanen()
             }
@@ -590,7 +591,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             throw IllegalArgumentException("Missing '$key' key in jjg_json: $jjgJsonString")
                         }
 
-
                         append("$tphId,$dateCreated,$toValue;")
                     } catch (e: Exception) {
                         throw IllegalArgumentException("Error processing data entry: ${e.message}")
@@ -598,8 +598,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 }
             }
 
+            val username = try {
+                PrefManager(this).username.toString().split("@")[0].takeLast(3).uppercase()
+            }catch (e: Exception){
+                Toasty.error(this, "Error mengambil username: ${e.message}", Toast.LENGTH_LONG).show()
+                "NULL"
+            }
             return JSONObject().apply {
                 put("tph_0", formattedData)
+                put("username",username)
             }.toString()
         } catch (e: Exception) {
             AppLogger.e("formatPanenDataForQR Error: ${e.message}")
@@ -826,7 +833,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         startActivity(intent)
                         finishAffinity()
                     }
-                ){
+                ) {
                 }
             }
         } else if (featureName == "Rekap panen dan restan") {
@@ -1450,7 +1457,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
                                     "nama_karyawans" to karyawanNamas as Any,
                                     "nama_kemandorans" to kemandoranNamas as Any,
-
+                                    "username" to (panenWithRelations.panen.username as Any)
                                     )
                             }
 
@@ -2074,7 +2081,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
 
-        val headers = listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+        val headers = if (featureName == "Buat eSPB") {
+            listOf("BLOK", "NO TPH/JJG", "JAM", "KP")
+        } else {
+            listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+        }
         updateTableHeaders(headers)
 
         listAdapter = ListPanenTPHAdapter()

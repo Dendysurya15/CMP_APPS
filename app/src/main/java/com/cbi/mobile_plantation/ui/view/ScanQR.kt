@@ -52,6 +52,18 @@ class ScanQR : AppCompatActivity() {
             override fun possibleResultPoints(resultPoints: List<ResultPoint>) {}
         })
 
+        if (menuString == "Buat eSPB") {
+            findViewById<View>(R.id.stop_scan).visibility = View.VISIBLE
+            findViewById<View>(R.id.stop_scan).setOnClickListener {
+                intent = Intent(this, ListPanenTBSActivity::class.java).apply {
+                    putExtra("FEATURE_NAME", menuString)
+                }
+                startActivity(intent)
+                finish()
+            }
+        }
+
+
         barcodeView.resume() // ✅ Start scanning
     }
 

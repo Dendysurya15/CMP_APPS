@@ -155,7 +155,6 @@ class ListTPHApproval : AppCompatActivity() {
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
         val userSection = findViewById<TextView>(R.id.userSection)
 
-        val prefManager = PrefManager(this)
         estateId = prefManager!!.estateIdUserLogin
         estateName = prefManager!!.estateUserLogin
         userName = prefManager!!.nameUserLogin
@@ -243,7 +242,7 @@ class ListTPHApproval : AppCompatActivity() {
 
     private fun setupRecyclerView() {
 
-        val headers = listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+        val headers = listOf("BLOK", "TPH/JJG", "JAM", "KP")
         updateTableHeaders(headers)
 
         recyclerView = findViewById(R.id.rvTableData)
@@ -311,6 +310,7 @@ class ListTPHApproval : AppCompatActivity() {
             try {
                 val jsonObject = JSONObject(jsonString)
                 val tph0String = jsonObject.getString("tph_0")
+                val usernameString = jsonObject.getString("username")
                 Log.d(TAG, "tph0String: $tph0String")
 
                 val parsedEntries = tph0String.split(";").mapNotNull { entry ->
@@ -344,16 +344,21 @@ class ListTPHApproval : AppCompatActivity() {
                                 0
                             },
                             time = datetime,
-                            jjg = jjg
+                            jjg = jjg,
+                            username = usernameString
                         )
+                        Log.d("usernameString", "usernameString: $usernameString")
 
                         // Create save data with original values
                         val saveData = TphRvData(
                             namaBlok = parts[0], // Original ID as namaBlok
                             noTPH = idtph,
                             time = parts[1], // Original full datetime
-                            jjg = jjg
+                            jjg = jjg,
+                            username = usernameString
                         )
+                        Log.d("usernameString", "usernameString2: $usernameString")
+
 
                         Pair(displayData, saveData)
                     } catch (e: Exception) {
