@@ -175,7 +175,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val id: Int,
         val number: String,
         val blockCode: String,
-        val distance: Float
+        val distance: Float,
+        val isAlreadySelected: Boolean = false
     )
 
     private var latLonMap: Map<Int, ScannedTPHLocation> = emptyMap()
@@ -270,7 +271,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         prefManager = PrefManager(this)
 
         radiusMinimum = prefManager!!.radiusMinimum
-//        radiusMinimum = 80F
+//        radiusMinimum = 100F
         boundaryAccuracy = prefManager!!.boundaryAccuracy
 
         initViewModel()
@@ -388,7 +389,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
         mbSaveDataPanenTBS.setOnClickListener {
-            mbSaveDataPanenTBS.isEnabled = false
+//            mbSaveDataPanenTBS.isEnabled = false
             if (validateAndShowErrors()) {
                 AlertDialogUtility.withTwoActions(
                     this,
@@ -417,9 +418,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                 val selectedNikPemanenIds = selectedPemanen.map { it.id }
                                 val selectedNikPemanenLainIds = selectedPemanenLain.map { it.id }
-                                val uniqueNikPemanen = (selectedNikPemanenIds + selectedNikPemanenLainIds)
-                                    .distinct()
-                                    .joinToString(",")
+                                val uniqueNikPemanen =
+                                    (selectedNikPemanenIds + selectedNikPemanenLainIds)
+                                        .distinct()
+                                        .joinToString(",")
 
                                 val uniqueIdKaryawan = (idKaryawanList + idKaryawanLainList)
                                     .distinct()
@@ -509,10 +511,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }
 
                         }
-                        mbSaveDataPanenTBS.isEnabled = true
+//                        mbSaveDataPanenTBS.isEnabled = true
                     },
                     cancelFunction = {
-                        mbSaveDataPanenTBS.isEnabled = true
+//                        mbSaveDataPanenTBS.isEnabled = true
                     }
                 )
             }
@@ -977,7 +979,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         tphScannedResultRecyclerView.removeItemDecoration(decoration) // Remove if applied
 
         btnScanTPHRadius.setOnClickListener {
-            btnScanTPHRadius.isEnabled = false
+//            btnScanTPHRadius.isEnabled = false
             isTriggeredBtnScanned = true
             if (currentAccuracy > boundaryAccuracy) {
                 AlertDialogUtility.withTwoActions(
@@ -991,7 +993,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         checkScannedTPHInsideRadius()
                     },
                     cancelFunction = {
-                        btnScanTPHRadius.isEnabled = true
+//                        btnScanTPHRadius.isEnabled = true
                     }
                 )
             } else {
@@ -1435,10 +1437,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     ): List<ScannedTPHSelectionItem> {
         val resultsList = mutableListOf<ScannedTPHSelectionItem>()
 
+        AppLogger.d(userLat.toString())
+        AppLogger.d(userLon.toString())
         for ((id, location) in coordinates) {
-            if (id in panenStoredLocal) continue // Exclude IDs already in panenStoredLocal
+//            if (id in panenStoredLocal) continue // Exclude IDs already in panenStoredLocal
 
             val results = FloatArray(1)
+
             Location.distanceBetween(userLat, userLon, location.lat, location.lon, results)
             val distance = results[0]
 
@@ -1448,11 +1453,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         id = id,
                         number = location.nomor,
                         blockCode = location.blokKode,
-                        distance = distance
+                        distance = distance,
+                        isAlreadySelected = id in panenStoredLocal  // Add a flag for already selected
                     )
                 )
             }
         }
+
+        AppLogger.d(resultsList.toString())
 
         return resultsList.sortedBy { it.distance } // Sort by distance
     }
@@ -1869,7 +1877,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
         if (!isValid) {
-            mbSaveDataPanenTBS.isEnabled = true
+//            mbSaveDataPanenTBS.isEnabled = true
             vibrate()
             val combinedErrorMessage = buildString {
                 val allMessages = mutableListOf<String>()
@@ -2961,7 +2969,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             else -> {
                 vibrate()
-                backButton.isEnabled = false
+//                backButton.isEnabled = false
 
                 AlertDialogUtility.withTwoActions(
                     this,
@@ -2971,13 +2979,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     "warning.json",
                     ContextCompat.getColor(this, R.color.bluedarklight),
                     function = {
-                        backButton.isEnabled = true // Re-enable button when user cancels
+//                        backButton.isEnabled = true // Re-enable button when user cancels
                         val intent = Intent(this, HomePageActivity::class.java)
                         startActivity(intent)
                         finishAffinity()
                     },
                     cancelFunction = {
-                        backButton.isEnabled = true // Re-enable button when user cancels
+//                        backButton.isEnabled = true // Re-enable button when user cancels
                     }
                 )
             }
@@ -3034,6 +3042,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             locationEnable = true
             lat = location.latitude
             lon = location.longitude
+            if (::takeFotoPreviewAdapter.isInitialized) {
+                takeFotoPreviewAdapter.updateCoordinates(lat, lon)
+            }
         }
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->

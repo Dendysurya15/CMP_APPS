@@ -190,12 +190,14 @@
                         android:backgroundTint="@color/bluedarklight"
                         android:fontFamily="@font/manrope_bold"
                         android:text="Refresh"
+                        android:textColor="@color/white"
                         android:textAllCaps="false"
                         android:textSize="19sp"
                         android:visibility="gone"
                         app:cornerRadius="8dp"
                         app:icon="@drawable/baseline_refresh_24"
                         app:iconGravity="textEnd"
+                        app:iconTint="@color/white"
                         app:iconPadding="8dp" />
 
                     <include

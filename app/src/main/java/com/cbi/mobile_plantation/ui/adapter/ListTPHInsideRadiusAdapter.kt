@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
@@ -25,6 +26,7 @@ class ListTPHInsideRadiusAdapter(
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tphInfoTextView: TextView = itemView.findViewById(R.id.tphInfoTextView)
         val radioButton: MaterialRadioButton = itemView.findViewById(R.id.rbScannedTPHInsideRadius)
+        val tphHasBeenSelected:TextView = itemView.findViewById(R.id.tphHasBeenSelected)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -38,7 +40,14 @@ class ListTPHInsideRadiusAdapter(
         val tphItem = tphList[position]
         holder.tphInfoTextView.text = "TPH ${tphItem.number} - ${tphItem.blockCode} (${tphItem.distance.toInt()} m)"
         holder.radioButton.isChecked = position == selectedPosition
-
+//         Show or hide the "already selected" indicator
+        if (tphItem.isAlreadySelected) {
+            holder.tphInfoTextView.text
+            holder.tphInfoTextView.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+            holder.tphHasBeenSelected.visibility = View.VISIBLE
+        } else {
+            holder.tphHasBeenSelected.visibility = View.GONE
+        }
         holder.radioButton.setOnClickListener {
             selectedPosition = position
             notifyDataSetChanged() // Refresh selection

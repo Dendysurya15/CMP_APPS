@@ -177,7 +177,7 @@ class WeighBridgeRepository(context: Context) {
                                     val result = ApiService.dataUploadEspbKraniTimbangPPRO(
                                         dept_ppro = (item["dept_ppro"] ?: "0").toString(),
                                         divisi_ppro = (item["divisi_ppro"] ?: "0").toString(),
-                                        commodity = (item["commodity"] ?: "0").toString(),
+                                        commodity = item["commodity"].toString(),
                                         blok_jjg = (item["blok_jjg"] ?: "").toString(),
                                         nopol = (item["nopol"] ?: "").toString(),
                                         driver = (item["driver"] ?: "").toString(),
