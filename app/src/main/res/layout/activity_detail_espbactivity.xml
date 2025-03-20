@@ -88,13 +88,13 @@
                 android:layout_marginHorizontal="10dp"
                 android:layout_marginTop="5dp" />
 
-            <include
-                android:id="@+id/tv_draft"
-                layout="@layout/tv_title_with_subtitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="10dp"
-                android:layout_marginTop="5dp" />
+<!--            <include-->
+<!--                android:id="@+id/tv_draft"-->
+<!--                layout="@layout/tv_title_with_subtitle"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:layout_marginHorizontal="10dp"-->
+<!--                android:layout_marginTop="5dp" />-->
         </LinearLayout>
 
     </ScrollView>

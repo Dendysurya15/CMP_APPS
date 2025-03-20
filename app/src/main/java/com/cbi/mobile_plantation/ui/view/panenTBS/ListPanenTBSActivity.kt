@@ -302,7 +302,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             val tvDriver = findViewById<View>(R.id.tv_driver)
                             val tvMill = findViewById<View>(R.id.tv_mill)
                             val tvMekanisasi = findViewById<View>(R.id.tv_mekanisasi)
-                            val tvDraft = findViewById<View>(R.id.tv_draft)
+//                            val tvDraft = findViewById<View>(R.id.tv_draft)
 
                             blok_jjg = espb.blok_jjg
                             nopol = espb.nopol
@@ -340,14 +340,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     val transporterName = withContext(Dispatchers.IO) {
                                         try {
                                             espbViewModel.getTransporterNameById(espb.transporter_id)
-                                                ?: "Unknown"
+                                                ?: "Internal"
                                         } catch (e: Exception) {
                                             Log.e(
                                                 "ListPanenTBSActivity",
                                                 "Error fetching transporter",
                                                 e
                                             )
-                                            "Unknown"
+                                            "Internal"
                                         }
                                     }
                                     tvTransporter.findViewById<TextView>(R.id.tvSubTitleEspb).text =
@@ -387,10 +387,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             tvMekanisasi.findViewById<TextView>(R.id.tvSubTitleEspb).text =
                                 mekanisasiStatus
 
-                            // Set Draft status
-                            tvDraft.findViewById<TextView>(R.id.tvTitleEspb).text = "Status"
-                            val draftStatus = if (espb.status_draft == 1) "Draft" else "Final"
-                            tvDraft.findViewById<TextView>(R.id.tvSubTitleEspb).text = draftStatus
+//                            // Set Draft status
+//                            tvDraft.findViewById<TextView>(R.id.tvTitleEspb).text = "Status"
+//                            val draftStatus = if (espb.status_draft == 1) "Draft" else "Final"
+//                            tvDraft.findViewById<TextView>(R.id.tvSubTitleEspb).text = draftStatus
 
                             // Make the layout visible now that we've populated it
                             ll_detail_espb.visibility = View.VISIBLE

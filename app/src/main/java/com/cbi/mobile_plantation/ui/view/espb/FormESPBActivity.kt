@@ -264,20 +264,20 @@ class FormESPBActivity : AppCompatActivity() {
             0
         }
 
-        val cbFormEspbMekanisasi = findViewById<MaterialCheckBox>(R.id.cbFormEspbMekanisasi)
-        cbFormEspbMekanisasi.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-//                formEspbTransporter.visibility = View.GONE
-//                formEspbDriver.visibility = View.GONE
-//                formEspbNopol.visibility = View.GONE
-                mekanisasi = 1
-            } else {
-                formEspbTransporter.visibility = View.VISIBLE
-                formEspbDriver.visibility = View.VISIBLE
-                formEspbNopol.visibility = View.VISIBLE
-                mekanisasi = 0
-            }
-        }
+//        val cbFormEspbMekanisasi = findViewById<MaterialCheckBox>(R.id.cbFormEspbMekanisasi)
+//        cbFormEspbMekanisasi.setOnCheckedChangeListener { _, isChecked ->
+//            if (isChecked) {
+////                formEspbTransporter.visibility = View.GONE
+////                formEspbDriver.visibility = View.GONE
+////                formEspbNopol.visibility = View.GONE
+//                mekanisasi = 1
+//            } else {
+//                formEspbTransporter.visibility = View.VISIBLE
+//                formEspbDriver.visibility = View.VISIBLE
+//                formEspbNopol.visibility = View.VISIBLE
+//                mekanisasi = 0
+//            }
+//        }
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {

@@ -245,7 +245,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             binding.td3.text = extractedData.gradingText
             binding.td4.text = extractedData.tanggalText
 
-            if (archiveState == 1 || featureName == "Rekap panen dan restan") {
+            if (archiveState == 1 || featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") {
                 binding.checkBoxPanen.visibility = View.GONE
                 binding.numListTerupload.visibility = View.VISIBLE
                 binding.numListTerupload.text = "${adapterPosition + 1}."
