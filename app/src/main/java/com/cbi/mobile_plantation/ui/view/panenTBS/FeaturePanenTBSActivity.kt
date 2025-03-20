@@ -1104,7 +1104,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Triple(R.id.layoutJumTBS, "Jumlah TBS", ::jumTBS),
             Triple(R.id.layoutBMentah, "Buah Mentah", ::bMentah),
             Triple(R.id.layoutBLewatMasak, "Buah Lewat Masak", ::bLewatMasak),
-            Triple(R.id.layoutJjgKosong, "Janjang Kosong", ::jjgKosong),
+            Triple(R.id.layoutJjgKosong, "Janjang Kosong/Buah Busuk", ::jjgKosong),
             Triple(R.id.layoutAbnormal, "Abnormal", ::abnormal),
             Triple(R.id.layoutSeranganTikus, "Serangan Tikus", ::seranganTikus),
             Triple(R.id.layoutTangkaiPanjang, "Tangkai Panjang", ::tangkaiPanjang),
@@ -1761,7 +1761,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val isAsistensiEnabled = switchAsistensi.isChecked
 
         inputMappings.forEach { (layout, key, inputType) ->
-            if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
 
                 val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
                 val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
@@ -1775,6 +1774,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             R.id.layoutTipePanen -> selectedTipePanen.isEmpty()
                             R.id.layoutKemandoran -> selectedKemandoran.isEmpty()
                             R.id.layoutPemanen -> selectedPemanen.isEmpty()
+                            R.id.layoutKemandoranLain -> asistensi ==1 && selectedKemandoranLain.isEmpty()
                             R.id.layoutNoTPH -> blokBanjir == 1 && selectedTPH.isEmpty()
                             R.id.layoutBlok -> blokBanjir == 1 && selectedBlok.isEmpty()
                             else -> spinner.selectedIndex == -1
@@ -1800,7 +1800,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     tvError.visibility = View.GONE
                     mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
                 }
-            }
+
         }
 
         if (!isSwitchBlokBanjirEnabled && selectedAfdeling.isNotEmpty() && isTriggeredBtnScanned) {
@@ -1829,11 +1829,23 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             tvErrorScannedNotSelected.visibility = View.VISIBLE
         }
 
+        val selectedPemanenWorkers = selectedPemanenAdapter.getSelectedWorkers()
+        if (selectedPemanen.isNotEmpty() && selectedPemanenWorkers.isEmpty()) {
+            AppLogger.d("masuk sini gess")
+            isValid = false
+            errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen))
+            layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                View.VISIBLE
+            layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text = stringXML(R.string.al_select_at_least_one_pemanen)
+        }
+
         if (isAsistensiEnabled) {
             val isKemandoranLainEmpty = selectedKemandoranLain.isEmpty()
-            val isPemanenLainEmpty = selectedPemanenLainAdapter.itemCount == 0
+            val selectedPemanenLain = selectedPemanenLain.isEmpty()
+            val choiceVisibilePemanenLain = selectedPemanenLainAdapter.getSelectedWorkers()
 
-            if (isKemandoranLainEmpty || isPemanenLainEmpty) {
+
+            if (isKemandoranLainEmpty || selectedPemanenLain) {
                 if (isKemandoranLainEmpty) {
                     layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
                         View.VISIBLE
@@ -1842,7 +1854,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     missingFields.add(getString(R.string.field_kemandoran_lain))
                 }
 
-                if (isPemanenLainEmpty) {
+                if (selectedPemanenLain) {
                     layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
                         View.VISIBLE
                     layoutPemanenLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
@@ -1850,6 +1862,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     missingFields.add(getString(R.string.field_pemanen_lain))
                 }
                 isValid = false
+            }else{
+                if(choiceVisibilePemanenLain.isEmpty()){
+                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                        View.VISIBLE
+                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text = stringXML(R.string.al_select_at_least_one_pemanen_lain)
+                    AppLogger.d("masuk sini gessss bro")
+                    errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen_lain))
+                }
             }
         }
 
@@ -1876,8 +1896,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             tvErrorNotAttachPhotos.visibility = View.VISIBLE
         }
 
+
+
         if (!isValid) {
-//            mbSaveDataPanenTBS.isEnabled = true
             vibrate()
             val combinedErrorMessage = buildString {
                 val allMessages = mutableListOf<String>()

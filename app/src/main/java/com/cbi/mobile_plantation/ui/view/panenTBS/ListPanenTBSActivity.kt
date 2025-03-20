@@ -590,8 +590,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             throw IllegalArgumentException("Missing '$key' key in jjg_json: $jjgJsonString")
                         }
 
+                        val createdBy = data["created_by"]?.toString()
+                            ?: throw IllegalArgumentException("Missing created_by.")
 
-                        append("$tphId,$dateCreated,$toValue;")
+
+                        append("$tphId,$dateCreated,$toValue,$createdBy;")
                     } catch (e: Exception) {
                         throw IllegalArgumentException("Error processing data entry: ${e.message}")
                     }
