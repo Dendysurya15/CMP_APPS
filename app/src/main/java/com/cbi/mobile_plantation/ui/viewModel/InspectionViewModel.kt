@@ -9,8 +9,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionPathModel
-import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
-import com.cbi.mobile_plantation.data.model.PathWithInspectionRelations
+import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
@@ -21,34 +20,21 @@ import kotlinx.coroutines.withContext
 class InspectionViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: AppRepository = AppRepository(application)
 
-    private val _savedInspectionList = MutableLiveData<List<PathWithInspectionRelations>>()
-    val savedInspectionList: LiveData<List<PathWithInspectionRelations>> = _savedInspectionList
+    private val _inspectionPaths = MutableLiveData<List<PathWithInspectionTphRelations>>()
+    val inspectionPaths: LiveData<List<PathWithInspectionTphRelations>> = _inspectionPaths
 
-    private val _uploadedCount = MutableLiveData<Int>()
-    val uploadedCount: LiveData<Int> = _uploadedCount
-
-    private val _error = MutableLiveData<String>()
-    val error: LiveData<String> = _error
-
-    fun loadSavedInspection() {
+    fun loadInspectionPaths(archive: Int = 0) {
         viewModelScope.launch {
-            repository.getSavedInspection()
-                .onSuccess { listData ->
-                    _savedInspectionList.postValue(listData)
-                }
-                .onFailure { exception ->
-                    _error.postValue(exception.message ?: "Failed to load data")
-                }
+            _inspectionPaths.value = repository.getInspectionPathsWithTphAndCount(archive)
         }
     }
 
-    fun loadInspectionCountUploaded() = viewModelScope.launch {
+    suspend fun getInspectionCount(archive: Int = 0): Int {
         try {
-            val count = repository.getInspectionCountUploaded()
-            _uploadedCount.value = count
+            return repository.getInspectionCountCard(archive)
         } catch (e: Exception) {
-            AppLogger.e("Error loading archive count: ${e.message}")
-            _uploadedCount.value = 0
+            AppLogger.e("Error loading get count: ${e.message}")
+            return 0
         }
     }
 

@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
-import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -20,8 +19,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.adapter.ListInspectionAdapter
-import com.cbi.mobile_plantation.ui.adapter.ListPanenTPHAdapter
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
@@ -40,7 +39,7 @@ class ListInspectionActivity : AppCompatActivity() {
 
     private var prefManager: PrefManager? = null
 
-    private lateinit var listAdapter: ListInspectionAdapter
+    private lateinit var adapter: ListInspectionAdapter
     private lateinit var loadingDialog: LoadingDialog
     private lateinit var cardTersimpan: MaterialCardView
     private lateinit var cardTerupload: MaterialCardView
@@ -50,8 +49,6 @@ class ListInspectionActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
 
     private lateinit var inspectionViewModel: InspectionViewModel
-
-    private var mappedData: List<Map<String, Any>> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,8 +75,7 @@ class ListInspectionActivity : AppCompatActivity() {
         setActiveCard(cardTersimpan)
 
         lifecycleScope.launch {
-            inspectionViewModel.loadSavedInspection()
-            inspectionViewModel.loadInspectionCountUploaded()
+            inspectionViewModel.loadInspectionPaths()
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -128,18 +124,18 @@ class ListInspectionActivity : AppCompatActivity() {
         val headers = listOf("BLOK", "TOTAL PKK", "JAM")
         updateTableHeaders(headers)
 
-        listAdapter = ListInspectionAdapter()
+        adapter = ListInspectionAdapter { inspectionPath ->
+            AppLogger.d("data path: $inspectionPath")
+        }
+
         recyclerView.apply {
-            adapter = listAdapter
             layoutManager = LinearLayoutManager(this@ListInspectionActivity)
+            adapter = this@ListInspectionActivity.adapter
         }
     }
 
     private fun updateTableHeaders(headerNames: List<String>) {
         val tableHeader = findViewById<View>(R.id.tblHeaderListInspect)
-        val checkBoxHeader = tableHeader.findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
-        checkBoxHeader.visibility = View.GONE
-
         val headerIds = listOf(R.id.th1, R.id.th2, R.id.th3)
         for (i in headerNames.indices) {
             val textView = tableHeader.findViewById<TextView>(headerIds[i])
@@ -155,38 +151,30 @@ class ListInspectionActivity : AppCompatActivity() {
         loadingDialog.show()
         loadingDialog.setMessage("Loading data...")
 
-        inspectionViewModel.uploadedCount.observe(this) { count ->
-            counterTerupload.text = count.toString()
-        }
+        inspectionViewModel.inspectionPaths.observe(this) { inspectionPaths ->
+            adapter.setData(inspectionPaths)
+            Handler(Looper.getMainLooper()).postDelayed({
+                loadingDialog.dismiss()
 
-        inspectionViewModel.savedInspectionList.observe(this) { list ->
-            if (currentState == 0) {
-                listAdapter.updateData(emptyList())
-                Handler(Looper.getMainLooper()).postDelayed({
-                    loadingDialog.dismiss()
-
-                    lifecycleScope.launch {
-                        if (list.isNotEmpty()) {
-                            tvEmptyState.visibility = View.GONE
-                            recyclerView.visibility = View.VISIBLE
-
-                            mappedData = list.map { item ->
-                                mapOf(
-                                    "path_id" to item.path.id,
-                                    "tph_id" to (item.inspections.firstOrNull()?.tph_id ?: "-").toString(),
-                                    "created_date" to (item.inspections.firstOrNull()?.created_date ?: "-").toString()
-                                )
-                            }
-                            listAdapter.updateData(mappedData)
-                        } else {
-                            tvEmptyState.text = "No saved data available"
-                            tvEmptyState.visibility = View.VISIBLE
-                            recyclerView.visibility = View.GONE
-                        }
+                lifecycleScope.launch {
+                    if (inspectionPaths.isNotEmpty()) {
+                        tvEmptyState.visibility = View.GONE
+                        recyclerView.visibility = View.VISIBLE
+                    } else {
+                        tvEmptyState.text = "No saved data available"
+                        tvEmptyState.visibility = View.VISIBLE
+                        recyclerView.visibility = View.GONE
                     }
-                    counterTersimpan.text = list.size.toString()
-                }, 500)
-            }
+
+                    counterTersimpan.text =
+                        if (currentState == 0) inspectionPaths.size.toString() else inspectionViewModel.getInspectionCount(
+                            0
+                        ).toString()
+                    counterTerupload.text =
+                        if (currentState == 0) inspectionViewModel.getInspectionCount(1)
+                            .toString() else inspectionPaths.size.toString()
+                }
+            }, 500)
         }
     }
 
@@ -196,11 +184,7 @@ class ListInspectionActivity : AppCompatActivity() {
             setActiveCard(cardTersimpan)
             loadingDialog.show()
             loadingDialog.setMessage("Loading data tersimpan...")
-            // Reset visibility states before loading new data
-            tvEmptyState.visibility = View.GONE
-            recyclerView.visibility = View.VISIBLE
-//            listAdapter.updateArchiveState(0)
-//            panenViewModel.loadActivePanen()
+            inspectionViewModel.loadInspectionPaths(currentState)
         }
 
         cardTerupload.setOnClickListener {
@@ -208,11 +192,7 @@ class ListInspectionActivity : AppCompatActivity() {
             setActiveCard(cardTerupload)
             loadingDialog.show()
             loadingDialog.setMessage("Loading data terupload...")
-            // Reset visibility states before loading new data
-            tvEmptyState.visibility = View.GONE
-            recyclerView.visibility = View.VISIBLE
-//            listAdapter.updateArchiveState(1)
-//            panenViewModel.loadArchivedPanen()
+            inspectionViewModel.loadInspectionPaths(currentState)
         }
     }
 

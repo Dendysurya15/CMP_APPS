@@ -102,14 +102,15 @@ class FormAncakViewModel : ViewModel() {
         _isInspection.value = newValue
     }
 
-    fun validateCurrentPage(): ValidationResult {
+    fun validateCurrentPage(inspectionType: Int? = null): ValidationResult {
         val pageNumber = _currentPage.value ?: 1
         ensurePageDataExists(pageNumber)
 
         val data = _formData.value?.get(pageNumber)
 
         if (data?.emptyTree == 0) {
-            val errorMessage = "Titik kosong wajib diisi!"
+            val nameMessage = if (inspectionType != null && inspectionType == 1) "Titik kosong" else "Pokok dipanen"
+            val errorMessage = "$nameMessage wajib diisi!"
 
             val errorMap = mapOf(R.id.lyExistsTreeInspect to errorMessage)
             _fieldValidationError.value = errorMap
@@ -117,7 +118,20 @@ class FormAncakViewModel : ViewModel() {
             return ValidationResult(false, R.id.lyExistsTreeInspect, errorMessage)
         }
 
+        if (inspectionType != null && inspectionType == 2 && data?.emptyTree == 1 && data.jjgAkp <= 0) {
+            val errorMessage = "Janjang panen harus lebih dari 0!"
+
+            val errorMap = mapOf(R.id.lyJjgPanenAKPInspect to errorMessage)
+            _fieldValidationError.value = errorMap
+
+            return ValidationResult(false, R.id.lyJjgPanenAKPInspect, errorMessage)
+        }
+
         _fieldValidationError.value = emptyMap()
         return ValidationResult(true)
+    }
+
+    fun clearValidation() {
+        _fieldValidationError.value = emptyMap()
     }
 }

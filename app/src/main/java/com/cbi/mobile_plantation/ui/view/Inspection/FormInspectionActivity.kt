@@ -349,7 +349,10 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                             ),
                             function = {
                                 val intent =
-                                    Intent(this@FormInspectionActivity, HomePageActivity::class.java)
+                                    Intent(
+                                        this@FormInspectionActivity,
+                                        HomePageActivity::class.java
+                                    )
                                 startActivity(intent)
                                 finishAffinity()
                             }
@@ -518,13 +521,15 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         }
 
         formAncakViewModel.fieldValidationError.observe(this) { errorMap ->
-            if (errorMap.isNotEmpty()) {
-                val currentFragment =
-                    supportFragmentManager.findFragmentByTag("f${vpFormAncak.currentItem}")
-                if (currentFragment is FormAncakFragment) {
+            val currentFragment =
+                supportFragmentManager.findFragmentByTag("f${vpFormAncak.currentItem}")
+            if (currentFragment is FormAncakFragment) {
+                if (errorMap.isNotEmpty()) {
                     errorMap.forEach { (fieldId, errorMessage) ->
-                        currentFragment.run { showValidationError(fieldId, errorMessage) }
+                        currentFragment.showValidationError(fieldId, errorMessage)
                     }
+                } else {
+                    currentFragment.clearValidationErrors()
                 }
             }
         }
@@ -543,7 +548,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             val photoValue = pageData?.photo ?: ""
 
             when {
-                emptyTreeValue == 2 && photoValue.isEmpty() -> {
+                selectedInspeksiValue.toInt() == 1 && emptyTreeValue == 2 && photoValue.isEmpty() -> {
                     vibrate(500)
                     showViewPhotoBottomSheet()
                     AlertDialogUtility.withSingleAction(
@@ -558,7 +563,8 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                 }
 
                 else -> {
-                    val validationResult = formAncakViewModel.validateCurrentPage()
+                    val validationResult =
+                        formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
                     if (validationResult.isValid && nextPage <= totalPages) {
                         lifecycleScope.launch {
                             withContext(Dispatchers.Main) {
@@ -644,7 +650,8 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         }
 
         fabPhotoFormAncak.setOnClickListener {
-            val validationResult = formAncakViewModel.validateCurrentPage()
+            val validationResult =
+                formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
             if (validationResult.isValid) {
                 showViewPhotoBottomSheet()
             } else {
@@ -689,7 +696,10 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                             val selectedPemanenLainIds = selectedPemanenLain.map { it.id }
 
                             val datetimeFormattedForPath =
-                                SimpleDateFormat("yyMMddHHmmssSSS", Locale.getDefault()).format(Date())
+                                SimpleDateFormat(
+                                    "yyMMddHHmmssSSS",
+                                    Locale.getDefault()
+                                ).format(Date())
                             val uniquePathId = "$userId$datetimeFormattedForPath"
 
                             val formattedTracking =
@@ -735,7 +745,8 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                                         no_pokok = page,
                                         jml_pokok = totalPokokInspection,
                                         titik_kosong = emptyTreeValue,
-                                        jjg_akp = if (isInspection) null else (pageData?.jjgAkp ?: 0),
+                                        jjg_akp = if (isInspection) null else (pageData?.jjgAkp
+                                            ?: 0),
                                         prioritas = if (isInspection) (pageData?.priority
                                             ?: 0) else null,
                                         pokok_panen = if (isInspection) (pageData?.harvestTree
@@ -752,7 +763,8 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                                             ?: 0) else null,
                                         kentosan = if (isInspection) (pageData?.kentosan
                                             ?: 0) else null,
-                                        buah_masak = if (isInspection) (pageData?.ripe ?: 0) else null,
+                                        buah_masak = if (isInspection) (pageData?.ripe
+                                            ?: 0) else null,
                                         buah_mentah = if (isInspection) (pageData?.buahM1
                                             ?: 0) else null,
                                         buah_matang = if (isInspection) (pageData?.buahM2
@@ -769,7 +781,8 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                                             ?: 0) else null,
                                         brd_ketiak = if (isInspection) (pageData?.ketiak
                                             ?: 0) else null,
-                                        brd_parit = if (isInspection) (pageData?.parit ?: 0) else null,
+                                        brd_parit = if (isInspection) (pageData?.parit
+                                            ?: 0) else null,
                                         brd_segar = if (isInspection) (pageData?.brdSegar
                                             ?: 0) else null,
                                         brd_busuk = if (isInspection) (pageData?.brdBusuk
@@ -936,7 +949,12 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
                     formAncakViewModel.savePageData(
                         currentPage,
-                        currentData.copy(photo = null, comment = null, latIssue = null, lonIssue = null)
+                        currentData.copy(
+                            photo = null,
+                            comment = null,
+                            latIssue = null,
+                            lonIssue = null
+                        )
                     )
 
                     updatePhotoBadgeVisibility()
@@ -981,7 +999,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             when {
                 ContextCompat.checkSelfPermission(
                     this,
-                    android.Manifest.permission.CAMERA
+                    Manifest.permission.CAMERA
                 ) == PackageManager.PERMISSION_GRANTED -> {
                     bottomNavInspect.visibility = View.GONE
                     bottomSheetDialog.dismiss()
@@ -1041,7 +1059,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
                 ActivityCompat.shouldShowRequestPermissionRationale(
                     this,
-                    android.Manifest.permission.CAMERA
+                    Manifest.permission.CAMERA
                 ) -> {
                     showSnackbarWithSettings("Camera permission required to take photos. Enable it in Settings.")
                 }
@@ -1053,7 +1071,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                     } else {
                         ActivityCompat.requestPermissions(
                             this,
-                            arrayOf(android.Manifest.permission.CAMERA),
+                            arrayOf(Manifest.permission.CAMERA),
                             CAMERA_PERMISSION_REQUEST_CODE
                         )
                     }
@@ -1169,6 +1187,10 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         }
 
         bottomNavInspect.setOnItemSelectedListener { item ->
+            Handler(Looper.getMainLooper()).postDelayed({
+                formAncakViewModel.clearValidation()
+            }, 200)
+
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
             val pageData = formData[currentPage]
@@ -1181,23 +1203,38 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             loadingDialog.show()
             loadingDialog.setMessage("Loading data...")
 
-            if (!validateAndShowErrors() || activeBottomNavId == R.id.navMenuAncakInspect && (emptyTreeValue == 2 && photoValue.isEmpty())) {
+            if (!validateAndShowErrors() || activeBottomNavId == R.id.navMenuAncakInspect) {
                 loadingDialog.dismiss()
 
-                if (activeBottomNavId == R.id.navMenuAncakInspect && emptyTreeValue == 2 && photoValue.isEmpty()) {
-                    vibrate(500)
-                    showViewPhotoBottomSheet()
-                    AlertDialogUtility.withSingleAction(
-                        this,
-                        stringXML(R.string.al_back),
-                        stringXML(R.string.al_data_not_completed),
-                        "Mohon dapat mengambil foto temuan terlebih dahulu!",
-                        "warning.json",
-                        R.color.colorRedDark
-                    ) {}
-                }
+                if (activeBottomNavId == R.id.navMenuAncakInspect) {
+                    val inspectionType = selectedInspeksiValue.toInt()
+                    if (inspectionType == 1 && emptyTreeValue == 2 && photoValue.isEmpty()) {
+                        vibrate(500)
 
-                return@setOnItemSelectedListener false
+                        showViewPhotoBottomSheet()
+                        AlertDialogUtility.withSingleAction(
+                            this,
+                            stringXML(R.string.al_back),
+                            stringXML(R.string.al_data_not_completed),
+                            "Mohon dapat mengambil foto temuan terlebih dahulu!",
+                            "warning.json",
+                            R.color.colorRedDark
+                        ) {}
+
+                        return@setOnItemSelectedListener false
+                    }
+
+                    if (inspectionType == 2 && emptyTreeValue == 1) {
+                        val validationResult = formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
+                        if (!validationResult.isValid) {
+                            vibrate(500)
+                            return@setOnItemSelectedListener false
+                        }
+                    }
+                } else {
+                    vibrate(500)
+                    return@setOnItemSelectedListener false
+                }
             }
 
             lifecycleScope.launch {
@@ -1394,7 +1431,8 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                             listRadioItems["ConditionType"] ?: emptyMap(),
                             ::selectedKondisiValue
                         ) { id ->
-                            findViewById<LinearLayout>(R.id.lyBaris2Inspect).visibility = if (id.toInt() == 2) View.GONE else View.VISIBLE
+                            findViewById<LinearLayout>(R.id.lyBaris2Inspect).visibility =
+                                if (id.toInt() == 2) View.GONE else View.VISIBLE
                         }
                     }
                 }
@@ -2114,7 +2152,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
                             karyawanList = karyawanDeferred.await()
 
-                            val karyawanNames = karyawanList.map { "${it.nik} - ${it.nama}" }
+                            val karyawanNames = karyawanList.map { "${it.nama} - ${it.nik}" }
                             withContext(Dispatchers.Main) {
                                 val layoutPemanen =
                                     linearLayout.rootView.findViewById<LinearLayout>(R.id.lyPemanen1Inspect)
@@ -2192,7 +2230,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                             karyawanLainList = karyawanDeferred.await()
 
                             val namaKaryawanKemandoranLain =
-                                karyawanLainList.map { "${it.nik} - ${it.nama}" }
+                                karyawanLainList.map { "${it.nama} - ${it.nik}" }
 
                             withContext(Dispatchers.Main) {
                                 val layoutPemanenLain =
@@ -2523,7 +2561,9 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                         when (layout.id) {
                             R.id.lyAncakInspect -> ancakValue.trim().isEmpty()
                             R.id.lyBaris1Inspect -> br1Value.trim().isEmpty()
-                            R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim().isEmpty() else false
+                            R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim()
+                                .isEmpty() else false
+
                             else -> editText.text.toString().trim().isEmpty()
                         }
                     }
@@ -2627,7 +2667,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
         return !ActivityCompat.shouldShowRequestPermissionRationale(
             this,
-            android.Manifest.permission.CAMERA
+            Manifest.permission.CAMERA
         )
     }
 

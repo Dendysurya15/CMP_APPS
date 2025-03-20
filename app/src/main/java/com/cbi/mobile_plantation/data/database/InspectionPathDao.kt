@@ -6,7 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.mobile_plantation.data.model.InspectionPathModel
-import com.cbi.mobile_plantation.data.model.PathWithInspectionRelations
+import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
 
 @Dao
 abstract class InspectionPathDao {
@@ -17,6 +17,16 @@ abstract class InspectionPathDao {
     abstract fun deleteByID(id: String): Int
 
     @Transaction
-    @Query("SELECT * FROM inspeksi_path")
-    abstract fun getAllSavedWithRelations(): List<PathWithInspectionRelations>
+    @Query("""
+        SELECT DISTINCT ip.* 
+        FROM inspeksi_path ip
+        LEFT JOIN inspeksi i ON ip.id = i.id_path
+        WHERE i.archive = :archive
+        ORDER BY i.created_date DESC
+    """)
+    abstract suspend fun getInspectionPathsWithTphAndCount(archive: Int): List<PathWithInspectionTphRelations>
+
+    @Transaction
+    @Query("SELECT * FROM inspeksi_path WHERE id = :pathId")
+    abstract suspend fun getInspectionPathWithTphAndCount(pathId: String): PathWithInspectionTphRelations
 }

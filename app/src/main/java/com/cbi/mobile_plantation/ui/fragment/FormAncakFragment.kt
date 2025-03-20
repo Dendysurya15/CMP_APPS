@@ -19,10 +19,10 @@ import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel
-import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel.PageData
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
+import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel
+import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel.PageData
 import com.google.android.flexbox.FlexboxLayout
 import com.google.android.material.card.MaterialCardView
 
@@ -36,6 +36,7 @@ class FormAncakFragment : Fragment() {
     )
 
     private lateinit var viewModel: FormAncakViewModel
+    private val errorViewsMap = mutableMapOf<Int, TextView>()
 
     private val listRadioItems: Map<String, Map<String, String>> = mapOf(
         "YesOrNo" to mapOf(
@@ -318,6 +319,17 @@ class FormAncakFragment : Fragment() {
         val params = errorTextView?.layoutParams as? ViewGroup.MarginLayoutParams
         params?.topMargin = -10
         errorTextView?.visibility = View.VISIBLE
+
+        errorViewsMap[layoutId] = errorTextView
+    }
+
+    @SuppressLint("SetTextI18n")
+    fun clearValidationErrors() {
+        errorViewsMap.values.forEach { errorTextView ->
+            errorTextView.text = ""
+            errorTextView.visibility = View.GONE
+        }
+        errorViewsMap.clear()
     }
 
     private fun savePageData() {
@@ -353,7 +365,6 @@ class FormAncakFragment : Fragment() {
         val titleTextView = layoutView.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
         val mcvSpinner = layoutView.findViewById<MaterialCardView>(R.id.MCVSpinner)
         val fblRadioComponents = layoutView.findViewById<FlexboxLayout>(R.id.fblRadioComponents)
-        val errorTextView = layoutView.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
 
         titleTextView.text = titleText
 
@@ -399,7 +410,8 @@ class FormAncakFragment : Fragment() {
                 }
 
                 setOnClickListener {
-                    errorTextView.visibility = View.GONE
+                    clearValidationErrors()
+
                     lastSelectedRadioButton?.isChecked = false
                     isChecked = true
                     lastSelectedRadioButton = this

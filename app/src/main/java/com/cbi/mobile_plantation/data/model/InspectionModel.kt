@@ -1,13 +1,39 @@
 package com.cbi.mobile_plantation.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.utils.AppUtils
 
-@Entity(tableName = AppUtils.DatabaseTables.INSPEKSI)
+@Entity(
+    tableName = AppUtils.DatabaseTables.INSPEKSI,
+    foreignKeys = [
+        ForeignKey(
+            entity = InspectionPathModel::class,
+            parentColumns = ["id"],
+            childColumns = ["id_path"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = TPHNewModel::class,
+            parentColumns = ["id"],
+            childColumns = ["tph_id"],
+            onDelete = ForeignKey.CASCADE
+        ),
+    ],
+    indices = [
+        Index("id_path"),
+        Index("tph_id")
+    ]
+)
 data class InspectionModel(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @ColumnInfo(name = "id_path")
     val id_path: String,
+    @ColumnInfo(name = "tph_id")
     val tph_id: Int,
     val ancak: Int,
     val status_panen: Int,

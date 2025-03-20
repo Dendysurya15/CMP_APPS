@@ -11,9 +11,6 @@ abstract class InspectionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertAll(data: List<InspectionModel>): List<Long>
 
-    @Query("DELETE FROM inspeksi WHERE id = :id")
-    abstract fun deleteByID(id: String): Int
-
-    @Query("SELECT COUNT(DISTINCT id_path) FROM inspeksi WHERE archive = 1 AND date(created_date) = date('now', 'localtime')")
-    abstract suspend fun getCountUploaded(): Int
+    @Query("SELECT COUNT(DISTINCT id_path) FROM inspeksi WHERE archive = :archive AND date(created_date) = date('now', 'localtime')")
+    abstract suspend fun countCard(archive: Int): Int
 }

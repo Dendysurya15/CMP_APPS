@@ -12,7 +12,7 @@ import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
-import com.cbi.mobile_plantation.data.model.PathWithInspectionRelations
+import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.mobile_plantation.data.model.TphRvData
 import kotlinx.coroutines.Dispatchers
@@ -390,10 +390,8 @@ class AppRepository(context: Context) {
 
     fun deleteInspectionAndPathById(id: String): Result<Unit> {
         return try {
-            val deletedInspection = inspectionDao.deleteByID(id)
             val deletedPath = inspectionPathDao.deleteByID(id)
-
-            if (deletedInspection > 0 && deletedPath > 0) {
+            if (deletedPath > 0) {
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("Failed to delete one or both records"))
@@ -403,16 +401,16 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun getSavedInspection(): Result<List<PathWithInspectionRelations>> = withContext(Dispatchers.IO) {
-        try {
-            val data = inspectionPathDao.getAllSavedWithRelations()
-            Result.success(data)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    suspend fun getInspectionCountCard(archive: Int): Int {
+        return inspectionDao.countCard(archive)
     }
 
-    suspend fun getInspectionCountUploaded(): Int {
-        return inspectionDao.getCountUploaded()
+    suspend fun getInspectionPathsWithTphAndCount(archive: Int): List<PathWithInspectionTphRelations> {
+        return inspectionPathDao.getInspectionPathsWithTphAndCount(archive)
     }
+
+    suspend fun getInspectionPathWithTphAndCount(pathId: String): PathWithInspectionTphRelations {
+        return inspectionPathDao.getInspectionPathWithTphAndCount(pathId)
+    }
+
 }
