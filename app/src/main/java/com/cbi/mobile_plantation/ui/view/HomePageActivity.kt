@@ -665,7 +665,7 @@ class HomePageActivity : AppCompatActivity() {
 
                             loadingDialog.dismiss()
                             trackingIdsUpload = data
-                            AppLogger.d(data.toString())
+
                             startDownloads()
                         }
                     } else {
@@ -1333,6 +1333,7 @@ class HomePageActivity : AppCompatActivity() {
         val lastModifiedDatasetKemandoran = prefManager!!.lastModifiedDatasetKemandoran
         val lastModifiedDatasetPemanen = prefManager!!.lastModifiedDatasetPemanen
         val lastModifiedDatasetTransporter = prefManager!!.lastModifiedDatasetTransporter
+        val lastModifiedDatasetKendaraan = prefManager!!.lastModifiedDatasetKendaraan
         val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
 
         if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
@@ -1358,6 +1359,7 @@ class HomePageActivity : AppCompatActivity() {
                     lastModifiedDatasetPemanen,
                     lastModifiedDatasetKemandoran,
                     lastModifiedDatasetTransporter,
+                    lastModifiedDatasetKendaraan,
                     lastModifiedSettingJSON
                 )
             } else {
@@ -1369,6 +1371,7 @@ class HomePageActivity : AppCompatActivity() {
                     lastModifiedDatasetPemanen,
                     lastModifiedDatasetKemandoran,
                     lastModifiedDatasetTransporter,
+                    lastModifiedDatasetKendaraan,
                     lastModifiedSettingJSON
                 ).filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
             }
@@ -1395,6 +1398,7 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedDatasetPemanen: String?,
         lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetTransporter: String?,
+        lastModifiedDatasetKendaraan:String?,
         lastModifiedSettingJSON: String?
     ): List<DatasetRequest> {
         val datasets = mutableListOf<DatasetRequest>()
@@ -1433,6 +1437,10 @@ class HomePageActivity : AppCompatActivity() {
                 DatasetRequest(
                     lastModified = lastModifiedDatasetTransporter,
                     dataset = AppUtils.DatasetNames.transporter
+                ),
+                DatasetRequest(
+                    lastModified = lastModifiedDatasetKendaraan,
+                    dataset = AppUtils.DatasetNames.kendaraan
                 ),
                 DatasetRequest(
                     lastModified = lastModifiedSettingJSON,

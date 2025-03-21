@@ -67,6 +67,7 @@ object AppUtils {
         const val KEMANDORAN = "kemandoran"
         const val KARYAWAN = "karyawan"
         const val TRANSPORTER = "transporter"
+        const val KENDARAAN = "kendaraan"
         const val UPLOADCMP = "upload_cmp"
         const val FLAGESPB = "flag_espb"
     }
@@ -116,6 +117,7 @@ object AppUtils {
         const val pemanen = "pemanen"
         const val kemandoran = "kemandoran"
         const val transporter = "transporter"
+        const val kendaraan = "kendaraan"
         const val updateSyncLocalData = "Update & Sinkronisasi Lokal Data"
         const val settingJSON = "setting.json"
     }
