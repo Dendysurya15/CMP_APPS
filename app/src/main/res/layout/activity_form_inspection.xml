@@ -60,6 +60,10 @@
                 tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
 
             <include
+                android:id="@+id/lyInspectionType"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
                 android:id="@+id/lyEstInspect"
                 layout="@layout/pertanyaan_spinner_layout" />
 
@@ -98,10 +102,6 @@
             <include
                 android:id="@+id/lyBuahTglInspect"
                 layout="@layout/pane_number_layout" />
-
-            <include
-                android:id="@+id/lyInspectionType"
-                layout="@layout/pertanyaan_spinner_layout" />
 
             <include
                 android:id="@+id/lyMandor1Inspect"

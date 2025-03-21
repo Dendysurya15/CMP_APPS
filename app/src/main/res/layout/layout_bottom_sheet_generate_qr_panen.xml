@@ -263,5 +263,15 @@
             android:textSize="18sp" />
     </ScrollView>
 
+    <TableLayout
+        android:id="@+id/tblLytTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:stretchColumns="1"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/dashedLine" />
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

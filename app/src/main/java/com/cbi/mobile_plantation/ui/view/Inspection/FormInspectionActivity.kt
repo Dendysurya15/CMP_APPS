@@ -30,7 +30,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowManager
-import android.view.animation.DecelerateInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
@@ -84,6 +83,8 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.WaterMarkFotoDanFolder
+import com.cbi.mobile_plantation.utils.AppUtils.hideWithAnimation
+import com.cbi.mobile_plantation.utils.AppUtils.showWithAnimation
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
@@ -175,6 +176,11 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
     private var karyawanLainList: List<KaryawanModel> = emptyList()
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var kemandoranLainList: List<KemandoranModel> = emptyList()
+
+    private val karyawanIdMap: MutableMap<String, Int> = mutableMapOf()
+    private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
+    private val karyawanLainIdMap: MutableMap<String, Int> = mutableMapOf()
+    private val kemandoranLainIdMap: MutableMap<String, Int> = mutableMapOf()
 
     private var totalPokokInspection = 0
     private var jumBrdTglPath = 0
@@ -690,10 +696,35 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                             }
 
                             val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
+                            val idKaryawanList = selectedPemanen.mapNotNull {
+                                karyawanIdMap[it.name.substringBefore(" - ").trim()]
+                            }
+                            val kemandoranIdList = selectedPemanen.mapNotNull {
+                                kemandoranIdMap[it.name.substringBefore(" - ").trim()]
+                            }
                             val selectedPemanenLain =
                                 selectedPemanenLainAdapter.getSelectedWorkers()
-                            val selectedPemanenIds = selectedPemanen.map { it.id }
-                            val selectedPemanenLainIds = selectedPemanenLain.map { it.id }
+                            val idKaryawanLainList = selectedPemanenLain.mapNotNull {
+                                karyawanLainIdMap[it.name.substringBefore(" - ").trim()]
+                            }
+                            val kemandoranLainIdList = selectedPemanenLain.mapNotNull {
+                                kemandoranLainIdMap[it.name.substringBefore(" - ").trim()]
+                            }
+
+                            val selectedNikPemanenIds = selectedPemanen.map { it.id }
+                            val selectedNikPemanenLainIds = selectedPemanenLain.map { it.id }
+                            val uniqueNikPemanen = (selectedNikPemanenIds + selectedNikPemanenLainIds)
+                                .distinct()
+                                .joinToString(",")
+
+                            val uniqueIdKaryawan = (idKaryawanList + idKaryawanLainList)
+                                .distinct()
+                                .map { it.toString() }
+                                .joinToString(",")
+
+                            val uniqueKemandoranId = (kemandoranIdList + kemandoranLainIdList)
+                                .map { it.toString() }
+                                .joinToString(",")
 
                             val datetimeFormattedForPath =
                                 SimpleDateFormat(
@@ -735,9 +766,9 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                                         brd_tinggal = jumBrdTglPath,
                                         buah_tinggal = jumBuahTglPath,
                                         jenis_inspeksi = selectedInspeksiValue.toInt(),
-                                        karyawan_id = (selectedPemanenIds + selectedPemanenLainIds).joinToString(
-                                            ","
-                                        ),
+                                        kemandoran_id = uniqueKemandoranId,
+                                        karyawan_id = uniqueIdKaryawan,
+                                        karyawan_nik = uniqueNikPemanen,
                                         asistensi = asistensi,
                                         jenis_kondisi = selectedKondisiValue.toInt(),
                                         baris1 = br1Value.toInt(),
@@ -816,7 +847,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
                                 if (!pathInsertSuccess) {
                                     val deleteResult =
-                                        inspectionViewModel.deleteInspectionAndPath(uniquePathId)
+                                        inspectionViewModel.deleteInspectionDatas(listOf(uniquePathId))
                                     deleteResult.onFailure { error ->
                                         AppLogger.d("Failed to delete data path: $error")
                                     }
@@ -838,7 +869,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
                                 if (!inspectionInsertSuccess) {
                                     val deleteResult =
-                                        inspectionViewModel.deleteInspectionAndPath(uniquePathId)
+                                        inspectionViewModel.deleteInspectionDatas(listOf(uniquePathId))
                                     deleteResult.onFailure { error ->
                                         AppLogger.d("Failed to delete data inspection: $error")
                                     }
@@ -1106,31 +1137,17 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
     }
 
     private fun setKeyboardVisibilityListener() {
-        fun showWithAnimation(view: View) {
-            view.apply {
-                if (visibility != View.VISIBLE) {
-                    visibility = View.VISIBLE
-                    translationY = 100f
-                    alpha = 0f
-                    animate()
-                        .translationY(0f)
-                        .alpha(1f)
-                        .setDuration(300)
-                        .setInterpolator(DecelerateInterpolator())
-                        .start()
-                }
-            }
-        }
-
         val rootView = findViewById<View>(android.R.id.content)
         keyboardWatcher = SoftKeyboardStateWatcher(
             rootView,
             object : SoftKeyboardStateWatcher.OnSoftKeyboardStateChangedListener {
                 override fun onSoftKeyboardOpened(keyboardHeight: Int) {
-                    bottomNavInspect.visibility = View.GONE
-                    fabPrevFormAncak.visibility = View.GONE
-                    fabNextFormAncak.visibility = View.GONE
-                    fabPhotoFormAncak.visibility = View.GONE
+                    bottomNavInspect.post {
+                        hideWithAnimation(bottomNavInspect, 100)
+                        hideWithAnimation(fabPrevFormAncak, 100)
+                        hideWithAnimation(fabNextFormAncak, 100)
+                        hideWithAnimation(fabPhotoFormAncak, 100)
+                    }
                 }
 
                 override fun onSoftKeyboardClosed() {
@@ -2125,6 +2142,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             }
 
             R.id.lyMandor1Inspect -> {
+                selectedPemanenAdapter.clearAllWorkers()
                 selectedKemandoran = selectedItem
 
                 val filteredKemandoranId: Int? = try {
@@ -2151,8 +2169,10 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                             }
 
                             karyawanList = karyawanDeferred.await()
+                            val karyawanNames = karyawanList
+                                .sortedBy { it.nama } // Sort by name alphabetically
+                                .map { "${it.nama} - ${it.nik}" }
 
-                            val karyawanNames = karyawanList.map { "${it.nama} - ${it.nik}" }
                             withContext(Dispatchers.Main) {
                                 val layoutPemanen =
                                     linearLayout.rootView.findViewById<LinearLayout>(R.id.lyPemanen1Inspect)
@@ -2185,11 +2205,17 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
             R.id.lyPemanen1Inspect -> {
                 selectedPemanen = selectedItem
-                val selectedNama = selectedPemanen.substringAfter(" - ")
 
-                val karyawanMap = karyawanList.associateBy({ it.nama }, { it.id })
+                val selectedNama = selectedPemanen.substringBefore(" - ").trim()
+                val karyawanNikMap = karyawanList.associateBy({ it.nama!!.trim() }, { it.nik!! })
+                karyawanList.forEach {
+                    it.nama?.trim()?.let { nama ->
+                        karyawanIdMap[nama] = it.id!!
+                        kemandoranIdMap[nama] = it.kemandoran_id!!
+                    }
+                }
 
-                val selectedPemanenId = karyawanMap[selectedNama]
+                val selectedPemanenId = karyawanNikMap[selectedNama]
                 if (selectedPemanenId != null) {
                     val worker = Worker(selectedPemanenId.toString(), selectedPemanen)
                     selectedPemanenAdapter.addWorker(worker)
@@ -2228,9 +2254,9 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                             }
 
                             karyawanLainList = karyawanDeferred.await()
-
                             val namaKaryawanKemandoranLain =
-                                karyawanLainList.map { "${it.nama} - ${it.nik}" }
+                                karyawanLainList.sortedBy { it.nama } // Sort by name alphabetically
+                                    .map { "${it.nama} - ${it.nik}" }
 
                             withContext(Dispatchers.Main) {
                                 val layoutPemanenLain =
@@ -2265,12 +2291,18 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
 
             R.id.lyPemanen2Inspect -> {
                 selectedPemanenLain = selectedItem
-                val selectedNamaPemanenLain = selectedPemanenLain.substringAfter(" - ")
 
-                val karyawanMap = karyawanLainList.associateBy({ it.nama }, { it.id })
+                val selectedNamaPemanenLain = selectedPemanenLain.substringBefore(" - ").trim()
+                val karyawanLainNikMap =
+                    karyawanLainList.associateBy({ it.nama!!.trim() }, { it.nik!! })
+                karyawanLainList.forEach {
+                    it.nama?.trim()?.let { nama ->
+                        karyawanLainIdMap[nama] = it.id!!
+                        kemandoranLainIdMap[nama] = it.kemandoran_id!!
+                    }
+                }
 
-                val selectedPemanenLainId = karyawanMap[selectedNamaPemanenLain]
-
+                val selectedPemanenLainId = karyawanLainNikMap[selectedNamaPemanenLain]
                 if (selectedPemanenLainId != null) {
                     val worker = Worker(selectedPemanenLainId.toString(), selectedPemanenLain)
                     selectedPemanenLainAdapter.addWorker(worker)

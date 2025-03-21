@@ -15,6 +15,7 @@ import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.mobile_plantation.data.model.TphRvData
+import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -388,9 +389,9 @@ class AppRepository(context: Context) {
         }
     }
 
-    fun deleteInspectionAndPathById(id: String): Result<Unit> {
+    fun deleteInspectionDatas(ids: List<String>): Result<Unit> {
         return try {
-            val deletedPath = inspectionPathDao.deleteByID(id)
+            val deletedPath = inspectionPathDao.deleteByID(ids)
             if (deletedPath > 0) {
                 Result.success(Unit)
             } else {

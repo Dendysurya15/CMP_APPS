@@ -7,18 +7,40 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
 import com.cbi.mobile_plantation.databinding.TableItemRowBinding
+import com.cbi.mobile_plantation.utils.AppLogger
 import java.text.SimpleDateFormat
 import java.util.Locale
 
 class ListInspectionAdapter(
-    private val onItemClick: (PathWithInspectionTphRelations) -> Unit
+    private val onItemClick: (PathWithInspectionTphRelations) -> Unit,
+    private val onCheckboxChanged: (List<String>) -> Unit
 ) : RecyclerView.Adapter<ListInspectionAdapter.InspectionDataViewHolder>() {
 
     private var inspectionPaths: List<PathWithInspectionTphRelations> = emptyList()
+    private val selectedIds = mutableSetOf<String>()
+    private var currentState = 0
 
     @SuppressLint("NotifyDataSetChanged")
     fun setData(data: List<PathWithInspectionTphRelations>) {
         inspectionPaths = data
+        notifyDataSetChanged()
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    fun toggleSelectAll(isSelected: Boolean) {
+        if (isSelected) {
+            inspectionPaths.forEach { selectedIds.add(it.getPathId()) }
+        } else {
+            selectedIds.clear()
+        }
+        notifyDataSetChanged()
+
+        onCheckboxChanged(selectedIds.toList())
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    fun updateCurrentState(state: Int) {
+        currentState = state
         notifyDataSetChanged()
     }
 
@@ -48,6 +70,19 @@ class ListInspectionAdapter(
                     onItemClick(inspectionPaths[position])
                 }
             }
+
+            binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
+                val position = bindingAdapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    val id = inspectionPaths[position].getPathId()
+                    if (isChecked) {
+                        selectedIds.add(id)
+                    } else {
+                        selectedIds.remove(id)
+                    }
+                    onCheckboxChanged(selectedIds.toList())
+                }
+            }
         }
 
         fun bind(item: PathWithInspectionTphRelations) {
@@ -68,6 +103,19 @@ class ListInspectionAdapter(
                     "-"
                 }
                 binding.td3.text = formattedTime
+
+                flCheckBoxItemTph.visibility = if (currentState == 0) View.VISIBLE else View.GONE
+                checkBoxPanen.setOnCheckedChangeListener(null)
+                checkBoxPanen.isChecked = selectedIds.contains(item.getPathId())
+                checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
+                    val id = item.getPathId()
+                    if (isChecked) {
+                        selectedIds.add(id)
+                    } else {
+                        selectedIds.remove(id)
+                    }
+                    onCheckboxChanged(selectedIds.toList())
+                }
             }
         }
     }

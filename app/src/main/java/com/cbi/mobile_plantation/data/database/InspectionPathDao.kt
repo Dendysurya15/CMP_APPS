@@ -13,8 +13,8 @@ abstract class InspectionPathDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insert(path: InspectionPathModel): Long
 
-    @Query("DELETE FROM inspeksi_path WHERE id = :id")
-    abstract fun deleteByID(id: String): Int
+    @Query("DELETE FROM inspeksi_path WHERE id IN (:ids)")
+    abstract fun deleteByID(ids: List<String>): Int
 
     @Transaction
     @Query("""

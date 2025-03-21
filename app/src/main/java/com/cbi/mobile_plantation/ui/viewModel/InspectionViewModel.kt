@@ -60,10 +60,10 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    suspend fun deleteInspectionAndPath(id: String): Result<Boolean> {
+    suspend fun deleteInspectionDatas(ids: List<String>): Result<Boolean> {
         return withContext(Dispatchers.IO) {
             try {
-                val result = repository.deleteInspectionAndPathById(id)
+                val result = repository.deleteInspectionDatas(ids)
                 if (result.isSuccess) {
                     Result.success(true)
                 } else {
