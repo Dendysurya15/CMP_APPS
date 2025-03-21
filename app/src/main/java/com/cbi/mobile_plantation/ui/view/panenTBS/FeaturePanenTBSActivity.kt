@@ -285,13 +285,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun setupUI(){
+    private fun setupUI() {
         loadingDialog = LoadingDialog(this)
 
         prefManager = PrefManager(this)
 
-        radiusMinimum = prefManager!!.radiusMinimum
-//        radiusMinimum = 100F
+//        radiusMinimum = prefManager!!.radiusMinimum
+        radiusMinimum = 100F
         boundaryAccuracy = prefManager!!.boundaryAccuracy
 
         initViewModel()
@@ -1488,6 +1488,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             switchAsistensi.isChecked = false
         }
 
+        if (blokBanjir == 0) {
+            layoutAncak.visibility = View.GONE
+            layoutNoTPH.visibility = View.GONE
+            layoutKemandoran.visibility = View.GONE
+            layoutPemanen.visibility = View.GONE
+            layoutSelAsistensi.visibility = View.GONE
+            layoutTipePanen.visibility = View.GONE
+        }
+
         val dependentLayouts = listOf(
             R.id.layoutTahunTanam,
             R.id.layoutBlok,
@@ -1789,44 +1798,44 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         inputMappings.forEach { (layout, key, inputType) ->
 
-                val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
-                val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
+            val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+            val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
+            val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+            val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
 
-                val isEmpty = when (inputType) {
-                    InputType.SPINNER -> {
-                        when (layout.id) {
-                            R.id.layoutAfdeling -> selectedAfdeling.isEmpty()
-                            R.id.layoutTipePanen -> selectedTipePanen.isEmpty()
-                            R.id.layoutKemandoran -> selectedKemandoran.isEmpty()
-                            R.id.layoutPemanen -> selectedPemanen.isEmpty()
-                            R.id.layoutKemandoranLain -> asistensi ==1 && selectedKemandoranLain.isEmpty()
-                            R.id.layoutNoTPH -> blokBanjir == 1 && selectedTPH.isEmpty()
-                            R.id.layoutBlok -> blokBanjir == 1 && selectedBlok.isEmpty()
-                            else -> spinner.selectedIndex == -1
-                        }
+            val isEmpty = when (inputType) {
+                InputType.SPINNER -> {
+                    when (layout.id) {
+                        R.id.layoutAfdeling -> selectedAfdeling.isEmpty()
+                        R.id.layoutTipePanen -> selectedTipePanen.isEmpty()
+                        R.id.layoutKemandoran -> selectedKemandoran.isEmpty()
+                        R.id.layoutPemanen -> selectedPemanen.isEmpty()
+                        R.id.layoutKemandoranLain -> asistensi == 1 && selectedKemandoranLain.isEmpty()
+                        R.id.layoutNoTPH -> blokBanjir == 1 && selectedTPH.isEmpty()
+                        R.id.layoutBlok -> blokBanjir == 1 && selectedBlok.isEmpty()
+                        else -> spinner.selectedIndex == -1
                     }
-
-                    InputType.EDITTEXT -> {
-                        when (key) {
-                            getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
-                            else -> editText.text.toString().trim().isEmpty()
-                        }
-                    }
-
-                    else -> false
                 }
 
-                if (isEmpty) {
-                    tvError.visibility = View.VISIBLE
-                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-                    missingFields.add(key)
-                    isValid = false
-                } else {
-                    tvError.visibility = View.GONE
-                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+                InputType.EDITTEXT -> {
+                    when (key) {
+                        getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
+                        else -> editText.text.toString().trim().isEmpty()
+                    }
                 }
+
+                else -> false
+            }
+
+            if (isEmpty) {
+                tvError.visibility = View.VISIBLE
+                mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+                missingFields.add(key)
+                isValid = false
+            } else {
+                tvError.visibility = View.GONE
+                mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+            }
 
         }
 
@@ -1863,7 +1872,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen))
             layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
                 View.VISIBLE
-            layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text = stringXML(R.string.al_select_at_least_one_pemanen)
+            layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                stringXML(R.string.al_select_at_least_one_pemanen)
         }
 
         if (isAsistensiEnabled) {
@@ -1889,11 +1899,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     missingFields.add(getString(R.string.field_pemanen_lain))
                 }
                 isValid = false
-            }else{
-                if(choiceVisibilePemanenLain.isEmpty()){
+            } else {
+                if (choiceVisibilePemanenLain.isEmpty()) {
                     layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
                         View.VISIBLE
-                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text = stringXML(R.string.al_select_at_least_one_pemanen_lain)
+                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                        stringXML(R.string.al_select_at_least_one_pemanen_lain)
                     AppLogger.d("masuk sini gessss bro")
                     errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen_lain))
                 }
