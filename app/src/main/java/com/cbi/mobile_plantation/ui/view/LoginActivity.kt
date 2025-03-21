@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
@@ -13,6 +15,7 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cbi.mobile_plantation.R
@@ -34,24 +37,63 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class LoginActivity : AppCompatActivity() {
-    private lateinit var loadingDialog: LoadingDialog
-    private lateinit var authViewModel: AuthViewModel
-    private var prefManager: PrefManager? = null
     private var username = ""
     private var pass = ""
+
+    private var prefManager: PrefManager? = null
+    private lateinit var loadingDialog: LoadingDialog
+    private lateinit var authViewModel: AuthViewModel
+
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
+    private var activityInitialized = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
-        prefManager = PrefManager(this)
-        loadingDialog = LoadingDialog(this)
+        //cek tanggal otomatis
+        checkDateTimeSettings()
+    }
+
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
+    }
+
+    private fun setupUI() {
         val btn_finger = findViewById<MaterialButton>(R.id.btn_finger)
-        if(prefManager!!.rememberLogin){
+        loadingDialog = LoadingDialog(this)
+        prefManager = PrefManager(this)
+        if (prefManager!!.rememberLogin) {
             if (AppUtils.checkBiometricSupport(this)) {
                 btn_finger.visibility = View.VISIBLE
 
                 biometricPrompt()
-            }else{
+            } else {
                 btn_finger.visibility = View.GONE
 
             }
@@ -71,6 +113,7 @@ class LoginActivity : AppCompatActivity() {
                 usernameInputLayout.error = null
                 usernameInputLayout.isErrorEnabled = false
             }
+
             override fun afterTextChanged(s: Editable?) {}
         })
 
@@ -81,12 +124,13 @@ class LoginActivity : AppCompatActivity() {
                 passwordInputLayout.error = null
                 passwordInputLayout.isErrorEnabled = false
             }
+
             override fun afterTextChanged(s: Editable?) {}
         })
 
 
         val tvForgotLogin = findViewById<TextView>(R.id.tvForgotLogin)
-        tvForgotLogin.setResponsiveTextSizeWithConstraints(17F, 12F,18F)
+        tvForgotLogin.setResponsiveTextSizeWithConstraints(17F, 12F, 18F)
         tvForgotLogin.setOnClickListener {
             AlertDialogUtility.withSingleAction(
                 this@LoginActivity,
@@ -159,7 +203,12 @@ class LoginActivity : AppCompatActivity() {
                 } else {
                     AppLogger.d("Login Failed: ${loginResponse?.message}")
 
-                    Toasty.error(this, loginResponse?.message ?: "Login failed", Toast.LENGTH_LONG, true).show()
+                    Toasty.error(
+                        this,
+                        loginResponse?.message ?: "Login failed",
+                        Toast.LENGTH_LONG,
+                        true
+                    ).show()
 
                     lifecycleScope.launch {
                         delay(1000)
@@ -204,7 +253,7 @@ class LoginActivity : AppCompatActivity() {
 
 
         val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
-        checkRememberMe.setResponsiveTextSizeWithConstraints(17F, 12F,18F)
+        checkRememberMe.setResponsiveTextSizeWithConstraints(17F, 12F, 18F)
         checkRememberMe.setOnCheckedChangeListener { _, isChecked ->
             prefManager!!.rememberLogin = isChecked
         }
@@ -241,9 +290,9 @@ class LoginActivity : AppCompatActivity() {
 
             showLoading()
 
-            if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() && prefManager?.username == username && prefManager?.password == password){
+            if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() && prefManager?.username == username && prefManager?.password == password) {
                 navigateToHomePage()
-            }else{
+            } else {
                 if (AppUtils.isNetworkAvailable(this)) {
                     AppLogger.d(username.toString())
                     AppLogger.d(password.toString())
@@ -268,8 +317,6 @@ class LoginActivity : AppCompatActivity() {
             }
 
 
-
-
         }
 
 
@@ -279,10 +326,11 @@ class LoginActivity : AppCompatActivity() {
         setAppVersion()
     }
 
+
     @SuppressLint("SetTextI18n")
     private fun setAppVersion() {
         val versionTextView: TextView = findViewById(R.id.version_app)
-        versionTextView?.setResponsiveTextSizeWithConstraints(17F, 12F,18F)
+        versionTextView?.setResponsiveTextSizeWithConstraints(17F, 12F, 18F)
         val appVersion = AppUtils.getAppVersion(this)
         versionTextView.text = "Versi $appVersion"
     }
@@ -326,7 +374,7 @@ class LoginActivity : AppCompatActivity() {
 
     private fun navigateToHomePage() {
         val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
-        if (!checkRememberMe.isChecked){
+        if (!checkRememberMe.isChecked) {
             prefManager!!.username = ""
             prefManager!!.password = ""
             prefManager!!.rememberLogin = false
@@ -341,5 +389,26 @@ class LoginActivity : AppCompatActivity() {
 
     private fun hideLoading() {
         loadingDialog.dismiss()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        // Ensure handler callbacks are removed
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 }

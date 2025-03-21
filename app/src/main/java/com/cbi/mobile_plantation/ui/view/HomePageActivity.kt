@@ -12,6 +12,8 @@ import android.graphics.Rect
 import android.net.Uri
 import android.provider.Settings
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -104,8 +106,8 @@ class HomePageActivity : AppCompatActivity() {
     private var counteSPBWBScanned: Int = 0  // Global variable for count
     private var countActiveESPB: Int = 0  // Global variable for count
     private val _globalLastModifiedTPH = MutableLiveData<String>()
-    val globalLastModifiedTPH: LiveData<String> get() = _globalLastModifiedTPH
-
+    private val globalLastModifiedTPH: LiveData<String> get() = _globalLastModifiedTPH
+    private var activityInitialized = false
 
     private var hasShownErrorDialog = false  // Add this property
     private val permissionRequestCode = 1001
@@ -120,42 +122,21 @@ class HomePageActivity : AppCompatActivity() {
 
 
     private lateinit var datasetViewModel: DatasetViewModel
-
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         binding = ActivityHomePageBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        prefManager = PrefManager(this)
-
-        loadingDialog = LoadingDialog(this)
-        initViewModel()
-        _globalLastModifiedTPH.value = prefManager!!.lastModifiedDatasetTPH
-        setupDownloadDialog()
-        setupTitleAppNameAndVersion()
-        setupName()
-        setupLogout()
-        checkPermissions()
-        setupRecyclerView()
-        setupCheckingAfterLogoutUser()
-
-        panenViewModel.updateStatus.observeOnce(this) { success ->
-            if (success) {
-                AppLogger.d("✅ Panen Archive Updated Successfully")
-            } else {
-                AppLogger.e("❌ Panen Archive Update Failed")
-            }
-        }
-
-        uploadCMPViewModel.updateStatusUploadCMP.observeOnce(this) { (id, success) ->
-            if (success) {
-                AppLogger.d("✅ Upload Data with Tracking ID $id Inserted or Updated Successfully")
-            } else {
-                AppLogger.e("❌ Upload Data with Tracking ID $id Insertion Failed")
-            }
-        }
-
+        //cek tanggal otomatis
+        checkDateTimeSettings()
     }
 
     private fun fetchDataEachCard() {
@@ -480,6 +461,79 @@ class HomePageActivity : AppCompatActivity() {
                     outRect.bottom = spacing
                 }
             })
+        }
+    }
+
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        // Ensure handler callbacks are removed
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
+    }
+
+    private fun setupUI() {
+        loadingDialog = LoadingDialog(this)
+        prefManager = PrefManager(this)
+        initViewModel()
+        _globalLastModifiedTPH.value = prefManager!!.lastModifiedDatasetTPH
+        setupDownloadDialog()
+        setupTitleAppNameAndVersion()
+        setupName()
+        setupLogout()
+        checkPermissions()
+        setupRecyclerView()
+        setupCheckingAfterLogoutUser()
+
+        panenViewModel.updateStatus.observeOnce(this) { success ->
+            if (success) {
+                AppLogger.d("✅ Panen Archive Updated Successfully")
+            } else {
+                AppLogger.e("❌ Panen Archive Update Failed")
+            }
+        }
+
+        uploadCMPViewModel.updateStatusUploadCMP.observeOnce(this) { (id, success) ->
+            if (success) {
+                AppLogger.d("✅ Upload Data with Tracking ID $id Inserted or Updated Successfully")
+            } else {
+                AppLogger.e("❌ Upload Data with Tracking ID $id Insertion Failed")
+            }
         }
     }
 

@@ -3,6 +3,8 @@ package com.cbi.mobile_plantation.ui.view.espb
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -48,11 +50,23 @@ class ListHistoryESPBActivity : AppCompatActivity() {
     private var mappedData: List<Map<String, Any>> = emptyList()
 
     private lateinit var tvEmptyState: TextView // Add this
-
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private var activityInitialized = false
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefManager = PrefManager(this)
         setContentView(R.layout.activity_list_history_weigh_bridge)
+        //cek tanggal otomatis
+        checkDateTimeSettings()
+    }
+
+    private fun setupUI(){
         setupHeader()
         initViewModel()
         setupRecyclerView()
@@ -60,6 +74,49 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         setupObserveData()
 
         espbViewModel.loadHistoryESPBNonScan()
+    }
+
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        // Ensure handler callbacks are removed
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
     }
 
     private fun initializeViews() {

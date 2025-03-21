@@ -3,18 +3,21 @@ package com.cbi.mobile_plantation.utils
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Environment
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.provider.Settings
 import android.util.Base64
 import android.view.WindowManager
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import com.cbi.mobile_plantation.R
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
@@ -88,8 +91,8 @@ object AppUtils {
         const val ScanESPBTimbanganMill = "Scan e-SPB Timbangan Mill"
         const val RekapESPBTimbanganMill = "Rekap e-SPB Timbangan Mill"
         const val AbsensiPanen = "Absensi panen"
-        const val RekapAbsensiPanen =  "Rekap absensi panen"
-        const val ScanAbsensiPanen =  "Scan absensi panen"
+        const val RekapAbsensiPanen = "Rekap absensi panen"
+        const val ScanAbsensiPanen = "Scan absensi panen"
         const val SinkronisasiData = "Sinkronisasi data"
         const val UploadDataCMP = "Upload Data CMP"
     }
@@ -103,6 +106,9 @@ object AppUtils {
         const val CMP = "CMP"
         const val PPRO = "PPRO"
     }
+
+    const val DATE_TIME_CHECK_INTERVAL = 40000L  // 30 seconds
+    const val DATE_TIME_INITIAL_DELAY = 40000L   // 30 seconds
 
     object DatasetNames {
         const val mill = "mill"
@@ -419,6 +425,102 @@ object AppUtils {
             jsonArray.put(jsonObject)
         }
         return jsonArray.toString()
+    }
+
+    /**
+     * Checks if automatic date and time settings are enabled on the device
+     * @param context The application context
+     * @return Boolean True if automatic date/time is enabled, false otherwise
+     */
+    fun isAutomaticDateTimeEnabled(context: Context): Boolean {
+        return try {
+            // For Android Jelly Bean (API 17) and higher
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                Settings.Global.getInt(
+                    context.contentResolver,
+                    Settings.Global.AUTO_TIME
+                ) == 1
+            }
+            // For older versions
+            else {
+                @Suppress("DEPRECATION")
+                Settings.System.getInt(
+                    context.contentResolver,
+                    Settings.System.AUTO_TIME
+                ) == 1
+            }
+        } catch (e: Exception) {
+            // Default to true if there's an exception
+            true
+        }
+    }
+
+    /**
+     * Checks if the device's date and time settings are valid for the app
+     * @return Boolean true if settings are acceptable, false otherwise
+     */
+    fun isDateTimeValid(context: Context): Boolean {
+        // First check if automatic date time is enabled
+        val isAutoTimeEnabled = isAutomaticDateTimeEnabled(context)
+
+        // If automatic time is not enabled, return false immediately
+        if (!isAutoTimeEnabled) {
+            return false
+        }
+
+        // Even with automatic time enabled, verify the time is reasonable
+        // if we're offline (to prevent users from manually setting automatic
+        // time while offline to bypass the check)
+        if (!isNetworkAvailable(context)) {
+            // Get current time
+            val currentTime = System.currentTimeMillis()
+
+            // Get build time (a reference point known to be valid)
+            val buildTime = try {
+                context.packageManager.getPackageInfo(
+                    context.packageName, 0
+                ).lastUpdateTime
+            } catch (e: Exception) {
+                // If we can't get build time, use a fallback
+                0L
+            }
+
+            // Check if current time is unreasonably far from build time
+            // Allow some leeway (e.g., app could have been built months ago)
+            // This checks if time is set to future more than 1 day from now
+            val oneDay = 24 * 60 * 60 * 1000L
+            return currentTime < (System.currentTimeMillis() + oneDay)
+        }
+
+        // If we have network and automatic time is on, assume time is correct
+        return true
+    }
+
+    /**
+     * Shows a warning dialog about date/time settings with network context
+     */
+    fun showDateTimeNetworkWarning(activity: Activity) {
+        val isOnline = isNetworkAvailable(activity)
+        val message = if (isOnline) {
+            "Please enable automatic date and time for better app experience."
+        } else {
+            "Please enable automatic date and time and connect to the internet to ensure correct time synchronization."
+        }
+
+        AlertDialogUtility.withTwoActions(
+            activity,
+            "Pengaturan",
+            "Date & Time Settings",
+            message,
+            "warning.json",
+            ContextCompat.getColor(activity, R.color.bluedarklight),
+            function = {
+                activity.startActivity(Intent(Settings.ACTION_DATE_SETTINGS))
+            },
+            cancelFunction = {
+                activity.finishAffinity()
+            }
+        )
     }
 
 

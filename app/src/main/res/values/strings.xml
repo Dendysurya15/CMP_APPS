@@ -106,7 +106,7 @@
     <string-array name="tipe_panen_options">
         <item>Normal</item>
         <item>Cut &amp; Carry</item>
-        <item>MAIC</item>
+<!--        <item>Mekanisasi</item>-->
     </string-array>
 
     <array name="autosize_text_sizes">

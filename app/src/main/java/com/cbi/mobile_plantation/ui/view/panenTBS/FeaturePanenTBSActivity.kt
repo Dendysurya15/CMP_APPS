@@ -252,7 +252,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var boundaryAccuracy = 0F
     private var isEmptyScannedTPH = true
     private var isTriggeredBtnScanned = false
-
+    private var activityInitialized = false
     //    private lateinit var karyawanNikMap: Map<String, String>
     private val karyawanIdMap: MutableMap<String, Int> = mutableMapOf()
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
@@ -260,12 +260,46 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     //    private lateinit var karyawanLainNikMap: Map<String, String>
     private val karyawanLainIdMap: MutableMap<String, Int> = mutableMapOf()
     private val kemandoranLainIdMap: MutableMap<String, Int> = mutableMapOf()
-
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_panen_tbs)
+        //cek tanggal otomatis
+        checkDateTimeSettings()
+    }
+
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
+    }
+
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+    private fun setupUI(){
         loadingDialog = LoadingDialog(this)
 
         prefManager = PrefManager(this)
@@ -3072,6 +3106,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
             currentAccuracy = accuracy
         }
+
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+            startPeriodicDateTimeChecking()
+        }
     }
 
 
@@ -3112,14 +3151,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     override fun onPause() {
         super.onPause()
         locationViewModel.stopLocationUpdates()
-
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         locationViewModel.stopLocationUpdates()
 
-
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
     override fun onPhotoTaken(

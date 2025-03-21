@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.FlagESPBModel
@@ -17,7 +18,9 @@ import com.cbi.mobile_plantation.ui.view.LoginActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity
+import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +35,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         prefManager = PrefManager(this)
 
         val layoutInflater = LayoutInflater.from(this)
@@ -70,7 +72,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     private suspend fun initializeDatabase() {
         try {
             database = AppDatabase.getDatabase(applicationContext)
@@ -102,7 +103,7 @@ class MainActivity : AppCompatActivity() {
         if (!showingSplash) return
         showingSplash = false
 
-        startActivity(Intent(this, HomePageActivity::class.java))
+        startActivity(Intent(this, LoginActivity::class.java))
         finish()
     }
 
