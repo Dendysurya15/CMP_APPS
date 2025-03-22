@@ -265,7 +265,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 val username = extractedData.username
                 val color = ListPanenTPHAdapter().getUsernameColor(username, context)
                 binding.td5.setBackgroundColor(color)
-
+                binding.td1.text = extractedData.blokText
                 binding.td2.text = "${extractedData.tphText}/${extractedData.gradingText}"
                 binding.td3.text = extractedData.tanggalText
                 binding.td4.text = extractedData.username

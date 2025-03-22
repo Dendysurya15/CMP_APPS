@@ -61,7 +61,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
         AbsensiModel::class,
         KendaraanModel::class,
     ],
-    version = 21
+    version = 22
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -74,6 +74,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transporterDao(): TransporterDao
     abstract fun uploadCMPDao(): UploadCMPDao
     abstract fun absensiDao(): AbsensiDao
+    abstract fun kendaraanDao(): KendaraanDao
 
     companion object {
         @Volatile
