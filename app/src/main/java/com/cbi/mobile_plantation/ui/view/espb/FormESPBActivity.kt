@@ -49,6 +49,7 @@ import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
+import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.ScannedTPHLocation
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
@@ -56,10 +57,12 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.setMaxBrightness
+import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.gson.Gson
@@ -68,6 +71,7 @@ import com.jaredrummler.materialspinner.MaterialSpinner
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -239,6 +243,7 @@ class FormESPBActivity : AppCompatActivity() {
 
         setupSpinnerText(R.id.formEspbMill, "Pilih Mill", "Mill")
         setupSpinnerText(R.id.formEspbKemandoran, "Pilih Kemandoran", "Kemandoran")
+        setupSpinnerText(R.id.formEspbAfdeling, "Pilih Afdeling", "Afdeling")
         setupSpinnerText(R.id.formEspbTransporter, "Pilih Transporter", "Transporter")
         setupSpinnerText(R.id.formEspbPemuat, "Pilih Pemuat", "Pemuat")
 
@@ -302,78 +307,33 @@ class FormESPBActivity : AppCompatActivity() {
 //        }
 
         lifecycleScope.launch(Dispatchers.IO) {
+
             try {
-                val kemandoranDeferred = async {
+                val divisiDeferred = async {
                     try {
-                        datasetViewModel.getKemandoranEstate(idEstate)
+                        datasetViewModel.getDivisiList(estateId!!.toInt())
                     } catch (e: Exception) {
-                        AppLogger.e("Error fetching kemandoranList: ${e.message}")
-                        emptyList()
+                        AppLogger.e("Error fetching divisiList: ${e.message}")
+                        emptyList() // Return an empty list to prevent crash
                     }
                 }
-                kemandoranList = kemandoranDeferred.await()
-                val nameKemandoran: List<String> = kemandoranList.map { it.nama.toString() }
-                Log.d("FormESPBActivityKemandoran", "nameKemandoran: $nameKemandoran")
+                divisiList = divisiDeferred.await()
+
+                // You can add more code here to handle the divisiList
+                val nameDivisi: List<String> = divisiList.map { it.divisi_abbr.toString() }
+                Log.d("FormESPBActivityDivisi", "nameDivisi: $nameDivisi")
                 withContext(Dispatchers.Main) {
-                    setupSpinner(R.id.formEspbKemandoran, nameKemandoran)
+                    setupSpinner(R.id.formEspbAfdeling, nameDivisi)
                 }
-                val formEspbKemandoran = findViewById<LinearLayout>(R.id.formEspbKemandoran)
-                val spEspbKemandoran =
-                    formEspbKemandoran.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                spEspbKemandoran.setOnItemSelectedListener { view, position, id, item ->
-                    val selectedKemandoran = item.toString()
 
-                    selectedKemandoranId = try {
-                        kemandoranList.find { it.nama == selectedKemandoran }?.id!!
-                    } catch (e: Exception) {
-                        AppLogger.e("Error finding selectedKemandoranId: ${e.message}")
-                        0
-                    }
-                    Log.d(
-                        "FormESPBActivityKemandoran",
-                        "selectedKemandoranId: $selectedKemandoranId"
-                    )
-
-                    lifecycleScope.launch(Dispatchers.IO) {
-                        try {
-                            val karyawanDeferred = async {
-                                datasetViewModel.getKaryawanList(selectedKemandoranId)
-                            }
-                            pemuatList = karyawanDeferred.await()
-                            Log.d("FormESPBActivityKemandoran", "pemuatList: $pemuatList")
-                            val pemuatNames = pemuatList.map { it.nama.toString() }
-                            Log.d("FormESPBActivityKemandoran", "pemuatNames: $pemuatNames")
-                            withContext(Dispatchers.Main) {
-                                setupSpinner(R.id.formEspbPemuat, pemuatNames)
-                            }
-                        } catch (e: Exception) {
-                            AppLogger.e("Error fetching kemandoran data: ${e.message}")
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(
-                                    this@FormESPBActivity,
-                                    "Error loading kemandoran data: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        } finally {
-                            withContext(Dispatchers.Main) {
-
-                            }
-                        }
-                    }
-                }
             } catch (e: Exception) {
-                AppLogger.e("Error fetching kemandoran data: ${e.message}")
+                AppLogger.e("Error fetching divisi data: ${e.message}")
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@FormESPBActivity,
-                        "Error loading kemandoran data: ${e.message}",
+                        "Error loading divisi data: ${e.message}",
                         Toast.LENGTH_LONG
                     ).show()
-                }
-            } finally {
-                withContext(Dispatchers.Main) {
-
                 }
             }
 
@@ -945,6 +905,69 @@ class FormESPBActivity : AppCompatActivity() {
         selectedItem: String
     ) {
         when (linearLayout.id) {
+            R.id.formEspbAfdeling->{
+
+                val selectedDivisiId = try {
+                    divisiList.find { it.divisi_abbr == selectedItem }?.divisi
+                } catch (e: Exception) {
+                    AppLogger.e("Error finding selectedDivisiId: ${e.message}")
+                    null
+                }
+                val allIdAfdeling = try {
+                    divisiList.map { it.divisi }
+                } catch (e: Exception) {
+                    AppLogger.e("Error mapping allIdAfdeling: ${e.message}")
+                    emptyList()
+                }
+
+                val otherDivisiIds = try {
+                    allIdAfdeling.filter { divisiId ->
+                        selectedDivisiId == null || divisiId != selectedDivisiId
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error filtering otherDivisiIds: ${e.message}")
+                    emptyList()
+                }
+                lifecycleScope.launch(Dispatchers.IO) {
+
+                    try {
+
+                        val kemandoranDeferred = async {
+                            try {
+                                datasetViewModel.getKemandoranEstateExcept(
+                                    estateId!!.toInt(),
+                                    otherDivisiIds as List<Int>
+                                )
+                            } catch (e: Exception) {
+                                AppLogger.e("Error fetching kemandoranList: ${e.message}")
+                                emptyList()
+                            }
+                        }
+                        kemandoranList = kemandoranDeferred.await()
+
+                        withContext(Dispatchers.Main) {
+                            try {
+                                val kemandoranNames = kemandoranList.map { it.nama }
+                                setupSpinner(
+                                    R.id.formEspbKemandoran     ,
+                                    kemandoranNames as List<String>
+                                )
+                            } catch (e: Exception) {
+                                AppLogger.e("Error updating UI: ${e.message}")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error fetching afdeling data: ${e.message}")
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@FormESPBActivity,
+                                "Error loading afdeling data: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+            }
             R.id.formEspbKemandoran -> {
                 selectedKemandoranId = try {
                     kemandoranList.find { it.nama == selectedItem }?.id!!

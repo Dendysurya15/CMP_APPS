@@ -207,6 +207,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return repository.getKemandoranEstate(idEstate)
     }
 
+    suspend fun getKemandoranEstateExcept(
+        idEstate: Int,
+        idDivisiArray: List<Int>,
+    ): List<KemandoranModel> {
+        return repository.getKemandoranEstateExcept(idEstate, idDivisiArray)
+    }
+
     suspend fun getAllTransporter(): List<TransporterModel> {
         return repository.getAllTransporter()
     }

@@ -82,6 +82,10 @@ class DatasetRepository(
         return kemandoranDao.getKemandoranEstate(idEstate)
     }
 
+    suspend fun getKemandoranEstateExcept(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
+        return kemandoranDao.getKemandoranEstateExcept(idEstate, idDivisiArray)
+    }
+
     suspend fun getAllTransporter(): List<TransporterModel> {
         return kemandoranDao.getAllTransporter()
     }
