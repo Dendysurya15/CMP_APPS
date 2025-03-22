@@ -86,7 +86,7 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
     fun archiveAbsensiById(id: Int) {
         viewModelScope.launch {
             repository.archiveAbsensiById(id)
-            getAllDataAbsensi() // Refresh the data
+            getAllDataAbsensi(0) // Refresh the data
         }
     }
 
@@ -114,9 +114,9 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun loadAbsensiCountArchive() = viewModelScope.launch {
+    fun loadAbsensiCountArchive(load_status_scan: Int) = viewModelScope.launch {
         try {
-            val count = repository.getAbsensiCountArhive()
+            val count = repository.getAbsensiCountArhive(load_status_scan)
             _archivedCount.value = count
         } catch (e: Exception) {
             AppLogger.e("Error loading archive count: ${e.message}")
@@ -124,9 +124,9 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun getAllDataAbsensi() {
+    fun getAllDataAbsensi(status_scan: Int) {
         viewModelScope.launch {
-            repository.getAllDataAbsensi()
+            repository.getAllDataAbsensi(status_scan)
                 .onSuccess { listData ->
                     _savedDataAbsensiList.postValue(listData)
                 }
@@ -156,6 +156,7 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         lat: Double,
         lon: Double,
         info: String,
+        status_scan : Int = 0,
         archive: Int
     ): SaveDataAbsensiState {
         return try {
@@ -171,6 +172,7 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
                 lat = lat,
                 lon = lon,
                 info = info,
+                status_scan = status_scan,
                 archive = archive
             )
             repository.insertAbsensiData(absensiData)
@@ -181,70 +183,30 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
+        return repository.getPemuatByIdList(idPemuat)
+    }
 
-//    suspend fun saveDataAbsensi(
+//    suspend fun saveDataLokalAbsensi(
 //        kemandoran_id: String,
 //        date_absen: String,
 //        created_by: Int,
 //        karyawan_msk_id: String,
-//        karyawan_tdk_msk_id: String,
-//        foto: String,
-//        komentar: String,
-//        asistensi: Int,
-//        lat: Double,
-//        lon: Double,
-//        info:String,
-//        archive: Int,
-//    ) {
-//        _saveDataAbsensiState.value = SaveDataAbsensiState.Loading
-//        viewModelScope.launch {
-//            try {
-//                val result = repository.saveDataAbsensi(
-//                    kemandoran_id,
-//                    date_absen,
-//                    created_by,
-//                    karyawan_msk_id,
-//                    karyawan_tdk_msk_id,
-//                    foto,
-//                    komentar,
-//                    asistensi,
-//                    lat,
-//                    lon,
-//                    info,
-//                    archive
-//                )
-//                return try{
-//                    absensiData.saveDataAbsensi(
-//                        kemandoran_id = "",
-//                        date_absen = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
-//                        created_by = userId!!,  // Prevent crash if userId is null
-//                        karyawan_msk_id = "",
-//                        karyawan_tdk_msk_id = "",
-//                        foto = photoFilesString,
-//                        komentar = komentarFotoString,
-//                        asistensi = asistensi ?: 0, // Default to 0 if null
-//                        lat = lat ?: 0.0, // Default to 0.0 if null
-//                        lon = lon ?: 0.0, // Default to 0.0 if null
-//                        info = infoApp ?: "",
-//                        archive = 0
-//                    )
-//                }
+//        asistensi: Int
+//    ): SaveDataAbsensiState {
+//        return try {
+//            val absensiDataLokal = AbsensiModelScan(
+//                kemandoran_id = kemandoran_id,
+//                date_absen = date_absen,
+//                created_by = created_by,
+//                karyawan_msk_id = karyawan_msk_id,
+//                asistensi = asistensi
+//            )
+//            repository.insertAbsensiDataLokal(absensiDataLokal)
+//            SaveDataAbsensiState.Success
 //
-////                result.fold(
-////                    onSuccess = { id ->
-////                        _saveDataAbsensiState.value = SaveDataAbsensiState.Success(id)
-////                    },
-////                    onFailure = { exception ->
-////                        _saveDataAbsensiState.value = SaveDataAbsensiState.Error(
-////                            exception.message ?: "Unknown error occurred"
-////                        )
-////                    }
-////                )
-//            } catch (e: Exception) {
-//                _saveDataAbsensiState.value = SaveDataAbsensiState.Error(
-//                    e.message ?: "Unknown error occurred"
-//                )
-//            }
+//        } catch (e: Exception) {
+//            SaveDataAbsensiState.Error(e.toString())
 //        }
 //    }
 

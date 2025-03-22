@@ -60,7 +60,7 @@ import java.util.concurrent.Executors
         UploadCMPModel::class,
         AbsensiModel::class,
     ],
-    version = 11
+    version = 12
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao

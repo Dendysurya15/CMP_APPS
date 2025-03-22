@@ -14,10 +14,11 @@
     <string name="confirmation_dialog_title">Konfirmasi Pilihan Anda!</string>
     <string name="confirmation_dialog_description">Pastikan Anda telah memeriksa dengan teliti sebelum melanjutkan.</string>
     <string name="al_yes">Ya</string>
-    <string name="al_confirm_out">Apakah anda yakin untuk keluar dari aplikasi ini?</string>
-    <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah anda yakin untuk simpan data e-SPB ini?</string>
-    <string name="al_confirm_feature">Apakah anda yakin untuk keluar dari Menu ini?</string>
-    <string name="al_confirm_delete_photo">Apakah anda yakin untuk menghapus foto ini?</string>
+    <string name="al_confirm_out">Apakah Anda yakin untuk keluar dari aplikasi ini?</string>
+    <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah Anda yakin untuk simpan data e-SPB ini?</string>
+    <string name="al_submit_upload_data_absensi">Apakah Anda yakin untuk simpan data Absensi ini?</string>
+    <string name="al_confirm_feature">Apakah Anda yakin untuk keluar dari Menu ini?</string>
+    <string name="al_confirm_delete_photo">Apakah Anda yakin untuk menghapus foto ini?</string>
     <string name="al_location_not_ready">GPS Tidak terdeteksi!</string>
     <string name="al_location_description_failed"> Perangkat tidak dapat mendeteksi lokasi Anda saat ini. Pastikan layanan lokasi di perangkat Anda aktif!</string>
     <string name="al_data_not_completed">Data Belum Lengkap!</string>
@@ -52,8 +53,8 @@
     <string name="dial_delete_item">Hapus Item Pilihan</string>
 
     <string name="al_delete">Hapus</string>
-    <string name="al_make_sure_delete">Apakah anda yakin untuk menghapus</string>
-    <string name="al_make_sure_scanned_qr">Apakah anda yakin sudah Scan QR?</string>
+    <string name="al_make_sure_delete">Apakah Anda yakin untuk menghapus</string>
+    <string name="al_make_sure_scanned_qr">Apakah Anda yakin sudah Scan QR?</string>
     <string name="welcome_back">Selamat Datang</string>
     <string name="subtitle_prompt">Gunakan sidik jari untuk melanjutkan</string>
     <!--    form panen tbs-->

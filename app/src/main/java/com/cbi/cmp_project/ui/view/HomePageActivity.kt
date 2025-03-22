@@ -54,6 +54,7 @@ import com.cbi.cmp_project.ui.view.Absensi.ListAbsensiActivity
 import com.cbi.cmp_project.ui.adapter.UploadCMPItem
 import com.cbi.cmp_project.ui.adapter.UploadProgressAdapter
 import com.cbi.cmp_project.ui.adapter.UploadProgressCMPDataAdapter
+import com.cbi.cmp_project.ui.view.Absensi.ScanAbsensiActivity
 import com.cbi.cmp_project.ui.view.espb.ListHistoryESPBActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.cmp_project.ui.view.weighBridge.ScanWeighBridgeActivity
@@ -260,7 +261,7 @@ class HomePageActivity : AppCompatActivity() {
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = R.drawable.cbi,
                 count = null,
-                functionDescription = "Pencatatatan panen TBS di TPH oleh kerani panen",
+                functionDescription = "Pencatatan panen TBS di TPH oleh kerani panen",
                 displayType = DisplayType.ICON
             ),
             FeatureCard(
@@ -269,7 +270,7 @@ class HomePageActivity : AppCompatActivity() {
                 featureNameBackgroundColor = R.color.greenDarker,
                 iconResource = null,
                 count = countPanenTPH.toString(),
-                functionDescription = "Rekapitulasi panen TBS dan transfer data ke suoervisi",
+                functionDescription = "Rekapitulasi panen TBS dan transfer data ke supervisi",
                 displayType = DisplayType.COUNT
             ),
             FeatureCard(
@@ -500,6 +501,14 @@ class HomePageActivity : AppCompatActivity() {
             "Rekap absensi panen" -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListAbsensiActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            "Scan absensi panen" -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, ScanAbsensiActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }
