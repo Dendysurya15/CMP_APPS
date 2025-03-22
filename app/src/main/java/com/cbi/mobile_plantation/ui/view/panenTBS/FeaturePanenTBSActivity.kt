@@ -290,8 +290,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         prefManager = PrefManager(this)
 
-//        radiusMinimum = prefManager!!.radiusMinimum
-        radiusMinimum = 100F
+        radiusMinimum = prefManager!!.radiusMinimum
+//        radiusMinimum = 100F
         boundaryAccuracy = prefManager!!.boundaryAccuracy
 
         initViewModel()

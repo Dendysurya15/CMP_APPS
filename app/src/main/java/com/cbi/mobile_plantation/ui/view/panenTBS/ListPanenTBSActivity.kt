@@ -31,6 +31,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
+import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -921,26 +922,44 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 R.layout.layout_bottom_sheet_generate_qr_panen,
                                 null
                             )
-                        view.background = ContextCompat.getDrawable(
-                            this@ListPanenTBSActivity,
-                            R.drawable.rounded_top_right_left
-                        )
 
                         val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
                         dialog.setContentView(view)
 
                         // Get references to views
                         val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
-                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
+                        val qrCodeImageView: com.github.chrisbanes.photoview.PhotoView = view.findViewById(R.id.qrCodeImageView)
+
                         val tvTitleQRGenerate: TextView =
                             view.findViewById(R.id.textTitleQRGenerate)
                         tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
                         val dashedLine: View = view.findViewById(R.id.dashedLine)
                         val loadingContainer: LinearLayout =
                             view.findViewById(R.id.loadingDotsContainerBottomSheet)
-                        val dataQR: TextView = view.findViewById(R.id.dataQR)
+
                         val titleQRConfirm: TextView = view.findViewById(R.id.titleAfterScanQR)
                         val descQRConfirm: TextView = view.findViewById(R.id.descAfterScanQR)
+                        val confimationContainer : LinearLayout = view.findViewById(R.id.confirmationContainer)
+                        val scrollContent: NestedScrollView = view.findViewById(R.id.scrollContent)
+                        scrollContent.post {
+                            // Scroll to the middle to show QR code in center
+                            // 300dp space + approximately half of QR view height (125dp)
+                            scrollContent.smoothScrollTo(0, 600)
+                        }
+
+                        // Configure for better zooming
+                        qrCodeImageView.apply {
+                            // Set minimum scale lower to allow for initial smaller size
+                            minimumScale = 0.5f  // This allows scaling down to 50%
+                            maximumScale = 5.0f  // Maximum zoom
+                            mediumScale = 2.5f   // Medium zoom
+
+                            // Now you can safely set scale to a smaller value
+                            scale = 0.8f  // This will work since it's above minimumScale
+
+                            // Enable zooming
+                            isZoomable = true
+                        }
                         val btnConfirmScanPanenTPH: MaterialButton =
                             view.findViewById(R.id.btnConfirmScanPanenTPH)
 
@@ -950,8 +969,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         loadingContainer.visibility = View.VISIBLE
 
                         // Initial setup for text elements
-                        titleQRConfirm.setResponsiveTextSizeWithConstraints(17F, 17F, 19F)
-                        descQRConfirm.setResponsiveTextSizeWithConstraints(17F, 15F, 19F)
+                        titleQRConfirm.setResponsiveTextSizeWithConstraints(21F, 17F, 25F)
+                        descQRConfirm.setResponsiveTextSizeWithConstraints(19F, 15F, 23F)
 
                         // Load and start bounce animation
                         val bounceAnimation = AnimationUtils.loadAnimation(this, R.anim.bounce)
@@ -986,11 +1005,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
                         }
 
-                        dialog.setOnShowListener {
-                            val bottomSheet =
-                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
-                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                        val maxHeight = (resources.displayMetrics.heightPixels * 0.85).toInt()
+
+                        dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)?.let { bottomSheet ->
+                            val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                            behavior.apply {
+                                this.peekHeight = maxHeight  // Set the initial height when peeking
+                                this.state = BottomSheetBehavior.STATE_EXPANDED  // Start fully expanded
+                                this.isFitToContents = true  // Content will determine the height (up to maxHeight)
+                                this.isDraggable = false  // Prevent user from dragging the sheet
+                            }
+
+                            // Set a fixed height for the bottom sheet
+                            bottomSheet.layoutParams?.height = maxHeight
                         }
 
                         dialog.show()
@@ -1230,9 +1258,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         dashedLine.alpha = 0f
                                         tvTitleQRGenerate.alpha = 0f
                                         titleQRConfirm.alpha = 0f
+                                        confimationContainer.alpha = 0f
                                         descQRConfirm.alpha = 0f
                                         btnConfirmScanPanenTPH.alpha = 0f
-                                        if (dataQR != null) dataQR.alpha = 0f
+
 
                                         // Create fade-in animations
                                         val fadeInQR =
@@ -1264,12 +1293,19 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                                     duration = 250
                                                     startDelay = 150
                                                 }
+
+
                                         val fadeInDescConfirm =
                                             ObjectAnimator.ofFloat(descQRConfirm, "alpha", 0f, 1f)
                                                 .apply {
                                                     duration = 250
                                                     startDelay = 150
                                                 }
+
+                                        val fadeInConfirmationContainer = ObjectAnimator.ofFloat(confimationContainer, "alpha", 0f, 1f).apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
                                         val fadeInButton =
                                             ObjectAnimator.ofFloat(
                                                 btnConfirmScanPanenTPH,
@@ -1281,12 +1317,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                                     duration = 250
                                                     startDelay = 150
                                                 }
-                                        val fadeInText = if (dataQR != null) {
-                                            ObjectAnimator.ofFloat(dataQR, "alpha", 0f, 1f).apply {
-                                                duration = 250
-                                                startDelay = 150
-                                            }
-                                        } else null
+
 
                                         // Run animations sequentially
                                         AnimatorSet().apply {
@@ -1298,23 +1329,23 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                                     loadingContainer.visibility = View.GONE
 
                                                     // Show elements
+                                                    confimationContainer.visibility = View.VISIBLE
                                                     tvTitleQRGenerate.visibility = View.VISIBLE
                                                     qrCodeImageView.visibility = View.VISIBLE
                                                     dashedLine.visibility = View.VISIBLE
-                                                    titleQRConfirm.visibility = View.VISIBLE
-                                                    descQRConfirm.visibility = View.VISIBLE
+
                                                     btnConfirmScanPanenTPH.visibility = View.VISIBLE
-                                                    if (dataQR != null) dataQR.visibility =
-                                                        View.VISIBLE
+
 
                                                     // Start fade-in animations
                                                     fadeInQR.start()
                                                     fadeInDashedLine.start()
                                                     fadeInTitle.start()
                                                     fadeInTitleConfirm.start()
+                                                    fadeInConfirmationContainer.start()
                                                     fadeInDescConfirm.start()
                                                     fadeInButton.start()
-                                                    fadeInText?.start()
+
                                                 }
                                             })
                                             start()

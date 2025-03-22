@@ -294,7 +294,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                     lifecycleScope.launch(Dispatchers.Default) {
                         delay(1000)
                         try {
-                            val dataQR: TextView? = view.findViewById(R.id.dataQR)
+
                             val titleQRConfirm: TextView =
                                 view.findViewById(R.id.titleAfterScanQR)
                             val descQRConfirm: TextView =
@@ -526,11 +526,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                         0f  // Ensure title starts invisible
 
                                     // Create fade-in for the dataQR text as well
-                                    val fadeInText =
-                                        ObjectAnimator.ofFloat(dataQR, "alpha", 0f, 1f).apply {
-                                            duration = 250
-                                            startDelay = 150
-                                        }
+
                                     val fadeInTitleConfirm =
                                         ObjectAnimator.ofFloat(titleQRConfirm, "alpha", 0f, 1f)
                                             .apply {
@@ -575,7 +571,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 fadeInQR.start()
                                                 fadeInDashedLine.start()
                                                 fadeInTitle.start()
-                                                fadeInText.start()
+
                                                 fadeInTitleConfirm.start()
                                                 fadeInDescConfirm.start()
                                                 fadeInButton.start()
