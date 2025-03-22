@@ -92,6 +92,8 @@
     <string name="al_success_delete">Berhasil Hapus</string>
     <string name="al_success_update">Berhasil Update Data</string>
     <string name="al_failed_delete">Gagal Hapus</string>
+    <string name="al_select_at_least_one_pemanen">Tambahkan minimal satu nama pemanen!</string>
+    <string name="al_select_at_least_one_pemanen_lain">Tambahkan minimal satu nama pemanen untuk asistensi!</string>
     <string name="text_scan_tph_form_panen"></string>
     <string name="al_failed_save_local">Gagal Simpan</string>
 
@@ -104,7 +106,7 @@
     <string-array name="tipe_panen_options">
         <item>Normal</item>
         <item>Cut &amp; Carry</item>
-        <item>MAIC</item>
+<!--        <item>Mekanisasi</item>-->
     </string-array>
 
     <array name="autosize_text_sizes">

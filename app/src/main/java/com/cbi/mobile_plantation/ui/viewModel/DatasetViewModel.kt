@@ -23,6 +23,7 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
@@ -72,6 +73,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _transporterStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val transporterStatus: StateFlow<Result<Boolean>> = _transporterStatus.asStateFlow()
+
+    private val _kendaraanStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
+    val kendaraanStatus: StateFlow<Result<Boolean>> = _kendaraanStatus.asStateFlow()
 
     private val _tphStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val tphStatus: StateFlow<Result<Boolean>> = _tphStatus.asStateFlow()
@@ -153,6 +157,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 _karyawanStatus.value = Result.success(true)
             } catch (e: Exception) {
                 _karyawanStatus.value = Result.failure(e)
+            }
+        }
+
+    fun InsertKendaraan(kendaraan: List<KendaraanModel>) =
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.InsertKendaraan(kendaraan)
+                _kendaraanStatus.value = Result.success(true)
+            } catch (e: Exception) {
+                _kendaraanStatus.value = Result.failure(e)
             }
         }
 
@@ -587,6 +601,20 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                 ?: ""
                                                         )
 
+                                                    AppUtils.DatasetNames.kendaraan -> hasShownError =
+                                                        processDataset(
+                                                            jsonContent = jsonContent,
+                                                            dataset = request.dataset,
+                                                            modelClass = KendaraanModel::class.java,
+                                                            results = results,
+                                                            response = response,
+                                                            updateOperation = ::InsertKendaraan,
+                                                            statusFlow = kendaraanStatus,
+                                                            hasShownError = hasShownError,
+                                                            lastModifiedTimestamp = lastModified
+                                                                ?: ""
+                                                        )
+
                                                     else -> {
 
                                                         results[request.dataset] =
@@ -756,7 +784,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             responseBodyString,
                                             FetchStatusCMPResponse::class.java
                                         )
-                                        
+
                                         viewModelScope.launch(Dispatchers.IO) {
                                             val panenIdsToUpdate = mutableListOf<Int>()
                                             val espbIdsToUpdate = mutableListOf<Int>()

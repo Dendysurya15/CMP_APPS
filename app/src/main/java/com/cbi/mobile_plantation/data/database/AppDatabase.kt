@@ -17,6 +17,8 @@ import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.utils.AppUtils
 
 /**
  * Database Version History
@@ -57,8 +59,9 @@ import com.cbi.markertph.data.model.TPHNewModel
         TransporterModel::class,
         UploadCMPModel::class,
         AbsensiModel::class,
+        KendaraanModel::class,
     ],
-    version = 17
+    version = 21
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -71,6 +74,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transporterDao(): TransporterDao
     abstract fun uploadCMPDao(): UploadCMPDao
     abstract fun absensiDao(): AbsensiDao
+    abstract fun kendaraanDao(): KendaraanDao
 
     companion object {
         @Volatile
@@ -93,7 +97,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_9_10,
                         MIGRATION_11_12,
                         MIGRATION_13_14,
-                        MIGRATION_14_15
+                        MIGRATION_14_15,
+                        MIGRATION_17_18
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -224,6 +229,38 @@ abstract class AppDatabase : RoomDatabase() {
         private val MIGRATION_14_15 = object : Migration(14, 15) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE espb_table ADD COLUMN uploaded_at_ppro_wb TEXT DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Step 1: Create a new table with the updated schema
+                database.execSQL(
+                    """
+            CREATE TABLE mill_new (
+                id INTEGER PRIMARY KEY,
+                id_ppro INTEGER,
+                abbr TEXT,
+                nama TEXT,
+                ip_address TEXT, -- Renamed from 'ip'
+                ip_client TEXT
+            )
+        """.trimIndent()
+                )
+
+                // Step 2: Copy data from old table to new table
+                database.execSQL(
+                    """
+            INSERT INTO mill_new (id, abbr, nama, ip_address)
+            SELECT id, abbr, nama, ip FROM ${AppUtils.DatabaseTables.MILL}
+        """.trimIndent()
+                )
+
+                // Step 3: Drop old table
+                database.execSQL("DROP TABLE ${AppUtils.DatabaseTables.MILL}")
+
+                // Step 4: Rename new table to old table name
+                database.execSQL("ALTER TABLE mill_new RENAME TO ${AppUtils.DatabaseTables.MILL}")
             }
         }
 

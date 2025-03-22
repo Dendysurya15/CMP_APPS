@@ -136,7 +136,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var locationViewModel: LocationViewModel
     private lateinit var panenTBSViewModel: PanenTBSViewModel
     private var locationEnable: Boolean = false
-
     private lateinit var btnScanTPHRadius: MaterialButton
     private lateinit var tphScannedResultRecyclerView: RecyclerView
     private lateinit var titleScannedTPHInsideRadius: TextView
@@ -144,11 +143,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var emptyScannedTPHInsideRadius: TextView
     private lateinit var alertCardScanRadius: MaterialCardView
     private lateinit var alertTvScannedRadius: TextView
-
-
     private lateinit var backButton: ImageView
-
-    // Global Variables
     private lateinit var layoutAncak: View
     private lateinit var layoutKemandoran: LinearLayout
     private lateinit var layoutKemandoranLain: LinearLayout
@@ -197,7 +192,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var selectedPemanenLainAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
     private lateinit var rvSelectedPemanenLain: RecyclerView
-    private var selectedKemandoranValue: Int? = null
 
     enum class InputType {
         SPINNER,
@@ -206,7 +200,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
     private var ancakInput: String = ""
-
     private var asistensi: Int = 0
     private var blokBanjir: Int = 0
     private var selectedTipePanen: String = ""
@@ -219,13 +212,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var selectedPemanen: String = ""
     private var selectedPemanenLain: String = ""
     private var infoApp: String = ""
-
-
     private var selectedDivisiValue: Int? = null
     private var selectedBlokValue: Int? = null
     private var selectedTahunTanamValue: String? = null
     private var selectedTPHValue: Int? = null
-
     private var buahMasak = 0
     private var kirimPabrik = 0
     private var tbsDibayar = 0
@@ -234,9 +224,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     var persenAbnormal = 0f
     var persenJjgKosong = 0f
     var persenMasak = 0f
-
     private lateinit var jjg_json: String
-
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var panenViewModel: PanenViewModel
@@ -252,26 +240,58 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var boundaryAccuracy = 0F
     private var isEmptyScannedTPH = true
     private var isTriggeredBtnScanned = false
-
-    //    private lateinit var karyawanNikMap: Map<String, String>
+    private var activityInitialized = false
     private val karyawanIdMap: MutableMap<String, Int> = mutableMapOf()
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
-
-    //    private lateinit var karyawanLainNikMap: Map<String, String>
     private val karyawanLainIdMap: MutableMap<String, Int> = mutableMapOf()
     private val kemandoranLainIdMap: MutableMap<String, Int> = mutableMapOf()
-
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_panen_tbs)
+        //cek tanggal otomatis
+        checkDateTimeSettings()
+    }
+
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
+    }
+
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupUI() {
         loadingDialog = LoadingDialog(this)
 
         prefManager = PrefManager(this)
 
-        radiusMinimum = prefManager!!.radiusMinimum
-//        radiusMinimum = 100F
+//        radiusMinimum = prefManager!!.radiusMinimum
+        radiusMinimum = 100F
         boundaryAccuracy = prefManager!!.boundaryAccuracy
 
         initViewModel()
@@ -384,12 +404,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     currentFocus.clearFocus()
                 }
             }
-            false // Don't consume the event so other touch handlers still work
+            false
         }
 
-
         mbSaveDataPanenTBS.setOnClickListener {
-//            mbSaveDataPanenTBS.isEnabled = false
             if (validateAndShowErrors()) {
                 AlertDialogUtility.withTwoActions(
                     this,
@@ -511,10 +529,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }
 
                         }
-//                        mbSaveDataPanenTBS.isEnabled = true
                     },
                     cancelFunction = {
-//                        mbSaveDataPanenTBS.isEnabled = true
                     }
                 )
             }
@@ -1104,7 +1120,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Triple(R.id.layoutJumTBS, "Jumlah TBS", ::jumTBS),
             Triple(R.id.layoutBMentah, "Buah Mentah", ::bMentah),
             Triple(R.id.layoutBLewatMasak, "Buah Lewat Masak", ::bLewatMasak),
-            Triple(R.id.layoutJjgKosong, "Janjang Kosong", ::jjgKosong),
+            Triple(R.id.layoutJjgKosong, "Janjang Kosong/Buah Busuk", ::jjgKosong),
             Triple(R.id.layoutAbnormal, "Abnormal", ::abnormal),
             Triple(R.id.layoutSeranganTikus, "Serangan Tikus", ::seranganTikus),
             Triple(R.id.layoutTangkaiPanjang, "Tangkai Panjang", ::tangkaiPanjang),
@@ -1467,7 +1483,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
     private fun resetDependentSpinners(rootView: View) {
-        // List of all dependent layouts that need to be reset
+        val switchAsistensi = rootView.findViewById<SwitchMaterial>(R.id.selAsistensi)
+        if (switchAsistensi.isChecked) {
+            switchAsistensi.isChecked = false
+        }
+
+        if (blokBanjir == 0) {
+            layoutAncak.visibility = View.GONE
+            layoutNoTPH.visibility = View.GONE
+            layoutKemandoran.visibility = View.GONE
+            layoutPemanen.visibility = View.GONE
+            layoutSelAsistensi.visibility = View.GONE
+            layoutTipePanen.visibility = View.GONE
+        }
+
         val dependentLayouts = listOf(
             R.id.layoutTahunTanam,
             R.id.layoutBlok,
@@ -1609,9 +1638,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
+        val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
 
         switchBlokBanjir.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
+                if (switchAsistensi.isChecked) {
+                    switchAsistensi.isChecked = false
+                }
                 layoutTahunTanam.visibility = View.VISIBLE
                 layoutBlok.visibility = View.VISIBLE
                 layoutNoTPH.visibility = View.VISIBLE
@@ -1672,6 +1705,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 komentarFoto.clear()
                 takeFotoPreviewAdapter?.resetAllSections()
             } else {
+                if (switchAsistensi.isChecked) {
+                    switchAsistensi.isChecked = false
+                }
                 blokBanjir = 0
 
                 layoutTahunTanam.visibility = View.GONE
@@ -1761,46 +1797,46 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val isAsistensiEnabled = switchAsistensi.isChecked
 
         inputMappings.forEach { (layout, key, inputType) ->
-            if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
 
-                val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
-                val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
+            val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+            val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
+            val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+            val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
 
-                val isEmpty = when (inputType) {
-                    InputType.SPINNER -> {
-                        when (layout.id) {
-                            R.id.layoutAfdeling -> selectedAfdeling.isEmpty()
-                            R.id.layoutTipePanen -> selectedTipePanen.isEmpty()
-                            R.id.layoutKemandoran -> selectedKemandoran.isEmpty()
-                            R.id.layoutPemanen -> selectedPemanen.isEmpty()
-                            R.id.layoutNoTPH -> blokBanjir == 1 && selectedTPH.isEmpty()
-                            R.id.layoutBlok -> blokBanjir == 1 && selectedBlok.isEmpty()
-                            else -> spinner.selectedIndex == -1
-                        }
+            val isEmpty = when (inputType) {
+                InputType.SPINNER -> {
+                    when (layout.id) {
+                        R.id.layoutAfdeling -> selectedAfdeling.isEmpty()
+                        R.id.layoutTipePanen -> selectedTipePanen.isEmpty()
+                        R.id.layoutKemandoran -> selectedKemandoran.isEmpty()
+                        R.id.layoutPemanen -> selectedPemanen.isEmpty()
+                        R.id.layoutKemandoranLain -> asistensi == 1 && selectedKemandoranLain.isEmpty()
+                        R.id.layoutNoTPH -> blokBanjir == 1 && selectedTPH.isEmpty()
+                        R.id.layoutBlok -> blokBanjir == 1 && selectedBlok.isEmpty()
+                        else -> spinner.selectedIndex == -1
                     }
-
-                    InputType.EDITTEXT -> {
-                        when (key) {
-                            getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
-                            else -> editText.text.toString().trim().isEmpty()
-                        }
-                    }
-
-                    else -> false
                 }
 
-                if (isEmpty) {
-                    tvError.visibility = View.VISIBLE
-                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-                    missingFields.add(key)
-                    isValid = false
-                } else {
-                    tvError.visibility = View.GONE
-                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+                InputType.EDITTEXT -> {
+                    when (key) {
+                        getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
+                        else -> editText.text.toString().trim().isEmpty()
+                    }
                 }
+
+                else -> false
             }
+
+            if (isEmpty) {
+                tvError.visibility = View.VISIBLE
+                mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+                missingFields.add(key)
+                isValid = false
+            } else {
+                tvError.visibility = View.GONE
+                mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+            }
+
         }
 
         if (!isSwitchBlokBanjirEnabled && selectedAfdeling.isNotEmpty() && isTriggeredBtnScanned) {
@@ -1829,11 +1865,24 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             tvErrorScannedNotSelected.visibility = View.VISIBLE
         }
 
+        val selectedPemanenWorkers = selectedPemanenAdapter.getSelectedWorkers()
+        if (selectedPemanen.isNotEmpty() && selectedPemanenWorkers.isEmpty()) {
+            AppLogger.d("masuk sini gess")
+            isValid = false
+            errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen))
+            layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                View.VISIBLE
+            layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                stringXML(R.string.al_select_at_least_one_pemanen)
+        }
+
         if (isAsistensiEnabled) {
             val isKemandoranLainEmpty = selectedKemandoranLain.isEmpty()
-            val isPemanenLainEmpty = selectedPemanenLainAdapter.itemCount == 0
+            val selectedPemanenLain = selectedPemanenLain.isEmpty()
+            val choiceVisibilePemanenLain = selectedPemanenLainAdapter.getSelectedWorkers()
 
-            if (isKemandoranLainEmpty || isPemanenLainEmpty) {
+
+            if (isKemandoranLainEmpty || selectedPemanenLain) {
                 if (isKemandoranLainEmpty) {
                     layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
                         View.VISIBLE
@@ -1842,7 +1891,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     missingFields.add(getString(R.string.field_kemandoran_lain))
                 }
 
-                if (isPemanenLainEmpty) {
+                if (selectedPemanenLain) {
                     layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
                         View.VISIBLE
                     layoutPemanenLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
@@ -1850,6 +1899,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     missingFields.add(getString(R.string.field_pemanen_lain))
                 }
                 isValid = false
+            } else {
+                if (choiceVisibilePemanenLain.isEmpty()) {
+                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                        View.VISIBLE
+                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                        stringXML(R.string.al_select_at_least_one_pemanen_lain)
+                    AppLogger.d("masuk sini gessss bro")
+                    errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen_lain))
+                }
             }
         }
 
@@ -1876,8 +1934,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             tvErrorNotAttachPhotos.visibility = View.VISIBLE
         }
 
+
+
         if (!isValid) {
-//            mbSaveDataPanenTBS.isEnabled = true
             vibrate()
             val combinedErrorMessage = buildString {
                 val allMessages = mutableListOf<String>()
@@ -3051,6 +3110,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
             currentAccuracy = accuracy
         }
+
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+            startPeriodicDateTimeChecking()
+        }
     }
 
 
@@ -3091,14 +3155,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     override fun onPause() {
         super.onPause()
         locationViewModel.stopLocationUpdates()
-
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         locationViewModel.stopLocationUpdates()
 
-
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
     override fun onPhotoTaken(

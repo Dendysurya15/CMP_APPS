@@ -136,6 +136,13 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var lastModifiedDatasetKendaraan: String?
+        get() = pref.getString("lastModifiedDatasetKendaraan", "")
+        set(lastModifiedDatasetKendaraan) {
+            editor.putString("lastModifiedDatasetKendaraan", lastModifiedDatasetKendaraan)
+            editor.commit()
+        }
+
     var lastModifiedSettingJSON: String?
         get() = pref.getString("lastModifiedSettingJSON", "")
         set(lastModifiedSettingJSON) {
