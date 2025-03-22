@@ -93,6 +93,10 @@ class ScanQR : AppCompatActivity() {
         previousTph0 = intent.getStringExtra("tph_0") ?: ""
         previousTph1IdPanen = intent.getStringExtra("tph_1_id_panen") ?: ""
 
+        Log.d("ScanQR", "Previous tph1: $previousTph1")
+        Log.d("ScanQR", "Previous tph0: $previousTph0")
+        Log.d("ScanQR", "Previous tph1IdPanen: $previousTph1IdPanen")
+
         barcodeView = findViewById(R.id.barcode_scanner)
         barcodeView.findViewById<TextView>(com.google.zxing.client.android.R.id.zxing_status_view)?.visibility = View.GONE
 
@@ -107,7 +111,19 @@ class ScanQR : AppCompatActivity() {
             override fun possibleResultPoints(resultPoints: List<ResultPoint>) {}
         })
 
-        barcodeView.resume() // ✅ Start scanning
+        if (menuString == "Buat eSPB") {
+            findViewById<View>(R.id.stop_scan).visibility = View.VISIBLE
+            findViewById<View>(R.id.stop_scan).setOnClickListener {
+                intent = Intent(this, ListPanenTBSActivity::class.java).apply {
+                    putExtra("FEATURE_NAME", menuString)
+                }
+                startActivity(intent)
+                finish()
+            }
+        }
+
+
+        barcodeView.resume() //
     }
 
     override fun onResume() {

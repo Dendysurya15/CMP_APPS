@@ -657,23 +657,22 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             throw IllegalArgumentException("Missing '$key' key in jjg_json: $jjgJsonString")
                         }
 
-                        val createdBy = data["created_by"]?.toString()
-                            ?: throw IllegalArgumentException("Missing created_by.")
-
-                        append("$tphId,$dateCreated,$toValue,$createdBy;")
+                        append("$tphId,$dateCreated,$toValue;")
                     } catch (e: Exception) {
                         throw IllegalArgumentException("Error processing data entry: ${e.message}")
                     }
                 }
             }
 
-            // Extract last 3 characters before '@' using regex
-            val username = prefManager!!.username.orEmpty()
-            val extractedUsername = Regex("(.{3})@").find(username)?.groupValues?.get(1) ?: username
-
+            val username = try {
+                PrefManager(this).username.toString().split("@")[0].takeLast(3).uppercase()
+            }catch (e: Exception){
+                Toasty.error(this, "Error mengambil username: ${e.message}", Toast.LENGTH_LONG).show()
+                "NULL"
+            }
             return JSONObject().apply {
                 put("tph_0", formattedData)
-                put("username", extractedUsername)
+                put("username",username)
             }.toString()
         } catch (e: Exception) {
             AppLogger.e("formatPanenDataForQR Error: ${e.message}")
@@ -1582,7 +1581,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
                                             "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
                                             "nama_karyawans" to (singleKaryawanNama as Any),
-                                            "nama_kemandorans" to (singleKemandoranNama as Any)
+                                            "nama_kemandorans" to (singleKemandoranNama as Any),
+                                            "username" to (panenWithRelations.panen.username as Any)
                                         )
 
                                         multiWorkerData.add(workerData)
@@ -1681,7 +1681,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
                                         "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
                                         "nama_karyawans" to karyawanNamas as Any,
-                                        "nama_kemandorans" to kemandoranNamas as Any
+                                        "nama_kemandorans" to kemandoranNamas as Any,
+                                        "username" to (panenWithRelations.panen.username as Any)
                                     )
 
                                     // Add this standard data to our global collection too
@@ -2041,7 +2042,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
                                     "nama_karyawans" to karyawanNamas as Any,
                                     "nama_kemandorans" to kemandoranNamas as Any,
-
+                                    "username" to (panenWithRelations.panen.username as Any)
                                     )
                             }
 
@@ -2546,10 +2547,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
 
-
-        val headers =
-            listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM") // 4 Columns
-
+        val headers = if (featureName == "Buat eSPB") {
+            listOf("BLOK", "NO TPH/JJG", "JAM", "KP")
+        } else {
+            listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+        }
         updateTableHeaders(headers)
 
         listAdapter = ListPanenTPHAdapter()
@@ -2599,4 +2601,5 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         return uniqueEntries
     }
+
 }

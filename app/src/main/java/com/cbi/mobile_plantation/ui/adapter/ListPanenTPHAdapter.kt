@@ -76,7 +76,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         val tphText: String,
         val searchableText: String,
         val tphId: Int,
-        val panenId: Int
+        val panenId: Int,
+        val username: String
     )
 
     // Then modify setFeatureAndScanned to call this method:
@@ -106,6 +107,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         Log.d("ListPanenTPHAdapterTest", "extractData: $item")
 
 
+        AppLogger.d(item.toString())
         val panenId = item["id"] as? String ?: "0"
         val tphId = item["tph_id"] as? String ?: "0"
 
@@ -134,6 +136,12 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         } catch (e: Exception) {
             "-"
         }
+        val username = try {
+            item["username"] as? String ?: "-"
+        }catch (e: Exception){
+            AppLogger.e(e.toString())
+            "-"
+        }
 
         val blokText = "$blokName"
         val noTPHText = noTPH
@@ -147,7 +155,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             noTPHText,
             searchableText,
             tphId.toInt(),
-            panenId.toInt()
+            panenId.toInt(),
+            username
         )
     }
 
@@ -245,11 +254,49 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 itemView.setOnClickListener(null)
                 itemView.isClickable = false
                 itemView.isFocusable = false
-            } else {
+            }
+            else if(featureName == AppUtils.ListFeatureNames.BuatESPB ){
+                binding.td5.visibility = View.VISIBLE
+                val params = binding.td5.layoutParams as LinearLayout.LayoutParams
+                params.weight = 0.2f
+                binding.td5.layoutParams = params
+
+                // Set a different color based on username
+                val username = extractedData.username
+                val color = ListPanenTPHAdapter().getUsernameColor(username, context)
+                binding.td5.setBackgroundColor(color)
+
+                binding.td2.text = "${extractedData.tphText}/${extractedData.gradingText}"
+                binding.td3.text = extractedData.tanggalText
+                binding.td4.text = extractedData.username
+            }
+
+            else {
                 binding.td1.text = extractedData.blokText
                 binding.td2.text = extractedData.tphText
                 binding.td3.text = extractedData.gradingText
                 binding.td4.text = extractedData.tanggalText
+
+
+                val checkedColor = if (isScannedItem) {
+                    ContextCompat.getColor(context, R.color.greenDarker)
+                } else {
+                    Color.RED
+                }
+
+                // Create the ColorStateList with the appropriate checked color
+                val colorStateList = ColorStateList(
+                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf(checkedColor, Color.GRAY)
+                )
+
+                // Apply the tint
+                binding.checkBoxPanen.buttonTintList = colorStateList
+
+                // Add listener AFTER setting state
+                binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
+                    onCheckedChange(isChecked)
+                }
 
                 if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 0) {
                     AppLogger.d(archiveState.toString())
@@ -677,7 +724,26 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         onSelectionChangeListener = listener
     }
 
+    fun getUsernameColor(username: String, context: Context): Int {
+        // Create a deterministic hash of the username to ensure the same user always gets the same color
+        val hash = username.hashCode()
 
+        // Define a set of predefined colors - you can customize these
+        val colors = arrayOf(
+            context.resources.getColor(R.color.bluedark),
+            Color.parseColor("#4CAF50"), // Green
+            Color.parseColor("#FF9800"), // Orange
+            Color.parseColor("#9C27B0"), // Purple
+            Color.parseColor("#E91E63"), // Pink
+            Color.parseColor("#00BCD4"), // Cyan
+            Color.parseColor("#FF5722"), // Deep Orange
+            Color.parseColor("#607D8B")  // Blue Grey
+        )
+
+        // Use the hash to select a color
+        val colorIndex = Math.abs(hash) % colors.size
+        return colors[colorIndex]
+    }
     @SuppressLint("NotifyDataSetChanged")
     fun updateData(newData: List<Map<String, Any>>) {
 

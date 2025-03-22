@@ -1,5 +1,6 @@
 package com.cbi.mobile_plantation.ui.adapter
 
+import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -26,6 +27,7 @@ class TPHRvAdapter(private var items: List<TphRvData>) :
         return ViewHolder(view)
     }
 
+    @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
         holder.td1.visibility = View.VISIBLE
@@ -34,9 +36,9 @@ class TPHRvAdapter(private var items: List<TphRvData>) :
         holder.td4.visibility = View.VISIBLE
 
         holder.td1.text = item.namaBlok
-        holder.td2.text = item.noTPH.toString()
-        holder.td3.text = item.jjg.toString()
-        holder.td4.text = item.time
+        holder.td2.text = "${item.noTPH}/${item.jjg}"
+        holder.td3.text = item.time
+        holder.td4.text = item.username
         holder.flCheckBoxItemTph.visibility = View.GONE
     }
 

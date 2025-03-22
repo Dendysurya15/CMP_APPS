@@ -84,7 +84,8 @@ class AppRepository(context: Context) {
                             archive = 0,
                             status_espb = 0,
                             status_restan = 0,
-                            scan_status = 1
+                            scan_status = 1,
+                            username = tphData.username
                         )
                     )
                 }
