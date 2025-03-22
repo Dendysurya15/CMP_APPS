@@ -80,7 +80,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val _tphStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val tphStatus: StateFlow<Result<Boolean>> = _tphStatus.asStateFlow()
 
-
     private val _fetchStatusUploadCMPLiveData = MutableLiveData<List<FetchResponseItem>>()
     val fetchStatusUploadCMPLiveData: LiveData<List<FetchResponseItem>> =
         _fetchStatusUploadCMPLiveData
@@ -216,6 +215,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     suspend fun getAllTransporter(): List<TransporterModel> {
         return repository.getAllTransporter()
+    }
+
+    suspend fun getAllNopol(): List<KendaraanModel> {
+        return repository.getAllNopol()
     }
 
     suspend fun getTPHList(

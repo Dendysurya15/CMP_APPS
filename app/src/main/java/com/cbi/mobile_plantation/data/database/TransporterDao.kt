@@ -40,4 +40,11 @@ abstract class TransporterDao {
 
     @Query("SELECT nama FROM transporter WHERE id = :transporterId LIMIT 1")
     abstract suspend fun getTransporterNameById(transporterId: Int): String?
+
+    @Query(
+        """
+    SELECT * FROM transporter
+    """
+    )
+    abstract fun getAllTransporter(): List<TransporterModel>
 }

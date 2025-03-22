@@ -27,6 +27,7 @@ class AppRepository(context: Context) {
     private val karyawanDao = database.karyawanDao()
     private val kemandoranDao = database.kemandoranDao()
     private val transporterDao = database.transporterDao()
+    private val kendaraanDao = database.kendaraanDao()
 
     sealed class SaveResultPanen {
         object Success : SaveResultPanen()
@@ -286,6 +287,10 @@ class AppRepository(context: Context) {
 
     suspend fun getMillList() = withContext(Dispatchers.IO) {
         millDao.getAll()
+    }
+
+    suspend fun getNopolList() = withContext(Dispatchers.IO) {
+        kendaraanDao.getAll()
     }
 
     private fun transformTphDataToMap(inputData: String): Map<Int, Int> {

@@ -87,14 +87,6 @@ abstract class KemandoranDao {
         idKemandoran: String,
     ): Int
 
-    @Query(
-        """
-    SELECT * FROM transporter
-    """
-    )
-    abstract fun getAllTransporter(): List<TransporterModel>
-
-
 
 
 }

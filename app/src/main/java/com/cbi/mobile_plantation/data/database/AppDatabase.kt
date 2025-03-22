@@ -236,5 +236,6 @@ abstract class AppDatabase : RoomDatabase() {
             INSTANCE?.close()
             INSTANCE = null
         }
+
     }
 }

@@ -1896,12 +1896,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 .distinct()
                                 .count()
 
-                            if (featureName == "Detail eSPB" || !(featureName == "Rekap Hasil Panen" && currentState == 2)) {
+                            if (featureName != "Detail eSPB") {
                                 blokSection.visibility = View.VISIBLE
                                 totalSection.visibility = View.VISIBLE
-                            } else {
-                                blokSection.visibility = View.GONE
-                                totalSection.visibility = View.GONE
                             }
 
                             blok = distinctBlokNames.ifEmpty { "-" }

@@ -87,7 +87,11 @@ class DatasetRepository(
     }
 
     suspend fun getAllTransporter(): List<TransporterModel> {
-        return kemandoranDao.getAllTransporter()
+        return transporterDao.getAllTransporter()
+    }
+
+    suspend fun getAllNopol(): List<KendaraanModel> {
+        return kendaraanDao.getAll()
     }
 
 

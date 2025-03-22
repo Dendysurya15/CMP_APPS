@@ -9,6 +9,7 @@ import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.KendaraanModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
@@ -35,6 +36,9 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
 
+    private val _nopolList = MutableLiveData<List<KendaraanModel>>()
+    val nopolList: LiveData<List<KendaraanModel>> = _nopolList
+
     private val _espbDraftCount = MutableStateFlow(0)
 
     init {
@@ -46,6 +50,17 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
             try {
                 val mills = repository.getMillList()
                 _millList.postValue(mills)
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
+    private fun loadNopol() {
+        viewModelScope.launch {
+            try {
+                val nopol = repository.getNopolList()
+                _nopolList.postValue(nopol)
             } catch (e: Exception) {
                 // Handle error
             }
