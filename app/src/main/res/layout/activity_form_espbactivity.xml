@@ -62,6 +62,13 @@
                 android:layout_width="match_parent"
                 android:layout_marginHorizontal="20dp"
                 layout="@layout/pertanyaan_spinner_layout"
+                android:id="@+id/formEspbAfdeling"/>
+            <include
+                android:layout_marginTop="10dp"
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginHorizontal="20dp"
+                layout="@layout/pertanyaan_spinner_layout"
                 android:id="@+id/formEspbKemandoran"/>
             <include
                 android:layout_marginTop="10dp"

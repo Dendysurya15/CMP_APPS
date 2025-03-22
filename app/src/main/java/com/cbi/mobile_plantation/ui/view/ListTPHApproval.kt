@@ -310,7 +310,12 @@ class ListTPHApproval : AppCompatActivity() {
             try {
                 val jsonObject = JSONObject(jsonString)
                 val tph0String = jsonObject.getString("tph_0")
-                val usernameString = jsonObject.getString("username")
+                val usernameString = try{
+                    jsonObject.getString("username")
+                }catch (e: Exception){
+                    AppLogger.d("Username tidak ditemukan: $e")
+                    "NULL"
+                }
                 Log.d(TAG, "tph0String: $tph0String")
 
                 val parsedEntries = tph0String.split(";").mapNotNull { entry ->

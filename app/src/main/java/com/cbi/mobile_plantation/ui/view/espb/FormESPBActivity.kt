@@ -29,11 +29,13 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
@@ -69,6 +71,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.collections.List
 
 class FormESPBActivity : AppCompatActivity() {
     var featureName = ""
@@ -114,9 +117,14 @@ class FormESPBActivity : AppCompatActivity() {
     private var kemandoran_id = "NULL"
     private var pemuat_nik = "NULL"
 
+    private var divisiList: List<TPHNewModel> = emptyList()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_form_espbactivity)
+        findViewById<ConstraintLayout>(R.id.headerFormESPB).findViewById<ImageView>(R.id.statusLocation).apply {
+            visibility = View.GONE
+        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 AlertDialogUtility.withTwoActions(
@@ -184,6 +192,7 @@ class FormESPBActivity : AppCompatActivity() {
 
         initViewModel()
         setupHeader()
+
         setupViewModel()
         Log.d("tph1", "tph1: $tph1")
         viewModel.janjangByBlock.observe(this) { janjangMap ->
@@ -216,7 +225,8 @@ class FormESPBActivity : AppCompatActivity() {
         val formEspbTransporter = findViewById<LinearLayout>(R.id.formEspbTransporter)
 
         setupSpinnerText(R.id.formEspbMill, "Pilih Mill", "Mill")
-        setupSpinnerText(R.id.formEspbKemandoran, "Pilih Kemandoran", "Kemandoran")
+        setupSpinnerText(R.id.formEspbAfdeling, "Pilih Afdeling", "Afdeling")
+        setupSpinnerText(R.id.formEspbKemandoran, "Pilih Kemandoran", "Kemandoran Pemuat")
         setupSpinnerText(R.id.formEspbTransporter, "Pilih Transporter", "Transporter")
         setupSpinnerText(R.id.formEspbPemuat, "Pilih Pemuat", "Pemuat")
 
@@ -754,6 +764,20 @@ class FormESPBActivity : AppCompatActivity() {
             featureName = featureName,
             tvFeatureName = tvFeatureName
         )
+
+        val estateIdUserLogin = PrefManager(this)!!.estateIdUserLogin
+        lifecycleScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                val divisiDeferred =
+                    async { try {
+                        datasetViewModel.getDivisiList(estateIdUserLogin!!.toInt()) }catch (e: Exception){
+                            AppLogger.e("Error fetching divisiList: ${e.message}")
+                            emptyList()
+                        }
+                    }
+                divisiList = divisiDeferred.await()
+            }
+        }
     }
 
     private fun showPopupSearchDropdown(
