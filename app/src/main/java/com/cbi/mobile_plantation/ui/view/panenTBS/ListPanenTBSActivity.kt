@@ -954,8 +954,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             maximumScale = 5.0f  // Maximum zoom
                             mediumScale = 2.5f   // Medium zoom
 
-                            // Now you can safely set scale to a smaller value
-                            scale = 0.8f  // This will work since it's above minimumScale
+                             scale = 0.8f  // This will work since it's above minimumScale
 
                             // Enable zooming
                             isZoomable = true
