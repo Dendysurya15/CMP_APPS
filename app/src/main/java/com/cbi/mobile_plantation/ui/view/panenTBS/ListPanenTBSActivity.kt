@@ -1029,11 +1029,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 this@ListPanenTBSActivity,
                                 getString(R.string.al_yes),
                                 getString(R.string.confirmation_dialog_title),
-                                "${getString(R.string.al_make_sure_scanned_qr)}  data?",
+                                "${getString(R.string.al_make_sure_scanned_qr)}",
                                 "warning.json",
                                 ContextCompat.getColor(
                                     this@ListPanenTBSActivity,
-                                    R.color.greendarkerbutton
+                                    R.color.bluedarklight
                                 ),
                                 function = {
                                     lifecycleScope.launch(Dispatchers.IO) {

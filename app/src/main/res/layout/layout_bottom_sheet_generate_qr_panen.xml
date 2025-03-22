@@ -183,7 +183,7 @@
 
             <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="350dp"
+                android:layout_height="320dp"
                 android:layout_gravity="center">
 
                 <!-- Regular ImageView instead of PhotoView -->
@@ -280,7 +280,7 @@
             android:backgroundTint="@color/greenDarker"
             android:text="Sudah Scan"
             android:textAllCaps="false"
-            android:textSize="16sp"
+            android:textSize="18sp"
             android:visibility="gone"
             app:cornerRadius="8dp"
             app:icon="@drawable/baseline_qr_code_scanner_24"

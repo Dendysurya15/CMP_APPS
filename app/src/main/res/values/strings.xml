@@ -57,7 +57,7 @@
 
     <string name="al_delete">Hapus</string>
     <string name="al_make_sure_delete">Apakah anda yakin untuk menghapus</string>
-    <string name="al_make_sure_scanned_qr">Apakah anda yakin sudah Scan QR?</string>
+    <string name="al_make_sure_scanned_qr">Apakah anda yakin sudah melakukan Scan QR?</string>
     <string name="welcome_back">Selamat Datang</string>
     <string name="subtitle_prompt">Gunakan sidik jari untuk melanjutkan</string>
     <!--    form panen tbs-->
