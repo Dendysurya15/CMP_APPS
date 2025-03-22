@@ -569,7 +569,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             currentState = 2
             setActiveCard(cardRekapPerPemanen)
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
-                val rekapHeaders = listOf("NAMA\nPEMANEN", "BLOK/JJG", "JUMLAH\nTPH", "TOTAL JJG/\nJJG DIBAYAR")
+                val rekapHeaders = listOf("NAMA\nPEMANEN", "BLOK/JJG", "TPH", "TOTAL JJG/\nJJG DIBAYAR")
                 updateTableHeaders(rekapHeaders)
             }
             loadingDialog.show()
@@ -1771,7 +1771,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             // Blok already exists, find and update its count
                                             val lines = existingJjgEachBlok.split("\n")
                                             val updatedLines = lines.map { line ->
-                                                if (line.startsWith("$blokName(")) {
+                                                if (line.startsWith("$blokName (")) {
                                                     val regex = "$blokName\\(([0-9.]+)\\)".toRegex()
                                                     val matchResult = regex.find(line)
                                                     if (matchResult != null) {
