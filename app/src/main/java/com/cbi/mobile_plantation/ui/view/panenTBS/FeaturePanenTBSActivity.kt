@@ -171,8 +171,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val number: String,
         val blockCode: String,
         val distance: Float,
-        val isAlreadySelected: Boolean = false
+        val isAlreadySelected: Boolean,
+        val selectionCount: Int = 0,
+        val canBeSelectedAgain: Boolean = true
     )
+
+
 
     private var latLonMap: Map<Int, ScannedTPHLocation> = emptyMap()
 
@@ -235,7 +239,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var userId: Int? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
-    private var panenStoredLocal: MutableList<Int> = mutableListOf()
+    private var panenStoredLocal: MutableMap<Int, Int> = mutableMapOf()
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
     private var isEmptyScannedTPH = true
@@ -333,18 +337,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     panenViewModel.loadActivePanenESPB()
                     delay(100)
 
-                    withContext(Dispatchers.Main) { // Ensure observation is on main thread
+                    withContext(Dispatchers.Main) {
                         panenViewModel.activePanenList.observe(this@FeaturePanenTBSActivity) { list ->
-                            panenDeferred.complete(list ?: emptyList()) // Ensure it's never null
+                            val tphCounts = list?.mapNotNull { it.tph?.id }
+                                ?.groupingBy { it }
+                                ?.eachCount()
+                                ?: emptyMap()
+
+                            panenStoredLocal.clear()
+                            panenStoredLocal.putAll(tphCounts)
+
+                            panenDeferred.complete(list ?: emptyList())
                         }
                     }
 
-                    val panenList = panenDeferred.await()
 
-
-                    panenStoredLocal = panenList
-                        .mapNotNull { it.tph?.id } // This ensures only non-null IDs are stored
-                        .toMutableList()
+                    AppLogger.d(panenStoredLocal.toString())
 
 
                     val divisiDeferred = async {
@@ -496,7 +504,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             R.color.greenDefault
                                         ) {
 
-                                            panenStoredLocal.add(selectedTPHValue!!.toInt())
+                                            val tphId = selectedTPHValue!!.toInt()
+                                            val currentCount = panenStoredLocal[tphId] ?: 0
+                                            panenStoredLocal[tphId] = currentCount + 1
                                             resetFormAfterSaveData()
                                         }
                                     }
@@ -1453,32 +1463,29 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     ): List<ScannedTPHSelectionItem> {
         val resultsList = mutableListOf<ScannedTPHSelectionItem>()
 
-        AppLogger.d(userLat.toString())
-        AppLogger.d(userLon.toString())
         for ((id, location) in coordinates) {
-//            if (id in panenStoredLocal) continue // Exclude IDs already in panenStoredLocal
-
             val results = FloatArray(1)
-
             Location.distanceBetween(userLat, userLon, location.lat, location.lon, results)
             val distance = results[0]
 
             if (distance <= radiusMinimum) {
+                val selectedCount = panenStoredLocal[id] ?: 0
+
                 resultsList.add(
                     ScannedTPHSelectionItem(
                         id = id,
                         number = location.nomor,
                         blockCode = location.blokKode,
                         distance = distance,
-                        isAlreadySelected = id in panenStoredLocal  // Add a flag for already selected
+                        isAlreadySelected = selectedCount > 0,
+                        selectionCount = selectedCount,
+                        canBeSelectedAgain = selectedCount < AppUtils.MAX_SELECTIONS_PER_TPH
                     )
                 )
             }
         }
 
-        AppLogger.d(resultsList.toString())
-
-        return resultsList.sortedBy { it.distance } // Sort by distance
+        return resultsList.sortedBy { it.distance }
     }
 
 
@@ -1784,12 +1791,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val missingFields = mutableListOf<String>()
         val errorMessages = mutableListOf<String>()
 
-        if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
-            isValid = false
-            this.vibrate()
-            errorMessages.add(stringXML(R.string.al_location_description_failed))
-            missingFields.add("Location")
-        }
+//        if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
+//            isValid = false
+//            this.vibrate()
+//            errorMessages.add(stringXML(R.string.al_location_description_failed))
+//            missingFields.add("Location")
+//        }
 
         val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
         val switchBlokBanjir = findViewById<SwitchMaterial>(R.id.selBlokBanjir)
@@ -1923,6 +1930,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val layoutJumTBS = findViewById<ConstraintLayout>(R.id.layoutJumTBS)
             layoutJumTBS.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
                 visibility = View.GONE
+            }
+        }
+
+        if (selectedTPHValue != null && blokBanjir == 1) {
+            val tphId = selectedTPHValue!!.toInt()
+            val currentCount = panenStoredLocal[tphId] ?: 0
+            if (currentCount > AppUtils.MAX_SELECTIONS_PER_TPH - 1) {
+                isValid = false
+                val layoutNoTPH = findViewById<LinearLayout>(R.id.layoutNoTPH)
+                layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
+                    text = "TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!"
+                    visibility = View.VISIBLE
+                }
+                errorMessages.add("TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!")
             }
         }
 
@@ -2300,15 +2321,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         tphList = tphDeferred.await() ?: emptyList() // Avoid null crash
 
-                        //exclude no tph yang sudah pernah dipilih atau di store di database
-                        val storedTPHIds =
-                            panenStoredLocal.toSet()
 
-                        val filteredTPHList = tphList.filter {
-                            val isExcluded = it.id in storedTPHIds
-                            !isExcluded
+                        val noTPHList = tphList.map { tph ->
+                            val selectionCount = panenStoredLocal[tph.id] ?: 0
+                            when (selectionCount) {
+                                0 -> tph.nomor
+                                1 -> "${tph.nomor} (sudah terpilih 1 kali)"
+                                else -> "${tph.nomor} (sudah terpilih ${selectionCount} kali)"
+                            }
                         }
-                        val noTPHList = filteredTPHList.map { it.nomor }
 
 
                         withContext(Dispatchers.Main) {
@@ -2340,8 +2361,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 //
 //
             R.id.layoutNoTPH -> {
-                selectedTPH = selectedItem.toString()
+                val selectedText = selectedItem.trim()
+                selectedTPH = selectedText.split(" (").firstOrNull()?.trim() ?: selectedText
 
+                val selectionCountMatch = Regex("sudah terpilih (\\d+) kali").find(selectedText)
+                val selectionCount = selectionCountMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                if (selectionCount >= AppUtils.MAX_SELECTIONS_PER_TPH) {
+                    Toasty.warning(
+                        this,
+                        "TPH ini sudah dipilih maksimal ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Mohon mengganti pilihan Nomor TPH!",
+                        Toast.LENGTH_SHORT,
+                        true
+                    ).show()
+                }
+
+                AppLogger.d(selectedTPH.toString())
                 val selectedTPHId = try {
                     tphList?.find {
                         it.dept == estateId?.toIntOrNull() && // Safe conversion to prevent crashes
@@ -2357,12 +2391,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 AppLogger.d(selectedTPHId.toString())
                 if (selectedTPHId != null) {
-                    if (!panenStoredLocal.contains(selectedTPHId)) {
-                        panenStoredLocal.add(selectedTPHId)
-                        AppLogger.d("Added TPH ID to panenStoredLocal: $selectedTPHId")
-                    } else {
-                        AppLogger.d("TPH ID already exists in panenStoredLocal: $selectedTPHId")
-                    }
 
                     selectedTPHValue = selectedTPHId
                     AppLogger.d("Selected TPH ID: $selectedTPHValue")
