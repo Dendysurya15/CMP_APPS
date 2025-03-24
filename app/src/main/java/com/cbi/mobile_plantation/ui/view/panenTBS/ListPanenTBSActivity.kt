@@ -150,6 +150,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var tph1QR = "NULL"
     private var creatorInfo = "NULL"
     private var dateTime = "NULL"
+    private var idsToUpdate = "NULL"
     private val todayDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))
     private val todayDate = todayDateFormat.format(Date())
     private lateinit var ll_detail_espb: LinearLayout
@@ -296,6 +297,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 panenViewModel.loadCountTPHESPB(0, 1, 1)
 
             } else if (featureName == "Detail eSPB") {
+                val btnEditEspb = findViewById<FloatingActionButton>(R.id.btnEditEspb)
+                btnEditEspb.visibility = View.VISIBLE
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
                 ll_detail_espb.visibility = View.VISIBLE
                 espbViewModel.getESPBById(espbId)
@@ -330,6 +333,25 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             pemuat_nik = espb.pemuat_nik
                             tph1 = espb.tph1
                             tph0 = espb.tph0
+                            idsToUpdate = espb.ids_to_update
+
+                            btnEditEspb.setOnClickListener {
+                                AlertDialogUtility.withTwoActions(this@ListPanenTBSActivity, "EDIT", "Edit eSPB", "Apakah anda yakin ingin mengedit eSPB ini?", "warning.json", function = {
+                                    val intent = Intent(this@ListPanenTBSActivity, FormESPBActivity::class.java)
+                                    intent.putExtra("tph_1", tph1)
+                                    Log.d("ListPanenTBSActivity", "tph1: $tph1")
+                                    intent.putExtra("tph_0", tph0)
+                                    Log.d("ListPanenTBSActivity", "tph0: $tph0")
+                                    intent.putExtra("id_espb", espbId)
+                                    Log.d("ListPanenTBSActivity", "id_espb: $espbId")
+                                    intent.putExtra("tph_1_id_panen", idsToUpdate)
+                                    Log.d("ListPanenTBSActivity", "tph_1_id_panen: $idsToUpdate")
+                                    intent.putExtra("FEATURE_NAME", featureName)
+                                    Log.d("ListPanenTBSActivity", "FEATURE_NAME: $featureName")
+                                    startActivity(intent)
+                                    finishAffinity()}
+                                )
+                            }
 
                             // Set No eSPB
                             tvNoEspb.findViewById<TextView>(R.id.tvTitleEspb).text = "No eSPB"
@@ -562,7 +584,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 loadingDialog.setMessage("Loading data terscan...")
                 panenViewModel.loadArchivedPanen()
             }
-
         }
 
         cardRekapPerPemanen.setOnClickListener {
@@ -1868,7 +1889,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 AppLogger.d("Using standard data (no global merging): $mappedData")
                             }
 
-
+                            Log.d("detail_espb","TEST")
                             val distinctBlokNames = mappedData
                                 .map { it["blok_name"].toString() }
                                 .distinct()
@@ -1888,7 +1909,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     AppLogger.e("Error parsing jjg_json: ${e.message}")
                                 }
                             }
-
 
                             // Calculate distinct TPH count
                             val distinctTphCount = mappedData
@@ -1920,9 +1940,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                             // Set jjg
                             val tvTph = findViewById<View>(R.id.tv_total_tph)
-                            tvTph.findViewById<TextView>(R.id.tvTitleEspb).text = "Jumalh TPH"
+                            tvTph.findViewById<TextView>(R.id.tvTitleEspb).text = "Jumlah TPH"
                             tvTph.findViewById<TextView>(R.id.tvSubTitleEspb).text = tph.toString()
-
 
                             listAdapter.updateData(mappedData)
                             originalData =

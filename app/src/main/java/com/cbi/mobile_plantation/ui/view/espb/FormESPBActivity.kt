@@ -1270,7 +1270,8 @@ class FormESPBActivity : AppCompatActivity() {
                     status_draft = status_draft,
                     status_mekanisasi = status_mekanisasi,
                     kemandoran_id = kemandoran_id,
-                    pemuat_nik = pemuat_nik
+                    pemuat_nik = pemuat_nik,
+                    ids_to_update = idsToUpdate.joinToString(",")
                 )
 
                 // Insert ESPB and get the ID
@@ -1291,6 +1292,11 @@ class FormESPBActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         Toasty.error(this@FormESPBActivity, "Gagal menyimpan ESPB: ID tidak valid", Toasty.LENGTH_LONG).show()
                     }
+                }
+               try{
+                   viewModel.deleteESPBById(intent.getIntExtra("id_espb",0))
+                }catch (e: Exception){
+                    Log.e("FormESPBActivity", "Error parsing id_espb: ${e.message}")
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error saving ESPB data", e.toString())

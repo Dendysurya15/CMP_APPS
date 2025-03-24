@@ -79,6 +79,14 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         }
     }
 
+    fun deleteESPBById(int: Int): Int{
+        var code = 0
+        viewModelScope.launch {
+            code = repository.deleteESPBById(int)
+        }
+        return code
+    }
+
     fun loadActiveESPB() {
         viewModelScope.launch {
             _activeESPBList.value = repository.getActiveESPB()
