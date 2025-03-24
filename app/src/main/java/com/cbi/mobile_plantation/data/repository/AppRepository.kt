@@ -125,6 +125,15 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun countESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null): Int {
+        return try {
+            panenDao.countESPB(archive, statusEspb, scanStatus, date)
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB: ${e.message}")
+            0  // Return 0 if there's an error
+        }
+    }
+
     suspend fun updateDataIsZippedPanen(ids: List<Int>,status:Int) {
         panenDao.updateDataIsZippedPanen(ids, status)
     }
@@ -197,6 +206,16 @@ class AppRepository(context: Context) {
             Result.failure(e)
         }
     }
+
+    suspend fun getAllTPHHasBeenSelected(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
+        try {
+            val data = panenDao.getAllTPHHasBeenSelected()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
 
     suspend fun getActivePanenRestan(status: Int = 0): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
         try {
@@ -357,12 +376,21 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
-        try {
-            val data = espbDao.getAllESPBS()
-            Result.success(data)
+//    suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
+//        try {
+//            val data = espbDao.getAllESPBS()
+//            Result.success(data)
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
+
+    suspend fun loadHistoryESPB(date: String? = null): List<ESPBEntity> {
+        return try {
+            espbDao.getAllESPBS(date)
         } catch (e: Exception) {
-            Result.failure(e)
+            AppLogger.e("Error loading ESPB history: ${e.message}")
+            emptyList()  // Return empty list if there's an error
         }
     }
 

@@ -334,7 +334,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
 
-                    panenViewModel.loadActivePanenESPB()
+                    panenViewModel.getAllTPHHasBeenSelected()
                     delay(100)
 
                     withContext(Dispatchers.Main) {
@@ -1790,13 +1790,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         var isValid = true
         val missingFields = mutableListOf<String>()
         val errorMessages = mutableListOf<String>()
-
-//        if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
-//            isValid = false
-//            this.vibrate()
-//            errorMessages.add(stringXML(R.string.al_location_description_failed))
-//            missingFields.add("Location")
-//        }
+//
+        if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
+            isValid = false
+            this.vibrate()
+            errorMessages.add(stringXML(R.string.al_location_description_failed))
+            missingFields.add("Location")
+        }
 
         val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
         val switchBlokBanjir = findViewById<SwitchMaterial>(R.id.selBlokBanjir)

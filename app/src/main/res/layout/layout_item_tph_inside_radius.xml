@@ -26,7 +26,8 @@
         android:visibility="visible"
         android:layout_marginLeft="5dp"
         android:text="TPH sudah terpilih!"
-        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:layout_height="match_parent"
         android:fontFamily="@font/manrope_bold"
         android:textSize="16sp" />
 

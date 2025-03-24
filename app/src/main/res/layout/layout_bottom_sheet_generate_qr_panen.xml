@@ -183,11 +183,11 @@
 
             <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="320dp"
+                android:layout_height="280dp"
                 android:layout_gravity="center">
 
                 <!-- Regular ImageView instead of PhotoView -->
-                <com.github.chrisbanes.photoview.PhotoView
+                <ImageView
                     android:id="@+id/qrCodeImageView"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"

@@ -9,6 +9,7 @@ import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
@@ -144,16 +145,26 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
             throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
+//
+//    fun loadHistoryESPBNonScan() {
+//        viewModelScope.launch {
+//            repository.loadHistoryESPB()
+//                .onSuccess { listData ->
+//                    _historyEPSB.postValue(listData)
+//                }
+//                .onFailure { exception ->
+//                    _error.postValue(exception.message ?: "Failed to load data")
+//                }
+//        }
+//    }
 
-    fun loadHistoryESPBNonScan() {
-        viewModelScope.launch {
-            repository.loadHistoryESPB()
-                .onSuccess { listData ->
-                    _historyEPSB.postValue(listData)
-                }
-                .onFailure { exception ->
-                    _error.postValue(exception.message ?: "Failed to load data")
-                }
+    fun loadHistoryESPBNonScan(date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadHistoryESPB(date)
+            _historyEPSB.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB history: ${e.message}")
+            _historyEPSB.value = emptyList()  // Return empty list if there's an error
         }
     }
 

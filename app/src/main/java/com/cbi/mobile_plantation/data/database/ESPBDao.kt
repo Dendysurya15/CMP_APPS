@@ -121,8 +121,14 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table WHERE scan_status = 0")
     abstract fun getAllESPBNonScan(): List<ESPBEntity>
 
-    @Query("SELECT * FROM espb_table")
-    abstract fun getAllESPBS(): List<ESPBEntity>
+//    @Query("SELECT * FROM espb_table")
+//    abstract fun getAllESPBS(): List<ESPBEntity>
+
+    @Query("""
+    SELECT * FROM espb_table 
+    WHERE (:date IS NULL OR strftime('%Y-%m-%d', created_at) = :date)
+""")
+    abstract suspend fun getAllESPBS(date: String? = null): List<ESPBEntity>
 
 
 }

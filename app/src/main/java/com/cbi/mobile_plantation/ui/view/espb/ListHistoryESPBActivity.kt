@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -25,11 +26,13 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.google.android.material.datepicker.MaterialDatePicker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Calendar
 
 
 @Suppress("UNREACHABLE_CODE")
@@ -46,7 +49,7 @@ class ListHistoryESPBActivity : AppCompatActivity() {
     private var userId: Int? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
-
+    private lateinit var dateButton: Button
     private var mappedData: List<Map<String, Any>> = emptyList()
 
     private lateinit var tvEmptyState: TextView // Add this
@@ -58,6 +61,7 @@ class ListHistoryESPBActivity : AppCompatActivity() {
             dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
         }
     }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefManager = PrefManager(this)
@@ -66,14 +70,75 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         checkDateTimeSettings()
     }
 
-    private fun setupUI(){
+    private fun setupUI() {
         setupHeader()
         initViewModel()
         setupRecyclerView()
         initializeViews()
         setupObserveData()
 
-        espbViewModel.loadHistoryESPBNonScan()
+        findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.VISIBLE
+        dateButton = findViewById(R.id.calendarPicker)
+        dateButton.text = AppUtils.getTodaysDate()
+
+        espbViewModel.loadHistoryESPBNonScan(AppUtils.currentDate)
+    }
+
+
+    fun openDatePicker(view: View) {
+        initMaterialDatePicker()
+    }
+
+    private fun initMaterialDatePicker() {
+        val builder = MaterialDatePicker.Builder.datePicker()
+        builder.setTitleText("Pilih Tanggal")
+        builder.setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+
+        val datePicker = builder.build()
+
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = selection
+            val year = calendar.get(Calendar.YEAR)
+            val month = calendar.get(Calendar.MONTH) + 1
+            val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+            val displayDate = AppUtils.makeDateString(day, month, year)
+            dateButton.text = displayDate
+
+            val formattedDate = AppUtils.formatDateForBackend(day, month, year)
+            AppUtils.setSelectedDate(formattedDate)
+            processSelectedDate(formattedDate)
+        }
+        datePicker.show(supportFragmentManager, "MATERIAL_DATE_PICKER")
+    }
+
+    private fun processSelectedDate(selectedDate: String) {
+
+        val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)
+        val nameFilterDate = findViewById<TextView>(R.id.name_filter_date)
+        val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_date)
+
+        val displayDate = AppUtils.formatSelectedDateForDisplay(selectedDate)
+        nameFilterDate.text = displayDate
+
+        espbViewModel.loadHistoryESPBNonScan(selectedDate)
+
+        removeFilterDate.setOnClickListener {
+            filterDateContainer.visibility = View.GONE
+
+            val todayBackendDate = AppUtils.formatDateForBackend(
+                Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                Calendar.getInstance().get(Calendar.MONTH) + 1,
+                Calendar.getInstance().get(Calendar.YEAR)
+            )
+            AppUtils.setSelectedDate(todayBackendDate)
+
+            val todayDisplayDate = AppUtils.getTodaysDate()
+            dateButton.text = todayDisplayDate
+            espbViewModel.loadHistoryESPBNonScan(todayBackendDate)
+        }
+        filterDateContainer.visibility = View.VISIBLE
     }
 
     private fun checkDateTimeSettings() {
@@ -166,7 +231,8 @@ class ListHistoryESPBActivity : AppCompatActivity() {
 
                                     // Extract blok_kode values for display
                                     val blokDisplay = if (blokData.isNotEmpty()) {
-                                        blokData.mapNotNull { it.blok_kode }.distinct().joinToString(", ")
+                                        blokData.mapNotNull { it.blok_kode }.distinct()
+                                            .joinToString(", ")
                                     } else {
                                         // Fallback to just listing the blok IDs if we can't get the names
                                         idBlokList.distinct().joinToString(", ") { it.toString() }
@@ -230,7 +296,8 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         val layoutParamsTh6 = th6.layoutParams as LinearLayout.LayoutParams
         layoutParamsTh6.weight = 0.3f
         th6.layoutParams = layoutParamsTh6
-        val flCheckBoxTableHeaderLayout = tableHeader.findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
+        val flCheckBoxTableHeaderLayout =
+            tableHeader.findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
         flCheckBoxTableHeaderLayout.visibility = View.GONE
     }
 

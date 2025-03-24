@@ -842,4 +842,6 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
 
     }
+
+    fun openDatePicker(view: View) {}
 }
