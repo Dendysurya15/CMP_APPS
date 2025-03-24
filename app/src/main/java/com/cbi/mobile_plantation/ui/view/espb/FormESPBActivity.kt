@@ -8,6 +8,8 @@ import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -29,15 +31,18 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.repository.AppRepository
@@ -81,9 +86,11 @@ class FormESPBActivity : AppCompatActivity() {
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var viewModel: ESPBViewModel
     private var selectedMillId = 0
+    private var selectedNopol = "NULL"
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var pemuatList: List<KaryawanModel> = emptyList()
     private var transporterList: List<TransporterModel> = emptyList()
+    private var nopolList: List<KendaraanModel> = emptyList()
 
     private lateinit var inputMappings: List<Triple<LinearLayout, String, FeaturePanenTBSActivity.InputType>>
     private lateinit var viewModelFactory: ESPBViewModelFactory
@@ -108,15 +115,33 @@ class FormESPBActivity : AppCompatActivity() {
     private var afdelingUser: String? = null
     private val karyawanIdMap: MutableMap<String, Int> = mutableMapOf()
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
-
+    private var activityInitialized = false
     private var noESPBStr = "NULL"
     private var pemuat_id = "NULL"
     private var kemandoran_id = "NULL"
     private var pemuat_nik = "NULL"
 
+    private var divisiList: List<TPHNewModel> = emptyList()
+
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_form_espbactivity)
+
+        checkDateTimeSettings()
+    }
+
+    private fun setupUI(){
+        findViewById<ConstraintLayout>(R.id.headerFormESPB).findViewById<ImageView>(R.id.statusLocation).apply {
+            visibility = View.GONE
+        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 AlertDialogUtility.withTwoActions(
@@ -201,11 +226,11 @@ class FormESPBActivity : AppCompatActivity() {
 
         //NBM 115
         //transporter 1
-        val formEspbNopol = findViewById<LinearLayout>(R.id.formEspbNopol)
-        val tvEspbNopol = formEspbNopol.findViewById<TextView>(R.id.tvTitlePaneEt)
-        val etEspbNopol = formEspbNopol.findViewById<EditText>(R.id.etPaneEt)
-        etEspbNopol.hint = "KH 2442 GF"
-        tvEspbNopol.text = "No. Polisi"
+//        val formEspbNopol = findViewById<LinearLayout>(R.id.formEspbNopol)
+//        val tvEspbNopol = formEspbNopol.findViewById<TextView>(R.id.tvTitlePaneEt)
+//        val etEspbNopol = formEspbNopol.findViewById<EditText>(R.id.etPaneEt)
+//        etEspbNopol.hint = "KH 2442 GF"
+//        tvEspbNopol.text = "No. Polisi"
 
         val formEspbDriver = findViewById<LinearLayout>(R.id.formEspbDriver)
         val tvEspbDriver = formEspbDriver.findViewById<TextView>(R.id.tvTitlePaneEt)
@@ -214,9 +239,13 @@ class FormESPBActivity : AppCompatActivity() {
         tvEspbDriver.text = "Driver"
 
         val formEspbTransporter = findViewById<LinearLayout>(R.id.formEspbTransporter)
+        val formEspbNopol = findViewById<LinearLayout>(R.id.formEspbNopol)
+
+        setupSpinnerText(R.id.formEspbNopol, "No Polisi", "No Polisi")
 
         setupSpinnerText(R.id.formEspbMill, "Pilih Mill", "Mill")
-        setupSpinnerText(R.id.formEspbKemandoran, "Pilih Kemandoran", "Kemandoran")
+        setupSpinnerText(R.id.formEspbKemandoran, "Pilih Kemandoran Pemuat", "Kemandoran Pemuat")
+        setupSpinnerText(R.id.formEspbAfdeling, "Pilih Afdeling", "Afdeling")
         setupSpinnerText(R.id.formEspbTransporter, "Pilih Transporter", "Transporter")
         setupSpinnerText(R.id.formEspbPemuat, "Pilih Pemuat", "Pemuat")
 
@@ -264,94 +293,49 @@ class FormESPBActivity : AppCompatActivity() {
             0
         }
 
-        val cbFormEspbMekanisasi = findViewById<MaterialCheckBox>(R.id.cbFormEspbMekanisasi)
-        cbFormEspbMekanisasi.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-//                formEspbTransporter.visibility = View.GONE
-//                formEspbDriver.visibility = View.GONE
-//                formEspbNopol.visibility = View.GONE
-                mekanisasi = 1
-            } else {
-                formEspbTransporter.visibility = View.VISIBLE
-                formEspbDriver.visibility = View.VISIBLE
-                formEspbNopol.visibility = View.VISIBLE
-                mekanisasi = 0
-            }
-        }
+//        val cbFormEspbMekanisasi = findViewById<MaterialCheckBox>(R.id.cbFormEspbMekanisasi)
+//        cbFormEspbMekanisasi.setOnCheckedChangeListener { _, isChecked ->
+//            if (isChecked) {
+////                formEspbTransporter.visibility = View.GONE
+////                formEspbDriver.visibility = View.GONE
+////                formEspbNopol.visibility = View.GONE
+//                mekanisasi = 1
+//            } else {
+//                formEspbTransporter.visibility = View.VISIBLE
+//                formEspbDriver.visibility = View.VISIBLE
+//                formEspbNopol.visibility = View.VISIBLE
+//                mekanisasi = 0
+//            }
+//        }
 
         lifecycleScope.launch(Dispatchers.IO) {
+
             try {
-                val kemandoranDeferred = async {
+                val divisiDeferred = async {
                     try {
-                        datasetViewModel.getKemandoranEstate(idEstate)
+                        datasetViewModel.getDivisiList(estateId!!.toInt())
                     } catch (e: Exception) {
-                        AppLogger.e("Error fetching kemandoranList: ${e.message}")
-                        emptyList()
+                        AppLogger.e("Error fetching divisiList: ${e.message}")
+                        emptyList() // Return an empty list to prevent crash
                     }
                 }
-                kemandoranList = kemandoranDeferred.await()
-                val nameKemandoran: List<String> = kemandoranList.map { it.nama.toString() }
-                Log.d("FormESPBActivityKemandoran", "nameKemandoran: $nameKemandoran")
+                divisiList = divisiDeferred.await()
+
+                // You can add more code here to handle the divisiList
+                val nameDivisi: List<String> = divisiList.map { it.divisi_abbr.toString() }
+                Log.d("FormESPBActivityDivisi", "nameDivisi: $nameDivisi")
                 withContext(Dispatchers.Main) {
-                    setupSpinner(R.id.formEspbKemandoran, nameKemandoran)
+                    setupSpinner(R.id.formEspbAfdeling, nameDivisi)
                 }
-                val formEspbKemandoran = findViewById<LinearLayout>(R.id.formEspbKemandoran)
-                val spEspbKemandoran =
-                    formEspbKemandoran.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                spEspbKemandoran.setOnItemSelectedListener { view, position, id, item ->
-                    val selectedKemandoran = item.toString()
 
-                    selectedKemandoranId = try {
-                        kemandoranList.find { it.nama == selectedKemandoran }?.id!!
-                    } catch (e: Exception) {
-                        AppLogger.e("Error finding selectedKemandoranId: ${e.message}")
-                        0
-                    }
-                    Log.d(
-                        "FormESPBActivityKemandoran",
-                        "selectedKemandoranId: $selectedKemandoranId"
-                    )
-
-                    lifecycleScope.launch(Dispatchers.IO) {
-                        try {
-                            val karyawanDeferred = async {
-                                datasetViewModel.getKaryawanList(selectedKemandoranId)
-                            }
-                            pemuatList = karyawanDeferred.await()
-                            Log.d("FormESPBActivityKemandoran", "pemuatList: $pemuatList")
-                            val pemuatNames = pemuatList.map { it.nama.toString() }
-                            Log.d("FormESPBActivityKemandoran", "pemuatNames: $pemuatNames")
-                            withContext(Dispatchers.Main) {
-                                setupSpinner(R.id.formEspbPemuat, pemuatNames)
-                            }
-                        } catch (e: Exception) {
-                            AppLogger.e("Error fetching kemandoran data: ${e.message}")
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(
-                                    this@FormESPBActivity,
-                                    "Error loading kemandoran data: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        } finally {
-                            withContext(Dispatchers.Main) {
-
-                            }
-                        }
-                    }
-                }
             } catch (e: Exception) {
-                AppLogger.e("Error fetching kemandoran data: ${e.message}")
+                AppLogger.e("Error fetching divisi data: ${e.message}")
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@FormESPBActivity,
-                        "Error loading kemandoran data: ${e.message}",
+                        "Error loading divisi data: ${e.message}",
                         Toast.LENGTH_LONG
                     ).show()
-                }
-            } finally {
-                withContext(Dispatchers.Main) {
-
                 }
             }
 
@@ -400,7 +384,41 @@ class FormESPBActivity : AppCompatActivity() {
 
                 }
             }
+
+            try {
+                val nopolDeffered = async {
+                    try {
+                        datasetViewModel.getAllNopol()
+                    } catch (e: Exception) {
+                        AppLogger.e("Error fetching Nopol List: ${e.message}")
+                        emptyList()
+                    }
+                }
+                nopolList = nopolDeffered.await()
+                val nopol: List<String> = nopolList.map { it.no_kendaraan.toString() }
+                Log.d("FormESPBActivityNopol", "Available nopol: $nopol")
+                withContext(Dispatchers.Main) {
+                    setupSpinner(R.id.formEspbNopol, nopol)
+
+                    // If we have license plates available, set the first one as default
+                    if (nopol.isNotEmpty()) {
+                        selectedNopol = nopol[0]
+                        Log.d("FormESPBActivityNopol", "Default selectedNopol: $selectedNopol")
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error fetching nopol data: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@FormESPBActivity,
+                        "Error loading nopol data: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+
         }
+
 
         lifecycleScope.launch {
             var firstTphId = 0
@@ -455,16 +473,22 @@ class FormESPBActivity : AppCompatActivity() {
 
         val btnGenerateQRESPB = findViewById<FloatingActionButton>(R.id.btnGenerateQRESPB)
         btnGenerateQRESPB.setOnClickListener {
-//            btnGenerateQRESPB.isEnabled = false
-            val nopol = try {
-                etEspbNopol.text.toString().replace(" ", "").uppercase()
-            } catch (e: Exception) {
+
+            Log.d("FormESPBActivity", "Generate QR clicked, selectedNopol = $selectedNopol")
+
+            // Check if selectedNopol is valid
+            if (selectedNopol.isNullOrBlank() || selectedNopol == "NULL") {
                 Toasty.error(
                     this,
-                    "Terjadi Kesalahan saat mengambil No Polisi $e",
+                    "Mohon lengkapi data No Polisi terlebih dahulu",
                     Toasty.LENGTH_LONG
                 ).show()
-                "NULL"
+
+                // Debug info for troubleshooting
+                Log.e("FormESPBActivity", "Nopol validation failed: '$selectedNopol'")
+                Log.e("FormESPBActivity", "Available nopols: ${nopolList.map { it.no_kendaraan }}")
+
+                return@setOnClickListener
             }
 
             val driver = try {
@@ -550,7 +574,7 @@ class FormESPBActivity : AppCompatActivity() {
                 .joinToString(",")
 
             val pemuatListId = selectedPemanen.map { it.id }
-            if (nopol == "NULL" || nopol == "") {
+            if (selectedNopol == "NULL" || selectedNopol == "") {
                 Toasty.error(
                     this,
                     "Mohon lengkapi data No Polisi terlebih dahulu",
@@ -594,7 +618,7 @@ class FormESPBActivity : AppCompatActivity() {
                         }
                         saveESPB(
                             blok_jjg = blok_jjg,
-                            nopol = nopol,
+                            nopol = selectedNopol,
                             driver = driver,
                             pemuat_id = uniqueIdKaryawan,
                             transporter_id = transporter_id,
@@ -614,7 +638,7 @@ class FormESPBActivity : AppCompatActivity() {
                     if (mekanisasi == 0) {
                         val json = constructESPBJson(
                             blok_jjg = blok_jjg,
-                            nopol = nopol,
+                            nopol = selectedNopol,
                             driver = driver,
                             pemuat_id = uniqueIdKaryawan,
                             transporter_id = transporter_id,
@@ -661,6 +685,22 @@ class FormESPBActivity : AppCompatActivity() {
                 0
             }
         }
+
+//        val formNopol = findViewById<LinearLayout>(R.id.formEspbNopol)
+//        val spEspbNopol = formNopol.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+//        spEspbNopol.setOnItemSelectedListener { view, position, id, item ->
+//            val selectedMill = viewModel.nopolList.value?.get(position)
+//            selectedtNopol = try {
+//                selectedMill?.no_kendaraan!!
+//            } catch (e: Exception) {
+//                Toasty.error(
+//                    this,
+//                    "Terjadi Kesalahan saat mengambil ID Mill $e",
+//                    Toasty.LENGTH_LONG
+//                ).show()
+//                "NULL"
+//            }
+//        }
     }
 
     private fun setupViewModel() {
@@ -839,7 +879,16 @@ class FormESPBActivity : AppCompatActivity() {
 
                 filteredData = if (!s.isNullOrEmpty()) {
                     titleSearch.visibility = View.VISIBLE
-                    data.filter { it.contains(s, ignoreCase = true) }
+
+                    // Normalize search input by removing spaces
+                    val normalizedSearch = s.toString().replace(" ", "").lowercase()
+
+                    // Filter using normalized comparison
+                    data.filter { item ->
+                        // Normalize item by removing spaces for comparison
+                        val normalizedItem = item.replace(" ", "").lowercase()
+                        normalizedItem.contains(normalizedSearch)
+                    }
                 } else {
                     titleSearch.visibility = View.GONE
                     data
@@ -923,6 +972,69 @@ class FormESPBActivity : AppCompatActivity() {
         selectedItem: String
     ) {
         when (linearLayout.id) {
+            R.id.formEspbAfdeling->{
+
+                val selectedDivisiId = try {
+                    divisiList.find { it.divisi_abbr == selectedItem }?.divisi
+                } catch (e: Exception) {
+                    AppLogger.e("Error finding selectedDivisiId: ${e.message}")
+                    null
+                }
+                val allIdAfdeling = try {
+                    divisiList.map { it.divisi }
+                } catch (e: Exception) {
+                    AppLogger.e("Error mapping allIdAfdeling: ${e.message}")
+                    emptyList()
+                }
+
+                val otherDivisiIds = try {
+                    allIdAfdeling.filter { divisiId ->
+                        selectedDivisiId == null || divisiId != selectedDivisiId
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error filtering otherDivisiIds: ${e.message}")
+                    emptyList()
+                }
+                lifecycleScope.launch(Dispatchers.IO) {
+
+                    try {
+
+                        val kemandoranDeferred = async {
+                            try {
+                                datasetViewModel.getKemandoranEstateExcept(
+                                    estateId!!.toInt(),
+                                    otherDivisiIds as List<Int>
+                                )
+                            } catch (e: Exception) {
+                                AppLogger.e("Error fetching kemandoranList: ${e.message}")
+                                emptyList()
+                            }
+                        }
+                        kemandoranList = kemandoranDeferred.await()
+
+                        withContext(Dispatchers.Main) {
+                            try {
+                                val kemandoranNames = kemandoranList.map { it.nama }
+                                setupSpinner(
+                                    R.id.formEspbKemandoran     ,
+                                    kemandoranNames as List<String>
+                                )
+                            } catch (e: Exception) {
+                                AppLogger.e("Error updating UI: ${e.message}")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error fetching afdeling data: ${e.message}")
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@FormESPBActivity,
+                                "Error loading afdeling data: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+            }
             R.id.formEspbKemandoran -> {
                 selectedKemandoranId = try {
                     kemandoranList.find { it.nama == selectedItem }?.id!!
@@ -975,8 +1087,6 @@ class FormESPBActivity : AppCompatActivity() {
             }
 
             R.id.formEspbPemuat -> {
-
-
                 val karyawanNikMap = pemuatList.associateBy({ it.nama!!.trim() }, { it.nik!! })
                 pemuatList.forEach {
                     it.nama?.trim()?.let { nama ->
@@ -987,19 +1097,11 @@ class FormESPBActivity : AppCompatActivity() {
 
                 val selectedPemanenId = karyawanNikMap[selectedItem]
 
-                pemuat_id = karyawanIdMap[selectedItem].toString()
-                Log.d("karyawanMap", "pemuat_nik: $pemuat_id")
-                kemandoran_id = kemandoranMap[selectedItem].toString()
-                Log.d("karyawanMap", "kemandoran_id: $kemandoran_id")
-                pemuat_nik = karyawanNikMap[selectedItem].toString()
-                Log.d("karyawanMap", "pemuat_id: $pemuat_nik")
-
-                if (pemuat_id != null) {
-                    val worker = Worker(pemuat_id.toString(), selectedItem)
+                if (selectedPemanenId != null) {
+                    val worker = Worker(selectedPemanenId.toString(), selectedItem)
                     selectedPemuatAdapter.addWorker(worker)
                     pemuatListId.add(selectedPemanenId.toString())
 
-                    // Update available workers in adapter
                     selectedPemuatAdapter.setAvailableWorkers(pemuatList.map {
                         Worker(it.id.toString(), it.nama.toString())
                     })
@@ -1012,8 +1114,13 @@ class FormESPBActivity : AppCompatActivity() {
                         setupSpinner(R.id.formEspbPemuat, availableWorkers.map { it.name })
                     }
 
-                    AppLogger.d("Selected Worker: $selectedItem, ID: $pemuat_id")
+                    AppLogger.d("Selected Worker: $selectedItem, ID: $selectedPemanenId")
                 }
+            }
+
+            R.id.formEspbNopol -> {
+                selectedNopol = selectedItem
+                Log.d("FormESPBActivityNopol", "Selected nopol: $selectedNopol")
             }
         }
     }
@@ -1082,6 +1189,49 @@ class FormESPBActivity : AppCompatActivity() {
         }
     }
 
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        // Ensure handler callbacks are removed
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
+    }
+
     private fun saveESPB(
         blok_jjg: String,
         created_by_id: Int,
@@ -1120,7 +1270,8 @@ class FormESPBActivity : AppCompatActivity() {
                     status_draft = status_draft,
                     status_mekanisasi = status_mekanisasi,
                     kemandoran_id = kemandoran_id,
-                    pemuat_nik = pemuat_nik
+                    pemuat_nik = pemuat_nik,
+                    ids_to_update = idsToUpdate.joinToString(",")
                 )
 
                 // Insert ESPB and get the ID
@@ -1141,6 +1292,11 @@ class FormESPBActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         Toasty.error(this@FormESPBActivity, "Gagal menyimpan ESPB: ID tidak valid", Toasty.LENGTH_LONG).show()
                     }
+                }
+               try{
+                   viewModel.deleteESPBById(intent.getIntExtra("id_espb",0))
+                }catch (e: Exception){
+                    Log.e("FormESPBActivity", "Error parsing id_espb: ${e.message}")
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error saving ESPB data", e.toString())

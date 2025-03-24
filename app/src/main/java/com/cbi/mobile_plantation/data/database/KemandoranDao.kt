@@ -63,6 +63,18 @@ abstract class KemandoranDao {
 
     @Query(
         """
+    SELECT * FROM kemandoran 
+    WHERE dept = :idEstate 
+    AND divisi NOT IN (:idDivisiArray)
+    """
+    )
+    abstract fun getKemandoranEstateExcept(
+        idEstate: Int,
+        idDivisiArray: List<Int>
+    ): List<KemandoranModel>
+
+    @Query(
+        """
     UPDATE kemandoran
     SET date_absen = :date_absen
     AND status_absen = :status_absen
@@ -74,14 +86,6 @@ abstract class KemandoranDao {
         status_absen: String,
         idKemandoran: String,
     ): Int
-
-    @Query(
-        """
-    SELECT * FROM transporter
-    """
-    )
-    abstract fun getAllTransporter(): List<TransporterModel>
-
 
 
 

@@ -232,11 +232,24 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
     private lateinit var fabNextFormAncak: FloatingActionButton
     private lateinit var fabPhotoFormAncak: FloatingActionButton
     private lateinit var fabSaveFormAncak: FloatingActionButton
+    private var activityInitialized = false
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_form_inspection)
+        //cek tanggal otomatis
+        checkDateTimeSettings()
+    }
 
+    private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
 
@@ -412,16 +425,23 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         }
 
         super.onResume()
+
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+            startPeriodicDateTimeChecking()
+        }
     }
 
     override fun onPause() {
         locationViewModel.stopLocationUpdates()
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         super.onPause()
     }
 
     override fun onDestroy() {
         locationViewModel.stopLocationUpdates()
         keyboardWatcher.unregister()
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         super.onDestroy()
     }
 
@@ -2686,6 +2706,30 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
             parent = parent.parent
         }
         return null
+    }
+
+
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
     }
 
     private fun isPermissionPermanentlyDenied(): Boolean {

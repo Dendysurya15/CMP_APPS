@@ -13,6 +13,7 @@ import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.KendaraanModel
 import okhttp3.ResponseBody
 import retrofit2.Response
 
@@ -27,11 +28,15 @@ class DatasetRepository(
     private val tphDao = database.tphDao()
     private val millDao = database.millDao()
     private val transporterDao = database.transporterDao()
+    private val kendaraanDao = database.kendaraanDao()
 
     suspend fun updateOrInsertKaryawan(karyawans: List<KaryawanModel>) =
         karyawanDao.updateOrInsertKaryawan(karyawans)
 
     suspend fun updateOrInsertMill(mills: List<MillModel>) = millDao.updateOrInsertMill(mills)
+    suspend fun InsertKendaraan(kendaraan: List<KendaraanModel>) =
+        kendaraanDao.InsertKendaraan(kendaraan)
+
     suspend fun InsertTransporter(transporter: List<TransporterModel>) =
         transporterDao.InsertTransporter(transporter)
 
@@ -77,8 +82,16 @@ class DatasetRepository(
         return kemandoranDao.getKemandoranEstate(idEstate)
     }
 
+    suspend fun getKemandoranEstateExcept(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
+        return kemandoranDao.getKemandoranEstateExcept(idEstate, idDivisiArray)
+    }
+
     suspend fun getAllTransporter(): List<TransporterModel> {
-        return kemandoranDao.getAllTransporter()
+        return transporterDao.getAllTransporter()
+    }
+
+    suspend fun getAllNopol(): List<KendaraanModel> {
+        return kendaraanDao.getAll()
     }
 
 

@@ -17,7 +17,7 @@
     <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah anda yakin untuk simpan &amp; upload data e-SPB ini?</string>
     <string name="al_confirm_generate_qr">Apakah anda yakin untuk Generate data menjadi QR?</string>
     <string name="al_confirm_feature">Apakah anda yakin untuk keluar dari Menu ini?</string>
-    <string name="al_confirm_logout">Apakah anda yakin Logout dari user ini?</string>
+    <string name="al_confirm_logout">Apakah Anda yakin ingin logout? Semua data akan dihapus secara permanen.</string>
     <string name="al_confirm_delete_photo">Apakah anda yakin untuk menghapus foto ini?</string>
     <string name="al_location_not_ready">GPS Tidak terdeteksi!</string>
     <string name="al_location_description_failed"> Perangkat tidak dapat mendeteksi lokasi Anda saat ini. Pastikan layanan lokasi di perangkat Anda aktif!</string>
@@ -57,7 +57,7 @@
 
     <string name="al_delete">Hapus</string>
     <string name="al_make_sure_delete">Apakah anda yakin untuk menghapus</string>
-    <string name="al_make_sure_scanned_qr">Apakah anda yakin sudah Scan QR?</string>
+    <string name="al_make_sure_scanned_qr">Apakah anda yakin sudah melakukan Scan QR?</string>
     <string name="welcome_back">Selamat Datang</string>
     <string name="subtitle_prompt">Gunakan sidik jari untuk melanjutkan</string>
     <!--    form panen tbs-->
@@ -92,6 +92,8 @@
     <string name="al_success_delete">Berhasil Hapus</string>
     <string name="al_success_update">Berhasil Update Data</string>
     <string name="al_failed_delete">Gagal Hapus</string>
+    <string name="al_select_at_least_one_pemanen">Tambahkan minimal satu nama pemanen!</string>
+    <string name="al_select_at_least_one_pemanen_lain">Tambahkan minimal satu nama pemanen untuk asistensi!</string>
     <string name="text_scan_tph_form_panen"></string>
     <string name="al_failed_save_local">Gagal Simpan</string>
 
@@ -100,11 +102,12 @@
     <string name="download_dataset">Sedang mengunduh dataset</string>
     <string name="no_detect_tph">Tidak terdeteksi TPH dalam radius ini</string>
     <string name="fetching_dataset">Sedang mengambil dataset</string>
+    <string name="ganti_akun">Ganti Akun?</string>
 
     <string-array name="tipe_panen_options">
         <item>Normal</item>
         <item>Cut &amp; Carry</item>
-        <item>MAIC</item>
+<!--        <item>Mekanisasi</item>-->
     </string-array>
 
     <array name="autosize_text_sizes">

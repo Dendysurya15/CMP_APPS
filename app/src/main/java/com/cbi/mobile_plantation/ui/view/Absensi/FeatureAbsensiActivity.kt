@@ -9,6 +9,8 @@ import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.TypedValue
@@ -135,7 +137,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
 
     private var selectedDivisiValue: Int? = null
     private var selectedDivisionSpinnerIndex: Int? = null
-
+    private var activityInitialized = false
     private lateinit var inputMappings: List<Triple<LinearLayout, String, FeatureAbsensiActivity.InputType>>
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var absensiViewModel: AbsensiViewModel
@@ -150,9 +152,21 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
     private var filteredKemandoranId: Int? = null
     private var selectedKemandoranIdLainAbsensi: Int? = null
 
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_absensi)
+        checkDateTimeSettings()
+    }
+
+    private fun setupUI(){
         loadingDialog = LoadingDialog(this)
 
         prefManager = PrefManager(this)
@@ -221,7 +235,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         val mbSaveDataAbsensi = findViewById<MaterialButton>(R.id.mbSaveDataAbsensi)
         mbSaveDataAbsensi.setOnClickListener {
             if (validateAndShowErrors()) {
-                mbSaveDataAbsensi.isEnabled = false
+//                mbSaveDataAbsensi.isEnabled = false
                 AlertDialogUtility.withTwoActions(
                     this,
                     "Simpan Data",
@@ -330,10 +344,10 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                             }
                         }
 
-                        mbSaveDataAbsensi.isEnabled = true
+//                        mbSaveDataAbsensi.isEnabled = true
                     },
                     cancelFunction = {
-                        mbSaveDataAbsensi.isEnabled = true
+//                        mbSaveDataAbsensi.isEnabled = true
                     }
                 )
             }
@@ -1266,6 +1280,10 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
             currentAccuracy = accuracy
         }
 
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+            startPeriodicDateTimeChecking()
+        }
     }
 
     // Helper function to find ScrollView
@@ -1284,13 +1302,36 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
         super.onPause()
         locationViewModel.stopLocationUpdates()
 
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         locationViewModel.stopLocationUpdates()
 
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
 
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
     }
 
     override fun onPhotoTaken(

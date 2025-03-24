@@ -3,12 +3,14 @@ package com.cbi.mobile_plantation.utils
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Environment
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.provider.Settings
 import android.util.Base64
 import android.view.View
 import android.view.WindowManager
@@ -18,6 +20,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import com.cbi.mobile_plantation.R
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
@@ -34,6 +37,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -49,13 +53,48 @@ object AppUtils {
     const val LOG_LOC = "locationLog"
     const val ZIP_PASSWORD = "CBI@2025"
     const val REQUEST_CHECK_SETTINGS = 0x1
-
+const val MAX_SELECTIONS_PER_TPH = 2
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"
         const val UPLOADING = "Sedang Upload..."
         const val SUCCESS = "Berhasil Upload!"
         const val FAILED = "Gagal Upload!"
+    }
+
+
+    fun getTodaysDate(): String {
+        val cal = Calendar.getInstance()
+        val year = cal.get(Calendar.YEAR)
+        val month = cal.get(Calendar.MONTH) + 1
+        val day = cal.get(Calendar.DAY_OF_MONTH)
+        return makeDateString(day, month, year)
+    }
+
+    fun makeDateString(day: Int, month: Int, year: Int): String {
+        return "${getMonthFormat(month)} $day $year"
+    }
+
+    private fun getMonthFormat(month: Int): String {
+        return when (month) {
+            1 -> "JAN"
+            2 -> "FEB"
+            3 -> "MAR"
+            4 -> "APR"
+            5 -> "MAY"
+            6 -> "JUN"
+            7 -> "JUL"
+            8 -> "AUG"
+            9 -> "SEP"
+            10 -> "OCT"
+            11 -> "NOV"
+            12 -> "DEC"
+            else -> "JAN" // Default should never happen
+        }
+    }
+
+    fun formatDateForBackend(day: Int, month: Int, year: Int): String {
+        return String.format("%04d-%02d-%02d", year, month, day)
     }
 
     object DatabaseTables {
@@ -69,6 +108,7 @@ object AppUtils {
         const val KEMANDORAN = "kemandoran"
         const val KARYAWAN = "karyawan"
         const val TRANSPORTER = "transporter"
+        const val KENDARAAN = "kendaraan"
         const val UPLOADCMP = "upload_cmp"
         const val FLAGESPB = "flag_espb"
     }
@@ -81,6 +121,7 @@ object AppUtils {
         const val IT = "IT"
     }
 
+
     object ListFeatureNames {
         const val PanenTBS = "Panen TBS"
         const val RekapHasilPanen = "Rekap Hasil Panen"
@@ -88,13 +129,15 @@ object AppUtils {
         const val RekapPanenDanRestan = "Rekap panen dan restan"
         const val BuatESPB = "Buat eSPB"
         const val RekapESPB = "Rekap eSPB"
+        const val DetailESPB = "Detail eSPB"
+
         const val InspeksiPanen = "Inspeksi Panen"
         const val RekapInspeksiPanen = "Rekap Inspeksi Panen"
         const val ScanESPBTimbanganMill = "Scan e-SPB Timbangan Mill"
         const val RekapESPBTimbanganMill = "Rekap e-SPB Timbangan Mill"
         const val AbsensiPanen = "Absensi panen"
-        const val RekapAbsensiPanen =  "Rekap absensi panen"
-        const val ScanAbsensiPanen =  "Scan absensi panen"
+        const val RekapAbsensiPanen = "Rekap absensi panen"
+        const val ScanAbsensiPanen = "Scan absensi panen"
         const val SinkronisasiData = "Sinkronisasi data"
         const val UploadDataCMP = "Upload Data CMP"
     }
@@ -110,21 +153,32 @@ object AppUtils {
         const val PPRO = "PPRO"
     }
 
+    const val DATE_TIME_CHECK_INTERVAL = 40000L  // 30 seconds
+    const val DATE_TIME_INITIAL_DELAY = 40000L   // 30 seconds
+
     object DatasetNames {
         const val mill = "mill"
         const val tph = "tph"
         const val pemanen = "pemanen"
         const val kemandoran = "kemandoran"
         const val transporter = "transporter"
+        const val kendaraan = "kendaraan"
         const val updateSyncLocalData = "Update & Sinkronisasi Lokal Data"
         const val settingJSON = "setting.json"
     }
 
-    /**
-     * Gets the current app version from BuildConfig or string resources.
-     * @param context The context used to retrieve the string resource.
-     * @return The app version as a string.
-     */
+    private val todayDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))
+    private var _selectedDate: String? = null
+
+    val currentDate: String
+        get() {
+            return _selectedDate ?: todayDateFormat.format(Date())
+        }
+
+    fun setSelectedDate(date: String) {
+        _selectedDate = date
+    }
+
     fun getAppVersion(context: Context): String {
         return context.getString(R.string.app_version)
     }
@@ -427,6 +481,102 @@ object AppUtils {
         return jsonArray.toString()
     }
 
+    /**
+     * Checks if automatic date and time settings are enabled on the device
+     * @param context The application context
+     * @return Boolean True if automatic date/time is enabled, false otherwise
+     */
+    fun isAutomaticDateTimeEnabled(context: Context): Boolean {
+        return try {
+            // For Android Jelly Bean (API 17) and higher
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                Settings.Global.getInt(
+                    context.contentResolver,
+                    Settings.Global.AUTO_TIME
+                ) == 1
+            }
+            // For older versions
+            else {
+                @Suppress("DEPRECATION")
+                Settings.System.getInt(
+                    context.contentResolver,
+                    Settings.System.AUTO_TIME
+                ) == 1
+            }
+        } catch (e: Exception) {
+            // Default to true if there's an exception
+            true
+        }
+    }
+
+    /**
+     * Checks if the device's date and time settings are valid for the app
+     * @return Boolean true if settings are acceptable, false otherwise
+     */
+    fun isDateTimeValid(context: Context): Boolean {
+        // First check if automatic date time is enabled
+        val isAutoTimeEnabled = isAutomaticDateTimeEnabled(context)
+
+        // If automatic time is not enabled, return false immediately
+        if (!isAutoTimeEnabled) {
+            return false
+        }
+
+        // Even with automatic time enabled, verify the time is reasonable
+        // if we're offline (to prevent users from manually setting automatic
+        // time while offline to bypass the check)
+        if (!isNetworkAvailable(context)) {
+            // Get current time
+            val currentTime = System.currentTimeMillis()
+
+            // Get build time (a reference point known to be valid)
+            val buildTime = try {
+                context.packageManager.getPackageInfo(
+                    context.packageName, 0
+                ).lastUpdateTime
+            } catch (e: Exception) {
+                // If we can't get build time, use a fallback
+                0L
+            }
+
+            // Check if current time is unreasonably far from build time
+            // Allow some leeway (e.g., app could have been built months ago)
+            // This checks if time is set to future more than 1 day from now
+            val oneDay = 24 * 60 * 60 * 1000L
+            return currentTime < (System.currentTimeMillis() + oneDay)
+        }
+
+        // If we have network and automatic time is on, assume time is correct
+        return true
+    }
+
+    /**
+     * Shows a warning dialog about date/time settings with network context
+     */
+    fun showDateTimeNetworkWarning(activity: Activity) {
+        val isOnline = isNetworkAvailable(activity)
+        val message = if (isOnline) {
+            "Please enable automatic date and time for better app experience."
+        } else {
+            "Please enable automatic date and time and connect to the internet to ensure correct time synchronization."
+        }
+
+        AlertDialogUtility.withTwoActions(
+            activity,
+            "Pengaturan",
+            "Date & Time Settings",
+            message,
+            "warning.json",
+            ContextCompat.getColor(activity, R.color.bluedarklight),
+            function = {
+                activity.startActivity(Intent(Settings.ACTION_DATE_SETTINGS))
+            },
+            cancelFunction = {
+                activity.finishAffinity()
+            }
+        )
+    }
+
 
     fun getDeviceInfo(context: Context): JSONObject {
         val json = JSONObject()
@@ -457,6 +607,19 @@ object AppUtils {
         } else {
             @Suppress("DEPRECATION")
             vibrator.vibrate(duration)
+        }
+    }
+
+     fun formatSelectedDateForDisplay(backendDate: String): String {
+        try {
+            val backendFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))
+            val displayFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
+
+            val date = backendFormat.parse(backendDate)
+            return date?.let { displayFormat.format(it) } ?: backendDate
+        } catch (e: Exception) {
+            // If there's any error in parsing, return the original date
+            return backendDate
         }
     }
 

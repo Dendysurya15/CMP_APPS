@@ -136,7 +136,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var locationViewModel: LocationViewModel
     private lateinit var panenTBSViewModel: PanenTBSViewModel
     private var locationEnable: Boolean = false
-
     private lateinit var btnScanTPHRadius: MaterialButton
     private lateinit var tphScannedResultRecyclerView: RecyclerView
     private lateinit var titleScannedTPHInsideRadius: TextView
@@ -144,11 +143,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var emptyScannedTPHInsideRadius: TextView
     private lateinit var alertCardScanRadius: MaterialCardView
     private lateinit var alertTvScannedRadius: TextView
-
-
     private lateinit var backButton: ImageView
-
-    // Global Variables
     private lateinit var layoutAncak: View
     private lateinit var layoutKemandoran: LinearLayout
     private lateinit var layoutKemandoranLain: LinearLayout
@@ -175,8 +170,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val id: Int,
         val number: String,
         val blockCode: String,
-        val distance: Float
+        val distance: Float,
+        val isAlreadySelected: Boolean,
+        val selectionCount: Int = 0,
+        val canBeSelectedAgain: Boolean = true
     )
+
+
 
     private var latLonMap: Map<Int, ScannedTPHLocation> = emptyMap()
 
@@ -196,7 +196,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var selectedPemanenLainAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
     private lateinit var rvSelectedPemanenLain: RecyclerView
-    private var selectedKemandoranValue: Int? = null
 
     enum class InputType {
         SPINNER,
@@ -205,7 +204,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
     private var ancakInput: String = ""
-
     private var asistensi: Int = 0
     private var blokBanjir: Int = 0
     private var selectedTipePanen: String = ""
@@ -218,13 +216,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var selectedPemanen: String = ""
     private var selectedPemanenLain: String = ""
     private var infoApp: String = ""
-
-
     private var selectedDivisiValue: Int? = null
     private var selectedBlokValue: Int? = null
     private var selectedTahunTanamValue: String? = null
     private var selectedTPHValue: Int? = null
-
     private var buahMasak = 0
     private var kirimPabrik = 0
     private var tbsDibayar = 0
@@ -233,9 +228,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     var persenAbnormal = 0f
     var persenJjgKosong = 0f
     var persenMasak = 0f
-
     private lateinit var jjg_json: String
-
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var panenViewModel: PanenViewModel
@@ -246,31 +239,63 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var userId: Int? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
-    private var panenStoredLocal: MutableList<Int> = mutableListOf()
+    private var panenStoredLocal: MutableMap<Int, Int> = mutableMapOf()
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
     private var isEmptyScannedTPH = true
     private var isTriggeredBtnScanned = false
-
-    //    private lateinit var karyawanNikMap: Map<String, String>
+    private var activityInitialized = false
     private val karyawanIdMap: MutableMap<String, Int> = mutableMapOf()
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
-
-    //    private lateinit var karyawanLainNikMap: Map<String, String>
     private val karyawanLainIdMap: MutableMap<String, Int> = mutableMapOf()
     private val kemandoranLainIdMap: MutableMap<String, Int> = mutableMapOf()
-
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_panen_tbs)
+        //cek tanggal otomatis
+        checkDateTimeSettings()
+    }
+
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
+    }
+
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupUI() {
         loadingDialog = LoadingDialog(this)
 
         prefManager = PrefManager(this)
 
         radiusMinimum = prefManager!!.radiusMinimum
-//        radiusMinimum = 80F
+//        radiusMinimum = 100F
         boundaryAccuracy = prefManager!!.boundaryAccuracy
 
         initViewModel()
@@ -309,21 +334,25 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
 
-                    panenViewModel.loadActivePanenESPB()
+                    panenViewModel.getAllTPHHasBeenSelected()
                     delay(100)
 
-                    withContext(Dispatchers.Main) { // Ensure observation is on main thread
+                    withContext(Dispatchers.Main) {
                         panenViewModel.activePanenList.observe(this@FeaturePanenTBSActivity) { list ->
-                            panenDeferred.complete(list ?: emptyList()) // Ensure it's never null
+                            val tphCounts = list?.mapNotNull { it.tph?.id }
+                                ?.groupingBy { it }
+                                ?.eachCount()
+                                ?: emptyMap()
+
+                            panenStoredLocal.clear()
+                            panenStoredLocal.putAll(tphCounts)
+
+                            panenDeferred.complete(list ?: emptyList())
                         }
                     }
 
-                    val panenList = panenDeferred.await()
 
-
-                    panenStoredLocal = panenList
-                        .mapNotNull { it.tph?.id } // This ensures only non-null IDs are stored
-                        .toMutableList()
+                    AppLogger.d(panenStoredLocal.toString())
 
 
                     val divisiDeferred = async {
@@ -383,12 +412,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     currentFocus.clearFocus()
                 }
             }
-            false // Don't consume the event so other touch handlers still work
+            false
         }
 
-
         mbSaveDataPanenTBS.setOnClickListener {
-            mbSaveDataPanenTBS.isEnabled = false
             if (validateAndShowErrors()) {
                 AlertDialogUtility.withTwoActions(
                     this,
@@ -417,9 +444,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                 val selectedNikPemanenIds = selectedPemanen.map { it.id }
                                 val selectedNikPemanenLainIds = selectedPemanenLain.map { it.id }
-                                val uniqueNikPemanen = (selectedNikPemanenIds + selectedNikPemanenLainIds)
-                                    .distinct()
-                                    .joinToString(",")
+                                val uniqueNikPemanen =
+                                    (selectedNikPemanenIds + selectedNikPemanenLainIds)
+                                        .distinct()
+                                        .joinToString(",")
 
                                 val uniqueIdKaryawan = (idKaryawanList + idKaryawanLainList)
                                     .distinct()
@@ -476,7 +504,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             R.color.greenDefault
                                         ) {
 
-                                            panenStoredLocal.add(selectedTPHValue!!.toInt())
+                                            val tphId = selectedTPHValue!!.toInt()
+                                            val currentCount = panenStoredLocal[tphId] ?: 0
+                                            panenStoredLocal[tphId] = currentCount + 1
                                             resetFormAfterSaveData()
                                         }
                                     }
@@ -509,10 +539,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }
 
                         }
-                        mbSaveDataPanenTBS.isEnabled = true
                     },
                     cancelFunction = {
-                        mbSaveDataPanenTBS.isEnabled = true
                     }
                 )
             }
@@ -977,7 +1005,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         tphScannedResultRecyclerView.removeItemDecoration(decoration) // Remove if applied
 
         btnScanTPHRadius.setOnClickListener {
-            btnScanTPHRadius.isEnabled = false
+//            btnScanTPHRadius.isEnabled = false
             isTriggeredBtnScanned = true
             if (currentAccuracy > boundaryAccuracy) {
                 AlertDialogUtility.withTwoActions(
@@ -991,7 +1019,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         checkScannedTPHInsideRadius()
                     },
                     cancelFunction = {
-                        btnScanTPHRadius.isEnabled = true
+//                        btnScanTPHRadius.isEnabled = true
                     }
                 )
             } else {
@@ -1102,7 +1130,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Triple(R.id.layoutJumTBS, "Jumlah TBS", ::jumTBS),
             Triple(R.id.layoutBMentah, "Buah Mentah", ::bMentah),
             Triple(R.id.layoutBLewatMasak, "Buah Lewat Masak", ::bLewatMasak),
-            Triple(R.id.layoutJjgKosong, "Janjang Kosong", ::jjgKosong),
+            Triple(R.id.layoutJjgKosong, "Janjang Kosong/Buah Busuk", ::jjgKosong),
             Triple(R.id.layoutAbnormal, "Abnormal", ::abnormal),
             Triple(R.id.layoutSeranganTikus, "Serangan Tikus", ::seranganTikus),
             Triple(R.id.layoutTangkaiPanjang, "Tangkai Panjang", ::tangkaiPanjang),
@@ -1436,30 +1464,46 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val resultsList = mutableListOf<ScannedTPHSelectionItem>()
 
         for ((id, location) in coordinates) {
-            if (id in panenStoredLocal) continue // Exclude IDs already in panenStoredLocal
-
             val results = FloatArray(1)
             Location.distanceBetween(userLat, userLon, location.lat, location.lon, results)
             val distance = results[0]
 
             if (distance <= radiusMinimum) {
+                val selectedCount = panenStoredLocal[id] ?: 0
+
                 resultsList.add(
                     ScannedTPHSelectionItem(
                         id = id,
                         number = location.nomor,
                         blockCode = location.blokKode,
-                        distance = distance
+                        distance = distance,
+                        isAlreadySelected = selectedCount > 0,
+                        selectionCount = selectedCount,
+                        canBeSelectedAgain = selectedCount < AppUtils.MAX_SELECTIONS_PER_TPH
                     )
                 )
             }
         }
 
-        return resultsList.sortedBy { it.distance } // Sort by distance
+        return resultsList.sortedBy { it.distance }
     }
 
 
     private fun resetDependentSpinners(rootView: View) {
-        // List of all dependent layouts that need to be reset
+        val switchAsistensi = rootView.findViewById<SwitchMaterial>(R.id.selAsistensi)
+        if (switchAsistensi.isChecked) {
+            switchAsistensi.isChecked = false
+        }
+
+        if (blokBanjir == 0) {
+            layoutAncak.visibility = View.GONE
+            layoutNoTPH.visibility = View.GONE
+            layoutKemandoran.visibility = View.GONE
+            layoutPemanen.visibility = View.GONE
+            layoutSelAsistensi.visibility = View.GONE
+            layoutTipePanen.visibility = View.GONE
+        }
+
         val dependentLayouts = listOf(
             R.id.layoutTahunTanam,
             R.id.layoutBlok,
@@ -1601,9 +1645,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
+        val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
 
         switchBlokBanjir.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
+                if (switchAsistensi.isChecked) {
+                    switchAsistensi.isChecked = false
+                }
                 layoutTahunTanam.visibility = View.VISIBLE
                 layoutBlok.visibility = View.VISIBLE
                 layoutNoTPH.visibility = View.VISIBLE
@@ -1664,6 +1712,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 komentarFoto.clear()
                 takeFotoPreviewAdapter?.resetAllSections()
             } else {
+                if (switchAsistensi.isChecked) {
+                    switchAsistensi.isChecked = false
+                }
                 blokBanjir = 0
 
                 layoutTahunTanam.visibility = View.GONE
@@ -1739,7 +1790,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         var isValid = true
         val missingFields = mutableListOf<String>()
         val errorMessages = mutableListOf<String>()
-
+//
         if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
             isValid = false
             this.vibrate()
@@ -1753,46 +1804,46 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val isAsistensiEnabled = switchAsistensi.isChecked
 
         inputMappings.forEach { (layout, key, inputType) ->
-            if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
 
-                val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
-                val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
+            val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+            val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
+            val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+            val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
 
-                val isEmpty = when (inputType) {
-                    InputType.SPINNER -> {
-                        when (layout.id) {
-                            R.id.layoutAfdeling -> selectedAfdeling.isEmpty()
-                            R.id.layoutTipePanen -> selectedTipePanen.isEmpty()
-                            R.id.layoutKemandoran -> selectedKemandoran.isEmpty()
-                            R.id.layoutPemanen -> selectedPemanen.isEmpty()
-                            R.id.layoutNoTPH -> blokBanjir == 1 && selectedTPH.isEmpty()
-                            R.id.layoutBlok -> blokBanjir == 1 && selectedBlok.isEmpty()
-                            else -> spinner.selectedIndex == -1
-                        }
+            val isEmpty = when (inputType) {
+                InputType.SPINNER -> {
+                    when (layout.id) {
+                        R.id.layoutAfdeling -> selectedAfdeling.isEmpty()
+                        R.id.layoutTipePanen -> selectedTipePanen.isEmpty()
+                        R.id.layoutKemandoran -> selectedKemandoran.isEmpty()
+                        R.id.layoutPemanen -> selectedPemanen.isEmpty()
+                        R.id.layoutKemandoranLain -> asistensi == 1 && selectedKemandoranLain.isEmpty()
+                        R.id.layoutNoTPH -> blokBanjir == 1 && selectedTPH.isEmpty()
+                        R.id.layoutBlok -> blokBanjir == 1 && selectedBlok.isEmpty()
+                        else -> spinner.selectedIndex == -1
                     }
-
-                    InputType.EDITTEXT -> {
-                        when (key) {
-                            getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
-                            else -> editText.text.toString().trim().isEmpty()
-                        }
-                    }
-
-                    else -> false
                 }
 
-                if (isEmpty) {
-                    tvError.visibility = View.VISIBLE
-                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-                    missingFields.add(key)
-                    isValid = false
-                } else {
-                    tvError.visibility = View.GONE
-                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+                InputType.EDITTEXT -> {
+                    when (key) {
+                        getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
+                        else -> editText.text.toString().trim().isEmpty()
+                    }
                 }
+
+                else -> false
             }
+
+            if (isEmpty) {
+                tvError.visibility = View.VISIBLE
+                mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+                missingFields.add(key)
+                isValid = false
+            } else {
+                tvError.visibility = View.GONE
+                mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+            }
+
         }
 
         if (!isSwitchBlokBanjirEnabled && selectedAfdeling.isNotEmpty() && isTriggeredBtnScanned) {
@@ -1821,11 +1872,24 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             tvErrorScannedNotSelected.visibility = View.VISIBLE
         }
 
+        val selectedPemanenWorkers = selectedPemanenAdapter.getSelectedWorkers()
+        if (selectedPemanen.isNotEmpty() && selectedPemanenWorkers.isEmpty()) {
+            AppLogger.d("masuk sini gess")
+            isValid = false
+            errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen))
+            layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                View.VISIBLE
+            layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                stringXML(R.string.al_select_at_least_one_pemanen)
+        }
+
         if (isAsistensiEnabled) {
             val isKemandoranLainEmpty = selectedKemandoranLain.isEmpty()
-            val isPemanenLainEmpty = selectedPemanenLainAdapter.itemCount == 0
+            val selectedPemanenLain = selectedPemanenLain.isEmpty()
+            val choiceVisibilePemanenLain = selectedPemanenLainAdapter.getSelectedWorkers()
 
-            if (isKemandoranLainEmpty || isPemanenLainEmpty) {
+
+            if (isKemandoranLainEmpty || selectedPemanenLain) {
                 if (isKemandoranLainEmpty) {
                     layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
                         View.VISIBLE
@@ -1834,7 +1898,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     missingFields.add(getString(R.string.field_kemandoran_lain))
                 }
 
-                if (isPemanenLainEmpty) {
+                if (selectedPemanenLain) {
                     layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
                         View.VISIBLE
                     layoutPemanenLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
@@ -1842,6 +1906,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     missingFields.add(getString(R.string.field_pemanen_lain))
                 }
                 isValid = false
+            } else {
+                if (choiceVisibilePemanenLain.isEmpty()) {
+                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                        View.VISIBLE
+                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                        stringXML(R.string.al_select_at_least_one_pemanen_lain)
+                    AppLogger.d("masuk sini gessss bro")
+                    errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen_lain))
+                }
             }
         }
 
@@ -1860,6 +1933,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
+        if (selectedTPHValue != null && blokBanjir == 1) {
+            val tphId = selectedTPHValue!!.toInt()
+            val currentCount = panenStoredLocal[tphId] ?: 0
+            if (currentCount > AppUtils.MAX_SELECTIONS_PER_TPH - 1) {
+                isValid = false
+                val layoutNoTPH = findViewById<LinearLayout>(R.id.layoutNoTPH)
+                layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
+                    text = "TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!"
+                    visibility = View.VISIBLE
+                }
+                errorMessages.add("TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!")
+            }
+        }
+
         if (photoCount == 0) {
             isValid = false
             errorMessages.add(stringXML(R.string.al_photo_minimal_one))
@@ -1868,8 +1955,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             tvErrorNotAttachPhotos.visibility = View.VISIBLE
         }
 
+
+
         if (!isValid) {
-            mbSaveDataPanenTBS.isEnabled = true
             vibrate()
             val combinedErrorMessage = buildString {
                 val allMessages = mutableListOf<String>()
@@ -2233,15 +2321,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         tphList = tphDeferred.await() ?: emptyList() // Avoid null crash
 
-                        //exclude no tph yang sudah pernah dipilih atau di store di database
-                        val storedTPHIds =
-                            panenStoredLocal.toSet()
 
-                        val filteredTPHList = tphList.filter {
-                            val isExcluded = it.id in storedTPHIds
-                            !isExcluded
+                        val noTPHList = tphList.map { tph ->
+                            val selectionCount = panenStoredLocal[tph.id] ?: 0
+                            when (selectionCount) {
+                                0 -> tph.nomor
+                                1 -> "${tph.nomor} (sudah terpilih 1 kali)"
+                                else -> "${tph.nomor} (sudah terpilih ${selectionCount} kali)"
+                            }
                         }
-                        val noTPHList = filteredTPHList.map { it.nomor }
 
 
                         withContext(Dispatchers.Main) {
@@ -2273,8 +2361,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 //
 //
             R.id.layoutNoTPH -> {
-                selectedTPH = selectedItem.toString()
+                val selectedText = selectedItem.trim()
+                selectedTPH = selectedText.split(" (").firstOrNull()?.trim() ?: selectedText
 
+                val selectionCountMatch = Regex("sudah terpilih (\\d+) kali").find(selectedText)
+                val selectionCount = selectionCountMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                if (selectionCount >= AppUtils.MAX_SELECTIONS_PER_TPH) {
+                    Toasty.warning(
+                        this,
+                        "TPH ini sudah dipilih maksimal ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Mohon mengganti pilihan Nomor TPH!",
+                        Toast.LENGTH_SHORT,
+                        true
+                    ).show()
+                }
+
+                AppLogger.d(selectedTPH.toString())
                 val selectedTPHId = try {
                     tphList?.find {
                         it.dept == estateId?.toIntOrNull() && // Safe conversion to prevent crashes
@@ -2290,12 +2391,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 AppLogger.d(selectedTPHId.toString())
                 if (selectedTPHId != null) {
-                    if (!panenStoredLocal.contains(selectedTPHId)) {
-                        panenStoredLocal.add(selectedTPHId)
-                        AppLogger.d("Added TPH ID to panenStoredLocal: $selectedTPHId")
-                    } else {
-                        AppLogger.d("TPH ID already exists in panenStoredLocal: $selectedTPHId")
-                    }
 
                     selectedTPHValue = selectedTPHId
                     AppLogger.d("Selected TPH ID: $selectedTPHValue")
@@ -2961,7 +3056,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             else -> {
                 vibrate()
-                backButton.isEnabled = false
+//                backButton.isEnabled = false
 
                 AlertDialogUtility.withTwoActions(
                     this,
@@ -2971,13 +3066,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     "warning.json",
                     ContextCompat.getColor(this, R.color.bluedarklight),
                     function = {
-                        backButton.isEnabled = true // Re-enable button when user cancels
+//                        backButton.isEnabled = true // Re-enable button when user cancels
                         val intent = Intent(this, HomePageActivity::class.java)
                         startActivity(intent)
                         finishAffinity()
                     },
                     cancelFunction = {
-                        backButton.isEnabled = true // Re-enable button when user cancels
+//                        backButton.isEnabled = true // Re-enable button when user cancels
                     }
                 )
             }
@@ -3034,11 +3129,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             locationEnable = true
             lat = location.latitude
             lon = location.longitude
+            if (::takeFotoPreviewAdapter.isInitialized) {
+                takeFotoPreviewAdapter.updateCoordinates(lat, lon)
+            }
         }
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
             findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
             currentAccuracy = accuracy
+        }
+
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+            startPeriodicDateTimeChecking()
         }
     }
 
@@ -3080,14 +3183,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     override fun onPause() {
         super.onPause()
         locationViewModel.stopLocationUpdates()
-
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         locationViewModel.stopLocationUpdates()
 
-
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
     override fun onPhotoTaken(

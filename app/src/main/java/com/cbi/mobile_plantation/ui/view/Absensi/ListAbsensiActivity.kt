@@ -10,6 +10,8 @@ import android.database.sqlite.SQLiteException
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Base64
 import android.view.View
 import android.view.animation.AnimationUtils
@@ -93,10 +95,22 @@ class ListAbsensiActivity : AppCompatActivity() {
     private lateinit var loadingDialog: LoadingDialog
     private lateinit var speedDial: SpeedDialView
     private lateinit var tvEmptyStateAbsensi: TextView // Add this
-
+    private var activityInitialized = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list_absensi)
+
+    }
+
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
+
+    private fun setupUI(){
         prefManager = PrefManager(this)
         loadingDialog = LoadingDialog(this)
 
@@ -111,6 +125,49 @@ class ListAbsensiActivity : AppCompatActivity() {
         setupQRAbsensi()
         setupCardListeners()
         setActiveCard(cardTersimpan)
+    }
+
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
+    }
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        // Ensure handler callbacks are removed
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
     fun generateHighQualityQRCode(
@@ -166,7 +223,7 @@ class ListAbsensiActivity : AppCompatActivity() {
     private fun setupQRAbsensi() {
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
         btnGenerateQRAbsensi.setOnClickListener {
-            btnGenerateQRAbsensi.isEnabled = false
+//            btnGenerateQRAbsensi.isEnabled = false
             val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_generate_qr_panen, null)
             view.background = ContextCompat.getDrawable(
                 this@ListAbsensiActivity,
@@ -237,7 +294,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                     lifecycleScope.launch(Dispatchers.Default) {
                         delay(1000)
                         try {
-                            val dataQR: TextView? = view.findViewById(R.id.dataQR)
+
                             val titleQRConfirm: TextView =
                                 view.findViewById(R.id.titleAfterScanQR)
                             val descQRConfirm: TextView =
@@ -390,10 +447,10 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             absensiViewModel.loadActiveAbsensi()
                                             absensiViewModel.loadAbsensiCountArchive()
                                         }
-                                        btnGenerateQRAbsensi.isEnabled = true
+//                                        btnGenerateQRAbsensi.isEnabled = true
                                     },
                                     cancelFunction = {
-                                        btnGenerateQRAbsensi.isEnabled = true
+//                                        btnGenerateQRAbsensi.isEnabled = true
                                     }
                                 )
                             }
@@ -469,11 +526,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                         0f  // Ensure title starts invisible
 
                                     // Create fade-in for the dataQR text as well
-                                    val fadeInText =
-                                        ObjectAnimator.ofFloat(dataQR, "alpha", 0f, 1f).apply {
-                                            duration = 250
-                                            startDelay = 150
-                                        }
+
                                     val fadeInTitleConfirm =
                                         ObjectAnimator.ofFloat(titleQRConfirm, "alpha", 0f, 1f)
                                             .apply {
@@ -518,7 +571,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 fadeInQR.start()
                                                 fadeInDashedLine.start()
                                                 fadeInTitle.start()
-                                                fadeInText.start()
+
                                                 fadeInTitleConfirm.start()
                                                 fadeInDescConfirm.start()
                                                 fadeInButton.start()

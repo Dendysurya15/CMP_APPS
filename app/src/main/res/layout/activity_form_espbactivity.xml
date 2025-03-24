@@ -38,10 +38,24 @@
                 android:layout_marginHorizontal="20dp"
                 android:id="@+id/cbFormEspbTransporter"/>
             <include
+                android:layout_marginTop="10dp"
                 android:layout_height="wrap_content"
                 android:layout_width="match_parent"
-                android:layout_marginVertical="10dp"
-                layout="@layout/pane_et_layout"
+                android:layout_marginHorizontal="20dp"
+                layout="@layout/pertanyaan_spinner_layout"
+                android:id="@+id/formEspbTransporter"/>
+<!--            <include-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_marginVertical="10dp"-->
+<!--                layout="@layout/pane_et_layout"-->
+<!--                android:id="@+id/formEspbNopol"/>-->
+            <include
+                android:layout_marginTop="10dp"
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginHorizontal="20dp"
+                layout="@layout/pertanyaan_spinner_layout"
                 android:id="@+id/formEspbNopol"/>
             <include
                 android:layout_height="wrap_content"
@@ -49,13 +63,14 @@
                 android:layout_marginVertical="10dp"
                 layout="@layout/pane_et_layout"
                 android:id="@+id/formEspbDriver"/>
+
             <include
                 android:layout_marginTop="10dp"
                 android:layout_height="wrap_content"
                 android:layout_width="match_parent"
                 android:layout_marginHorizontal="20dp"
                 layout="@layout/pertanyaan_spinner_layout"
-                android:id="@+id/formEspbTransporter"/>
+                android:id="@+id/formEspbAfdeling"/>
             <include
                 android:layout_marginTop="10dp"
                 android:layout_height="wrap_content"
@@ -82,12 +97,12 @@
                 android:layout_marginHorizontal="20dp"
                 layout="@layout/pertanyaan_spinner_layout"
                 android:id="@+id/formEspbMill"/>
-            <com.google.android.material.checkbox.MaterialCheckBox
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:text="Simpan sebagai draft"
-                android:layout_marginHorizontal="20dp"
-                android:id="@+id/cbFormEspbMekanisasi"/>
+<!--            <com.google.android.material.checkbox.MaterialCheckBox-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="match_parent"-->
+<!--                android:text="Simpan sebagai draft"-->
+<!--                android:layout_marginHorizontal="20dp"-->
+<!--                android:id="@+id/cbFormEspbMekanisasi"/>-->
             <ImageView
                 android:layout_width="match_parent"
                 android:layout_height="250dp"

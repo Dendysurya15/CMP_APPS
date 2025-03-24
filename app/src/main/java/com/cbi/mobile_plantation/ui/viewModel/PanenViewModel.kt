@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 
 sealed class SaveDataPanenState {
@@ -28,6 +29,10 @@ sealed class SaveDataPanenState {
 
 class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: AppRepository = AppRepository(application)
+
+
+    private val _panenCountTPHESPB = MutableLiveData<Int>()
+    val panenCountTPHESPB: LiveData<Int> get() = _panenCountTPHESPB
 
     private val _panenList = MutableLiveData<List<PanenEntity>>()
     val panenList: LiveData<List<PanenEntity>> get() = _panenList
@@ -56,6 +61,13 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _updateStatus = MutableLiveData<Boolean>()
     val updateStatus: LiveData<Boolean> get() = _updateStatus
 
+    private val _panenCountActive = MutableLiveData<Int>()
+    val panenCountActive: LiveData<Int> = _panenCountActive
+
+
+    private val _panenCountArchived = MutableLiveData<Int>()
+    val panenCountArchived: LiveData<Int> = _panenCountArchived
+
 
     fun loadAllPanen() {
         viewModelScope.launch {
@@ -73,11 +85,64 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadTPHNonESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadESPB(archive, statusEspb, scanStatus, date)
+            _activePanenList.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB: ${e.message}")
+            _activePanenList.value = emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    fun countTPHNonESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val count = repository.countESPB(archive, statusEspb, scanStatus, date)
+            _panenCountActive.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB: ${e.message}")
+            _panenCountActive.value = 0
+        }
+    }
+
+
+    fun loadTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadESPB(archive, statusEspb, scanStatus, date)
+            _archivedPanenList.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB: ${e.message}")
+            _archivedPanenList.value = emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    fun countTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val count = repository.countESPB(archive, statusEspb, scanStatus, date)
+            _panenCountArchived.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB: ${e.message}")
+            _panenCountArchived.value = 0
+        }
+    }
+
     suspend fun loadPanenCount(): Int {
         val count = repository.getPanenCount()
         _panenCount.value = count
         return count
     }
+
+    fun loadCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val formattedDate = date?.take(10) // Ensures only YYYY-MM-DD is passed
+            val count = repository.loadCountTPHESPB(archive, statusEspb, scanStatus, formattedDate)
+            _panenCountTPHESPB.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error loading TPH ESPB count: ${e.message}")
+            _panenCountTPHESPB.value = 0
+        }
+    }
+
 
     suspend fun loadPanenCountApproval(): Int {
         val count = repository.getPanenCountApproval()
@@ -110,6 +175,18 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     fun loadActivePanenESPB() {
         viewModelScope.launch {
             repository.getActivePanenESPB()
+                .onSuccess { panenList ->
+                    _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
+    fun getAllTPHHasBeenSelected() {
+        viewModelScope.launch {
+            repository.getAllTPHHasBeenSelected()
                 .onSuccess { panenList ->
                     _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
                 }
