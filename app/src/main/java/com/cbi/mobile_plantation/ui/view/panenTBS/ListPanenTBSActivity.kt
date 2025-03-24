@@ -157,6 +157,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var creatorInfo = "NULL"
     private var dateTime = "NULL"
     private lateinit var filterAllData: CheckBox
+    private var idsToUpdate = "NULL"
+    private val todayDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))
+    private val todayDate = todayDateFormat.format(Date())
     private lateinit var ll_detail_espb: LinearLayout
     private lateinit var dateButton: Button
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
@@ -485,6 +488,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 panenViewModel.countTPHESPB(0, 1, 1, AppUtils.currentDate)
 
             } else if (featureName == "Detail eSPB") {
+                val btnEditEspb = findViewById<FloatingActionButton>(R.id.btnEditEspb)
+                btnEditEspb.visibility = View.VISIBLE
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
                 ll_detail_espb.visibility = View.VISIBLE
                 espbViewModel.getESPBById(espbId)
@@ -519,6 +524,25 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             pemuat_nik = espb.pemuat_nik
                             tph1 = espb.tph1
                             tph0 = espb.tph0
+                            idsToUpdate = espb.ids_to_update
+
+                            btnEditEspb.setOnClickListener {
+                                AlertDialogUtility.withTwoActions(this@ListPanenTBSActivity, "EDIT", "Edit eSPB", "Apakah anda yakin ingin mengedit eSPB ini?", "warning.json", function = {
+                                    val intent = Intent(this@ListPanenTBSActivity, FormESPBActivity::class.java)
+                                    intent.putExtra("tph_1", tph1)
+                                    Log.d("ListPanenTBSActivity", "tph1: $tph1")
+                                    intent.putExtra("tph_0", tph0)
+                                    Log.d("ListPanenTBSActivity", "tph0: $tph0")
+                                    intent.putExtra("id_espb", espbId)
+                                    Log.d("ListPanenTBSActivity", "id_espb: $espbId")
+                                    intent.putExtra("tph_1_id_panen", idsToUpdate)
+                                    Log.d("ListPanenTBSActivity", "tph_1_id_panen: $idsToUpdate")
+                                    intent.putExtra("FEATURE_NAME", featureName)
+                                    Log.d("ListPanenTBSActivity", "FEATURE_NAME: $featureName")
+                                    startActivity(intent)
+                                    finishAffinity()}
+                                )
+                            }
 
                             // Set No eSPB
                             tvNoEspb.findViewById<TextView>(R.id.tvTitleEspb).text = "No eSPB"
@@ -613,7 +637,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 }
             } else {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.VISIBLE
-                AppLogger.d("masuk sini")
                 panenViewModel.loadTPHNonESPB(0, 0, 0, AppUtils.currentDate)
                 panenViewModel.countTPHNonESPB(0, 0, 0, AppUtils.currentDate)
                 panenViewModel.countTPHESPB(1, 0, 0, AppUtils.currentDate)
@@ -766,7 +789,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 panenViewModel.countTPHESPB(1, 0, 0, dateToUse)
                 panenViewModel.countTPHNonESPB(0, 0, 0, dateToUse)
             }
-
         }
 
         cardRekapPerPemanen.setOnClickListener {
@@ -2138,19 +2160,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 }
                             }
 
-
                             // Calculate distinct TPH count
                             val distinctTphCount = mappedData
                                 .mapNotNull { it["tph_id"].toString().toIntOrNull() }
                                 .distinct()
                                 .count()
 
-                            if (featureName == "Detail eSPB" || !(featureName == "Rekap Hasil Panen" && currentState == 2)) {
+                            if (featureName != "Detail eSPB") {
                                 blokSection.visibility = View.VISIBLE
                                 totalSection.visibility = View.VISIBLE
-                            } else {
-                                blokSection.visibility = View.GONE
-                                totalSection.visibility = View.GONE
                             }
 
                             blok = distinctBlokNames.ifEmpty { "-" }
@@ -2172,9 +2190,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                             // Set jjg
                             val tvTph = findViewById<View>(R.id.tv_total_tph)
-                            tvTph.findViewById<TextView>(R.id.tvTitleEspb).text = "Jumalh TPH"
+                            tvTph.findViewById<TextView>(R.id.tvTitleEspb).text = "Jumlah TPH"
                             tvTph.findViewById<TextView>(R.id.tvSubTitleEspb).text = tph.toString()
-
 
                             listAdapter.updateData(mappedData)
                             originalData =

@@ -42,6 +42,7 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.repository.AppRepository
@@ -49,7 +50,6 @@ import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
-import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.ScannedTPHLocation
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
@@ -57,12 +57,10 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.setMaxBrightness
-import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.card.MaterialCardView
 import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.gson.Gson
@@ -71,7 +69,6 @@ import com.jaredrummler.materialspinner.MaterialSpinner
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -89,9 +86,11 @@ class FormESPBActivity : AppCompatActivity() {
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var viewModel: ESPBViewModel
     private var selectedMillId = 0
+    private var selectedNopol = "NULL"
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var pemuatList: List<KaryawanModel> = emptyList()
     private var transporterList: List<TransporterModel> = emptyList()
+    private var nopolList: List<KendaraanModel> = emptyList()
 
     private lateinit var inputMappings: List<Triple<LinearLayout, String, FeaturePanenTBSActivity.InputType>>
     private lateinit var viewModelFactory: ESPBViewModelFactory
@@ -227,11 +226,11 @@ class FormESPBActivity : AppCompatActivity() {
 
         //NBM 115
         //transporter 1
-        val formEspbNopol = findViewById<LinearLayout>(R.id.formEspbNopol)
-        val tvEspbNopol = formEspbNopol.findViewById<TextView>(R.id.tvTitlePaneEt)
-        val etEspbNopol = formEspbNopol.findViewById<EditText>(R.id.etPaneEt)
-        etEspbNopol.hint = "KH 2442 GF"
-        tvEspbNopol.text = "No. Polisi"
+//        val formEspbNopol = findViewById<LinearLayout>(R.id.formEspbNopol)
+//        val tvEspbNopol = formEspbNopol.findViewById<TextView>(R.id.tvTitlePaneEt)
+//        val etEspbNopol = formEspbNopol.findViewById<EditText>(R.id.etPaneEt)
+//        etEspbNopol.hint = "KH 2442 GF"
+//        tvEspbNopol.text = "No. Polisi"
 
         val formEspbDriver = findViewById<LinearLayout>(R.id.formEspbDriver)
         val tvEspbDriver = formEspbDriver.findViewById<TextView>(R.id.tvTitlePaneEt)
@@ -240,9 +239,12 @@ class FormESPBActivity : AppCompatActivity() {
         tvEspbDriver.text = "Driver"
 
         val formEspbTransporter = findViewById<LinearLayout>(R.id.formEspbTransporter)
+        val formEspbNopol = findViewById<LinearLayout>(R.id.formEspbNopol)
+
+        setupSpinnerText(R.id.formEspbNopol, "No Polisi", "No Polisi")
 
         setupSpinnerText(R.id.formEspbMill, "Pilih Mill", "Mill")
-        setupSpinnerText(R.id.formEspbKemandoran, "Pilih Kemandoran", "Kemandoran")
+        setupSpinnerText(R.id.formEspbKemandoran, "Pilih Kemandoran Pemuat", "Kemandoran Pemuat")
         setupSpinnerText(R.id.formEspbAfdeling, "Pilih Afdeling", "Afdeling")
         setupSpinnerText(R.id.formEspbTransporter, "Pilih Transporter", "Transporter")
         setupSpinnerText(R.id.formEspbPemuat, "Pilih Pemuat", "Pemuat")
@@ -382,7 +384,41 @@ class FormESPBActivity : AppCompatActivity() {
 
                 }
             }
+
+            try {
+                val nopolDeffered = async {
+                    try {
+                        datasetViewModel.getAllNopol()
+                    } catch (e: Exception) {
+                        AppLogger.e("Error fetching Nopol List: ${e.message}")
+                        emptyList()
+                    }
+                }
+                nopolList = nopolDeffered.await()
+                val nopol: List<String> = nopolList.map { it.no_kendaraan.toString() }
+                Log.d("FormESPBActivityNopol", "Available nopol: $nopol")
+                withContext(Dispatchers.Main) {
+                    setupSpinner(R.id.formEspbNopol, nopol)
+
+                    // If we have license plates available, set the first one as default
+                    if (nopol.isNotEmpty()) {
+                        selectedNopol = nopol[0]
+                        Log.d("FormESPBActivityNopol", "Default selectedNopol: $selectedNopol")
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error fetching nopol data: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@FormESPBActivity,
+                        "Error loading nopol data: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+
         }
+
 
         lifecycleScope.launch {
             var firstTphId = 0
@@ -437,16 +473,22 @@ class FormESPBActivity : AppCompatActivity() {
 
         val btnGenerateQRESPB = findViewById<FloatingActionButton>(R.id.btnGenerateQRESPB)
         btnGenerateQRESPB.setOnClickListener {
-//            btnGenerateQRESPB.isEnabled = false
-            val nopol = try {
-                etEspbNopol.text.toString().replace(" ", "").uppercase()
-            } catch (e: Exception) {
+
+            Log.d("FormESPBActivity", "Generate QR clicked, selectedNopol = $selectedNopol")
+
+            // Check if selectedNopol is valid
+            if (selectedNopol.isNullOrBlank() || selectedNopol == "NULL") {
                 Toasty.error(
                     this,
-                    "Terjadi Kesalahan saat mengambil No Polisi $e",
+                    "Mohon lengkapi data No Polisi terlebih dahulu",
                     Toasty.LENGTH_LONG
                 ).show()
-                "NULL"
+
+                // Debug info for troubleshooting
+                Log.e("FormESPBActivity", "Nopol validation failed: '$selectedNopol'")
+                Log.e("FormESPBActivity", "Available nopols: ${nopolList.map { it.no_kendaraan }}")
+
+                return@setOnClickListener
             }
 
             val driver = try {
@@ -532,7 +574,7 @@ class FormESPBActivity : AppCompatActivity() {
                 .joinToString(",")
 
             val pemuatListId = selectedPemanen.map { it.id }
-            if (nopol == "NULL" || nopol == "") {
+            if (selectedNopol == "NULL" || selectedNopol == "") {
                 Toasty.error(
                     this,
                     "Mohon lengkapi data No Polisi terlebih dahulu",
@@ -576,7 +618,7 @@ class FormESPBActivity : AppCompatActivity() {
                         }
                         saveESPB(
                             blok_jjg = blok_jjg,
-                            nopol = nopol,
+                            nopol = selectedNopol,
                             driver = driver,
                             pemuat_id = uniqueIdKaryawan,
                             transporter_id = transporter_id,
@@ -596,7 +638,7 @@ class FormESPBActivity : AppCompatActivity() {
                     if (mekanisasi == 0) {
                         val json = constructESPBJson(
                             blok_jjg = blok_jjg,
-                            nopol = nopol,
+                            nopol = selectedNopol,
                             driver = driver,
                             pemuat_id = uniqueIdKaryawan,
                             transporter_id = transporter_id,
@@ -643,6 +685,22 @@ class FormESPBActivity : AppCompatActivity() {
                 0
             }
         }
+
+//        val formNopol = findViewById<LinearLayout>(R.id.formEspbNopol)
+//        val spEspbNopol = formNopol.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+//        spEspbNopol.setOnItemSelectedListener { view, position, id, item ->
+//            val selectedMill = viewModel.nopolList.value?.get(position)
+//            selectedtNopol = try {
+//                selectedMill?.no_kendaraan!!
+//            } catch (e: Exception) {
+//                Toasty.error(
+//                    this,
+//                    "Terjadi Kesalahan saat mengambil ID Mill $e",
+//                    Toasty.LENGTH_LONG
+//                ).show()
+//                "NULL"
+//            }
+//        }
     }
 
     private fun setupViewModel() {
@@ -821,7 +879,16 @@ class FormESPBActivity : AppCompatActivity() {
 
                 filteredData = if (!s.isNullOrEmpty()) {
                     titleSearch.visibility = View.VISIBLE
-                    data.filter { it.contains(s, ignoreCase = true) }
+
+                    // Normalize search input by removing spaces
+                    val normalizedSearch = s.toString().replace(" ", "").lowercase()
+
+                    // Filter using normalized comparison
+                    data.filter { item ->
+                        // Normalize item by removing spaces for comparison
+                        val normalizedItem = item.replace(" ", "").lowercase()
+                        normalizedItem.contains(normalizedSearch)
+                    }
                 } else {
                     titleSearch.visibility = View.GONE
                     data
@@ -1050,6 +1117,11 @@ class FormESPBActivity : AppCompatActivity() {
                     AppLogger.d("Selected Worker: $selectedItem, ID: $selectedPemanenId")
                 }
             }
+
+            R.id.formEspbNopol -> {
+                selectedNopol = selectedItem
+                Log.d("FormESPBActivityNopol", "Selected nopol: $selectedNopol")
+            }
         }
     }
 
@@ -1198,7 +1270,8 @@ class FormESPBActivity : AppCompatActivity() {
                     status_draft = status_draft,
                     status_mekanisasi = status_mekanisasi,
                     kemandoran_id = kemandoran_id,
-                    pemuat_nik = pemuat_nik
+                    pemuat_nik = pemuat_nik,
+                    ids_to_update = idsToUpdate.joinToString(",")
                 )
 
                 // Insert ESPB and get the ID
@@ -1219,6 +1292,11 @@ class FormESPBActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         Toasty.error(this@FormESPBActivity, "Gagal menyimpan ESPB: ID tidak valid", Toasty.LENGTH_LONG).show()
                     }
+                }
+               try{
+                   viewModel.deleteESPBById(intent.getIntExtra("id_espb",0))
+                }catch (e: Exception){
+                    Log.e("FormESPBActivity", "Error parsing id_espb: ${e.message}")
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error saving ESPB data", e.toString())

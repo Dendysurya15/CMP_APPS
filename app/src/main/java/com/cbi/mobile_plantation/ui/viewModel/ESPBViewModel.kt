@@ -9,6 +9,7 @@ import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -36,6 +37,9 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
 
+    private val _nopolList = MutableLiveData<List<KendaraanModel>>()
+    val nopolList: LiveData<List<KendaraanModel>> = _nopolList
+
     private val _espbDraftCount = MutableStateFlow(0)
 
     init {
@@ -53,6 +57,17 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         }
     }
 
+    private fun loadNopol() {
+        viewModelScope.launch {
+            try {
+                val nopol = repository.getNopolList()
+                _nopolList.postValue(nopol)
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
     fun loadAllESPB() {
         viewModelScope.launch {
             _espbList.value = repository.getAllESPB()
@@ -63,6 +78,14 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         viewModelScope.launch {
             _espbEntity.value = repository.getESPBById(int)
         }
+    }
+
+    fun deleteESPBById(int: Int): Int{
+        var code = 0
+        viewModelScope.launch {
+            code = repository.deleteESPBById(int)
+        }
+        return code
     }
 
     fun loadActiveESPB() {

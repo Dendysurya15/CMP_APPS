@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.TransporterModel
 
 @Dao
@@ -28,4 +29,7 @@ abstract class KendaraanDao {
 
     @Query("DELETE FROM kendaraan")
     abstract fun deleteAll()
+
+    @Query("SELECT * FROM kendaraan")
+    abstract suspend fun getAll(): List<KendaraanModel>
 }
