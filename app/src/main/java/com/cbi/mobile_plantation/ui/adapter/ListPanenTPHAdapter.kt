@@ -407,8 +407,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         val infoItems = listOf(
                             DetailInfoType.TANGGAL_BUAT to formattedDate,
                             DetailInfoType.BLOK_BANJIR to when(data["blok_banjir"]) {
-                                "1" -> "Ya"
-                                else -> "Tidak"
+                                "1" -> "Tidak"
+                                else -> "Ya"
                             },
                             DetailInfoType.ESTATE_AFDELING to "${data["nama_estate"]} / ${data["nama_afdeling"]}",
                             DetailInfoType.BLOK_TAHUN to "${extractedData.blokText} / ${data["tahun_tanam"]}",

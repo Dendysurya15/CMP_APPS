@@ -234,7 +234,7 @@ class HomePageActivity : AppCompatActivity() {
                 featureNameBackgroundColor = R.color.greenBorder,
                 iconResource = R.drawable.panen_tbs_icon,
                 count = null,
-                functionDescription = "Pencatatatan panen TBS di TPH oleh kerani panen",
+                functionDescription = "Pencatatan panen TBS di TPH oleh kerani panen",
                 displayType = DisplayType.ICON
             ),
             FeatureCard(
@@ -243,7 +243,7 @@ class HomePageActivity : AppCompatActivity() {
                 featureNameBackgroundColor = R.color.greenBorder,
                 iconResource = null,
                 count = countPanenTPH.toString(),
-                functionDescription = "Rekapitulasi panen TBS dan transfer data ke suoervisi",
+                functionDescription = "Rekapitulasi panen TBS dan transfer data ke supervisi",
                 displayType = DisplayType.COUNT
             ),
             FeatureCard(
@@ -372,7 +372,22 @@ class HomePageActivity : AppCompatActivity() {
                 features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
             ).filterNotNull()
 
-            val specificFeatures = when (jabatan) {
+            // Determine which role pattern matches the jabatan
+            val matchedRole = when {
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.KeraniPanen, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.KeraniPanen
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.KeraniTimbang
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.Mandor1, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.Mandor1
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.Asisten, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.Asisten
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.IT, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.IT
+                else -> ""
+            }
+
+            val specificFeatures = when (matchedRole) {
                 AppUtils.ListFeatureByRoleUser.KeraniPanen -> listOf(
                     features.find { it.featureName == AppUtils.ListFeatureNames.PanenTBS },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapHasilPanen },
@@ -413,7 +428,7 @@ class HomePageActivity : AppCompatActivity() {
                 else -> emptyList()
             }
 
-            return if (jabatan == AppUtils.ListFeatureByRoleUser.IT) {
+            return if (matchedRole == AppUtils.ListFeatureByRoleUser.IT) {
                 specificFeatures
             } else {
                 specificFeatures + commonFeatures
@@ -537,6 +552,25 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
+
+    @Deprecated("This method has been deprecated in favor of using the\n      {@link OnBackPressedDispatcher} via {@link #getOnBackPressedDispatcher()}.\n      The OnBackPressedDispatcher controls how back button events are dispatched\n      to one or more {@link OnBackPressedCallback} objects.")
+    override fun onBackPressed() {
+        AlertDialogUtility.withTwoActions(
+            this,
+            "Keluar",
+            getString(R.string.confirmation_dialog_title),
+            getString(R.string.al_confirm_out),
+            "warning.json",
+            ContextCompat.getColor(this, R.color.bluedarklight),
+            function = {
+
+                finishAffinity()
+            },
+            cancelFunction = {
+//                        backButton.isEnabled = true // Re-enable button when user cancels
+            }
+        )
+    }
 
     private fun onFeatureCardClicked(feature: FeatureCard) {
         when (feature.featureName) {
@@ -1527,11 +1561,11 @@ class HomePageActivity : AppCompatActivity() {
             btnLogout.isEnabled = false
             AlertDialogUtility.withTwoActions(
                 this,
-                "Keluar",
+                "Logout",
                 getString(R.string.confirmation_dialog_title),
                 getString(R.string.al_confirm_logout),
                 "warning.json",
-                ContextCompat.getColor(this, R.color.bluedarklight),
+                ContextCompat.getColor(this, R.color.colorRedDark),
                 function = {
                     prefManager!!.isFirstTimeLaunch = false
                     prefManager!!.rememberLogin = false

@@ -16,6 +16,138 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+
+    <LinearLayout
+        android:id="@+id/calendarContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="10dp"
+        android:layout_marginTop="10dp"
+        android:paddingBottom="5dp"
+        android:orientation="horizontal"
+        android:visibility="visible"
+        app:layout_constraintTop_toBottomOf="@id/navbarPanenList"
+        tools:ignore="MissingConstraints">
+
+        <!-- Material Card with Button -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            app:cardCornerRadius="8dp"
+            app:cardBackgroundColor="@color/white"
+            app:rippleColor="@color/ripple_material_light"
+            android:clickable="true"
+            android:focusable="true">
+
+            <Button
+                android:id="@+id/calendarPicker"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:backgroundTint="@color/white"
+                android:textColor="@color/black"
+                android:drawableEnd="@drawable/baseline_keyboard_arrow_down_24"
+                android:onClick="openDatePicker"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                tools:ignore="MissingConstraints" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- CheckBox with Caption -->
+        <CheckBox
+            android:id="@+id/calendarCheckbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            style="@style/defaultBoxColor"
+            />
+
+        <TextView
+            android:id="@+id/calendarCheckboxCaption"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:text="Filter Semua Tanggal"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            android:fontFamily="@font/manrope_semibold"
+            android:gravity="center_vertical"/>
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:id="@+id/filterDateContainer"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/calendarContainer">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/resultFilterDate"
+            android:layout_marginHorizontal="10dp"
+            app:cardCornerRadius="25dp"
+            app:cardBackgroundColor="@color/bgLightYellow"
+            app:strokeWidth="1dp"
+            app:strokeColor="@color/borderYellow"
+            tools:ignore="MissingConstraints">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="5dp"
+                        android:text="Filter aktif: "
+                        android:textColor="@color/black"
+                        android:fontFamily="@font/manrope_bold"
+                        android:layout_gravity="top"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/name_filter_date"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        android:textStyle="italic"
+                        android:text="23 Mar 2025 "
+                        android:textColor="@color/black"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:layout_gravity="top"
+                        android:maxLines="2"
+                        android:textSize="16sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/remove_filter_date"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:tint="@color/colorRedDark"
+                    android:background="@drawable/rounded_radius_background"
+                    android:src="@drawable/baseline_close_24"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:padding="4dp"
+                    android:layout_gravity="center"
+                    tools:ignore="UseAppTint" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+
+
+
     <LinearLayout
         android:id="@+id/search_section"
         android:layout_width="match_parent"
@@ -103,7 +235,8 @@
 
         android:orientation="horizontal"
         android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/navbarPanenList"
+
+        app:layout_constraintTop_toBottomOf="@id/filterDateContainer"
         tools:ignore="MissingConstraints">
 
         <TextView

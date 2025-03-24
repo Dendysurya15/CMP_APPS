@@ -5,12 +5,14 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cbi.mobile_plantation.R
@@ -27,6 +29,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.setMaxBrightness
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.gson.Gson
 import com.google.zxing.ResultPoint
@@ -136,18 +139,15 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
     private fun setupBottomSheet() {
         bottomSheetDialog = BottomSheetDialog(this)
-        val bottomSheetView = layoutInflater.inflate(R.layout.layout_bottom_sheet_scan_wb, null)
+
+        val bottomSheetView =
+            layoutInflater.inflate(
+                R.layout.layout_bottom_sheet_scan_wb,
+                null
+            )
         bottomSheetDialog.setContentView(bottomSheetView)
-        bottomSheetDialog.behavior.peekHeight =
-            (resources.displayMetrics.heightPixels * 0.7).toInt()
-        bottomSheetDialog.behavior.isDraggable = true  // Allow dragging
 
 
-//        bottomSheetDialog.setCanceledOnTouchOutside(false)
-//        bottomSheetDialog.setCancelable(false)
-//        bottomSheetDialog.behavior.apply {
-//            isDraggable = false
-//        }
         val btnSaveUploadESPB = bottomSheetView.findViewById<Button>(R.id.btnSaveUploadeSPB)
         btnSaveUploadESPB.setOnClickListener {
             btnSaveUploadESPB.isEnabled = false
@@ -569,24 +569,58 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         hasError: Boolean = false,
         errorMessage: String? = null
     ) {
-        val bottomSheetView = bottomSheetDialog.findViewById<View>(R.id.bottomSheetContent)
-        bottomSheetView?.let {
+
+
+        bottomSheetDialog?.let {
+            val titleDialogDetailTable = it.findViewById<TextView>(R.id.titleDialogDetailTable)
+            val dashedline = it.findViewById<View>(R.id.dashedLine)
             val errorCard = it.findViewById<LinearLayout>(R.id.errorCard)
             val dataContainer = it.findViewById<LinearLayout>(R.id.dataContainer)
             val errorText = it.findViewById<TextView>(R.id.errorText)
             val btnProcess = it.findViewById<Button>(R.id.btnSaveUploadeSPB)
 
-
-
             if (hasError) {
-                errorCard.visibility = View.VISIBLE
-                dataContainer.visibility = View.GONE
-                errorText.text = errorMessage
-                btnProcess.visibility = View.GONE
+                titleDialogDetailTable!!.text = "Terjadi Kesalahan Scan QR!"
+                titleDialogDetailTable!!.setTextColor(ContextCompat.getColor(this, R.color.colorRedDark))
+                errorCard!!.visibility = View.VISIBLE
+                dataContainer!!.visibility = View.GONE
+                errorText!!.text = errorMessage
+                btnProcess!!.visibility = View.GONE
+                val maxHeight = (resources.displayMetrics.heightPixels * 0.25).toInt()
+
+                bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                    ?.let { bottomSheet ->
+                        val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                        behavior.apply {
+                            this.peekHeight = maxHeight
+                            this.state = BottomSheetBehavior.STATE_EXPANDED
+                            this.isFitToContents = true
+                            this.isDraggable = false
+                        }
+
+                        bottomSheet.layoutParams?.height = maxHeight
+                    }
             } else {
-                errorCard.visibility = View.GONE
-                dataContainer.visibility = View.VISIBLE
-                btnProcess.visibility = View.VISIBLE
+                val maxHeight = (resources.displayMetrics.heightPixels * 0.6).toInt()
+                titleDialogDetailTable!!.text = "Konfirmasi Data e-SPB"
+                titleDialogDetailTable!!.setTextColor(ContextCompat.getColor(this, R.color.black))
+                bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                    ?.let { bottomSheet ->
+                        val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                        behavior.apply {
+                            this.peekHeight = maxHeight
+                            this.state = BottomSheetBehavior.STATE_EXPANDED
+                            this.isFitToContents = true
+                            this.isDraggable = false
+                        }
+
+                        bottomSheet.layoutParams?.height = maxHeight
+                    }
+                errorCard!!.visibility = View.GONE
+                dataContainer!!.visibility = View.VISIBLE
+                btnProcess!!.visibility = View.VISIBLE
 
                 val infoItems = listOf(
                     InfoType.ESPB to (parsedData?.espb?.noEspb ?: "-"),
@@ -604,7 +638,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                 infoItems.forEach { (type, value) ->
                     val itemView = it.findViewById<View>(type.id)
-                    setInfoItemValues(itemView, type.label, value)
+                    setInfoItemValues(itemView!!, type.label, value)
                 }
             }
 

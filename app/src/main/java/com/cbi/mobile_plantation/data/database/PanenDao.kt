@@ -68,7 +68,14 @@ abstract class PanenDao {
 """)
     abstract suspend fun loadESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): List<PanenEntityWithRelations>
 
-
+    @Query("""
+    SELECT COUNT(*) FROM panen_table 
+    WHERE archive = :archive 
+    AND status_espb = :statusEspb 
+    AND scan_status = :scanStatus
+    AND (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
+""")
+    abstract suspend fun countESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): Int
 
     @Query("SELECT * FROM panen_table")
     abstract fun getAll(): List<PanenEntity>
@@ -77,7 +84,7 @@ abstract class PanenDao {
     abstract fun getAllArchived(): List<PanenEntity>
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE archive = 1 AND date(date_created) = date('now', 'localtime')")
+    @Query("SELECT * FROM panen_table WHERE archive = 1 ")
     abstract fun getAllArchivedWithRelations(): List<PanenEntityWithRelations>
 
     @Query("SELECT * FROM panen_table WHERE archive = 0")
@@ -99,12 +106,16 @@ abstract class PanenDao {
     abstract fun archiveByListID(id: List<Int>): Int
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE archive = 0 AND date(date_created) = date('now', 'localtime') AND status_espb = 0")
+    @Query("SELECT * FROM panen_table WHERE archive = 0 AND status_espb = 0")
     abstract fun getAllActiveWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
     @Query("SELECT * FROM panen_table WHERE dataIsZipped = 0 AND status_espb = 0")
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
+
+    @Transaction
+    @Query("SELECT * FROM panen_table WHERE archive != 1")
+    abstract fun getAllTPHHasBeenSelected(): List<PanenEntityWithRelations>
 
     @Transaction
     @Query("SELECT * FROM panen_table WHERE status_espb = :status")

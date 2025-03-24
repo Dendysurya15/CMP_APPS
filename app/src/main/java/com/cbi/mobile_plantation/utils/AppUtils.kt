@@ -34,6 +34,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -49,13 +50,48 @@ object AppUtils {
     const val LOG_LOC = "locationLog"
     const val ZIP_PASSWORD = "CBI@2025"
     const val REQUEST_CHECK_SETTINGS = 0x1
-
+const val MAX_SELECTIONS_PER_TPH = 2
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"
         const val UPLOADING = "Sedang Upload..."
         const val SUCCESS = "Berhasil Upload!"
         const val FAILED = "Gagal Upload!"
+    }
+
+
+    fun getTodaysDate(): String {
+        val cal = Calendar.getInstance()
+        val year = cal.get(Calendar.YEAR)
+        val month = cal.get(Calendar.MONTH) + 1
+        val day = cal.get(Calendar.DAY_OF_MONTH)
+        return makeDateString(day, month, year)
+    }
+
+    fun makeDateString(day: Int, month: Int, year: Int): String {
+        return "${getMonthFormat(month)} $day $year"
+    }
+
+    private fun getMonthFormat(month: Int): String {
+        return when (month) {
+            1 -> "JAN"
+            2 -> "FEB"
+            3 -> "MAR"
+            4 -> "APR"
+            5 -> "MAY"
+            6 -> "JUN"
+            7 -> "JUL"
+            8 -> "AUG"
+            9 -> "SEP"
+            10 -> "OCT"
+            11 -> "NOV"
+            12 -> "DEC"
+            else -> "JAN" // Default should never happen
+        }
+    }
+
+    fun formatDateForBackend(day: Int, month: Int, year: Int): String {
+        return String.format("%04d-%02d-%02d", year, month, day)
     }
 
     object DatabaseTables {
@@ -80,6 +116,7 @@ object AppUtils {
         const val IT = "IT"
     }
 
+
     object ListFeatureNames {
         const val PanenTBS = "Panen TBS"
         const val RekapHasilPanen = "Rekap Hasil Panen"
@@ -87,6 +124,8 @@ object AppUtils {
         const val RekapPanenDanRestan = "Rekap panen dan restan"
         const val BuatESPB = "Buat eSPB"
         const val RekapESPB = "Rekap eSPB"
+        const val DetailESPB = "Detail eSPB"
+
         const val InspeksiPanen = "Inspeksi Panen"
         const val RekapInspeksiPanen = "Rekap Inspeksi Panen"
         const val ScanESPBTimbanganMill = "Scan e-SPB Timbangan Mill"
@@ -122,11 +161,18 @@ object AppUtils {
         const val settingJSON = "setting.json"
     }
 
-    /**
-     * Gets the current app version from BuildConfig or string resources.
-     * @param context The context used to retrieve the string resource.
-     * @return The app version as a string.
-     */
+    private val todayDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))
+    private var _selectedDate: String? = null
+
+    val currentDate: String
+        get() {
+            return _selectedDate ?: todayDateFormat.format(Date())
+        }
+
+    fun setSelectedDate(date: String) {
+        _selectedDate = date
+    }
+
     fun getAppVersion(context: Context): String {
         return context.getString(R.string.app_version)
     }
@@ -555,6 +601,19 @@ object AppUtils {
         } else {
             @Suppress("DEPRECATION")
             vibrator.vibrate(duration)
+        }
+    }
+
+     fun formatSelectedDateForDisplay(backendDate: String): String {
+        try {
+            val backendFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))
+            val displayFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
+
+            val date = backendFormat.parse(backendDate)
+            return date?.let { displayFormat.format(it) } ?: backendDate
+        } catch (e: Exception) {
+            // If there's any error in parsing, return the original date
+            return backendDate
         }
     }
 
