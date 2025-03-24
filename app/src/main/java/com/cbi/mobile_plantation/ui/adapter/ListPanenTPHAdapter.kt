@@ -298,7 +298,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     onCheckedChange(isChecked)
                 }
 
-                if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 0) {
+                if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 0 || featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 1) {
                     AppLogger.d(archiveState.toString())
                     itemView.isClickable = true
                     itemView.isFocusable = true

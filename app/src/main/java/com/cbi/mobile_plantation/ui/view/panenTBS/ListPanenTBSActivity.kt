@@ -207,8 +207,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
     private fun processSelectedDate(selectedDate: String) {
-        loadingDialog.show()
-        loadingDialog.setMessage("Sedang mengambil data...", true)
+//        loadingDialog.show()
+//        loadingDialog.setMessage("Sedang mengambil data...", true)
 
         val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)
         val nameFilterDate = findViewById<TextView>(R.id.name_filter_date)
@@ -247,8 +247,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         removeFilterDate.setOnClickListener {
             filterDateContainer.visibility = View.GONE
-            loadingDialog.show()
-            loadingDialog.setMessage("Sedang mengambil data...", true)
+//            loadingDialog.show()
+//            loadingDialog.setMessage("Sedang mengambil data...", true)
             // Get today's date in backend format
             val todayBackendDate = AppUtils.formatDateForBackend(
                 Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
@@ -314,11 +314,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val selectedDate = globalFormattedDate // Get the selected date
 
                 if (isChecked) {
-                    loadingDialog.show()
-                    loadingDialog.setMessage("Sedang mengambil data...", true)
+//                    loadingDialog.show()
+//                    loadingDialog.setMessage("Sedang mengambil data...", true)
 
                     dateButton.isEnabled = false
-                    dateButton.alpha = 0.5f // Make the button appear darker
+                    dateButton.alpha = 0.5f
 
                     if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen){
                         if (currentState == 0) {
@@ -336,10 +336,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
                     }else if(featureName == AppUtils.ListFeatureNames.BuatESPB){
                         panenViewModel.loadTPHNonESPB(0, 0, 1)
+                    }else if(featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan){
+                        if (currentState == 0) {
+                            panenViewModel.loadTPHNonESPB(0, 0, 1)
+                            panenViewModel.countTPHNonESPB(0, 0, 1)
+                            panenViewModel.countTPHESPB(0, 1, 1)
+                        }else if(currentState == 1){
+                            panenViewModel.loadTPHESPB(0, 1, 1)
+                            panenViewModel.countTPHNonESPB(0, 0, 1)
+                            panenViewModel.countTPHESPB(0, 1, 1)
+                        }
                     }
                 } else {
-                    loadingDialog.show()
-                    loadingDialog.setMessage("Sedang mengambil data...", true)
+//                    loadingDialog.show()
+//                    loadingDialog.setMessage("Sedang mengambil data...", true)
                     if (currentState == 0) {
                         panenViewModel.loadTPHNonESPB(0, 0, 0, selectedDate)
                         panenViewModel.countTPHNonESPB(0, 0, 0, selectedDate)
