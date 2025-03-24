@@ -618,7 +618,8 @@ class CameraRepository(
         file: File,
         position: String,
         onChangePhoto: () -> Unit,
-        onDeletePhoto: (String) -> Unit
+        onDeletePhoto: (String) -> Unit,
+        onClosePhoto: () -> Unit = {}
     ) {
         val fotoZoom = zoomView.findViewById<ImageView>(R.id.fotoZoom)
         val backgroundView =
@@ -637,9 +638,11 @@ class CameraRepository(
 
         // Your existing click listeners...
         zoomView.findViewById<MaterialCardView>(R.id.cardCloseZoom)?.setOnClickListener {
+            onClosePhoto.invoke()
             zoomView.visibility = View.GONE
             backgroundView.visibility = View.GONE
         }
+
         val zoomview = zoomView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
         zoomview.setOnClickListener {
             zoomview.isEnabled = false

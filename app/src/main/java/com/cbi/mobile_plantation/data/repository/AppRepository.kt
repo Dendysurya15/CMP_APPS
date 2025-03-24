@@ -3,15 +3,18 @@ package com.cbi.mobile_plantation.data.repository
 import android.content.Context
 import android.util.Log
 import androidx.room.withTransaction
+import com.cbi.mobile_plantation.data.model.InspectionModel
+import com.cbi.mobile_plantation.data.model.InspectionPathModel
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.ESPBEntity
-import com.cbi.mobile_plantation.data.model.PanenEntity
-import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
-import com.cbi.mobile_plantation.data.model.TPHBlokInfo
-import com.cbi.mobile_plantation.data.model.TphRvData
-import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.PanenEntity
+import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
+import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
+import com.cbi.mobile_plantation.data.model.TPHBlokInfo
+import com.cbi.mobile_plantation.data.model.TphRvData
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -27,6 +30,8 @@ class AppRepository(context: Context) {
     private val karyawanDao = database.karyawanDao()
     private val kemandoranDao = database.kemandoranDao()
     private val transporterDao = database.transporterDao()
+    private val inspectionDao = database.inspectionDao()
+    private val inspectionPathDao = database.inspectionPathDao()
     private val kendaraanDao = database.kendaraanDao()
 
     sealed class SaveResultPanen {
@@ -414,6 +419,53 @@ class AppRepository(context: Context) {
     // Add to AppRepository.kt
     suspend fun insertESPBAndGetId(espbEntity: ESPBEntity): Long {
         return espbDao.insertAndGetId(espbEntity)
+    }
+
+    suspend fun addDataInspection(data: List<InspectionModel>): Result<List<Long>> {
+        return try {
+            val insertedIds = inspectionDao.insertAll(data)
+            Result.success(insertedIds)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addPathDataInspection(data: InspectionPathModel): Result<Long> {
+        return try {
+            val insertedId = inspectionPathDao.insert(data)
+            if (insertedId != -1L) {
+                Result.success(insertedId)
+            } else {
+                Result.failure(Exception("Insert failed"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun deleteInspectionDatas(ids: List<String>): Result<Unit> {
+        return try {
+            val deletedPath = inspectionPathDao.deleteByID(ids)
+            if (deletedPath > 0) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to delete one or both records"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getInspectionCountCard(archive: Int): Int {
+        return inspectionDao.countCard(archive)
+    }
+
+    suspend fun getInspectionPathsWithTphAndCount(archive: Int): List<PathWithInspectionTphRelations> {
+        return inspectionPathDao.getInspectionPathsWithTphAndCount(archive)
+    }
+
+    suspend fun getInspectionPathWithTphAndCount(pathId: String): PathWithInspectionTphRelations {
+        return inspectionPathDao.getInspectionPathWithTphAndCount(pathId)
     }
 
 }

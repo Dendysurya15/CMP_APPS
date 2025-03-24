@@ -16,11 +16,11 @@ class CameraViewModel(private val cameraRepository: CameraRepository) : ViewMode
     fun statusCamera(): Boolean = cameraRepository.statusCamera()
 
     fun closeCamera() {
-        cameraRepository.closeCamera(   )
+        cameraRepository.closeCamera()
     }
 
-    fun openZoomPhotos(file: File, position: String, onChangePhoto: () -> Unit, onDeletePhoto: (String) -> Unit) {
-        cameraRepository.openZoomPhotos(file, position, onChangePhoto, onDeletePhoto)
+    fun openZoomPhotos(file: File, position: String, onChangePhoto: () -> Unit, onDeletePhoto: (String) -> Unit, onClosePhoto: () -> Unit = {}) {
+        cameraRepository.openZoomPhotos(file, position, onChangePhoto, onDeletePhoto, onClosePhoto)
     }
 
     fun closeZoomPhotos() {

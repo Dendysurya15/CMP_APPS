@@ -6,12 +6,14 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.cbi.mobile_plantation.data.database.InspectionDao
+import com.cbi.mobile_plantation.data.model.InspectionModel
+import com.cbi.mobile_plantation.data.model.InspectionPathModel
 import com.cbi.mobile_plantation.data.model.AbsensiModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.FlagESPBModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
-
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.TransporterModel
@@ -59,9 +61,11 @@ import com.cbi.mobile_plantation.utils.AppUtils
         TransporterModel::class,
         UploadCMPModel::class,
         AbsensiModel::class,
+        InspectionModel::class,
+        InspectionPathModel::class,
         KendaraanModel::class,
     ],
-    version = 23
+    version = 24
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -74,6 +78,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transporterDao(): TransporterDao
     abstract fun uploadCMPDao(): UploadCMPDao
     abstract fun absensiDao(): AbsensiDao
+    abstract fun inspectionDao(): InspectionDao
+    abstract fun inspectionPathDao(): InspectionPathDao
     abstract fun kendaraanDao(): KendaraanDao
 
     companion object {
@@ -236,6 +242,5 @@ abstract class AppDatabase : RoomDatabase() {
             INSTANCE?.close()
             INSTANCE = null
         }
-
     }
 }
