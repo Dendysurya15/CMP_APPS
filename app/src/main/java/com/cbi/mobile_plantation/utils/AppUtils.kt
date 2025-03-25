@@ -72,7 +72,7 @@ const val MAX_SELECTIONS_PER_TPH = 2
         return "${getMonthFormat(month)} $day $year"
     }
 
-    private fun getMonthFormat(month: Int): String {
+    fun getMonthFormat(month: Int): String {
         return when (month) {
             1 -> "JAN"
             2 -> "FEB"

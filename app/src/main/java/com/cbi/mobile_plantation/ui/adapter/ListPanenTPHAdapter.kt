@@ -130,7 +130,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
         val formattedTime = try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
-            val outputFormat = SimpleDateFormat("HH:mm", Locale("id", "ID")) // Indonesian format
+            val outputFormat = SimpleDateFormat("dd MMM yy\nHH:mm", Locale("id", "ID")) // Indonesian format
             val date = inputFormat.parse(dateCreated)
             outputFormat.format(date ?: "-")
         } catch (e: Exception) {
