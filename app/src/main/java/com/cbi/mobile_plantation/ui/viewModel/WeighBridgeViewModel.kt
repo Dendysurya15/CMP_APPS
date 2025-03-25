@@ -13,6 +13,7 @@ import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.BlokModel
 import kotlinx.coroutines.launch
 
 sealed class SaveDataESPBKraniTimbangState {
@@ -129,6 +130,10 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
 
     suspend fun getBlokById(listBlokId: List<Int>): List<TPHNewModel> {
         return repository.getBlokById(listBlokId)
+    }
+
+    suspend fun getDataByIdInBlok(listBlokId: List<Int>): List<BlokModel> {
+        return repository.getDataByIdInBlok(listBlokId)
     }
 
     suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {

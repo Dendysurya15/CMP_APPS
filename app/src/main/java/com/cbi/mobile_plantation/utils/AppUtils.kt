@@ -18,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
@@ -104,6 +105,7 @@ const val MAX_SELECTIONS_PER_TPH = 2
         const val KARYAWAN = "karyawan"
         const val TRANSPORTER = "transporter"
         const val KENDARAAN = "kendaraan"
+        const val BLOK = "blok"
         const val UPLOADCMP = "upload_cmp"
         const val FLAGESPB = "flag_espb"
     }
@@ -153,6 +155,7 @@ const val MAX_SELECTIONS_PER_TPH = 2
     object DatasetNames {
         const val mill = "mill"
         const val tph = "tph"
+        const val blok = "blok"
         const val pemanen = "pemanen"
         const val kemandoran = "kemandoran"
         const val transporter = "transporter"
@@ -241,6 +244,39 @@ const val MAX_SELECTIONS_PER_TPH = 2
             AppLogger.e(errorMessage)
             onResult(false, errorMessage, "") // Return empty path on failure
         }
+    }
+
+    fun extractIdsAsIntegers(inputString: String): List<Int> {
+        return inputString.split(";").map { entry ->
+            entry.split(",")[0].toInt()
+        }
+    }
+
+    fun extractIdsAndJjgAsMap(inputString: String): Map<Int, Int> {
+        return inputString.split(";").associate { entry ->
+            val parts = entry.split(",")
+            val id = parts[0].toInt()
+            val jjg = parts[2].toInt() // Index 2 is the jumlah jjg
+            id to jjg
+        }
+    }
+
+    // Format TPH data as requested
+    fun formatTPHDataList(tphString: String, tphDataList: List<TPHNewModel>?): String {
+        if (tphDataList.isNullOrEmpty()) return "-"
+
+        // Extract ID and jjg counts from the original string
+        val tphJjgMap = extractIdsAndJjgAsMap(tphString)
+
+        // Format each TPH entry
+        val formattedTPHList = tphDataList.mapNotNull { tph ->
+            val jjg = tphJjgMap[tph.id]
+            if (jjg != null) {
+                "• TPH nomor ${tph.nomor} (${tph.blok_kode}) $jjg jjg"
+            } else null
+        }
+
+        return formattedTPHList.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
     }
 
     class ProgressRequestBody(

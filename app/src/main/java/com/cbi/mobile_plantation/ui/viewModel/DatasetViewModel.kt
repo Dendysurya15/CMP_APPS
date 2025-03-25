@@ -23,6 +23,7 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -56,6 +57,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val espbDao = database.espbDao()
     private val panenDao = database.panenDao()
     private val absensiDao = database.absensiDao()
+    private val blokDao = database.blokDao()
 
 
     private val _downloadStatuses = MutableLiveData<Map<String, Resource<Response<ResponseBody>>>>()
@@ -67,6 +69,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _karyawanStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val karyawanStatus: StateFlow<Result<Boolean>> = _karyawanStatus.asStateFlow()
+
+    private val _blokStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
+    val blokStatus: StateFlow<Result<Boolean>> = _blokStatus.asStateFlow()
 
     private val _millStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val millStatus: StateFlow<Result<Boolean>> = _millStatus.asStateFlow()
@@ -132,12 +137,22 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 withContext(Dispatchers.IO) { espbDao.dropAllData() }
                 withContext(Dispatchers.IO) { panenDao.dropAllData() }
                 withContext(Dispatchers.IO) { absensiDao.dropAllData() }
+                withContext(Dispatchers.IO) { blokDao.dropAllData() }
             } catch (e: Exception) {
                 Log.e("ViewModel", "Error clearing database: ${e.message}")
             }
         }
     }
 
+    fun updateOrInsertBlok(blok: List<BlokModel>) =
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.updateOrInsertBlok(blok)
+                _blokStatus.value = Result.success(true)
+            } catch (e: Exception) {
+                _blokStatus.value = Result.failure(e)
+            }
+        }
 
     fun updateOrInsertMill(mill: List<MillModel>) =
         viewModelScope.launch(Dispatchers.IO) {
@@ -404,6 +419,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                     AppUtils.DatasetNames.transporter -> prefManager.lastModifiedDatasetTransporter =
                         lastModifiedTimestamp
+
+                    AppUtils.DatasetNames.blok -> prefManager.lastModifiedDatasetBlok =
+                        lastModifiedTimestamp
                 }
                 prefManager!!.addDataset(dataset)
             } else {
@@ -592,6 +610,20 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             response = response,
                                                             updateOperation = ::updateOrInsertMill,
                                                             statusFlow = millStatus,
+                                                            hasShownError = hasShownError,
+                                                            lastModifiedTimestamp = lastModified
+                                                                ?: ""
+                                                        )
+
+                                                    AppUtils.DatasetNames.blok -> hasShownError =
+                                                        processDataset(
+                                                            jsonContent = jsonContent,
+                                                            dataset = request.dataset,
+                                                            modelClass = BlokModel::class.java,
+                                                            results = results,
+                                                            response = response,
+                                                            updateOperation = ::updateOrInsertBlok,
+                                                            statusFlow = blokStatus,
                                                             hasShownError = hasShownError,
                                                             lastModifiedTimestamp = lastModified
                                                                 ?: ""

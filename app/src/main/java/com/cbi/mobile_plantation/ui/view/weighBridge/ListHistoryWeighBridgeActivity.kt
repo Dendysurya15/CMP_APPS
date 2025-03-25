@@ -23,6 +23,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.ui.adapter.UploadItem
@@ -30,6 +31,7 @@ import com.cbi.mobile_plantation.ui.adapter.UploadProgressAdapter
 import com.cbi.mobile_plantation.ui.adapter.WBData
 import com.cbi.mobile_plantation.ui.adapter.WeighBridgeAdapter
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.UploadCMPViewModel
 import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
@@ -72,6 +74,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
     private var infoApp: String = ""
+    private lateinit var datasetViewModel: DatasetViewModel
 
     private var globalESPBIds: List<Int> = emptyList()
     private lateinit var loadingDialog: LoadingDialog
@@ -653,13 +656,44 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         }
                                     }
 
+                                    val tph1String = item.tph1
+                                    val tphData = withContext(Dispatchers.IO) {
+                                        try {
+                                            // First check if tph1String is not empty
+                                            if (tph1String.isNullOrEmpty()) {
+                                                AppLogger.d("TPH string is empty or null")
+                                                return@withContext null
+                                            }
+
+                                            val idList = AppUtils.extractIdsAsIntegers(tph1String)
+
+                                            // Check if we have any valid IDs
+                                            if (idList.isEmpty()) {
+                                                AppLogger.d("No valid TPH IDs found")
+                                                return@withContext null
+                                            }
+
+                                            datasetViewModel.getTPHsByIds(idList)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error fetching TPH Data: ${e.message}")
+                                            null
+                                        }
+                                    }
+
+                                    val formattedTPHList = if (!tphData.isNullOrEmpty()) {
+                                        AppUtils.formatTPHDataList(tph1String, tphData)
+                                    } else {
+                                        AppLogger.d("No TPH data available to format")
+                                        "-"
+                                    }
+
                                     val pemuatNama = pemuatData?.mapNotNull { it.nama }
                                         ?.takeIf { it.isNotEmpty() }
                                         ?.joinToString(", ") ?: "-"
 
                                     val blokData = withContext(Dispatchers.IO) {
                                         try {
-                                            weightBridgeViewModel.getBlokById(idBlokList)
+                                            weightBridgeViewModel.getDataByIdInBlok(idBlokList)
                                         } catch (e: Exception) {
                                             AppLogger.e("Error fetching Blok Data: ${e.message}")
                                             null
@@ -674,7 +708,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                     val formattedBlokList =
                                         blokJjgList.mapNotNull { (idBlok, totalJjg) ->
                                             val blokKode =
-                                                blokData?.find { it.blok == idBlok }?.blok_kode
+                                                blokData?.find { it.id == idBlok }?.nama
                                             if (blokKode != null && totalJjg != null) {
                                                 "• $blokKode ($totalJjg jjg)"
                                             } else null
@@ -727,6 +761,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         created_by_id = item.created_by_id,
                                         created_at = item.created_at,
                                         noSPB = item.noESPB.ifEmpty { "-" },
+                                        tph1 = formattedTPHList,
                                         estate = deptAbbr.ifEmpty { "-" },
                                         afdeling = divisiAbbr.ifEmpty { "-" },
                                         datetime = createAtFormatted,
@@ -802,6 +837,10 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private fun initViewModel() {
         val factory = WeighBridgeViewModel.WeightBridgeViewModelFactory(application)
         weightBridgeViewModel = ViewModelProvider(this, factory)[WeighBridgeViewModel::class.java]
+
+        val factory2 = DatasetViewModel.DatasetViewModelFactory(application)
+        datasetViewModel = ViewModelProvider(this, factory2)[DatasetViewModel::class.java]
+
         val factory4 = UploadCMPViewModel.UploadCMPViewModelFactory(application)
         uploadCMPViewModel = ViewModelProvider(this, factory4)[UploadCMPViewModel::class.java]
     }

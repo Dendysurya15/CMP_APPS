@@ -17,6 +17,7 @@ import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.utils.AppUtils
 
@@ -60,8 +61,9 @@ import com.cbi.mobile_plantation.utils.AppUtils
         UploadCMPModel::class,
         AbsensiModel::class,
         KendaraanModel::class,
+        BlokModel::class,
     ],
-    version = 23
+    version = 24
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -75,6 +77,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun uploadCMPDao(): UploadCMPDao
     abstract fun absensiDao(): AbsensiDao
     abstract fun kendaraanDao(): KendaraanDao
+    abstract fun blokDao(): BlokDao
 
     companion object {
         @Volatile

@@ -107,6 +107,9 @@ class HomePageActivity : AppCompatActivity() {
     private var countActiveESPB: Int = 0  // Global variable for count
     private val _globalLastModifiedTPH = MutableLiveData<String>()
     private val globalLastModifiedTPH: LiveData<String> get() = _globalLastModifiedTPH
+
+    private val _globalLastModifiedBlok = MutableLiveData<String>()
+    private val globalLastModifiedBlok: LiveData<String> get() = _globalLastModifiedBlok
     private var activityInitialized = false
 
     private var hasShownErrorDialog = false  // Add this property
@@ -376,14 +379,19 @@ class HomePageActivity : AppCompatActivity() {
             val matchedRole = when {
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.KeraniPanen, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.KeraniPanen
+
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.KeraniTimbang
+
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.Mandor1, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.Mandor1
+
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.Asisten, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.Asisten
+
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.IT, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.IT
+
                 else -> ""
             }
 
@@ -527,6 +535,7 @@ class HomePageActivity : AppCompatActivity() {
         prefManager = PrefManager(this)
         initViewModel()
         _globalLastModifiedTPH.value = prefManager!!.lastModifiedDatasetTPH
+        _globalLastModifiedBlok.value = prefManager!!.lastModifiedDatasetBlok
         setupDownloadDialog()
         setupTitleAppNameAndVersion()
         setupName()
@@ -1432,7 +1441,7 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedDatasetPemanen: String?,
         lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetTransporter: String?,
-        lastModifiedDatasetKendaraan:String?,
+        lastModifiedDatasetKendaraan: String?,
         lastModifiedSettingJSON: String?
     ): List<DatasetRequest> {
         val datasets = mutableListOf<DatasetRequest>()
@@ -1446,17 +1455,30 @@ class HomePageActivity : AppCompatActivity() {
                 )
             )
         }
+
+        val jabatan = prefManager!!.jabatanUserLogin
+        val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
+        if (jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true)) {
+            datasets.add(
+                DatasetRequest(
+                    regional = regionalUser,
+                    lastModified = lastModifiedDatasetBlok,
+                    dataset = AppUtils.DatasetNames.blok
+                )
+            )
+        }
+
         datasets.addAll(
             listOf(
-                DatasetRequest(
-                    regional = regionalId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.mill
-                ),
                 DatasetRequest(
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
                     dataset = AppUtils.DatasetNames.tph
+                ),
+                DatasetRequest(
+                    regional = regionalId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.mill
                 ),
                 DatasetRequest(
                     estate = estateId,
@@ -1536,7 +1558,24 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            findViewById<TextView>(R.id.lastUpdateTPH).text = "Terakhir diperbarui: $formattedDate"
+            findViewById<TextView>(R.id.lastUpdate).text = "Terakhir diperbarui: $formattedDate"
+        }
+
+        globalLastModifiedBlok.observe(this) { timestamp ->
+            val formattedDate = if (timestamp.isNullOrEmpty()) {
+                "-"
+            } else {
+                val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                val outputFormat = SimpleDateFormat("dd MMMM yyyy HH:mm", Locale("id", "ID"))
+                try {
+                    val date = inputFormat.parse(timestamp)
+                    outputFormat.format(date ?: "-")
+                } catch (e: Exception) {
+                    "-"
+                }
+            }
+
+            findViewById<TextView>(R.id.lastUpdate).text = "Terakhir diperbarui: $formattedDate"
         }
 
 

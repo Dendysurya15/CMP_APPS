@@ -44,9 +44,9 @@
         android:theme="@style/Theme.Cmp_project"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
-        <activity
-            android:name=".ui.view.espb.DetailESPBActivity"
-            android:exported="false" />
+<!--        <activity-->
+<!--            android:name=".ui.view.espb.DetailESPBActivity"-->
+<!--            android:exported="false" />-->
         <activity
             android:name=".ui.view.Inspection.FormInspectionActivity"
             android:exported="false" />
