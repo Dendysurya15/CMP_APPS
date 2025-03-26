@@ -296,7 +296,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             ) { success, fileName, fullPath ->
                                                 if (success) {
                                                     zipFilePath = fullPath
-
+                                                    AppLogger.d("sukses membuat zip $fileName")
                                                     zipDeferred.complete(Pair(true, fullPath))
                                                 } else {
                                                     loadingDialog.addStatusMessage(
@@ -357,6 +357,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                                             val itemsToUpload = listOf(itemToUpload, cmpItem)
                                             val globalIdEspb = listOf(savedItemId)
+
+
 
 
                                             loadingDialog.setMessage(
@@ -588,7 +590,12 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
             if (hasError) {
                 titleDialogDetailTable!!.text = "Terjadi Kesalahan Scan QR!"
-                titleDialogDetailTable!!.setTextColor(ContextCompat.getColor(this, R.color.colorRedDark))
+                titleDialogDetailTable!!.setTextColor(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.colorRedDark
+                    )
+                )
                 errorCard!!.visibility = View.VISIBLE
                 dataContainer!!.visibility = View.GONE
                 errorText!!.text = errorMessage

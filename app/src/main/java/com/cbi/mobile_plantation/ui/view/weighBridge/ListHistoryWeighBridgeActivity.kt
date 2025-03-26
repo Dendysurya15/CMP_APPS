@@ -192,6 +192,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         // Now `allItems` contains both selected items and all ZIP-related items
         val allUploadItems = allItems
 
+        AppLogger.d(allUploadItems.toString())
+
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
 
