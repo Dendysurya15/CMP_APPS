@@ -2039,7 +2039,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 //
 //                                    val mergedWorkerData = mergedWorkerMap.values.toList()
 //
-                                    AppLogger.d("Merged Worker Data: $multiWorkerData")
+//                                    AppLogger.d("Merged Worker Data: $multiWorkerData")
                                     allWorkerData.addAll(multiWorkerData)
 
                                     emptyList<Map<String, Any>>()
@@ -2311,9 +2311,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
 
                             // Calculate distinct TPH count
-                            val distinctTphCount = mappedData
+                            val tphCount = mappedData
                                 .mapNotNull { it["tph_id"].toString().toIntOrNull() }
-                                .distinct()
+//                                .distinct()
                                 .count()
 
                             if (featureName != "Detail eSPB") {
@@ -2325,7 +2325,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             listBlok.text = blok
                             jjg = totalJjgCount
                             totalJjg.text = jjg.toString()
-                            tph = distinctTphCount
+                            tph = tphCount
                             totalTPH.text = tph.toString()
 
                             // Set Blok
@@ -2484,9 +2484,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
 
                             // Calculate distinct TPH count
-                            val distinctTphCount = mappedData
+                            val tphCount = mappedData
                                 .mapNotNull { it["tph_id"].toString().toIntOrNull() }
-                                .distinct()
+//                                .distinct()
                                 .count()
 
                             if (featureName != "Detail eSPB") {
@@ -2496,7 +2496,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                             listBlok.text = distinctBlokNames.ifEmpty { "-" }
                             totalJjg.text = totalJjgCount.toString()
-                            totalTPH.text = distinctTphCount.toString()
+                            totalTPH.text = tphCount.toString()
 
                             listAdapter.updateData(mappedData)
                             originalData =

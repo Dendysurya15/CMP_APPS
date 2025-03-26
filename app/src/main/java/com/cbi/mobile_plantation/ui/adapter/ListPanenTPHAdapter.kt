@@ -122,7 +122,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             JSONObject()
         }
 
-        val totalJjg = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan") {
+        val totalJjg = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
             jjgJson.optInt("KP", 0)
         } else {
             jjgJson.optInt("TO", 0) //diganti KP

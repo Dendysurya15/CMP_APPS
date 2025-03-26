@@ -216,7 +216,7 @@ class FormESPBActivity : AppCompatActivity() {
             janjangMap.forEach { (blockId, janjangSum) ->
                 Log.d("BlockJanjang", "Block $blockId: $janjangSum janjang")
             }
-
+AppLogger.d("jjgMap $janjangMap")
             // Convert the map to string format INSIDE the observer
             formattedJanjangString = convertJanjangMapToString(janjangMap)
             Log.d("FormattedJanjang", "Formatted string: $formattedJanjangString")
@@ -553,6 +553,7 @@ class FormESPBActivity : AppCompatActivity() {
                 "NULL"
             }
 
+            AppLogger.d("blok jjg $blok_jjg")
             val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
 
             AppLogger.d(selectedPemanen.toString())
