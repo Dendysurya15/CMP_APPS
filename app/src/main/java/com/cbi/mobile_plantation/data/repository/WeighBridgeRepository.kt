@@ -372,7 +372,7 @@ class WeighBridgeRepository(context: Context) {
                         }
                         // Handle CMP (ZIP file) upload
                         else if (endpoint == "CMP") {
-
+                            idsESPB.add(itemId)
                             onProgressUpdate(num, 10, false, null)
                             val filePath = item["file"] as? String
                             if (filePath.isNullOrEmpty()) {
@@ -387,7 +387,7 @@ class WeighBridgeRepository(context: Context) {
                                                 uploaderInfo,
                                                 uploadedAt,
                                                 uploadedById,
-                                                "${errorMessage!!.take(150)}..."
+                                                "${errorMessage!!.take(1000)}..."
                                             )
                                         }
                                         AppLogger.d("ESPB table dengan id $id has been updated")
@@ -414,7 +414,7 @@ class WeighBridgeRepository(context: Context) {
                                                 uploaderInfo,
                                                 uploadedAt,
                                                 uploadedById,
-                                                "${errorMessage!!.take(150)}..."
+                                                "${errorMessage!!.take(1000)}..."
                                             )
                                         }
                                         AppLogger.d("ESPB table dengan id $id has been updated")
@@ -482,7 +482,8 @@ class WeighBridgeRepository(context: Context) {
                                                     1,
                                                     uploaderInfo,
                                                     uploadedAt,
-                                                    uploadedById
+                                                    uploadedById,
+                                                    "Success Uploading to CMP"
                                                 )
                                             }
                                             AppLogger.d("ESPB table dengan id $id has been updated")
@@ -516,7 +517,7 @@ class WeighBridgeRepository(context: Context) {
                                                     uploaderInfo,
                                                     uploadedAt,
                                                     uploadedById,
-                                                    "${errorMessage!!.take(150)}..."
+                                                    "${errorMessage!!.take(1000)}..."
                                                 )
                                             }
                                             AppLogger.d("ESPB table dengan id $id has been updated")
@@ -539,7 +540,7 @@ class WeighBridgeRepository(context: Context) {
                                                 uploaderInfo,
                                                 uploadedAt,
                                                 uploadedById,
-                                                "${errorMessage!!.take(150)}..."
+                                                "${errorMessage!!.take(1000)}..."
                                             )
                                         }
                                         AppLogger.d("ESPB table dengan id $id has been updated")
@@ -566,7 +567,7 @@ class WeighBridgeRepository(context: Context) {
                                             uploaderInfo,
                                             uploadedAt,
                                             uploadedById,
-                                            "${errorMessage!!.take(150)}..."
+                                            "${errorMessage!!.take(1000)}..."
                                         )
                                     }
                                     AppLogger.d("ESPB table dengan id $id has been updated")
@@ -583,7 +584,7 @@ class WeighBridgeRepository(context: Context) {
                                     uploaderInfo,
                                     uploadedAt,
                                     uploadedById,
-                                    "${errorMessage.take(150)}..."
+                                    "${errorMessage.take(1000)}..."
                                 )
                                 AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
                             } catch (e: Exception) {
@@ -606,7 +607,7 @@ class WeighBridgeRepository(context: Context) {
                                         uploaderInfo,
                                         uploadedAt,
                                         uploadedById,
-                                        "${errorMessage!!.take(150)}..."
+                                        "${errorMessage!!.take(1000)}..."
                                     )
                                 }
                                 AppLogger.d("ESPB table dengan id $id has been updated")

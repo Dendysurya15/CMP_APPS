@@ -355,7 +355,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                                             }
 
-                                            val itemsToUpload = listOf(itemToUpload, cmpItem)
+//                                            val itemsToUpload = listOf(itemToUpload, cmpItem)
+                                            val itemsToUpload = listOf(cmpItem)
                                             val globalIdEspb = listOf(savedItemId)
 
 
@@ -600,7 +601,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 dataContainer!!.visibility = View.GONE
                 errorText!!.text = errorMessage
                 btnProcess!!.visibility = View.GONE
-                val maxHeight = (resources.displayMetrics.heightPixels * 0.25).toInt()
+                val maxHeight = (resources.displayMetrics.heightPixels * 0.4).toInt()
 
                 bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
                     ?.let { bottomSheet ->

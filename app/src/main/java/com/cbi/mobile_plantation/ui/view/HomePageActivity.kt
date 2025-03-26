@@ -1348,10 +1348,8 @@ class HomePageActivity : AppCompatActivity() {
                                             fileName = response.nama_file,
                                             zipPassword = AppUtils.ZIP_PASSWORD
                                         )
-                                        // Complete the deferred with the result
                                         extractionDeferred.complete(result)
                                     } catch (e: Exception) {
-                                        // Complete exceptionally if there's an error
                                         extractionDeferred.completeExceptionally(e)
                                     }
                                 }

@@ -52,6 +52,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -110,30 +111,32 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
     private fun handleUpload(selectedItems: List<Map<String, Any>>) {
 
-        val uploadItems = selectedItems.map { item ->
-            UploadItem(
-                id = item["id"] as Int,
-                deptPpro = (item["dept_ppro"] as Number).toInt(),
-                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
-                commodity = (item["commodity"] as Number).toInt(),
-                blokJjg = item["blok_jjg"] as String,
-                nopol = item["nopol"] as String,
-                driver = item["driver"] as String,
-                pemuatId = item["pemuat_id"].toString(),
-                transporterId = (item["transporter_id"] as Number).toInt(),
-                millId = (item["mill_id"] as Number).toInt(),
-                createdById = (item["created_by_id"] as Number).toInt(),
-                createdAt = item["created_at"] as String,
-                no_espb = item["no_espb"] as String,
-                uploader_info = infoApp,
-                uploaded_at = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
-                    Date()
-                ),
-                uploaded_by_id = prefManager!!.idUserLogin!!.toInt(),
-                file = "",
-                endpoint = AppUtils.DatabaseServer.PPRO
-            )
-        }
+//        val uploadItems = selectedItems.map { item ->
+//            UploadItem(
+//                id = item["id"] as Int,
+//                deptPpro = (item["dept_ppro"] as Number).toInt(),
+//                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
+//                commodity = (item["commodity"] as Number).toInt(),
+//                blokJjg = item["blok_jjg"] as String,
+//                nopol = item["nopol"] as String,
+//                driver = item["driver"] as String,
+//                pemuatId = item["pemuat_id"].toString(),
+//                transporterId = (item["transporter_id"] as Number).toInt(),
+//                millId = (item["mill_id"] as Number).toInt(),
+//                createdById = (item["created_by_id"] as Number).toInt(),
+//                createdAt = item["created_at"] as String,
+//                no_espb = item["no_espb"] as String,
+//                uploader_info = infoApp,
+//                uploaded_at = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
+//                    Date()
+//                ),
+//                uploaded_by_id = prefManager!!.idUserLogin!!.toInt(),
+//                file = "",
+//                endpoint = AppUtils.DatabaseServer.PPRO
+//            )
+//        }
+
+        val uploadItems = emptyList<UploadItem>()
 
         var nextId = (uploadItems.maxByOrNull { it.id }?.id ?: 0) + 1
 
@@ -164,36 +167,66 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             )
         }
 
-        allUploadZipFilesToday.forEach { file ->
-            allItems.add(
-                UploadItem(
-                    id = nextId++,
-                    deptPpro = 0,
-                    divisiPpro = 0,
-                    commodity = 0,
-                    blokJjg = "",
-                    nopol = "",
-                    driver = "",
-                    pemuatId = "",
-                    transporterId = 0,
-                    millId = 0,
-                    createdById = 0,
-                    createdAt = "",
-                    no_espb = file.name,
-                    uploader_info = "",
-                    uploaded_at = "",
-                    uploaded_by_id = 0,
-                    file = file.absolutePath,
-                    endpoint = AppUtils.DatabaseServer.CMP
+
+        if (allUploadZipFilesToday.isNotEmpty()) {
+            allUploadZipFilesToday.forEach { file ->
+                lifecycleScope.launch {
+                    try {
+                        val extractionDeferred = CompletableDeferred<Pair<List<Int>, List<Int>>>()
+                        launch(Dispatchers.IO) {
+                            try {
+                                val result = AppUtils.extractIdsFromZipFile(
+                                    context = this@ListHistoryWeighBridgeActivity,
+                                    fileName = file.name,
+                                    zipPassword = AppUtils.ZIP_PASSWORD
+                                )
+                                // Complete the deferred with the result
+                                extractionDeferred.complete(result)
+                            } catch (e: Exception) {
+                                // Complete exceptionally if there's an error
+                                extractionDeferred.completeExceptionally(e)
+                            }
+                        }
+                        val (panenIds, espbIds) = withTimeout(5000) { // 10 second timeout
+                            extractionDeferred.await()
+                        }
+                        globalESPBIds = espbIds
+                    } catch (e: Exception) {
+                        AppLogger.e("Error during ZIP extraction: ${e.message}")
+                        globalESPBIds = emptyList()
+                    }
+                }
+
+                allItems.add(
+                    UploadItem(
+                        id = nextId++,
+                        deptPpro = 0,
+                        divisiPpro = 0,
+                        commodity = 0,
+                        blokJjg = "",
+                        nopol = "",
+                        driver = "",
+                        pemuatId = "",
+                        transporterId = 0,
+                        millId = 0,
+                        createdById = 0,
+                        createdAt = "",
+                        no_espb = file.name,
+                        uploader_info = "",
+                        uploaded_at = "",
+                        uploaded_by_id = 0,
+                        file = file.absolutePath,
+                        endpoint = AppUtils.DatabaseServer.CMP
+                    )
                 )
-            )
+            }
         }
+
 
         // Now `allItems` contains both selected items and all ZIP-related items
         val allUploadItems = allItems
 
         AppLogger.d(allUploadItems.toString())
-
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
 
