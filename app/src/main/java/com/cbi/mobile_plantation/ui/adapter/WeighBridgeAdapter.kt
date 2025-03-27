@@ -25,6 +25,7 @@ import java.util.Locale
 
 data class WBData(
     val id: Int,
+    val ip: String,
     val dept_ppro : Int,
     val divisi_ppro :Int,
     val commodity : Int,
@@ -370,6 +371,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         return selectedItems.map { selectedItem ->
             mapOf(
                 "id" to (selectedItem.id ?: ""),
+                "ip" to (selectedItem.ip ?: ""),
                 "dept_ppro" to (selectedItem.dept_ppro ?: ""),
                 "divisi_ppro" to (selectedItem.divisi_ppro ?: ""),
                 "commodity" to (selectedItem.commodity ?: ""),

@@ -15,6 +15,8 @@ import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
 
 data class UploadItem(
     val id: Int,
+    val ip: String,
+    val num: Int,
     val deptPpro: Int,
     val divisiPpro: Int,
     val commodity: Int,
@@ -86,9 +88,9 @@ class UploadProgressAdapter(
 
 
         // Get progress, status and error
-        val progress = uploadProgressMap[item.id] ?: 0
-        val status = uploadStatusMap[item.id] ?: "Waiting"
-        val errorMessage = uploadErrorMap[item.id]
+        val progress = uploadProgressMap[item.num] ?: 0
+        val status = uploadStatusMap[item.num] ?: "Waiting"
+        val errorMessage = uploadErrorMap[item.num]
 
         // Update UI based on progress and status
         holder.percentage.text = if (status == "Failed" || progress == 100) "100%" else "$progress%"

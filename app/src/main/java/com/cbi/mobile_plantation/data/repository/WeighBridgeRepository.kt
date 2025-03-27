@@ -160,6 +160,8 @@ class WeighBridgeRepository(context: Context) {
                 AppLogger.d(dataList.toString())
 
                 for (item in dataList) {
+
+
                     val endpoint = item["endpoint"] as String
                     val num = item["num"] as Int
                     val ipMill = item["ip"] as String
@@ -181,11 +183,12 @@ class WeighBridgeRepository(context: Context) {
                                 idsESPB.add(itemId)
 
                                 AppLogger.d("PPRO: Preparing data for API call")
+                                // Replace the problematic line in your code
                                 val data = try {
                                     val result = ApiService.dataUploadEspbKraniTimbangPPRO(
                                         dept_ppro = (item["dept_ppro"] ?: "0").toString(),
                                         divisi_ppro = (item["divisi_ppro"] ?: "0").toString(),
-                                        commodity = item["commodity"].toString(),
+                                        commodity = (item["commodity"] ?: "2").toString(), // Added null check
                                         blok_jjg = (item["blok_jjg"] ?: "").toString(),
                                         nopol = (item["nopol"] ?: "").toString(),
                                         driver = (item["driver"] ?: "").toString(),
@@ -203,7 +206,7 @@ class WeighBridgeRepository(context: Context) {
                                     AppLogger.e("PPRO: DataError Item ID: $num - $errorMessage")
                                     errors.add(UploadError(num, errorMessage, "DATA_ERROR"))
                                     results[num] = false
-                                    onProgressUpdate(num, -1, false, errorMessage)
+                                    onProgressUpdate(num, 100, false, errorMessage)
                                     continue
                                 }
 
@@ -592,7 +595,7 @@ class WeighBridgeRepository(context: Context) {
                             }
                             errors.add(UploadError(num, errorMessage!!, "UNKNOWN_ENDPOINT"))
                             results[num] = false
-                            onProgressUpdate(itemId, 100, false, errorMessage)
+                            onProgressUpdate(num, 100, false, errorMessage)
                         }
                     } catch (e: Exception) {
                         errorMessage = "Unknown error: ${e.message}"
