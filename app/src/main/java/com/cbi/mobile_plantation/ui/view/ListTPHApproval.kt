@@ -141,6 +141,9 @@ class ListTPHApproval : AppCompatActivity() {
         setupHeader()
         val backButton = findViewById<ImageView>(R.id.btn_back)
 
+
+        val calendarContainer = findViewById<LinearLayout>(R.id.calendarContainer)
+        calendarContainer.visibility = View.GONE
         backButton.setOnClickListener {
 //            backButton.isEnabled = false
             AlertDialogUtility.withTwoActions(

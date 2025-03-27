@@ -542,7 +542,8 @@ class HomePageActivity : AppCompatActivity() {
         setupTitleAppNameAndVersion()
         setupName()
         setupLogout()
-        checkPermissions()
+//        checkPermissions()
+        startDownloads()
         setupRecyclerView()
         setupCheckingAfterLogoutUser()
 
@@ -1843,82 +1844,7 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
-    private fun checkPermissions() {
-        val permissionsToRequest = mutableListOf<String>()
 
-        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.CAMERA,
-                Manifest.permission.READ_MEDIA_IMAGES
-            )
-        } else {
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.CAMERA,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ).apply {
-                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
-                    permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                }
-            }
-        }
-
-        permissions.forEach {
-            if (ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(it)
-            }
-        }
-
-        if (permissionsToRequest.isNotEmpty()) {
-            ActivityCompat.requestPermissions(
-                this,
-                permissionsToRequest.toTypedArray(),
-                permissionRequestCode
-            )
-        } else {
-            startDownloads()
-        }
-    }
-
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == permissionRequestCode) {
-            val deniedPermissions =
-                permissions.filterIndexed { i, _ -> grantResults[i] != PackageManager.PERMISSION_GRANTED }
-
-            if (deniedPermissions.isNotEmpty()) {
-                showStackedSnackbar(deniedPermissions)
-            } else {
-                startDownloads()
-            }
-        }
-    }
-
-    private fun showStackedSnackbar(deniedPermissions: List<String>) {
-        val message = buildString {
-            append("The app needs the following permissions for full functionality:\n")
-            deniedPermissions.forEach { append("- ${it.replace("android.permission.", "")}\n") }
-            append("\nPlease enable them in Settings.")
-        }
-
-        Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_INDEFINITE)
-            .setAction("Settings") {
-                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.fromParts("package", packageName, null)
-                }
-                startActivity(intent)
-            }.apply {
-                view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text)?.maxLines =
-                    7
-            }.show()
-    }
 
 
 }
