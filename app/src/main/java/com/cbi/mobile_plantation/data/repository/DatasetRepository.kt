@@ -13,6 +13,7 @@ import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -29,6 +30,7 @@ class DatasetRepository(
     private val millDao = database.millDao()
     private val transporterDao = database.transporterDao()
     private val kendaraanDao = database.kendaraanDao()
+    private val blokDao = database.blokDao()
 
     suspend fun updateOrInsertKaryawan(karyawans: List<KaryawanModel>) =
         karyawanDao.updateOrInsertKaryawan(karyawans)
@@ -42,6 +44,9 @@ class DatasetRepository(
 
     suspend fun updateOrInsertKemandoran(kemandorans: List<KemandoranModel>) =
         kemandoranDao.updateOrInsertKemandoran(kemandorans)
+
+    suspend fun updateOrInsertBlok(blok: List<BlokModel>) =
+        blokDao.updateOrInsertBlok(blok)
 
     suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) = tphDao.updateOrInsertTPH(tph)
 

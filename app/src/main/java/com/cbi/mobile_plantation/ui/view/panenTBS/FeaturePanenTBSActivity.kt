@@ -177,7 +177,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     )
 
 
-
     private var latLonMap: Map<Int, ScannedTPHLocation> = emptyMap()
 
     private lateinit var takeFotoPreviewAdapter: TakeFotoPreviewAdapter
@@ -1668,7 +1667,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 karyawanList = emptyList()
                 karyawanLainList = emptyList()
 
-                setupSpinnerView(layoutTahunTanam, emptyList())
+//                setupSpinnerView(layoutTahunTanam, emptyList())
                 setupSpinnerView(layoutBlok, emptyList())
                 setupSpinnerView(layoutNoTPH, emptyList())
                 setupSpinnerView(layoutKemandoran, emptyList())
@@ -1725,7 +1724,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 layoutPemanen.visibility = View.GONE
                 layoutSelAsistensi.visibility = View.GONE
                 layoutTipePanen.visibility = View.GONE
-                setupSpinnerView(layoutTahunTanam, emptyList())
+//                setupSpinnerView(layoutTahunTanam, emptyList())
                 setupSpinnerView(layoutBlok, emptyList())
                 setupSpinnerView(layoutNoTPH, emptyList())
                 setupSpinnerView(layoutKemandoran, emptyList())
@@ -1790,7 +1789,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         var isValid = true
         val missingFields = mutableListOf<String>()
         val errorMessages = mutableListOf<String>()
-//
+
         if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
             isValid = false
             this.vibrate()
@@ -1803,7 +1802,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val isSwitchBlokBanjirEnabled = switchBlokBanjir.isChecked
         val isAsistensiEnabled = switchAsistensi.isChecked
 
+        var isPrimaryGroupFilled = true
+        var isSecondaryGroupFilled = true
+
         inputMappings.forEach { (layout, key, inputType) ->
+            // Skip validation for kemandoran and pemanen fields initially
+            if (layout.id == R.id.layoutKemandoran || layout.id == R.id.layoutPemanen ||
+                layout.id == R.id.layoutKemandoranLain || layout.id == R.id.layoutPemanenLain) {
+                return@forEach
+            }
 
             val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
             val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
@@ -1815,22 +1822,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     when (layout.id) {
                         R.id.layoutAfdeling -> selectedAfdeling.isEmpty()
                         R.id.layoutTipePanen -> selectedTipePanen.isEmpty()
-                        R.id.layoutKemandoran -> selectedKemandoran.isEmpty()
-                        R.id.layoutPemanen -> selectedPemanen.isEmpty()
-                        R.id.layoutKemandoranLain -> asistensi == 1 && selectedKemandoranLain.isEmpty()
                         R.id.layoutNoTPH -> blokBanjir == 1 && selectedTPH.isEmpty()
                         R.id.layoutBlok -> blokBanjir == 1 && selectedBlok.isEmpty()
                         else -> spinner.selectedIndex == -1
                     }
                 }
-
                 InputType.EDITTEXT -> {
                     when (key) {
                         getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
                         else -> editText.text.toString().trim().isEmpty()
                     }
                 }
-
                 else -> false
             }
 
@@ -1843,9 +1845,103 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 tvError.visibility = View.GONE
                 mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
             }
-
         }
 
+        val isKemandoranEmpty = selectedKemandoran.isEmpty()
+        val isPemanenEmpty = selectedPemanen.isEmpty()
+        val selectedPemanenWorkers = selectedPemanenAdapter.getSelectedWorkers()
+        val arePemanenWorkersSelected = !selectedPemanenWorkers.isEmpty()
+
+        isPrimaryGroupFilled = !isKemandoranEmpty && !isPemanenEmpty && arePemanenWorkersSelected
+
+        layoutKemandoran.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.GONE
+        layoutKemandoran.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+            ContextCompat.getColor(this, R.color.graytextdark)
+        layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.GONE
+        layoutPemanen.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+            ContextCompat.getColor(this, R.color.graytextdark)
+
+        if (isAsistensiEnabled) {
+            val isKemandoranLainEmpty = selectedKemandoranLain.isEmpty()
+            val isPemanenLainEmpty = selectedPemanenLain.isEmpty()
+            val selectedPemanenLainWorkers = selectedPemanenLainAdapter.getSelectedWorkers()
+            val arePemanenLainWorkersSelected = !selectedPemanenLainWorkers.isEmpty()
+
+            // Reset error indicators for secondary group
+            layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.GONE
+            layoutKemandoranLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                ContextCompat.getColor(this, R.color.graytextdark)
+            layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.GONE
+            layoutPemanenLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                ContextCompat.getColor(this, R.color.graytextdark)
+
+            // KEY CHANGE: Only require secondary group validation if primary group has no workers selected
+            if (!arePemanenWorkersSelected) {
+                // Secondary group is filled if both kemandoran_lain is selected AND pemanen_lain is selected with at least one worker
+                isSecondaryGroupFilled = !isKemandoranLainEmpty && !isPemanenLainEmpty && arePemanenLainWorkersSelected
+                AppLogger.d("Secondary group filled: $isSecondaryGroupFilled")
+
+                // If primary group has no workers AND secondary group is not filled, show errors
+                if (!isSecondaryGroupFilled) {
+                    isValid = false
+
+                    if (isKemandoranLainEmpty) {
+                        layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.VISIBLE
+                        layoutKemandoranLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                            ContextCompat.getColor(this, R.color.colorRedDark)
+                        missingFields.add(getString(R.string.field_kemandoran_lain))
+                    }
+
+                    if (isPemanenLainEmpty) {
+                        layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.VISIBLE
+                        layoutPemanenLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                            ContextCompat.getColor(this, R.color.colorRedDark)
+                        missingFields.add(getString(R.string.field_pemanen_lain))
+                    } else if (!arePemanenLainWorkersSelected) {
+                        layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.VISIBLE
+                        layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                            stringXML(R.string.al_select_at_least_one_pemanen_lain)
+                        errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen_lain))
+                    }
+
+                    errorMessages.add("Anda harus mengisi salah satu pemanen maupun asistensi")
+                }
+            } else {
+                isSecondaryGroupFilled = true
+            }
+        } else {
+            isSecondaryGroupFilled = false
+        }
+
+        if (!isPrimaryGroupFilled && (!isSecondaryGroupFilled || !isAsistensiEnabled)) {
+            isValid = false
+
+            // Show errors for primary group if it's partially filled or missing workers
+            if (!isKemandoranEmpty && isPemanenEmpty) {
+                layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.VISIBLE
+                layoutPemanen.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                    ContextCompat.getColor(this, R.color.colorRedDark)
+                missingFields.add(getString(R.string.field_pemanen))
+            } else if (isKemandoranEmpty && !isPemanenEmpty) {
+                layoutKemandoran.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.VISIBLE
+                layoutKemandoran.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                    ContextCompat.getColor(this, R.color.colorRedDark)
+                missingFields.add(getString(R.string.field_kemandoran))
+            } else if (!isKemandoranEmpty && !isPemanenEmpty && !arePemanenWorkersSelected) {
+                // This is the key fix: Only show this error if both dropdowns are filled but no workers are selected
+                layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.VISIBLE
+                layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                    stringXML(R.string.al_select_at_least_one_pemanen)
+                errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen))
+            }
+
+            // Only add general error message if no group is properly filled
+            if (!isAsistensiEnabled || (isAsistensiEnabled && !isSecondaryGroupFilled)) {
+                errorMessages.add(stringXML(R.string.al_must_fill_either_primary_or_secondary_group))
+            }
+        }
+
+        // Continue with remaining validations that are unrelated to the groups
         if (!isSwitchBlokBanjirEnabled && selectedAfdeling.isNotEmpty() && isTriggeredBtnScanned) {
             if (isEmptyScannedTPH) {
                 isValid = false
@@ -1872,52 +1968,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             tvErrorScannedNotSelected.visibility = View.VISIBLE
         }
 
-        val selectedPemanenWorkers = selectedPemanenAdapter.getSelectedWorkers()
-        if (selectedPemanen.isNotEmpty() && selectedPemanenWorkers.isEmpty()) {
-            AppLogger.d("masuk sini gess")
-            isValid = false
-            errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen))
-            layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
-                View.VISIBLE
-            layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
-                stringXML(R.string.al_select_at_least_one_pemanen)
-        }
-
-        if (isAsistensiEnabled) {
-            val isKemandoranLainEmpty = selectedKemandoranLain.isEmpty()
-            val selectedPemanenLain = selectedPemanenLain.isEmpty()
-            val choiceVisibilePemanenLain = selectedPemanenLainAdapter.getSelectedWorkers()
-
-
-            if (isKemandoranLainEmpty || selectedPemanenLain) {
-                if (isKemandoranLainEmpty) {
-                    layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
-                        View.VISIBLE
-                    layoutKemandoranLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
-                        ContextCompat.getColor(this, R.color.colorRedDark)
-                    missingFields.add(getString(R.string.field_kemandoran_lain))
-                }
-
-                if (selectedPemanenLain) {
-                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
-                        View.VISIBLE
-                    layoutPemanenLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
-                        ContextCompat.getColor(this, R.color.colorRedDark)
-                    missingFields.add(getString(R.string.field_pemanen_lain))
-                }
-                isValid = false
-            } else {
-                if (choiceVisibilePemanenLain.isEmpty()) {
-                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
-                        View.VISIBLE
-                    layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
-                        stringXML(R.string.al_select_at_least_one_pemanen_lain)
-                    AppLogger.d("masuk sini gessss bro")
-                    errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen_lain))
-                }
-            }
-        }
-
         if (jumTBS <= 0) {
             isValid = false
             val layoutJumTBS = findViewById<ConstraintLayout>(R.id.layoutJumTBS)
@@ -1940,7 +1990,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 isValid = false
                 val layoutNoTPH = findViewById<LinearLayout>(R.id.layoutNoTPH)
                 layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
-                    text = "TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!"
+                    text =
+                        "TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!"
                     visibility = View.VISIBLE
                 }
                 errorMessages.add("TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!")
@@ -1954,8 +2005,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val tvErrorNotAttachPhotos = findViewById<TextView>(R.id.tvErrorNotAttachPhotos)
             tvErrorNotAttachPhotos.visibility = View.VISIBLE
         }
-
-
 
         if (!isValid) {
             vibrate()
@@ -2074,28 +2123,49 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         var tahunTanamList: List<String> = emptyList()
 
-                        if (blokBanjir == 1) {
-                            val blokDeferred = async {
-                                try {
-                                    datasetViewModel.getBlokList(
-                                        estateId!!.toInt(),
-                                        selectedDivisiId
-                                    )
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error fetching blokList: ${e.message}")
-                                    emptyList()
-                                }
-                            }
-                            blokList = blokDeferred.await()
-                            tahunTanamList = try {
-                                blokList.mapNotNull { it.tahun }.distinct()
-                                    .sortedBy { it.toIntOrNull() }
+                        val blokDeferred = async {
+                            try {
+                                datasetViewModel.getBlokList(
+                                    estateId!!.toInt(),
+                                    selectedDivisiId
+                                )
                             } catch (e: Exception) {
-                                AppLogger.e("Error processing tahunTanamList: ${e.message}")
+                                AppLogger.e("Error fetching blokList: ${e.message}")
                                 emptyList()
                             }
+                        }
+                        blokList = blokDeferred.await()
+                        tahunTanamList = try {
+                            blokList.mapNotNull { it.tahun }.distinct()
+                                .sortedBy { it.toIntOrNull() }
+                        } catch (e: Exception) {
+                            AppLogger.e("Error processing tahunTanamList: ${e.message}")
+                            emptyList()
+                        }
 
-                        } else {
+//                        if (blokBanjir == 1) {
+//                            val blokDeferred = async {
+//                                try {
+//                                    datasetViewModel.getBlokList(
+//                                        estateId!!.toInt(),
+//                                        selectedDivisiId
+//                                    )
+//                                } catch (e: Exception) {
+//                                    AppLogger.e("Error fetching blokList: ${e.message}")
+//                                    emptyList()
+//                                }
+//                            }
+//                            blokList = blokDeferred.await()
+//                            tahunTanamList = try {
+//                                blokList.mapNotNull { it.tahun }.distinct()
+//                                    .sortedBy { it.toIntOrNull() }
+//                            } catch (e: Exception) {
+//                                AppLogger.e("Error processing tahunTanamList: ${e.message}")
+//                                emptyList()
+//                            }
+//
+//                        }
+                        if(blokBanjir == 0) {
                             latLonMap = emptyMap()
                             latLonMap = async {
                                 try {
@@ -2139,25 +2209,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         withContext(Dispatchers.Main) {
                             try {
 
-
-                                if (blokBanjir == 1) {
+                                AppLogger.d(tahunTanamList.toString())
+//                                if (blokBanjir == 1) {
                                     val layoutTahunTanam =
                                         linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
                                     setupSpinnerView(
                                         layoutTahunTanam,
                                         tahunTanamList.ifEmpty { emptyList() }
                                     )
-                                } else {
-
-                                    val alertCardScanRadius =
-                                        findViewById<MaterialCardView>(R.id.alertCardScanRadius)
-                                    val alertTvScannedRadius =
-                                        findViewById<TextView>(R.id.alertTvScannedRadius)
-                                    val btnScanTPHRadius =
-                                        findViewById<MaterialButton>(R.id.btnScanTPHRadius)
-
-
-
+//                                }
+                                if(blokBanjir == 0) {
                                     setupScanTPHTrigger()
                                 }
 

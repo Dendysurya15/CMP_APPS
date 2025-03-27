@@ -216,7 +216,7 @@ class FormESPBActivity : AppCompatActivity() {
             janjangMap.forEach { (blockId, janjangSum) ->
                 Log.d("BlockJanjang", "Block $blockId: $janjangSum janjang")
             }
-
+AppLogger.d("jjgMap $janjangMap")
             // Convert the map to string format INSIDE the observer
             formattedJanjangString = convertJanjangMapToString(janjangMap)
             Log.d("FormattedJanjang", "Formatted string: $formattedJanjangString")
@@ -553,6 +553,7 @@ class FormESPBActivity : AppCompatActivity() {
                 "NULL"
             }
 
+            AppLogger.d("blok jjg $blok_jjg")
             val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
 
             AppLogger.d(selectedPemanen.toString())
@@ -627,7 +628,7 @@ class FormESPBActivity : AppCompatActivity() {
                             creator_info = creatorInfo.toString(),
                             noESPB = noESPBStr,
                             created_at = getCurrentDateTime(),
-                            tph0 = tph0,
+                            tph0 = "",
                             tph1 = tph1,
                             status_draft = statusDraft,
                             status_mekanisasi = mekanisasi,
@@ -645,7 +646,7 @@ class FormESPBActivity : AppCompatActivity() {
                             mill_id = selectedMillId!!,
                             created_by_id = idPetugas!!,
                             no_espb = noESPBStr,
-                            tph0 = tph0,
+                            tph0 = "",
                             tph1 = tph1,
                             appVersion = appVersion,
                             osVersion = osVersion,
@@ -1263,7 +1264,7 @@ class FormESPBActivity : AppCompatActivity() {
                     pemuat_id = pemuat_id,
                     mill_id = mill_id,
                     archive = 0,
-                    tph0 = tph0,
+                    tph0 = "",
                     tph1 = tph1,
                     creator_info = creator_info,
                     noESPB = noESPB,

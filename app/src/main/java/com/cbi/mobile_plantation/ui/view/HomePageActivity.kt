@@ -77,10 +77,12 @@ import com.google.gson.Gson
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -107,6 +109,9 @@ class HomePageActivity : AppCompatActivity() {
     private var countActiveESPB: Int = 0  // Global variable for count
     private val _globalLastModifiedTPH = MutableLiveData<String>()
     private val globalLastModifiedTPH: LiveData<String> get() = _globalLastModifiedTPH
+
+    private val _globalLastModifiedBlok = MutableLiveData<String>()
+    private val globalLastModifiedBlok: LiveData<String> get() = _globalLastModifiedBlok
     private var activityInitialized = false
 
     private var hasShownErrorDialog = false  // Add this property
@@ -376,14 +381,19 @@ class HomePageActivity : AppCompatActivity() {
             val matchedRole = when {
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.KeraniPanen, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.KeraniPanen
+
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.KeraniTimbang
+
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.Mandor1, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.Mandor1
+
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.Asisten, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.Asisten
+
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.IT, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.IT
+
                 else -> ""
             }
 
@@ -527,6 +537,7 @@ class HomePageActivity : AppCompatActivity() {
         prefManager = PrefManager(this)
         initViewModel()
         _globalLastModifiedTPH.value = prefManager!!.lastModifiedDatasetTPH
+        _globalLastModifiedBlok.value = prefManager!!.lastModifiedDatasetBlok
         setupDownloadDialog()
         setupTitleAppNameAndVersion()
         setupName()
@@ -553,8 +564,10 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
+    @SuppressLint("MissingSuperCall")
     @Deprecated("This method has been deprecated in favor of using the\n      {@link OnBackPressedDispatcher} via {@link #getOnBackPressedDispatcher()}.\n      The OnBackPressedDispatcher controls how back button events are dispatched\n      to one or more {@link OnBackPressedCallback} objects.")
     override fun onBackPressed() {
+        super.onBackPressed()
         AlertDialogUtility.withTwoActions(
             this,
             "Keluar",
@@ -687,6 +700,7 @@ class HomePageActivity : AppCompatActivity() {
                         loadingDialog.setMessage("Sedang mempersiapkan data...")
 
                         lifecycleScope.launch {
+                            trackingIdsUpload = emptyList()
                             uploadCMPViewModel.getAllIds()
                             delay(100)
                             val idDeferred = CompletableDeferred<List<Int>>()
@@ -724,12 +738,40 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.UploadDataCMP -> {
                 if (feature.displayType == DisplayType.ICON) {
-
                     lifecycleScope.launch {
                         loadingDialog.show()
-                        loadingDialog.setMessage("Sedang mempersiapkan data...")
+                        loadingDialog.setMessage("Sedang mengupdate data...")
+
+                        trackingIdsUpload = emptyList()
+                        uploadCMPViewModel.getAllIds()
                         delay(500)
 
+                        val idDeferred = CompletableDeferred<List<Int>>()
+                        uploadCMPViewModel.allIds.observe(this@HomePageActivity) { ids ->
+                            idDeferred.complete(ids ?: emptyList()) // Ensure it's never null
+                        }
+                        val data = idDeferred.await()
+
+                        //kode khusus untuk update UploadCMP sebelum melakukan upload
+                        trackingIdsUpload = data
+                        datasetViewModel.updateLocalUploadCMP(trackingIdsUpload)
+                        datasetViewModel.isCompleted.observe(this@HomePageActivity) { isCompleted ->
+                            if (isCompleted) {
+                               AppLogger.d("sukses update all upload CMP")
+                            }
+                        }
+                        datasetViewModel.updateResultStatusUploadCMP.observe(this@HomePageActivity) { result ->
+                            if (result.success) {
+                                AppLogger.d(result.message)
+                            } else {
+                                val errorDetails = if (result.errorItems.isNotEmpty()) {
+                                    "\n\n" + result.errorItems.joinToString("\n") { "• ${it.fileName}: ${it.message}" }
+                                } else {
+                                    ""
+                                }
+                                AppLogger.d(errorDetails)
+                            }
+                        }
                         allUploadZipFilesToday =
                             AppUtils.checkUploadZipReadyToday(
                                 prefManager!!.idUserLogin.toString(),
@@ -1132,7 +1174,6 @@ class HomePageActivity : AppCompatActivity() {
                 adapter.updateStatus(id, status)
             }
 
-            // Check overall status
             val allFinished = statusMap.values.none {
                 it == AppUtils.UploadStatusUtils.WAITING || it == AppUtils.UploadStatusUtils.UPLOADING
             }
@@ -1140,17 +1181,136 @@ class HomePageActivity : AppCompatActivity() {
             val allSuccess = statusMap.values.all { it == AppUtils.UploadStatusUtils.SUCCESS }
 
             if (allFinished && statusMap.isNotEmpty()) {
-                if (allSuccess) {
-                    titleTV.text = "Upload Berhasil"
-                } else {
-                    titleTV.text = "Upload Selesai Dengan Kesalahan"
-                }
+                lifecycleScope.launch {
+                    loadingDialog.show()
+                    loadingDialog.setMessage("Sedang memproses pembaruan data", true)
+                    trackingIdsUpload = emptyList()
+                    uploadCMPViewModel.getAllIds()
+                    delay(500)
 
-                // Enable close button, hide upload button
-                btnUploadDataCMP.visibility = View.GONE
-                closeDialogBtn.isEnabled = true
-                closeDialogBtn.alpha = 1f
-                closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+                    val idDeferred = CompletableDeferred<List<Int>>()
+                    uploadCMPViewModel.allIds.observe(this@HomePageActivity) { ids ->
+                        idDeferred.complete(ids ?: emptyList()) // Ensure it's never null
+                    }
+                    val data = idDeferred.await()
+
+                    trackingIdsUpload = data
+
+                    //kode khusus untuk update UploadCMP setelah melakukan upload
+                    datasetViewModel.updateLocalUploadCMP(trackingIdsUpload)
+                    datasetViewModel.isCompleted.observe(this@HomePageActivity) { isCompleted ->
+                        if (isCompleted) {
+                            lifecycleScope.launch {
+                                try {
+                                    // Set a timeout for the entire operation
+                                    withTimeout(30 * 1000L) { // 30 seconds timeout
+                                        try {
+                                            val regionalIdString = prefManager!!.regionalIdUserLogin
+                                            val estateIdString = prefManager!!.estateIdUserLogin
+                                            val lastModifiedDatasetTPH = prefManager!!.lastModifiedDatasetTPH
+                                            val lastModifiedDatasetBlok = prefManager!!.lastModifiedDatasetBlok
+                                            val lastModifiedDatasetKemandoran = prefManager!!.lastModifiedDatasetKemandoran
+                                            val lastModifiedDatasetPemanen = prefManager!!.lastModifiedDatasetPemanen
+                                            val lastModifiedDatasetTransporter = prefManager!!.lastModifiedDatasetTransporter
+                                            val lastModifiedDatasetKendaraan = prefManager!!.lastModifiedDatasetKendaraan
+                                            val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
+
+                                            if (!estateIdString.isNullOrEmpty() && !estateIdString.isBlank()) {
+                                                try {
+                                                    val estateId = estateIdString.toInt()
+                                                    if (estateId > 0) {
+                                                        // Get datasets for silent download
+                                                        val datasets = getDatasetsToDownload(
+                                                            regionalIdString!!.toInt(),
+                                                            estateId,
+                                                            lastModifiedDatasetTPH,
+                                                            lastModifiedDatasetBlok,
+                                                            lastModifiedDatasetPemanen,
+                                                            lastModifiedDatasetKemandoran,
+                                                            lastModifiedDatasetTransporter,
+                                                            lastModifiedDatasetKendaraan,
+                                                            lastModifiedSettingJSON
+                                                        )
+
+                                                        if (datasets.isNotEmpty()) {
+                                                            AppLogger.d("Starting silent download for ${datasets.size} datasets")
+
+                                                            // Call the silent download function with its own timeout (also 30 seconds)
+                                                            val results = withTimeout(30 * 1000L) {
+                                                                datasetViewModel.downloadDatasetsSilently(datasets).await()
+                                                            }
+
+                                                            // Log results but don't update UI based on them
+                                                            val successCount = results.values.count { it }
+                                                            AppLogger.d("Silent download completed: $successCount/${results.size} datasets updated successfully")
+                                                        } else {
+                                                            AppLogger.d("No datasets to download silently")
+                                                        }
+                                                    } else {
+                                                        AppLogger.e("Invalid estate ID for silent download: $estateId")
+                                                    }
+                                                } catch (e: NumberFormatException) {
+                                                    AppLogger.e("Error parsing estate ID for silent download: ${e.message}")
+                                                }
+                                            } else {
+                                                AppLogger.e("Estate ID is null or empty for silent download")
+                                            }
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error in silent download: ${e.message}")
+                                            throw e // Re-throw to be caught by the outer catch
+                                        }
+                                    }
+                                } catch (e: TimeoutCancellationException) {
+                                    // Handle timeout specifically
+                                    AppLogger.e("Silent download timed out after 30 seconds")
+                                    Toast.makeText(
+                                        this@HomePageActivity,
+                                        "Proses sinkronisasi data melebihi batas waktu (30 detik)",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                } catch (e: Exception) {
+                                    // Handle other exceptions
+                                    AppLogger.e("Error or timeout in silent download process: ${e.message}")
+                                } finally {
+                                    // Always update UI, even if there's a timeout or error
+                                    withContext(Dispatchers.Main) {
+                                        // Update UI based on upload success
+                                        if (allSuccess) {
+                                            titleTV.text = "Upload Berhasil"
+                                        } else {
+                                            titleTV.text = "Upload Selesai Dengan Kesalahan"
+                                        }
+
+                                        // Update button states
+                                        btnUploadDataCMP.visibility = View.GONE
+                                        closeDialogBtn.isEnabled = true
+                                        closeDialogBtn.alpha = 1f
+                                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+
+                                        // Dismiss loading dialog once everything is complete
+                                        loadingDialog.dismiss()
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    datasetViewModel.updateResultStatusUploadCMP.observe(this@HomePageActivity) { result ->
+                        if (result.success) {
+                            AppLogger.d(result.message)
+                        } else {
+
+                            val errorDetails = if (result.errorItems.isNotEmpty()) {
+                                "\n\n" + result.errorItems.joinToString("\n") { "• ${it.fileName}: ${it.message}" }
+                            } else {
+                                ""
+                            }
+                            AppLogger.d(errorDetails)
+                        }
+                    }
+
+
+                }
             }
         }
 
@@ -1168,28 +1328,53 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
-//        // Observe original LiveData for compatibility (affects currently uploading file)
-//        uploadCMPViewModel.uploadProgressCMP.observe(this) { progress ->
-//            // You can use this for showing progress in some global UI element if needed
-//        }
-//
-//        uploadCMPViewModel.uploadStatusCMP.observe(this) { status ->
-//            // You can use this for showing status in some global UI element if needed
-//        }
-//
-//        uploadCMPViewModel.uploadErrorCMP.observe(this) { error ->
-//            if (!error.isNullOrEmpty()) {
-//                // Handle global error display if needed
-//            }
-//        }
-
-        // Process responses for database updates
         uploadCMPViewModel.itemResponseMap.observe(this) { responseMap ->
             lifecycleScope.launch {
                 for ((_, response) in responseMap) {
                     AppLogger.d("response for update or insert table upload_cmp $response")
                     response?.let {
-                        val jsonResultTableIds = createJsonTableNameMapping()
+                        var jsonResultTableIds = ""
+
+                        if (allUploadZipFilesToday.isNotEmpty()) {
+                            try {
+                                val extractionDeferred = CompletableDeferred<Pair<List<Int>, List<Int>>>()
+
+                                AppLogger.d("Starting ZIP extraction for ${response.nama_file}")
+
+                                launch(Dispatchers.IO) {
+                                    try {
+                                        val result = AppUtils.extractIdsFromZipFile(
+                                            context = this@HomePageActivity,
+                                            fileName = response.nama_file,
+                                            zipPassword = AppUtils.ZIP_PASSWORD
+                                        )
+                                        extractionDeferred.complete(result)
+                                    } catch (e: Exception) {
+                                        extractionDeferred.completeExceptionally(e)
+                                    }
+                                }
+
+                                val (panenIds, espbIds) = withTimeout(5000) { // 10 second timeout
+                                    extractionDeferred.await()
+                                }
+
+                                AppLogger.d("Extraction complete. PANEN IDs: ${panenIds.size}, ESPB IDs: ${espbIds.size}")
+
+                                globalPanenIds = panenIds
+                                globalESPBIds = espbIds
+
+                                jsonResultTableIds = createJsonTableNameMapping()
+                            } catch (e: Exception) {
+                                AppLogger.e("Error during ZIP extraction: ${e.message}")
+                                // Fallback to empty mapping
+                                globalPanenIds = emptyList()
+                                globalESPBIds = emptyList()
+                                jsonResultTableIds = createJsonTableNameMapping()
+                            }
+                        } else {
+                            jsonResultTableIds = createJsonTableNameMapping()
+                        }
+
                         uploadCMPViewModel.UpdateOrInsertDataUpload(
                             response.trackingId,
                             response.nama_file,
@@ -1197,7 +1382,7 @@ class HomePageActivity : AppCompatActivity() {
                             response.tanggal_upload,
                             jsonResultTableIds
                         )
-                        delay(100) // Add delay before calling the function
+                        delay(100)
                     }
                 }
             }
@@ -1432,7 +1617,7 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedDatasetPemanen: String?,
         lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetTransporter: String?,
-        lastModifiedDatasetKendaraan:String?,
+        lastModifiedDatasetKendaraan: String?,
         lastModifiedSettingJSON: String?
     ): List<DatasetRequest> {
         val datasets = mutableListOf<DatasetRequest>()
@@ -1446,17 +1631,30 @@ class HomePageActivity : AppCompatActivity() {
                 )
             )
         }
+
+        val jabatan = prefManager!!.jabatanUserLogin
+        val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
+        if (jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true)) {
+            datasets.add(
+                DatasetRequest(
+                    regional = regionalUser,
+                    lastModified = lastModifiedDatasetBlok,
+                    dataset = AppUtils.DatasetNames.blok
+                )
+            )
+        }
+
         datasets.addAll(
             listOf(
-                DatasetRequest(
-                    regional = regionalId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.mill
-                ),
                 DatasetRequest(
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
                     dataset = AppUtils.DatasetNames.tph
+                ),
+                DatasetRequest(
+                    regional = regionalId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.mill
                 ),
                 DatasetRequest(
                     estate = estateId,
@@ -1536,7 +1734,24 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            findViewById<TextView>(R.id.lastUpdateTPH).text = "Terakhir diperbarui: $formattedDate"
+            findViewById<TextView>(R.id.lastUpdate).text = "Terakhir diperbarui: $formattedDate"
+        }
+
+        globalLastModifiedBlok.observe(this) { timestamp ->
+            val formattedDate = if (timestamp.isNullOrEmpty()) {
+                "-"
+            } else {
+                val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                val outputFormat = SimpleDateFormat("dd MMMM yyyy HH:mm", Locale("id", "ID"))
+                try {
+                    val date = inputFormat.parse(timestamp)
+                    outputFormat.format(date ?: "-")
+                } catch (e: Exception) {
+                    "-"
+                }
+            }
+
+            findViewById<TextView>(R.id.lastUpdate).text = "Terakhir diperbarui: $formattedDate"
         }
 
 

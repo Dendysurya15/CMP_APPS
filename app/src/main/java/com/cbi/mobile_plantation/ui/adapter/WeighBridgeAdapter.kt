@@ -25,6 +25,7 @@ import java.util.Locale
 
 data class WBData(
     val id: Int,
+    val ip: String,
     val dept_ppro : Int,
     val divisi_ppro :Int,
     val commodity : Int,
@@ -37,6 +38,7 @@ data class WBData(
     val created_by_id : Int,
     val created_at : String,
     val noSPB: String,
+    val tph1:String,
     val estate: String,
     val afdeling: String,
     val datetime: String,
@@ -106,8 +108,9 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
                 Info.NOPOL to item.nopol,
                 Info.BLOK to item.formattedBlokList,
                 Info.TOTAL_JJG to item.totalJjg.toString(),
-                Info.PEMUAT to item.pemuat_id,
+                Info.PEMUAT to item.pemuat_nama,
                 Info.DRIVER to item.driver,
+                Info.TPH to item.tph1,
                 Info.MILL to item.mill_name,
                 Info.TRANSPORTER to item.transporter_name,
             )
@@ -345,6 +348,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
 
         view.findViewById<TextView>(R.id.tvValue)?.text = when (view.id) {
             R.id.infoBlok -> value
+            R.id.infoTPH -> value
             else -> ": $value"
         }
     }
@@ -367,6 +371,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         return selectedItems.map { selectedItem ->
             mapOf(
                 "id" to (selectedItem.id ?: ""),
+                "ip" to (selectedItem.ip ?: ""),
                 "dept_ppro" to (selectedItem.dept_ppro ?: ""),
                 "divisi_ppro" to (selectedItem.divisi_ppro ?: ""),
                 "commodity" to (selectedItem.commodity ?: ""),
@@ -403,7 +408,8 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         PEMUAT(R.id.infoPemuat, "Pemuat"),
         DRIVER(R.id.infoNoDriver, "Driver"),
         MILL(R.id.infoMill, "Mill"),
-        TRANSPORTER(R.id.infoTransporter, "Transporter")
+        TRANSPORTER(R.id.infoTransporter, "Transporter"),
+        TPH(R.id.infoTPH, "List TPH")
     }
 
 

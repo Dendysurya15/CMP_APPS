@@ -6,9 +6,9 @@ plugins {
 
 android {
 
-    def versionMajor = 0
-    def versionMinor = 6
-    def versionPatch = 8
+    def versionMajor = 1
+    def versionMinor = 0
+    def versionPatch = 2
 
     namespace 'com.cbi.mobile_plantation'
     compileSdk 34

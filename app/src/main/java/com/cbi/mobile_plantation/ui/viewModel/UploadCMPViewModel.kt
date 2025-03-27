@@ -64,7 +64,6 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
 
-
     fun UpdateOrInsertDataUpload(
         tracking_id: Int,
         nama_file: String,
