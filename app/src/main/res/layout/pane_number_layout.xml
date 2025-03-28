@@ -59,7 +59,8 @@
                 android:id="@+id/tvPercent"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="17sp"
+                android:textSize="18sp"
+                android:textColor="@color/black"
                 android:fontFamily="@font/manrope_semibold"
                 android:ellipsize="end"
                 android:maxLines="2"
@@ -122,12 +123,13 @@
         android:layout_height="wrap_content"
         android:textColor="@color/colorRedDark"
         android:visibility="gone"
-        android:text="Error message appears here"
+        android:fontFamily="@font/manrope_bold"
         android:layout_marginTop="5dp"
         android:paddingBottom="4dp"
-        android:textSize="16sp"
+        android:textSize="17sp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/linearContainer" />
+        app:layout_constraintTop_toBottomOf="@id/linearContainer"
+        tools:ignore="HardcodedText" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

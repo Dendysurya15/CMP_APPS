@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
+    android:id="@+id/constraint_table_item_row"
     android:layout_height="wrap_content">
 
     <LinearLayout
@@ -36,6 +37,7 @@
                 android:layout_gravity="center"
                 android:id="@+id/numListTerupload"
                 android:text="1"
+                android:textColor="@color/black"
                 android:visibility="gone"
                 android:textSize="15dp"
                 android:padding="5dp"
@@ -54,7 +56,7 @@
             android:visibility="gone"
             android:gravity="center"
             android:textColor="@color/black"
-            android:textSize="14dp"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
         <TextView
@@ -67,7 +69,7 @@
             android:fontFamily="@font/manrope_semibold"
             android:padding="5dp"
             android:textColor="@color/black"
-            android:textSize="14dp"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
         <TextView
@@ -80,7 +82,7 @@
             android:fontFamily="@font/manrope_semibold"
             android:padding="5dp"
             android:textColor="@color/black"
-            android:textSize="14dp"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
         <TextView
@@ -92,7 +94,7 @@
             android:fontFamily="@font/manrope_semibold"
             android:padding="5dp"
             android:visibility="gone"
-            android:textSize="14dp"
+            android:textSize="16sp"
             android:textColor="@color/black"
             android:textStyle="bold" />
 
@@ -114,7 +116,7 @@
             android:id="@+id/td5"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:gravity="center"
             android:orientation="horizontal"
             android:padding="5dp"
