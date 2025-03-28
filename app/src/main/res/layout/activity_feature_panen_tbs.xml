@@ -113,7 +113,7 @@
                             android:layout_height="match_parent"
                             android:fontFamily="@font/manrope_semibold"
                             android:gravity="center|left"
-                            android:text="Blok Banjir"
+                            android:text="TPH Manual"
                             android:textColor="@color/black"
                             android:textSize="18sp"
                             tools:ignore="HardcodedText" />

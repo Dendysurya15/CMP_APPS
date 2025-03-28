@@ -805,9 +805,6 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         }
 
-
-                        AppLogger.d(allUploadZipFilesToday.toString())
-
                         val featuresToFetch = listOf(
                             AppUtils.DatabaseTables.ESPB,
                             AppUtils.DatabaseTables.PANEN
