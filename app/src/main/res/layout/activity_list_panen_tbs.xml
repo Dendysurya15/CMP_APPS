@@ -307,6 +307,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/manrope_bold"
                 android:text="Total TPH: "
+                android:id="@+id/tvTotalTPH"
                 android:textColor="@color/black"
                 android:textSize="16sp" />
 

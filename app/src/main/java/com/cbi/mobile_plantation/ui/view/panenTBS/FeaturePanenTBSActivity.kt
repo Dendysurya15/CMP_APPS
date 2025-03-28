@@ -101,6 +101,7 @@ import com.cbi.mobile_plantation.ui.adapter.ListTPHInsideRadiusAdapter
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
+import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import es.dmoral.toasty.Toasty
@@ -248,6 +249,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
     private val karyawanLainIdMap: MutableMap<String, Int> = mutableMapOf()
     private val kemandoranLainIdMap: MutableMap<String, Int> = mutableMapOf()
+    private lateinit var soundPlayer: SoundPlayer
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
     private val dateTimeCheckRunnable = object : Runnable {
         override fun run() {
@@ -290,7 +292,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     @SuppressLint("ClickableViewAccessibility")
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
-
+        soundPlayer = SoundPlayer(this)
         prefManager = PrefManager(this)
 
         radiusMinimum = prefManager!!.radiusMinimum
@@ -456,11 +458,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                 val uniqueKemandoranId = (kemandoranIdList + kemandoranLainIdList)
                                     .map { it.toString() }
                                     .joinToString(",")
-
-                                AppLogger.d(uniqueNikPemanen)
-                                AppLogger.d(uniqueIdKaryawan)
-                                AppLogger.d(uniqueKemandoranId)
-
                                 val photoFilesString = photoFiles.joinToString(";")
                                 val komentarFotoString = komentarFoto.joinToString(";")
 
@@ -494,6 +491,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                 when (result) {
                                     is AppRepository.SaveResultPanen.Success -> {
+                                        soundPlayer.playSound(R.raw.berhasil_simpan)
                                         AlertDialogUtility.withSingleAction(
                                             this@FeaturePanenTBSActivity,
                                             stringXML(R.string.al_back),
@@ -2678,7 +2676,26 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             cameraViewModel,
             this,
             AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
-        )
+        ).apply {
+            // Set up the photo deletion callback
+            onPhotoDeleted = { fileName, position ->
+                // Find the index of the filename in our list
+                val index = photoFiles.indexOf(fileName)
+                if (index != -1) {
+                    // Remove the filename and its comment
+                    photoFiles.removeAt(index)
+                    if (index < komentarFoto.size) {
+                        komentarFoto.removeAt(index)
+                    }
+                    photoCount--
+
+                    AppLogger.d("Photo removed from activity: $fileName, new count: $photoCount")
+                } else {
+                    AppLogger.e("Failed to find photo $fileName in photoFiles list")
+                }
+            }
+        }
+
         recyclerView.adapter = takeFotoPreviewAdapter
     }
 
@@ -3252,6 +3269,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         locationViewModel.stopLocationUpdates()
 
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+        soundPlayer.releaseMediaPlayer()
     }
 
     override fun onPhotoTaken(
@@ -3272,7 +3290,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         photoCount++
         photoFiles.add(fname)
-        komentarFoto.add(komentar!!)
+        komentarFoto.add(komentar ?: "")
+
+        AppLogger.d("Photo added to activity: $fname, new count: $photoCount")
 
         val viewHolder =
             recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder

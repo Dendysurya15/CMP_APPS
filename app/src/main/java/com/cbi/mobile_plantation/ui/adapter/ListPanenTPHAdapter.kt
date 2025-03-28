@@ -57,7 +57,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     private var tphList = mutableListOf<Map<String, Any>>()
     private var filteredList = mutableListOf<Map<String, Any>>()
     private var currentArchiveState: Int = 0
-    private var areCheckboxesEnabled = true
     private val selectedItems = mutableSetOf<Int>()
     private var isSortAscending: Boolean? = null
     private var selectAllState = false
@@ -224,18 +223,97 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         notifyDataSetChanged()
     }
 
+    private var totalCheckedTPH = 0
+    private var totalCheckedJjg = 0
+    private var onTotalsUpdateListener: ((tphCount: Int, jjgCount: Int) -> Unit)? = null
+
+    // Add this method to set the listener
+    fun setOnTotalsUpdateListener(listener: (tphCount: Int, jjgCount: Int) -> Unit) {
+        onTotalsUpdateListener = listener
+        // Initialize with current values
+        calculateTotals()
+    }
+
+    private fun calculateTotals() {
+        var jjgCount = 0
+        var tphCount = 0
+
+        val tphMap = mutableMapOf<String, Int>()
+
+        // Process manually selected items
+        for (position in selectedItems) {
+            tphList.getOrNull(position)?.let { item ->
+                val tphId = item["tph_id"].toString()
+
+                // Extract jjg count from the item
+                val jjgJsonString = item["jjg_json"] as? String ?: "{}"
+                try {
+                    val jjgJson = JSONObject(jjgJsonString)
+                    // Use different fields based on feature name
+                    val jjgValue = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
+                        jjgJson.optInt("KP", 0)
+                    } else {
+                        jjgJson.optInt("TO", 0)
+                    }
+
+                    // Add to the map - if TPH ID already exists, sum the values
+                    tphMap[tphId] = (tphMap[tphId] ?: 0) + jjgValue
+                    jjgCount += jjgValue
+
+                    // Count each TPH even if it's a duplicate ID
+                    tphCount++
+                } catch (e: Exception) {
+                    Log.e("ListPanenTPHAdapter", "Error parsing jjg_json: ${e.message}")
+                }
+            }
+        }
+
+        // Process scanned items
+        for (item in tphList) {
+            val tphId = item["tph_id"].toString()
+            if (tphListScan.contains(tphId) && !selectedItems.contains(tphList.indexOf(item))) {
+                // Extract jjg count from the item
+                val jjgJsonString = item["jjg_json"] as? String ?: "{}"
+                try {
+                    val jjgJson = JSONObject(jjgJsonString)
+                    // Use different fields based on feature name
+                    val jjgValue = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
+                        jjgJson.optInt("KP", 0)
+                    } else {
+                        jjgJson.optInt("TO", 0)
+                    }
+
+                    // Add to the map
+                    tphMap[tphId] = (tphMap[tphId] ?: 0) + jjgValue
+                    jjgCount += jjgValue
+
+                    // Count each TPH even if it's a duplicate ID
+                    tphCount++
+                } catch (e: Exception) {
+                    Log.e("ListPanenTPHAdapter", "Error parsing jjg_json: ${e.message}")
+                }
+            }
+        }
+
+        // Store the raw count instead of unique IDs count
+        totalCheckedTPH = tphCount
+        totalCheckedJjg = jjgCount
+
+        // Notify listener
+        onTotalsUpdateListener?.invoke(totalCheckedTPH, totalCheckedJjg)
+    }
+
     class ListPanenTPHViewHolder(private val binding: TableItemRowBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(
             data: Map<String, Any>,
-            context: android.content.Context,
+            context: Context,
             isSelected: Boolean,
             archiveState: Int,
             onCheckedChange: (Boolean) -> Unit,
             extractData: (Map<String, Any>) -> ExtractedData,
             featureName: String = "",
-            tphListScan: List<String> = emptyList(),
             isScannedItem: Boolean = false
         ) {
 
@@ -251,9 +329,84 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 binding.td3.text = data["tph_count"].toString()
                 binding.td4.text = "${data["jjg_total_blok"]} (${data["jjg_dibayar"]})"
 
-                itemView.setOnClickListener(null)
-                itemView.isClickable = false
-                itemView.isFocusable = false
+                itemView.isClickable = true
+                itemView.isFocusable = true
+
+                itemView.setOnClickListener {
+                    val context = itemView.context
+                    val bottomSheetDialog = BottomSheetDialog(context)
+                    val view = LayoutInflater.from(context)
+                        .inflate(R.layout.layout_bottom_sheet_detail_per_pemanen, null)
+
+                    view.findViewById<Button>(R.id.btnCloseDetailTable).setOnClickListener {
+                        bottomSheetDialog.dismiss()
+                    }
+
+                    bottomSheetDialog.setContentView(view)
+
+                    val maxHeight =
+                        (context.resources.displayMetrics.heightPixels * 0.85).toInt()
+
+                    val dateCreatedRaw = data["date_created"] as? String ?: "-"
+                    val originalFormat =
+                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    val displayFormat =
+                        SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+
+                    val formattedDate = try {
+                        val date = originalFormat.parse(dateCreatedRaw)
+                        date?.let { displayFormat.format(it) } ?: "-"
+                    } catch (e: Exception) {
+                        "-"
+                    }
+
+
+                    view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
+                        "Detail Pemanen - $formattedDate"
+
+                    val jjgJsonStr =
+                        data["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
+                    val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
+
+                    val infoItems = listOf(
+                        DetailInfoType.TANGGAL_BUAT to formattedDate,
+                        DetailInfoType.KEMANDORAN_PEMANEN to "${data["nama_kemandorans"]}",
+                        DetailInfoType.NAMA_PEMANEN to "${data["karyawan_nik"]} - ${data["nama_karyawans"]}",
+                        DetailInfoType.TOTAL_JANJANG to jjgJson.optDouble("TO", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK to jjgJson.optDouble("KP", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_BUAH_MASAK to jjgJson.optDouble("RI", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_JANJANG_DI_BAYAR to jjgJson.optDouble("PA", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_BUAH_MENTAH to jjgJson.optDouble("UN", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_LEWAT_MASAK to jjgJson.optDouble("OV", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_JJG_KOSONG to jjgJson.optDouble("EM", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_ABNORMAL to jjgJson.optDouble("AB", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_SERANGAN_TIKUS to jjgJson.optDouble("RA", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_TANGKAI_PANJANG to jjgJson.optDouble("LO", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_TIDAK_VCUT to jjgJson.optDouble("TI", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.DATA_BLOK to  data["jjg_each_blok_bullet"].toString(),
+                    )
+
+                    infoItems.forEach { (type, value) ->
+                        val itemView = view.findViewById<View>(type.id)
+                        if (itemView != null) {
+                             setInfoItemValues(itemView, type.label, value)
+                        }
+                    }
+                    bottomSheetDialog.show()
+
+                    bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                        ?.let { bottomSheet ->
+                            val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                            behavior.apply {
+                                this.peekHeight = maxHeight
+                                this.state = BottomSheetBehavior.STATE_EXPANDED
+                                this.isFitToContents = true
+                                this.isDraggable = false
+                            }
+                            bottomSheet.layoutParams?.height = maxHeight
+                        }
+                }
             }
             else if(featureName == AppUtils.ListFeatureNames.BuatESPB ){
                 binding.td5.visibility = View.VISIBLE
@@ -276,35 +429,28 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 binding.td2.text = extractedData.tphText
                 binding.td3.text = extractedData.gradingText
                 binding.td4.text = extractedData.tanggalText
-
-
                 val checkedColor = if (isScannedItem) {
                     ContextCompat.getColor(context, R.color.greenDarker)
                 } else {
                     Color.RED
                 }
 
-                // Create the ColorStateList with the appropriate checked color
                 val colorStateList = ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(checkedColor, Color.GRAY)
                 )
 
-                // Apply the tint
                 binding.checkBoxPanen.buttonTintList = colorStateList
 
-                // Add listener AFTER setting state
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
                     onCheckedChange(isChecked)
                 }
 
-                if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 0 || featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 1) {
-                    AppLogger.d(archiveState.toString())
+                if ((featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 0) || (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 1 )) {
                     itemView.isClickable = true
                     itemView.isFocusable = true
 
                     itemView.setOnClickListener {
-
                         val context = itemView.context
                         val bottomSheetDialog = BottomSheetDialog(context)
                         val view = LayoutInflater.from(context)
@@ -350,7 +496,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                             // Disable overscroll effect
                             recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
-                            // Get photo URLs from item["foto"] using the updated function
                             val photoUrls = getPhotoUrlsFromItem(data, context)
 
                             // Create adapter - always shows 3 items
@@ -403,13 +548,15 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         val jjgJsonStr =
                             data["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
                         val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
-
+                        val blokBanjir = data["blok_banjir"] as? Int ?: 0
+                        val blokBanjirText = when (blokBanjir) {
+                            1 -> "Ya"
+                            0 -> "Tidak"
+                            else -> "Tidak diketahui"
+                        }
                         val infoItems = listOf(
                             DetailInfoType.TANGGAL_BUAT to formattedDate,
-                            DetailInfoType.BLOK_BANJIR to when(data["blok_banjir"]) {
-                                "1" -> "Tidak"
-                                else -> "Ya"
-                            },
+                            DetailInfoType.BLOK_BANJIR to blokBanjirText,
                             DetailInfoType.ESTATE_AFDELING to "${data["nama_estate"]} / ${data["nama_afdeling"]}",
                             DetailInfoType.BLOK_TAHUN to "${extractedData.blokText} / ${data["tahun_tanam"]}",
                             DetailInfoType.ANCAK to "${data["ancak"]}",
@@ -441,7 +588,10 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         // Set values for all items
                         infoItems.forEach { (type, value) ->
                             val itemView = view.findViewById<View>(type.id)
-                            setInfoItemValues(itemView, type.label, value.toString())
+                            // Only call setInfoItemValues if the itemView exists
+                            if (itemView != null) {
+                                setInfoItemValues(itemView, type.label, value.toString())
+                            }
                         }
 
                         bottomSheetDialog.show()
@@ -462,7 +612,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     }
 
                 } else {
-                    AppLogger.d(archiveState.toString())
                     itemView.setOnClickListener(null)
                     itemView.isClickable = false
                     itemView.isFocusable = false
@@ -512,20 +661,12 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
             textViewLabel?.text = label
 
-            if (label == DetailInfoType.KEMANDORAN.label) {
-                textViewValue?.text = value
-            } else {
-                textViewValue?.text = ": $value"
-            }
-
-            if (label in listOf(
-                    DetailInfoType.TOTAL_JANJANG.label,
-                    DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK.label,
-                    DetailInfoType.TOTAL_JANJANG_DI_BAYAR.label
-                )
-            ) {
-                textViewLabel?.setTypeface(null, Typeface.BOLD)
-                textViewValue?.setTypeface(null, Typeface.BOLD)
+            textViewValue?.let { textView ->
+                if (label == DetailInfoType.KEMANDORAN.label || label == DetailInfoType.DATA_BLOK.label) {
+                    textView.text = value
+                } else {
+                    textView.text = ": $value"
+                }
             }
         }
 
@@ -646,18 +787,19 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         Handler(Looper.getMainLooper()).post {
             notifyDataSetChanged()
             onSelectionChangeListener?.invoke(selectedItems.size)
+            calculateTotals() // Add this line
         }
     }
 
     fun clearSelections() {
         selectedItems.clear()
         notifyDataSetChanged()
+        calculateTotals() // Add this line
     }
 
     @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: ListPanenTPHViewHolder, position: Int) {
         val item = filteredList[position]
-
 
         val tphId = extractData(item).tphId.toString()
         val isScannedItem = tphListScan.contains(tphId)
@@ -683,6 +825,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         selectAllState = false
                     }
                     onSelectionChangeListener?.invoke(selectedItems.size)
+
+                    // Recalculate totals when selection changes
+                    calculateTotals()
                 }
             },
             extractData = ::extractData,
@@ -707,10 +852,12 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         ANCAK(R.id.DataAncak, "Ancak"),
         NO_TPH(R.id.DataNoTPH, "No TPH"),
         KEMANDORAN(R.id.DataKemandoran, "Kemandoran"),
+        KEMANDORAN_PEMANEN(R.id.DataKemandoranPemanen, "Nama Kemandoran"),
         NAMA_PEMANEN(R.id.DataNamaPemanen, "Nama Pemanen"),
-        TOTAL_JANJANG(R.id.DataTotalJanjang, "Total Janjang"),
-        TOTAL_DIKIRIM_KE_PABRIK(R.id.DataDikirimKePabrik, "Dikirim Ke Pabrik"),
-        TOTAL_JANJANG_DI_BAYAR(R.id.DataJanjangDibayar, "Janjang DiBayar"),
+        TOTAL_JANJANG(R.id.DataTotalJanjang, "Jumlah Buah Dipanen"),
+        TOTAL_DIKIRIM_KE_PABRIK(R.id.DataDikirimKePabrik, "Jumlah Buah Dikirim ke Pabrik"),
+        TOTAL_JANJANG_DI_BAYAR(R.id.DataJanjangDibayar, "Jumlah Janjang DiBayar"),
+        TOTAL_DATA_BUAH_MASAK(R.id.DataBuahMasak, "Buah Masak"),
         TOTAL_DATA_BUAH_MENTAH(R.id.DataBuahMentah, "Buah Mentah"),
         TOTAL_DATA_LEWAT_MASAK(R.id.DataBuahLewatMasak, "Buah Lewat Masak"),
         TOTAL_DATA_JJG_KOSONG(R.id.DataBuahJjgKosong, "Janjang Kosong"),
@@ -718,6 +865,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         TOTAL_DATA_SERANGAN_TIKUS(R.id.DataBuahSeranganTikus, "Serangan Tikus"),
         TOTAL_DATA_TANGKAI_PANJANG(R.id.DataBuahTangkaiPanjang, "Tangkai Panjang"),
         TOTAL_DATA_TIDAK_VCUT(R.id.DataBuahTidakVcut, "Tidak V-Cut"),
+        DATA_BLOK(R.id.DataBlok, "List Blok Panen"),
     }
 
     fun setOnSelectionChangedListener(listener: (Int) -> Unit) {
@@ -773,6 +921,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
         notifyDataSetChanged()
         onSelectionChangeListener?.invoke(selectedItems.size)
+        calculateTotals() // Add this line
     }
 
     // Add this method to ListPanenTPHAdapter class
@@ -796,6 +945,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             if (selectionChanged) {
                 notifyDataSetChanged()
                 onSelectionChangeListener?.invoke(selectedItems.size)
+                calculateTotals() // Add this line
             }
         }
     }

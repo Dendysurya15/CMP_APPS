@@ -24,6 +24,7 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -57,6 +58,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -170,7 +172,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
         }
     }
-
+    private val dateIndexMap = mutableMapOf<String, Int>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list_panen_tbs)
@@ -306,6 +308,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
         if (featureName == AppUtils.ListFeatureNames.BuatESPB || featureName == AppUtils.ListFeatureNames.DetailESPB) {
             findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.GONE
             findViewById<LinearLayout>(R.id.filterDateContainer).visibility = View.GONE
+
+
         } else {
             findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.VISIBLE
             dateButton = findViewById(R.id.calendarPicker)
@@ -358,7 +362,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 } else {
 //                    loadingDialog.show()
 //                    loadingDialog.setMessage("Sedang mengambil data...", true)
-
 
 
                     val displayDate = formatGlobalDate(globalFormattedDate)
@@ -576,6 +579,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
 //                panenViewModel.loadActivePanenESPB()
                 panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
+                findViewById<HorizontalScrollView>(R.id.horizontalCardFeature).visibility =
+                    View.GONE
             } else if (featureName == "Rekap panen dan restan") {
 
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
@@ -1038,7 +1043,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             throw IllegalArgumentException("Missing '$key' key in jjg_json: $jjgJsonString")
                         }
 
-                        append("$tphId,$dateCreated,$toValue;")
+                        // Extract date and time parts
+                        val dateParts = dateCreated.split(" ")
+                        if (dateParts.size != 2) {
+                            throw IllegalArgumentException("Invalid date_created format: $dateCreated")
+                        }
+
+                        val date = dateParts[0]  // 2025-03-28
+                        val time = dateParts[1]  // 13:15:18
+
+                        // Use dateIndexMap.size as the index for new dates
+                        append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue;")
                     } catch (e: Exception) {
                         throw IllegalArgumentException("Error processing data entry: ${e.message}")
                     }
@@ -1052,9 +1067,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     .show()
                 "NULL"
             }
+
+            // Create the tgl object with date mappings
+            val tglJson = JSONObject()
+            dateIndexMap.forEach { (date, index) ->
+                tglJson.put(index.toString(), date)
+            }
+
             return JSONObject().apply {
                 put("tph_0", formattedData)
                 put("username", username)
+                put("tgl", tglJson)
             }.toString()
         } catch (e: Exception) {
             AppLogger.e("formatPanenDataForQR Error: ${e.message}")
@@ -1569,6 +1592,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                 // Generate the JSON data and encode it in a background thread
                                 // In the background processing part of setupButtonGenerateQR()
+
+                                AppLogger.d(mappedData.toString())
                                 val jsonData = withContext(Dispatchers.IO) {
                                     try {
                                         if (featureName == "Detail eSPB") {
@@ -1606,6 +1631,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         throw e
                                     }
                                 }
+
+                                AppLogger.d(jsonData)
 
                                 val encodedData = withContext(Dispatchers.IO) {
                                     try {
@@ -1727,6 +1754,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                                     dashedLine.visibility = View.VISIBLE
 
                                                     btnConfirmScanPanenTPH.visibility = View.VISIBLE
+
+                                                    lifecycleScope.launch {
+                                                        delay(200)
+
+                                                    }
 
 
                                                     // Start fade-in animations
@@ -1860,8 +1892,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         loadingDialog.show()
         loadingDialog.setMessage("Loading data...")
 
-
-
         panenViewModel.panenCountActive.observe(this) { count ->
             counterTersimpan.text = count.toString()
         }
@@ -1941,11 +1971,29 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         // Divide the jjg counts equally among workers as a decimal value
                                         // Use toDouble() to ensure decimal division
                                         val workerTO = totalTO.toDouble() / workerCount
+                                        val workerUN = totalUN.toDouble() / workerCount
+                                        val workerOV = totalOV.toDouble() / workerCount
+                                        val workerEM = totalEM.toDouble() / workerCount
+                                        val workerAB = totalAB.toDouble() / workerCount
+                                        val workerRA = totalRA.toDouble() / workerCount
+                                        val workerLO = totalLO.toDouble() / workerCount
+                                        val workerTI = totalTI.toDouble() / workerCount
+                                        val workerRI = totalRI.toDouble() / workerCount
+                                        val workerKP = totalKP.toDouble() / workerCount
                                         val workerPA = totalPA.toDouble() / workerCount
 
                                         // Create worker-specific jjg_json
                                         val workerJjgJson = JsonObject().apply {
                                             addProperty("TO", workerTO)
+                                            addProperty("UN", workerUN)
+                                            addProperty("OV", workerOV)
+                                            addProperty("EM", workerEM)
+                                            addProperty("AB", workerAB)
+                                            addProperty("RA", workerRA)
+                                            addProperty("LO", workerLO)
+                                            addProperty("TI", workerTI)
+                                            addProperty("RI", workerRI)
+                                            addProperty("KP", workerKP)
                                             addProperty("PA", workerPA)
                                         }
 
@@ -1973,7 +2021,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         }
 
                                         val singleKemandoranNama =
-                                            singleKemandoranData?.firstOrNull()?.nama?.let { "• $it" }
+                                            singleKemandoranData?.firstOrNull()?.nama?.let { "$it" }
                                                 ?: "-"
 
                                         // Create the map for this worker
@@ -2177,7 +2225,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         val tphIds =
                                             (existingWorkerData["tph_ids"]?.toString() ?: "").split(
                                                 ","
-                                            ).filter { it.isNotEmpty() }.toMutableSet()
+                                            )
+                                                .filter { it.isNotEmpty() }.toMutableSet()
                                         tphIds.add(tphId)
                                         existingWorkerData["tph_ids"] = tphIds.joinToString(",")
                                         existingWorkerData["tph_count"] = tphIds.size.toString()
@@ -2193,7 +2242,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             // Blok already exists, find and update its count
                                             val lines = existingJjgEachBlok.split("\n")
                                             val updatedLines = lines.map { line ->
-                                                if (line.startsWith("$blokName (")) {
+                                                if (line.startsWith("$blokName(")) {
                                                     val regex = "$blokName\\(([0-9.]+)\\)".toRegex()
                                                     val matchResult = regex.find(line)
                                                     if (matchResult != null) {
@@ -2221,6 +2270,24 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             }
                                             existingWorkerData["jjg_each_blok"] =
                                                 updatedLines.joinToString("\n")
+
+                                            // Update the bullet point version after updating jjg_each_blok
+                                            val updatedBulletFormat = updatedLines.map { line ->
+                                                val regex = "([A-Z0-9]+)\\(([0-9.]+)\\)".toRegex()
+                                                val matchResult = regex.find(line)
+
+                                                if (matchResult != null) {
+                                                    val blokNameMatch = matchResult.groupValues[1]
+                                                    val count = matchResult.groupValues[2]
+                                                    "• $blokNameMatch ($count Jjg)"
+                                                } else {
+                                                    "• $line"
+                                                }
+                                            }.joinToString("\n")
+
+                                            existingWorkerData["jjg_each_blok_bullet"] =
+                                                updatedBulletFormat
+
                                         } else {
                                             // This is a new blok for this worker
                                             val formattedJjgTO =
@@ -2238,6 +2305,28 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                                 }
 
                                             existingWorkerData["jjg_each_blok"] = updatedJjgEachBlok
+
+                                            // Update the bullet point version after adding new blok
+                                            val updatedJjgEachBlokLines =
+                                                updatedJjgEachBlok.split("\n")
+                                            val updatedBulletFormat =
+                                                updatedJjgEachBlokLines.map { line ->
+                                                    val regex =
+                                                        "([A-Z0-9]+)\\(([0-9.]+)\\)".toRegex()
+                                                    val matchResult = regex.find(line)
+
+                                                    if (matchResult != null) {
+                                                        val blokNameMatch =
+                                                            matchResult.groupValues[1]
+                                                        val count = matchResult.groupValues[2]
+                                                        "• $blokNameMatch ($count Jjg)"
+                                                    } else {
+                                                        "• $line"
+                                                    }
+                                                }.joinToString("\n")
+
+                                            existingWorkerData["jjg_each_blok_bullet"] =
+                                                updatedBulletFormat
                                         }
                                     } else {
                                         val mutableWorkerData = workerData.toMutableMap()
@@ -2251,6 +2340,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             }
                                         mutableWorkerData["jjg_each_blok"] =
                                             "$blokName($formattedJjgTO)"
+
+                                        // Add the bullet point version for new workers
+                                        mutableWorkerData["jjg_each_blok_bullet"] =
+                                            "• $blokName   $formattedJjgTO Jjg"
 
                                         mutableWorkerData["jjg_total_blok"] =
                                             if (jjgTO == jjgTO.toInt().toDouble()) {
@@ -2973,6 +3066,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
+        val totalSection: LinearLayout = findViewById(R.id.total_section)
+        val totalJjgTextView: TextView = findViewById(R.id.totalJjg)
+        val totalTphTextView: TextView = findViewById(R.id.totalTPH)
+        val tvTotalTPH: TextView = findViewById(R.id.tvTotalTPH)
 
         val headers = if (featureName == "Buat eSPB") {
             listOf("BLOK", "NO TPH/JJG", "JAM", "KP")
@@ -2987,6 +3084,19 @@ class ListPanenTBSActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
         }
         listAdapter.setFeatureAndScanned(featureName, listTPHDriver)
+
+        if (featureName === AppUtils.ListFeatureNames.BuatESPB) {
+            listAdapter.setOnTotalsUpdateListener { tphCount, jjgCount ->
+                if (tphCount > 0) {
+                    totalSection.visibility = View.VISIBLE
+                    totalTphTextView.text = tphCount.toString()
+                    totalJjgTextView.text = jjgCount.toString()
+                    tvTotalTPH.text = "Jumlah Transaksi: "
+                } else {
+                    totalSection.visibility = View.GONE
+                }
+            }
+        }
     }
 
     private fun updateTableHeaders(headerNames: List<String>) {
