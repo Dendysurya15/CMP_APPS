@@ -1610,6 +1610,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     }
                                 }
 
+                                AppLogger.d(jsonData)
+
                                 val encodedData = withContext(Dispatchers.IO) {
                                     try {
                                         encodeJsonToBase64ZipQR(jsonData)
@@ -3024,14 +3026,16 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
         listAdapter.setFeatureAndScanned(featureName, listTPHDriver)
 
-        listAdapter.setOnTotalsUpdateListener { tphCount, jjgCount ->
-            if (tphCount > 0) {
-                totalSection.visibility = View.VISIBLE
-                totalTphTextView.text = tphCount.toString()
-                totalJjgTextView.text = jjgCount.toString()
-                tvTotalTPH.text = "Jumlah Transaksi: "
-            } else {
-                totalSection.visibility = View.GONE
+        if (featureName === AppUtils.ListFeatureNames.BuatESPB){
+            listAdapter.setOnTotalsUpdateListener { tphCount, jjgCount ->
+                if (tphCount > 0) {
+                    totalSection.visibility = View.VISIBLE
+                    totalTphTextView.text = tphCount.toString()
+                    totalJjgTextView.text = jjgCount.toString()
+                    tvTotalTPH.text = "Jumlah Transaksi: "
+                } else {
+                    totalSection.visibility = View.GONE
+                }
             }
         }
     }

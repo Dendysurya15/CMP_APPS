@@ -238,7 +238,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         var jjgCount = 0
         var tphCount = 0
 
-        // Track unique TPH IDs and their associated JJG counts
         val tphMap = mutableMapOf<String, Int>()
 
         // Process manually selected items
@@ -304,15 +303,12 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         onTotalsUpdateListener?.invoke(totalCheckedTPH, totalCheckedJjg)
     }
 
-    fun getTotalCheckedTPH(): Int = totalCheckedTPH
-    fun getTotalCheckedJjg(): Int = totalCheckedJjg
-
     class ListPanenTPHViewHolder(private val binding: TableItemRowBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(
             data: Map<String, Any>,
-            context: android.content.Context,
+            context: Context,
             isSelected: Boolean,
             archiveState: Int,
             onCheckedChange: (Boolean) -> Unit,
@@ -337,7 +333,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 itemView.isFocusable = true
 
                 itemView.setOnClickListener {
-                    AppLogger.d(data.toString())
                     val context = itemView.context
                     val bottomSheetDialog = BottomSheetDialog(context)
                     val view = LayoutInflater.from(context)
@@ -369,7 +364,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
                         "Detail Pemanen - $formattedDate"
 
-
                     val jjgJsonStr =
                         data["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
                     val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
@@ -392,18 +386,13 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         DetailInfoType.DATA_BLOK to  data["jjg_each_blok_bullet"].toString(),
                     )
 
-
-//                    // Set values for all items
                     infoItems.forEach { (type, value) ->
                         val itemView = view.findViewById<View>(type.id)
-                        // Only call setInfoItemValues if the itemView exists
                         if (itemView != null) {
-                             setInfoItemValues(itemView, type.label, value.toString())
+                             setInfoItemValues(itemView, type.label, value)
                         }
                     }
-
                     bottomSheetDialog.show()
-
 
                     bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
                         ?.let { bottomSheet ->
@@ -440,24 +429,19 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 binding.td2.text = extractedData.tphText
                 binding.td3.text = extractedData.gradingText
                 binding.td4.text = extractedData.tanggalText
-
-
                 val checkedColor = if (isScannedItem) {
                     ContextCompat.getColor(context, R.color.greenDarker)
                 } else {
                     Color.RED
                 }
 
-                // Create the ColorStateList with the appropriate checked color
                 val colorStateList = ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(checkedColor, Color.GRAY)
                 )
 
-                // Apply the tint
                 binding.checkBoxPanen.buttonTintList = colorStateList
 
-                // Add listener AFTER setting state
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
                     onCheckedChange(isChecked)
                 }
@@ -564,13 +548,15 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         val jjgJsonStr =
                             data["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
                         val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
-
+                        val blokBanjir = data["blok_banjir"] as? Int ?: 0
+                        val blokBanjirText = when (blokBanjir) {
+                            1 -> "Ya"
+                            0 -> "Tidak"
+                            else -> "Tidak diketahui"
+                        }
                         val infoItems = listOf(
                             DetailInfoType.TANGGAL_BUAT to formattedDate,
-                            DetailInfoType.BLOK_BANJIR to when(data["blok_banjir"]) {
-                                "1" -> "Tidak"
-                                else -> "Ya"
-                            },
+                            DetailInfoType.BLOK_BANJIR to blokBanjirText,
                             DetailInfoType.ESTATE_AFDELING to "${data["nama_estate"]} / ${data["nama_afdeling"]}",
                             DetailInfoType.BLOK_TAHUN to "${extractedData.blokText} / ${data["tahun_tanam"]}",
                             DetailInfoType.ANCAK to "${data["ancak"]}",
