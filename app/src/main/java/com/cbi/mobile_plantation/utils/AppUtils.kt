@@ -53,7 +53,7 @@ object AppUtils {
     const val LOG_LOC = "locationLog"
     const val ZIP_PASSWORD = "CBI@2025"
     const val REQUEST_CHECK_SETTINGS = 0x1
-const val MAX_SELECTIONS_PER_TPH = 2
+    const val MAX_SELECTIONS_PER_TPH = 3
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"
@@ -252,12 +252,14 @@ const val MAX_SELECTIONS_PER_TPH = 2
                                         AppLogger.d("Added PANEN ID: $id")
                                     }
                                 }
+
                                 "B", "ESPB" -> {
                                     if (!espbIds.contains(id)) {
                                         espbIds.add(id)
                                         AppLogger.d("Added ESPB ID: $id")
                                     }
                                 }
+
                                 else -> {
                                     AppLogger.d("Unknown folder: $folderName, checking content for type")
                                     // Try to determine type from JSON structure if folder name is unclear
@@ -739,7 +741,7 @@ const val MAX_SELECTIONS_PER_TPH = 2
         }
     }
 
-     fun formatSelectedDateForDisplay(backendDate: String): String {
+    fun formatSelectedDateForDisplay(backendDate: String): String {
         try {
             val backendFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))
             val displayFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))

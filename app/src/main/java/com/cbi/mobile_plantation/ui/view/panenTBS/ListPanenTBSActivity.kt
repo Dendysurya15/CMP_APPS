@@ -24,6 +24,7 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -306,6 +307,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
         if (featureName == AppUtils.ListFeatureNames.BuatESPB || featureName == AppUtils.ListFeatureNames.DetailESPB) {
             findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.GONE
             findViewById<LinearLayout>(R.id.filterDateContainer).visibility = View.GONE
+
+
         } else {
             findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.VISIBLE
             dateButton = findViewById(R.id.calendarPicker)
@@ -575,6 +578,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
 //                panenViewModel.loadActivePanenESPB()
                 panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
+                findViewById<HorizontalScrollView>(R.id.horizontalCardFeature).visibility = View.GONE
             } else if (featureName == "Rekap panen dan restan") {
 
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
@@ -3001,6 +3005,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
+        val totalSection: LinearLayout = findViewById(R.id.total_section)
+        val totalJjgTextView: TextView = findViewById(R.id.totalJjg)
+        val totalTphTextView: TextView = findViewById(R.id.totalTPH)
+        val tvTotalTPH: TextView = findViewById(R.id.tvTotalTPH)
 
         val headers = if (featureName == "Buat eSPB") {
             listOf("BLOK", "NO TPH/JJG", "JAM", "KP")
@@ -3015,6 +3023,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
         }
         listAdapter.setFeatureAndScanned(featureName, listTPHDriver)
+
+        listAdapter.setOnTotalsUpdateListener { tphCount, jjgCount ->
+            if (tphCount > 0) {
+                totalSection.visibility = View.VISIBLE
+                totalTphTextView.text = tphCount.toString()
+                totalJjgTextView.text = jjgCount.toString()
+                tvTotalTPH.text = "Jumlah Transaksi: "
+            } else {
+                totalSection.visibility = View.GONE
+            }
+        }
     }
 
     private fun updateTableHeaders(headerNames: List<String>) {

@@ -57,7 +57,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     private var tphList = mutableListOf<Map<String, Any>>()
     private var filteredList = mutableListOf<Map<String, Any>>()
     private var currentArchiveState: Int = 0
-    private var areCheckboxesEnabled = true
     private val selectedItems = mutableSetOf<Int>()
     private var isSortAscending: Boolean? = null
     private var selectAllState = false
@@ -224,6 +223,90 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         notifyDataSetChanged()
     }
 
+    private var totalCheckedTPH = 0
+    private var totalCheckedJjg = 0
+    private var onTotalsUpdateListener: ((tphCount: Int, jjgCount: Int) -> Unit)? = null
+
+    // Add this method to set the listener
+    fun setOnTotalsUpdateListener(listener: (tphCount: Int, jjgCount: Int) -> Unit) {
+        onTotalsUpdateListener = listener
+        // Initialize with current values
+        calculateTotals()
+    }
+
+    private fun calculateTotals() {
+        var jjgCount = 0
+        var tphCount = 0
+
+        // Track unique TPH IDs and their associated JJG counts
+        val tphMap = mutableMapOf<String, Int>()
+
+        // Process manually selected items
+        for (position in selectedItems) {
+            tphList.getOrNull(position)?.let { item ->
+                val tphId = item["tph_id"].toString()
+
+                // Extract jjg count from the item
+                val jjgJsonString = item["jjg_json"] as? String ?: "{}"
+                try {
+                    val jjgJson = JSONObject(jjgJsonString)
+                    // Use different fields based on feature name
+                    val jjgValue = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
+                        jjgJson.optInt("KP", 0)
+                    } else {
+                        jjgJson.optInt("TO", 0)
+                    }
+
+                    // Add to the map - if TPH ID already exists, sum the values
+                    tphMap[tphId] = (tphMap[tphId] ?: 0) + jjgValue
+                    jjgCount += jjgValue
+
+                    // Count each TPH even if it's a duplicate ID
+                    tphCount++
+                } catch (e: Exception) {
+                    Log.e("ListPanenTPHAdapter", "Error parsing jjg_json: ${e.message}")
+                }
+            }
+        }
+
+        // Process scanned items
+        for (item in tphList) {
+            val tphId = item["tph_id"].toString()
+            if (tphListScan.contains(tphId) && !selectedItems.contains(tphList.indexOf(item))) {
+                // Extract jjg count from the item
+                val jjgJsonString = item["jjg_json"] as? String ?: "{}"
+                try {
+                    val jjgJson = JSONObject(jjgJsonString)
+                    // Use different fields based on feature name
+                    val jjgValue = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
+                        jjgJson.optInt("KP", 0)
+                    } else {
+                        jjgJson.optInt("TO", 0)
+                    }
+
+                    // Add to the map
+                    tphMap[tphId] = (tphMap[tphId] ?: 0) + jjgValue
+                    jjgCount += jjgValue
+
+                    // Count each TPH even if it's a duplicate ID
+                    tphCount++
+                } catch (e: Exception) {
+                    Log.e("ListPanenTPHAdapter", "Error parsing jjg_json: ${e.message}")
+                }
+            }
+        }
+
+        // Store the raw count instead of unique IDs count
+        totalCheckedTPH = tphCount
+        totalCheckedJjg = jjgCount
+
+        // Notify listener
+        onTotalsUpdateListener?.invoke(totalCheckedTPH, totalCheckedJjg)
+    }
+
+    fun getTotalCheckedTPH(): Int = totalCheckedTPH
+    fun getTotalCheckedJjg(): Int = totalCheckedJjg
+
     class ListPanenTPHViewHolder(private val binding: TableItemRowBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
@@ -235,7 +318,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             onCheckedChange: (Boolean) -> Unit,
             extractData: (Map<String, Any>) -> ExtractedData,
             featureName: String = "",
-            tphListScan: List<String> = emptyList(),
             isScannedItem: Boolean = false
         ) {
 
@@ -600,16 +682,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     textView.text = ": $value"
                 }
             }
-
-//            if (label in listOf(
-//                    DetailInfoType.TOTAL_JANJANG.label,
-//                    DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK.label,
-//                    DetailInfoType.TOTAL_JANJANG_DI_BAYAR.label
-//                )
-//            ) {
-//                textViewLabel?.setTypeface(null, Typeface.BOLD)
-//                textViewValue?.setTypeface(null, Typeface.BOLD)
-//            }
         }
 
         private fun showFullscreenImage(context: Context, imageFile: File) {
@@ -729,18 +801,19 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         Handler(Looper.getMainLooper()).post {
             notifyDataSetChanged()
             onSelectionChangeListener?.invoke(selectedItems.size)
+            calculateTotals() // Add this line
         }
     }
 
     fun clearSelections() {
         selectedItems.clear()
         notifyDataSetChanged()
+        calculateTotals() // Add this line
     }
 
     @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: ListPanenTPHViewHolder, position: Int) {
         val item = filteredList[position]
-
 
         val tphId = extractData(item).tphId.toString()
         val isScannedItem = tphListScan.contains(tphId)
@@ -766,6 +839,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         selectAllState = false
                     }
                     onSelectionChangeListener?.invoke(selectedItems.size)
+
+                    // Recalculate totals when selection changes
+                    calculateTotals()
                 }
             },
             extractData = ::extractData,
@@ -859,6 +935,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
         notifyDataSetChanged()
         onSelectionChangeListener?.invoke(selectedItems.size)
+        calculateTotals() // Add this line
     }
 
     // Add this method to ListPanenTPHAdapter class
@@ -882,6 +959,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             if (selectionChanged) {
                 notifyDataSetChanged()
                 onSelectionChangeListener?.invoke(selectedItems.size)
+                calculateTotals() // Add this line
             }
         }
     }
