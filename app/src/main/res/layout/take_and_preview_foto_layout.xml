@@ -49,7 +49,7 @@
         android:gravity="top|start"
         android:background="@drawable/border_radius"
         android:padding="8dp"
-        android:textColorHint="@color/black"
+        android:textColorHint="@color/graytextdark"
         android:foreground="?attr/selectableItemBackground"
         android:textSize="15dp"
         app:layout_constraintTop_toBottomOf="@id/titleComment"

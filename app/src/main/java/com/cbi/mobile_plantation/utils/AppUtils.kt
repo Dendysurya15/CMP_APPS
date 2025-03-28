@@ -21,7 +21,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
+import com.google.gson.Gson
+import com.google.gson.JsonArray
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
 import net.lingala.zip4j.model.enums.CompressionMethod
@@ -75,7 +78,7 @@ const val MAX_SELECTIONS_PER_TPH = 2
         return "${getMonthFormat(month)} $day $year"
     }
 
-    private fun getMonthFormat(month: Int): String {
+    fun getMonthFormat(month: Int): String {
         return when (month) {
             1 -> "JAN"
             2 -> "FEB"
@@ -109,6 +112,7 @@ const val MAX_SELECTIONS_PER_TPH = 2
         const val KARYAWAN = "karyawan"
         const val TRANSPORTER = "transporter"
         const val KENDARAAN = "kendaraan"
+        const val BLOK = "blok"
         const val UPLOADCMP = "upload_cmp"
         const val FLAGESPB = "flag_espb"
     }
@@ -159,6 +163,7 @@ const val MAX_SELECTIONS_PER_TPH = 2
     object DatasetNames {
         const val mill = "mill"
         const val tph = "tph"
+        const val blok = "blok"
         const val pemanen = "pemanen"
         const val kemandoran = "kemandoran"
         const val transporter = "transporter"
@@ -193,6 +198,103 @@ const val MAX_SELECTIONS_PER_TPH = 2
         return uploadDir.listFiles { file ->
             file.isFile && file.name.matches(Regex("$idUser+_${todayDate}.*\\.zip"))
         }?.toList() ?: emptyList()
+    }
+
+    fun extractIdsFromZipFile(
+        context: Context,
+        fileName: String,
+        zipPassword: String
+    ): Pair<List<Int>, List<Int>> {
+        val panenIds = mutableListOf<Int>()
+        val espbIds = mutableListOf<Int>()
+
+        try {
+            val appFilesDir = File(context.getExternalFilesDir(null), "Upload")
+            val zipFile = File(appFilesDir, fileName)
+
+            if (!zipFile.exists()) {
+                AppLogger.e("ZIP file not found: $fileName")
+                return Pair(panenIds, espbIds)
+            }
+
+            AppLogger.d("Opening ZIP file: ${zipFile.absolutePath}")
+
+            // Open the ZIP file with password
+            val zip = ZipFile(zipFile)
+            zip.setPassword(zipPassword.toCharArray())
+
+            // Get all entries
+            val entries = zip.fileHeaders
+
+            // Look for data.json files in all folders
+            for (header in entries) {
+                val entryName = header.fileName
+
+                // Check if it's a data.json file
+                if (entryName.endsWith("data.json")) {
+                    AppLogger.d("Found data.json in: $entryName")
+
+                    // Extract the folder name to determine if it's PANEN or ESPB
+                    val folderName = entryName.split("/").firstOrNull()?.toUpperCase() ?: ""
+
+                    // Read the data.json content
+                    val inputStream = zip.getInputStream(header)
+                    val content = inputStream.bufferedReader().use { it.readText() }
+                    inputStream.close()
+
+                    // Parse the JSON
+                    try {
+                        val jsonArray = Gson().fromJson(content, JsonArray::class.java)
+
+                        // Extract IDs based on folder type
+                        for (i in 0 until jsonArray.size()) {
+                            val item = jsonArray.get(i).asJsonObject
+                            val id = item.get("id").asInt
+
+                            when (folderName) {
+                                "A", "PANEN" -> {
+                                    if (!panenIds.contains(id)) {
+                                        panenIds.add(id)
+                                        AppLogger.d("Added PANEN ID: $id")
+                                    }
+                                }
+                                "B", "ESPB" -> {
+                                    if (!espbIds.contains(id)) {
+                                        espbIds.add(id)
+                                        AppLogger.d("Added ESPB ID: $id")
+                                    }
+                                }
+                                else -> {
+                                    AppLogger.d("Unknown folder: $folderName, checking content for type")
+                                    // Try to determine type from JSON structure if folder name is unclear
+                                    if (item.has("tph") && item.has("karyawan_id")) {
+                                        if (!panenIds.contains(id)) {
+                                            panenIds.add(id)
+                                            AppLogger.d("Added to PANEN IDs based on structure: $id")
+                                        }
+                                    } else {
+                                        if (!espbIds.contains(id)) {
+                                            espbIds.add(id)
+                                            AppLogger.d("Added to ESPB IDs based on structure: $id")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error parsing JSON from $entryName: ${e.message}")
+                    }
+                }
+            }
+
+            AppLogger.d("Extracted PANEN IDs: ${panenIds.size}")
+            AppLogger.d("Extracted ESPB IDs: ${espbIds.size}")
+
+        } catch (e: Exception) {
+            AppLogger.e("Error processing ZIP file $fileName: ${e.message}")
+        }
+
+        return Pair(panenIds, espbIds)
     }
 
     fun createAndSaveZipUploadCMP(
@@ -247,6 +349,39 @@ const val MAX_SELECTIONS_PER_TPH = 2
             AppLogger.e(errorMessage)
             onResult(false, errorMessage, "") // Return empty path on failure
         }
+    }
+
+    fun extractIdsAsIntegers(inputString: String): List<Int> {
+        return inputString.split(";").map { entry ->
+            entry.split(",")[0].toInt()
+        }
+    }
+
+    fun extractIdsAndJjgAsMap(inputString: String): Map<Int, Int> {
+        return inputString.split(";").associate { entry ->
+            val parts = entry.split(",")
+            val id = parts[0].toInt()
+            val jjg = parts[2].toInt() // Index 2 is the jumlah jjg
+            id to jjg
+        }
+    }
+
+    // Format TPH data as requested
+    fun formatTPHDataList(tphString: String, tphDataList: List<TPHNewModel>?): String {
+        if (tphDataList.isNullOrEmpty()) return "-"
+
+        // Extract ID and jjg counts from the original string
+        val tphJjgMap = extractIdsAndJjgAsMap(tphString)
+
+        // Format each TPH entry
+        val formattedTPHList = tphDataList.mapNotNull { tph ->
+            val jjg = tphJjgMap[tph.id]
+            if (jjg != null) {
+                "• TPH nomor ${tph.nomor} (${tph.blok_kode}) $jjg jjg"
+            } else null
+        }
+
+        return formattedTPHList.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
     }
 
     class ProgressRequestBody(

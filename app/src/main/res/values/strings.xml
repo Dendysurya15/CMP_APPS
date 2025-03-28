@@ -31,6 +31,7 @@
     <string name="al_no_tph_selected_by_scanned">Nomor TPH belum dipilih!</string>
     <string name="al_no_tph_detected_trigger_submit">Tidak ada Nomor TPH yang terdeteksi. Pastikan anda berada dalam radius tersebut!</string>
     <string name="al_for_attempting_get_tph_in_radius">Harap menekan tombol refresh untuk mendapatkan TPH Terdekat</string>
+    <string name="al_must_fill_either_primary_or_secondary_group">Harap Mengisi salah satu dari kemandoran dan pemanen atau asistensi dengan pemanen!</string>
 
     <string name="al_failed_fetch_data_desc">Gagal Mengambil Data!</string>
     <string name="al_failed_fetch_data">Terjadi Kesalahan!</string>
@@ -103,6 +104,7 @@
     <string name="no_detect_tph">Tidak terdeteksi TPH dalam radius ini</string>
     <string name="fetching_dataset">Sedang mengambil dataset</string>
     <string name="ganti_akun">Ganti Akun?</string>
+    <string name="daftar_tph_sudah_terangkut">Informasi TPH Sudah Terangkut</string>
 
     <string-array name="tipe_panen_options">
         <item>Normal</item>

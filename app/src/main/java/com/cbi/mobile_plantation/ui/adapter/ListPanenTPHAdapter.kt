@@ -122,7 +122,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             JSONObject()
         }
 
-        val totalJjg = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan") {
+        val totalJjg = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
             jjgJson.optInt("KP", 0)
         } else {
             jjgJson.optInt("TO", 0) //diganti KP
@@ -130,7 +130,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
         val formattedTime = try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
-            val outputFormat = SimpleDateFormat("HH:mm", Locale("id", "ID")) // Indonesian format
+            val outputFormat = SimpleDateFormat("dd MMM yy\nHH:mm", Locale("id", "ID")) // Indonesian format
             val date = inputFormat.parse(dateCreated)
             outputFormat.format(date ?: "-")
         } catch (e: Exception) {
@@ -298,7 +298,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     onCheckedChange(isChecked)
                 }
 
-                if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 0) {
+                if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 0 || featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 1) {
                     AppLogger.d(archiveState.toString())
                     itemView.isClickable = true
                     itemView.isFocusable = true

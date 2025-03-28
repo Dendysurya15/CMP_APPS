@@ -23,7 +23,6 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="10dp"
         android:layout_marginTop="10dp"
-        android:paddingBottom="5dp"
         android:orientation="horizontal"
         android:visibility="visible"
         app:layout_constraintTop_toBottomOf="@id/navbarPanenList"
@@ -43,6 +42,8 @@
                 android:id="@+id/calendarPicker"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginVertical="5dp"
                 android:backgroundTint="@color/white"
                 android:textColor="@color/black"
                 android:drawableEnd="@drawable/baseline_keyboard_arrow_down_24"
@@ -76,6 +77,7 @@
         android:layout_width="match_parent"
         android:id="@+id/filterDateContainer"
         android:orientation="vertical"
+        android:layout_marginTop="10dp"
         android:visibility="gone"
         android:layout_height="wrap_content"
         app:layout_constraintTop_toBottomOf="@id/calendarContainer">
@@ -85,7 +87,7 @@
             android:layout_height="wrap_content"
             android:id="@+id/resultFilterDate"
             android:layout_marginHorizontal="10dp"
-            app:cardCornerRadius="25dp"
+            app:cardCornerRadius="8dp"
             app:cardBackgroundColor="@color/bgLightYellow"
             app:strokeWidth="1dp"
             app:strokeColor="@color/borderYellow"
@@ -264,7 +266,7 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="10dp"
         android:orientation="horizontal"
-        android:paddingBottom="10dp"
+
         android:visibility="gone"
         android:weightSum="2"
         app:layout_constraintTop_toBottomOf="@id/blok_section"
@@ -326,6 +328,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/parentCard"
+        android:layout_marginTop="10dp"
         app:layout_constraintTop_toBottomOf="@id/total_section"
         android:orientation="vertical">
 

@@ -19,6 +19,7 @@ import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.utils.AppUtils
 
@@ -64,6 +65,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
         InspectionModel::class,
         InspectionPathModel::class,
         KendaraanModel::class,
+        BlokModel::class,
     ],
     version = 24
 )
@@ -81,6 +83,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun inspectionDao(): InspectionDao
     abstract fun inspectionPathDao(): InspectionPathDao
     abstract fun kendaraanDao(): KendaraanDao
+    abstract fun blokDao(): BlokDao
 
     companion object {
         @Volatile

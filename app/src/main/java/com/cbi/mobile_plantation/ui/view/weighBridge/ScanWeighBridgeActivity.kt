@@ -19,6 +19,7 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.weighBridge.wbQRData
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 
 import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
@@ -56,7 +57,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     private var isScanning = true
 
     private lateinit var loadingDialog: LoadingDialog
-
+    private lateinit var datasetViewModel: DatasetViewModel
     var globalBlokJjg: String = ""
     var globalBlokPPROJjg: String = ""
     var globalBlokId: String = ""
@@ -74,6 +75,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     var globalCreatorInfo: String = ""
     var globalCreatedAt: String = ""
     var globalUpdateInfoSP: String = ""
+    var globalIpMill: String = ""
     var globalNoESPB: String = ""
     var globalDeptPPRO: Int = 0
     var globalDivisiPPRO: Int = 0
@@ -211,6 +213,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         //untuk data PPRO Staging
                                         val itemToUpload = mapOf(
                                             "num" to number++,
+                                            "ip" to globalIpMill,
                                             "id" to savedItemId,
                                             "endpoint" to "PPRO",
                                             "uploader_info" to globalCreatorInfo,
@@ -250,6 +253,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 0
                                             val espbData = mapOf(
                                                 "num" to number++,
+                                                "ip" to globalIpMill,
                                                 "id" to savedItemId,
                                                 "blok_id" to globalBlokId,
                                                 "blok_jjg" to globalBlokJjg,
@@ -292,7 +296,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             ) { success, fileName, fullPath ->
                                                 if (success) {
                                                     zipFilePath = fullPath
-
+                                                    AppLogger.d("sukses membuat zip $fileName")
                                                     zipDeferred.complete(Pair(true, fullPath))
                                                 } else {
                                                     loadingDialog.addStatusMessage(
@@ -319,6 +323,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 // Create the CMP upload item with the ZIP file path
                                                 cmpItem = mapOf(
                                                     "num" to number++,
+                                                    "ip" to globalIpMill,
                                                     "id" to savedItemId,
                                                     "endpoint" to "CMP",
                                                     "uploader_info" to globalCreatorInfo,
@@ -336,6 +341,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                                                 cmpItem = mapOf(
                                                     "num" to number++,
+                                                    "ip" to globalIpMill,
                                                     "id" to savedItemId,
                                                     "endpoint" to "CMP",
                                                     "uploader_info" to globalCreatorInfo,
@@ -349,8 +355,11 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                                             }
 
-                                            val itemsToUpload = listOf(itemToUpload, cmpItem)
+//                                            val itemsToUpload = listOf(itemToUpload, cmpItem)
+                                            val itemsToUpload = listOf(itemToUpload,cmpItem)
                                             val globalIdEspb = listOf(savedItemId)
+
+
 
 
                                             loadingDialog.setMessage(
@@ -566,6 +575,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         millAbbr: String,
         transporterName: String,
         createAtFormatted: String,
+        tph1: String,
         hasError: Boolean = false,
         errorMessage: String? = null
     ) {
@@ -581,12 +591,17 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
             if (hasError) {
                 titleDialogDetailTable!!.text = "Terjadi Kesalahan Scan QR!"
-                titleDialogDetailTable!!.setTextColor(ContextCompat.getColor(this, R.color.colorRedDark))
+                titleDialogDetailTable!!.setTextColor(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.colorRedDark
+                    )
+                )
                 errorCard!!.visibility = View.VISIBLE
                 dataContainer!!.visibility = View.GONE
                 errorText!!.text = errorMessage
                 btnProcess!!.visibility = View.GONE
-                val maxHeight = (resources.displayMetrics.heightPixels * 0.25).toInt()
+                val maxHeight = (resources.displayMetrics.heightPixels * 0.4).toInt()
 
                 bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
                     ?.let { bottomSheet ->
@@ -602,7 +617,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         bottomSheet.layoutParams?.height = maxHeight
                     }
             } else {
-                val maxHeight = (resources.displayMetrics.heightPixels * 0.6).toInt()
+                val maxHeight = (resources.displayMetrics.heightPixels * 0.7).toInt()
                 titleDialogDetailTable!!.text = "Konfirmasi Data e-SPB"
                 titleDialogDetailTable!!.setTextColor(ContextCompat.getColor(this, R.color.black))
                 bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
@@ -633,6 +648,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     InfoType.PEMUAT to pemuat,
                     InfoType.DRIVER to (parsedData?.espb?.driver ?: "-"),
                     InfoType.MILL to millAbbr,
+                    InfoType.TPH to tph1,
                     InfoType.TRANSPORTER to transporterName
                 )
 
@@ -653,6 +669,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
         view.findViewById<TextView>(R.id.tvValue)?.text = when (view.id) {
             R.id.infoBlok -> value
+            R.id.infoTPH -> value
             else -> ": $value"
         }
     }
@@ -692,6 +709,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         PEMUAT(R.id.infoPemuat, "Pemuat"),
         DRIVER(R.id.infoNoDriver, "Driver"),
         MILL(R.id.infoMill, "Mill"),
+        TPH(R.id.infoTPH, "List TPH"),
         TRANSPORTER(R.id.infoTransporter, "Transporter")
     }
 
@@ -734,16 +752,15 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val pemuatNama = pemuatData?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
                         ?.joinToString(", ") ?: "-"
 
-
                     val blokData = try {
                         AppLogger.d(idBlokList.toString())
-                        weightBridgeViewModel.getBlokById(idBlokList)
+                        weightBridgeViewModel.getDataByIdInBlok(idBlokList)
                     } catch (e: Exception) {
                         AppLogger.e("Error fetching Blok Data: ${e.message}")
                         null
                     } ?: emptyList()
 
-                    val blokIdToPproMap = blokData.associate { it.blok to it.blok_ppro }
+                    val blokIdToPproMap = blokData.associate { it.id to it.nama }
 
                     val BlokPPROJjg = blokJjgList.mapNotNull { (id, jjg) ->
                         blokIdToPproMap[id]?.let { "$it,$jjg" }
@@ -756,13 +773,14 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalDivisiPPRO = blokData.firstOrNull()?.divisi_ppro!!
 
                     val formattedBlokList = blokJjgList.mapNotNull { (idBlok, totalJjg) ->
-                        val blokKode = blokData.find { it.blok == idBlok }?.blok_kode
+                        val blokKode = blokData.find { it.id == idBlok }?.nama
                         if (blokKode != null && totalJjg != null) {
                             "• $blokKode ($totalJjg jjg)"
                         } else null
                     }.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
 
                     val millId = parsedData?.espb?.millId ?: 0
+
                     val transporterId = parsedData?.espb?.transporter ?: 0
                     val createdAt = parsedData?.espb?.createdAt ?: "-"
                     val createAtFormatted = formatToIndonesianDate(createdAt)
@@ -778,6 +796,38 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                     val millData = millDataDeferred.await() ?: emptyList()
                     val millAbbr = millData.firstOrNull()?.let { "${it.abbr} (${it.nama})" } ?: "-"
+                    val millIP = millData.firstOrNull()?.let { "${it.ip_address}" } ?: "-"
+
+                    val tph1String = parsedData?.tph1
+                    val tphData = withContext(Dispatchers.IO) {
+                        try {
+
+                            if (tph1String.isNullOrEmpty()) {
+                                AppLogger.d("TPH string is empty or null")
+                                return@withContext null
+                            }
+
+                            val idList = AppUtils.extractIdsAsIntegers(tph1String)
+
+                            // Check if we have any valid IDs
+                            if (idList.isEmpty()) {
+                                AppLogger.d("No valid TPH IDs found")
+                                return@withContext null
+                            }
+
+                            datasetViewModel.getTPHsByIds(idList)
+                        } catch (e: Exception) {
+                            AppLogger.e("Error fetching TPH Data: ${e.message}")
+                            null
+                        }
+                    }
+
+                    val formattedTPHList = if (!tphData.isNullOrEmpty()) {
+                        AppUtils.formatTPHDataList(tph1String!!, tphData)
+                    } else {
+                        AppLogger.d("No TPH data available to format")
+                        "-"
+                    }
 
                     val transporterDeferred = async {
                         try {
@@ -810,6 +860,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalCreatorInfo = parsedData?.espb?.creatorInfo?.toString() ?: "-"
                     globalNoESPB = parsedData?.espb?.noEspb ?: "-"
                     globalUpdateInfoSP = parsedData?.espb?.update_info_sp ?: "-"
+                    globalIpMill = millIP
 
                     withContext(Dispatchers.Main) {
                         showBottomSheetWithData(
@@ -822,13 +873,16 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                             millAbbr = millAbbr,
                             transporterName = transporterName,
                             createAtFormatted = createAtFormatted,
+                            tph1 = formattedTPHList,
                             hasError = false
                         )
                     }
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error Processing QR Result: ${e.message}")
+                AppLogger.e("Stack trace: ${e.stackTraceToString()}") // Log full stack trace
                 withContext(Dispatchers.Main) {
+                    val errorDetails = "Error: ${e.javaClass.simpleName} - ${e.message}"
                     showBottomSheetWithData(
                         parsedData = null,
                         distinctDeptAbbr = "-",
@@ -839,8 +893,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         millAbbr = "-",
                         transporterName = "-",
                         createAtFormatted = "-",
+                        tph1 = "-",
                         hasError = true,
-                        errorMessage = e.message ?: "Unknown error occurred"
+                        errorMessage = errorDetails
                     )
                 }
             } finally {
@@ -855,6 +910,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     private fun initViewModel() {
         val factory = WeighBridgeViewModel.WeightBridgeViewModelFactory(application)
         weightBridgeViewModel = ViewModelProvider(this, factory)[WeighBridgeViewModel::class.java]
+        val factory2 = DatasetViewModel.DatasetViewModelFactory(application)
+        datasetViewModel = ViewModelProvider(this, factory2)[DatasetViewModel::class.java]
     }
 
 

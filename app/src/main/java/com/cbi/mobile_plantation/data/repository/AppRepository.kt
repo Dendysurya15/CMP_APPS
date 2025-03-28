@@ -319,19 +319,24 @@ class AppRepository(context: Context) {
 
     private fun transformTphDataToMap(inputData: String): Map<Int, Int> {
         val records = inputData.split(";")
+        val result = mutableMapOf<Int, Int>()
 
-        return records.mapNotNull {
-            val parts = it.split(",")
+        records.forEach { record ->
+            val parts = record.split(",")
             if (parts.size >= 3) {
                 try {
-                    parts[0].toInt() to parts[2].toInt()
+                    val tphId = parts[0].toInt()
+                    val janjangCount = parts[2].toInt()
+
+                    // If the TPH ID already exists, add to its janjang count
+                    result[tphId] = result.getOrDefault(tphId, 0) + janjangCount
                 } catch (e: NumberFormatException) {
-                    null
+                    // Ignore parsing errors
                 }
-            } else {
-                null
             }
-        }.toMap()
+        }
+
+        return result
     }
 
     suspend fun getJanjangSumByBlock(tphData: String): Map<Int, Int> = withContext(Dispatchers.IO) {

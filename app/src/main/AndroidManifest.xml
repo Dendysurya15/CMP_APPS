@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.cbi.mobile_plantation">
+    package="com.cbi.mobile_plantation"
+    xmlns:tools="http://schemas.android.com/tools">
+
 
     <uses-feature
         android:name="android.hardware.camera"
@@ -43,12 +44,9 @@
         android:theme="@style/Theme.Cmp_project"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
-        <activity
-            android:name=".ui.view.Inspection.ListInspectionActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ui.view.espb.DetailESPBActivity"
-            android:exported="false" />
+<!--        <activity-->
+<!--            android:name=".ui.view.espb.DetailESPBActivity"-->
+<!--            android:exported="false" />-->
         <activity
             android:name=".ui.view.Inspection.FormInspectionActivity"
             android:exported="false" />
