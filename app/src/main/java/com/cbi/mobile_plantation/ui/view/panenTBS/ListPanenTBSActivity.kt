@@ -360,7 +360,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
 //                    loadingDialog.setMessage("Sedang mengambil data...", true)
 
 
-
                     val displayDate = formatGlobalDate(globalFormattedDate)
                     dateButton.text = displayDate
 
@@ -1860,8 +1859,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         loadingDialog.show()
         loadingDialog.setMessage("Loading data...")
 
-
-
         panenViewModel.panenCountActive.observe(this) { count ->
             counterTersimpan.text = count.toString()
         }
@@ -1941,11 +1938,29 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         // Divide the jjg counts equally among workers as a decimal value
                                         // Use toDouble() to ensure decimal division
                                         val workerTO = totalTO.toDouble() / workerCount
+                                        val workerUN = totalUN.toDouble() / workerCount
+                                        val workerOV = totalOV.toDouble() / workerCount
+                                        val workerEM = totalEM.toDouble() / workerCount
+                                        val workerAB = totalAB.toDouble() / workerCount
+                                        val workerRA = totalRA.toDouble() / workerCount
+                                        val workerLO = totalLO.toDouble() / workerCount
+                                        val workerTI = totalTI.toDouble() / workerCount
+                                        val workerRI = totalRI.toDouble() / workerCount
+                                        val workerKP = totalKP.toDouble() / workerCount
                                         val workerPA = totalPA.toDouble() / workerCount
 
                                         // Create worker-specific jjg_json
                                         val workerJjgJson = JsonObject().apply {
                                             addProperty("TO", workerTO)
+                                            addProperty("UN", workerUN)
+                                            addProperty("OV", workerOV)
+                                            addProperty("EM", workerEM)
+                                            addProperty("AB", workerAB)
+                                            addProperty("RA", workerRA)
+                                            addProperty("LO", workerLO)
+                                            addProperty("TI", workerTI)
+                                            addProperty("RI", workerRI)
+                                            addProperty("KP", workerKP)
                                             addProperty("PA", workerPA)
                                         }
 
@@ -1973,7 +1988,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         }
 
                                         val singleKemandoranNama =
-                                            singleKemandoranData?.firstOrNull()?.nama?.let { "• $it" }
+                                            singleKemandoranData?.firstOrNull()?.nama?.let { "$it" }
                                                 ?: "-"
 
                                         // Create the map for this worker
@@ -2115,8 +2130,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }.flatten() // Flatten the list of lists into a single list
 
                             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2) {
-                                val globalMergedWorkerMap =
-                                    mutableMapOf<String, MutableMap<String, Any>>()
+                                val globalMergedWorkerMap = mutableMapOf<String, MutableMap<String, Any>>()
 
                                 for (workerData in allWorkerData) {
                                     val workerName = workerData["nama_karyawans"].toString()
@@ -2132,8 +2146,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         AppLogger.d("Found duplicate worker globally: $workerName")
                                         val existingWorkerData = globalMergedWorkerMap[workerName]!!
 
-                                        val existingJjgJson =
-                                            JSONObject(existingWorkerData["jjg_json"].toString())
+                                        val existingJjgJson = JSONObject(existingWorkerData["jjg_json"].toString())
 
                                         val existingTO = existingJjgJson.optDouble("TO", 0.0)
                                         val existingPA = existingJjgJson.optDouble("PA", 0.0)
@@ -2146,13 +2159,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         existingWorkerData["jjg_json"] = existingJjgJson.toString()
 
                                         // Update the jjg_dibayar field - just add the PA value
-                                        val existingJjgDibayar =
-                                            existingWorkerData["jjg_dibayar"]?.toString()
-                                                ?.toDoubleOrNull() ?: existingPA
+                                        val existingJjgDibayar = existingWorkerData["jjg_dibayar"]?.toString()
+                                            ?.toDoubleOrNull() ?: existingPA
                                         existingWorkerData["jjg_dibayar"] =
-                                            if ((existingJjgDibayar + jjgPA) == (existingJjgDibayar + jjgPA).toInt()
-                                                    .toDouble()
-                                            ) {
+                                            if ((existingJjgDibayar + jjgPA) == (existingJjgDibayar + jjgPA).toInt().toDouble()) {
                                                 (existingJjgDibayar + jjgPA).toInt().toString()
                                             } else {
                                                 String.format("%.1f", existingJjgDibayar + jjgPA)
@@ -2167,49 +2177,38 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             }
 
                                         // Update occurrence counter
-                                        val existingOccurrences =
-                                            (existingWorkerData["occurrence_count"]?.toString()
-                                                ?.toIntOrNull() ?: 1) + 1
-                                        existingWorkerData["occurrence_count"] =
-                                            existingOccurrences.toString()
+                                        val existingOccurrences = (existingWorkerData["occurrence_count"]?.toString()
+                                            ?.toIntOrNull() ?: 1) + 1
+                                        existingWorkerData["occurrence_count"] = existingOccurrences.toString()
 
                                         // Update TPH ID tracking
-                                        val tphIds =
-                                            (existingWorkerData["tph_ids"]?.toString() ?: "").split(
-                                                ","
-                                            ).filter { it.isNotEmpty() }.toMutableSet()
+                                        val tphIds = (existingWorkerData["tph_ids"]?.toString() ?: "").split(",")
+                                            .filter { it.isNotEmpty() }.toMutableSet()
                                         tphIds.add(tphId)
                                         existingWorkerData["tph_ids"] = tphIds.joinToString(",")
                                         existingWorkerData["tph_count"] = tphIds.size.toString()
 
                                         // Update the jjg_each_blok field
-                                        val existingJjgEachBlok =
-                                            existingWorkerData["jjg_each_blok"]?.toString() ?: ""
+                                        val existingJjgEachBlok = existingWorkerData["jjg_each_blok"]?.toString() ?: ""
 
                                         // Check if this blok already exists in our tracking (accounting for newlines)
-                                        if (existingJjgEachBlok.split("\n")
-                                                .any { it.startsWith("$blokName(") }
-                                        ) {
+                                        if (existingJjgEachBlok.split("\n").any { it.startsWith("$blokName(") }) {
                                             // Blok already exists, find and update its count
                                             val lines = existingJjgEachBlok.split("\n")
                                             val updatedLines = lines.map { line ->
-                                                if (line.startsWith("$blokName (")) {
+                                                if (line.startsWith("$blokName(")) {
                                                     val regex = "$blokName\\(([0-9.]+)\\)".toRegex()
                                                     val matchResult = regex.find(line)
                                                     if (matchResult != null) {
-                                                        val currentCount =
-                                                            matchResult.groupValues[1].toDouble()
+                                                        val currentCount = matchResult.groupValues[1].toDouble()
                                                         val newCount = currentCount + jjgTO
 
                                                         // Format based on whether it's a whole number
-                                                        val formattedCount =
-                                                            if (newCount == newCount.toInt()
-                                                                    .toDouble()
-                                                            ) {
-                                                                newCount.toInt().toString()
-                                                            } else {
-                                                                String.format("%.1f", newCount)
-                                                            }
+                                                        val formattedCount = if (newCount == newCount.toInt().toDouble()) {
+                                                            newCount.toInt().toString()
+                                                        } else {
+                                                            String.format("%.1f", newCount)
+                                                        }
 
                                                         "$blokName($formattedCount)"
                                                     } else {
@@ -2219,52 +2218,82 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                                     line
                                                 }
                                             }
-                                            existingWorkerData["jjg_each_blok"] =
-                                                updatedLines.joinToString("\n")
+                                            existingWorkerData["jjg_each_blok"] = updatedLines.joinToString("\n")
+
+                                            // Update the bullet point version after updating jjg_each_blok
+                                            val updatedBulletFormat = updatedLines.map { line ->
+                                                val regex = "([A-Z0-9]+)\\(([0-9.]+)\\)".toRegex()
+                                                val matchResult = regex.find(line)
+
+                                                if (matchResult != null) {
+                                                    val blokNameMatch = matchResult.groupValues[1]
+                                                    val count = matchResult.groupValues[2]
+                                                    "• $blokNameMatch ($count Jjg)"
+                                                } else {
+                                                    "• $line"
+                                                }
+                                            }.joinToString("\n")
+
+                                            existingWorkerData["jjg_each_blok_bullet"] = updatedBulletFormat
+
                                         } else {
                                             // This is a new blok for this worker
-                                            val formattedJjgTO =
-                                                if (jjgTO == jjgTO.toInt().toDouble()) {
-                                                    jjgTO.toInt().toString()
-                                                } else {
-                                                    String.format("%.1f", jjgTO)
-                                                }
+                                            val formattedJjgTO = if (jjgTO == jjgTO.toInt().toDouble()) {
+                                                jjgTO.toInt().toString()
+                                            } else {
+                                                String.format("%.1f", jjgTO)
+                                            }
 
-                                            val updatedJjgEachBlok =
-                                                if (existingJjgEachBlok.isEmpty()) {
-                                                    "$blokName($formattedJjgTO)"
-                                                } else {
-                                                    "$existingJjgEachBlok\n$blokName($formattedJjgTO)"
-                                                }
+                                            val updatedJjgEachBlok = if (existingJjgEachBlok.isEmpty()) {
+                                                "$blokName($formattedJjgTO)"
+                                            } else {
+                                                "$existingJjgEachBlok\n$blokName($formattedJjgTO)"
+                                            }
 
                                             existingWorkerData["jjg_each_blok"] = updatedJjgEachBlok
+
+                                            // Update the bullet point version after adding new blok
+                                            val updatedJjgEachBlokLines = updatedJjgEachBlok.split("\n")
+                                            val updatedBulletFormat = updatedJjgEachBlokLines.map { line ->
+                                                val regex = "([A-Z0-9]+)\\(([0-9.]+)\\)".toRegex()
+                                                val matchResult = regex.find(line)
+
+                                                if (matchResult != null) {
+                                                    val blokNameMatch = matchResult.groupValues[1]
+                                                    val count = matchResult.groupValues[2]
+                                                    "• $blokNameMatch ($count Jjg)"
+                                                } else {
+                                                    "• $line"
+                                                }
+                                            }.joinToString("\n")
+
+                                            existingWorkerData["jjg_each_blok_bullet"] = updatedBulletFormat
                                         }
                                     } else {
                                         val mutableWorkerData = workerData.toMutableMap()
 
                                         // Format JJG values based on whether they're whole numbers
-                                        val formattedJjgTO =
-                                            if (jjgTO == jjgTO.toInt().toDouble()) {
-                                                jjgTO.toInt().toString()
-                                            } else {
-                                                String.format("%.1f", jjgTO)
-                                            }
-                                        mutableWorkerData["jjg_each_blok"] =
-                                            "$blokName($formattedJjgTO)"
+                                        val formattedJjgTO = if (jjgTO == jjgTO.toInt().toDouble()) {
+                                            jjgTO.toInt().toString()
+                                        } else {
+                                            String.format("%.1f", jjgTO)
+                                        }
+                                        mutableWorkerData["jjg_each_blok"] = "$blokName($formattedJjgTO)"
 
-                                        mutableWorkerData["jjg_total_blok"] =
-                                            if (jjgTO == jjgTO.toInt().toDouble()) {
-                                                jjgTO.toInt().toString()
-                                            } else {
-                                                String.format("%.1f", jjgTO)
-                                            }
+                                        // Add the bullet point version for new workers
+                                        mutableWorkerData["jjg_each_blok_bullet"] = "• $blokName   $formattedJjgTO Jjg"
 
-                                        mutableWorkerData["jjg_dibayar"] =
-                                            if (jjgPA == jjgPA.toInt().toDouble()) {
-                                                jjgPA.toInt().toString()
-                                            } else {
-                                                String.format("%.1f", jjgPA)
-                                            }
+                                        mutableWorkerData["jjg_total_blok"] = if (jjgTO == jjgTO.toInt().toDouble()) {
+                                            jjgTO.toInt().toString()
+                                        } else {
+                                            String.format("%.1f", jjgTO)
+                                        }
+
+                                        mutableWorkerData["jjg_dibayar"] = if (jjgPA == jjgPA.toInt().toDouble()) {
+                                            jjgPA.toInt().toString()
+                                        } else {
+                                            String.format("%.1f", jjgPA)
+                                        }
 
                                         // Initialize occurrence counter
                                         mutableWorkerData["occurrence_count"] = "1"
@@ -2277,10 +2306,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     }
                                 }
 
-                                val finalMergedData =
-                                    globalMergedWorkerMap.values.toList().sortedBy {
-                                        it["nama_karyawans"].toString()
-                                    }
+                                val finalMergedData = globalMergedWorkerMap.values.toList().sortedBy {
+                                    it["nama_karyawans"].toString()
+                                }
 
                                 AppLogger.d("Final merged data: $finalMergedData")
                                 mappedData = finalMergedData
