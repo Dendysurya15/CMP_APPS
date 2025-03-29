@@ -542,8 +542,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
             }
         }
 
-
-
         setupHeader()
         initViewModel()
         initializeViews()
@@ -582,11 +580,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
         lifecycleScope.launch {
             if (featureName == "Buat eSPB") {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
-
+                val isStopScan = intent.getBooleanExtra("IS_STOP_SCAN_ESPB", false)
+                if (!isStopScan) {
+                    playSound(R.raw.berhasil_scan)
+                }
                 panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
                 findViewById<HorizontalScrollView>(R.id.horizontalCardFeature).visibility =
                     View.GONE
-            } else if (featureName == "Rekap panen dan restan") {
+            }else if (featureName == "Rekap panen dan restan") {
 
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
                 findViewById<TextView>(R.id.list_item_tersimpan).text = "Rekap TPH"
@@ -657,6 +658,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             "ListPanenTBSActivity",
                                             "tph_1_id_panen: $idsToUpdate"
                                         )
+                                        playSound(R.raw.berhasil_edit_data)
                                         intent.putExtra("FEATURE_NAME", featureName)
                                         Log.d("ListPanenTBSActivity", "FEATURE_NAME: $featureName")
                                         startActivity(intent)
@@ -1551,6 +1553,7 @@ private fun getAllDataFromList(playSound : Boolean =true) {
 
                                                         else -> {
                                                             AppLogger.d("All items archived successfully")
+                                                            playSound(R.raw.berhasil_konfirmasi)
                                                             Toast.makeText(
                                                                 this@ListPanenTBSActivity,
                                                                 "Semua data berhasil diarsipkan",
@@ -1596,22 +1599,15 @@ private fun getAllDataFromList(playSound : Boolean =true) {
                             }
                         }
 
-                        // Generate QR code in the background
                         lifecycleScope.launch {
                             try {
-                                // Delay for loading effect
                                 delay(1000)
 
-                                // Generate the JSON data and encode it in a background thread
-                                // In the background processing part of setupButtonGenerateQR()
-
-                                AppLogger.d(mappedData.toString())
                                 val jsonData = withContext(Dispatchers.IO) {
                                     try {
                                         if (featureName == "Detail eSPB") {
 
                                             val gson = Gson()
-                                            // Create the nested ESPB object
                                             val espbObject = JsonObject().apply {
                                                 addProperty("blok_jjg", blok_jjg)
                                                 addProperty("nopol", nopol)
@@ -1627,7 +1623,6 @@ private fun getAllDataFromList(playSound : Boolean =true) {
                                                 addProperty("created_at", dateTime)
                                             }
 
-                                            // Create the root object
                                             val rootObject = JsonObject().apply {
                                                 add("espb", espbObject)
                                                 addProperty("tph_0", tph0)
@@ -1659,10 +1654,7 @@ private fun getAllDataFromList(playSound : Boolean =true) {
                                 // Switch to the main thread for UI updates
                                 withContext(Dispatchers.Main) {
                                     try {
-                                        // Generate and display the QR code
                                         generateHighQualityQRCode(encodedData, qrCodeImageView)
-
-                                        // Create animations for transitions
                                         val fadeOut =
                                             ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
                                                 .apply {
@@ -2807,6 +2799,7 @@ playSound(R.raw.berhasil_generate_qr)
                 panenViewModel.deleteItemsResult.observe(this) { isSuccess ->
                     loadingDialog.dismiss()
                     if (isSuccess) {
+                        playSound(R.raw.data_terhapus)
                         Toast.makeText(
                             this,
                             "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
@@ -2814,7 +2807,9 @@ playSound(R.raw.berhasil_generate_qr)
                         ).show()
                         // Reload data based on current state
                         if (currentState == 0) {
-                            panenViewModel.loadActivePanen()
+                            panenViewModel.loadTPHNonESPB(0, 0, 0, globalFormattedDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 0, globalFormattedDate)
+                            panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
                         } else {
                             panenViewModel.loadArchivedPanen()
                         }
@@ -3068,19 +3063,13 @@ playSound(R.raw.berhasil_generate_qr)
             layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
         }
 
-        if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
             val tphListScan = processScannedResult(listTPHDriver)
 
-            AppLogger.d(tphListScan.toString())
             if (tphListScan.isEmpty()) {
-                // Show error to user
                 Toast.makeText(this, "Failed to process TPH QR", Toast.LENGTH_SHORT).show()
             } else {
-                // Pass both parameters to adapter
-                playSound(R.raw.berhasil_scan)
                 listAdapter.setFeatureAndScanned(featureName, tphListScan)
             }
-        }
 
         if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
             listAdapter.setOnTotalsUpdateListener { tphCount, jjgCount, blocks ->

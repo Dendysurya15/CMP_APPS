@@ -116,6 +116,7 @@ class ScanQR : AppCompatActivity() {
             findViewById<View>(R.id.stop_scan).setOnClickListener {
                 intent = Intent(this, ListPanenTBSActivity::class.java).apply {
                     putExtra("FEATURE_NAME", menuString)
+                    putExtra("IS_STOP_SCAN_ESPB", true)
                 }
                 startActivity(intent)
                 finish()

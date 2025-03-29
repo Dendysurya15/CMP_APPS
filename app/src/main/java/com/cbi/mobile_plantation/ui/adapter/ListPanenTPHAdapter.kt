@@ -83,6 +83,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         featureName = feature
         tphListScan = tphList
 
+
         preSelectTphIds()
         notifyDataSetChanged()
     }
