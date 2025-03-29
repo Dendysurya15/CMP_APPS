@@ -1798,6 +1798,7 @@ class HomePageActivity : AppCompatActivity() {
                     prefManager!!.lastModifiedDatasetKemandoran = null
                     prefManager!!.lastModifiedDatasetPemanen = null
                     prefManager!!.lastModifiedDatasetTransporter = null
+                    prefManager!!.lastModifiedDatasetBlok = null
                     prefManager!!.clearDatasetMustUpdate()
 
                     datasetViewModel.clearAllData()

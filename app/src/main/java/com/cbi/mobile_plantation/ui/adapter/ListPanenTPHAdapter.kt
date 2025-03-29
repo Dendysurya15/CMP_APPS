@@ -79,28 +79,13 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         val username: String
     )
 
-    // Then modify setFeatureAndScanned to call this method:
-    fun setFeatureAndScanned(feature: String, scannedResult: String) {
+    fun setFeatureAndScanned(feature: String, tphList: List<String>) {
         featureName = feature
-        Log.d("ListPanenTPHAdapterTest", "featureName: $featureName")
+        tphListScan = tphList
 
-        tphListScan = try {
-            val tphString = scannedResult
-                .removePrefix("""{"tph":"""")
-                .removeSuffix(""""}""")
-            tphString.split(";")
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
-        Log.d("ListPanenTPHAdapterTest", "tphListScan: $tphListScan")
-
-        // Pre-select TPH IDs that match scanned list
         preSelectTphIds()
-
         notifyDataSetChanged()
     }
-
 
     fun extractData(item: Map<String, Any>): ExtractedData {
         Log.d("ListPanenTPHAdapterTest", "extractData: $item")
@@ -225,10 +210,14 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
     private var totalCheckedTPH = 0
     private var totalCheckedJjg = 0
-    private var onTotalsUpdateListener: ((tphCount: Int, jjgCount: Int) -> Unit)? = null
+    // Add a new field to track block names
+    private val checkedBlocks = mutableSetOf<String>()
 
-    // Add this method to set the listener
-    fun setOnTotalsUpdateListener(listener: (tphCount: Int, jjgCount: Int) -> Unit) {
+    // Modify the listener to include blocks
+    private var onTotalsUpdateListener: ((tphCount: Int, jjgCount: Int, blocks: List<String>) -> Unit)? = null
+
+    // Update the method signature
+    fun setOnTotalsUpdateListener(listener: (tphCount: Int, jjgCount: Int, blocks: List<String>) -> Unit) {
         onTotalsUpdateListener = listener
         // Initialize with current values
         calculateTotals()
@@ -237,6 +226,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     private fun calculateTotals() {
         var jjgCount = 0
         var tphCount = 0
+        checkedBlocks.clear() // Clear previous blocks
 
         val tphMap = mutableMapOf<String, Int>()
 
@@ -244,8 +234,12 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         for (position in selectedItems) {
             tphList.getOrNull(position)?.let { item ->
                 val tphId = item["tph_id"].toString()
+                val extractedData = extractData(item)
 
-                // Extract jjg count from the item
+                // Add block name to the set
+                checkedBlocks.add(extractedData.blokText)
+
+                // Rest of your existing code
                 val jjgJsonString = item["jjg_json"] as? String ?: "{}"
                 try {
                     val jjgJson = JSONObject(jjgJsonString)
@@ -272,6 +266,11 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         for (item in tphList) {
             val tphId = item["tph_id"].toString()
             if (tphListScan.contains(tphId) && !selectedItems.contains(tphList.indexOf(item))) {
+                val extractedData = extractData(item)
+
+                // Add block name to the set
+                checkedBlocks.add(extractedData.blokText)
+
                 // Extract jjg count from the item
                 val jjgJsonString = item["jjg_json"] as? String ?: "{}"
                 try {
@@ -299,8 +298,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         totalCheckedTPH = tphCount
         totalCheckedJjg = jjgCount
 
-        // Notify listener
-        onTotalsUpdateListener?.invoke(totalCheckedTPH, totalCheckedJjg)
+        // Notify listener with the blocks list
+        onTotalsUpdateListener?.invoke(totalCheckedTPH, totalCheckedJjg, checkedBlocks.toList())
     }
 
     class ListPanenTPHViewHolder(private val binding: TableItemRowBinding) :

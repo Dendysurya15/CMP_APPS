@@ -59,6 +59,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.SoundPlayer
+import com.cbi.mobile_plantation.utils.playSound
 import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -498,6 +499,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         if (listTPHDriver.isNotEmpty()) {
+
+//playSound(R.raw.berhasil_scan)
             // Extract TPH IDs from the current scan
             val currentScanTphIds = try {
                 val tphString = listTPHDriver
@@ -539,6 +542,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
             }
         }
 
+
+
         setupHeader()
         initViewModel()
         initializeViews()
@@ -577,7 +582,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         lifecycleScope.launch {
             if (featureName == "Buat eSPB") {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
-//                panenViewModel.loadActivePanenESPB()
+
                 panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
                 findViewById<HorizontalScrollView>(R.id.horizontalCardFeature).visibility =
                     View.GONE
@@ -806,7 +811,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             rootLayout.addView(btnAddMoreTph, params)
 
             btnAddMoreTph.setOnClickListener {
-                getAllDataFromList()
+                getAllDataFromList(false)
                 val intent = Intent(this, ScanQR::class.java)
                 intent.putExtra("tph_1", tph1)
                 intent.putExtra("tph_0", tph0)
@@ -1200,7 +1205,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         return if (isEmpty()) "" else joinToString(";")
     }
 
-    private fun getAllDataFromList() {
+private fun getAllDataFromList(playSound : Boolean =true) {
         //get manually selected items
         val selectedItems = listAdapter.getSelectedItems()
         Log.d("ListPanenTBSActivityESPB", "selectedItems: $selectedItems")
@@ -1222,6 +1227,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val pattern = Regex("\\{id=(\\d+),")
             val matches = pattern.findAll(selectedItems2.toString())
             matches.map { it.groupValues[1] }.joinToString(", ")
+
         } catch (e: Exception) {
             Toasty.error(this, "Error parsing panen IDs: ${e.message}", Toast.LENGTH_LONG).show()
             ""
@@ -1233,6 +1239,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
         } else {
             "$tph1IdPanen, $newTph1IdPanen"
         }
+
+    if (playSound) {
+        playSound(R.raw.berhasil_scan)
+    }
 
         val allItems = listAdapter.getCurrentData()
         Log.d("ListPanenTBSActivityESPB", "listTPHDriver: $listTPHDriver")
@@ -1283,6 +1293,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
         Log.d("ListPanenTBSActivityESPB", "Final tph0: $tph0")
         Log.d("ListPanenTBSActivityESPB", "Final tph1: $tph1")
         Log.d("ListPanenTBSActivityESPB", "Final tph1IdPanen: $tph1IdPanen")
+
+
     }
 
     private fun setupButtonGenerateQR() {
@@ -1290,7 +1302,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         if (featureName == "Buat eSPB") {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
             btnGenerateQRTPH.setOnClickListener {
-                getAllDataFromList()
+                getAllDataFromList(false    )
                 AlertDialogUtility.withTwoActions(
                     this,
                     "LANJUT",
@@ -1757,7 +1769,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                                     lifecycleScope.launch {
                                                         delay(200)
-
+playSound(R.raw.berhasil_generate_qr)
                                                     }
 
 
@@ -2057,37 +2069,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         multiWorkerData.add(workerData)
                                     }
 
-//                                    val mergedWorkerMap = mutableMapOf<String, MutableMap<String, Any>>()
-//
-//                                    for (workerData in multiWorkerData) {
-//                                        val workerName = workerData["nama_karyawans"].toString()
-//
-//                                        if (mergedWorkerMap.containsKey(workerName)) {
-//                                            // If we already have an entry for this worker, update JJG counts
-//                                            val existingWorkerData = mergedWorkerMap[workerName]!!
-//
-//                                            // Parse existing JJG JSON
-//                                            val existingJjgJson = JSONObject(existingWorkerData["jjg_json"].toString())
-//
-//                                            // Parse new JJG JSON
-//                                            val newJjgJson = JSONObject(workerData["jjg_json"].toString())
-//
-//                                            // Add the TO values
-//                                            val existingTO = existingJjgJson.optInt("TO", 0)
-//                                            val newTO = newJjgJson.optInt("TO", 0)
-//                                            existingJjgJson.put("TO", existingTO + newTO)
-//
-//                                            // Update the JJG JSON in the existing worker data
-//                                            existingWorkerData["jjg_json"] = existingJjgJson.toString()
-//                                        } else {
-//                                            // If this is the first time seeing this worker, add a new entry
-//                                            mergedWorkerMap[workerName] = workerData.toMutableMap()
-//                                        }
-//                                    }
-//
-//                                    val mergedWorkerData = mergedWorkerMap.values.toList()
-//
-//                                    AppLogger.d("Merged Worker Data: $multiWorkerData")
                                     allWorkerData.addAll(multiWorkerData)
 
                                     emptyList<Map<String, Any>>()
@@ -2708,6 +2689,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
+        SoundPlayer.releaseMediaPlayer()
         // Ensure handler callbacks are removed
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
@@ -3062,14 +3044,16 @@ class ListPanenTBSActivity : AppCompatActivity() {
             userSection = userSection,
             featureName = featureName,
             tvFeatureName = tvFeatureName
-        )
+    )
     }
 
     private fun setupRecyclerView() {
         val totalSection: LinearLayout = findViewById(R.id.total_section)
+        val blokSection: LinearLayout = findViewById(R.id.blok_section)
         val totalJjgTextView: TextView = findViewById(R.id.totalJjg)
         val totalTphTextView: TextView = findViewById(R.id.totalTPH)
         val tvTotalTPH: TextView = findViewById(R.id.tvTotalTPH)
+        val listBlokTextView: TextView = findViewById(R.id.listBlok) // Add this line
 
         val headers = if (featureName == "Buat eSPB") {
             listOf("BLOK", "NO TPH/JJG", "JAM", "KP")
@@ -3083,17 +3067,40 @@ class ListPanenTBSActivity : AppCompatActivity() {
             adapter = listAdapter
             layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
         }
-        listAdapter.setFeatureAndScanned(featureName, listTPHDriver)
 
-        if (featureName === AppUtils.ListFeatureNames.BuatESPB) {
-            listAdapter.setOnTotalsUpdateListener { tphCount, jjgCount ->
+        if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
+            val tphListScan = processScannedResult(listTPHDriver)
+
+            AppLogger.d(tphListScan.toString())
+            if (tphListScan.isEmpty()) {
+                // Show error to user
+                Toast.makeText(this, "Failed to process TPH QR", Toast.LENGTH_SHORT).show()
+            } else {
+                // Pass both parameters to adapter
+                playSound(R.raw.berhasil_scan)
+                listAdapter.setFeatureAndScanned(featureName, tphListScan)
+            }
+        }
+
+        if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
+            listAdapter.setOnTotalsUpdateListener { tphCount, jjgCount, blocks ->
                 if (tphCount > 0) {
                     totalSection.visibility = View.VISIBLE
+                    blokSection.visibility = View.VISIBLE
                     totalTphTextView.text = tphCount.toString()
                     totalJjgTextView.text = jjgCount.toString()
                     tvTotalTPH.text = "Jumlah Transaksi: "
+
+
+                        val sortedBlocks = blocks.sorted()
+                        val blocksText = sortedBlocks.joinToString(", ")
+                        listBlokTextView.text = blocksText
+                        listBlokTextView.visibility = View.VISIBLE
+
                 } else {
                     totalSection.visibility = View.GONE
+                    blokSection.visibility = View.GONE
+                    listBlokTextView.visibility = View.GONE
                 }
             }
         }
@@ -3123,6 +3130,37 @@ class ListPanenTBSActivity : AppCompatActivity() {
             for (i in headerNames.size until headerIds.size) {
                 tableHeader.findViewById<TextView>(headerIds[i]).visibility = View.GONE
             }
+        }
+    }
+
+    fun processScannedResult(scannedResult: String): List<String> {
+        // First check if it's already a list of IDs
+        if (scannedResult.startsWith("[") && !scannedResult.contains("tph_0")) {
+            return try {
+                // This handles the case: [172355, 172357, 102354, ...]
+                val listString = scannedResult.trim('[', ']')
+                listString.split(", ").map { it.trim() }
+            } catch (e: Exception) {
+                Log.e("ListPanenTBSActivity", "Error parsing list format: ${e.message}")
+                e.printStackTrace()
+                emptyList()
+            }
+        }
+
+        if (scannedResult.contains("tph_0")) {
+            Log.e("ListPanenTBSActivity", "Invalid data format containing tph_0")
+            return emptyList() // Return null to indicate invalid format
+        }
+        // Default case - try the original parsing method
+        return try {
+            val tphString = scannedResult
+                .removePrefix("""{"tph":"""")
+                .removeSuffix(""""}""")
+            tphString.split(";")
+        } catch (e: Exception) {
+            Log.e("ListPanenTBSActivity", "Error with default parsing: ${e.message}")
+            e.printStackTrace()
+            emptyList()
         }
     }
 

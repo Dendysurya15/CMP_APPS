@@ -102,6 +102,7 @@ import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 import com.cbi.mobile_plantation.utils.SoundPlayer
+import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import es.dmoral.toasty.Toasty
@@ -249,7 +250,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
     private val karyawanLainIdMap: MutableMap<String, Int> = mutableMapOf()
     private val kemandoranLainIdMap: MutableMap<String, Int> = mutableMapOf()
-    private lateinit var soundPlayer: SoundPlayer
+
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
     private val dateTimeCheckRunnable = object : Runnable {
         override fun run() {
@@ -292,9 +293,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     @SuppressLint("ClickableViewAccessibility")
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
-        soundPlayer = SoundPlayer(this)
         prefManager = PrefManager(this)
-
         radiusMinimum = prefManager!!.radiusMinimum
 //        radiusMinimum = 100F
         boundaryAccuracy = prefManager!!.boundaryAccuracy
@@ -491,7 +490,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                 when (result) {
                                     is AppRepository.SaveResultPanen.Success -> {
-                                        soundPlayer.playSound(R.raw.berhasil_simpan)
+                                        playSound(R.raw.berhasil_simpan)
                                         AlertDialogUtility.withSingleAction(
                                             this@FeaturePanenTBSActivity,
                                             stringXML(R.string.al_back),
@@ -3269,7 +3268,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         locationViewModel.stopLocationUpdates()
 
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
-        soundPlayer.releaseMediaPlayer()
+        SoundPlayer.releaseMediaPlayer()
     }
 
     override fun onPhotoTaken(
