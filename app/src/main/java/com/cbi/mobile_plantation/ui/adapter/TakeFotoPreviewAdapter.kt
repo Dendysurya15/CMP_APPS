@@ -33,6 +33,7 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.snackbar.Snackbar
+import es.dmoral.toasty.Toasty
 import java.io.File
 
 class TakeFotoPreviewAdapter(
@@ -142,6 +143,12 @@ class TakeFotoPreviewAdapter(
         hideKeyboardFromView()
 
         val uniqueKodeFoto = "${position + 1}"
+
+        if (currentLatitude == null || currentLongitude == null) {
+            Toasty.error(context, "Pastikan GPS mendapatkan titik Koordinat!", Toast.LENGTH_SHORT, true)
+                .show()
+            return
+        }
 
         if (listFileFoto.containsKey(position.toString())) {
             val existingFile = listFileFoto[position.toString()]!!
