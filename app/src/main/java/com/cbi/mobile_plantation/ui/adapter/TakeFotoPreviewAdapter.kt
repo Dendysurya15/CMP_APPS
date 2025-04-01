@@ -49,6 +49,7 @@ class TakeFotoPreviewAdapter(
     private val activeItems = mutableListOf<Boolean>()
     private var currentLatitude: Double? = null
     private var currentLongitude: Double? = null
+    private var maxVisibleSlots = 1  // Track how many slots have been visible
 
     var onPhotoDeleted: ((String, Int) -> Unit)? = null
 
@@ -122,10 +123,10 @@ class TakeFotoPreviewAdapter(
             "Harap Mengisi Komentar Foto Sebelumnya Terlebih Dahulu!",
             Toast.LENGTH_SHORT
         ).show()
-
     }
 
     fun getActiveItemCount(): Int = activeItems.size
+
     private fun hideKeyboardFromView() {
         // Get context from the adapter
         val activity = context as? Activity ?: return
@@ -139,16 +140,19 @@ class TakeFotoPreviewAdapter(
     }
 
     private fun handleCameraAction(position: Int, holder: FotoViewHolder) {
-
         hideKeyboardFromView()
 
-        val uniqueKodeFoto = "${position + 1}"
-
+        // Check for location availability
         if (currentLatitude == null || currentLongitude == null) {
-            Toasty.error(context, "Pastikan GPS mendapatkan titik Koordinat!", Toast.LENGTH_SHORT, true)
-                .show()
+            Toast.makeText(
+                context,
+                "Pastikan GPS mendapatkan titik Koordinat!",
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
+
+        val uniqueKodeFoto = "${position + 1}"
 
         if (listFileFoto.containsKey(position.toString())) {
             val existingFile = listFileFoto[position.toString()]!!
@@ -184,18 +188,9 @@ class TakeFotoPreviewAdapter(
                         onPhotoDeleted?.invoke(fileName, position.toInt())
                     }
 
-                    // Check if we should remove this section
-                    val shouldRemoveSection =
-                        position == activeItems.size - 1 && // Is this the last section?
-                                !hasPhotosAfterPosition(position) // No photos in later positions
-
-                    if (shouldRemoveSection && activeItems.size > 1) { // Keep at least one section
-                        activeItems.removeAt(position)
-                        comments.removeAt(position)
-                        notifyItemRemoved(position)
-                    } else {
-                        notifyItemChanged(position)
-                    }
+                    // Since we've reached the max visible count, just update the item's view
+                    // Don't remove any slots once we've shown the maximum
+                    notifyItemChanged(position)
                 }
             )
         } else {
@@ -231,7 +226,6 @@ class TakeFotoPreviewAdapter(
                 context,
                 android.Manifest.permission.CAMERA
             ) == PackageManager.PERMISSION_GRANTED -> {
-
                 handleCameraAction(position, holder)
             }
 
@@ -293,7 +287,6 @@ class TakeFotoPreviewAdapter(
             .show()
     }
 
-
     private fun showPermissionRationale() {
         if (context is Activity) {
             Snackbar.make(
@@ -315,6 +308,11 @@ class TakeFotoPreviewAdapter(
             activeItems.add(true)
             comments.add("")
             notifyItemInserted(activeItems.size - 1)
+
+            // Update our tracking of how many slots have been visible
+            if (activeItems.size > maxVisibleSlots) {
+                maxVisibleSlots = activeItems.size
+            }
         }
     }
 
@@ -328,14 +326,11 @@ class TakeFotoPreviewAdapter(
         listFileFoto[id] = file
 
         // Only add new position if we didn't have a photo at this position before
+        // and we haven't reached the maximum count yet
         if (!hadExistingPhoto && activeItems.size < maxCount) {
             Log.d("TakeFotoAdapter", "Adding new position. Current size: ${activeItems.size}")
-            activeItems.add(true)
-            comments.add("")
+            addNewItem()
             Log.d("TakeFotoAdapter", "New size: ${activeItems.size}")
-
-            // Notify about the new item
-            notifyItemInserted(activeItems.size - 1)
         }
 
         // Update the UI
@@ -353,6 +348,24 @@ class TakeFotoPreviewAdapter(
         // Notify the activity about the deletion if we have a filename
         if (fileName != null) {
             onPhotoDeleted?.invoke(fileName, id.toInt())
+        }
+
+        // If we've already shown the max slots, don't remove any
+        if (maxVisibleSlots >= maxCount) {
+            notifyItemChanged(id.toInt())
+        } else {
+            // Otherwise, check if we should remove this section
+            val position = id.toInt()
+            val shouldRemoveSection =
+                position == activeItems.size - 1 && !hasPhotosAfterPosition(position)
+
+            if (shouldRemoveSection && activeItems.size > 1) {
+                activeItems.removeAt(position)
+                comments.removeAt(position)
+                notifyItemRemoved(position)
+            } else {
+                notifyItemChanged(position)
+            }
         }
     }
 
@@ -412,14 +425,27 @@ class TakeFotoPreviewAdapter(
     }
 
     fun resetAllSections() {
+        // Track the current state before reset
+        val previousMaxVisible = maxVisibleSlots
+
         // Clear all stored data
         listFileFoto.clear()
         comments.clear()
         activeItems.clear()
 
-        // Reset to initial state (one empty section)
-        activeItems.add(true)
-        comments.add("")
+        // If we once had all slots visible, keep them all visible
+        if (previousMaxVisible >= maxCount) {
+            for (i in 0 until maxCount) {
+                activeItems.add(true)
+                comments.add("")
+            }
+            maxVisibleSlots = maxCount
+        } else {
+            // Otherwise reset to initial state (one empty section)
+            activeItems.add(true)
+            comments.add("")
+            maxVisibleSlots = 1
+        }
 
         // Notify adapter to refresh
         notifyDataSetChanged()
@@ -442,12 +468,8 @@ class TakeFotoPreviewAdapter(
         // Add new position if we can
         if (activeItems.size < maxCount) {
             Log.d("TakeFotoAdapter", "Adding new position. Current size: ${activeItems.size}")
-            activeItems.add(true)
-            comments.add("")
+            addNewItem()
             Log.d("TakeFotoAdapter", "New size: ${activeItems.size}")
-
-            // Notify about the new item
-            notifyItemInserted(activeItems.size - 1)
         }
 
         // Update the UI
@@ -459,4 +481,3 @@ class TakeFotoPreviewAdapter(
         const val CAMERA_PERMISSION_REQUEST_CODE = 100
     }
 }
-
