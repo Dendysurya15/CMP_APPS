@@ -2316,7 +2316,7 @@ playSound(R.raw.berhasil_generate_qr)
 
                                         // Add the bullet point version for new workers
                                         mutableWorkerData["jjg_each_blok_bullet"] =
-                                            "• $blokName   $formattedJjgTO Jjg"
+                                            "• $blokName ($formattedJjgTO Jjg)"
 
                                         mutableWorkerData["jjg_total_blok"] =
                                             if (jjgTO == jjgTO.toInt().toDouble()) {
@@ -2354,14 +2354,34 @@ playSound(R.raw.berhasil_generate_qr)
                                 mappedData = allWorkerData
                                 AppLogger.d("Using standard data (no global merging): $mappedData")
                             }
-
-
+                            AppLogger.d("mapped data $mappedData")
                             val distinctBlokNames = mappedData
                                 .map { it["blok_name"].toString() }
                                 .distinct()
                                 .filter { it != "-" }
                                 .sorted()
                                 .joinToString(", ")
+
+                            val blokDisplay = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen || featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                                mappedData
+                                    .filter { it["blok_name"].toString() != "-" }
+                                    .groupBy { it["blok_name"].toString() }
+                                    .mapValues { (_, items) ->
+                                        val count = items.size
+                                        val toSum = items.sumOf { item ->
+                                            extractTOValue(item["jjg_json"].toString())
+                                        }
+                                        "${toSum.toInt()}/$count"  // Convert double sum to integer for display
+                                    }
+                                    .toSortedMap() // Sort by blok_name
+                                    .map { (blokName, summary) -> "$blokName ($summary)" }
+                                    .joinToString(", ")
+                            } else {
+                                distinctBlokNames
+                            }
+
+
+                            AppLogger.d(blokDisplay)
 
                             var totalJjgCount = 0
                             mappedData.forEach { data ->
@@ -2388,7 +2408,7 @@ playSound(R.raw.berhasil_generate_qr)
                             }
 
                             blok = distinctBlokNames.ifEmpty { "-" }
-                            listBlok.text = blok
+                            listBlok.text = blokDisplay
                             jjg = totalJjgCount
                             totalJjg.text = jjg.toString()
                             tph = tphCount
@@ -2527,12 +2547,33 @@ playSound(R.raw.berhasil_generate_qr)
                                 )
                             }
 
-                            val distinctBlokNames = mappedData
-                                .map { it["blok_name"]?.toString() ?: "-" }
+                            AppLogger.d("mapped data $mappedData")
+
+                            val distinctBlokNames    = mappedData
+                                .map { it["blok_name"].toString() }
                                 .distinct()
                                 .filter { it != "-" }
                                 .sorted()
                                 .joinToString(", ")
+
+                            val blokDisplay = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen || featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                                // Show detailed block summary with TO counts and occurrences
+                                mappedData
+                                    .filter { it["blok_name"].toString() != "-" }
+                                    .groupBy { it["blok_name"].toString() }
+                                    .mapValues { (_, items) ->
+                                        val count = items.size
+                                        val toSum = items.sumOf { item ->
+                                            extractTOValue(item["jjg_json"].toString())
+                                        }
+                                        "${toSum.toInt()}/$count"  // Convert double sum to integer for display
+                                    }
+                                    .toSortedMap() // Sort by blok_name
+                                    .map { (blokName, summary) -> "$blokName ($summary)" }
+                                    .joinToString(", ")
+                            } else {
+                                distinctBlokNames
+                            }
 
                             // Calculate total JJG by parsing JSON and summing TO values
                             var totalJjgCount = 0
@@ -2560,7 +2601,7 @@ playSound(R.raw.berhasil_generate_qr)
                                 totalSection.visibility = View.VISIBLE
                             }
 
-                            listBlok.text = distinctBlokNames.ifEmpty { "-" }
+                            listBlok.text = blokDisplay
                             totalJjg.text = totalJjgCount.toString()
                             totalTPH.text = tphCount.toString()
 
@@ -2594,6 +2635,16 @@ playSound(R.raw.berhasil_generate_qr)
     private fun initViewModel() {
         val factory = PanenViewModel.PanenViewModelFactory(application)
         panenViewModel = ViewModelProvider(this, factory)[PanenViewModel::class.java]
+    }
+
+    fun extractTOValue(jjgJson: String): Double {
+        return try {
+            val startIndex = jjgJson.indexOf("\"TO\":") + 5
+            val endIndex = jjgJson.indexOf(",", startIndex)
+            jjgJson.substring(startIndex, endIndex).toDouble()
+        } catch (e: Exception) {
+            0.0 // Return 0.0 if parsing fails
+        }
     }
 
     private fun setupSearch() {
@@ -3072,20 +3123,18 @@ playSound(R.raw.berhasil_generate_qr)
             }
 
         if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
-            listAdapter.setOnTotalsUpdateListener { tphCount, jjgCount, blocks ->
+            listAdapter.setOnTotalsUpdateListener { tphCount, jjgCount, formattedBlocks ->
                 if (tphCount > 0) {
                     totalSection.visibility = View.VISIBLE
                     blokSection.visibility = View.VISIBLE
                     totalTphTextView.text = tphCount.toString()
                     totalJjgTextView.text = jjgCount.toString()
-                    tvTotalTPH.text = "Jumlah Transaksi: "
+                    tvTotalTPH.text = "Jmlh Transaksi: "
 
-
-                        val sortedBlocks = blocks.sorted()
-                        val blocksText = sortedBlocks.joinToString(", ")
-                        listBlokTextView.text = blocksText
-                        listBlokTextView.visibility = View.VISIBLE
-
+                    // No need to format again, just join the already formatted blocks
+                    val blocksText = formattedBlocks.joinToString(", ")
+                    listBlokTextView.text = blocksText
+                    listBlokTextView.visibility = View.VISIBLE
                 } else {
                     totalSection.visibility = View.GONE
                     blokSection.visibility = View.GONE

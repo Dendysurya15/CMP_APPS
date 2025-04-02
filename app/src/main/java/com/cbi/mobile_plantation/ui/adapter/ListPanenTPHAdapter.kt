@@ -52,7 +52,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         TIME,
         CHECKED
     }
-
+    private val checkedBlocksDetails = mutableMapOf<String, Pair<Int, Int>>() // Map of blokName to (totalJJG, count)
     private var currentSortField: SortField = SortField.TPH
     private var tphList = mutableListOf<Map<String, Any>>()
     private var filteredList = mutableListOf<Map<String, Any>>()
@@ -215,19 +215,22 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     private val checkedBlocks = mutableSetOf<String>()
 
     // Modify the listener to include blocks
-    private var onTotalsUpdateListener: ((tphCount: Int, jjgCount: Int, blocks: List<String>) -> Unit)? = null
+    private var onTotalsUpdateListener: ((tphCount: Int, jjgCount: Int, formattedBlocks: List<String>) -> Unit)? = null
 
     // Update the method signature
-    fun setOnTotalsUpdateListener(listener: (tphCount: Int, jjgCount: Int, blocks: List<String>) -> Unit) {
+    fun setOnTotalsUpdateListener(listener: (tphCount: Int, jjgCount: Int, formattedBlocks: List<String>) -> Unit) {
         onTotalsUpdateListener = listener
         // Initialize with current values
         calculateTotals()
     }
 
+
+
     private fun calculateTotals() {
         var jjgCount = 0
         var tphCount = 0
         checkedBlocks.clear() // Clear previous blocks
+        checkedBlocksDetails.clear() // Clear previous block details
 
         val tphMap = mutableMapOf<String, Int>()
 
@@ -237,10 +240,13 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 val tphId = item["tph_id"].toString()
                 val extractedData = extractData(item)
 
-                // Add block name to the set
-                checkedBlocks.add(extractedData.blokText)
+                // Get block name directly from item data
+                val blokName = item["blok_name"].toString()
 
-                // Rest of your existing code
+                // Add block name to the set
+                checkedBlocks.add(blokName)
+
+                // Extract jjg count from the item
                 val jjgJsonString = item["jjg_json"] as? String ?: "{}"
                 try {
                     val jjgJson = JSONObject(jjgJsonString)
@@ -250,6 +256,13 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     } else {
                         jjgJson.optInt("TO", 0)
                     }
+
+                    // Update block details - add jjgValue to total and increment count
+                    val currentDetails = checkedBlocksDetails[blokName] ?: Pair(0, 0)
+                    checkedBlocksDetails[blokName] = Pair(
+                        currentDetails.first + jjgValue,  // Sum of jjg values
+                        currentDetails.second + 1         // Count of occurrences
+                    )
 
                     // Add to the map - if TPH ID already exists, sum the values
                     tphMap[tphId] = (tphMap[tphId] ?: 0) + jjgValue
@@ -267,10 +280,10 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         for (item in tphList) {
             val tphId = item["tph_id"].toString()
             if (tphListScan.contains(tphId) && !selectedItems.contains(tphList.indexOf(item))) {
-                val extractedData = extractData(item)
+                val blokName = item["blok_name"].toString()
 
                 // Add block name to the set
-                checkedBlocks.add(extractedData.blokText)
+                checkedBlocks.add(blokName)
 
                 // Extract jjg count from the item
                 val jjgJsonString = item["jjg_json"] as? String ?: "{}"
@@ -282,6 +295,13 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     } else {
                         jjgJson.optInt("TO", 0)
                     }
+
+                    // Update block details - add jjgValue to total and increment count
+                    val currentDetails = checkedBlocksDetails[blokName] ?: Pair(0, 0)
+                    checkedBlocksDetails[blokName] = Pair(
+                        currentDetails.first + jjgValue,  // Sum of jjg values
+                        currentDetails.second + 1         // Count of occurrences
+                    )
 
                     // Add to the map
                     tphMap[tphId] = (tphMap[tphId] ?: 0) + jjgValue
@@ -299,8 +319,14 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         totalCheckedTPH = tphCount
         totalCheckedJjg = jjgCount
 
-        // Notify listener with the blocks list
-        onTotalsUpdateListener?.invoke(totalCheckedTPH, totalCheckedJjg, checkedBlocks.toList())
+        // Create formatted block list with counts and jjg totals
+        val formattedBlocks = checkedBlocksDetails.map { (blokName, details) ->
+            val (jjgTotal, count) = details
+            "$blokName ($jjgTotal/$count)"
+        }.sorted()
+
+        // Notify listener with the formatted blocks list
+        onTotalsUpdateListener?.invoke(totalCheckedTPH, totalCheckedJjg, formattedBlocks)
     }
 
     class ListPanenTPHViewHolder(private val binding: TableItemRowBinding) :

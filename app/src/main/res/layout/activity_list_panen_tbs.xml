@@ -16,612 +16,627 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-
-    <LinearLayout
-        android:id="@+id/calendarContainer"
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="10dp"
-        android:layout_marginTop="10dp"
-        android:orientation="horizontal"
-        android:visibility="visible"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        android:scrollbars="none"
         app:layout_constraintTop_toBottomOf="@id/navbarPanenList"
-        tools:ignore="MissingConstraints">
+        app:layout_constraintBottom_toBottomOf="parent">
 
-        <!-- Material Card with Button -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            app:cardCornerRadius="8dp"
-            app:cardBackgroundColor="@color/white"
-            app:rippleColor="@color/ripple_material_light"
-            android:clickable="true"
-            android:focusable="true">
-
-            <Button
-                android:id="@+id/calendarPicker"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="10dp"
-                android:layout_marginVertical="5dp"
-                android:backgroundTint="@color/white"
-                android:textColor="@color/black"
-                android:drawableEnd="@drawable/baseline_keyboard_arrow_down_24"
-                android:onClick="openDatePicker"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                tools:ignore="MissingConstraints" />
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- CheckBox with Caption -->
-        <CheckBox
-            android:id="@+id/calendarCheckbox"
-            android:layout_width="wrap_content"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_marginTop="10dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            style="@style/defaultBoxColor"
-            />
-
-        <TextView
-            android:id="@+id/calendarCheckboxCaption"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:text="Filter Semua Tanggal"
-            android:textColor="@color/black"
-            android:textSize="@dimen/s"
-            android:fontFamily="@font/manrope_semibold"
-            android:gravity="center_vertical"/>
-    </LinearLayout>
+            >
 
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:id="@+id/filterDateContainer"
-        android:orientation="vertical"
-        android:layout_marginTop="10dp"
-        android:visibility="gone"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/calendarContainer">
 
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/resultFilterDate"
-            android:layout_marginHorizontal="10dp"
-            app:cardCornerRadius="8dp"
-            app:cardBackgroundColor="@color/bgLightYellow"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/borderYellow"
-            tools:ignore="MissingConstraints">
-
-            <LinearLayout
+        <LinearLayout
+                android:id="@+id/calendarContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="10dp"
                 android:orientation="horizontal"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="8dp">
+                android:visibility="visible"
 
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_gravity="center_vertical">
+                tools:ignore="MissingConstraints">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="5dp"
-                        android:text="Filter aktif: "
-                        android:textColor="@color/black"
-                        android:fontFamily="@font/manrope_bold"
-                        android:layout_gravity="top"
-                        android:textSize="16sp" />
-
-                    <TextView
-                        android:id="@+id/name_filter_date"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
-                        android:textStyle="italic"
-                        android:text="23 Mar 2025 "
-                        android:textColor="@color/black"
-                        android:fontFamily="@font/manrope_semibold"
-                        android:layout_gravity="top"
-                        android:maxLines="2"
-                        android:textSize="16sp" />
-                </LinearLayout>
-
-                <ImageView
-                    android:id="@+id/remove_filter_date"
+                <!-- Material Card with Button -->
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:tint="@color/colorRedDark"
-                    android:background="@drawable/rounded_radius_background"
-                    android:src="@drawable/baseline_close_24"
+                    android:layout_height="match_parent"
                     android:clickable="true"
                     android:focusable="true"
-                    android:padding="4dp"
-                    android:layout_gravity="center"
-                    tools:ignore="UseAppTint" />
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="8dp"
+                    app:rippleColor="@color/ripple_material_light">
 
+                    <Button
+                        android:id="@+id/calendarPicker"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="10dp"
+                        android:layout_marginVertical="5dp"
+                        android:backgroundTint="@color/white"
+                        android:drawableEnd="@drawable/baseline_keyboard_arrow_down_24"
+                        android:onClick="openDatePicker"
+                        android:textColor="@color/black"
+                        tools:ignore="MissingConstraints" />
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- CheckBox with Caption -->
+                <CheckBox
+                    android:id="@+id/calendarCheckbox"
+                    style="@style/defaultBoxColor"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp" />
+
+                <TextView
+                    android:id="@+id/calendarCheckboxCaption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:fontFamily="@font/manrope_semibold"
+                    android:gravity="center_vertical"
+                    android:text="Filter Semua Tanggal"
+                    android:textColor="@color/black"
+                    android:textSize="@dimen/s" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-    </LinearLayout>
 
-
-
-    <LinearLayout
-        android:id="@+id/search_section"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        android:visibility="gone"
-        android:weightSum="10"
-        app:layout_constraintTop_toBottomOf="@+id/navbarPanenList">
-
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="7"
-            app:cardBackgroundColor="@color/white"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="0dp"
-            app:strokeColor="@color/graylightDarker"
-            app:strokeWidth="1dp">
 
             <LinearLayout
+                android:id="@+id/filterDateContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:layout_marginTop="10dp"
+                android:orientation="vertical"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@id/calendarContainer">
 
-                <EditText
-                    android:id="@+id/search_feature"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@null"
-                    android:hint="Ketik Untuk Mencari..."
-                    android:imeOptions="actionDone"
-                    android:inputType="text"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="20dp"
-                    android:textSize="16sp" />
-
-                <ImageView
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/resultFilterDate"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="4dp"
-                    android:padding="8dp"
-                    android:src="@drawable/baseline_search_24" />
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <ImageView
-            android:id="@+id/btn_calendar"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_gravity="center_vertical"
-            android:layout_weight="1.5"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:contentDescription="Calendar"
-            android:focusable="true"
-            android:padding="8dp"
-            android:src="@drawable/baseline_calendar_month_24" />
-
-        <ImageView
-            android:id="@+id/btn_sort"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_gravity="center_vertical"
-            android:layout_weight="1.5"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:contentDescription="Sort"
-            android:focusable="true"
-            android:padding="8dp"
-            android:src="@drawable/baseline_sort_24" />
-    </LinearLayout>
-
-
-    <LinearLayout
-        android:id="@+id/blok_section"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="10dp"
-        android:layout_marginTop="10dp"
-
-        android:orientation="horizontal"
-        android:visibility="gone"
-
-        app:layout_constraintTop_toBottomOf="@id/filterDateContainer"
-        tools:ignore="MissingConstraints">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/manrope_bold"
-            android:text="Blok: "
-            android:textColor="@color/black"
-            android:textSize="16sp" />
-
-        <TextView
-            android:id="@+id/listBlok"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/manrope_medium"
-            android:textColor="@color/black"
-            android:textSize="15sp"
-
-            android:textStyle="italic" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/total_section"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="10dp"
-        android:orientation="horizontal"
-
-        android:visibility="gone"
-        android:weightSum="2"
-        app:layout_constraintTop_toBottomOf="@id/blok_section"
-        tools:ignore="MissingConstraints">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/manrope_bold"
-                android:text="Total Jjg: "
-                android:textColor="@color/black"
-                android:textSize="16sp" />
-
-            <TextView
-                android:id="@+id/totalJjg"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/manrope_medium"
-                android:text="0"
-                android:textColor="@color/black"
-                android:textSize="15sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/manrope_bold"
-                android:text="Total TPH: "
-                android:id="@+id/tvTotalTPH"
-                android:textColor="@color/black"
-                android:textSize="16sp" />
-
-            <TextView
-                android:id="@+id/totalTPH"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/manrope_medium"
-                android:textColor="@color/black"
-                android:textSize="15sp" />
-        </LinearLayout>
-
-
-    </LinearLayout>
-
-
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/parentCard"
-        android:layout_marginTop="10dp"
-        app:layout_constraintTop_toBottomOf="@id/total_section"
-        android:orientation="vertical">
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:id="@+id/horizontalCardFeature"
-            android:scrollbars="none">
-
-            <LinearLayout
-                android:id="@+id/list_menu_upload_data"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="10dp"
-                android:paddingEnd="20dp"
-                android:layout_marginVertical="5dp"
-                android:orientation="horizontal">
-
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_item_tersimpan"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:foreground="?attr/selectableItemBackground"
-                    app:cardBackgroundColor="@color/bgSelectWorkerGreen"
-                    app:cardCornerRadius="20dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/strokeSelectWorkerGreen">
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:layout_marginVertical="10dp"
-                        android:orientation="horizontal"
-                        android:paddingHorizontal="10dp">
-
-                        <TextView
-                            android:id="@+id/list_item_tersimpan"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:fontFamily="@font/manrope_semibold"
-                            android:text="Tersimpan"
-                            android:textColor="@color/black"
-                            android:textSize="@dimen/m"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/counter_item_tersimpan"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:fontFamily="@font/manrope_semibold"
-                            android:paddingHorizontal="10dp"
-                            android:text="0"
-                            android:textColor="@color/black"
-                            android:textSize="@dimen/m"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_item_terscan"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_marginLeft="5dp"
-                    android:foreground="?attr/selectableItemBackground"
-                    app:cardBackgroundColor="@color/graylight"
-                    app:cardCornerRadius="20dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/graylightDarker">
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:layout_marginVertical="10dp"
-                        android:orientation="horizontal"
-                        android:paddingHorizontal="10dp">
-
-                        <TextView
-                            android:id="@+id/list_item_terscan"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:fontFamily="@font/manrope_semibold"
-                            android:text="Sudah Scan"
-                            android:textColor="@color/black"
-                            android:textSize="@dimen/m"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/counter_item_terscan"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:fontFamily="@font/manrope_semibold"
-                            android:paddingHorizontal="10dp"
-                            android:text="0"
-                            android:textColor="@color/black"
-                            android:textSize="@dimen/m"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_rekap_per_pemanen"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:visibility="gone"
-                    android:layout_marginLeft="5dp"
-                    android:foreground="?attr/selectableItemBackground"
-                    app:cardBackgroundColor="@color/graylight"
-                    app:cardCornerRadius="20dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/graylightDarker">
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:layout_marginVertical="10dp"
-                        android:orientation="horizontal"
-                        android:paddingHorizontal="10dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:fontFamily="@font/manrope_semibold"
-                            android:text="Rekap Per Pemanen"
-                            android:textColor="@color/black"
-                            android:textSize="@dimen/m"
-                            android:textStyle="bold" />
-
-                    </LinearLayout>
-
-                </com.google.android.material.card.MaterialCardView>
-
-            </LinearLayout>
-
-        </HorizontalScrollView>
-
-        <include
-            android:id="@+id/ll_detail_espb"
-            android:visibility="gone"
-            layout="@layout/activity_detail_espbactivity"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
-
-    </LinearLayout>
-    <LinearLayout
-
-        android:id="@+id/filterSection"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="10dp"
-        android:layout_marginTop="10dp"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/parentCard"
-        tools:ignore="MissingConstraints">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:fontFamily="@font/manrope_semibold"
-                android:gravity="center_vertical"
-                android:text="Filter: "
-                android:textSize="16sp" />
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="10dp"
                     app:cardBackgroundColor="@color/bgLightYellow"
-                    app:cardCornerRadius="20dp"
-                    app:cardElevation="0dp"
+                    app:cardCornerRadius="8dp"
                     app:strokeColor="@color/borderYellow"
-
+                    app:strokeWidth="1dp"
                     tools:ignore="MissingConstraints">
 
                     <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:layout_marginVertical="3dp"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:paddingHorizontal="10dp">
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="8dp">
 
-                        <TextView
-                            android:id="@+id/filterName"
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical"
+                            android:layout_weight="1"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="top"
+                                android:layout_marginEnd="5dp"
+                                android:fontFamily="@font/manrope_bold"
+                                android:text="Filter aktif: "
+                                android:textColor="@color/black"
+                                android:textSize="16sp" />
+
+                            <TextView
+                                android:id="@+id/name_filter_date"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="top"
+                                android:layout_marginEnd="8dp"
+                                android:fontFamily="@font/manrope_semibold"
+                                android:maxLines="2"
+                                android:text="23 Mar 2025 "
+                                android:textColor="@color/black"
+                                android:textSize="16sp"
+                                android:textStyle="italic" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:id="@+id/remove_filter_date"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_gravity="center"
-                            android:layout_marginLeft="5dp"
-                            android:fontFamily="@font/manrope_semibold"
-                            android:textSize="15dp"
-                            android:textStyle="bold" />
-
-                        <ImageView
-                            android:id="@+id/removeFilter"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginLeft="5dp"
                             android:background="@drawable/rounded_radius_background"
                             android:clickable="true"
                             android:focusable="true"
+                            android:padding="4dp"
                             android:src="@drawable/baseline_close_24"
                             android:tint="@color/colorRedDark"
                             tools:ignore="UseAppTint" />
 
                     </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+
+            <LinearLayout
+                android:id="@+id/search_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="8dp"
+                android:visibility="gone"
+                android:weightSum="10"
+                tools:ignore="MissingConstraints">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="7"
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/graylightDarker"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <EditText
+                            android:id="@+id/search_feature"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@null"
+                            android:hint="Ketik Untuk Mencari..."
+                            android:imeOptions="actionDone"
+                            android:inputType="text"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="20dp"
+                            android:textSize="16sp" />
+
+                        <ImageView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="4dp"
+                            android:padding="8dp"
+                            android:src="@drawable/baseline_search_24" />
+                    </LinearLayout>
 
                 </com.google.android.material.card.MaterialCardView>
+
+                <ImageView
+                    android:id="@+id/btn_calendar"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_weight="1.5"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:contentDescription="Calendar"
+                    android:focusable="true"
+                    android:padding="8dp"
+                    android:src="@drawable/baseline_calendar_month_24" />
+
+                <ImageView
+                    android:id="@+id/btn_sort"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_weight="1.5"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:contentDescription="Sort"
+                    android:focusable="true"
+                    android:padding="8dp"
+                    android:src="@drawable/baseline_sort_24" />
+            </LinearLayout>
+
+
+            <LinearLayout
+                android:id="@+id/blok_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="10dp"
+
+                android:orientation="horizontal"
+                android:visibility="gone"
+
+                app:layout_constraintTop_toBottomOf="@id/filterDateContainer"
+                tools:ignore="MissingConstraints">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/manrope_bold"
+                    android:text="Blok: "
+                    android:textColor="@color/black"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/listBlok"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/manrope_medium"
+                    android:textColor="@color/black"
+                    android:textSize="15sp"
+
+                    android:textStyle="italic" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/total_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:orientation="horizontal"
+
+                android:visibility="visible"
+                android:weightSum="2"
+                app:layout_constraintTop_toBottomOf="@id/blok_section"
+                tools:ignore="MissingConstraints">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_bold"
+                        android:text="Total Jjg: "
+                        android:textColor="@color/black"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/totalJjg"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:text="0"
+                        android:textColor="@color/black"
+                        android:textSize="15sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tvTotalTPH"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_bold"
+                        android:text="Total TPH: "
+                        android:textColor="@color/black"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/totalTPH"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:textColor="@color/black"
+                        android:textSize="15sp" />
+                </LinearLayout>
 
 
             </LinearLayout>
 
-        </LinearLayout>
 
-    </LinearLayout>
+            <LinearLayout
+                android:id="@+id/parentCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="vertical"
+                app:layout_constraintTop_toBottomOf="@id/total_section">
+
+                <HorizontalScrollView
+                    android:id="@+id/horizontalCardFeature"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fillViewport="true"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:id="@+id/list_menu_upload_data"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="10dp"
+                        android:layout_marginVertical="5dp"
+                        android:orientation="horizontal"
+                        android:paddingEnd="20dp">
 
 
-    <LinearLayout
-        android:id="@+id/contentLayout"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginHorizontal="10dp"
-        android:layout_marginTop="10dp"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/filterSection">
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/card_item_tersimpan"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:foreground="?attr/selectableItemBackground"
+                            app:cardBackgroundColor="@color/bgSelectWorkerGreen"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="0dp"
+                            app:strokeColor="@color/strokeSelectWorkerGreen">
 
-        <!-- Fixed Header -->
-        <include
-            android:id="@+id/tableHeader"
-            layout="@layout/table_header_layout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:layout_marginVertical="10dp"
+                                android:orientation="horizontal"
+                                android:paddingHorizontal="10dp">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvTableData"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_marginTop="3dp"
-            android:layout_marginBottom="5dp"
-            android:layout_weight="1"
-            android:clipToPadding="false"
-            android:paddingBottom="10dp"
-            tools:itemCount="20"
-            tools:listitem="@layout/table_item_row" />
+                                <TextView
+                                    android:id="@+id/list_item_tersimpan"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:fontFamily="@font/manrope_semibold"
+                                    android:text="Tersimpan"
+                                    android:textColor="@color/black"
+                                    android:textSize="@dimen/m"
+                                    android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/tvEmptyState"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:background="@drawable/border_bottom_light"
-            android:padding="16sp"
-            android:textAlignment="center"
-            android:textColor="@color/black"
-            android:textSize="@dimen/m"
-            android:visibility="gone" />
+                                <TextView
+                                    android:id="@+id/counter_item_tersimpan"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:fontFamily="@font/manrope_semibold"
+                                    android:paddingHorizontal="10dp"
+                                    android:text="0"
+                                    android:textColor="@color/black"
+                                    android:textSize="@dimen/m"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
 
-    </LinearLayout>
+                        </com.google.android.material.card.MaterialCardView>
 
-    <!-- Floating Action Button -->
-    <!--    <com.google.android.material.floatingactionbutton.FloatingActionButton-->
-    <!--        android:id="@+id/btnGenerateQRTPH"-->
-    <!--        android:layout_width="wrap_content"-->
-    <!--        android:layout_height="wrap_content"-->
-    <!--        android:src="@drawable/baseline_qr_code_scanner_24"-->
-    <!--        app:layout_constraintBottom_toBottomOf="parent"-->
-    <!--        app:layout_constraintEnd_toEndOf="parent"-->
-    <!--        android:layout_marginBottom="100dp"-->
-    <!--        app:maxImageSize="30dp"-->
-    <!--        android:layout_marginRight="40dp"-->
-    <!--        app:backgroundTint="@color/bluedarklight"-->
-    <!--        app:tint="@color/white"-->
-    <!--        app:rippleColor="@color/bgLightOrange"-->
-    <!--        android:tooltipText="Generate QR TPH" />-->
-    <!-- Floating Action Button -->
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/card_item_terscan"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:layout_marginLeft="5dp"
+                            android:foreground="?attr/selectableItemBackground"
+                            app:cardBackgroundColor="@color/graylight"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="0dp"
+                            app:strokeColor="@color/graylightDarker">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:layout_marginVertical="10dp"
+                                android:orientation="horizontal"
+                                android:paddingHorizontal="10dp">
+
+                                <TextView
+                                    android:id="@+id/list_item_terscan"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:fontFamily="@font/manrope_semibold"
+                                    android:text="Sudah Scan"
+                                    android:textColor="@color/black"
+                                    android:textSize="@dimen/m"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/counter_item_terscan"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:fontFamily="@font/manrope_semibold"
+                                    android:paddingHorizontal="10dp"
+                                    android:text="0"
+                                    android:textColor="@color/black"
+                                    android:textSize="@dimen/m"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/card_rekap_per_pemanen"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:layout_marginLeft="5dp"
+                            android:foreground="?attr/selectableItemBackground"
+                            android:visibility="gone"
+                            app:cardBackgroundColor="@color/graylight"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="0dp"
+                            app:strokeColor="@color/graylightDarker">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:layout_marginVertical="10dp"
+                                android:orientation="horizontal"
+                                android:paddingHorizontal="10dp">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:fontFamily="@font/manrope_semibold"
+                                    android:text="Rekap Per Pemanen"
+                                    android:textColor="@color/black"
+                                    android:textSize="@dimen/m"
+                                    android:textStyle="bold" />
+
+                            </LinearLayout>
+
+                        </com.google.android.material.card.MaterialCardView>
+
+                    </LinearLayout>
+
+                </HorizontalScrollView>
+
+                <include
+                    android:id="@+id/ll_detail_espb"
+                    layout="@layout/activity_detail_espbactivity"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <LinearLayout
+
+                android:id="@+id/filterSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="10dp"
+                android:orientation="vertical"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@id/parentCard"
+                tools:ignore="MissingConstraints">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:gravity="center_vertical"
+                        android:text="Filter: "
+                        android:textSize="16sp" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:cardBackgroundColor="@color/bgLightYellow"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="0dp"
+                            app:strokeColor="@color/borderYellow"
+
+                            tools:ignore="MissingConstraints">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:layout_marginVertical="3dp"
+                                android:orientation="horizontal"
+                                android:paddingHorizontal="10dp">
+
+                                <TextView
+                                    android:id="@+id/filterName"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:layout_marginLeft="5dp"
+                                    android:fontFamily="@font/manrope_semibold"
+                                    android:textSize="15dp"
+                                    android:textStyle="bold" />
+
+                                <ImageView
+                                    android:id="@+id/removeFilter"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginLeft="5dp"
+                                    android:background="@drawable/rounded_radius_background"
+                                    android:clickable="true"
+                                    android:focusable="true"
+                                    android:src="@drawable/baseline_close_24"
+                                    android:tint="@color/colorRedDark"
+                                    tools:ignore="UseAppTint" />
+
+                            </LinearLayout>
+
+                        </com.google.android.material.card.MaterialCardView>
+
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+
+            <LinearLayout
+                android:id="@+id/contentLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="10dp"
+                android:orientation="vertical"
+                app:layout_constraintTop_toBottomOf="@id/filterSection">
+
+                <!-- Fixed Header -->
+                <include
+                    android:id="@+id/tableHeader"
+                    layout="@layout/table_header_layout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvTableData"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:layout_marginBottom="5dp"
+                    android:clipToPadding="false"
+                    android:paddingBottom="10dp"
+                    tools:itemCount="20"
+                    tools:listitem="@layout/table_item_row" />
+
+                <TextView
+                    android:id="@+id/tvEmptyState"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:background="@drawable/border_bottom_light"
+                    android:padding="16sp"
+                    android:textAlignment="center"
+                    android:textColor="@color/black"
+                    android:textSize="@dimen/m"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <!-- Floating Action Button -->
+            <!--    <com.google.android.material.floatingactionbutton.FloatingActionButton-->
+            <!--        android:id="@+id/btnGenerateQRTPH"-->
+            <!--        android:layout_width="wrap_content"-->
+            <!--        android:layout_height="wrap_content"-->
+            <!--        android:src="@drawable/baseline_qr_code_scanner_24"-->
+            <!--        app:layout_constraintBottom_toBottomOf="parent"-->
+            <!--        app:layout_constraintEnd_toEndOf="parent"-->
+            <!--        android:layout_marginBottom="100dp"-->
+            <!--        app:maxImageSize="30dp"-->
+            <!--        android:layout_marginRight="40dp"-->
+            <!--        app:backgroundTint="@color/bluedarklight"-->
+            <!--        app:tint="@color/white"-->
+            <!--        app:rippleColor="@color/bgLightOrange"-->
+            <!--        android:tooltipText="Generate QR TPH" />-->
+            <!-- Floating Action Button -->
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </ScrollView>
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnGenerateQRTPH"
         android:layout_width="wrap_content"
