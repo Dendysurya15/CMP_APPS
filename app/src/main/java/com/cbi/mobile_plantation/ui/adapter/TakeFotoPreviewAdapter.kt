@@ -49,6 +49,7 @@ class TakeFotoPreviewAdapter(
     private var currentLatitude: Double? = null
     private var currentLongitude: Double? = null
 
+    var onPhotoDeleted: ((String, Int) -> Unit)? = null
 
     init {
         // Clear any existing data
@@ -161,10 +162,20 @@ class TakeFotoPreviewAdapter(
                     )
                 },
                 onDeletePhoto = { pos ->
+                    // Get the filename before removing it
+                    val fileToDelete = listFileFoto[pos]
+                    val fileName = fileToDelete?.name
+
                     // Remove the photo and clear comment
                     listFileFoto.remove(pos)
                     comments[position.toInt()] = ""
                     holder.imageView.setImageResource(R.drawable.baseline_add_a_photo_24)
+
+                    // Notify the activity about the deletion
+                    if (fileName != null) {
+                        AppLogger.d("Photo deleted: $fileName at position $position")
+                        onPhotoDeleted?.invoke(fileName, position.toInt())
+                    }
 
                     // Check if we should remove this section
                     val shouldRemoveSection =
@@ -326,7 +337,16 @@ class TakeFotoPreviewAdapter(
     }
 
     fun removePhotoFile(id: String) {
+        // Get the filename before removing it
+        val fileToDelete = listFileFoto[id]
+        val fileName = fileToDelete?.name
+
         listFileFoto.remove(id)
+
+        // Notify the activity about the deletion if we have a filename
+        if (fileName != null) {
+            onPhotoDeleted?.invoke(fileName, id.toInt())
+        }
     }
 
     override fun getItemCount(): Int = activeItems.size
