@@ -1734,7 +1734,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            findViewById<TextView>(R.id.lastUpdate).text = "Terakhir diperbarui: $formattedDate"
+            findViewById<TextView>(R.id.lastUpdate).text = "Update: $formattedDate"
         }
 
         globalLastModifiedBlok.observe(this) { timestamp ->
@@ -1751,11 +1751,11 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            findViewById<TextView>(R.id.lastUpdate).text = "Terakhir diperbarui: $formattedDate"
+            findViewById<TextView>(R.id.lastUpdate).text = "Update: $formattedDate"
         }
 
 
-        findViewById<TextView>(R.id.userNameLogin).text = userName
+//        findViewById<TextView>(R.id.userNameLogin).text = userName
         findViewById<TextView>(R.id.jabatanUserLogin).text = jobTitle
         findViewById<TextView>(R.id.initalName).text = initials
 

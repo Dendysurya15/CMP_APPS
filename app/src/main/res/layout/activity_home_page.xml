@@ -70,7 +70,7 @@
                             android:layout_marginLeft="10dp"
                             android:fontFamily="@font/manrope_medium"
                             android:textColor="@android:color/white"
-                            android:textSize="17sp"
+                            android:textSize="@dimen/s"
                             android:textStyle="bold" />
                     </LinearLayout>
 
@@ -80,7 +80,7 @@
                         android:layout_height="40dp"
                         android:text="@string/ganti_akun"
                         android:textColor="@android:color/white"
-                        android:textSize="17sp"
+                        android:textSize="@dimen/m"
                         app:backgroundTint="@color/colorRedDark"
                         app:cornerRadius="8dp"
                         app:icon="@drawable/baseline_logout_24"
@@ -133,14 +133,14 @@
                         android:layout_marginLeft="15dp"
                         android:orientation="vertical">
 
-                        <TextView
-                            android:id="@+id/userNameLogin"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="@font/manrope_bold"
-                            android:textColor="@android:color/white"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
+<!--                        <TextView-->
+<!--                            android:id="@+id/userNameLogin"-->
+<!--                            android:layout_width="wrap_content"-->
+<!--                            android:layout_height="wrap_content"-->
+<!--                            android:fontFamily="@font/manrope_bold"-->
+<!--                            android:textColor="@android:color/white"-->
+<!--                            android:textSize="@dimen/m"-->
+<!--                            android:textStyle="bold" />-->
 
                         <TextView
                             android:id="@+id/jabatanUserLogin"
@@ -148,7 +148,7 @@
                             android:layout_height="wrap_content"
                             android:fontFamily="@font/manrope_medium"
                             android:textColor="@android:color/white"
-                            android:textSize="17sp"
+                            android:textSize="@dimen/m"
                             android:textStyle="italic" />
 
                         <TextView
@@ -157,7 +157,7 @@
                             android:layout_height="wrap_content"
                             android:fontFamily="@font/manrope_medium"
                             android:textColor="@android:color/white"
-                            android:textSize="16sp"
+                            android:textSize="@dimen/m"
                             android:textStyle="italic" />
                     </LinearLayout>
                 </LinearLayout>
@@ -195,7 +195,7 @@
                 android:fontFamily="@font/manrope_bold"
                 android:text="Daftar Fitur"
                 android:textColor="@color/greenDarker"
-                android:textSize="20dp"
+                android:textSize="@dimen/l"
                 android:textStyle="bold" />
 
             <com.google.android.material.card.MaterialCardView
@@ -215,7 +215,7 @@
                     android:paddingHorizontal="15dp"
                     android:text="0"
                     android:gravity="center"
-                    android:textSize="18sp"
+                    android:textSize="@dimen/l"
                     android:fontFamily="@font/manrope_bold"
                     android:textColor="@color/white" />
             </com.google.android.material.card.MaterialCardView>

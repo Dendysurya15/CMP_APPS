@@ -13,7 +13,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="0.367"
             android:text="Transporter"
-            android:textSize="18sp"
+            android:textSize="@dimen/s"
             android:fontFamily="@font/manrope_regular"
             android:gravity="center|left"/>
         <TextView
@@ -21,7 +21,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="0.03"
             android:text=":"
-            android:textSize="18sp"
+            android:textSize="@dimen/s"
             android:fontFamily="@font/manrope_regular"
             android:gravity="center|left"/>
         <TextView
@@ -30,7 +30,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="0.6"
             android:text="No eSPB"
-            android:textSize="18sp"
+            android:textSize="@dimen/s"
             android:fontFamily="@font/manrope_regular"
             android:gravity="center|left"/>
     </LinearLayout>

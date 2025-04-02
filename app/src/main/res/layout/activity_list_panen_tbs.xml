@@ -67,7 +67,7 @@
             android:layout_height="match_parent"
             android:text="Filter Semua Tanggal"
             android:textColor="@color/black"
-            android:textSize="16sp"
+            android:textSize="@dimen/s"
             android:fontFamily="@font/manrope_semibold"
             android:gravity="center_vertical"/>
     </LinearLayout>
@@ -374,7 +374,7 @@
                             android:fontFamily="@font/manrope_semibold"
                             android:text="Tersimpan"
                             android:textColor="@color/black"
-                            android:textSize="16sp"
+                            android:textSize="@dimen/m"
                             android:textStyle="bold" />
 
                         <TextView
@@ -386,7 +386,7 @@
                             android:paddingHorizontal="10dp"
                             android:text="0"
                             android:textColor="@color/black"
-                            android:textSize="16sp"
+                            android:textSize="@dimen/m"
                             android:textStyle="bold" />
                     </LinearLayout>
 
@@ -418,7 +418,7 @@
                             android:fontFamily="@font/manrope_semibold"
                             android:text="Sudah Scan"
                             android:textColor="@color/black"
-                            android:textSize="16sp"
+                            android:textSize="@dimen/m"
                             android:textStyle="bold" />
 
                         <TextView
@@ -430,7 +430,7 @@
                             android:paddingHorizontal="10dp"
                             android:text="0"
                             android:textColor="@color/black"
-                            android:textSize="16sp"
+                            android:textSize="@dimen/m"
                             android:textStyle="bold" />
                     </LinearLayout>
 
@@ -462,7 +462,7 @@
                             android:fontFamily="@font/manrope_semibold"
                             android:text="Rekap Per Pemanen"
                             android:textColor="@color/black"
-                            android:textSize="16sp"
+                            android:textSize="@dimen/m"
                             android:textStyle="bold" />
 
                     </LinearLayout>
@@ -600,7 +600,7 @@
             android:padding="16sp"
             android:textAlignment="center"
             android:textColor="@color/black"
-            android:textSize="16sp"
+            android:textSize="@dimen/m"
             android:visibility="gone" />
 
     </LinearLayout>

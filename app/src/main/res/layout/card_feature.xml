@@ -34,7 +34,7 @@
                 android:textAllCaps="true"
                 android:text="Panen TBS"
                 android:textColor="@android:color/background_dark"
-                android:textSize="17dp"
+                android:textSize="@dimen/m"
                 android:fontFamily="@font/manrope_bold" />
         <LinearLayout
             android:layout_width="wrap_content"
@@ -53,7 +53,7 @@
                 android:text="000"
                 android:textColor="@color/black"
                 android:id="@+id/count_feature_data"
-                android:textSize="50sp"
+                android:textSize="@dimen/large_size"
                 android:visibility="visible"
                 android:fontFamily="@font/manrope_semibold" />
 
@@ -113,7 +113,7 @@
             android:textColor="@color/black"
             android:text="Pencatatan panen TBS di TPH oleh kerani panen"
             android:textAlignment="center"
-            android:textSize="15sp" />
+            android:textSize="@dimen/s" />
 
     </LinearLayout>
 

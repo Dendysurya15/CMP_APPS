@@ -83,7 +83,7 @@
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="center|left"
                         android:textColor="@color/black"
-                        android:textSize="23sp"
+                        android:textSize="@dimen/l"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
@@ -94,7 +94,7 @@
                         android:gravity="center|left"
                         android:text="@string/desc_informasi_blok"
                         android:textColor="@color/black"
-                        android:textSize="19sp"
+                        android:textSize="@dimen/m"
                         android:textStyle="italic"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
@@ -115,7 +115,7 @@
                             android:gravity="center|left"
                             android:text="Blok Banjir"
                             android:textColor="@color/black"
-                            android:textSize="18sp"
+                            android:textSize="@dimen/m"
                             tools:ignore="HardcodedText" />
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
@@ -359,7 +359,7 @@
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="center|left"
                         android:textColor="@color/black"
-                        android:textSize="23sp"
+                        android:textSize="@dimen/l"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
@@ -371,7 +371,7 @@
                         android:gravity="center|left"
                         android:text="@string/desc_data_grading"
                         android:textColor="@color/black"
-                        android:textSize="19sp"
+                        android:textSize="@dimen/m"
                         android:textStyle="italic"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
@@ -444,7 +444,7 @@
                                     android:fontFamily="@font/manrope_bold"
                                     android:text="Hasil Perhitungan"
                                     android:textColor="@color/black"
-                                    android:textSize="22sp" />
+                                    android:textSize="@dimen/l" />
 
                                 <TextView
                                     android:id="@+id/tvFormulas"
@@ -456,7 +456,7 @@
                                     android:fontFamily="@font/manrope_bold"
                                     android:text="Rumus"
                                     android:textColor="@color/anotherYellow"
-                                    android:textSize="17sp" />
+                                    android:textSize="@dimen/m" />
 
                             </LinearLayout>
 
@@ -482,7 +482,7 @@
                                     android:layout_height="wrap_content"
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text="Dikirim ke Pabrik"
-                                    android:textSize="21sp"
+                                    android:textSize="@dimen/m"
                                     android:textColor="@color/black"
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterKirimPabrik"
                                     app:layout_constraintStart_toStartOf="parent"
@@ -496,7 +496,7 @@
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text=": 0 buah"
                                     android:textColor="@color/black"
-                                    android:textSize="21sp"
+                                    android:textSize="@dimen/m"
                                     app:layout_constraintHorizontal_chainStyle="packed"
                                     app:layout_constraintStart_toEndOf="@id/tvDikirimPabrik"
                                     tools:ignore="MissingConstraints" />
@@ -517,7 +517,7 @@
                                     android:layout_height="wrap_content"
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text="Janjang Dibayar"
-                                    android:textSize="21sp"
+                                    android:textSize="@dimen/m"
                                     android:textColor="@color/black"
 
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterTBSDibayar"
@@ -532,7 +532,7 @@
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text=": 0 buah"
                                     android:textColor="@color/black"
-                                    android:textSize="21sp"
+                                    android:textSize="@dimen/m"
                                     app:layout_constraintHorizontal_chainStyle="packed"
                                     app:layout_constraintStart_toEndOf="@id/tvJanjangDibayar"
                                     tools:ignore="MissingConstraints" />
@@ -554,7 +554,7 @@
                                     android:fontFamily="@font/manrope_bold"
                                     android:text="Total Janjang"
                                     android:textColor="@color/greenDefault"
-                                    android:textSize="21sp"
+                                    android:textSize="@dimen/m"
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterBuahMasak"
                                     app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintWidth_percent="0.5"
@@ -567,7 +567,7 @@
                                     android:fontFamily="@font/manrope_bold"
                                     android:text=": 0 buah"
                                     android:textColor="@color/greenDefault"
-                                    android:textSize="21sp"
+                                    android:textSize="@dimen/m"
                                     app:layout_constraintHorizontal_chainStyle="packed"
                                     app:layout_constraintStart_toEndOf="@id/tvTotalJjg"
                                     tools:ignore="MissingConstraints" />
@@ -606,7 +606,7 @@
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="center|left"
                         android:textColor="@color/black"
-                        android:textSize="23sp"
+                        android:textSize="@dimen/l"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
@@ -618,7 +618,7 @@
                         android:gravity="center|left"
                         android:text="@string/desc_lampiran_foto"
                         android:textColor="@color/black"
-                        android:textSize="19sp"
+                        android:textSize="@dimen/m"
                         android:textStyle="italic"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
@@ -646,7 +646,7 @@
                         android:text="Minimal upload 1 foto"
                         android:textColor="@color/colorRedDark"
                         android:fontFamily="@font/manrope_bold"
-                        android:textSize="17sp"
+                        android:textSize="@dimen/m"
                         android:visibility="gone"
                         tools:ignore="HardcodedText,RtlSymmetry" />
 
@@ -706,7 +706,7 @@
                             android:layout_height="wrap_content"
                             android:fontFamily="@font/manrope_semibold"
                             android:text="Simpan Data"
-                            android:textSize="16dp"
+                            android:textSize="@dimen/m"
                             android:visibility="visible"
                             app:backgroundTint="@color/bluedarklight"
                             app:cornerRadius="10dp"
