@@ -64,6 +64,24 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     val activeESPBByIds: LiveData<List<ESPBEntity>> = _activeESPBByIds
 
 
+    fun updateUploadStatus(itemId: Int, status: String, endpoint: String, errorMsg: String? = null) {
+        viewModelScope.launch {
+            val statusEndpointMap = _uploadStatusEndpointMap.value?.toMutableMap() ?: mutableMapOf()
+            val errorMap = _uploadErrorMap.value?.toMutableMap() ?: mutableMapOf()
+
+            // Update status
+            statusEndpointMap[itemId] = UploadItemInfo(status, endpoint)
+
+            // Add error message if provided
+            if (!errorMsg.isNullOrEmpty()) {
+                errorMap[itemId] = errorMsg
+            }
+
+            _uploadStatusEndpointMap.postValue(statusEndpointMap)
+            _uploadErrorMap.postValue(errorMap)
+        }
+    }
+
     fun uploadESPBKraniTimbang(selectedItems: List<Map<String, Any>>, globalIdEspb: List<Int>) {
         viewModelScope.launch {
             val progressMap = mutableMapOf<Int, Int>()

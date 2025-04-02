@@ -1,12 +1,15 @@
 package com.cbi.mobile_plantation.utils
 
 import android.animation.ValueAnimator
+import android.app.Activity
 import android.app.Dialog
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -41,10 +44,6 @@ class LoadingDialog(context: Context) : Dialog(context) {
 
         loadingLogo = findViewById<ImageView>(R.id.loading_logo)
         messageTextView = findViewById(R.id.loading_message)
-        statusMessagesContainer = findViewById(R.id.status_messages_container)
-
-        // Set the container to GONE by default
-        statusMessagesContainer?.visibility = View.GONE
 
         contentContainer = findViewById(R.id.content_container)
         bounceAnimation = AnimationUtils.loadAnimation(context, R.anim.bounce)
@@ -94,90 +93,41 @@ class LoadingDialog(context: Context) : Dialog(context) {
                 updateMessageWithDots(value)
             }
 
-            start()
+        start()
         }
     }
 
     fun addStatusMessage(message: String, status: StatusType = StatusType.INFO, showIcon: Boolean = true) {
-        // Make the container visible if it was hidden
-        if (statusMessagesContainer?.visibility == View.GONE) {
-            statusMessagesContainer?.visibility = View.VISIBLE
-        }
+        // Find the TextView directly from the layout
+        val statusMessageText = findViewById<TextView>(R.id.status_message_text)
 
-        context?.let { ctx ->
-            // Create new TextView for the status message
-            val statusMessage = TextView(ctx).apply {
-                text = message
-                textSize = 17f
-                gravity = Gravity.CENTER_VERTICAL
-                try {
-                    val customFont = ResourcesCompat.getFont(ctx, R.font.manrope_bold)
-                    setTypeface(customFont, Typeface.ITALIC)
-                } catch (e: Exception) {
-                    // Fallback to system font if there's an issue loading the custom font
-                    setTypeface(Typeface.DEFAULT, Typeface.ITALIC)
-                    Log.e("FontError", "Could not load Manrope Medium font: ${e.message}")
+        statusMessageText?.let {
+            // Update text and make visible
+            it.text = message
+            it.visibility = View.VISIBLE
+
+            // Set icon if needed
+            if (showIcon) {
+                val iconDrawable = ContextCompat.getDrawable(context, when(status) {
+                    StatusType.SUCCESS -> R.drawable.baseline_check_box_24
+                    StatusType.ERROR -> R.drawable.baseline_close_24
+                    StatusType.WARNING -> R.drawable.baseline_error_24
+                    StatusType.INFO -> R.drawable.baseline_file_upload_24
+                })
+
+                iconDrawable?.let { drawable ->
+                    DrawableCompat.setTint(drawable, ContextCompat.getColor(context, when(status) {
+                        StatusType.SUCCESS -> R.color.greendarkerbutton
+                        StatusType.ERROR -> R.color.colorRedDark
+                        StatusType.WARNING -> R.color.orangeButton
+                        StatusType.INFO -> R.color.white
+                    }))
+                    it.setCompoundDrawablesWithIntrinsicBounds(null, null, drawable, null)
+                    it.compoundDrawablePadding = 5
                 }
-
-
-                // Always use white text color
-                setTextColor(ContextCompat.getColor(ctx, R.color.white))
-
-                // Set initial alpha to 0 (invisible)
-                alpha = 0f
-
-                if (showIcon) {
-                    val iconDrawable = ContextCompat.getDrawable(ctx, when(status) {
-                        StatusType.SUCCESS -> R.drawable.baseline_check_box_24
-                        StatusType.ERROR -> R.drawable.baseline_close_24
-                        StatusType.WARNING -> R.drawable.baseline_error_24
-                        StatusType.INFO -> R.drawable.baseline_file_upload_24
-                    })
-
-                    // Set the icon color based on status
-                    iconDrawable?.let {
-                        it.setBounds(0, 0, it.intrinsicWidth, it.intrinsicHeight)
-                        DrawableCompat.setTint(
-                            it,
-                            ContextCompat.getColor(ctx, when(status) {
-                                StatusType.SUCCESS -> R.color.greendarkerbutton
-                                StatusType.ERROR -> R.color.colorRedDark
-                                StatusType.WARNING -> R.color.orangeButton
-                                StatusType.INFO -> R.color.white
-                            })
-                        )
-
-                        // Set icon on the right side
-                        setCompoundDrawables(null, null, it, null)
-                        compoundDrawablePadding = 16
-                    }
-
-                }
-
-                // Add some padding for better appearance
-                setPadding(16, 8, 16, 8)
+            } else {
+                it.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             }
-
-            // Create a wrapper layout to center the content horizontally
-            val wrapperLayout = LinearLayout(ctx).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                gravity = Gravity.CENTER_HORIZONTAL
-                addView(statusMessage)
-            }
-
-            // Add the message to the container
-            statusMessagesContainer?.addView(wrapperLayout)
-
-            // Animate the message appearance
-            statusMessage.animate()
-                .alpha(1f)
-                .translationYBy(-20f)
-                .setDuration(300)
-                .setInterpolator(DecelerateInterpolator())
-                .start()
         }
     }
 

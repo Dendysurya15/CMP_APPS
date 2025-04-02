@@ -33,6 +33,7 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.SoundPlayer
+import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
@@ -63,7 +64,7 @@ class ListTPHApproval : AppCompatActivity() {
     private var userId: Int? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
-    private lateinit var soundPlayer: SoundPlayer
+
     private lateinit var data: List<TphRvData>
     private lateinit var saveData: List<TphRvData>
     val _saveDataPanenState = MutableStateFlow<SaveDataPanenState>(SaveDataPanenState.Loading)
@@ -112,7 +113,7 @@ class ListTPHApproval : AppCompatActivity() {
     }
 
     private fun setupUI() {
-        soundPlayer = SoundPlayer(this)
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 AlertDialogUtility.withTwoActions(
@@ -234,6 +235,8 @@ class ListTPHApproval : AppCompatActivity() {
                             result.fold(
                                 onSuccess = { savedIds ->
                                     _saveDataPanenState.value = SaveDataPanenState.Success(savedIds)
+
+                                    playSound(R.raw.berhasil_simpan)
                                     Toasty.success(
                                         this@ListTPHApproval,
                                         "Data berhasil disimpan",
@@ -342,7 +345,7 @@ class ListTPHApproval : AppCompatActivity() {
                         withContext(Dispatchers.Main) {
 
                             if (data.isNotEmpty()) {
-                                soundPlayer.playSound(R.raw.berhasil_scan)
+                                playSound(R.raw.berhasil_scan)
                             }
                             adapter.updateList(data)
                         }
@@ -372,7 +375,7 @@ class ListTPHApproval : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
-        soundPlayer.releaseMediaPlayer()
+        SoundPlayer.releaseMediaPlayer()
         // Ensure handler callbacks are removed
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }

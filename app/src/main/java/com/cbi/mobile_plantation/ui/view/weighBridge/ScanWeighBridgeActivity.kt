@@ -30,6 +30,8 @@ import com.cbi.mobile_plantation.utils.AppUtils.setMaxBrightness
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.SoundPlayer
+import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.gson.Gson
@@ -207,6 +209,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         loadingDialog.setMessage(
                                             "Berhasil simpan data e-SPB ke local",
                                         )
+
+                                        playSound(R.raw.berhasil_simpan)
                                         val savedItemId = result.id
 
                                         var number = 0;
@@ -359,11 +363,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             val itemsToUpload = listOf(itemToUpload,cmpItem)
                                             val globalIdEspb = listOf(savedItemId)
 
-
-
-
                                             loadingDialog.setMessage(
-                                                "Sedang mengupload data ke server",
+                                                "Sedang mengupload data ke server, harap tunggu",
                                                 true
                                             )
                                             // Start the upload with both items
@@ -371,6 +372,37 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 itemsToUpload,
                                                 globalIdEspb
                                             )
+
+                                            val uploadTimeoutMillis = 60000L // 1 minute timeout
+
+// Create a job for timeout tracking
+                                            val uploadTimeoutJob = lifecycleScope.launch {
+                                                delay(uploadTimeoutMillis)
+
+                                                // Check if any uploads are still in "Waiting" or "Uploading" status
+                                                val statusMap = weightBridgeViewModel.uploadStatusEndpointMap.value
+                                                val incompleteUploads = statusMap?.filter {
+                                                    it.value.status == "Waiting" || it.value.status == "Uploading"
+                                                }
+
+                                                if (!incompleteUploads.isNullOrEmpty()) {
+                                                    // Some uploads haven't completed within timeout period
+                                                    incompleteUploads.forEach { (id, info) ->
+                                                        // Update status to failed due to timeout
+                                                        weightBridgeViewModel.updateUploadStatus(
+                                                            id,
+                                                            "Failed",
+                                                            info.endpoint,
+                                                            "Upload timeout after ${uploadTimeoutMillis/1000} seconds"
+                                                        )
+                                                    }
+
+                                                    loadingDialog.addStatusMessage(
+                                                        "Beberapa upload gagal karena timeout",
+                                                        LoadingDialog.StatusType.ERROR
+                                                    )
+                                                }
+                                            }
 
                                             val processedEndpoints = mutableSetOf<String>()
 
@@ -409,6 +441,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 val allComplete =
                                                     statusEndpointMap.values.all { it.status == "Success" || it.status == "Failed" }
                                                 if (allComplete) {
+                                                    uploadTimeoutJob.cancel()
                                                     loadingDialog.setMessage("Semua data telah diupload")
                                                     Handler(Looper.getMainLooper()).postDelayed({
                                                         val allSuccessful =
@@ -636,6 +669,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 errorCard!!.visibility = View.GONE
                 dataContainer!!.visibility = View.VISIBLE
                 btnProcess!!.visibility = View.VISIBLE
+                playSound(R.raw.berhasil_scan)
 
                 val infoItems = listOf(
                     InfoType.ESPB to (parsedData?.espb?.noEspb ?: "-"),
@@ -743,7 +777,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         try {
                             weightBridgeViewModel.getPemuatByIdList(pemuatList)
                         } catch (e: Exception) {
-                            AppLogger.e("Error fetching Pemuat Data: ${e.message}")
+                            AppLogger.e("Gagal mendapatkan data pemuat")
                             null
                         }
                     }
@@ -752,6 +786,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val pemuatNama = pemuatData?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
                         ?.joinToString(", ") ?: "-"
 
+
+                    AppLogger.d(idBlokList.toString())
                     val blokData = try {
                         AppLogger.d(idBlokList.toString())
                         weightBridgeViewModel.getDataByIdInBlok(idBlokList)
@@ -769,8 +805,26 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val deptAbbr = blokData.firstOrNull()?.dept_abbr ?: "-"
                     val divisiAbbr = blokData.firstOrNull()?.divisi_abbr ?: "-"
 
-                    globalDeptPPRO = blokData.firstOrNull()?.dept_ppro!!
-                    globalDivisiPPRO = blokData.firstOrNull()?.divisi_ppro!!
+                    AppLogger.d(blokData.toString())
+                    try {
+                        // Check if first item exists and has dept_ppro and divisi_ppro
+                        val firstBlok = blokData.firstOrNull()
+                            ?: throw Exception("Blok tidak ditemukan, coba kembali pada user regional yang sesuai")
+
+                        val deptPpro = firstBlok.dept_ppro
+                            ?: throw Exception("Blok tidak ditemukan, coba kembali pada user regional yang sesuai")
+
+                        val divisiPpro = firstBlok.divisi_ppro
+                            ?: throw Exception("Blok tidak ditemukan, coba kembali pada user regional yang sesuai")
+
+                        // Assign only if we didn't throw any exceptions
+                        globalDeptPPRO = deptPpro
+                        globalDivisiPPRO = divisiPpro
+                    } catch (e: Exception) {
+                        // Log and rethrow with your custom message
+                        AppLogger.e(e.message ?: "Unknown error")
+                        throw e  // This will be caught by your outer catch block
+                    }
 
                     val formattedBlokList = blokJjgList.mapNotNull { (idBlok, totalJjg) ->
                         val blokKode = blokData.find { it.id == idBlok }?.nama
@@ -789,7 +843,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         try {
                             weightBridgeViewModel.getMillName(millId)
                         } catch (e: Exception) {
-                            AppLogger.e("Error fetching Mill Data: ${e.message}")
+                            AppLogger.e("Gagal mendapatkan data mill")
                             null
                         }
                     }
@@ -833,7 +887,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         try {
                             weightBridgeViewModel.getTransporterName(transporterId)
                         } catch (e: Exception) {
-                            AppLogger.e("Error fetching Transporter Data: ${e.message}")
+                            AppLogger.e("Gagal mendapatkan data transporter")
                             null
                         }
                     }
@@ -935,6 +989,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         barcodeView.pause()
+        SoundPlayer.releaseMediaPlayer()
         barcodeView.barcodeView?.cameraInstance?.close() // Release camera
         setMaxBrightness(this@ScanWeighBridgeActivity, false)
     }

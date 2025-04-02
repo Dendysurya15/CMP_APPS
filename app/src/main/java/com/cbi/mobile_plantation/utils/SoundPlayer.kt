@@ -4,14 +4,15 @@ import android.content.Context
 import android.media.MediaPlayer
 import android.util.Log
 
-class SoundPlayer(private val context: Context) {
+object SoundPlayer {
     private var mediaPlayer: MediaPlayer? = null
 
     /**
      * Play a sound file from the raw resources folder
+     * @param context The context to use for accessing resources
      * @param soundResourceId The resource ID of the sound file (e.g., R.raw.success_sound)
      */
-    fun playSound(soundResourceId: Int) {
+    fun playSound(context: Context, soundResourceId: Int) {
         try {
             // Release any previous media player
             releaseMediaPlayer()
@@ -47,4 +48,9 @@ class SoundPlayer(private val context: Context) {
             Log.e("SoundPlayer", "Error releasing media player: ${e.message}")
         }
     }
+}
+
+// Extension function for Context (Activity, Fragment, etc.)
+fun Context.playSound(soundResourceId: Int) {
+    SoundPlayer.playSound(this, soundResourceId)
 }
