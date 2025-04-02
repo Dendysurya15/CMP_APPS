@@ -583,7 +583,6 @@ class HomePageActivity : AppCompatActivity() {
     @SuppressLint("MissingSuperCall")
     @Deprecated("This method has been deprecated in favor of using the\n      {@link OnBackPressedDispatcher} via {@link #getOnBackPressedDispatcher()}.\n      The OnBackPressedDispatcher controls how back button events are dispatched\n      to one or more {@link OnBackPressedCallback} objects.")
     override fun onBackPressed() {
-        super.onBackPressed()
         AlertDialogUtility.withTwoActions(
             this,
             "Keluar",
@@ -828,9 +827,6 @@ class HomePageActivity : AppCompatActivity() {
                                 Log.d("VALID_FILES", "No valid files found.")
                             }
                         }
-
-
-                        AppLogger.d(allUploadZipFilesToday.toString())
 
                         val featuresToFetch = listOf(
                             AppUtils.DatabaseTables.ESPB,
@@ -1758,7 +1754,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            findViewById<TextView>(R.id.lastUpdate).text = "Terakhir diperbarui: $formattedDate"
+            findViewById<TextView>(R.id.lastUpdate).text = "Update: $formattedDate"
         }
 
         globalLastModifiedBlok.observe(this) { timestamp ->
@@ -1775,11 +1771,11 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            findViewById<TextView>(R.id.lastUpdate).text = "Terakhir diperbarui: $formattedDate"
+            findViewById<TextView>(R.id.lastUpdate).text = "Update: $formattedDate"
         }
 
 
-        findViewById<TextView>(R.id.userNameLogin).text = userName
+//        findViewById<TextView>(R.id.userNameLogin).text = userName
         findViewById<TextView>(R.id.jabatanUserLogin).text = jobTitle
         findViewById<TextView>(R.id.initalName).text = initials
 
@@ -1825,6 +1821,7 @@ class HomePageActivity : AppCompatActivity() {
                     prefManager!!.lastModifiedDatasetKemandoran = null
                     prefManager!!.lastModifiedDatasetPemanen = null
                     prefManager!!.lastModifiedDatasetTransporter = null
+                    prefManager!!.lastModifiedDatasetBlok = null
                     prefManager!!.clearDatasetMustUpdate()
 
                     datasetViewModel.clearAllData()

@@ -32,6 +32,8 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.SoundPlayer
+import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +54,7 @@ class ListTPHApproval : AppCompatActivity() {
         const val EXTRA_QR_RESULT = "scannedResult"
         private const val TAG = "ListTPHApproval"
     }
+
     var menuString = ""
     private var prefManager: PrefManager? = null
     private var regionalId: String? = null
@@ -74,6 +77,7 @@ class ListTPHApproval : AppCompatActivity() {
         }
     }
     private var activityInitialized = false
+
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,7 +112,8 @@ class ListTPHApproval : AppCompatActivity() {
         }
     }
 
-    private fun setupUI(){
+    private fun setupUI() {
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 AlertDialogUtility.withTwoActions(
@@ -122,7 +127,8 @@ class ListTPHApproval : AppCompatActivity() {
                             Intent(
                                 this@ListTPHApproval,
                                 HomePageActivity::class.java
-                            ))
+                            )
+                        )
                         finishAffinity()
                     },
                     cancelFunction = {
@@ -140,7 +146,8 @@ class ListTPHApproval : AppCompatActivity() {
         jabatanUser = prefManager!!.jabatanUserLogin
         setupHeader()
         val backButton = findViewById<ImageView>(R.id.btn_back)
-
+        val calendarContainer = findViewById<LinearLayout>(R.id.calendarContainer)
+        calendarContainer.visibility = View.GONE
         backButton.setOnClickListener {
 //            backButton.isEnabled = false
             AlertDialogUtility.withTwoActions(
@@ -154,7 +161,7 @@ class ListTPHApproval : AppCompatActivity() {
                     finishAffinity()
 //                    backButton.isEnabled = true
                 },
-                cancelFunction ={
+                cancelFunction = {
 //                    backButton.isEnabled = true
                 }
             )
@@ -218,7 +225,7 @@ class ListTPHApproval : AppCompatActivity() {
                 "Apakah anda ingin menyimpan data ini?",
                 getString(R.string.confirmation_dialog_description),
                 "warning.json",
-                function ={
+                function = {
                     lifecycleScope.launch {
                         try {
                             _saveDataPanenState.value = SaveDataPanenState.Loading
@@ -228,6 +235,8 @@ class ListTPHApproval : AppCompatActivity() {
                             result.fold(
                                 onSuccess = { savedIds ->
                                     _saveDataPanenState.value = SaveDataPanenState.Success(savedIds)
+
+                                    playSound(R.raw.berhasil_simpan)
                                     Toasty.success(
                                         this@ListTPHApproval,
                                         "Data berhasil disimpan",
@@ -330,9 +339,14 @@ class ListTPHApproval : AppCompatActivity() {
             try {
                 withContext(Dispatchers.IO) {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
+
                     jsonStr?.let {
                         data = parseTphData(it)
                         withContext(Dispatchers.Main) {
+
+                            if (data.isNotEmpty()) {
+                                playSound(R.raw.berhasil_scan)
+                            }
                             adapter.updateList(data)
                         }
                     }
@@ -361,6 +375,7 @@ class ListTPHApproval : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
+        SoundPlayer.releaseMediaPlayer()
         // Ensure handler callbacks are removed
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
@@ -370,23 +385,60 @@ class ListTPHApproval : AppCompatActivity() {
             try {
                 val jsonObject = JSONObject(jsonString)
                 val tph0String = jsonObject.getString("tph_0")
-                val usernameString = try{
+                val usernameString = try {
                     jsonObject.getString("username")
-                }catch (e: Exception){
+                } catch (e: Exception) {
                     AppLogger.d("Username tidak ditemukan: $e")
                     "NULL"
                 }
-                Log.d(TAG, "tph0String: $tph0String")
+
+                // Parse the date mapping object
+                val tglObject = try {
+                    jsonObject.getJSONObject("tgl")
+                } catch (e: Exception) {
+                    AppLogger.d("tgl object tidak ditemukan: $e")
+                    null
+                }
+
+                // Create a map of date indices to actual dates
+                val dateMap = mutableMapOf<String, String>()
+                if (tglObject != null) {
+                    val keys = tglObject.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        dateMap[key] = tglObject.getString(key)
+                    }
+                }
+
 
                 val parsedEntries = tph0String.split(";").mapNotNull { entry ->
                     if (entry.isBlank()) return@mapNotNull null
 
                     val parts = entry.split(",")
-                    if (parts.size != 3) return@mapNotNull null
+                    if (parts.size != 4) {
+                        Log.e(
+                            TAG,
+                            "Invalid entry format, expected 4 parts but got ${parts.size}: $entry"
+                        )
+                        return@mapNotNull null
+                    }
 
                     try {
                         val idtph = parts[0].toInt()
-                        Log.d(TAG, "Processing idtph: $idtph")
+                        val dateIndex = parts[1]
+                        val time = parts[2]
+                        val jjg = parts[3].toInt()
+
+                        Log.d(
+                            TAG,
+                            "Processing idtph: $idtph, dateIndex: $dateIndex, time: $time, jjg: $jjg"
+                        )
+
+                        // Get the full date from the date map
+                        val fullDate = dateMap[dateIndex] ?: "Unknown Date"
+                        val fullDateTime = "$fullDate $time"
+
+                        Log.d(TAG, "Full datetime: $fullDateTime")
 
                         val tphInfo = try {
                             repository.getTPHAndBlokInfo(idtph)
@@ -396,8 +448,6 @@ class ListTPHApproval : AppCompatActivity() {
                         }
 
                         val displayName = tphInfo?.blokKode ?: "Unknown"
-                        val datetime = parts[1].split(" ")[1]
-                        val jjg = parts[2].toInt()
 
                         // Create display data
                         val displayData = TphRvData(
@@ -405,25 +455,22 @@ class ListTPHApproval : AppCompatActivity() {
                             noTPH = try {
                                 tphInfo!!.tphNomor.toInt()
                             } catch (e: Exception) {
-                                Log.e(TAG, "Error parsing tphNomor: ${tphInfo!!.tphNomor}", e)
+                                Log.e(TAG, "Error parsing tphNomor: ${tphInfo?.tphNomor}", e)
                                 0
                             },
-                            time = datetime,
+                            time = time,  // Just show the time part for display
                             jjg = jjg,
                             username = usernameString
                         )
-                        Log.d("usernameString", "usernameString: $usernameString")
 
                         // Create save data with original values
                         val saveData = TphRvData(
                             namaBlok = parts[0], // Original ID as namaBlok
                             noTPH = idtph,
-                            time = parts[1], // Original full datetime
+                            time = fullDateTime, // Reconstructed full datetime
                             jjg = jjg,
                             username = usernameString
                         )
-                        Log.d("usernameString", "usernameString2: $usernameString")
-
 
                         Pair(displayData, saveData)
                     } catch (e: Exception) {

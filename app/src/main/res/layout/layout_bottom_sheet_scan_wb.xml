@@ -16,7 +16,7 @@
         android:layout_marginBottom="10dp"
         android:fontFamily="@font/manrope_extrabold"
         android:textColor="@color/black"
-        android:textSize="22sp"
+        android:textSize="@dimen/l"
         android:visibility="visible"
         android:textStyle="bold"
         android:text="Konfirmasi Data e-SPB"
@@ -108,7 +108,7 @@
                             android:layout_height="wrap_content"
                             android:fontFamily="@font/manrope_bold"
                             android:textColor="@color/grayDefault"
-                            android:textSize="17dp" />
+                            android:textSize="@dimen/m" />
 
                     </LinearLayout>
 
@@ -131,7 +131,7 @@
                     android:fontFamily="@font/manrope_bold"
                     android:text="Informasi e-SPB"
                     android:textColor="@color/black"
-                    android:textSize="19sp"
+                    android:textSize="@dimen/m"
                     android:textStyle="bold" />
 
                 <include
@@ -156,7 +156,7 @@
                     android:fontFamily="@font/manrope_bold"
                     android:text="Informasi Blok Janjang"
                     android:textColor="@color/black"
-                    android:textSize="19sp"
+                    android:textSize="@dimen/m"
                     android:textStyle="bold" />
 
                 <include
@@ -201,7 +201,7 @@
                     android:fontFamily="@font/manrope_bold"
                     android:text="Informasi Transport"
                     android:textColor="@color/black"
-                    android:textSize="19sp"
+                    android:textSize="@dimen/m"
                     android:textStyle="bold" />
 
                 <include
@@ -239,7 +239,7 @@
                     android:fontFamily="@font/manrope_bold"
                     android:text="@string/daftar_tph_sudah_terangkut"
                     android:textColor="@color/black"
-                    android:textSize="19sp"
+                    android:textSize="@dimen/m"
                     android:textStyle="bold" />
 
                 <include
@@ -287,7 +287,7 @@
             android:fontFamily="@font/manrope_bold"
             android:text="Simpan &amp; Upload e-SPB"
             android:textColor="@color/white"
-            android:textSize="16sp"
+            android:textSize="@dimen/m"
             android:visibility="gone" />
 
     </LinearLayout>

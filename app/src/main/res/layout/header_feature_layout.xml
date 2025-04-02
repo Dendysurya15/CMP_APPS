@@ -71,7 +71,7 @@
                     android:lineSpacingExtra="2dp"
                     android:text="Menu - List History Panen TBS"
                     android:textColor="@color/black"
-                    android:textSize="17dp" />
+                    android:textSize="@dimen/m" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -96,7 +96,7 @@
                         android:lineSpacingExtra="2dp"
                         android:text="Admin IT\nMandor Panen\nSulung Estate"
                         android:textColor="@color/black"
-                        android:textSize="13dp"
+                        android:textSize="@dimen/s"
                         android:textStyle="italic" />
                 </LinearLayout>
 

@@ -645,7 +645,7 @@ class CameraRepository(
 
         val zoomview = zoomView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
         zoomview.setOnClickListener {
-            zoomview.isEnabled = false
+
             AlertDialogUtility.withTwoActions(
                 context,
                 "Hapus",
@@ -659,7 +659,7 @@ class CameraRepository(
                     backgroundView.visibility = View.GONE
                 },
                 cancelFunction = {
-                    zoomview.isEnabled = true
+                 
                 }
             )
         }

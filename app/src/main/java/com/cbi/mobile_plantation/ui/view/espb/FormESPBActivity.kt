@@ -58,6 +58,8 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.setMaxBrightness
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.SoundPlayer
+import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.google.android.material.button.MaterialButton
@@ -608,15 +610,17 @@ AppLogger.d("jjgMap $janjangMap")
                 "Pastikan seluruh data sudah valid!",
                 "warning.json",
                 function = {
+
                     val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
                     btKonfirmScanESPB.visibility = View.VISIBLE
                     btKonfirmScanESPB.setOnClickListener {
-                        btKonfirmScanESPB.isEnabled = false
+//                        btKonfirmScanESPB.isEnabled = false
                         val statusDraft = if (mekanisasi == 0) {
                             1
                         } else {
                             0
                         }
+
                         saveESPB(
                             blok_jjg = blok_jjg,
                             nopol = selectedNopol,
@@ -661,7 +665,8 @@ AppLogger.d("jjgMap $janjangMap")
                             qrCodeImageView
                         )
                         setMaxBrightness(this, true)
-                        btKonfirmScanESPB.isEnabled = true
+                        playSound(R.raw.berhasil_generate_qr)
+//                        btKonfirmScanESPB.isEnabled = true
                     }
 //                    btnGenerateQRESPB.isEnabled = true
                 },
@@ -1222,6 +1227,7 @@ AppLogger.d("jjgMap $janjangMap")
     override fun onDestroy() {
         super.onDestroy()
 
+        SoundPlayer.releaseMediaPlayer()
         // Ensure handler callbacks are removed
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
@@ -1287,6 +1293,7 @@ AppLogger.d("jjgMap $janjangMap")
 
                     // Update UI on main thread
                     withContext(Dispatchers.Main) {
+                        playSound(R.raw.berhasil_konfirmasi)
                         showSuccessAndNavigate()
                     }
                 } else {
