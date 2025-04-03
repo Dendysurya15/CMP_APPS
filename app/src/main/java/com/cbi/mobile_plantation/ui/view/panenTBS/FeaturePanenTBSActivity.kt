@@ -427,30 +427,92 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         lifecycleScope.launch(Dispatchers.Main) {
                             try {
                                 val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
-                                val idKaryawanList = selectedPemanen.mapNotNull {
-                                    karyawanIdMap[it.name.substringBefore(" - ").trim()]
-                                }
-                                val kemandoranIdList = selectedPemanen.mapNotNull {
-                                    kemandoranIdMap[it.name.substringBefore(" - ").trim()]
-                                }
-                                val selectedPemanenLain =
-                                    selectedPemanenLainAdapter.getSelectedWorkers()
-                                val idKaryawanLainList = selectedPemanenLain.mapNotNull {
-                                    karyawanLainIdMap[it.name.substringBefore(" - ").trim()]
-                                }
-                                val kemandoranLainIdList = selectedPemanenLain.mapNotNull {
-                                    kemandoranLainIdMap[it.name.substringBefore(" - ").trim()]
+
+// Get a map of names to counts to determine which names have duplicates
+                                val workerNameCounts = mutableMapOf<String, Int>()
+                                selectedPemanen.forEach { worker ->
+                                    val baseName = worker.name.substringBefore(" - ").trim()
+                                    workerNameCounts[baseName] = (workerNameCounts[baseName] ?: 0) + 1
                                 }
 
-                                val selectedNikPemanenIds = selectedPemanen.map { it.id }
-                                val selectedNikPemanenLainIds = selectedPemanenLain.map { it.id }
-                                val uniqueNikPemanen =
-                                    (selectedNikPemanenIds + selectedNikPemanenLainIds)
-                                        .distinct()
-                                        .joinToString(",")
+// For worker ID lookup, handle both duplicate and non-duplicate cases
+                                val idKaryawanList = selectedPemanen.mapNotNull { worker ->
+                                    val baseName = worker.name.substringBefore(" - ").trim()
+
+                                    if (workerNameCounts[baseName]!! > 1) {
+                                        // For duplicate names, we need to use the full key with NIK
+                                        karyawanIdMap[worker.name]
+                                    } else {
+                                        // For unique names, just use the base name
+                                        karyawanIdMap[baseName]
+                                    }
+                                }
+
+                                val kemandoranIdList = selectedPemanen.mapNotNull { worker ->
+                                    val baseName = worker.name.substringBefore(" - ").trim()
+
+                                    if (workerNameCounts[baseName]!! > 1) {
+                                        // For duplicate names, use the full key with NIK
+                                        kemandoranIdMap[worker.name]
+                                    } else {
+                                        // For unique names, just use the base name
+                                        kemandoranIdMap[baseName]
+                                    }
+                                }
+
+// Do the same for the "Lain" workers
+                                val selectedPemanenLain = selectedPemanenLainAdapter.getSelectedWorkers()
+
+                                val workerLainNameCounts = mutableMapOf<String, Int>()
+                                selectedPemanenLain.forEach { worker ->
+                                    val baseName = worker.name.substringBefore(" - ").trim()
+                                    workerLainNameCounts[baseName] = (workerLainNameCounts[baseName] ?: 0) + 1
+                                }
+
+                                val idKaryawanLainList = selectedPemanenLain.mapNotNull { worker ->
+                                    val baseName = worker.name.substringBefore(" - ").trim()
+
+                                    if (workerLainNameCounts[baseName]!! > 1) {
+                                        // For duplicate names, use the full key with NIK
+                                        karyawanLainIdMap[worker.name]
+                                    } else {
+                                        // For unique names, just use the base name
+                                        karyawanLainIdMap[baseName]
+                                    }
+                                }
+
+                                val kemandoranLainIdList = selectedPemanenLain.mapNotNull { worker ->
+                                    val baseName = worker.name.substringBefore(" - ").trim()
+
+                                    if (workerLainNameCounts[baseName]!! > 1) {
+                                        // For duplicate names, use the full key with NIK
+                                        kemandoranLainIdMap[worker.name]
+                                    } else {
+                                        // For unique names, just use the base name
+                                        kemandoranLainIdMap[baseName]
+                                    }
+                                }
+
+                                val selectedNikPemanenIds = selectedPemanen.mapNotNull { worker ->
+                                    if (worker.name.contains(" - ")) {
+                                        worker.name.substringAfter(" - ").trim()
+                                    } else {
+                                        null
+                                    }
+                                }
+
+                                val selectedNikPemanenLainIds = selectedPemanenLain.mapNotNull { worker ->
+                                    if (worker.name.contains(" - ")) {
+                                        worker.name.substringAfter(" - ").trim()
+                                    } else {
+                                        null
+                                    }
+                                }
+
+                                val uniqueNikPemanen = (selectedNikPemanenIds + selectedNikPemanenLainIds)
+                                    .joinToString(",")
 
                                 val uniqueIdKaryawan = (idKaryawanList + idKaryawanLainList)
-                                    .distinct()
                                     .map { it.toString() }
                                     .joinToString(",")
 
@@ -2537,20 +2599,30 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutPemanen -> {
                 selectedPemanen = selectedItem.toString()
-                val selectedNama = selectedPemanen.substringBefore(" - ").trim()
+                val selectedNik = selectedPemanen.substringAfter(" - ").trim()
 
-                val karyawanNikMap = karyawanList.associateBy({ it.nama!!.trim() }, { it.nik!! })
+                val nikToEmployeeMap = karyawanList.filter { it.nik != null }
+                    .associateBy { it.nik!! }
+
+                val nameCounts = mutableMapOf<String, Int>()
+                karyawanList.forEach { it.nama?.trim()?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 } }
+
                 karyawanList.forEach {
                     it.nama?.trim()?.let { nama ->
-                        karyawanIdMap[nama] = it.id!!
-                        kemandoranIdMap[nama] = it.kemandoran_id!!
+                        val key = if (nameCounts[nama]!! > 1) {
+                            "$nama - ${it.nik}"
+                        } else {
+                            nama
+                        }
+                        karyawanIdMap[key] = it.id!!
+                        kemandoranIdMap[key] = it.kemandoran_id!!
                     }
                 }
-                val selectedPemanenId = karyawanNikMap[selectedNama]
-                if (selectedPemanenId != null) {
-                    val worker = Worker(selectedPemanenId.toString(), selectedPemanen)
-                    selectedPemanenAdapter.addWorker(worker)
 
+                val selectedEmployee = nikToEmployeeMap[selectedNik]
+                if (selectedEmployee != null) {
+                    val worker = Worker(selectedEmployee.toString(), selectedPemanen)
+                    selectedPemanenAdapter.addWorker(worker)
                     val availableWorkers = selectedPemanenAdapter.getAvailableWorkers()
 
                     if (availableWorkers.isNotEmpty()) {
@@ -2559,7 +2631,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             availableWorkers.map { it.name })  // Extract names
                     }
 
-                    AppLogger.d("Selected Worker: $selectedPemanen, ID: $selectedPemanenId")
+                    AppLogger.d("Selected Worker: $selectedPemanen, ID: $selectedEmployee")
                 }
             }
 
@@ -2635,20 +2707,40 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutPemanenLain -> {
                 selectedPemanenLain = selectedItem.toString()
+
+                val hasNik = selectedPemanenLain.contains(" - ")
+                val selectedNik = if (hasNik) selectedPemanenLain.substringAfter(" - ").trim() else null
                 val selectedNamaPemanenLain = selectedPemanenLain.substringBefore(" - ").trim()
-                val karyawanLainNikMap =
-                    karyawanLainList.associateBy({ it.nama!!.trim() }, { it.nik!! })
+
+                // Create NIK to employee map for lookup similar to layoutPemanen
+                val nikToEmployeeMap = karyawanLainList.filter { it.nik != null }
+                    .associateBy { it.nik!! }
+
+                // Create name counts for duplicate handling similar to layoutPemanen
+                val nameCounts = mutableMapOf<String, Int>()
+                karyawanLainList.forEach { it.nama?.trim()?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 } }
+
+                // Set up maps with proper keys
                 karyawanLainList.forEach {
                     it.nama?.trim()?.let { nama ->
-                        karyawanLainIdMap[nama] = it.id!!
-                        kemandoranLainIdMap[nama] = it.kemandoran_id!!
+                        val key = if (nameCounts[nama]!! > 1) {
+                            "$nama - ${it.nik}"
+                        } else {
+                            nama
+                        }
+                        karyawanLainIdMap[key] = it.id!!
+                        kemandoranLainIdMap[key] = it.kemandoran_id!!
                     }
                 }
 
-                val selectedPemanenLainId = karyawanLainNikMap[selectedNamaPemanenLain]
+                val selectedEmployee = if (selectedNik != null) {
+                    nikToEmployeeMap[selectedNik]
+                } else {
+                    karyawanLainList.find { it.nama?.trim() == selectedNamaPemanenLain }
+                }
 
-                if (selectedPemanenLainId != null) {
-                    val worker = Worker(selectedPemanenLainId.toString(), selectedPemanenLain)
+                if (selectedEmployee != null) {
+                    val worker = Worker(selectedEmployee.toString(), selectedPemanenLain)
                     selectedPemanenLainAdapter.addWorker(worker)
 
                     val availableWorkers = selectedPemanenLainAdapter.getAvailableWorkers()
@@ -2656,10 +2748,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     if (availableWorkers.isNotEmpty()) {
                         setupSpinnerView(
                             linearLayout,
-                            availableWorkers.map { it.name })  // Extract names
+                            availableWorkers.map { it.name })
                     }
 
-                    AppLogger.d("Selected Worker: $selectedPemanenLain, ID: $selectedPemanenLainId")
+                    AppLogger.d("Selected Worker: $selectedPemanenLain, ID: $selectedEmployee")
                 }
             }
 

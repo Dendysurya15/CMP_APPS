@@ -127,6 +127,7 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/montserrat_bold"
                         android:gravity="center"
+                        android:text="-"
                         android:textColor="@color/black"
                         android:textSize="@dimen/m" />
 

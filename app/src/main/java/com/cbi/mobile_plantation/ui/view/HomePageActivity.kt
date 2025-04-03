@@ -867,6 +867,8 @@ class HomePageActivity : AppCompatActivity() {
                                             "created_name" to prefManager!!.nameUserLogin.toString(),
                                             "created_date" to panenWithRelations.panen.date_created,
                                             "jabatan" to prefManager!!.jabatanUserLogin.toString(),
+                                            "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
+                                                .toString(),
                                         )
                                     }
 

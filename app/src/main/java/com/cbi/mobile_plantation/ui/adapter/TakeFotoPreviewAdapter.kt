@@ -142,7 +142,6 @@ class TakeFotoPreviewAdapter(
     private fun handleCameraAction(position: Int, holder: FotoViewHolder) {
         hideKeyboardFromView()
 
-        // Check for location availability
         if (currentLatitude == null || currentLongitude == null) {
             Toast.makeText(
                 context,

@@ -82,6 +82,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONException
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -1016,6 +1017,95 @@ class ListPanenTBSActivity : AppCompatActivity() {
         activeCard.apply {
             setCardBackgroundColor(ContextCompat.getColor(context, R.color.bgSelectWorkerGreen))
             strokeColor = ContextCompat.getColor(context, R.color.strokeSelectWorkerGreen)
+        }
+    }
+
+    private fun formatPanenDataJSONForQR(jsonData: String): String {
+        return try {
+            // Parse the JSON array from the provided string
+            val jsonArray = JSONArray(jsonData)
+
+            // Map the JSON into the format needed
+            val mappedData = mutableListOf<Map<String, Any?>>()
+            for (i in 0 until jsonArray.length()) {
+                val item = jsonArray.getJSONObject(i)
+                mappedData.add(
+                    mapOf(
+                        "tph_id" to item.getLong("tph"),
+                        "date_created" to item.getString("tanggal"),
+                        "jjg_json" to item.getString("jjg_json")
+                    )
+                )
+            }
+
+            if (mappedData.isEmpty()) {
+                throw IllegalArgumentException("Data TPH is empty.")
+            }
+
+            val dateIndexMap = mutableMapOf<String, Int>()
+            val formattedData = buildString {
+                mappedData.forEach { data ->
+                    try {
+                        val tphId = data["tph_id"]?.toString()
+                            ?: throw IllegalArgumentException("Missing tph_id.")
+                        val dateCreated = data["date_created"]?.toString()
+                            ?: throw IllegalArgumentException("Missing date_created.")
+
+                        val jjgJsonString = data["jjg_json"]?.toString()
+                            ?: throw IllegalArgumentException("Missing jjg_json.")
+                        val jjgJson = try {
+                            JSONObject(jjgJsonString)
+                        } catch (e: JSONException) {
+                            throw IllegalArgumentException("Invalid JSON format in jjg_json: $jjgJsonString")
+                        }
+
+                        val key = "KP"  // Using "KP" as the key based on your data
+
+                        val toValue = if (jjgJson.has(key)) {
+                            jjgJson.getInt(key)
+                        } else {
+                            throw IllegalArgumentException("Missing '$key' key in jjg_json: $jjgJsonString")
+                        }
+
+                        // Extract date and time parts
+                        val dateParts = dateCreated.split(" ")
+                        if (dateParts.size != 2) {
+                            throw IllegalArgumentException("Invalid date_created format: $dateCreated")
+                        }
+
+                        val date = dateParts[0]  // 2025-04-03
+                        val time = dateParts[1]  // 07:53:02
+
+                        // Use dateIndexMap.size as the index for new dates
+                        append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue;")
+                    } catch (e: Exception) {
+                        throw IllegalArgumentException("Error processing data entry: ${e.message}")
+                    }
+                }
+            }
+
+            val username = try {
+                PrefManager(this).username.toString().split("@")[0].takeLast(3).uppercase()
+            } catch (e: Exception) {
+                Toasty.error(this, "Error mengambil username: ${e.message}", Toast.LENGTH_LONG)
+                    .show()
+                "NULL"
+            }
+
+            // Create the tgl object with date mappings
+            val tglJson = JSONObject()
+            dateIndexMap.forEach { (date, index) ->
+                tglJson.put(index.toString(), date)
+            }
+
+            return JSONObject().apply {
+                put("tph_0", formattedData)
+                put("username", username)
+                put("tgl", tglJson)
+            }.toString()
+        } catch (e: Exception) {
+            AppLogger.e("formatPanenDataForQR Error: ${e.message}")
+            throw e
         }
     }
 
