@@ -950,7 +950,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setActiveCard(cardRekapPerPemanen)
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
                 val rekapHeaders =
-                    listOf("NAMA\nPEMANEN", "BLOK/JJG", "TPH", "TOTAL JJG/\nJJG DIBAYAR")
+                    listOf("NAMA\nPEMANEN", "BLOK/JJG", "JUMLAH\nTPH", "TOTAL JJG/\nJJG DIBAYAR")
                 updateTableHeaders(rekapHeaders)
             }
             loadingDialog.show()
@@ -2226,8 +2226,10 @@ playSound(R.raw.berhasil_generate_qr)
                             }.flatten() // Flatten the list of lists into a single list
 
                             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2) {
-                                val globalMergedWorkerMap =
-                                    mutableMapOf<String, MutableMap<String, Any>>()
+                                val globalMergedWorkerMap = mutableMapOf<String, MutableMap<String, Any>>()
+
+                                // Define all JJG types to handle
+                                val jjgTypes = listOf("TO", "UN", "OV", "EM", "AB", "RA", "LO", "TI", "RI", "KP", "PA")
 
                                 for (workerData in allWorkerData) {
                                     val workerName = workerData["nama_karyawans"].toString()
@@ -2236,72 +2238,62 @@ playSound(R.raw.berhasil_generate_qr)
                                     val blokName = workerData["blok_name"].toString()
                                     val tphId = workerData["tph_id"].toString()
                                     val jjgJson = JSONObject(workerData["jjg_json"].toString())
-                                    val jjgTO = jjgJson.optDouble("TO", 0.0)
-                                    val jjgPA = jjgJson.optDouble("PA", 0.0)
+
+                                    // Extract all JJG values
+                                    val jjgValues = jjgTypes.associateWith { type ->
+                                        jjgJson.optDouble(type, 0.0)
+                                    }
 
                                     if (globalMergedWorkerMap.containsKey(workerName)) {
                                         AppLogger.d("Found duplicate worker globally: $workerName")
                                         val existingWorkerData = globalMergedWorkerMap[workerName]!!
 
-                                        val existingJjgJson =
-                                            JSONObject(existingWorkerData["jjg_json"].toString())
+                                        val existingJjgJson = JSONObject(existingWorkerData["jjg_json"].toString())
 
-                                        val existingTO = existingJjgJson.optDouble("TO", 0.0)
-                                        val existingPA = existingJjgJson.optDouble("PA", 0.0)
-                                        val newTotalTO = existingTO + jjgTO
-                                        val newTotalPA = existingPA + jjgPA
-                                        existingJjgJson.put("TO", newTotalTO)
-                                        existingJjgJson.put("PA", newTotalPA)
+                                        // Update all JJG types in the existing JSON
+                                        for (type in jjgTypes) {
+                                            val existingValue = existingJjgJson.optDouble(type, 0.0)
+                                            val newValue = jjgValues[type] ?: 0.0
+                                            val totalValue = existingValue + newValue
+                                            existingJjgJson.put(type, totalValue)
+                                        }
 
                                         // Update the JJG JSON in the existing worker data
                                         existingWorkerData["jjg_json"] = existingJjgJson.toString()
 
-                                        // Update the jjg_dibayar field - just add the PA value
-                                        val existingJjgDibayar =
-                                            existingWorkerData["jjg_dibayar"]?.toString()
-                                                ?.toDoubleOrNull() ?: existingPA
-                                        existingWorkerData["jjg_dibayar"] =
-                                            if ((existingJjgDibayar + jjgPA) == (existingJjgDibayar + jjgPA).toInt()
-                                                    .toDouble()
-                                            ) {
-                                                (existingJjgDibayar + jjgPA).toInt().toString()
-                                            } else {
-                                                String.format("%.1f", existingJjgDibayar + jjgPA)
-                                            }
+                                        // Use PA for jjg_dibayar as in the original code
+                                        val existingJjgDibayar = existingWorkerData["jjg_dibayar"]?.toString()?.toDoubleOrNull() ?: jjgValues["PA"] ?: 0.0
+                                        val newJjgDibayar = existingJjgDibayar + (jjgValues["PA"] ?: 0.0)
+                                        existingWorkerData["jjg_dibayar"] = if (newJjgDibayar == newJjgDibayar.toInt().toDouble()) {
+                                            newJjgDibayar.toInt().toString()
+                                        } else {
+                                            String.format("%.1f", newJjgDibayar)
+                                        }
 
-                                        // Update the jjg_total_blok field - format based on whether it's a whole number
-                                        existingWorkerData["jjg_total_blok"] =
-                                            if (newTotalTO == newTotalTO.toInt().toDouble()) {
-                                                newTotalTO.toInt().toString()
-                                            } else {
-                                                String.format("%.1f", newTotalTO)
-                                            }
+                                        // Use TO for jjg_total_blok as in the original code
+                                        val newTotalTO = existingJjgJson.optDouble("TO", 0.0)
+                                        existingWorkerData["jjg_total_blok"] = if (newTotalTO == newTotalTO.toInt().toDouble()) {
+                                            newTotalTO.toInt().toString()
+                                        } else {
+                                            String.format("%.1f", newTotalTO)
+                                        }
 
                                         // Update occurrence counter
-                                        val existingOccurrences =
-                                            (existingWorkerData["occurrence_count"]?.toString()
-                                                ?.toIntOrNull() ?: 1) + 1
-                                        existingWorkerData["occurrence_count"] =
-                                            existingOccurrences.toString()
+                                        val existingOccurrences = (existingWorkerData["occurrence_count"]?.toString()?.toIntOrNull() ?: 1) + 1
+                                        existingWorkerData["occurrence_count"] = existingOccurrences.toString()
 
                                         // Update TPH ID tracking
-                                        val tphIds =
-                                            (existingWorkerData["tph_ids"]?.toString() ?: "").split(
-                                                ","
-                                            )
-                                                .filter { it.isNotEmpty() }.toMutableSet()
+                                        val tphIds = (existingWorkerData["tph_ids"]?.toString() ?: "").split(",")
+                                            .filter { it.isNotEmpty() }.toMutableSet()
                                         tphIds.add(tphId)
                                         existingWorkerData["tph_ids"] = tphIds.joinToString(",")
                                         existingWorkerData["tph_count"] = tphIds.size.toString()
 
                                         // Update the jjg_each_blok field
-                                        val existingJjgEachBlok =
-                                            existingWorkerData["jjg_each_blok"]?.toString() ?: ""
+                                        val existingJjgEachBlok = existingWorkerData["jjg_each_blok"]?.toString() ?: ""
 
                                         // Check if this blok already exists in our tracking (accounting for newlines)
-                                        if (existingJjgEachBlok.split("\n")
-                                                .any { it.startsWith("$blokName(") }
-                                        ) {
+                                        if (existingJjgEachBlok.split("\n").any { it.startsWith("$blokName(") }) {
                                             // Blok already exists, find and update its count
                                             val lines = existingJjgEachBlok.split("\n")
                                             val updatedLines = lines.map { line ->
@@ -2309,19 +2301,15 @@ playSound(R.raw.berhasil_generate_qr)
                                                     val regex = "$blokName\\(([0-9.]+)\\)".toRegex()
                                                     val matchResult = regex.find(line)
                                                     if (matchResult != null) {
-                                                        val currentCount =
-                                                            matchResult.groupValues[1].toDouble()
-                                                        val newCount = currentCount + jjgTO
+                                                        val currentCount = matchResult.groupValues[1].toDouble()
+                                                        val newCount = currentCount + (jjgValues["TO"] ?: 0.0)
 
                                                         // Format based on whether it's a whole number
-                                                        val formattedCount =
-                                                            if (newCount == newCount.toInt()
-                                                                    .toDouble()
-                                                            ) {
-                                                                newCount.toInt().toString()
-                                                            } else {
-                                                                String.format("%.1f", newCount)
-                                                            }
+                                                        val formattedCount = if (newCount == newCount.toInt().toDouble()) {
+                                                            newCount.toInt().toString()
+                                                        } else {
+                                                            String.format("%.1f", newCount)
+                                                        }
 
                                                         "$blokName($formattedCount)"
                                                     } else {
@@ -2331,12 +2319,11 @@ playSound(R.raw.berhasil_generate_qr)
                                                     line
                                                 }
                                             }
-                                            existingWorkerData["jjg_each_blok"] =
-                                                updatedLines.joinToString("\n")
+                                            existingWorkerData["jjg_each_blok"] = updatedLines.joinToString("\n")
 
                                             // Update the bullet point version after updating jjg_each_blok
                                             val updatedBulletFormat = updatedLines.map { line ->
-                                                val regex = "([A-Z0-9]+)\\(([0-9.]+)\\)".toRegex()
+                                                val regex = "([A-Z0-9-]+)\\(([0-9.]+)\\)".toRegex()
                                                 val matchResult = regex.find(line)
 
                                                 if (matchResult != null) {
@@ -2348,79 +2335,69 @@ playSound(R.raw.berhasil_generate_qr)
                                                 }
                                             }.joinToString("\n")
 
-                                            existingWorkerData["jjg_each_blok_bullet"] =
-                                                updatedBulletFormat
+                                            existingWorkerData["jjg_each_blok_bullet"] = updatedBulletFormat
 
                                         } else {
                                             // This is a new blok for this worker
-                                            val formattedJjgTO =
-                                                if (jjgTO == jjgTO.toInt().toDouble()) {
-                                                    jjgTO.toInt().toString()
-                                                } else {
-                                                    String.format("%.1f", jjgTO)
-                                                }
+                                            val jjgTO = jjgValues["TO"] ?: 0.0
+                                            val formattedJjgTO = if (jjgTO == jjgTO.toInt().toDouble()) {
+                                                jjgTO.toInt().toString()
+                                            } else {
+                                                String.format("%.1f", jjgTO)
+                                            }
 
-                                            val updatedJjgEachBlok =
-                                                if (existingJjgEachBlok.isEmpty()) {
-                                                    "$blokName($formattedJjgTO)"
-                                                } else {
-                                                    "$existingJjgEachBlok\n$blokName($formattedJjgTO)"
-                                                }
+                                            val updatedJjgEachBlok = if (existingJjgEachBlok.isEmpty()) {
+                                                "$blokName($formattedJjgTO)"
+                                            } else {
+                                                "$existingJjgEachBlok\n$blokName($formattedJjgTO)"
+                                            }
 
                                             existingWorkerData["jjg_each_blok"] = updatedJjgEachBlok
 
                                             // Update the bullet point version after adding new blok
-                                            val updatedJjgEachBlokLines =
-                                                updatedJjgEachBlok.split("\n")
-                                            val updatedBulletFormat =
-                                                updatedJjgEachBlokLines.map { line ->
-                                                    val regex =
-                                                        "([A-Z0-9]+)\\(([0-9.]+)\\)".toRegex()
-                                                    val matchResult = regex.find(line)
+                                            val updatedJjgEachBlokLines = updatedJjgEachBlok.split("\n")
+                                            val updatedBulletFormat = updatedJjgEachBlokLines.map { line ->
+                                                val regex = "([A-Z0-9-]+)\\(([0-9.]+)\\)".toRegex()
+                                                val matchResult = regex.find(line)
 
-                                                    if (matchResult != null) {
-                                                        val blokNameMatch =
-                                                            matchResult.groupValues[1]
-                                                        val count = matchResult.groupValues[2]
-                                                        "• $blokNameMatch ($count Jjg)"
-                                                    } else {
-                                                        "• $line"
-                                                    }
-                                                }.joinToString("\n")
+                                                if (matchResult != null) {
+                                                    val blokNameMatch = matchResult.groupValues[1]
+                                                    val count = matchResult.groupValues[2]
+                                                    "• $blokNameMatch ($count Jjg)"
+                                                } else {
+                                                    "• $line"
+                                                }
+                                            }.joinToString("\n")
 
-                                            existingWorkerData["jjg_each_blok_bullet"] =
-                                                updatedBulletFormat
+                                            existingWorkerData["jjg_each_blok_bullet"] = updatedBulletFormat
                                         }
                                     } else {
                                         val mutableWorkerData = workerData.toMutableMap()
 
                                         // Format JJG values based on whether they're whole numbers
-                                        val formattedJjgTO =
-                                            if (jjgTO == jjgTO.toInt().toDouble()) {
-                                                jjgTO.toInt().toString()
-                                            } else {
-                                                String.format("%.1f", jjgTO)
-                                            }
-                                        mutableWorkerData["jjg_each_blok"] =
-                                            "$blokName($formattedJjgTO)"
+                                        val jjgTO = jjgValues["TO"] ?: 0.0
+                                        val formattedJjgTO = if (jjgTO == jjgTO.toInt().toDouble()) {
+                                            jjgTO.toInt().toString()
+                                        } else {
+                                            String.format("%.1f", jjgTO)
+                                        }
+                                        mutableWorkerData["jjg_each_blok"] = "$blokName($formattedJjgTO)"
 
                                         // Add the bullet point version for new workers
-                                        mutableWorkerData["jjg_each_blok_bullet"] =
-                                            "• $blokName ($formattedJjgTO Jjg)"
+                                        mutableWorkerData["jjg_each_blok_bullet"] = "• $blokName ($formattedJjgTO Jjg)"
 
-                                        mutableWorkerData["jjg_total_blok"] =
-                                            if (jjgTO == jjgTO.toInt().toDouble()) {
-                                                jjgTO.toInt().toString()
-                                            } else {
-                                                String.format("%.1f", jjgTO)
-                                            }
+                                        mutableWorkerData["jjg_total_blok"] = if (jjgTO == jjgTO.toInt().toDouble()) {
+                                            jjgTO.toInt().toString()
+                                        } else {
+                                            String.format("%.1f", jjgTO)
+                                        }
 
-                                        mutableWorkerData["jjg_dibayar"] =
-                                            if (jjgPA == jjgPA.toInt().toDouble()) {
-                                                jjgPA.toInt().toString()
-                                            } else {
-                                                String.format("%.1f", jjgPA)
-                                            }
+                                        val jjgPA = jjgValues["PA"] ?: 0.0
+                                        mutableWorkerData["jjg_dibayar"] = if (jjgPA == jjgPA.toInt().toDouble()) {
+                                            jjgPA.toInt().toString()
+                                        } else {
+                                            String.format("%.1f", jjgPA)
+                                        }
 
                                         // Initialize occurrence counter
                                         mutableWorkerData["occurrence_count"] = "1"
@@ -2433,10 +2410,9 @@ playSound(R.raw.berhasil_generate_qr)
                                     }
                                 }
 
-                                val finalMergedData =
-                                    globalMergedWorkerMap.values.toList().sortedBy {
-                                        it["nama_karyawans"].toString()
-                                    }
+                                val finalMergedData = globalMergedWorkerMap.values.toList().sortedBy {
+                                    it["nama_karyawans"].toString()
+                                }
 
                                 AppLogger.d("Final merged data: $finalMergedData")
                                 mappedData = finalMergedData

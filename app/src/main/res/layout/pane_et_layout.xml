@@ -21,7 +21,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Loading..."
-            android:textSize="17dp"
+            android:textSize="@dimen/m"
+            android:textColor="@color/black"
             android:fontFamily="@font/manrope_semibold"
             android:id="@+id/tvTitlePaneEt"
             android:ellipsize="end"
@@ -42,6 +43,7 @@
             android:textAllCaps="true"
             android:selectAllOnFocus="true"
             android:hint="0"
+            android:textColorHint="@color/graytextdark"
             android:textColor="@color/black"
             android:textColorHighlight="@color/greenDarkerLight"/>
 

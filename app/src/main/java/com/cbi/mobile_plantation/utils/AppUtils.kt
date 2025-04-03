@@ -844,12 +844,12 @@ object AppUtils {
                     val outputFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
                     val date = inputFormat.parse(lastSyncDate)
                     val formattedDate = outputFormat.format(date)
-                    lastUpdateText.text = "Terakhir Sinkronisasi:\n$formattedDate"
+                    lastUpdateText.text = "Update:\n$formattedDate"
                 } catch (e: Exception) {
-                    lastUpdateText.text = "Terakhir Sinkronisasi: -"
+                    lastUpdateText.text = "Update: -"
                 }
             } else {
-                lastUpdateText.text = "Terakhir Sinkronisasi: -"
+                lastUpdateText.text = "Update: -"
             }
         }
     }

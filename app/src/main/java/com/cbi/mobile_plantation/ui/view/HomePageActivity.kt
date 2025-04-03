@@ -1754,7 +1754,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            findViewById<TextView>(R.id.lastUpdate).text = "Terakhir Sinkronisasi:\n$formattedDate"
+            findViewById<TextView>(R.id.lastUpdate).text = "Update:\n$formattedDate"
         }
 
     }

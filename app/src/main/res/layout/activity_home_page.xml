@@ -56,15 +56,16 @@
                         android:orientation="horizontal">
 
                         <ImageView
-                            android:layout_width="35dp"
-                            android:layout_height="35dp"
+                            android:layout_width="30dp"
+                            android:layout_height="match_parent"
                             android:scaleType="fitCenter"
+
                             android:src="@drawable/cbi" />
 
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginLeft="10dp"
+                            android:layout_marginLeft="5dp"
                             android:orientation="vertical">
                             <TextView
                                 android:id="@+id/titleAppNameAndVersion"
@@ -72,6 +73,7 @@
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/manrope_bold"
                                 android:lineSpacingExtra="2dp"
+                                android:text="CMP - 1.1.1"
                                 android:textColor="@color/white"
                                 android:textSize="@dimen/m" />
 
@@ -81,6 +83,7 @@
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/manrope_bold"
                                 android:lineSpacingExtra="2dp"
+                                android:text="Kerani Panen OB 2 NBE"
                                 android:textColor="@color/white"
                                 android:textSize="@dimen/s"
                                 />
@@ -102,6 +105,7 @@
 <!--                            android:textSize="@dimen/m"-->
 <!--                            app:backgroundTint="@color/colorRedDark"-->
 <!--                            app:cornerRadius="8dp"-->
+<!--                            android:visibility="invisible"-->
 <!--                            app:icon="@drawable/baseline_logout_24"-->
 <!--                            app:iconPadding="3dp"-->
 <!--                            app:rippleColor="@color/colorRed" />-->
@@ -112,7 +116,7 @@
                             android:layout_height="wrap_content"
                             android:fontFamily="@font/montserrat_medium"
                             android:gravity="center"
-                            android:text="Terakhir Sinkronisasi:\n02 Apr 2025 17:09"
+                            android:text="Update:\n02 Apr 2025 17:09"
                             android:textColor="@color/white"
                             android:textSize="@dimen/s" />
                     </LinearLayout>

@@ -330,14 +330,14 @@ class ListTPHApproval : AppCompatActivity() {
                                 val listBlokTextView: TextView = findViewById(R.id.listBlok)
 
                                 val totalJjg = data.sumOf { it.jjg }
-                                val uniqueTphCount = data.distinctBy { "${it.namaBlok}_${it.noTPH}" }.size
+                                val totalTphCount = data.size
 
                                 val blokSummary = calculateBlokSummary(data)
 
                                 totalSection.visibility = View.VISIBLE
                                 blokSection.visibility = View.VISIBLE
                                 totalJjgTextView.text = totalJjg.toString()
-                                totalTphTextView.text = uniqueTphCount.toString()
+                                totalTphTextView.text = totalTphCount.toString()
                                 listBlokTextView.text = blokSummary
                             }
 

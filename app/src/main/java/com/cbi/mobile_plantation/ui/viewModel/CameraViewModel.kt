@@ -2,6 +2,7 @@ package com.cbi.mobile_plantation.ui.viewModel
 
 import android.view.View
 import android.widget.ImageView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.cbi.mobile_plantation.data.repository.CameraRepository
@@ -22,6 +23,7 @@ class CameraViewModel(private val cameraRepository: CameraRepository) : ViewMode
     fun openZoomPhotos(file: File, position: String, onChangePhoto: () -> Unit, onDeletePhoto: (String) -> Unit) {
         cameraRepository.openZoomPhotos(file, position, onChangePhoto, onDeletePhoto)
     }
+
 
     fun closeZoomPhotos() {
         cameraRepository.closeZoomPhotos()

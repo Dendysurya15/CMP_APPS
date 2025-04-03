@@ -127,7 +127,7 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/montserrat_bold"
                         android:gravity="center"
-                        android:text="-"
+                        android:text="17 m"
                         android:textColor="@color/black"
                         android:textSize="@dimen/m" />
 
@@ -139,7 +139,7 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/montserrat_medium"
                     android:gravity="center"
-                    android:text="Last Sync: 02 Apr 2025 17:09"
+                    android:text="Update: 02 Apr 2025 17:09"
                     android:textColor="@color/black"
                     android:textSize="@dimen/s" />
             </LinearLayout>
