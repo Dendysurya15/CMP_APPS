@@ -122,7 +122,7 @@ class FormESPBActivity : AppCompatActivity() {
     private var pemuat_id = "NULL"
     private var kemandoran_id = "NULL"
     private var pemuat_nik = "NULL"
-
+    private var prefManager: PrefManager? = null
     private var divisiList: List<TPHNewModel> = emptyList()
 
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
@@ -210,7 +210,7 @@ class FormESPBActivity : AppCompatActivity() {
         }
 
         initViewModel()
-        setupHeader()
+
         setupViewModel()
         Log.d("tph1", "tph1: $tph1")
         viewModel.janjangByBlock.observe(this) { janjangMap ->
@@ -261,7 +261,7 @@ AppLogger.d("jjgMap $janjangMap")
             adapter = selectedPemuatAdapter
         }
 
-        val prefManager = PrefManager(this)
+        prefManager = PrefManager(this)
 
         regionalId = prefManager!!.regionalIdUserLogin
         estateId = prefManager!!.estateIdUserLogin
@@ -269,16 +269,16 @@ AppLogger.d("jjgMap $janjangMap")
         userName = prefManager!!.nameUserLogin
         userId = prefManager!!.idUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
-
+        setupHeader()
         val idPetugas = try {
-            prefManager.idUserLogin
+            prefManager!!.idUserLogin
         } catch (e: Exception) {
             Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Petugas $e", Toasty.LENGTH_LONG)
                 .show()
             0
         }
         val estatePetugas = try {
-            prefManager.estateUserLogin
+            prefManager!!.estateUserLogin
         } catch (e: Exception) {
             Toasty.error(
                 this,
@@ -288,7 +288,7 @@ AppLogger.d("jjgMap $janjangMap")
             "NULL"
         }
         idEstate = try {
-            prefManager.estateIdUserLogin.toString().toInt()
+            prefManager!!.estateIdUserLogin.toString().toInt()
         } catch (e: Exception) {
             Toasty.error(this, "Terjadi Kesalahan saat mengambil ID Estate $e", Toasty.LENGTH_LONG)
                 .show()
@@ -785,20 +785,24 @@ AppLogger.d("jjgMap $janjangMap")
 
 
     private fun setupHeader() {
-
+        featureName = intent.getStringExtra("FEATURE_NAME").toString()
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
         val userSection = findViewById<TextView>(R.id.userSection)
+        val titleAppNameAndVersion = findViewById<TextView>(R.id.titleAppNameAndVersionFeature)
+        val lastUpdateText = findViewById<TextView>(R.id.lastUpdate)
         val locationSection = findViewById<LinearLayout>(R.id.locationSection)
-        locationSection.visibility = View.VISIBLE
+
+        locationSection.visibility = View.GONE
 
         AppUtils.setupUserHeader(
             userName = userName,
-            jabatanUser = jabatanUser,
-            estateName = estateName,
-            afdelingUser = afdelingUser,
             userSection = userSection,
             featureName = featureName,
-            tvFeatureName = tvFeatureName
+            tvFeatureName = tvFeatureName,
+            prefManager = prefManager,
+            lastUpdateText = lastUpdateText,
+            titleAppNameAndVersionText = titleAppNameAndVersion,
+            context = this
         )
     }
 

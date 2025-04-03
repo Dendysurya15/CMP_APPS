@@ -34,7 +34,7 @@
             android:layout_marginHorizontal="40dp"
             android:layout_marginTop="16dp"
             android:gravity="center_horizontal"
-            android:fontFamily="@font/manrope_extrabold"
+            android:fontFamily="@font/manrope_bold"
             android:textColor="@color/white"
             android:textSize="16dp"/>
     </LinearLayout>
@@ -46,6 +46,7 @@
         android:layout_height="wrap_content"
         android:layout_below="@id/content_container"
         android:layout_marginTop="16dp"
+        android:fontFamily="@font/manrope_medium"
         android:layout_centerHorizontal="true"
         android:layout_marginHorizontal="40dp"
         android:gravity="center"

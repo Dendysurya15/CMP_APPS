@@ -316,20 +316,24 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         jabatanUser = prefManager!!.jabatanUserLogin
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
-        featureName = intent.getStringExtra("FEATURE_NAME")
+        featureName = intent.getStringExtra("FEATURE_NAME").toString()
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
         val userSection = findViewById<TextView>(R.id.userSection)
+        val titleAppNameAndVersion = findViewById<TextView>(R.id.titleAppNameAndVersionFeature)
+        val lastUpdateText = findViewById<TextView>(R.id.lastUpdate)
         val locationSection = findViewById<LinearLayout>(R.id.locationSection)
+
         locationSection.visibility = View.GONE
 
         AppUtils.setupUserHeader(
             userName = userName,
-            jabatanUser = jabatanUser,
-            estateName = estateName,
-            afdelingUser = afdelingUser,
             userSection = userSection,
             featureName = featureName,
-            tvFeatureName = tvFeatureName
+            tvFeatureName = tvFeatureName,
+            prefManager = prefManager,
+            lastUpdateText = lastUpdateText,
+            titleAppNameAndVersionText = titleAppNameAndVersion,
+            context = this
         )
     }
 

@@ -66,6 +66,7 @@ import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.AppUtils.formatToCamelCase
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
@@ -85,7 +86,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -107,11 +110,10 @@ class HomePageActivity : AppCompatActivity() {
     private var countPanenTPHApproval: Int = 0  // Global variable for count
     private var counteSPBWBScanned: Int = 0  // Global variable for count
     private var countActiveESPB: Int = 0  // Global variable for count
-    private val _globalLastModifiedTPH = MutableLiveData<String>()
-    private val globalLastModifiedTPH: LiveData<String> get() = _globalLastModifiedTPH
 
-    private val _globalLastModifiedBlok = MutableLiveData<String>()
-    private val globalLastModifiedBlok: LiveData<String> get() = _globalLastModifiedBlok
+    private val _globalLastSync = MutableLiveData<String>()
+    private val globalLastSync: LiveData<String> get() = _globalLastSync
+
     private var activityInitialized = false
 
     private var hasShownErrorDialog = false  // Add this property
@@ -355,7 +357,7 @@ class HomePageActivity : AppCompatActivity() {
                 cardBackgroundColor = R.color.greenDarkerLight,
                 featureName = AppUtils.ListFeatureNames.SinkronisasiData,
                 featureNameBackgroundColor = R.color.toscaBorder,
-                iconResource = R.drawable.upload_icon,
+                iconResource = R.drawable.sync_icon,
                 functionDescription = "Update semua data master",
                 displayType = DisplayType.ICON,
                 subTitle = "Sinkronisasi data manual"
@@ -363,8 +365,8 @@ class HomePageActivity : AppCompatActivity() {
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
                 featureName = AppUtils.ListFeatureNames.UploadDataCMP,
-                featureNameBackgroundColor = R.color.toscaBorder,
-                iconResource = R.drawable.sync_icon,
+                featureNameBackgroundColor = R.color.bluedarklight,
+                iconResource = R.drawable.upload_icon,
                 functionDescription = "Upload semua data di aplikasi",
                 displayType = DisplayType.ICON,
                 subTitle = "Upload Semua Data CMP"
@@ -401,8 +403,8 @@ class HomePageActivity : AppCompatActivity() {
                 AppUtils.ListFeatureByRoleUser.KeraniPanen -> listOf(
                     features.find { it.featureName == AppUtils.ListFeatureNames.PanenTBS },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapHasilPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
                 ).filterNotNull()
 
@@ -536,8 +538,7 @@ class HomePageActivity : AppCompatActivity() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
         initViewModel()
-        _globalLastModifiedTPH.value = prefManager!!.lastModifiedDatasetTPH
-        _globalLastModifiedBlok.value = prefManager!!.lastModifiedDatasetBlok
+        _globalLastSync.value = prefManager!!.lastSyncDate
         setupDownloadDialog()
         setupTitleAppNameAndVersion()
         setupName()
@@ -756,7 +757,7 @@ class HomePageActivity : AppCompatActivity() {
                         datasetViewModel.updateLocalUploadCMP(trackingIdsUpload)
                         datasetViewModel.isCompleted.observe(this@HomePageActivity) { isCompleted ->
                             if (isCompleted) {
-                               AppLogger.d("sukses update all upload CMP")
+                                AppLogger.d("sukses update all upload CMP")
                             }
                         }
                         datasetViewModel.updateResultStatusUploadCMP.observe(this@HomePageActivity) { result ->
@@ -1203,13 +1204,20 @@ class HomePageActivity : AppCompatActivity() {
                                         try {
                                             val regionalIdString = prefManager!!.regionalIdUserLogin
                                             val estateIdString = prefManager!!.estateIdUserLogin
-                                            val lastModifiedDatasetTPH = prefManager!!.lastModifiedDatasetTPH
-                                            val lastModifiedDatasetBlok = prefManager!!.lastModifiedDatasetBlok
-                                            val lastModifiedDatasetKemandoran = prefManager!!.lastModifiedDatasetKemandoran
-                                            val lastModifiedDatasetPemanen = prefManager!!.lastModifiedDatasetPemanen
-                                            val lastModifiedDatasetTransporter = prefManager!!.lastModifiedDatasetTransporter
-                                            val lastModifiedDatasetKendaraan = prefManager!!.lastModifiedDatasetKendaraan
-                                            val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
+                                            val lastModifiedDatasetTPH =
+                                                prefManager!!.lastModifiedDatasetTPH
+                                            val lastModifiedDatasetBlok =
+                                                prefManager!!.lastModifiedDatasetBlok
+                                            val lastModifiedDatasetKemandoran =
+                                                prefManager!!.lastModifiedDatasetKemandoran
+                                            val lastModifiedDatasetPemanen =
+                                                prefManager!!.lastModifiedDatasetPemanen
+                                            val lastModifiedDatasetTransporter =
+                                                prefManager!!.lastModifiedDatasetTransporter
+                                            val lastModifiedDatasetKendaraan =
+                                                prefManager!!.lastModifiedDatasetKendaraan
+                                            val lastModifiedSettingJSON =
+                                                prefManager!!.lastModifiedSettingJSON
 
                                             if (!estateIdString.isNullOrEmpty() && !estateIdString.isBlank()) {
                                                 try {
@@ -1233,11 +1241,14 @@ class HomePageActivity : AppCompatActivity() {
 
                                                             // Call the silent download function with its own timeout (also 30 seconds)
                                                             val results = withTimeout(30 * 1000L) {
-                                                                datasetViewModel.downloadDatasetsSilently(datasets).await()
+                                                                datasetViewModel.downloadDatasetsSilently(
+                                                                    datasets
+                                                                ).await()
                                                             }
 
                                                             // Log results but don't update UI based on them
-                                                            val successCount = results.values.count { it }
+                                                            val successCount =
+                                                                results.values.count { it }
                                                             AppLogger.d("Silent download completed: $successCount/${results.size} datasets updated successfully")
                                                         } else {
                                                             AppLogger.d("No datasets to download silently")
@@ -1281,7 +1292,8 @@ class HomePageActivity : AppCompatActivity() {
                                         btnUploadDataCMP.visibility = View.GONE
                                         closeDialogBtn.isEnabled = true
                                         closeDialogBtn.alpha = 1f
-                                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+                                        closeDialogBtn.iconTint =
+                                            ColorStateList.valueOf(Color.WHITE)
 
                                         // Dismiss loading dialog once everything is complete
                                         loadingDialog.dismiss()
@@ -1333,7 +1345,8 @@ class HomePageActivity : AppCompatActivity() {
 
                         if (allUploadZipFilesToday.isNotEmpty()) {
                             try {
-                                val extractionDeferred = CompletableDeferred<Pair<List<Int>, List<Int>>>()
+                                val extractionDeferred =
+                                    CompletableDeferred<Pair<List<Int>, List<Int>>>()
 
                                 AppLogger.d("Starting ZIP extraction for ${response.nama_file}")
 
@@ -1515,27 +1528,34 @@ class HomePageActivity : AppCompatActivity() {
             AppLogger.d("Progress: $completedCount/${downloadItems.size} completed")
             counterTV.text = "$completedCount/${downloadItems.size}"
 
-
             if (downloadItems.all { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
 
-                _globalLastModifiedTPH.value = prefManager!!.lastModifiedDatasetTPH
+                if (downloadItems.any { it.isStoringCompleted || it.isUpToDate }) {
+                    val indonesiaTimeZone = TimeZone.getTimeZone("Asia/Jakarta")
+                    val simpleDateFormat =
+                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    simpleDateFormat.timeZone = indonesiaTimeZone
+                    val currentDateTimeIndonesia = simpleDateFormat.format(Date())
+
+                    prefManager!!.lastSyncDate = currentDateTimeIndonesia
+
+                    _globalLastSync.value = currentDateTimeIndonesia
+                }
+
                 if (prefManager!!.isFirstTimeLaunch && downloadItems.any { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
                     prefManager!!.isFirstTimeLaunch = false
                     AppLogger.d("First-time launch flag updated to false")
                 }
 
+                // Show appropriate UI based on errors
                 if (downloadItems.any { it.error != null }) {
                     containerDownloadDataset.visibility = View.VISIBLE
                     retryDownloadDataset.visibility = View.VISIBLE
                     cancelDownloadDataset.visibility = View.VISIBLE
-
                 } else {
                     containerDownloadDataset.visibility = View.VISIBLE
                     cancelDownloadDataset.visibility = View.VISIBLE
-
-
                 }
-
             }
         }
     }
@@ -1713,10 +1733,12 @@ class HomePageActivity : AppCompatActivity() {
 
     private fun setupName() {
         val userName = prefManager!!.nameUserLogin ?: "Unknown"
-        val jobTitle = "${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
-        val initials = userName.split(" ").take(2).joinToString("") { it.take(1).uppercase() }
+        val userInfo = buildString {
+            userName?.takeIf { it.isNotEmpty() }?.let { append(formatToCamelCase(it)) }
+        }
+        findViewById<TextView>(R.id.userSection).text = userInfo
+        globalLastSync.observe(this) { timestamp ->
 
-        globalLastModifiedTPH.observe(this) { timestamp ->
             val formattedDate = if (timestamp.isNullOrEmpty()) {
                 "-"
             } else {
@@ -1730,30 +1752,8 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            findViewById<TextView>(R.id.lastUpdate).text = "Update: $formattedDate"
+            findViewById<TextView>(R.id.lastUpdate).text = "Terakhir Sinkronisasi:\n$formattedDate"
         }
-
-        globalLastModifiedBlok.observe(this) { timestamp ->
-            val formattedDate = if (timestamp.isNullOrEmpty()) {
-                "-"
-            } else {
-                val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                val outputFormat = SimpleDateFormat("dd MMMM yyyy HH:mm", Locale("id", "ID"))
-                try {
-                    val date = inputFormat.parse(timestamp)
-                    outputFormat.format(date ?: "-")
-                } catch (e: Exception) {
-                    "-"
-                }
-            }
-
-            findViewById<TextView>(R.id.lastUpdate).text = "Update: $formattedDate"
-        }
-
-
-//        findViewById<TextView>(R.id.userNameLogin).text = userName
-        findViewById<TextView>(R.id.jabatanUserLogin).text = jobTitle
-        findViewById<TextView>(R.id.initalName).text = initials
 
     }
 
@@ -1765,55 +1765,56 @@ class HomePageActivity : AppCompatActivity() {
 
     private fun setupLogout() {
 
-        val btnLogout = findViewById<MaterialButton>(R.id.btnLogout)
-
-        btnLogout.setOnClickListener {
-            vibrate()
-            btnLogout.isEnabled = false
-            AlertDialogUtility.withTwoActions(
-                this,
-                "Logout",
-                getString(R.string.confirmation_dialog_title),
-                getString(R.string.al_confirm_logout),
-                "warning.json",
-                ContextCompat.getColor(this, R.color.colorRedDark),
-                function = {
-                    prefManager!!.isFirstTimeLaunch = false
-                    prefManager!!.rememberLogin = false
-                    prefManager!!.token = null
-                    prefManager!!.username = null
-                    prefManager!!.password = null
-                    prefManager!!.nameUserLogin = null
-                    prefManager!!.idUserLogin = 0  // Resetting Int to 0
-                    prefManager!!.jabatanUserLogin = null
-                    prefManager!!.estateUserLogin = null
-                    prefManager!!.estateUserLengkapLogin = null
-                    prefManager!!.estateIdUserLogin = null
-                    prefManager!!.regionalIdUserLogin = null
-                    prefManager!!.companyIdUserLogin = null
-                    prefManager!!.companyAbbrUserLogin = null
-                    prefManager!!.companyNamaUserLogin = null
-                    prefManager!!.lastModifiedDatasetTPH = null
-                    prefManager!!.lastModifiedDatasetKemandoran = null
-                    prefManager!!.lastModifiedDatasetPemanen = null
-                    prefManager!!.lastModifiedDatasetTransporter = null
-                    prefManager!!.lastModifiedDatasetBlok = null
-                    prefManager!!.clearDatasetMustUpdate()
-
-                    datasetViewModel.clearAllData()
-
-                    val intent = Intent(this, LoginActivity::class.java)
-                    Toasty.success(this, "Berhasil Logout", Toast.LENGTH_LONG, true).show()
-                    startActivity(intent)
-                    finishAffinity()
-                    btnLogout.isEnabled = true
-                },
-                cancelFunction = {
-
-                    btnLogout.isEnabled = true
-                }
-            )
-        }
+//        val btnLogout = findViewById<MaterialButton>(R.id.btnLogout)
+//
+//        btnLogout.setOnClickListener {
+//            vibrate()
+//            btnLogout.isEnabled = false
+//            AlertDialogUtility.withTwoActions(
+//                this,
+//                "Logout",
+//                getString(R.string.confirmation_dialog_title),
+//                getString(R.string.al_confirm_logout),
+//                "warning.json",
+//                ContextCompat.getColor(this, R.color.colorRedDark),
+//                function = {
+//                    prefManager!!.isFirstTimeLaunch = false
+//                    prefManager!!.rememberLogin = false
+//                    prefManager!!.token = null
+//                    prefManager!!.username = null
+//                    prefManager!!.password = null
+//                    prefManager!!.nameUserLogin = null
+//                    prefManager!!.idUserLogin = 0  // Resetting Int to 0
+//                    prefManager!!.jabatanUserLogin = null
+//                    prefManager!!.estateUserLogin = null
+//                    prefManager!!.estateUserLengkapLogin = null
+//                    prefManager!!.estateIdUserLogin = null
+//                    prefManager!!.regionalIdUserLogin = null
+//                    prefManager!!.companyIdUserLogin = null
+//                    prefManager!!.companyAbbrUserLogin = null
+//                    prefManager!!.companyNamaUserLogin = null
+//                    prefManager!!.lastModifiedDatasetTPH = null
+//                    prefManager!!.lastModifiedDatasetKemandoran = null
+//                    prefManager!!.lastModifiedDatasetPemanen = null
+//                    prefManager!!.lastModifiedDatasetTransporter = null
+//                    prefManager!!.lastModifiedDatasetBlok = null
+//                    prefManager!!.lastSyncDate = null
+//                    prefManager!!.clearDatasetMustUpdate()
+//
+//                    datasetViewModel.clearAllData()
+//
+//                    val intent = Intent(this, LoginActivity::class.java)
+//                    Toasty.success(this, "Berhasil Logout", Toast.LENGTH_LONG, true).show()
+//                    startActivity(intent)
+//                    finishAffinity()
+//                    btnLogout.isEnabled = true
+//                },
+//                cancelFunction = {
+//
+//                    btnLogout.isEnabled = true
+//                }
+//            )
+//        }
 
     }
 

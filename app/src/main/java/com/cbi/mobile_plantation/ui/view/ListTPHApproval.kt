@@ -207,15 +207,7 @@ class ListTPHApproval : AppCompatActivity() {
         userId = prefManager!!.idUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
 
-        AppUtils.setupUserHeader(
-            userName = userName,
-            jabatanUser = jabatanUser,
-            estateName = estateName,
-            afdelingUser = afdelingUser,
-            userSection = userSection,
-            featureName = featureName,
-            tvFeatureName = tvFeatureName
-        )
+       setupHeader()
 
         btnGenerateQRTPH.setOnClickListener {
 //            btnGenerateQRTPH.isEnabled = false
@@ -315,21 +307,23 @@ class ListTPHApproval : AppCompatActivity() {
 
 
     private fun setupHeader() {
-        menuString = intent.getStringExtra("FEATURE_NAME").toString()
-        AppLogger.d(menuString.toString())
+        featureName = intent.getStringExtra("FEATURE_NAME").toString()
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
         val userSection = findViewById<TextView>(R.id.userSection)
+        val titleAppNameAndVersion = findViewById<TextView>(R.id.titleAppNameAndVersionFeature)
+        val lastUpdateText = findViewById<TextView>(R.id.lastUpdate)
         val locationSection = findViewById<LinearLayout>(R.id.locationSection)
-        locationSection.visibility = View.VISIBLE
+        locationSection.visibility = View.GONE
 
         AppUtils.setupUserHeader(
             userName = userName,
-            jabatanUser = jabatanUser,
-            estateName = estateName,
-            afdelingUser = afdelingUser,
             userSection = userSection,
-            featureName = menuString,
-            tvFeatureName = tvFeatureName
+            featureName = featureName,
+            tvFeatureName = tvFeatureName,
+            prefManager = prefManager,
+            lastUpdateText = lastUpdateText,
+            titleAppNameAndVersionText = titleAppNameAndVersion,
+            context = this
         )
     }
 
