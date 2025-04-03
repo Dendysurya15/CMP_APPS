@@ -2429,13 +2429,14 @@ playSound(R.raw.berhasil_generate_qr)
                                 .joinToString(", ")
 
                             val blokDisplay = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen || featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                                val fieldToExtract = if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) "KP" else "TO"
                                 mappedData
                                     .filter { it["blok_name"].toString() != "-" }
                                     .groupBy { it["blok_name"].toString() }
                                     .mapValues { (_, items) ->
                                         val count = items.size
                                         val toSum = items.sumOf { item ->
-                                            extractTOValue(item["jjg_json"].toString())
+                                            extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
                                         }
                                         "${toSum.toInt()}/$count"  // Convert double sum to integer for display
                                     }
@@ -2447,7 +2448,7 @@ playSound(R.raw.berhasil_generate_qr)
                             }
 
 
-                            AppLogger.d(blokDisplay)
+                            AppLogger.d("gas $blokDisplay")
 
                             var totalJjgCount = 0
                             mappedData.forEach { data ->
@@ -2623,14 +2624,15 @@ playSound(R.raw.berhasil_generate_qr)
                                 .joinToString(", ")
 
                             val blokDisplay = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen || featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
-                                // Show detailed block summary with TO counts and occurrences
+                                val fieldToExtract = if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) "KP" else "TO"
+
                                 mappedData
                                     .filter { it["blok_name"].toString() != "-" }
                                     .groupBy { it["blok_name"].toString() }
                                     .mapValues { (_, items) ->
                                         val count = items.size
                                         val toSum = items.sumOf { item ->
-                                            extractTOValue(item["jjg_json"].toString())
+                                            extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
                                         }
                                         "${toSum.toInt()}/$count"  // Convert double sum to integer for display
                                     }
@@ -2703,13 +2705,37 @@ playSound(R.raw.berhasil_generate_qr)
         panenViewModel = ViewModelProvider(this, factory)[PanenViewModel::class.java]
     }
 
-    fun extractTOValue(jjgJson: String): Double {
+    fun extractJSONValue(jjgJson: String, fieldName: String): Double {
         return try {
-            val startIndex = jjgJson.indexOf("\"TO\":") + 5
-            val endIndex = jjgJson.indexOf(",", startIndex)
-            jjgJson.substring(startIndex, endIndex).toDouble()
+            // Try to parse as JSON first
+            val jsonObject = JSONObject(jjgJson)
+            if (jsonObject.has(fieldName)) {
+                jsonObject.getDouble(fieldName)
+            } else {
+                0.0
+            }
         } catch (e: Exception) {
-            0.0 // Return 0.0 if parsing fails
+            try {
+                // Fallback to string parsing if JSON parsing fails
+                val fieldString = "\"$fieldName\":"
+                val startIndex = jjgJson.indexOf(fieldString) + fieldString.length
+
+                // Find the end of the value (either comma or closing brace)
+                val commaIndex = jjgJson.indexOf(",", startIndex)
+                val braceIndex = jjgJson.indexOf("}", startIndex)
+
+                // Choose the appropriate end index
+                val endIndex = if (commaIndex > 0 && (braceIndex < 0 || commaIndex < braceIndex)) {
+                    commaIndex
+                } else {
+                    braceIndex
+                }
+
+                jjgJson.substring(startIndex, endIndex).trim().toDouble()
+            } catch (e: Exception) {
+                AppLogger.d("Failed to extract $fieldName from JSON: $jjgJson")
+                0.0 // Return 0.0 if all parsing attempts fail
+            }
         }
     }
 
