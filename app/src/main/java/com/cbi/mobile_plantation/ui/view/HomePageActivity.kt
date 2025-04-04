@@ -890,7 +890,8 @@ class HomePageActivity : AppCompatActivity() {
                                             "created_name" to prefManager!!.nameUserLogin.toString(),
                                             "created_date" to panenWithRelations.panen.date_created,
                                             "jabatan" to prefManager!!.jabatanUserLogin.toString(),
-                                        )
+                                            "status_pengangkutan" to panenWithRelations.panen.status_pengangkutan,
+                                            )
                                     }
 
 

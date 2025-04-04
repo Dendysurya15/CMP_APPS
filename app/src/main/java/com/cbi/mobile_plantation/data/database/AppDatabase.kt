@@ -67,7 +67,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
         KendaraanModel::class,
         BlokModel::class,
     ],
-    version = 24
+    version = 25
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao

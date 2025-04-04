@@ -135,7 +135,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var afdelingUser: String? = null
     private lateinit var btnAddMoreTph: FloatingActionButton
     private var tph1IdPanen = ""
-
+    private var tph1NoIdPanen = ""
     private var mappedData: List<Map<String, Any>> = emptyList()
 
     private var espbId = 0
@@ -145,6 +145,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var tph = 0
     private var tph0 = ""
     private var tph1 = ""
+    private var tphListScan: List<String> = emptyList()
 
     private var blok_jjg = "NULL"
     private var nopol = "NULL"
@@ -1241,6 +1242,32 @@ private fun getAllDataFromList(playSound : Boolean =true) {
         } else {
             "$tph1IdPanen, $newTph1IdPanen"
         }
+        Log.d("ListPanenTBSActivityESPB", "tph1IdPanen:$tph1IdPanen")
+
+
+    //get automatically selected items
+        val preSelectedItems = listAdapter.getPreSelectedItems()
+        Log.d("ListPanenTBSActivityESPB", "preSelectedItems:$preSelectedItems")
+
+        // Extract the id values from the matches and join them with commas
+        val newTph1NoIdPanen = try {
+            val pattern = Regex("\\{id=(\\d+),")
+            val matches = pattern.findAll(preSelectedItems.toString())
+            matches.map { it.groupValues[1] }.joinToString(", ")
+
+        } catch (e: Exception) {
+            Toasty.error(this, "Error parsing panen IDs: ${e.message}", Toast.LENGTH_LONG).show()
+            ""
+        }
+
+        // Combine with existing tph1IdPanen if it exists
+        tph1NoIdPanen = if (tph1NoIdPanen.isEmpty()) {
+            newTph1NoIdPanen
+        } else {
+            "$tph1NoIdPanen, $newTph1NoIdPanen"
+    }
+    Log.d("ListPanenTBSActivityESPB", "tph1NoIdPanen:$tph1NoIdPanen")
+
 
     if (playSound) {
         playSound(R.raw.berhasil_scan)
@@ -1313,6 +1340,7 @@ private fun getAllDataFromList(playSound : Boolean =true) {
                     "warning.json", function = {
                         val intent = Intent(this, FormESPBActivity::class.java)
                         intent.putExtra("tph_1", tph1)
+                        intent.putExtra("tph_normal", tph1NoIdPanen)
                         intent.putExtra("tph_0", tph0)
                         intent.putExtra("tph_1_id_panen", tph1IdPanen)
                         intent.putExtra("FEATURE_NAME", featureName)
@@ -3063,7 +3091,7 @@ playSound(R.raw.berhasil_generate_qr)
             layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
         }
 
-            val tphListScan = processScannedResult(listTPHDriver)
+            tphListScan = processScannedResult(listTPHDriver)
 
             if (tphListScan.isEmpty()) {
                 Toast.makeText(this, "Failed to process TPH QR", Toast.LENGTH_SHORT).show()

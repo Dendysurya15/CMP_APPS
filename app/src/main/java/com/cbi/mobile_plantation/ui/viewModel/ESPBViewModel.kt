@@ -157,6 +157,10 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         return repository.updateESPBStatusForMultipleIds(idsList, status, noESPB)
     }
 
+    suspend fun panenUpdateStatusAngkut(idsList: List<Int>, status: Int): Int {
+        return repository.panenUpdateStatusAngkut(idsList, status)
+    }
+
 
     class ESPBViewModelFactory(
         private val application: AppRepository
