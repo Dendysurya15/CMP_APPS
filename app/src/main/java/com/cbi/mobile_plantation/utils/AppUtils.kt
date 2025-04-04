@@ -353,31 +353,35 @@ object AppUtils {
         }
     }
 
-    fun extractIdsAndJjgAsMap(inputString: String): Map<Int, Int> {
-        return inputString.split(";").associate { entry ->
-            val parts = entry.split(",")
-            val id = parts[0].toInt()
-            val jjg = parts[2].toInt() // Index 2 is the jumlah jjg
-            id to jjg
-        }
-    }
-
     // Format TPH data as requested
     fun formatTPHDataList(tphString: String, tphDataList: List<TPHNewModel>?): String {
         if (tphDataList.isNullOrEmpty()) return "-"
 
-        // Extract ID and jjg counts from the original string
-        val tphJjgMap = extractIdsAndJjgAsMap(tphString)
+        // Create a map of ID to TPH model for quick lookup
+        val tphMap = tphDataList.associateBy { it.id }
 
-        // Format each TPH entry
-        val formattedTPHList = tphDataList.mapNotNull { tph ->
-            val jjg = tphJjgMap[tph.id]
-            if (jjg != null) {
-                "• TPH nomor ${tph.nomor} (${tph.blok_kode}) $jjg jjg"
-            } else null
+        // Process each entry from the string individually to preserve duplicates
+        val formattedEntries = mutableListOf<String>()
+
+        tphString.split(";").forEach { entry ->
+            if (entry.isNotBlank()) {
+                try {
+                    val parts = entry.split(",")
+                    val id = parts[0].toInt()
+                    val jjg = parts[2].toInt()
+
+                    // Look up the TPH details
+                    val tph = tphMap[id]
+                    if (tph != null) {
+                        formattedEntries.add("• TPH nomor ${tph.nomor} (${tph.blok_kode}) $jjg jjg")
+                    }
+                } catch (e: Exception) {
+                    // Skip invalid entries
+                }
+            }
         }
 
-        return formattedTPHList.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
+        return formattedEntries.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
     }
 
     class ProgressRequestBody(

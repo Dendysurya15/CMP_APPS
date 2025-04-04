@@ -13,7 +13,7 @@
         android:background="@color/zxing_transparent"
         android:orientation="vertical"
 
-        app:layout_constraintHeight_percent="0.15"
+        app:layout_constraintHeight_percent="0.2"
         tools:ignore="MissingConstraints">
 
         <FrameLayout
@@ -212,7 +212,7 @@
         android:background="@drawable/splash_background_rounded"
         android:orientation="vertical"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintHeight_percent="0.9">
+        app:layout_constraintHeight_percent="0.85">
 
 
         <LinearLayout

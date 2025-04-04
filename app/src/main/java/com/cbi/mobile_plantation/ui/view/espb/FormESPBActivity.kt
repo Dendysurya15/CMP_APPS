@@ -648,31 +648,46 @@ AppLogger.d("jjgMap $janjangMap")
                     val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
                     btKonfirmScanESPB.visibility = View.VISIBLE
                     btKonfirmScanESPB.setOnClickListener {
-//                        btKonfirmScanESPB.isEnabled = false
-                        val statusDraft = if (mekanisasi == 0) {
-                            1
-                        } else {
-                            0
-                        }
+                        AlertDialogUtility.withTwoActions(
+                            this,
+                            getString(R.string.al_yes),
+                            getString(R.string.confirmation_dialog_title),
+                            "${getString(R.string.al_make_sure_scanned_qr)}",
+                            "warning.json",
+                            ContextCompat.getColor(
+                                this,
+                                R.color.bluedarklight
+                            ),
+                            function = {
+                                val statusDraft = if (mekanisasi == 0) {
+                                    1
+                                } else {
+                                    0
+                                }
 
-                        saveESPB(
-                            blok_jjg = blok_jjg,
-                            nopol = selectedNopol,
-                            driver = driver,
-                            pemuat_id = uniqueIdKaryawan,
-                            transporter_id = transporter_id,
-                            mill_id = selectedMillId!!,
-                            created_by_id = idPetugas!!,
-                            creator_info = creatorInfo.toString(),
-                            noESPB = noESPBStr,
-                            created_at = getCurrentDateTime(),
-                            tph0 = "",
-                            tph1 = tph1,
-                            status_draft = statusDraft,
-                            status_mekanisasi = mekanisasi,
-                            pemuat_nik = uniqueNikPemanen,
-                            kemandoran_id = uniqueKemandoranId
+                                saveESPB(
+                                    blok_jjg = blok_jjg,
+                                    nopol = selectedNopol,
+                                    driver = driver,
+                                    pemuat_id = uniqueIdKaryawan,
+                                    transporter_id = transporter_id,
+                                    mill_id = selectedMillId!!,
+                                    created_by_id = idPetugas!!,
+                                    creator_info = creatorInfo.toString(),
+                                    noESPB = noESPBStr,
+                                    created_at = getCurrentDateTime(),
+                                    tph0 = "",
+                                    tph1 = tph1,
+                                    status_draft = statusDraft,
+                                    status_mekanisasi = mekanisasi,
+                                    pemuat_nik = uniqueNikPemanen,
+                                    kemandoran_id = uniqueKemandoranId
+                                )
+                            },
+                            cancelFunction = {
+                            }
                         )
+
                     }
                     if (mekanisasi == 0) {
                         val json = constructESPBJson(

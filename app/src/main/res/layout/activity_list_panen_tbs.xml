@@ -261,7 +261,7 @@
                     android:fontFamily="@font/manrope_bold"
                     android:text="Blok: "
                     android:textColor="@color/black"
-                    android:textSize="16sp" />
+                    android:textSize="@dimen/m" />
 
                 <TextView
                     android:id="@+id/listBlok"
@@ -269,7 +269,7 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/manrope_medium"
                     android:textColor="@color/black"
-                    android:textSize="15sp"
+                    android:textSize="@dimen/m"
 
                     android:textStyle="italic" />
             </LinearLayout>
@@ -298,7 +298,7 @@
                         android:fontFamily="@font/manrope_bold"
                         android:text="Total Jjg: "
                         android:textColor="@color/black"
-                        android:textSize="16sp" />
+                        android:textSize="@dimen/m" />
 
                     <TextView
                         android:id="@+id/totalJjg"
@@ -307,7 +307,7 @@
                         android:fontFamily="@font/manrope_medium"
                         android:text="0"
                         android:textColor="@color/black"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/m" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -323,7 +323,7 @@
                         android:fontFamily="@font/manrope_bold"
                         android:text="Total TPH: "
                         android:textColor="@color/black"
-                        android:textSize="16sp" />
+                        android:textSize="@dimen/m" />
 
                     <TextView
                         android:id="@+id/totalTPH"
@@ -331,7 +331,7 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/manrope_medium"
                         android:textColor="@color/black"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/m" />
                 </LinearLayout>
 
 

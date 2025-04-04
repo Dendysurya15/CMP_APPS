@@ -853,6 +853,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val millIP = millData.firstOrNull()?.let { "${it.ip_address}" } ?: "-"
 
                     val tph1String = parsedData?.tph1
+
                     val tphData = withContext(Dispatchers.IO) {
                         try {
 
@@ -876,24 +877,34 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         }
                     }
 
+                    AppLogger.d("tphData $tphData")
                     val formattedTPHList = if (!tphData.isNullOrEmpty()) {
                         AppUtils.formatTPHDataList(tph1String!!, tphData)
                     } else {
                         AppLogger.d("No TPH data available to format")
                         "-"
                     }
+                    AppLogger.d("formattedTPHList $formattedTPHList")
 
-                    val transporterDeferred = async {
-                        try {
-                            weightBridgeViewModel.getTransporterName(transporterId)
-                        } catch (e: Exception) {
-                            AppLogger.e("Gagal mendapatkan data transporter")
-                            null
+                    AppLogger.d(transporterId.toString())
+
+// Check if transporterId is 0, if so set transporterName to "Internal"
+                    val transporterName = if (transporterId == 0) {
+                        "Internal"
+                    } else {
+                        // Otherwise get transporter name from API
+                        val transporterDeferred = async {
+                            try {
+                                weightBridgeViewModel.getTransporterName(transporterId)
+                            } catch (e: Exception) {
+                                AppLogger.e("Gagal mendapatkan data transporter")
+                                null
+                            }
                         }
-                    }
 
-                    val transporterData = transporterDeferred.await() ?: emptyList()
-                    val transporterName = transporterData.firstOrNull()?.nama ?: "-"
+                        val transporterData = transporterDeferred.await() ?: emptyList()
+                        transporterData.firstOrNull()?.nama ?: "-"
+                    }
                     val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
 
                     globalBlokId = concatenatedIds
