@@ -856,36 +856,6 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         }
                                     }
 
-                                    val tph1String = item.tph1
-                                    val tphData = withContext(Dispatchers.IO) {
-                                        try {
-                                            // First check if tph1String is not empty
-                                            if (tph1String.isNullOrEmpty()) {
-                                                AppLogger.d("TPH string is empty or null")
-                                                return@withContext null
-                                            }
-
-                                            val idList = AppUtils.extractIdsAsIntegers(tph1String)
-
-                                            // Check if we have any valid IDs
-                                            if (idList.isEmpty()) {
-                                                AppLogger.d("No valid TPH IDs found")
-                                                return@withContext null
-                                            }
-
-                                            datasetViewModel.getTPHsByIds(idList)
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Error fetching TPH Data: ${e.message}")
-                                            null
-                                        }
-                                    }
-
-                                    val formattedTPHList = if (!tphData.isNullOrEmpty()) {
-                                        AppUtils.formatTPHDataList(tph1String, tphData)
-                                    } else {
-                                        AppLogger.d("No TPH data available to format")
-                                        "-"
-                                    }
 
                                     val pemuatNama = pemuatData?.mapNotNull { it.nama }
                                         ?.takeIf { it.isNotEmpty() }
@@ -963,7 +933,6 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         created_by_id = item.created_by_id,
                                         created_at = item.created_at,
                                         noSPB = item.noESPB.ifEmpty { "-" },
-                                        tph1 = formattedTPHList,
                                         estate = deptAbbr.ifEmpty { "-" },
                                         afdeling = divisiAbbr.ifEmpty { "-" },
                                         datetime = createAtFormatted,

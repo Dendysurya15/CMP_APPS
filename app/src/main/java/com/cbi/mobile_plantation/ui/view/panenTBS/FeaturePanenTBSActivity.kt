@@ -445,7 +445,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                     // that start with this name (handles case where map has "NAME - NIK" but worker just has "NAME")
                                     if (id == null && !worker.name.contains(" - ")) {
                                         // Find any key in the map that starts with this worker's name followed by " - "
-                                        val possibleKey = karyawanIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                                        val possibleKey =
+                                            karyawanIdMap.keys.find { it.startsWith("${worker.name} - ") }
                                         if (possibleKey != null) {
                                             id = karyawanIdMap[possibleKey]
                                         }
@@ -463,8 +464,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                     }
 
                                     if (id == null && !worker.name.contains(" - ")) {
-                                        // Find any key in the map that starts with this worker's name followed by " - "
-                                        val possibleKey = kemandoranIdMap.keys.find { it.startsWith("${worker.name} - ") }
+
+                                        val possibleKey =
+                                            kemandoranIdMap.keys.find { it.startsWith("${worker.name} - ") }
                                         if (possibleKey != null) {
                                             id = kemandoranIdMap[possibleKey]
                                         }
@@ -474,12 +476,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                 }
 
 
-                                val selectedPemanenLain = selectedPemanenLainAdapter.getSelectedWorkers()
+                                val selectedPemanenLain =
+                                    selectedPemanenLainAdapter.getSelectedWorkers()
 
                                 val workerLainNameCounts = mutableMapOf<String, Int>()
                                 selectedPemanenLain.forEach { worker ->
                                     val baseName = worker.name.substringBefore(" - ").trim()
-                                    workerLainNameCounts[baseName] = (workerLainNameCounts[baseName] ?: 0) + 1
+                                    workerLainNameCounts[baseName] =
+                                        (workerLainNameCounts[baseName] ?: 0) + 1
                                 }
 
                                 val idKaryawanLainList = selectedPemanenLain.mapNotNull { worker ->
@@ -494,17 +498,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                     }
                                 }
 
-                                val kemandoranLainIdList = selectedPemanenLain.mapNotNull { worker ->
-                                    val baseName = worker.name.substringBefore(" - ").trim()
+                                val kemandoranLainIdList =
+                                    selectedPemanenLain.mapNotNull { worker ->
+                                        val baseName = worker.name.substringBefore(" - ").trim()
 
-                                    if (workerLainNameCounts[baseName]!! > 1) {
-                                        // For duplicate names, use the full key with NIK
-                                        kemandoranLainIdMap[worker.name]
-                                    } else {
-                                        // For unique names, just use the base name
-                                        kemandoranLainIdMap[baseName]
+                                        if (workerLainNameCounts[baseName]!! > 1) {
+                                            // For duplicate names, use the full key with NIK
+                                            kemandoranLainIdMap[worker.name]
+                                        } else {
+                                            // For unique names, just use the base name
+                                            kemandoranLainIdMap[baseName]
+                                        }
                                     }
-                                }
 
                                 val selectedNikPemanenIds = selectedPemanen.mapNotNull { worker ->
                                     if (worker.name.contains(" - ")) {
@@ -514,16 +519,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                     }
                                 }
 
-                                val selectedNikPemanenLainIds = selectedPemanenLain.mapNotNull { worker ->
-                                    if (worker.name.contains(" - ")) {
-                                        worker.name.substringAfter(" - ").trim()
-                                    } else {
-                                        null
+                                val selectedNikPemanenLainIds =
+                                    selectedPemanenLain.mapNotNull { worker ->
+                                        if (worker.name.contains(" - ")) {
+                                            worker.name.substringAfter(" - ").trim()
+                                        } else {
+                                            null
+                                        }
                                     }
-                                }
 
-                                val uniqueNikPemanen = (selectedNikPemanenIds + selectedNikPemanenLainIds)
-                                    .joinToString(",")
+                                val uniqueNikPemanen =
+                                    (selectedNikPemanenIds + selectedNikPemanenLainIds)
+                                        .joinToString(",")
 
                                 val uniqueIdKaryawan = (idKaryawanList + idKaryawanLainList)
                                     .map { it.toString() }
@@ -1884,7 +1891,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         inputMappings.forEach { (layout, key, inputType) ->
             // Skip validation for kemandoran and pemanen fields initially
             if (layout.id == R.id.layoutKemandoran || layout.id == R.id.layoutPemanen ||
-                layout.id == R.id.layoutKemandoranLain || layout.id == R.id.layoutPemanenLain) {
+                layout.id == R.id.layoutKemandoranLain || layout.id == R.id.layoutPemanenLain
+            ) {
                 return@forEach
             }
 
@@ -1903,12 +1911,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         else -> spinner.selectedIndex == -1
                     }
                 }
+
                 InputType.EDITTEXT -> {
                     when (key) {
                         getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
                         else -> editText.text.toString().trim().isEmpty()
                     }
                 }
+
                 else -> false
             }
 
@@ -1944,17 +1954,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val arePemanenLainWorkersSelected = !selectedPemanenLainWorkers.isEmpty()
 
             // Reset error indicators for secondary group
-            layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.GONE
+            layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                View.GONE
             layoutKemandoranLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
                 ContextCompat.getColor(this, R.color.graytextdark)
-            layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.GONE
+            layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                View.GONE
             layoutPemanenLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
                 ContextCompat.getColor(this, R.color.graytextdark)
 
             // KEY CHANGE: Only require secondary group validation if primary group has no workers selected
             if (!arePemanenWorkersSelected) {
                 // Secondary group is filled if both kemandoran_lain is selected AND pemanen_lain is selected with at least one worker
-                isSecondaryGroupFilled = !isKemandoranLainEmpty && !isPemanenLainEmpty && arePemanenLainWorkersSelected
+                isSecondaryGroupFilled =
+                    !isKemandoranLainEmpty && !isPemanenLainEmpty && arePemanenLainWorkersSelected
                 AppLogger.d("Secondary group filled: $isSecondaryGroupFilled")
 
                 // If primary group has no workers AND secondary group is not filled, show errors
@@ -1962,19 +1975,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     isValid = false
 
                     if (isKemandoranLainEmpty) {
-                        layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.VISIBLE
+                        layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                            View.VISIBLE
                         layoutKemandoranLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
                             ContextCompat.getColor(this, R.color.colorRedDark)
                         missingFields.add(getString(R.string.field_kemandoran_lain))
                     }
 
                     if (isPemanenLainEmpty) {
-                        layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.VISIBLE
+                        layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                            View.VISIBLE
                         layoutPemanenLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
                             ContextCompat.getColor(this, R.color.colorRedDark)
                         missingFields.add(getString(R.string.field_pemanen_lain))
                     } else if (!arePemanenLainWorkersSelected) {
-                        layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.VISIBLE
+                        layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                            View.VISIBLE
                         layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
                             stringXML(R.string.al_select_at_least_one_pemanen_lain)
                         errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen_lain))
@@ -1994,18 +2010,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             // Show errors for primary group if it's partially filled or missing workers
             if (!isKemandoranEmpty && isPemanenEmpty) {
-                layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.VISIBLE
+                layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                    View.VISIBLE
                 layoutPemanen.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
                     ContextCompat.getColor(this, R.color.colorRedDark)
                 missingFields.add(getString(R.string.field_pemanen))
             } else if (isKemandoranEmpty && !isPemanenEmpty) {
-                layoutKemandoran.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.VISIBLE
+                layoutKemandoran.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                    View.VISIBLE
                 layoutKemandoran.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
                     ContextCompat.getColor(this, R.color.colorRedDark)
                 missingFields.add(getString(R.string.field_kemandoran))
             } else if (!isKemandoranEmpty && !isPemanenEmpty && !arePemanenWorkersSelected) {
                 // This is the key fix: Only show this error if both dropdowns are filled but no workers are selected
-                layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.VISIBLE
+                layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                    View.VISIBLE
                 layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
                     stringXML(R.string.al_select_at_least_one_pemanen)
                 errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen))
@@ -2161,7 +2180,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     AppLogger.e("Error mapping allIdAfdeling: ${e.message}")
                     emptyList()
                 }
-
+                val otherDivisiIds = try {
+                    allIdAfdeling.filter { divisiId ->
+                        selectedDivisiId == null || divisiId != selectedDivisiId
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error filtering otherDivisiIds: ${e.message}")
+                    emptyList()
+                }
                 lifecycleScope.launch(Dispatchers.IO) {
                     withContext(Dispatchers.Main) {
                         animateLoadingDots(linearLayout)
@@ -2175,27 +2201,29 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         val kemandoranDeferred = async {
                             try {
-                                datasetViewModel.getKemandoranList(
+                                datasetViewModel.getKemandoranEstateExcept(
                                     estateId!!.toInt(),
-                                    selectedDivisiIdList
+                                    otherDivisiIds as List<Int>
                                 )
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching kemandoranList: ${e.message}")
                                 emptyList()
                             }
                         }
+                        kemandoranList = kemandoranDeferred.await()
 
                         val kemandoranLainDeferred = async {
                             try {
-                                datasetViewModel.getKemandoranList(
+                                datasetViewModel.getKemandoranEstateExcept(
                                     estateId!!.toInt(),
-                                    allIdAfdeling as List<Int>
+                                    otherDivisiIds as List<Int>
                                 )
                             } catch (e: Exception) {
-                                AppLogger.e("Error fetching kemandoranLainList: ${e.message}")
+                                AppLogger.e("Error fetching kemandoranList: ${e.message}")
                                 emptyList()
                             }
                         }
+                        kemandoranLainList = kemandoranLainDeferred.await()
 
                         var tahunTanamList: List<String> = emptyList()
 
@@ -2241,7 +2269,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 //                            }
 //
 //                        }
-                        if(blokBanjir == 0) {
+                        if (blokBanjir == 0) {
                             latLonMap = emptyMap()
                             latLonMap = async {
                                 try {
@@ -2279,22 +2307,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }.await()
                         }
 
-                        kemandoranList = kemandoranDeferred.await()
-                        kemandoranLainList = kemandoranLainDeferred.await()
 
                         withContext(Dispatchers.Main) {
                             try {
 
                                 AppLogger.d(tahunTanamList.toString())
 //                                if (blokBanjir == 1) {
-                                    val layoutTahunTanam =
-                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
-                                    setupSpinnerView(
-                                        layoutTahunTanam,
-                                        tahunTanamList.ifEmpty { emptyList() }
-                                    )
+                                val layoutTahunTanam =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
+                                setupSpinnerView(
+                                    layoutTahunTanam,
+                                    tahunTanamList.ifEmpty { emptyList() }
+                                )
 //                                }
-                                if(blokBanjir == 0) {
+                                if (blokBanjir == 0) {
                                     setupScanTPHTrigger()
                                 }
 
@@ -2543,15 +2569,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 val filteredKemandoranId: Int? = try {
                     kemandoranList.find {
-                        it.dept == estateId?.toIntOrNull() && // Avoids force unwrap (!!)
-                                it.divisi == selectedDivisiValue &&
-                                it.nama == selectedKemandoran
+                        it.nama == selectedKemandoran
                     }?.id
                 } catch (e: Exception) {
                     AppLogger.e("Error finding Kemandoran ID: ${e.message}")
                     null
                 }
-
 
 
                 if (filteredKemandoranId != null) {
@@ -2618,7 +2641,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     .associateBy { it.nik!! }
 
                 val nameCounts = mutableMapOf<String, Int>()
-                karyawanList.forEach { it.nama?.trim()?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 } }
+                karyawanList.forEach {
+                    it.nama?.trim()?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 }
+                }
 
                 karyawanList.forEach {
                     it.nama?.trim()?.let { nama ->
@@ -2726,7 +2751,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 selectedPemanenLain = selectedItem.toString()
 
                 val hasNik = selectedPemanenLain.contains(" - ")
-                val selectedNik = if (hasNik) selectedPemanenLain.substringAfter(" - ").trim() else null
+                val selectedNik =
+                    if (hasNik) selectedPemanenLain.substringAfter(" - ").trim() else null
                 val selectedNamaPemanenLain = selectedPemanenLain.substringBefore(" - ").trim()
 
                 // Create NIK to employee map for lookup similar to layoutPemanen
@@ -2735,7 +2761,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 // Create name counts for duplicate handling similar to layoutPemanen
                 val nameCounts = mutableMapOf<String, Int>()
-                karyawanLainList.forEach { it.nama?.trim()?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 } }
+                karyawanLainList.forEach {
+                    it.nama?.trim()?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 }
+                }
 
                 // Set up maps with proper keys
                 karyawanLainList.forEach {

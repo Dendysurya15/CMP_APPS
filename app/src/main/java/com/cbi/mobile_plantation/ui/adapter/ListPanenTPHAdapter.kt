@@ -397,7 +397,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     val infoItems = listOf(
                         DetailInfoType.TANGGAL_BUAT to formattedDate,
                         DetailInfoType.KEMANDORAN_PEMANEN to "${data["nama_kemandorans"]}",
-                        DetailInfoType.NAMA_PEMANEN to "${data["karyawan_nik"]} - ${data["nama_karyawans"]}",
+                        DetailInfoType.NAMA_PEMANEN to "${data["nama_karyawans"]}",
                         DetailInfoType.TOTAL_JANJANG to jjgJson.optDouble("TO", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
                         DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK to jjgJson.optDouble("KP", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
                         DetailInfoType.TOTAL_DATA_BUAH_MASAK to jjgJson.optDouble("RI", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },

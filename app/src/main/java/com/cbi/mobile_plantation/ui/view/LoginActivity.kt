@@ -199,6 +199,11 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.companyAbbrUserLogin = loginResponse.data?.user?.company_abbr
                         prefManager!!.companyNamaUserLogin = loginResponse.data?.user?.company_nama
                         prefManager!!.lastSyncDate = null
+                        prefManager!!.lastModifiedDatasetTPH = null
+                    prefManager!!.lastModifiedDatasetKemandoran = null
+                        prefManager!!.lastModifiedDatasetPemanen = null
+                        prefManager!!.lastModifiedDatasetTransporter = null
+                        prefManager!!.lastModifiedDatasetBlok = null
                         prefManager!!.clearDatasetMustUpdate()
 
                         Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()

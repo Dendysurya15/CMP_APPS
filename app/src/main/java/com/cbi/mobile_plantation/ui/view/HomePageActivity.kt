@@ -1554,7 +1554,7 @@ class HomePageActivity : AppCompatActivity() {
 
                     _globalLastSync.value = currentDateTimeIndonesia
                 }
-
+                AppLogger.d(prefManager!!.datasetMustUpdate.toString())
                 if (prefManager!!.isFirstTimeLaunch && downloadItems.any { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
                     prefManager!!.isFirstTimeLaunch = false
                     AppLogger.d("First-time launch flag updated to false")
@@ -1663,7 +1663,10 @@ class HomePageActivity : AppCompatActivity() {
 
         val jabatan = prefManager!!.jabatanUserLogin
         val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
-        if (jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true)) {
+        val isKeraniTimbang = jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true)
+
+        // Add Blok dataset for Kerani Timbang
+        if (isKeraniTimbang) {
             datasets.add(
                 DatasetRequest(
                     regional = regionalUser,
@@ -1671,24 +1674,38 @@ class HomePageActivity : AppCompatActivity() {
                     dataset = AppUtils.DatasetNames.blok
                 )
             )
-        }
-
-        datasets.addAll(
-            listOf(
+        } else {
+            datasets.add(
                 DatasetRequest(
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
                     dataset = AppUtils.DatasetNames.tph
-                ),
+                )
+            )
+        }
+
+        datasets.add(
+            if (isKeraniTimbang) {
                 DatasetRequest(
-                    regional = regionalId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.mill
-                ),
+                    regional = regionalUser,
+                    lastModified = lastModifiedDatasetPemanen,
+                    dataset = AppUtils.DatasetNames.pemanen
+                )
+            } else {
                 DatasetRequest(
                     estate = estateId,
                     lastModified = lastModifiedDatasetPemanen,
                     dataset = AppUtils.DatasetNames.pemanen
+                )
+            }
+        )
+
+        datasets.addAll(
+            listOf(
+                DatasetRequest(
+                    regional = regionalId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.mill
                 ),
                 DatasetRequest(
                     estate = estateId,
@@ -1771,7 +1788,10 @@ class HomePageActivity : AppCompatActivity() {
     }
 
     private fun setupCheckingAfterLogoutUser() {
+
+        AppLogger.d(prefManager!!.datasetMustUpdate.toString())
         if (prefManager!!.datasetMustUpdate.isEmpty()) {
+            AppLogger.d("aksdjflaksfjlkasf")
             startDownloads()
         }
     }
