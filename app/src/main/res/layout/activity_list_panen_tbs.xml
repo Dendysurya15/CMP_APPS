@@ -84,7 +84,7 @@
                     android:gravity="center_vertical"
                     android:text="Filter Semua Tanggal"
                     android:textColor="@color/black"
-                    android:textSize="@dimen/s" />
+                    android:textSize="@dimen/m" />
             </LinearLayout>
 
 

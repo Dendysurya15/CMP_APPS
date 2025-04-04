@@ -841,7 +841,7 @@ object AppUtils {
             if (!lastSyncDate.isNullOrEmpty()) {
                 try {
                     val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                    val outputFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
+                    val outputFormat = SimpleDateFormat("dd MMM, HH:mm", Locale("id", "ID"))
                     val date = inputFormat.parse(lastSyncDate)
                     val formattedDate = outputFormat.format(date)
                     lastUpdateText.text = "Update:\n$formattedDate"

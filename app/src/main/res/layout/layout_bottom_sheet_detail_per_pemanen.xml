@@ -15,7 +15,7 @@
         android:layout_marginBottom="10dp"
         android:fontFamily="@font/manrope_extrabold"
         android:textColor="@color/black"
-        android:textSize="22sp"
+        android:textSize="@dimen/l"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -87,7 +87,7 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/manrope_bold"
                         android:textColor="@color/grayDefault"
-                        android:textSize="17dp" />
+                        android:textSize="@dimen/m" />
 
                 </LinearLayout>
 
@@ -100,7 +100,7 @@
                 android:fontFamily="@font/manrope_bold"
                 android:text="Informasi Pemanen"
                 android:textColor="@color/greenDarker"
-                android:textSize="20sp"
+                android:textSize="@dimen/l"
                 android:textStyle="bold" />
 
             <include
@@ -123,7 +123,7 @@
                 android:fontFamily="@font/manrope_bold"
                 android:text="Buah Yang diperiksa"
                 android:textColor="@color/greenDarker"
-                android:textSize="20sp"
+                android:textSize="@dimen/m"
                 android:layout_marginTop="10dp"
                 android:textStyle="bold" />
 
@@ -247,7 +247,7 @@
             android:fontFamily="@font/manrope_bold"
             android:text="Simpan &amp; Upload e-SPB"
             android:textColor="@color/white"
-            android:textSize="16sp"
+            android:textSize="@dimen/m"
             android:visibility="gone" />
 
     </LinearLayout>

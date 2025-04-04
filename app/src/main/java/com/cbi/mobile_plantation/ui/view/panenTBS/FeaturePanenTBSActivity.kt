@@ -428,39 +428,52 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             try {
                                 val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
 
-// Get a map of names to counts to determine which names have duplicates
-                                val workerNameCounts = mutableMapOf<String, Int>()
-                                selectedPemanen.forEach { worker ->
-                                    val baseName = worker.name.substringBefore(" - ").trim()
-                                    workerNameCounts[baseName] = (workerNameCounts[baseName] ?: 0) + 1
-                                }
+// Log for debugging
+                                AppLogger.d("karyawanIdMap $karyawanIdMap")
 
-// For worker ID lookup, handle both duplicate and non-duplicate cases
                                 val idKaryawanList = selectedPemanen.mapNotNull { worker ->
-                                    val baseName = worker.name.substringBefore(" - ").trim()
+                                    // First try to get ID using the full name (with NIK if present)
+                                    var id = karyawanIdMap[worker.name]
 
-                                    if (workerNameCounts[baseName]!! > 1) {
-                                        // For duplicate names, we need to use the full key with NIK
-                                        karyawanIdMap[worker.name]
-                                    } else {
-                                        // For unique names, just use the base name
-                                        karyawanIdMap[baseName]
+                                    // If that fails and the name contains a NIK separator, try with just the base name
+                                    if (id == null && worker.name.contains(" - ")) {
+                                        val baseName = worker.name.substringBefore(" - ").trim()
+                                        id = karyawanIdMap[baseName]
                                     }
-                                }
 
+                                    // If that still fails and we don't have a NIK separator, try all possible matches
+                                    // that start with this name (handles case where map has "NAME - NIK" but worker just has "NAME")
+                                    if (id == null && !worker.name.contains(" - ")) {
+                                        // Find any key in the map that starts with this worker's name followed by " - "
+                                        val possibleKey = karyawanIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                                        if (possibleKey != null) {
+                                            id = karyawanIdMap[possibleKey]
+                                        }
+                                    }
+
+                                    id
+                                }
                                 val kemandoranIdList = selectedPemanen.mapNotNull { worker ->
-                                    val baseName = worker.name.substringBefore(" - ").trim()
+                                    var id = kemandoranIdMap[worker.name]
 
-                                    if (workerNameCounts[baseName]!! > 1) {
-                                        // For duplicate names, use the full key with NIK
-                                        kemandoranIdMap[worker.name]
-                                    } else {
-                                        // For unique names, just use the base name
-                                        kemandoranIdMap[baseName]
+                                    // If that fails and the name contains a NIK separator, try with just the base name
+                                    if (id == null && worker.name.contains(" - ")) {
+                                        val baseName = worker.name.substringBefore(" - ").trim()
+                                        id = kemandoranIdMap[baseName]
                                     }
+
+                                    if (id == null && !worker.name.contains(" - ")) {
+                                        // Find any key in the map that starts with this worker's name followed by " - "
+                                        val possibleKey = kemandoranIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                                        if (possibleKey != null) {
+                                            id = kemandoranIdMap[possibleKey]
+                                        }
+                                    }
+
+                                    id
                                 }
 
-// Do the same for the "Lain" workers
+
                                 val selectedPemanenLain = selectedPemanenLainAdapter.getSelectedWorkers()
 
                                 val workerLainNameCounts = mutableMapOf<String, Int>()
@@ -2618,6 +2631,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         kemandoranIdMap[key] = it.kemandoran_id!!
                     }
                 }
+
+                AppLogger.d("karyawanList $karyawanList")
+                AppLogger.d("karyawanIdMap $karyawanIdMap")
+                AppLogger.d("kemandoranIdMap $kemandoranIdMap")
 
                 val selectedEmployee = nikToEmployeeMap[selectedNik]
                 if (selectedEmployee != null) {

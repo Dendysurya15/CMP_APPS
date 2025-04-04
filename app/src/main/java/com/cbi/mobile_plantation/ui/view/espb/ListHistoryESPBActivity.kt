@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -51,6 +52,7 @@ class ListHistoryESPBActivity : AppCompatActivity() {
     private var afdelingUser: String? = null
     private lateinit var dateButton: Button
     private var mappedData: List<Map<String, Any>> = emptyList()
+    private var globalFormattedDate: String = AppUtils.currentDate
 
     private lateinit var tvEmptyState: TextView // Add this
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
@@ -80,6 +82,7 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.VISIBLE
         dateButton = findViewById(R.id.calendarPicker)
         dateButton.text = AppUtils.getTodaysDate()
+        setupFilterAllData()
 
         espbViewModel.loadHistoryESPBNonScan(AppUtils.currentDate)
     }
@@ -107,17 +110,26 @@ class ListHistoryESPBActivity : AppCompatActivity() {
             dateButton.text = displayDate
 
             val formattedDate = AppUtils.formatDateForBackend(day, month, year)
+            // Update global date variable
+            globalFormattedDate = formattedDate
+            // Keep this if AppUtils.setSelectedDate is used elsewhere in your code
             AppUtils.setSelectedDate(formattedDate)
+
             processSelectedDate(formattedDate)
         }
         datePicker.show(supportFragmentManager, "MATERIAL_DATE_PICKER")
     }
 
     private fun processSelectedDate(selectedDate: String) {
-
+        val filterAllData = findViewById<CheckBox>(R.id.calendarCheckbox)
         val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)
         val nameFilterDate = findViewById<TextView>(R.id.name_filter_date)
         val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_date)
+
+        // If "Filter All Data" is checked, uncheck it when user selects a specific date
+        if (filterAllData.isChecked) {
+            filterAllData.isChecked = false
+        }
 
         val displayDate = AppUtils.formatSelectedDateForDisplay(selectedDate)
         nameFilterDate.text = displayDate
@@ -305,6 +317,68 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         val appRepository = AppRepository(application)
         val factory = ESPBViewModel.ESPBViewModelFactory(appRepository)
         espbViewModel = ViewModelProvider(this, factory)[ESPBViewModel::class.java]
+    }
+
+    // Add this after your dateButton setup in setupUI() method
+    private fun setupFilterAllData() {
+        val filterAllData = findViewById<CheckBox>(R.id.calendarCheckbox)
+        val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)
+        val nameFilterDate = findViewById<TextView>(R.id.name_filter_date)
+
+        filterAllData.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                // User wants to see all data
+                filterDateContainer.visibility = View.VISIBLE
+                nameFilterDate.text = "Semua Data"
+
+                // Disable date picker button when viewing all data
+                dateButton.isEnabled = false
+                dateButton.alpha = 0.5f
+
+                // Load all data without date filter
+                espbViewModel.loadHistoryESPBNonScan(null)  // Pass null to load all data
+            } else {
+                // User wants to filter by date
+                val displayDate = AppUtils.formatSelectedDateForDisplay(globalFormattedDate)
+
+                // Update UI
+                dateButton.text = displayDate
+                nameFilterDate.text = displayDate
+
+                // Enable date picker button
+                dateButton.isEnabled = true
+                dateButton.alpha = 1f
+
+                // Load data for the selected date
+                espbViewModel.loadHistoryESPBNonScan(globalFormattedDate)
+            }
+
+            // Setup remove filter button
+            val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_date)
+            removeFilterDate.setOnClickListener {
+                if (filterAllData.isChecked) {
+                    filterAllData.isChecked = false
+                }
+
+                filterDateContainer.visibility = View.GONE
+
+                // Reset to today's date
+                val todayBackendDate = AppUtils.formatDateForBackend(
+                    Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                    Calendar.getInstance().get(Calendar.MONTH) + 1,
+                    Calendar.getInstance().get(Calendar.YEAR)
+                )
+
+                globalFormattedDate = todayBackendDate
+
+                // Update UI
+                val todayDisplayDate = AppUtils.getTodaysDate()
+                dateButton.text = todayDisplayDate
+
+                // Load today's data
+                espbViewModel.loadHistoryESPBNonScan(todayBackendDate)
+            }
+        }
     }
 
     private fun setupHeader() {

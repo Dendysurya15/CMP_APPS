@@ -1729,7 +1729,7 @@ private fun getAllDataFromList(playSound : Boolean =true) {
                                     }
                                 }
 
-                                AppLogger.d(jsonData)
+                                AppLogger.d("jsonData $jsonData")
 
                                 val encodedData = withContext(Dispatchers.IO) {
                                     try {
@@ -2101,8 +2101,12 @@ playSound(R.raw.berhasil_generate_qr)
                                             }
                                         }
 
-                                        val singleKaryawanNama =
-                                            singlePemuatData?.firstOrNull()?.nama ?: "-"
+                                        val workerName = singlePemuatData?.firstOrNull()?.nama ?: "-"
+                                        val singleKaryawanNama = if (workerName != "-" && karyawanNik.isNotEmpty()) {
+                                            "$workerName - $karyawanNik"
+                                        } else {
+                                            workerName
+                                        }
 
                                         // Fetch kemandoran name for this specific worker
                                         val singleKemandoranData = withContext(Dispatchers.IO) {
@@ -2187,9 +2191,14 @@ playSound(R.raw.berhasil_generate_qr)
                                         ?.takeIf { it.isNotEmpty() }
                                         ?.joinToString("\n") { "• $it" } ?: "-"
 
-                                    val karyawanNamas = pemuatData?.mapNotNull { it.nama }
-                                        ?.takeIf { it.isNotEmpty() }
+                                    val karyawanNamas = pemuatData?.mapNotNull { karyawan ->
+                                        karyawan.nama?.let { nama ->
+                                            // Always append NIK for every worker
+                                            "$nama - ${karyawan.nik ?: "N/A"}"
+                                        }
+                                    }?.takeIf { it.isNotEmpty() }
                                         ?.joinToString(", ") ?: "-"
+
 
                                     val standardData = mapOf<String, Any>(
                                         "id" to (panenWithRelations.panen.id as Any),
@@ -2581,9 +2590,12 @@ playSound(R.raw.berhasil_generate_qr)
                                     ?.takeIf { it.isNotEmpty() }
                                     ?.joinToString("\n") { "• $it" } ?: "-"
 
-
-                                val karyawanNamas = pemuatData?.mapNotNull { it.nama }
-                                    ?.takeIf { it.isNotEmpty() }
+                                val karyawanNamas = pemuatData?.mapNotNull { karyawan ->
+                                    karyawan.nama?.let { nama ->
+                                        // Always append NIK for every worker
+                                        "$nama - ${karyawan.nik ?: "N/A"}"
+                                    }
+                                }?.takeIf { it.isNotEmpty() }
                                     ?.joinToString(", ") ?: "-"
 
                                 mapOf<String, Any>(

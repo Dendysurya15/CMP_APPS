@@ -280,42 +280,54 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         btnUploadDataCMP.visibility = View.VISIBLE
         btnUploadDataCMP.setOnClickListener {
             if (AppUtils.isNetworkAvailable(this)) {
-                // Disable buttons
-                btnUploadDataCMP.isEnabled = false
-                closeDialogBtn.isEnabled = false
-                btnUploadDataCMP.alpha = 0.7f
-                closeDialogBtn.alpha = 0.7f
-                btnUploadDataCMP.iconTint =
-                    ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
-                closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Upload",
+                    getString(R.string.confirmation_dialog_title),
+                    getString(R.string.al_confirm_upload),
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = {
+                        btnUploadDataCMP.isEnabled = false
+                        closeDialogBtn.isEnabled = false
+                        btnUploadDataCMP.alpha = 0.7f
+                        closeDialogBtn.alpha = 0.7f
+                        btnUploadDataCMP.iconTint =
+                            ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
+                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
 
-                weightBridgeViewModel.uploadESPBKraniTimbang(
-                    allUploadItems.map { uploadItem ->
-                        mapOf(
-                            "id" to uploadItem.id,
-                            "ip" to uploadItem.ip,
-                            "num" to uploadItem.num,
-                            "dept_ppro" to uploadItem.deptPpro,
-                            "divisi_ppro" to uploadItem.divisiPpro,
-                            "commodity" to uploadItem.commodity,
-                            "blok_jjg" to uploadItem.blokJjg,
-                            "nopol" to uploadItem.nopol,
-                            "driver" to uploadItem.driver,
-                            "pemuat_id" to uploadItem.pemuatId,
-                            "transporter_id" to uploadItem.transporterId,
-                            "mill_id" to uploadItem.millId,
-                            "created_by_id" to uploadItem.createdById,
-                            "created_at" to uploadItem.createdAt,
-                            "no_espb" to uploadItem.no_espb,
-                            "uploader_info" to uploadItem.uploader_info,
-                            "uploaded_at" to uploadItem.uploaded_at,
-                            "uploaded_by_id" to uploadItem.uploaded_by_id,
-                            "file" to uploadItem.file,
-                            "endpoint" to uploadItem.endpoint
+                        weightBridgeViewModel.uploadESPBKraniTimbang(
+                            allUploadItems.map { uploadItem ->
+                                mapOf(
+                                    "id" to uploadItem.id,
+                                    "ip" to uploadItem.ip,
+                                    "num" to uploadItem.num,
+                                    "dept_ppro" to uploadItem.deptPpro,
+                                    "divisi_ppro" to uploadItem.divisiPpro,
+                                    "commodity" to uploadItem.commodity,
+                                    "blok_jjg" to uploadItem.blokJjg,
+                                    "nopol" to uploadItem.nopol,
+                                    "driver" to uploadItem.driver,
+                                    "pemuat_id" to uploadItem.pemuatId,
+                                    "transporter_id" to uploadItem.transporterId,
+                                    "mill_id" to uploadItem.millId,
+                                    "created_by_id" to uploadItem.createdById,
+                                    "created_at" to uploadItem.createdAt,
+                                    "no_espb" to uploadItem.no_espb,
+                                    "uploader_info" to uploadItem.uploader_info,
+                                    "uploaded_at" to uploadItem.uploaded_at,
+                                    "uploaded_by_id" to uploadItem.uploaded_by_id,
+                                    "file" to uploadItem.file,
+                                    "endpoint" to uploadItem.endpoint
+                                )
+                            },
+                            globalESPBIds
                         )
                     },
-                    globalESPBIds
+                    cancelFunction = {
+                    }
                 )
+
             } else {
                 AlertDialogUtility.withSingleAction(
                     this@ListHistoryWeighBridgeActivity,

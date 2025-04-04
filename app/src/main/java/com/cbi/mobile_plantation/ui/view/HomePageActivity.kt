@@ -365,8 +365,8 @@ class HomePageActivity : AppCompatActivity() {
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
                 featureName = AppUtils.ListFeatureNames.UploadDataCMP,
-                featureNameBackgroundColor = R.color.bluedarklight,
-                iconResource = R.drawable.upload_icon,
+                featureNameBackgroundColor = R.color.colorRedDark,
+                iconResource = R.drawable.upload_icon_2,
                 functionDescription = "Upload semua data di aplikasi",
                 displayType = DisplayType.ICON,
                 subTitle = "Upload Semua Data CMP"
@@ -1117,17 +1117,28 @@ class HomePageActivity : AppCompatActivity() {
 
         btnUploadDataCMP.setOnClickListener {
             if (AppUtils.isNetworkAvailable(this)) {
-                // Disable buttons
-                btnUploadDataCMP.isEnabled = false
-                closeDialogBtn.isEnabled = false
-                btnUploadDataCMP.alpha = 0.7f
-                closeDialogBtn.alpha = 0.7f
-                btnUploadDataCMP.iconTint =
-                    ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
-                closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Upload",
+                    getString(R.string.confirmation_dialog_title),
+                    getString(R.string.al_confirm_upload),
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = {
+                        btnUploadDataCMP.isEnabled = false
+                        closeDialogBtn.isEnabled = false
+                        btnUploadDataCMP.alpha = 0.7f
+                        closeDialogBtn.alpha = 0.7f
+                        btnUploadDataCMP.iconTint =
+                            ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
+                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
 
-                // Start uploading all files
-                uploadCMPViewModel.uploadMultipleZips(uploadItems)
+                        // Start uploading all files
+                        uploadCMPViewModel.uploadMultipleZips(uploadItems)
+                    },
+                    cancelFunction = {
+                    }
+                )
             } else {
                 AlertDialogUtility.withSingleAction(
                     this@HomePageActivity,
@@ -1745,7 +1756,7 @@ class HomePageActivity : AppCompatActivity() {
                 "-"
             } else {
                 val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                val outputFormat = SimpleDateFormat("dd MMMM yyyy HH:mm", Locale("id", "ID"))
+                val outputFormat = SimpleDateFormat("dd MMMM, HH:mm", Locale("id", "ID"))
                 try {
                     val date = inputFormat.parse(timestamp)
                     outputFormat.format(date ?: "-")

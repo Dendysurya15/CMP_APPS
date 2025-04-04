@@ -49,7 +49,7 @@
                     android:textStyle="bold"
                     android:id="@+id/tv_name_progress"
                     android:fontFamily="@font/manrope_extrabold"
-                    android:textSize="19sp"/>
+                    android:textSize="@dimen/m"/>
 
 
 
@@ -82,7 +82,7 @@
                         android:fontFamily="@font/manrope_bold"
                         android:gravity="center_vertical|center"
                         android:textStyle="italic"
-                        android:textSize="15sp"/>
+                        android:textSize="@dimen/m"/>
                 </LinearLayout>
 
                 <!-- Second section also using LinearLayout with 0.9 and 0.1 weights -->
@@ -99,7 +99,7 @@
                         android:ellipsize="end"
                         android:gravity="center_vertical"
                         android:textColor="@color/black"
-                        android:textSize="17sp"
+                        android:textSize="@dimen/m"
                         android:fontFamily="@font/manrope_bold"
                         android:visibility="gone"
                         android:textStyle="italic"

@@ -9,18 +9,18 @@
     tools:context=".ui.view.panenTBS.FeaturePanenTBSActivity">
 
     <!-- Header Section -->
-    <TextView
-        android:id="@+id/tvWithIcon2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:drawablePadding="8dp"
-        android:fontFamily="@font/manrope_medium"
-        android:gravity="end"
-        android:text="Info"
-        android:textColor="@color/black"
-        android:textSize="15sp"
-        app:drawableEndCompat="@drawable/ic_info_outline_white_24dp"
-        tools:ignore="MissingConstraints" />
+<!--    <TextView-->
+<!--        android:id="@+id/tvWithIcon2"-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:drawablePadding="8dp"-->
+<!--        android:fontFamily="@font/manrope_medium"-->
+<!--        android:gravity="end"-->
+<!--        android:text="Info"-->
+<!--        android:textColor="@color/black"-->
+<!--        android:textSize="15sp"-->
+<!--        app:drawableEndCompat="@drawable/ic_info_outline_white_24dp"-->
+<!--        tools:ignore="MissingConstraints" />-->
 
     <include
         android:id="@+id/test"

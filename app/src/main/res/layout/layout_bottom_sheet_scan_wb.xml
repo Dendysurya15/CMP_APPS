@@ -275,7 +275,7 @@
             android:fontFamily="@font/manrope_bold"
             android:text="Scan Ulang"
             android:textColor="#FFFFFF"
-            android:textSize="16sp" />
+            android:textSize="@dimen/m" />
 
         <Button
             android:id="@+id/btnSaveUploadeSPB"

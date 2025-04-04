@@ -17,7 +17,7 @@
         android:gravity="center"
         android:text="Hasil Generate QR"
         android:textColor="@color/black"
-        android:textSize="25sp"
+        android:textSize="@dimen/l"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -63,7 +63,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/manrope_bold"
                 android:textColor="@color/grayDefault"
-                android:textSize="17sp" />
+                android:textSize="@dimen/m" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -99,7 +99,7 @@
             android:layout_height="wrap_content"
             android:text="."
             android:textColor="@color/greendarkerbutton"
-            android:textSize="50sp"
+            android:textSize="@dimen/large_size"
             android:textStyle="bold" />
 
         <TextView
@@ -108,7 +108,7 @@
             android:layout_height="wrap_content"
             android:text="."
             android:textColor="@color/greendarkerbutton"
-            android:textSize="50sp"
+            android:textSize="@dimen/large_size"
             android:textStyle="bold" />
 
         <TextView
@@ -117,7 +117,7 @@
             android:layout_height="wrap_content"
             android:text="."
             android:textColor="@color/greendarkerbutton"
-            android:textSize="50sp"
+            android:textSize="@dimen/large_size"
             android:textStyle="bold" />
 
         <TextView
@@ -126,7 +126,7 @@
             android:layout_height="wrap_content"
             android:text="."
             android:textColor="@color/greendarkerbutton"
-            android:textSize="50sp"
+            android:textSize="@dimen/large_size"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -150,7 +150,7 @@
         android:layout_marginTop="15dp"
         android:fontFamily="@font/manrope_extrabold"
         android:text="Daftar TPH: "
-        android:textSize="20sp"
+        android:textSize="@dimen/l"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -229,7 +229,7 @@
             android:gravity="start"
             android:text="Konfirmasi Scan QR"
             android:textColor="@color/black"
-            android:textSize="21sp" />
+            android:textSize="@dimen/l" />
 
         <!-- After scan QR description -->
         <TextView
@@ -240,7 +240,7 @@
             android:gravity="start"
             android:text="Jika sudah melakukan scan QR harap konfirmasi dengan tombol berikut!"
             android:textColor="@color/black"
-            android:textSize="17sp"
+            android:textSize="@dimen/m"
             android:textStyle="italic" />
     </LinearLayout>
 
@@ -266,7 +266,7 @@
             android:backgroundTint="@color/greenDarker"
             android:text="Tutup"
             android:textColor="#FFFFFF"
-            android:textSize="16sp"
+            android:textSize="@dimen/m"
             android:visibility="gone"
             app:cornerRadius="8dp" />
 
@@ -280,7 +280,7 @@
             android:backgroundTint="@color/greenDarker"
             android:text="Sudah Scan"
             android:textAllCaps="false"
-            android:textSize="18sp"
+            android:textSize="@dimen/m"
             android:visibility="gone"
             app:cornerRadius="8dp"
             app:icon="@drawable/baseline_qr_code_scanner_24"
@@ -297,7 +297,7 @@
             android:backgroundTint="@color/greenDarker"
             android:text="Simpan &amp; Upload e-SPB"
             android:textColor="@color/white"
-            android:textSize="16sp"
+            android:textSize="@dimen/m"
             android:visibility="gone"
             app:cornerRadius="8dp" />
     </LinearLayout>

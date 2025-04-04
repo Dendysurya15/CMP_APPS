@@ -36,7 +36,7 @@
             android:gravity="center_horizontal"
             android:fontFamily="@font/manrope_bold"
             android:textColor="@color/white"
-            android:textSize="16dp"/>
+            android:textSize="@dimen/l"/>
     </LinearLayout>
 
     <!-- Status messages container outside the content_container -->
@@ -50,7 +50,7 @@
         android:layout_centerHorizontal="true"
         android:layout_marginHorizontal="40dp"
         android:gravity="center"
-        android:textSize="17sp"
+        android:textSize="@dimen/m"
         android:textColor="@color/white"
         android:visibility="gone" />
 

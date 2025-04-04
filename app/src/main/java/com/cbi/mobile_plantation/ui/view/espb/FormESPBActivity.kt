@@ -692,6 +692,7 @@ AppLogger.d("jjgMap $janjangMap")
                             pemuat_nik = uniqueNikPemanen,
                             kemandoran_id = uniqueKemandoranId
                         )
+                        AppLogger.d(json)
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
                         val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
                         ListPanenTBSActivity().generateHighQualityQRCode(

@@ -61,7 +61,7 @@
                         android:layout_marginEnd="8dp"
                         android:fontFamily="@font/manrope_extrabold"
                         android:textColor="@color/greendarkerbutton"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/m" />
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
@@ -74,7 +74,7 @@
                 android:layout_gravity="center_vertical"
                 android:fontFamily="@font/manrope_bold"
                 android:textColor="@color/black"
-                android:textSize="15sp" />
+                android:textSize="@dimen/l" />
         </LinearLayout>
 
         <LinearLayout
@@ -86,7 +86,7 @@
                 android:id="@+id/titleEndpoint"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="17sp"
+                android:textSize="@dimen/m"
                 android:textColor="@color/black"
                 android:fontFamily="@font/manrope_bold" />
 
@@ -94,7 +94,7 @@
                 android:id="@+id/messageResponseUpload"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="15sp"
+                android:textSize="@dimen/m"
                 android:textStyle="italic"
 
                 android:textColor="@color/black"

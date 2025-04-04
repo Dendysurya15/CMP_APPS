@@ -13,7 +13,7 @@
         android:fontFamily="@font/manrope_semibold"
         android:textColor="@color/black"
         android:textStyle="italic"
-        android:textSize="18sp" />
+        android:textSize="@dimen/m" />
 
     <TextView
         android:id="@+id/tvValue"
@@ -23,6 +23,6 @@
         android:fontFamily="@font/manrope_semibold"
         android:text="-"
         android:textColor="@color/black"
-        android:textSize="18sp" />
+        android:textSize="@dimen/m" />
 
 </LinearLayout>
