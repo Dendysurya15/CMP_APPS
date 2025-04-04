@@ -3232,6 +3232,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     @SuppressLint("MissingSuperCall")
     override fun onBackPressed() {
         when {
+
+            cameraViewModel.isZoomViewVisible() -> {
+                cameraViewModel.closeZoomView()
+            }
+
             cameraViewModel.statusCamera() -> {
                 cameraViewModel.closeCamera()
             }
@@ -3276,7 +3281,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 selectedKemandoran.isNotEmpty() ||
                 selectedPemanen.isNotEmpty() ||
                 (blokBanjir == 1 && selectedTPH.isNotEmpty()) ||
-                (blokBanjir == 1 && selectedBlok.isNotEmpty())
+                (blokBanjir == 1 && selectedBlok.isNotEmpty()) ||
+                photoFiles.isNotEmpty()
     }
 
 

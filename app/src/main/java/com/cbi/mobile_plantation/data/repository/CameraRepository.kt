@@ -804,16 +804,14 @@ class CameraRepository(
             onChangePhoto.invoke()
         }
     }
+    fun isZoomViewVisible(): Boolean {
+        return zoomView.visibility == View.VISIBLE
+    }
 
-
-    fun closeZoomPhotos() {
-        YoYo.with(Techniques.FadeOut)
-            .onEnd {
-                zoomView.visibility = View.GONE
-            }
-            .duration(500)
-            .repeat(0)
-            .playOn(zoomView)
+    fun closeZoomView() {
+        val backgroundView = zoomView.findViewById<View>(R.id.backgroundOverlay)
+        zoomView.visibility = View.GONE
+        backgroundView.visibility = View.GONE
     }
 
 

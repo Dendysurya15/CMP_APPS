@@ -24,9 +24,12 @@ class CameraViewModel(private val cameraRepository: CameraRepository) : ViewMode
         cameraRepository.openZoomPhotos(file, position, onChangePhoto, onDeletePhoto)
     }
 
+    fun isZoomViewVisible(): Boolean {
+        return cameraRepository.isZoomViewVisible()
+    }
 
-    fun closeZoomPhotos() {
-        cameraRepository.closeZoomPhotos()
+    fun closeZoomView() {
+        cameraRepository.closeZoomView()
     }
 
 
