@@ -184,14 +184,15 @@ class LoginActivity : AppCompatActivity() {
                     AppLogger.d("Login Success: $loginResponse")
                     if (token != null) {
 
-                        if (prefManager!!.username != null && prefManager!!.username!!.isNotEmpty() &&
-                            prefManager!!.username != usernameField.text.toString().trim()) {
+                        if (prefManager!!.registeredDeviceUsername != null &&
+                            prefManager!!.registeredDeviceUsername!!.isNotEmpty() &&
+                            prefManager!!.registeredDeviceUsername != usernameField.text.toString().trim()) {
 
                             AlertDialogUtility.withSingleAction(
                                 this@LoginActivity,
                                 stringXML(R.string.al_back),
                                 "Perangkat Terdaftar untuk Pengguna Lain",
-                                "Perangkat ini sudah terdaftar untuk pengguna ${prefManager!!.username}. Silakan gunakan akun yang terdaftar!",
+                                "Perangkat ini sudah terdaftar untuk pengguna ${prefManager!!.registeredDeviceUsername}. Silakan gunakan akun yang terdaftar!",
                                 "warning.json",
                                 R.color.colorRedDark
                             ) { }
@@ -199,7 +200,10 @@ class LoginActivity : AppCompatActivity() {
                             return@observe
                         }
 
-                        datasetViewModel.clearAllData()
+                        if (prefManager!!.registeredDeviceUsername.isNullOrEmpty()) {
+                            prefManager!!.registeredDeviceUsername = usernameField.text.toString().trim()
+                        }
+
                         prefManager!!.isFirstTimeLaunch = true
                         prefManager!!.token = token
                         prefManager!!.username = usernameField.text.toString().trim()
@@ -214,13 +218,6 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.companyIdUserLogin = loginResponse.data?.user?.company
                         prefManager!!.companyAbbrUserLogin = loginResponse.data?.user?.company_abbr
                         prefManager!!.companyNamaUserLogin = loginResponse.data?.user?.company_nama
-                        prefManager!!.lastSyncDate = null
-                        prefManager!!.lastModifiedDatasetTPH = null
-                        prefManager!!.lastModifiedDatasetKemandoran = null
-                        prefManager!!.lastModifiedDatasetPemanen = null
-                        prefManager!!.lastModifiedDatasetTransporter = null
-                        prefManager!!.lastModifiedDatasetBlok = null
-                        prefManager!!.clearDatasetMustUpdate()
 
                         Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()
                         navigateToHomePage()
@@ -316,16 +313,15 @@ class LoginActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Check if there's already a user registered and it's a different user
-            if (prefManager!!.username != null && prefManager!!.username!!.isNotEmpty() &&
-                prefManager!!.username != username) {
-                // Show toast and alert dialog that only the registered user can log in
+            if (prefManager!!.registeredDeviceUsername != null &&
+                prefManager!!.registeredDeviceUsername!!.isNotEmpty() &&
+                prefManager!!.registeredDeviceUsername != username) {
 
                 AlertDialogUtility.withSingleAction(
                     this@LoginActivity,
                     stringXML(R.string.al_back),
                     "Perangkat Terdaftar untuk Pengguna Lain",
-                    "Perangkat ini sudah terdaftar untuk pengguna ${prefManager!!.username}. Silakan gunakan akun yang terdaftar!",
+                    "Perangkat ini sudah terdaftar untuk pengguna ${prefManager!!.registeredDeviceUsername}. Silakan gunakan akun yang terdaftar!",
                     "warning.json",
                     R.color.colorRedDark
                 ) { }

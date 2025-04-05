@@ -24,6 +24,13 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var registeredDeviceUsername: String?
+        get() = pref.getString(REGISTERED_DEVICE_USERNAME, "")
+        set(value) {
+            editor.putString(REGISTERED_DEVICE_USERNAME, value)
+            editor.commit()
+        }
+
     var nameUserLogin: String?
         get() = pref.getString("nameUserLogin", "")
         set(nameUserLogin) {
@@ -315,6 +322,8 @@ class PrefManager(_context: Context) {
         const val REMEMBERME = "remember_me"
         const val USERNAME = "username"
         const val PASSWORD = "password"
+
+        private const val REGISTERED_DEVICE_USERNAME = "registered_device_username"
     }
 
     init {
