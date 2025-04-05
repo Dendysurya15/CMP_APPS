@@ -21,6 +21,7 @@ import androidx.lifecycle.lifecycleScope
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.repository.AuthRepository
 import com.cbi.mobile_plantation.ui.viewModel.AuthViewModel
+import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
@@ -43,7 +44,7 @@ class LoginActivity : AppCompatActivity() {
     private var prefManager: PrefManager? = null
     private lateinit var loadingDialog: LoadingDialog
     private lateinit var authViewModel: AuthViewModel
-
+    private lateinit var datasetViewModel: DatasetViewModel
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
     private val dateTimeCheckRunnable = object : Runnable {
         override fun run() {
@@ -150,6 +151,9 @@ class LoginActivity : AppCompatActivity() {
             AuthViewModel.Factory(AuthRepository())
         ).get(AuthViewModel::class.java)
 
+        val factory = DatasetViewModel.DatasetViewModelFactory(application)
+        datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
+
         authViewModel.loginResponse.observe(this) { response ->
             hideLoading()
 
@@ -179,6 +183,7 @@ class LoginActivity : AppCompatActivity() {
                     val token = loginResponse.data?.token
                     AppLogger.d("Login Success: $loginResponse")
                     if (token != null) {
+                        datasetViewModel.clearAllData()
                         prefManager!!.isFirstTimeLaunch = true
                         prefManager!!.token = token
                         prefManager!!.username = usernameField.text.toString().trim()
@@ -193,6 +198,13 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.companyIdUserLogin = loginResponse.data?.user?.company
                         prefManager!!.companyAbbrUserLogin = loginResponse.data?.user?.company_abbr
                         prefManager!!.companyNamaUserLogin = loginResponse.data?.user?.company_nama
+                        prefManager!!.lastSyncDate = null
+                        prefManager!!.lastModifiedDatasetTPH = null
+                    prefManager!!.lastModifiedDatasetKemandoran = null
+                        prefManager!!.lastModifiedDatasetPemanen = null
+                        prefManager!!.lastModifiedDatasetTransporter = null
+                        prefManager!!.lastModifiedDatasetBlok = null
+                        prefManager!!.clearDatasetMustUpdate()
 
                         Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()
                         navigateToHomePage()
@@ -290,35 +302,36 @@ class LoginActivity : AppCompatActivity() {
 
             lifecycleScope.launch {
                 loadingDialog.show()
-                loadingDialog.setMessage("Sedang verifikasi kredensial...", true) // Checking credentials
+                loadingDialog.setMessage(
+                    "Sedang verifikasi kredensial...",
+                    true
+                ) // Checking credentials
                 delay(1000)
 
 
-            if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() && prefManager?.username == username && prefManager?.password == password) {
-                navigateToHomePage()
-            } else {
-                if (AppUtils.isNetworkAvailable(this@LoginActivity)) {
-                    AppLogger.d(username.toString())
-                    AppLogger.d(password.toString())
-                    authViewModel.login(username, password)
+                if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() && prefManager?.username == username && prefManager?.password == password) {
+                    navigateToHomePage()
                 } else {
-                    lifecycleScope.launch {
-                        delay(500)
+                    if (AppUtils.isNetworkAvailable(this@LoginActivity)) {
+                        authViewModel.login(username, password)
+                    } else {
+                        lifecycleScope.launch {
+                            delay(500)
 
-                        AlertDialogUtility.withSingleAction(
-                            this@LoginActivity,
-                            stringXML(R.string.al_back),
-                            stringXML(R.string.al_no_internet_connection),
-                            stringXML(R.string.al_no_internet_connection_description_login),
-                            "network_error.json",
-                            R.color.colorRedDark
-                        ) {
+                            AlertDialogUtility.withSingleAction(
+                                this@LoginActivity,
+                                stringXML(R.string.al_back),
+                                stringXML(R.string.al_no_internet_connection),
+                                stringXML(R.string.al_no_internet_connection_description_login),
+                                "network_error.json",
+                                R.color.colorRedDark
+                            ) {
 
+                            }
+                            hideLoading() // Hide loading after dialog
                         }
-                        hideLoading() // Hide loading after dialog
                     }
                 }
-            }
 
             }
 

@@ -17,7 +17,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            >  <!-- Add internal padding -->
+            >
 
             <EditText
                 android:id="@+id/searchEditText"
@@ -25,7 +25,7 @@
                 android:layout_height="48dp"
                 android:hint="Ketik disini..."
                 android:textColorHint="@color/graytextdark"
-                android:fontFamily="@font/manrope_bold"
+                android:fontFamily="@font/manrope_semibold"
                 android:padding="8dp"
                 android:background="@color/white"
                 android:textColor="@android:color/black"
@@ -39,7 +39,7 @@
                 android:paddingHorizontal="10dp"
                 android:paddingVertical="5dp"
                 android:background="@color/graylight"
-                android:textSize="15sp"
+                android:textSize="@dimen/m"
                 android:id="@+id/titleSearchDropdown"
                 android:visibility="gone"
                 android:fontFamily="@font/manrope_extrabold"

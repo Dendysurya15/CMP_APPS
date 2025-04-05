@@ -232,22 +232,6 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:fontFamily="@font/manrope_bold"
-                    android:text="@string/daftar_tph_sudah_terangkut"
-                    android:textColor="@color/black"
-                    android:textSize="@dimen/m"
-                    android:textStyle="bold" />
-
-                <include
-                    android:id="@+id/infoTPH"
-                    layout="@layout/layout_wb_data_info"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp" />
 
             </LinearLayout>
 
@@ -275,7 +259,7 @@
             android:fontFamily="@font/manrope_bold"
             android:text="Scan Ulang"
             android:textColor="#FFFFFF"
-            android:textSize="16sp" />
+            android:textSize="@dimen/m" />
 
         <Button
             android:id="@+id/btnSaveUploadeSPB"

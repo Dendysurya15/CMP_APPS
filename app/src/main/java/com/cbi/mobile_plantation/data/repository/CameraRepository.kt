@@ -16,10 +16,13 @@ import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureFailure
 import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.TotalCaptureResult
 import android.media.ExifInterface
 import android.media.ImageReader
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
@@ -30,18 +33,21 @@ import android.util.Size
 import android.view.Surface
 import android.view.TextureView
 import android.view.View
+import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.RelativeLayout
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.daimajia.androidanimations.library.Techniques
 import com.daimajia.androidanimations.library.YoYo
 import com.google.android.material.card.MaterialCardView
@@ -195,6 +201,22 @@ class CameraRepository(
         return resultBitmap
     }
 
+    private var blockingView: View? = null
+    private fun isTouchOnView(view: View?, x: Float, y: Float): Boolean {
+        if (view == null) return false
+
+        val location = IntArray(2)
+        view.getLocationOnScreen(location)
+
+        val viewX = location[0]
+        val viewY = location[1]
+
+        // Check if the touch coordinates are within the view's bounds
+        return (x >= viewX && x <= viewX + view.width &&
+                y >= viewY && y <= viewY + view.height)
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
     fun takeCameraPhotos(
         resultCode: String,
         imageView: ImageView,
@@ -206,7 +228,8 @@ class CameraRepository(
         latitude: Double?=null,
         longitude: Double?=null
     ) {
-
+        setDefaultIconTorchButton(view)
+        loadingDialog = LoadingDialog(context)
 //        val rootDCIM = File(
 //            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
 //            "CMP-$featureName" // Store under "CMP-featureName"
@@ -222,8 +245,44 @@ class CameraRepository(
 
 
         val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
+// Add the texture view for the camera
         rlCamera.addView(textureViewCam)
 
+        // Get references to camera control buttons
+        val captureButton = view.findViewById<FloatingActionButton>(R.id.captureCam)
+        val torchButton = view.findViewById<Button>(R.id.torchButton)
+        val switchButton = view.findViewById<Button>(R.id.switchButton)
+
+        // Create a transparent blocking view that covers the whole screen EXCEPT camera controls
+        val blockingView = View(context).apply {
+            layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.MATCH_PARENT
+            )
+            setBackgroundColor(Color.TRANSPARENT)
+
+            // This is the key part - consume touch events EXCEPT for camera controls
+            setOnTouchListener { _, event ->
+                // Get the touch coordinates
+                val x = event.rawX
+                val y = event.rawY
+
+                // Check if touch is within any of the camera controls
+                val isTouchOnCapture = isTouchOnView(captureButton, x, y)
+                val isTouchOnTorch = isTouchOnView(torchButton, x, y)
+                val isTouchOnSwitch = isTouchOnView(switchButton, x, y)
+
+                // If touch is on a camera control, don't consume the event
+                // Otherwise, consume it to block interaction with underlying UI
+                !(isTouchOnCapture || isTouchOnTorch || isTouchOnSwitch)
+            }
+        }
+
+        // Add the blocking view
+        (view.parent as ViewGroup).addView(blockingView)
+
+        // Store the blocking view reference so we can remove it later
+        this.blockingView = blockingView
 
         cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
         handlerThread = HandlerThread("videoThread")
@@ -234,10 +293,10 @@ class CameraRepository(
             object : TextureView.SurfaceTextureListener {
                 @SuppressLint("MissingPermission")
                 override fun onSurfaceTextureAvailable(p0: SurfaceTexture, p1: Int, p2: Int) {
-                    Log.d("testing", "klasjldkfaf")
                     cameraManager.openCamera(
                         cameraManager.cameraIdList[lastCameraId],
                         object : CameraDevice.StateCallback() {
+                            @RequiresApi(Build.VERSION_CODES.TIRAMISU)
                             @SuppressLint("SimpleDateFormat")
                             override fun onOpened(p0: CameraDevice) {
 
@@ -248,8 +307,6 @@ class CameraRepository(
                                 cameraDevice = p0
                                 isCameraOpen = true
 
-
-                                Log.d("testing", isCameraOpen.toString())
                                 capReq =
                                     cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
 
@@ -276,25 +333,44 @@ class CameraRepository(
                                     capReq.addTarget(surface)
 
                                     val torchButton = view.findViewById<Button>(R.id.torchButton)
-
+                                    torchButton.apply {
+                                        // Make sure it has the default icon when first created
+                                        setBackgroundResource(R.drawable.baseline_flash_on_24)
+                                        backgroundTintList = ColorStateList.valueOf(Color.WHITE)
+                                    }
                                     torchButton.apply {
                                         setOnClickListener {
                                             isFlashlightOn = !isFlashlightOn
                                             if (isFlashlightOn) {
                                                 torchButton.setBackgroundResource(R.drawable.baseline_flash_on_24)
-                                                torchButton.backgroundTintList =
-                                                    ColorStateList.valueOf(Color.YELLOW)
-                                                capReq.set(
-                                                    CaptureRequest.FLASH_MODE,
-                                                    CaptureRequest.FLASH_MODE_TORCH
-                                                )
+                                                torchButton.backgroundTintList = ColorStateList.valueOf(Color.YELLOW)
+
+                                                // Use TORCH mode for consistent brightness
+                                                capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
+
+                                                // Prevent auto-exposure from dimming the preview
+                                                capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+
+                                                // Increase exposure compensation to prevent dimming (values typically range from -3 to +3)
+                                                capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 2)
+
+                                                // Set a higher ISO value to increase sensor sensitivity (typical range 100-1600)
+                                                capReq.set(CaptureRequest.SENSOR_SENSITIVITY, 800)
+
+                                                // Lock auto-exposure to prevent the camera from adjusting brightness automatically
+                                                capReq.set(CaptureRequest.CONTROL_AE_LOCK, true)
                                             } else {
-                                                setDefaultIcon(view)
-                                                capReq.set(
-                                                    CaptureRequest.FLASH_MODE,
-                                                    CaptureRequest.FLASH_MODE_OFF
-                                                )
+                                                setDefaultIconTorchButton(view)
+                                                // Reset all settings when turning flash off
+                                                capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF)
+                                                capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                                                capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 0)
+                                                capReq.set(CaptureRequest.CONTROL_AE_LOCK, false)
+                                                // Let the camera determine ISO automatically
+                                                capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
                                             }
+
+                                            // Apply the changes
                                             cameraCaptureSession!!.setRepeatingRequest(
                                                 capReq.build(),
                                                 null,
@@ -310,7 +386,7 @@ class CameraRepository(
                                             isFlashlightOn = false
                                             rotatedCam = true
                                             closeCamera()
-                                            setDefaultIcon(view)
+                                            setDefaultIconTorchButton(view)
 
                                             lastCameraId = if (lastCameraId == 0) {
                                                 1
@@ -560,18 +636,65 @@ class CameraRepository(
 
             }
 
+        blockingView.bringToFront()
+
+        captureButton?.bringToFront()
+        torchButton?.bringToFront()
+        switchButton?.bringToFront()
+
         val captureCam = view.findViewById<FloatingActionButton>(R.id.captureCam)
         captureCam.apply {
             setOnClickListener {
                 isEnabled = false
+
+                loadingDialog.show()
+                loadingDialog.setMessage("Sedang mengambil foto...", isAnimate = true)
+
                 if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
-                    capReq =
-                        cameraDevice!!.createC  aptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                    capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
                     capReq.addTarget(imageReader!!.surface)
-                    cameraCaptureSession?.capture(capReq.build(), null, null)
-                    postDelayed({ isEnabled = true }, 2000)
+
+                    // Apply the same flash settings for the actual photo capture
+                    if (isFlashlightOn) {
+                        capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
+                        capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                        capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 2)
+                        capReq.set(CaptureRequest.SENSOR_SENSITIVITY, 800)
+                        capReq.set(CaptureRequest.CONTROL_AE_LOCK, true)
+                    }
+
+
+                    cameraCaptureSession?.capture(capReq.build(), object : CameraCaptureSession.CaptureCallback() {
+                        override fun onCaptureCompleted(session: CameraCaptureSession, request: CaptureRequest, result: TotalCaptureResult) {
+                            super.onCaptureCompleted(session, request, result)
+
+                            // Simulate processing time
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                // Dismiss loading dialog
+                                loadingDialog.dismiss()
+
+                                // Re-enable button
+                                isEnabled = true
+                            }, 800)
+                        }
+
+                        override fun onCaptureFailed(session: CameraCaptureSession, request: CaptureRequest, failure: CaptureFailure) {
+                            super.onCaptureFailed(session, request, failure)
+
+                            // Dismiss after a short delay
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                loadingDialog.dismiss()
+                                isEnabled = true
+                            }, 800)
+                        }
+                    }, null)
                 } else {
-                    isEnabled = true
+                    // Show error and dismiss dialog if camera components are null
+                    loadingDialog.addStatusMessage("Camera error", LoadingDialog.StatusType.ERROR)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        loadingDialog.dismiss()
+                        isEnabled = true
+                    }, 800)
                     Log.e("CameraError", "CameraDevice or ImageReader is null")
                 }
             }
@@ -589,6 +712,12 @@ class CameraRepository(
 
             val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
             rlCamera.removeView(textureViewCam)
+
+
+            blockingView?.let {
+                (view.parent as? ViewGroup)?.removeView(it)
+                blockingView = null
+            }
 
             cameraCaptureSession!!.close()
             cameraCaptureSession!!.device.close()
@@ -613,6 +742,14 @@ class CameraRepository(
             window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         }
     }
+
+    private lateinit var loadingDialog: LoadingDialog
+
+    // Initialize the loading dialog in your onCreate or init method
+    private fun initLoadingDialog() {
+        loadingDialog = LoadingDialog(context)
+    }
+
 
     fun openZoomPhotos(
         file: File,
@@ -659,7 +796,7 @@ class CameraRepository(
                     backgroundView.visibility = View.GONE
                 },
                 cancelFunction = {
-                 
+
                 }
             )
         }
@@ -670,16 +807,14 @@ class CameraRepository(
             onChangePhoto.invoke()
         }
     }
+    fun isZoomViewVisible(): Boolean {
+        return zoomView.visibility == View.VISIBLE
+    }
 
-
-    fun closeZoomPhotos() {
-        YoYo.with(Techniques.FadeOut)
-            .onEnd {
-                zoomView.visibility = View.GONE
-            }
-            .duration(500)
-            .repeat(0)
-            .playOn(zoomView)
+    fun closeZoomView() {
+        val backgroundView = zoomView.findViewById<View>(R.id.backgroundOverlay)
+        zoomView.visibility = View.GONE
+        backgroundView.visibility = View.GONE
     }
 
 
@@ -760,7 +895,7 @@ class CameraRepository(
         return deleted
     }
 
-    private fun setDefaultIcon(view: View) {
+    private fun setDefaultIconTorchButton(view: View) {
         val torchButton = view.findViewById<Button>(R.id.torchButton)
         torchButton.setBackgroundResource(R.drawable.baseline_flash_off_24)
         torchButton.backgroundTintList =

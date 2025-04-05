@@ -280,42 +280,54 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         btnUploadDataCMP.visibility = View.VISIBLE
         btnUploadDataCMP.setOnClickListener {
             if (AppUtils.isNetworkAvailable(this)) {
-                // Disable buttons
-                btnUploadDataCMP.isEnabled = false
-                closeDialogBtn.isEnabled = false
-                btnUploadDataCMP.alpha = 0.7f
-                closeDialogBtn.alpha = 0.7f
-                btnUploadDataCMP.iconTint =
-                    ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
-                closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Upload",
+                    getString(R.string.confirmation_dialog_title),
+                    getString(R.string.al_confirm_upload),
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = {
+                        btnUploadDataCMP.isEnabled = false
+                        closeDialogBtn.isEnabled = false
+                        btnUploadDataCMP.alpha = 0.7f
+                        closeDialogBtn.alpha = 0.7f
+                        btnUploadDataCMP.iconTint =
+                            ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
+                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
 
-                weightBridgeViewModel.uploadESPBKraniTimbang(
-                    allUploadItems.map { uploadItem ->
-                        mapOf(
-                            "id" to uploadItem.id,
-                            "ip" to uploadItem.ip,
-                            "num" to uploadItem.num,
-                            "dept_ppro" to uploadItem.deptPpro,
-                            "divisi_ppro" to uploadItem.divisiPpro,
-                            "commodity" to uploadItem.commodity,
-                            "blok_jjg" to uploadItem.blokJjg,
-                            "nopol" to uploadItem.nopol,
-                            "driver" to uploadItem.driver,
-                            "pemuat_id" to uploadItem.pemuatId,
-                            "transporter_id" to uploadItem.transporterId,
-                            "mill_id" to uploadItem.millId,
-                            "created_by_id" to uploadItem.createdById,
-                            "created_at" to uploadItem.createdAt,
-                            "no_espb" to uploadItem.no_espb,
-                            "uploader_info" to uploadItem.uploader_info,
-                            "uploaded_at" to uploadItem.uploaded_at,
-                            "uploaded_by_id" to uploadItem.uploaded_by_id,
-                            "file" to uploadItem.file,
-                            "endpoint" to uploadItem.endpoint
+                        weightBridgeViewModel.uploadESPBKraniTimbang(
+                            allUploadItems.map { uploadItem ->
+                                mapOf(
+                                    "id" to uploadItem.id,
+                                    "ip" to uploadItem.ip,
+                                    "num" to uploadItem.num,
+                                    "dept_ppro" to uploadItem.deptPpro,
+                                    "divisi_ppro" to uploadItem.divisiPpro,
+                                    "commodity" to uploadItem.commodity,
+                                    "blok_jjg" to uploadItem.blokJjg,
+                                    "nopol" to uploadItem.nopol,
+                                    "driver" to uploadItem.driver,
+                                    "pemuat_id" to uploadItem.pemuatId,
+                                    "transporter_id" to uploadItem.transporterId,
+                                    "mill_id" to uploadItem.millId,
+                                    "created_by_id" to uploadItem.createdById,
+                                    "created_at" to uploadItem.createdAt,
+                                    "no_espb" to uploadItem.no_espb,
+                                    "uploader_info" to uploadItem.uploader_info,
+                                    "uploaded_at" to uploadItem.uploaded_at,
+                                    "uploaded_by_id" to uploadItem.uploaded_by_id,
+                                    "file" to uploadItem.file,
+                                    "endpoint" to uploadItem.endpoint
+                                )
+                            },
+                            globalESPBIds
                         )
                     },
-                    globalESPBIds
+                    cancelFunction = {
+                    }
                 )
+
             } else {
                 AlertDialogUtility.withSingleAction(
                     this@ListHistoryWeighBridgeActivity,
@@ -844,36 +856,6 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         }
                                     }
 
-                                    val tph1String = item.tph1
-                                    val tphData = withContext(Dispatchers.IO) {
-                                        try {
-                                            // First check if tph1String is not empty
-                                            if (tph1String.isNullOrEmpty()) {
-                                                AppLogger.d("TPH string is empty or null")
-                                                return@withContext null
-                                            }
-
-                                            val idList = AppUtils.extractIdsAsIntegers(tph1String)
-
-                                            // Check if we have any valid IDs
-                                            if (idList.isEmpty()) {
-                                                AppLogger.d("No valid TPH IDs found")
-                                                return@withContext null
-                                            }
-
-                                            datasetViewModel.getTPHsByIds(idList)
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Error fetching TPH Data: ${e.message}")
-                                            null
-                                        }
-                                    }
-
-                                    val formattedTPHList = if (!tphData.isNullOrEmpty()) {
-                                        AppUtils.formatTPHDataList(tph1String, tphData)
-                                    } else {
-                                        AppLogger.d("No TPH data available to format")
-                                        "-"
-                                    }
 
                                     val pemuatNama = pemuatData?.mapNotNull { it.nama }
                                         ?.takeIf { it.isNotEmpty() }
@@ -951,7 +933,6 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         created_by_id = item.created_by_id,
                                         created_at = item.created_at,
                                         noSPB = item.noESPB.ifEmpty { "-" },
-                                        tph1 = formattedTPHList,
                                         estate = deptAbbr.ifEmpty { "-" },
                                         afdeling = divisiAbbr.ifEmpty { "-" },
                                         datetime = createAtFormatted,

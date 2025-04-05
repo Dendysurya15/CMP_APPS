@@ -23,8 +23,8 @@
         android:layout_marginHorizontal="10dp"
         android:layout_marginTop="10dp"
         android:paddingBottom="5dp"
-        android:orientation="vertical"
-        android:visibility="gone"
+        android:orientation="horizontal"
+        android:visibility="visible"
         app:layout_constraintTop_toBottomOf="@id/navbar"
         tools:ignore="MissingConstraints">
 
@@ -51,6 +51,23 @@
                 tools:ignore="MissingConstraints" />
 
         </com.google.android.material.card.MaterialCardView>
+
+        <CheckBox
+            android:id="@+id/calendarCheckbox"
+            style="@style/defaultBoxColor"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp" />
+
+        <TextView
+            android:id="@+id/calendarCheckboxCaption"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:fontFamily="@font/manrope_semibold"
+            android:gravity="center_vertical"
+            android:text="Filter Semua Tanggal"
+            android:textColor="@color/black"
+            android:textSize="@dimen/m" />
     </LinearLayout>
 
     <LinearLayout

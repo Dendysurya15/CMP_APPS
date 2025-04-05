@@ -163,7 +163,7 @@ class ListTPHApproval : AppCompatActivity() {
         val calendarContainer = findViewById<LinearLayout>(R.id.calendarContainer)
         calendarContainer.visibility = View.GONE
         backButton.setOnClickListener {
-//            backButton.isEnabled = false
+
             AlertDialogUtility.withTwoActions(
                 this@ListTPHApproval,
                 "KEMBALI",
@@ -173,10 +173,10 @@ class ListTPHApproval : AppCompatActivity() {
                 function = {
                     startActivity(Intent(this@ListTPHApproval, HomePageActivity::class.java))
                     finishAffinity()
-//                    backButton.isEnabled = true
+
                 },
                 cancelFunction = {
-//                    backButton.isEnabled = true
+
                 }
             )
         }
@@ -186,14 +186,7 @@ class ListTPHApproval : AppCompatActivity() {
         val flCheckBoxTableHeaderLayout =
             findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
         flCheckBoxTableHeaderLayout.visibility = View.GONE
-        val constraintLayout = findViewById<ConstraintLayout>(R.id.clParentListPanen)
-        val constraintSet = ConstraintSet()
-        constraintSet.clone(constraintLayout)
-        constraintSet.connect(
-            R.id.filterSection, ConstraintSet.TOP,
-            R.id.navbarPanenList, ConstraintSet.BOTTOM
-        )
-        constraintSet.applyTo(constraintLayout)
+
         val list_menu_upload_data = findViewById<LinearLayout>(R.id.list_menu_upload_data)
         list_menu_upload_data.visibility = View.GONE
 
@@ -212,16 +205,7 @@ class ListTPHApproval : AppCompatActivity() {
         btnGenerateQRTPH.layoutParams = params
 
         featureName = intent.getStringExtra("FEATURE_NAME")
-        val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
-        val userSection = findViewById<TextView>(R.id.userSection)
 
-        estateId = prefManager!!.estateIdUserLogin
-        estateName = prefManager!!.estateUserLogin
-        userName = prefManager!!.nameUserLogin
-        userId = prefManager!!.idUserLogin
-        jabatanUser = prefManager!!.jabatanUserLogin
-
-       setupHeader()
 
         btnGenerateQRTPH.setOnClickListener {
             AlertDialogUtility.withTwoActions(
@@ -324,7 +308,6 @@ class ListTPHApproval : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-
         val headers = listOf("BLOK", "TPH/JJG", "JAM", "KP")
         updateTableHeaders(headers)
 
@@ -380,19 +363,54 @@ class ListTPHApproval : AppCompatActivity() {
                     jsonStr?.let {
                         data = parseTphData(it)
                         withContext(Dispatchers.Main) {
-
                             if (data.isNotEmpty()) {
                                 playSound(R.raw.berhasil_scan)
+
+                                val totalSection: LinearLayout = findViewById(R.id.total_section)
+                                val blokSection: LinearLayout = findViewById(R.id.blok_section)
+                                val totalJjgTextView: TextView = findViewById(R.id.totalJjg)
+                                val totalTphTextView: TextView = findViewById(R.id.totalTPH)
+                                val listBlokTextView: TextView = findViewById(R.id.listBlok)
+
+                                val totalJjg = data.sumOf { it.jjg }
+                                val totalTphCount = data.size
+
+                                val blokSummary = calculateBlokSummary(data)
+
+                                totalSection.visibility = View.VISIBLE
+                                blokSection.visibility = View.VISIBLE
+                                totalJjgTextView.text = totalJjg.toString()
+                                totalTphTextView.text = totalTphCount.toString()
+                                listBlokTextView.text = blokSummary
                             }
+
+
                             adapter.updateList(data)
                         }
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing QR result", e)
-                // Consider showing an error message to the user
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@ListTPHApproval, "Error processing QR: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
         }
+    }
+
+    private fun calculateBlokSummary(data: List<TphRvData>): String {
+        // Group by blok name
+        val blokGroups = data.groupBy { it.namaBlok }
+
+        // For each blok, calculate total jjg and count of unique TPH numbers
+        val blokSummaries = blokGroups.map { (blokName, entries) ->
+            val totalJjg = entries.sumOf { it.jjg }
+            val uniqueTphCount = entries.distinctBy { it.noTPH }.size
+            "$blokName($totalJjg/$uniqueTphCount)"
+        }
+
+        // Join all summaries with comma
+        return blokSummaries.joinToString(", ")
     }
 
     override fun onResume() {
@@ -418,8 +436,10 @@ class ListTPHApproval : AppCompatActivity() {
     }
 
     private suspend fun parseTphData(jsonString: String): List<TphRvData> =
+
         withContext(Dispatchers.IO) {
             try {
+                AppLogger.d(jsonString.toString())
                 val jsonObject = JSONObject(jsonString)
                 val tph0String = jsonObject.getString("tph_0")
                 val usernameString = try {

@@ -15,7 +15,7 @@
         android:layout_weight="0.3"
         android:text="Title"
         android:fontFamily="@font/manrope_bold"
-        android:textSize="17sp"
+        android:textSize="@dimen/m"
         android:textColor="@color/black"
         android:textStyle="italic"
         tools:ignore="HardcodedText" />
@@ -27,7 +27,7 @@
         android:layout_weight="0.7"
         android:text="Value"
         android:fontFamily="@font/manrope_bold"
-        android:textSize="17sp"
+        android:textSize="@dimen/m"
         android:textColor="@color/black"
         android:gravity="start" />
 

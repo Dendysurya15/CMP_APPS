@@ -15,7 +15,7 @@
         android:layout_marginBottom="10dp"
         android:fontFamily="@font/manrope_extrabold"
         android:textColor="@color/black"
-        android:textSize="22sp"
+        android:textSize="@dimen/l"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -99,7 +99,7 @@
                 android:fontFamily="@font/manrope_bold"
                 android:text="Keterangan Panen"
                 android:textColor="@color/greenDarker"
-                android:textSize="20sp"
+                android:textSize="@dimen/l"
                 android:textStyle="bold" />
 
             <include
@@ -165,7 +165,7 @@
                 android:text="Data Grading"
                 android:textColor="@color/greenDarker"
                 android:layout_marginTop="10dp"
-                android:textSize="20sp"
+                android:textSize="@dimen/l"
                 android:textStyle="bold"
                 tools:ignore="HardcodedText" />
 
@@ -246,7 +246,7 @@
                 android:text="Lampiran Foto TPH"
                 android:layout_marginTop="10dp"
                 android:textColor="@color/greenDarker"
-                android:textSize="20sp"
+                android:textSize="@dimen/l"
                 android:textStyle="bold" />
 
             <androidx.recyclerview.widget.RecyclerView
@@ -280,7 +280,7 @@
             android:fontFamily="@font/manrope_bold"
             android:text="Tutup"
             android:textColor="#FFFFFF"
-            android:textSize="16sp" />
+            android:textSize="@dimen/m" />
 
         <Button
             android:id="@+id/btnSaveUploadeSPB"
@@ -292,7 +292,7 @@
             android:fontFamily="@font/manrope_bold"
             android:text="Simpan &amp; Upload e-SPB"
             android:textColor="@color/white"
-            android:textSize="16sp"
+            android:textSize="@dimen/m"
             android:visibility="gone" />
 
     </LinearLayout>

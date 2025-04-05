@@ -595,21 +595,55 @@ AppLogger.d("jjgMap $janjangMap")
 
             AppLogger.d("blok jjg $blok_jjg")
             val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
-
             AppLogger.d(selectedPemanen.toString())
-            val selectedNikPemanenIds = selectedPemanen.map { it.id }
+
+// Get a map of names to counts to determine which names have duplicates
+            val workerNameCounts = mutableMapOf<String, Int>()
+            selectedPemanen.forEach { worker ->
+                val baseName = worker.name.substringBefore(" - ").trim()
+                workerNameCounts[baseName] = (workerNameCounts[baseName] ?: 0) + 1
+            }
+
+// For worker ID lookup, handle both duplicate and non-duplicate cases
+            val idKaryawanList = selectedPemanen.mapNotNull { worker ->
+                val baseName = worker.name.substringBefore(" - ").trim()
+
+                if (worker.name.contains(" - ")) {
+                    // If name contains NIK, try with the full name first
+                    karyawanIdMap[worker.name] ?: karyawanIdMap[baseName]
+                } else {
+                    // For names without NIK, just use the base name
+                    karyawanIdMap[baseName]
+                }
+            }
+
+            val kemandoranIdList = selectedPemanen.mapNotNull { worker ->
+                val baseName = worker.name.substringBefore(" - ").trim()
+
+                if (worker.name.contains(" - ")) {
+                    // If name contains NIK, try with the full name first
+                    kemandoranIdMap[worker.name] ?: kemandoranIdMap[baseName]
+                } else {
+                    // For names without NIK, just use the base name
+                    kemandoranIdMap[baseName]
+                }
+            }
+
+            val selectedNikPemanenIds = selectedPemanen.mapNotNull { worker ->
+                if (worker.name.contains(" - ")) {
+                    worker.name.substringAfter(" - ").trim()
+                } else {
+                    worker.id // Fallback to worker.id if NIK not in the name
+                }
+            }
+
             val uniqueNikPemanen = selectedNikPemanenIds
                 .joinToString(",")
 
-            val idKaryawanList = selectedPemanen.mapNotNull {
-                karyawanIdMap[it.name.substringBefore(" - ").trim()]
-            }
             val uniqueIdKaryawan = idKaryawanList
                 .map { it.toString() }
                 .joinToString(",")
-            val kemandoranIdList = selectedPemanen.mapNotNull {
-                kemandoranIdMap[it.name.substringBefore(" - ").trim()]
-            }
+
             val uniqueKemandoranId = kemandoranIdList
                 .map { it.toString() }
                 .joinToString(",")
@@ -652,31 +686,46 @@ AppLogger.d("jjgMap $janjangMap")
                     val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
                     btKonfirmScanESPB.visibility = View.VISIBLE
                     btKonfirmScanESPB.setOnClickListener {
-//                        btKonfirmScanESPB.isEnabled = false
-                        val statusDraft = if (mekanisasi == 0) {
-                            1
-                        } else {
-                            0
-                        }
+                        AlertDialogUtility.withTwoActions(
+                            this,
+                            getString(R.string.al_yes),
+                            getString(R.string.confirmation_dialog_title),
+                            "${getString(R.string.al_make_sure_scanned_qr)}",
+                            "warning.json",
+                            ContextCompat.getColor(
+                                this,
+                                R.color.bluedarklight
+                            ),
+                            function = {
+                                val statusDraft = if (mekanisasi == 0) {
+                                    1
+                                } else {
+                                    0
+                                }
 
-                        saveESPB(
-                            blok_jjg = blok_jjg,
-                            nopol = selectedNopol,
-                            driver = driver,
-                            pemuat_id = uniqueIdKaryawan,
-                            transporter_id = transporter_id,
-                            mill_id = selectedMillId!!,
-                            created_by_id = idPetugas!!,
-                            creator_info = creatorInfo.toString(),
-                            noESPB = noESPBStr,
-                            created_at = getCurrentDateTime(),
-                            tph0 = "",
-                            tph1 = tph1,
-                            status_draft = statusDraft,
-                            status_mekanisasi = mekanisasi,
-                            pemuat_nik = uniqueNikPemanen,
-                            kemandoran_id = uniqueKemandoranId
+                                saveESPB(
+                                    blok_jjg = blok_jjg,
+                                    nopol = selectedNopol,
+                                    driver = driver,
+                                    pemuat_id = uniqueIdKaryawan,
+                                    transporter_id = transporter_id,
+                                    mill_id = selectedMillId!!,
+                                    created_by_id = idPetugas!!,
+                                    creator_info = creatorInfo.toString(),
+                                    noESPB = noESPBStr,
+                                    created_at = getCurrentDateTime(),
+                                    tph0 = "",
+                                    tph1 = tph1,
+                                    status_draft = statusDraft,
+                                    status_mekanisasi = mekanisasi,
+                                    pemuat_nik = uniqueNikPemanen,
+                                    kemandoran_id = uniqueKemandoranId
+                                )
+                            },
+                            cancelFunction = {
+                            }
                         )
+
                     }
                     if (mekanisasi == 0) {
                         val json = constructESPBJson(
@@ -696,6 +745,7 @@ AppLogger.d("jjgMap $janjangMap")
                             pemuat_nik = uniqueNikPemanen,
                             kemandoran_id = uniqueKemandoranId
                         )
+                        AppLogger.d(json)
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
                         val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
                         ListPanenTBSActivity().generateHighQualityQRCode(
@@ -1135,23 +1185,56 @@ AppLogger.d("jjgMap $janjangMap")
             }
 
             R.id.formEspbPemuat -> {
-                val karyawanNikMap = pemuatList.associateBy({ it.nama!!.trim() }, { it.nik!! })
+                val selectedItem = selectedItem.toString()
+
+                // Check if selectedItem contains a NIK (for duplicate names)
+                val hasNik = selectedItem.contains(" - ")
+                val selectedName = selectedItem.substringBefore(" - ").trim()
+                val selectedNik = if (hasNik) selectedItem.substringAfter(" - ").trim() else null
+
+                // Create a NIK to Employee map for lookup by NIK
+                val nikToEmployeeMap = pemuatList.filter { it.nik != null }
+                    .associateBy { it.nik!! }
+
+                // Create a map to count occurrences of each name
+                val nameCounts = mutableMapOf<String, Int>()
+                pemuatList.forEach { it.nama?.trim()?.let { nama ->
+                    nameCounts[nama] = (nameCounts[nama] ?: 0) + 1
+                }}
+
+                // Update map keys to include NIK for duplicate names
                 pemuatList.forEach {
                     it.nama?.trim()?.let { nama ->
-                        karyawanIdMap[nama] = it.id!!
-                        kemandoranIdMap[nama] = it.kemandoran_id!!
+                        val key = if (nameCounts[nama]!! > 1) {
+                            "$nama - ${it.nik}"
+                        } else {
+                            nama
+                        }
+                        karyawanIdMap[key] = it.id!!
+                        kemandoranIdMap[key] = it.kemandoran_id!!
                     }
                 }
 
-                val selectedPemanenId = karyawanNikMap[selectedItem]
+                // Find the selected employee either by NIK or name
+                val selectedEmployee = if (selectedNik != null) {
+                    nikToEmployeeMap[selectedNik]
+                } else {
+                    pemuatList.find { it.nama?.trim() == selectedName }
+                }
 
-                if (selectedPemanenId != null) {
-                    val worker = Worker(selectedPemanenId.toString(), selectedItem)
+                if (selectedEmployee != null) {
+                    val worker = Worker(selectedEmployee.toString(), selectedItem)
                     selectedPemuatAdapter.addWorker(worker)
-                    pemuatListId.add(selectedPemanenId.toString())
+                    pemuatListId.add(selectedEmployee.toString())
 
+                    // Update available workers with proper name formatting
                     selectedPemuatAdapter.setAvailableWorkers(pemuatList.map {
-                        Worker(it.id.toString(), it.nama.toString())
+                        val workerName = if (nameCounts[it.nama?.trim()] ?: 0 > 1) {
+                            "${it.nama?.trim()} - ${it.nik}"
+                        } else {
+                            it.nama?.trim() ?: ""
+                        }
+                        Worker(it.id.toString(), workerName)
                     })
 
                     // Get updated available workers for spinner
@@ -1162,7 +1245,7 @@ AppLogger.d("jjgMap $janjangMap")
                         setupSpinner(R.id.formEspbPemuat, availableWorkers.map { it.name })
                     }
 
-                    AppLogger.d("Selected Worker: $selectedItem, ID: $selectedPemanenId")
+                    AppLogger.d("Selected Worker: $selectedItem, ID: ${selectedEmployee.id}")
                 }
             }
 

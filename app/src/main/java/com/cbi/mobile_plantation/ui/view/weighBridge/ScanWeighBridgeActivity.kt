@@ -608,7 +608,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         millAbbr: String,
         transporterName: String,
         createAtFormatted: String,
-        tph1: String,
         hasError: Boolean = false,
         errorMessage: String? = null
     ) {
@@ -682,7 +681,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     InfoType.PEMUAT to pemuat,
                     InfoType.DRIVER to (parsedData?.espb?.driver ?: "-"),
                     InfoType.MILL to millAbbr,
-                    InfoType.TPH to tph1,
                     InfoType.TRANSPORTER to transporterName
                 )
 
@@ -703,7 +701,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
         view.findViewById<TextView>(R.id.tvValue)?.text = when (view.id) {
             R.id.infoBlok -> value
-            R.id.infoTPH -> value
             else -> ": $value"
         }
     }
@@ -743,7 +740,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         PEMUAT(R.id.infoPemuat, "Pemuat"),
         DRIVER(R.id.infoNoDriver, "Driver"),
         MILL(R.id.infoMill, "Mill"),
-        TPH(R.id.infoTPH, "List TPH"),
         TRANSPORTER(R.id.infoTransporter, "Transporter")
     }
 
@@ -852,48 +848,24 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val millAbbr = millData.firstOrNull()?.let { "${it.abbr} (${it.nama})" } ?: "-"
                     val millIP = millData.firstOrNull()?.let { "${it.ip_address}" } ?: "-"
 
-                    val tph1String = parsedData?.tph1
-                    val tphData = withContext(Dispatchers.IO) {
-                        try {
 
-                            if (tph1String.isNullOrEmpty()) {
-                                AppLogger.d("TPH string is empty or null")
-                                return@withContext null
-                            }
 
-                            val idList = AppUtils.extractIdsAsIntegers(tph1String)
-
-                            // Check if we have any valid IDs
-                            if (idList.isEmpty()) {
-                                AppLogger.d("No valid TPH IDs found")
-                                return@withContext null
-                            }
-
-                            datasetViewModel.getTPHsByIds(idList)
-                        } catch (e: Exception) {
-                            AppLogger.e("Error fetching TPH Data: ${e.message}")
-                            null
-                        }
-                    }
-
-                    val formattedTPHList = if (!tphData.isNullOrEmpty()) {
-                        AppUtils.formatTPHDataList(tph1String!!, tphData)
+                    val transporterName = if (transporterId == 0) {
+                        "Internal"
                     } else {
-                        AppLogger.d("No TPH data available to format")
-                        "-"
-                    }
-
-                    val transporterDeferred = async {
-                        try {
-                            weightBridgeViewModel.getTransporterName(transporterId)
-                        } catch (e: Exception) {
-                            AppLogger.e("Gagal mendapatkan data transporter")
-                            null
+                        // Otherwise get transporter name from API
+                        val transporterDeferred = async {
+                            try {
+                                weightBridgeViewModel.getTransporterName(transporterId)
+                            } catch (e: Exception) {
+                                AppLogger.e("Gagal mendapatkan data transporter")
+                                null
+                            }
                         }
-                    }
 
-                    val transporterData = transporterDeferred.await() ?: emptyList()
-                    val transporterName = transporterData.firstOrNull()?.nama ?: "-"
+                        val transporterData = transporterDeferred.await() ?: emptyList()
+                        transporterData.firstOrNull()?.nama ?: "-"
+                    }
                     val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
 
                     globalBlokId = concatenatedIds
@@ -927,7 +899,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                             millAbbr = millAbbr,
                             transporterName = transporterName,
                             createAtFormatted = createAtFormatted,
-                            tph1 = formattedTPHList,
                             hasError = false
                         )
                     }
@@ -947,7 +918,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         millAbbr = "-",
                         transporterName = "-",
                         createAtFormatted = "-",
-                        tph1 = "-",
                         hasError = true,
                         errorMessage = errorDetails
                     )

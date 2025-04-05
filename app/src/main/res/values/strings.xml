@@ -13,6 +13,7 @@
     <string name="confirmation_dialog_title">Konfirmasi Pilihan Anda!</string>
     <string name="confirmation_dialog_description">Pastikan Anda telah memeriksa dengan teliti sebelum melanjutkan.</string>
     <string name="al_yes">Ya</string>
+    <string name="al_confirm_upload">Apakah anda yakin untuk upload data CMP?</string>
     <string name="al_confirm_out">Apakah anda yakin untuk keluar dari aplikasi ini?</string>
     <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah anda yakin untuk simpan &amp; upload data e-SPB ini?</string>
     <string name="al_confirm_generate_qr">Apakah anda yakin untuk Generate data menjadi QR?</string>
