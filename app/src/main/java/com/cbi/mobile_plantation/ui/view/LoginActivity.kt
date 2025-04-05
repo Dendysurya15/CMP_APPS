@@ -288,12 +288,16 @@ class LoginActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            showLoading()
+            lifecycleScope.launch {
+                loadingDialog.show()
+                loadingDialog.setMessage("Sedang verifikasi kredensial...", true) // Checking credentials
+                delay(1000)
+
 
             if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() && prefManager?.username == username && prefManager?.password == password) {
                 navigateToHomePage()
             } else {
-                if (AppUtils.isNetworkAvailable(this)) {
+                if (AppUtils.isNetworkAvailable(this@LoginActivity)) {
                     AppLogger.d(username.toString())
                     AppLogger.d(password.toString())
                     authViewModel.login(username, password)
@@ -316,6 +320,7 @@ class LoginActivity : AppCompatActivity() {
                 }
             }
 
+            }
 
         }
 

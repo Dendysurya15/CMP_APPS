@@ -566,7 +566,7 @@ class CameraRepository(
                 isEnabled = false
                 if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
                     capReq =
-                        cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                        cameraDevice!!.createC  aptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
                     capReq.addTarget(imageReader!!.surface)
                     cameraCaptureSession?.capture(capReq.build(), null, null)
                     postDelayed({ isEnabled = true }, 2000)

@@ -810,41 +810,54 @@ object AppUtils {
         }
     }
 
+    fun formatToCamelCase(text: String?): String {
+        return text?.split(" ")?.joinToString(" ") { word ->
+            if (word.length <= 3) word.uppercase() else word.lowercase().replaceFirstChar { it.uppercase() }
+        } ?: ""
+    }
+
     @SuppressLint("SetTextI18n")
     fun setupUserHeader(
         userName: String?,
-        jabatanUser: String?,
-        estateName: String?,
-        afdelingUser: String?,
         userSection: TextView,
         featureName: String?,
-        tvFeatureName: TextView
+        tvFeatureName: TextView,
+        prefManager: PrefManager? = null,
+        lastUpdateText: TextView? = null,
+        titleAppNameAndVersionText: TextView? = null,
+        context: Context? = null
     ) {
         val userInfo = buildString {
-            // Append userName if it's not null or empty
-            userName?.takeIf { it.isNotEmpty() }?.let { append(it) }
-
-            // Append jabatanUser if it's not null or empty
-            jabatanUser?.takeIf { it.isNotEmpty() }?.let {
-                if (isNotEmpty()) append("\n") // Add \n only if previous content exists
-                append(it)
-            }
-
-            // Append estateName and afdelingUser if not both are null or empty
-            if (!estateName.isNullOrEmpty() || !afdelingUser.isNullOrEmpty()) {
-                if (isNotEmpty()) append("\n") // Add \n only if previous content exists
-                estateName?.takeIf { it.isNotEmpty() }?.let {
-                    append(it)
-                    if (!afdelingUser.isNullOrEmpty()) append(" - ")
-                }
-                afdelingUser?.takeIf { it.isNotEmpty() }?.let {
-                    append(it)
-                }
-            }
+            userName?.takeIf { it.isNotEmpty() }?.let { append(formatToCamelCase(it)) }
         }
 
         userSection.text = userInfo
-        AppUtils.setupFeatureHeader(featureName, tvFeatureName)
+        setupFeatureHeader(featureName, tvFeatureName)
+
+        if (context != null && titleAppNameAndVersionText != null) {
+            val appVersion = getAppVersion(context)
+            titleAppNameAndVersionText.text = "CMP - $appVersion"
+        }
+
+        // Setup last sync date
+        if (prefManager != null && lastUpdateText != null) {
+            val lastSyncDate = prefManager.lastSyncDate
+
+            AppLogger.d(lastSyncDate.toString())
+            if (!lastSyncDate.isNullOrEmpty()) {
+                try {
+                    val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    val outputFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
+                    val date = inputFormat.parse(lastSyncDate)
+                    val formattedDate = outputFormat.format(date)
+                    lastUpdateText.text = "Terakhir Sinkronisasi:\n$formattedDate"
+                } catch (e: Exception) {
+                    lastUpdateText.text = "Terakhir Sinkronisasi: -"
+                }
+            } else {
+                lastUpdateText.text = "Terakhir Sinkronisasi: -"
+            }
+        }
     }
 
 
