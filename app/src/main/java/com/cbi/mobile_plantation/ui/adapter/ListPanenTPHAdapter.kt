@@ -770,6 +770,21 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         return selectAllState
     }
 
+    fun getPreSelectedItems(): List<Map<String, Any>> {
+        val result = mutableListOf<Map<String, Any>>()
+
+        // Get all items that match the scanned TPH IDs
+        for (item in tphList) {
+            val tphId = extractData(item).tphId.toString()
+            if (tphListScan.contains(tphId)) {
+                result.add(item)
+            }
+        }
+
+        // Return distinct items to avoid duplicates
+        return result.distinct()
+    }
+
     // Finally update getSelectedItems to include both manually selected AND scanned items
     fun getSelectedItems(): List<Map<String, Any>> {
         val result = mutableListOf<Map<String, Any>>()

@@ -104,6 +104,8 @@ class FormESPBActivity : AppCompatActivity() {
     private lateinit var karyawanNikMap: Map<String, String>
 
     var idsToUpdate = listOf<Int>()
+    var idsToUpdateNo = listOf<Int>()
+    var idsToUpdateAdd = listOf<Int>()
     var divisiAbbr = ""
     var companyAbbr = ""
     var formattedJanjangString = ""
@@ -122,6 +124,9 @@ class FormESPBActivity : AppCompatActivity() {
     private var pemuat_id = "NULL"
     private var kemandoran_id = "NULL"
     private var pemuat_nik = "NULL"
+    private var tph1NoIdPanen = ""
+
+
     private var prefManager: PrefManager? = null
     private var divisiList: List<TPHNewModel> = emptyList()
 
@@ -205,6 +210,39 @@ class FormESPBActivity : AppCompatActivity() {
             Toasty.error(
                 this,
                 "Terjadi Kesalahan saat mengambil TPH 1 ID PANEN $e",
+                Toasty.LENGTH_LONG
+            ).show()
+        }
+        try {
+            ///tph1IdPanen is sometin like 1,23,4,5,2,3
+            tph1NoIdPanen = intent.getStringExtra("tph_normal").toString()
+            // Split the string by comma to get individual IDs
+            val idStrings = tph1NoIdPanen.split(",")
+
+            // Convert each string ID to an integer
+            idsToUpdateNo = idStrings.mapNotNull {
+                it.trim().toIntOrNull()
+                    ?: throw NumberFormatException("Invalid integer format: $it")
+            }
+            Log.d("FormESPBActivityIDS", "idsToUpdateNo: $idsToUpdateNo")
+
+        } catch (e: Exception) {
+            Toasty.error(
+                this,
+                "Terjadi Kesalahan saat mengambil idsToUpdateNo $e",
+                Toasty.LENGTH_LONG
+            ).show()
+        }
+        // Then inside the setupUI() method, after both idsToUpdate and idsToUpdateNo are populated:
+        try {
+            // Calculate idsTpUpdateAdd as the difference between idsToUpdate and idsToUpdateNo
+            idsToUpdateAdd = idsToUpdate.filter { it !in idsToUpdateNo }
+            Log.d("FormESPBActivityIDS", "idsTpUpdateAdd: $idsToUpdateAdd")
+
+        } catch (e: Exception) {
+            Toasty.error(
+                this,
+                "Terjadi Kesalahan saat mengambil idsTpUpdateAdd $e",
                 Toasty.LENGTH_LONG
             ).show()
         }
@@ -1374,6 +1412,8 @@ AppLogger.d("jjgMap $janjangMap")
                 // Update related records with the ESPB reference
                 if (espbId > 0) {
                     viewModel.updateESPBStatus(idsToUpdate, 1, noESPB)
+                    viewModel.panenUpdateStatusAngkut(idsToUpdateNo, 1)
+                    viewModel.panenUpdateStatusAngkut(idsToUpdateAdd, 2)
 
                     // Log successful operation
                     AppLogger.i("ESPB saved successfully with ID: $espbId")

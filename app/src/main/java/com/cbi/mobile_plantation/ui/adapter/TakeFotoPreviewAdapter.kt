@@ -66,7 +66,7 @@ class TakeFotoPreviewAdapter(
 
     class FotoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val imageView: ImageView = itemView.findViewById(R.id.ivAddFoto)
-        val commentTextView: TextView = itemView.findViewById(R.id.etPhotoComment)
+        val commentTextView: TextView = itemView.findViewById(R.id.tvPhotoComment)
         val titleCommentTextView: TextView = itemView.findViewById(R.id.titleComment)
     }
 
