@@ -183,6 +183,22 @@ class LoginActivity : AppCompatActivity() {
                     val token = loginResponse.data?.token
                     AppLogger.d("Login Success: $loginResponse")
                     if (token != null) {
+
+                        if (prefManager!!.username != null && prefManager!!.username!!.isNotEmpty() &&
+                            prefManager!!.username != usernameField.text.toString().trim()) {
+
+                            AlertDialogUtility.withSingleAction(
+                                this@LoginActivity,
+                                stringXML(R.string.al_back),
+                                "Perangkat Terdaftar untuk Pengguna Lain",
+                                "Perangkat ini sudah terdaftar untuk pengguna ${prefManager!!.username}. Silakan gunakan akun yang terdaftar!",
+                                "warning.json",
+                                R.color.colorRedDark
+                            ) { }
+
+                            return@observe
+                        }
+
                         datasetViewModel.clearAllData()
                         prefManager!!.isFirstTimeLaunch = true
                         prefManager!!.token = token
@@ -200,7 +216,7 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.companyNamaUserLogin = loginResponse.data?.user?.company_nama
                         prefManager!!.lastSyncDate = null
                         prefManager!!.lastModifiedDatasetTPH = null
-                    prefManager!!.lastModifiedDatasetKemandoran = null
+                        prefManager!!.lastModifiedDatasetKemandoran = null
                         prefManager!!.lastModifiedDatasetPemanen = null
                         prefManager!!.lastModifiedDatasetTransporter = null
                         prefManager!!.lastModifiedDatasetBlok = null
@@ -300,6 +316,23 @@ class LoginActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            // Check if there's already a user registered and it's a different user
+            if (prefManager!!.username != null && prefManager!!.username!!.isNotEmpty() &&
+                prefManager!!.username != username) {
+                // Show toast and alert dialog that only the registered user can log in
+
+                AlertDialogUtility.withSingleAction(
+                    this@LoginActivity,
+                    stringXML(R.string.al_back),
+                    "Perangkat Terdaftar untuk Pengguna Lain",
+                    "Perangkat ini sudah terdaftar untuk pengguna ${prefManager!!.username}. Silakan gunakan akun yang terdaftar!",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) { }
+
+                return@setOnClickListener
+            }
+
             lifecycleScope.launch {
                 loadingDialog.show()
                 loadingDialog.setMessage(
@@ -308,8 +341,8 @@ class LoginActivity : AppCompatActivity() {
                 ) // Checking credentials
                 delay(1000)
 
-
-                if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() && prefManager?.username == username && prefManager?.password == password) {
+                if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() &&
+                    prefManager?.username == username && prefManager?.password == password) {
                     navigateToHomePage()
                 } else {
                     if (AppUtils.isNetworkAvailable(this@LoginActivity)) {
@@ -332,9 +365,7 @@ class LoginActivity : AppCompatActivity() {
                         }
                     }
                 }
-
             }
-
         }
 
 
