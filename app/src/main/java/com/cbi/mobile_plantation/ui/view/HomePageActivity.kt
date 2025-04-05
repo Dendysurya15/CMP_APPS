@@ -53,6 +53,7 @@ import com.cbi.mobile_plantation.ui.view.Absensi.FeatureAbsensiActivity
 import com.cbi.mobile_plantation.ui.view.Absensi.ListAbsensiActivity
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
+import com.cbi.mobile_plantation.ui.view.Inspection.ListInspectionActivity
 import com.cbi.mobile_plantation.ui.view.espb.ListHistoryESPBActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity
@@ -60,6 +61,7 @@ import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
 
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
+import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 import com.cbi.mobile_plantation.ui.viewModel.UploadCMPViewModel
 import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
@@ -103,6 +105,7 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var espbViewModel: ESPBViewModel
     private lateinit var weightBridgeViewModel: WeighBridgeViewModel
     private lateinit var uploadCMPViewModel: UploadCMPViewModel
+    private lateinit var inspectionViewModel: InspectionViewModel
     private var isTriggerButtonSinkronisasiData: Boolean = false
     private lateinit var dialog: Dialog
     private var countAbsensi: Int = 0  // Global variable for count
@@ -110,6 +113,9 @@ class HomePageActivity : AppCompatActivity() {
     private var countPanenTPHApproval: Int = 0  // Global variable for count
     private var counteSPBWBScanned: Int = 0  // Global variable for count
     private var countActiveESPB: Int = 0  // Global variable for count
+    private var countInspection: String = ""
+    private val _globalLastModifiedTPH = MutableLiveData<String>()
+    private val globalLastModifiedTPH: LiveData<String> get() = _globalLastModifiedTPH
 
     private val _globalLastSync = MutableLiveData<String>()
     private val globalLastSync: LiveData<String> get() = _globalLastSync
@@ -226,6 +232,19 @@ class HomePageActivity : AppCompatActivity() {
                         featureAdapter.hideLoadingForFeature("Rekap absensi panen")
                     }
                 }
+                try {
+                    val countDeferred = async { inspectionViewModel.getInspectionCount(0) }
+                    countInspection = countDeferred.await().toString()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount(AppUtils.ListFeatureNames.RekapInspeksiPanen, countInspection)
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapInspeksiPanen)
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapInspeksiPanen)
+                    }
+                }
             }
         } else {
             AppLogger.e("Feature adapter not initialized yet")
@@ -303,7 +322,7 @@ class HomePageActivity : AppCompatActivity() {
                 featureName = AppUtils.ListFeatureNames.RekapInspeksiPanen,
                 featureNameBackgroundColor = R.color.blueDarkborder,
                 iconResource = null,
-                count = "0",
+                count = countInspection,
                 functionDescription = "Rekapitulasi inspeksi panen",
                 displayType = DisplayType.COUNT
             ),
@@ -316,7 +335,6 @@ class HomePageActivity : AppCompatActivity() {
                 displayType = DisplayType.ICON,
                 subTitle = "Transfer data eSPB dari driver"
             ),
-
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
                 featureName = AppUtils.ListFeatureNames.RekapESPBTimbanganMill,
@@ -644,6 +662,14 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
+            AppUtils.ListFeatureNames.RekapInspeksiPanen -> {
+                if (feature.displayType == DisplayType.COUNT) {
+                    val intent = Intent(this, ListInspectionActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
             AppUtils.ListFeatureNames.AbsensiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
                     val intent = Intent(this, FeatureAbsensiActivity::class.java)
@@ -867,7 +893,8 @@ class HomePageActivity : AppCompatActivity() {
                                             "created_name" to prefManager!!.nameUserLogin.toString(),
                                             "created_date" to panenWithRelations.panen.date_created,
                                             "jabatan" to prefManager!!.jabatanUserLogin.toString(),
-                                        )
+                                            "status_pengangkutan" to panenWithRelations.panen.status_pengangkutan,
+                                            )
                                     }
 
 
@@ -1838,6 +1865,9 @@ class HomePageActivity : AppCompatActivity() {
 
         val factory6 = AbsensiViewModel.AbsensiViewModelFactory(application)
         absensiViewModel = ViewModelProvider(this, factory6)[AbsensiViewModel::class.java]
+
+        val factoryInspection = InspectionViewModel.InspectionViewModelFactory(application)
+        inspectionViewModel = ViewModelProvider(this, factoryInspection)[InspectionViewModel::class.java]
     }
 
 

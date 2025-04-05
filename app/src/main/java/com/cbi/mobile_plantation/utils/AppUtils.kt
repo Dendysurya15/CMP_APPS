@@ -12,7 +12,10 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.Settings
 import android.util.Base64
+import android.view.View
 import android.view.WindowManager
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
@@ -99,6 +102,8 @@ object AppUtils {
 
     object DatabaseTables {
         const val PANEN = "panen_table"
+        const val INSPEKSI = "inspeksi"
+        const val INSPEKSI_PATH = "inspeksi_path"
         const val ESPB = "espb_table"
         const val ABSENSI = "absensi"
         const val MILL = "mill"
@@ -143,6 +148,7 @@ object AppUtils {
 
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
+        const val WMInspeksi = "INSPEKSI"
     }
 
 
@@ -987,5 +993,34 @@ object AppUtils {
         }
     }
 
+    fun showWithAnimation(view: View) {
+        view.apply {
+            if (visibility != View.VISIBLE) {
+                visibility = View.VISIBLE
+                translationY = 100f
+                alpha = 0f
+                animate()
+                    .translationY(0f)
+                    .alpha(1f)
+                    .setDuration(300)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
+        }
+    }
+
+    fun hideWithAnimation(view: View, delay: Long = 300) {
+        view.apply {
+            if (visibility == View.VISIBLE) {
+                animate()
+                    .translationY(100f)
+                    .alpha(0f)
+                    .setDuration(delay)
+                    .setInterpolator(AccelerateInterpolator())
+                    .withEndAction { visibility = View.GONE }
+                    .start()
+            }
+        }
+    }
 
 }

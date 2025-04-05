@@ -3,18 +3,31 @@ package com.cbi.mobile_plantation.data.repository
 import android.content.Context
 import android.util.Log
 import androidx.room.withTransaction
+import com.cbi.mobile_plantation.data.model.InspectionModel
+import com.cbi.mobile_plantation.data.model.InspectionPathModel
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.ESPBEntity
-import com.cbi.mobile_plantation.data.model.PanenEntity
-import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
-import com.cbi.mobile_plantation.data.model.TPHBlokInfo
-import com.cbi.mobile_plantation.data.model.TphRvData
-import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.PanenEntity
+import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
+import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
+import com.cbi.mobile_plantation.data.model.TPHBlokInfo
+import com.cbi.mobile_plantation.data.model.TphRvData
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+// Add this class to represent the different outcomes
+sealed class SaveTPHResult {
+    data class AllSuccess(val savedIds: List<Long>) : SaveTPHResult()
+    data class PartialSuccess(
+        val savedIds: List<Long>,
+        val duplicateCount: Int,
+        val duplicateInfo: String
+    ) : SaveTPHResult()
+}
 
 class AppRepository(context: Context) {
 
@@ -27,6 +40,8 @@ class AppRepository(context: Context) {
     private val karyawanDao = database.karyawanDao()
     private val kemandoranDao = database.kemandoranDao()
     private val transporterDao = database.transporterDao()
+    private val inspectionDao = database.inspectionDao()
+    private val inspectionPathDao = database.inspectionPathDao()
     private val kendaraanDao = database.kendaraanDao()
 
     sealed class SaveResultPanen {
@@ -45,58 +60,84 @@ class AppRepository(context: Context) {
     suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {
         return kemandoranDao.getKemandoranById(idKemandoran)
     }
-
-    suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<List<Long>> =
+    suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<SaveTPHResult> =
         withContext(Dispatchers.IO) {
             try {
-                // Check for duplicates first
-                val duplicates = tphDataList.filter { tphData ->
-                    panenDao.exists(tphData.namaBlok, tphData.time)
-                }
+                // Keep track of successes and failures
+                val savedIds = mutableListOf<Long>()
+                val duplicates = mutableListOf<TphRvData>()
 
-                if (duplicates.isNotEmpty()) {
-                    val duplicateInfo = duplicates.joinToString("\n") {
-                        "TPH ID: ${it.namaBlok}, Date: ${it.time}"
-                    }
-                    return@withContext Result.failure(
-                        Exception("Duplicate data found:\n$duplicateInfo")
-                    )
-                }
+                // Check each item individually
+                for (tphData in tphDataList) {
+                    // Check if this specific item is a duplicate
+                    val isDuplicate = panenDao.exists(tphData.namaBlok, tphData.time)
 
-                // If no duplicates, proceed with saving
-                val results = tphDataList.map { tphData ->
-                    panenDao.insertWithTransaction(
-                        PanenEntity(
-                            tph_id = tphData.namaBlok,
-                            date_created = tphData.time,
-                            created_by = 0,
-                            karyawan_id = "",
-                            kemandoran_id = "",
-                            karyawan_nik = "",
-                            jjg_json = "{\"KP\": ${tphData.jjg}}",
-                            foto = "",
-                            komentar = "",
-                            asistensi = 0,
-                            lat = 0.0,
-                            lon = 0.0,
-                            jenis_panen = 0,
-                            ancak = 0,
-                            info = "",
-                            archive = 0,
-                            status_espb = 0,
-                            status_restan = 0,
-                            scan_status = 1,
-                            username = tphData.username
+                    if (isDuplicate) {
+                        // Add to duplicates list
+                        duplicates.add(tphData)
+                    } else {
+                        // Save non-duplicate
+                        val result = panenDao.insertWithTransaction(
+                            PanenEntity(
+                                tph_id = tphData.namaBlok,
+                                date_created = tphData.time,
+                                created_by = 0,
+                                karyawan_id = "",
+                                kemandoran_id = "",
+                                karyawan_nik = "",
+                                jjg_json = "{\"KP\": ${tphData.jjg}}",
+                                foto = "",
+                                komentar = "",
+                                asistensi = 0,
+                                lat = 0.0,
+                                lon = 0.0,
+                                jenis_panen = 0,
+                                ancak = 0,
+                                info = "",
+                                archive = 0,
+                                status_espb = 0,
+                                status_restan = 0,
+                                scan_status = 1,
+                                username = tphData.username
+                            )
                         )
-                    )
+
+                        result.fold(
+                            onSuccess = { id -> savedIds.add(id) },
+                            onFailure = { throw it }
+                        )
+                    }
                 }
 
-                // Collect all successful results or throw the first error
-                val savedIds = results.map { result ->
-                    result.getOrThrow()
+                // Create result based on what happened
+                when {
+                    duplicates.isEmpty() -> {
+                        // All items were saved successfully
+                        Result.success(SaveTPHResult.AllSuccess(savedIds))
+                    }
+                    savedIds.isEmpty() -> {
+                        // Everything was a duplicate
+                        val duplicateInfo = duplicates.joinToString("\n") {
+                            "TPH ID: ${it.namaBlok}, Date: ${it.time}"
+                        }
+                        Result.failure(
+                            Exception("All data is duplicate:\n$duplicateInfo")
+                        )
+                    }
+                    else -> {
+                        // We had partial success
+                        val duplicateInfo = duplicates.joinToString("\n") {
+                            "TPH ID: ${it.namaBlok}, Date: ${it.time}"
+                        }
+                        Result.success(
+                            SaveTPHResult.PartialSuccess(
+                                savedIds = savedIds,
+                                duplicateCount = duplicates.size,
+                                duplicateInfo = duplicateInfo
+                            )
+                        )
+                    }
                 }
-
-                Result.success(savedIds)
             } catch (e: Exception) {
                 Result.failure(e)
             }
@@ -386,6 +427,12 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun panenUpdateStatusAngkut(idsList: List<Int>, status: Int): Int {
+        return database.withTransaction {
+            panenDao.panenUpdateStatusAngkut(idsList, status)
+        }
+    }
+
 //    suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
 //        try {
 //            val data = espbDao.getAllESPBS()
@@ -419,6 +466,53 @@ class AppRepository(context: Context) {
     // Add to AppRepository.kt
     suspend fun insertESPBAndGetId(espbEntity: ESPBEntity): Long {
         return espbDao.insertAndGetId(espbEntity)
+    }
+
+    suspend fun addDataInspection(data: List<InspectionModel>): Result<List<Long>> {
+        return try {
+            val insertedIds = inspectionDao.insertAll(data)
+            Result.success(insertedIds)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addPathDataInspection(data: InspectionPathModel): Result<Long> {
+        return try {
+            val insertedId = inspectionPathDao.insert(data)
+            if (insertedId != -1L) {
+                Result.success(insertedId)
+            } else {
+                Result.failure(Exception("Insert failed"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun deleteInspectionDatas(ids: List<String>): Result<Unit> {
+        return try {
+            val deletedPath = inspectionPathDao.deleteByID(ids)
+            if (deletedPath > 0) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to delete one or both records"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getInspectionCountCard(archive: Int): Int {
+        return inspectionDao.countCard(archive)
+    }
+
+    suspend fun getInspectionPathsWithTphAndCount(archive: Int): List<PathWithInspectionTphRelations> {
+        return inspectionPathDao.getInspectionPathsWithTphAndCount(archive)
+    }
+
+    suspend fun getInspectionPathWithTphAndCount(pathId: String): PathWithInspectionTphRelations {
+        return inspectionPathDao.getInspectionPathWithTphAndCount(pathId)
     }
 
 }

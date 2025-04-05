@@ -157,6 +157,10 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         return repository.updateESPBStatusForMultipleIds(idsList, status, noESPB)
     }
 
+    suspend fun panenUpdateStatusAngkut(idsList: List<Int>, status: Int): Int {
+        return repository.panenUpdateStatusAngkut(idsList, status)
+    }
+
 
     class ESPBViewModelFactory(
         private val application: AppRepository
@@ -168,18 +172,6 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
             throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
-//
-//    fun loadHistoryESPBNonScan() {
-//        viewModelScope.launch {
-//            repository.loadHistoryESPB()
-//                .onSuccess { listData ->
-//                    _historyEPSB.postValue(listData)
-//                }
-//                .onFailure { exception ->
-//                    _error.postValue(exception.message ?: "Failed to load data")
-//                }
-//        }
-//    }
 
     fun loadHistoryESPBNonScan(date: String? = null) = viewModelScope.launch {
         try {

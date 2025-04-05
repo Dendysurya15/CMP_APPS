@@ -135,7 +135,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var afdelingUser: String? = null
     private lateinit var btnAddMoreTph: FloatingActionButton
     private var tph1IdPanen = ""
-
+    private var tph1NoIdPanen = ""
     private var mappedData: List<Map<String, Any>> = emptyList()
 
     private var espbId = 0
@@ -145,6 +145,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var tph = 0
     private var tph0 = ""
     private var tph1 = ""
+    private var tphListScan: List<String> = emptyList()
 
     private var blok_jjg = "NULL"
     private var nopol = "NULL"
@@ -1241,6 +1242,32 @@ private fun getAllDataFromList(playSound : Boolean =true) {
         } else {
             "$tph1IdPanen, $newTph1IdPanen"
         }
+        Log.d("ListPanenTBSActivityESPB", "tph1IdPanen:$tph1IdPanen")
+
+
+    //get automatically selected items
+        val preSelectedItems = listAdapter.getPreSelectedItems()
+        Log.d("ListPanenTBSActivityESPB", "preSelectedItems:$preSelectedItems")
+
+        // Extract the id values from the matches and join them with commas
+        val newTph1NoIdPanen = try {
+            val pattern = Regex("\\{id=(\\d+),")
+            val matches = pattern.findAll(preSelectedItems.toString())
+            matches.map { it.groupValues[1] }.joinToString(", ")
+
+        } catch (e: Exception) {
+            Toasty.error(this, "Error parsing panen IDs: ${e.message}", Toast.LENGTH_LONG).show()
+            ""
+        }
+
+        // Combine with existing tph1IdPanen if it exists
+        tph1NoIdPanen = if (tph1NoIdPanen.isEmpty()) {
+            newTph1NoIdPanen
+        } else {
+            "$tph1NoIdPanen, $newTph1NoIdPanen"
+    }
+    Log.d("ListPanenTBSActivityESPB", "tph1NoIdPanen:$tph1NoIdPanen")
+
 
     if (playSound) {
         playSound(R.raw.berhasil_scan)
@@ -1313,6 +1340,7 @@ private fun getAllDataFromList(playSound : Boolean =true) {
                     "warning.json", function = {
                         val intent = Intent(this, FormESPBActivity::class.java)
                         intent.putExtra("tph_1", tph1)
+                        intent.putExtra("tph_normal", tph1NoIdPanen)
                         intent.putExtra("tph_0", tph0)
                         intent.putExtra("tph_1_id_panen", tph1IdPanen)
                         intent.putExtra("FEATURE_NAME", featureName)
@@ -1322,8 +1350,6 @@ private fun getAllDataFromList(playSound : Boolean =true) {
                 ) {
                 }
             }
-        } else if (featureName == "Rekap panen dan restan") {
-            btnGenerateQRTPH.visibility = View.GONE
         } else {
             btnGenerateQRTPH.setOnClickListener {
                 AlertDialogUtility.withTwoActions(
@@ -1447,157 +1473,164 @@ private fun getAllDataFromList(playSound : Boolean =true) {
 
                         dialog.show()
 
-                        btnConfirmScanPanenTPH.setOnClickListener {
-                            AlertDialogUtility.withTwoActions(
-                                this@ListPanenTBSActivity,
-                                getString(R.string.al_yes),
-                                getString(R.string.confirmation_dialog_title),
-                                "${getString(R.string.al_make_sure_scanned_qr)}",
-                                "warning.json",
-                                ContextCompat.getColor(
+                        if (featureName != AppUtils.ListFeatureNames.RekapPanenDanRestan){
+                            btnConfirmScanPanenTPH.setOnClickListener {
+                                AlertDialogUtility.withTwoActions(
                                     this@ListPanenTBSActivity,
-                                    R.color.bluedarklight
-                                ),
-                                function = {
-                                    lifecycleScope.launch(Dispatchers.IO) {
-                                        try {
-                                            withContext(Dispatchers.Main) {
-                                                loadingDialog.show()
-                                            }
+                                    getString(R.string.al_yes),
+                                    getString(R.string.confirmation_dialog_title),
+                                    "${getString(R.string.al_make_sure_scanned_qr)}",
+                                    "warning.json",
+                                    ContextCompat.getColor(
+                                        this@ListPanenTBSActivity,
+                                        R.color.bluedarklight
+                                    ),
+                                    function = {
+                                        lifecycleScope.launch(Dispatchers.IO) {
+                                            try {
+                                                withContext(Dispatchers.Main) {
+                                                    loadingDialog.show()
+                                                }
 
-                                            // Validate data first
-                                            if (mappedData.isEmpty()) {
-                                                throw Exception("No data to archive")
-                                            }
+                                                // Validate data first
+                                                if (mappedData.isEmpty()) {
+                                                    throw Exception("No data to archive")
+                                                }
 
-                                            var hasError = false
-                                            var successCount = 0
-                                            val errorMessages = mutableListOf<String>()
+                                                var hasError = false
+                                                var successCount = 0
+                                                val errorMessages = mutableListOf<String>()
 
-                                            mappedData.forEach { item ->
-                                                try {
-                                                    // Null check for item
-                                                    if (item == null) {
-                                                        errorMessages.add("Found null item in data")
-                                                        hasError = true
-                                                        return@forEach
-                                                    }
-
-                                                    // ID validation
-                                                    val id = when (val idValue = item["id"]) {
-                                                        null -> {
-                                                            errorMessages.add("ID is null")
-                                                            hasError = true
-                                                            return@forEach
-                                                        }
-
-                                                        !is Number -> {
-                                                            errorMessages.add("Invalid ID format: $idValue")
-                                                            hasError = true
-                                                            return@forEach
-                                                        }
-
-                                                        else -> idValue.toInt()
-                                                    }
-
-                                                    if (id <= 0) {
-                                                        errorMessages.add("Invalid ID value: $id")
-                                                        hasError = true
-                                                        return@forEach
-                                                    }
-
+                                                mappedData.forEach { item ->
                                                     try {
-                                                        panenViewModel.archivePanenById(id)
-                                                        successCount++
-                                                    } catch (e: SQLiteException) {
-                                                        errorMessages.add("Database error for ID $id: ${e.message}")
-                                                        hasError = true
+                                                        // Null check for item
+                                                        if (item == null) {
+                                                            errorMessages.add("Found null item in data")
+                                                            hasError = true
+                                                            return@forEach
+                                                        }
+
+                                                        // ID validation
+                                                        val id = when (val idValue = item["id"]) {
+                                                            null -> {
+                                                                errorMessages.add("ID is null")
+                                                                hasError = true
+                                                                return@forEach
+                                                            }
+
+                                                            !is Number -> {
+                                                                errorMessages.add("Invalid ID format: $idValue")
+                                                                hasError = true
+                                                                return@forEach
+                                                            }
+
+                                                            else -> idValue.toInt()
+                                                        }
+
+                                                        if (id <= 0) {
+                                                            errorMessages.add("Invalid ID value: $id")
+                                                            hasError = true
+                                                            return@forEach
+                                                        }
+
+                                                        try {
+                                                            panenViewModel.archivePanenById(id)
+                                                            successCount++
+                                                        } catch (e: SQLiteException) {
+                                                            errorMessages.add("Database error for ID $id: ${e.message}")
+                                                            hasError = true
+                                                        } catch (e: Exception) {
+                                                            errorMessages.add("Error archiving ID $id: ${e.message}")
+                                                            hasError = true
+                                                        }
+
                                                     } catch (e: Exception) {
-                                                        errorMessages.add("Error archiving ID $id: ${e.message}")
+                                                        errorMessages.add("Unexpected error processing item: ${e.message}")
                                                         hasError = true
                                                     }
-
-                                                } catch (e: Exception) {
-                                                    errorMessages.add("Unexpected error processing item: ${e.message}")
-                                                    hasError = true
                                                 }
-                                            }
 
-                                            // Show results
-                                            withContext(Dispatchers.Main) {
-                                                try {
-                                                    loadingDialog.dismiss()
+                                                // Show results
+                                                withContext(Dispatchers.Main) {
+                                                    try {
+                                                        loadingDialog.dismiss()
 
-                                                    when {
-                                                        successCount == 0 -> {
-                                                            val errorDetail =
-                                                                errorMessages.joinToString("\n")
-                                                            AppLogger.e("Archive failed. Errors:\n$errorDetail")
-                                                            Toast.makeText(
-                                                                this@ListPanenTBSActivity,
-                                                                "Gagal mengarsipkan data",
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
+                                                        when {
+                                                            successCount == 0 -> {
+                                                                val errorDetail =
+                                                                    errorMessages.joinToString("\n")
+                                                                AppLogger.e("Archive failed. Errors:\n$errorDetail")
+                                                                Toast.makeText(
+                                                                    this@ListPanenTBSActivity,
+                                                                    "Gagal mengarsipkan data",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+
+                                                            hasError -> {
+                                                                val errorDetail =
+                                                                    errorMessages.joinToString("\n")
+                                                                AppLogger.e("Partial success. Errors:\n$errorDetail")
+                                                                Toast.makeText(
+                                                                    this@ListPanenTBSActivity,
+                                                                    "Beberapa data berhasil diarsipkan ($successCount/${mappedData.size})",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+
+                                                            else -> {
+                                                                AppLogger.d("All items archived successfully")
+                                                                playSound(R.raw.berhasil_konfirmasi)
+                                                                Toast.makeText(
+                                                                    this@ListPanenTBSActivity,
+                                                                    "Semua data berhasil diarsipkan",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
                                                         }
-
-                                                        hasError -> {
-                                                            val errorDetail =
-                                                                errorMessages.joinToString("\n")
-                                                            AppLogger.e("Partial success. Errors:\n$errorDetail")
-                                                            Toast.makeText(
-                                                                this@ListPanenTBSActivity,
-                                                                "Beberapa data berhasil diarsipkan ($successCount/${mappedData.size})",
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
-                                                        }
-
-                                                        else -> {
-                                                            AppLogger.d("All items archived successfully")
-                                                            playSound(R.raw.berhasil_konfirmasi)
-                                                            Toast.makeText(
-                                                                this@ListPanenTBSActivity,
-                                                                "Semua data berhasil diarsipkan",
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
-                                                        }
+                                                        dialog.dismiss()
+                                                    } catch (e: Exception) {
+                                                        AppLogger.e("Error in UI update: ${e.message}")
+                                                        Toast.makeText(
+                                                            this@ListPanenTBSActivity,
+                                                            "Terjadi kesalahan pada UI",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
                                                     }
-                                                    dialog.dismiss()
-                                                } catch (e: Exception) {
-                                                    AppLogger.e("Error in UI update: ${e.message}")
-                                                    Toast.makeText(
-                                                        this@ListPanenTBSActivity,
-                                                        "Terjadi kesalahan pada UI",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
+                                                }
+
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Fatal error in archiving process: ${e.message}")
+                                                withContext(Dispatchers.Main) {
+                                                    try {
+                                                        loadingDialog.dismiss()
+                                                        Toast.makeText(
+                                                            this@ListPanenTBSActivity,
+                                                            "Terjadi kesalahan saat mengarsipkan data: ${e.message}",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                        dialog.dismiss()
+                                                    } catch (dialogException: Exception) {
+                                                        AppLogger.e("Error dismissing dialogs: ${dialogException.message}")
+                                                    }
                                                 }
                                             }
 
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Fatal error in archiving process: ${e.message}")
-                                            withContext(Dispatchers.Main) {
-                                                try {
-                                                    loadingDialog.dismiss()
-                                                    Toast.makeText(
-                                                        this@ListPanenTBSActivity,
-                                                        "Terjadi kesalahan saat mengarsipkan data: ${e.message}",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                    dialog.dismiss()
-                                                } catch (dialogException: Exception) {
-                                                    AppLogger.e("Error dismissing dialogs: ${dialogException.message}")
-                                                }
-                                            }
+                                            panenViewModel.loadTPHNonESPB(0, 0, 0, globalFormattedDate)
+                                            panenViewModel.countTPHNonESPB(0, 0, 0, globalFormattedDate)
+                                            panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
                                         }
-
-                                        panenViewModel.loadTPHNonESPB(0, 0, 0, globalFormattedDate)
-                                        panenViewModel.countTPHNonESPB(0, 0, 0, globalFormattedDate)
-                                        panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
                                     }
-                                }
-                            ) {
+                                ) {
 
+                                }
+                            }
+                        }else{
+                            btnConfirmScanPanenTPH.setOnClickListener {
+                                onBackPressed()
                             }
                         }
+
 
                         lifecycleScope.launch {
                             try {
@@ -3118,7 +3151,7 @@ playSound(R.raw.berhasil_generate_qr)
             layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
         }
 
-            val tphListScan = processScannedResult(listTPHDriver)
+            tphListScan = processScannedResult(listTPHDriver)
 
             if (tphListScan.isEmpty()) {
                 Toast.makeText(this, "Failed to process TPH QR", Toast.LENGTH_SHORT).show()

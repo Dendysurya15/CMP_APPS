@@ -20,7 +20,7 @@ class PhotoAttachmentAdapterDetailTable(
     class PhotoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val imageView: ImageView = itemView.findViewById(R.id.ivAddFoto)
         val titleComment: TextView? = itemView.findViewById(R.id.titleComment)
-        val etPhotoComment: TextView? = itemView.findViewById(R.id.etPhotoComment)
+        val etPhotoComment: TextView? = itemView.findViewById(R.id.tvPhotoComment)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PhotoViewHolder {

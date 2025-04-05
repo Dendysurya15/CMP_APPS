@@ -566,7 +566,7 @@ class CameraRepository(
                 isEnabled = false
                 if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
                     capReq =
-                        cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                        cameraDevice!!.createC  aptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
                     capReq.addTarget(imageReader!!.surface)
                     cameraCaptureSession?.capture(capReq.build(), null, null)
                     postDelayed({ isEnabled = true }, 2000)
@@ -618,7 +618,8 @@ class CameraRepository(
         file: File,
         position: String,
         onChangePhoto: () -> Unit,
-        onDeletePhoto: (String) -> Unit
+        onDeletePhoto: (String) -> Unit,
+        onClosePhoto: () -> Unit = {}
     ) {
         val fotoZoom = zoomView.findViewById<ImageView>(R.id.fotoZoom)
         val backgroundView =
@@ -637,9 +638,11 @@ class CameraRepository(
 
         // Your existing click listeners...
         zoomView.findViewById<MaterialCardView>(R.id.cardCloseZoom)?.setOnClickListener {
+            onClosePhoto.invoke()
             zoomView.visibility = View.GONE
             backgroundView.visibility = View.GONE
         }
+
         val zoomview = zoomView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
         zoomview.setOnClickListener {
 
