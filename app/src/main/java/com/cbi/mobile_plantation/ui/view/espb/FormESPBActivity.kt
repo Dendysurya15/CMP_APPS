@@ -728,6 +728,7 @@ class FormESPBActivity : AppCompatActivity() {
                     .show()
                 return@setOnClickListener
             }
+            val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
             AlertDialogUtility.Companion.withTwoActions(
                 this,
                 "SIMPAN",
@@ -755,7 +756,7 @@ class FormESPBActivity : AppCompatActivity() {
                                 } else {
                                     0
                                 }
-
+                                takeQRCodeScreenshot(qrCodeImageView, pemuatNama, driver, blokDisplay)
                                 saveESPB(
                                     blok_jjg = blok_jjg,
                                     nopol = selectedNopol,
@@ -800,7 +801,7 @@ class FormESPBActivity : AppCompatActivity() {
                         )
 
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
-                        val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
+
                         ListPanenTBSActivity().generateHighQualityQRCode(
                             encodedData!!,
                             qrCodeImageView
@@ -809,7 +810,7 @@ class FormESPBActivity : AppCompatActivity() {
                         playSound(R.raw.berhasil_generate_qr)
 //                        btKonfirmScanESPB.isEnabled = true
 
-                        takeQRCodeScreenshot(qrCodeImageView, pemuatNama, driver, blokDisplay)
+
                     }
 //                    btnGenerateQRESPB.isEnabled = true
                 },

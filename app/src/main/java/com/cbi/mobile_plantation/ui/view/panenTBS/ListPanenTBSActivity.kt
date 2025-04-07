@@ -1735,6 +1735,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                                                     "Semua data berhasil diarsipkan",
                                                                     Toast.LENGTH_SHORT
                                                                 ).show()
+
+                                                                takeQRCodeScreenshot(view)
                                                             }
                                                         }
                                                         dialog.dismiss()
@@ -1961,7 +1963,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                                         playSound(R.raw.berhasil_generate_qr)
                                                         delay(300)
 
-                                                        takeQRCodeScreenshot(view)
+
                                                     }
 
                                                     // Start fade-in animations
@@ -3056,104 +3058,103 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                // Inflate custom screenshot layout
-                val screenshotLayout =
-                    layoutInflater.inflate(R.layout.layout_screenshot_qr_mandor, null)
-
-                // Get references to views in the custom layout
-                val tvUserName = screenshotLayout.findViewById<TextView>(R.id.tvUserName)
-                val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
-                val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
-
-                // Get references to included layouts
-                val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
-                val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
-                val infoTotalTransaksi =
-                    screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
-                val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
-                val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
-                val infoNopol = screenshotLayout.findViewById<View>(R.id.infoNopol)
-                val infoPemuat = screenshotLayout.findViewById<View>(R.id.infoPemuat)
-
-                // Helper function to set label and value for included layouts
-                fun setInfoData(includeView: View, labelText: String, valueText: String) {
-                    val tvLabel = includeView.findViewById<TextView>(R.id.tvLabel)
-                    val tvValue = includeView.findViewById<TextView>(R.id.tvValue)
-                    tvLabel.text = labelText
-                    tvValue.text = valueText
-                }
-
-                // Get the QR code bitmap from the current view
-                val currentQrImageView = view.findViewById<ImageView>(R.id.qrCodeImageView)
-                val qrBitmap = currentQrImageView.drawable?.let { drawable ->
-                    if (drawable is BitmapDrawable) {
-                        drawable.bitmap
+                    val screenshotLayout: View = if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
+                        layoutInflater.inflate(R.layout.layout_screenshot_qr_mandor, null)
                     } else {
-                        // Convert drawable to bitmap if not already a BitmapDrawable
-                        val bitmap = Bitmap.createBitmap(
-                            drawable.intrinsicWidth,
-                            drawable.intrinsicHeight,
-                            Bitmap.Config.ARGB_8888
-                        )
-                        val canvas = Canvas(bitmap)
-                        drawable.setBounds(0, 0, canvas.width, canvas.height)
-                        drawable.draw(canvas)
-                        bitmap
+                        layoutInflater.inflate(R.layout.layout_screenshot_qr_kpanen, null)
                     }
-                }
 
-                qrCodeImageView.setImageBitmap(qrBitmap)
+                    // Get references to views in the custom layout
+                    val tvUserName = screenshotLayout.findViewById<TextView>(R.id.tvUserName)
+                    val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
+                    val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
 
-                // Generate current date and time for footer
-                val currentDate = Date()
-                val indonesianLocale = Locale("id", "ID")
-                val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
-                val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+                    // Get references to included layouts
+                    val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
+                    val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
+                    val infoTotalTransaksi =
+                        screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
 
-                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
-                val formattedTime = timeFormat.format(currentDate)
-                val processedData = AppUtils.getPanenProcessedData(mappedData, featureName)
+                    fun setInfoData(includeView: View, labelText: String, valueText: String) {
+                        val tvLabel = includeView.findViewById<TextView>(R.id.tvLabel)
+                        val tvValue = includeView.findViewById<TextView>(R.id.tvValue)
+                        tvLabel.text = labelText
+                        tvValue.text = valueText
+                    }
 
-                tvUserName.text = "Hasil QR dari ${prefManager!!.nameUserLogin}"
-                if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
-                    infoNoESPB.visibility = View.VISIBLE
-                    infoDriver.visibility = View.VISIBLE
-                    infoNopol.visibility = View.VISIBLE
-                    infoPemuat.visibility = View.VISIBLE
+                    // Get the QR code bitmap from the current view
+                    val currentQrImageView = view.findViewById<ImageView>(R.id.qrCodeImageView)
+                    val qrBitmap = currentQrImageView.drawable?.let { drawable ->
+                        if (drawable is BitmapDrawable) {
+                            drawable.bitmap
+                        } else {
+                            // Convert drawable to bitmap if not already a BitmapDrawable
+                            val bitmap = Bitmap.createBitmap(
+                                drawable.intrinsicWidth,
+                                drawable.intrinsicHeight,
+                                Bitmap.Config.ARGB_8888
+                            )
+                            val canvas = Canvas(bitmap)
+                            drawable.setBounds(0, 0, canvas.width, canvas.height)
+                            drawable.draw(canvas)
+                            bitmap
+                        }
+                    }
 
-                    setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
-                    setInfoData(
-                        infoTotalJjg,
-                        "Total Janjang",
-                        ": ${processedData["totalJjgCount"]} jjg"
-                    )
-                    setInfoData(
-                        infoTotalTransaksi,
-                        "Jumlah Transaksi",
-                        ": ${processedData["tphCount"]}"
-                    )
-                    setInfoData(infoNoESPB, "E-SPB", ": $no_espb")
-                    setInfoData(infoDriver, "Driver", ": $driver")
-                    setInfoData(infoNopol, "Nomor Polisi", ": $nopol")
-                    setInfoData(infoPemuat, "Pemuat", ": $pemuatNamaESPB")
-                } else {
-                    infoNoESPB.visibility = View.GONE
-                    infoDriver.visibility = View.GONE
-                    infoNopol.visibility = View.GONE
-                    infoPemuat.visibility = View.GONE
-                    setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
-                    setInfoData(
-                        infoTotalJjg,
-                        "Total Janjang",
-                        ": ${processedData["totalJjgCount"]} jjg"
-                    )
-                    setInfoData(
-                        infoTotalTransaksi,
-                        "Jumlah Transaksi",
-                        ": ${processedData["tphCount"]}"
-                    )
+                    qrCodeImageView.setImageBitmap(qrBitmap)
 
-                }
+                    // Generate current date and time for footer
+                    val currentDate = Date()
+                    val indonesianLocale = Locale("id", "ID")
+                    val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
+                    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+                    val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                    val formattedTime = timeFormat.format(currentDate)
+                    val processedData = AppUtils.getPanenProcessedData(mappedData, featureName)
+
+                    tvUserName.text = "Hasil QR dari ${prefManager!!.nameUserLogin}"
+                    if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
+                        val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
+                        val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
+                        val infoNopol = screenshotLayout.findViewById<View>(R.id.infoNopol)
+                        val infoPemuat = screenshotLayout.findViewById<View>(R.id.infoPemuat)
+
+                        infoNoESPB.visibility = View.VISIBLE
+                        infoDriver.visibility = View.VISIBLE
+                        infoNopol.visibility = View.VISIBLE
+                        infoPemuat.visibility = View.VISIBLE
+
+                        setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
+                        setInfoData(
+                            infoTotalJjg,
+                            "Total Janjang",
+                            ": ${processedData["totalJjgCount"]} jjg"
+                        )
+                        setInfoData(
+                            infoTotalTransaksi,
+                            "Jumlah Transaksi",
+                            ": ${processedData["tphCount"]}"
+                        )
+                        setInfoData(infoNoESPB, "E-SPB", ": $no_espb")
+                        setInfoData(infoDriver, "Driver", ": $driver")
+                        setInfoData(infoNopol, "Nomor Polisi", ": $nopol")
+                        setInfoData(infoPemuat, "Pemuat", ": $pemuatNamaESPB")
+                    } else {
+
+                        setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
+                        setInfoData(
+                            infoTotalJjg,
+                            "Total Janjang",
+                            ": ${processedData["totalJjgCount"]} jjg"
+                        )
+                        setInfoData(
+                            infoTotalTransaksi,
+                            "Jumlah Transaksi",
+                            ": ${processedData["tphCount"]}"
+                        )
+
+                    }
                 tvFooter.text =
                     "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
 
