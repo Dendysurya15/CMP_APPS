@@ -1422,23 +1422,37 @@ private fun getAllDataFromList(playSound : Boolean =true) {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
             btnGenerateQRTPH.setOnClickListener {
                 getAllDataFromList(false    )
-                AlertDialogUtility.withTwoActions(
-                    this,
-                    "LANJUT",
-                    "PERHATIAN!",
-                    "Apakah anda ingin membuat eSPB dengan data ini?",
-                    "warning.json", function = {
-                        val intent = Intent(this, FormESPBActivity::class.java)
-                        intent.putExtra("tph_1", tph1)
-                        intent.putExtra("tph_normal", tph1NoIdPanen)
-                        intent.putExtra("tph_0", tph0)
-                        intent.putExtra("tph_1_id_panen", tph1IdPanen)
-                        intent.putExtra("FEATURE_NAME", featureName)
-                        startActivity(intent)
-                        finishAffinity()
+                if (tph1.isEmpty() && tph1IdPanen.isEmpty()) {
+                    // No selected items, show error message
+                    AlertDialogUtility.withSingleAction(
+                        this@ListPanenTBSActivity,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_have_check_data),
+                        "${stringXML(R.string.al_must_have_check_data)}",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {
                     }
-                ) {
+                }else{
+                    AlertDialogUtility.withTwoActions(
+                        this,
+                        "LANJUT",
+                        "PERHATIAN!",
+                        "Apakah anda ingin membuat eSPB dengan data ini?",
+                        "warning.json", function = {
+                            val intent = Intent(this, FormESPBActivity::class.java)
+                            intent.putExtra("tph_1", tph1)
+                            intent.putExtra("tph_normal", tph1NoIdPanen)
+                            intent.putExtra("tph_0", tph0)
+                            intent.putExtra("tph_1_id_panen", tph1IdPanen)
+                            intent.putExtra("FEATURE_NAME", featureName)
+                            startActivity(intent)
+                            finishAffinity()
+                        }
+                    ) {
+                    }
                 }
+
             }
         } else {
             btnGenerateQRTPH.setOnClickListener {
