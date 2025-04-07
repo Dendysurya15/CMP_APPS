@@ -46,6 +46,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
+import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.daimajia.androidanimations.library.Techniques
@@ -239,6 +240,8 @@ class CameraRepository(
             context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
             "CMP-$featureName" // Store under "CMP-featureName"
         ).toString()
+
+        AppLogger.d(rootApp)
 
         view.visibility = View.VISIBLE
         textureViewCam = TextureView(context)

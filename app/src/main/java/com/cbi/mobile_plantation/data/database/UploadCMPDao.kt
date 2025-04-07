@@ -26,7 +26,7 @@ abstract class UploadCMPDao {
     @Query("DELETE FROM upload_cmp")
     abstract suspend fun dropAllData()
 
-    @Query("SELECT * FROM upload_cmp WHERE  date(tanggal_upload) = date('now', 'localtime')")
+    @Query("SELECT * FROM upload_cmp")
     abstract suspend fun getAllData(): List<UploadCMPModel>
 
 }

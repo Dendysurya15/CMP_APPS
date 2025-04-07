@@ -200,6 +200,16 @@ object AppUtils {
         }?.toList() ?: emptyList()
     }
 
+    fun checkAllUploadZipFiles(idUser: String, context: Context): List<File> {
+        val uploadDir = File(context.getExternalFilesDir(null), "Upload").apply {
+            if (!exists()) mkdirs()
+        }
+
+        return uploadDir.listFiles { file ->
+            file.isFile && file.name.matches(Regex("$idUser+_.*\\.zip"))
+        }?.toList() ?: emptyList()
+    }
+
     fun extractIdsFromZipFile(
         context: Context,
         fileName: String,
@@ -297,6 +307,14 @@ object AppUtils {
         }
 
         return Pair(panenIds, espbIds)
+    }
+
+    fun formatFileSize(size: Long): String {
+        return when {
+            size < 1024 -> "$size B"
+            size < 1024 * 1024 -> "${size / 1024} KB"
+            else -> String.format("%.2f MB", size / (1024.0 * 1024.0))
+        }
     }
 
     fun createAndSaveZipUploadCMP(
