@@ -73,6 +73,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.worker.DataCleanupWorker
 
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
@@ -148,6 +149,9 @@ class HomePageActivity : AppCompatActivity() {
 
         binding = ActivityHomePageBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        DataCleanupWorker.schedule(this)
+
         //cek tanggal otomatis
         checkDateTimeSettings()
     }

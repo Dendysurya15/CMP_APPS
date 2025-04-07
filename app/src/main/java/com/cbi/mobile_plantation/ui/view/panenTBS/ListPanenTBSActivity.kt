@@ -1421,7 +1421,7 @@ private fun getAllDataFromList(playSound : Boolean =true) {
         if (featureName == "Buat eSPB") {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
             btnGenerateQRTPH.setOnClickListener {
-                getAllDataFromList(false    )
+                getAllDataFromList(false)
                 AlertDialogUtility.withTwoActions(
                     this,
                     "LANJUT",
