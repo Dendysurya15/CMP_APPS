@@ -231,10 +231,10 @@ class CameraRepository(
     ) {
         setDefaultIconTorchButton(view)
         loadingDialog = LoadingDialog(context)
-//        val rootDCIM = File(
-//            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
-//            "CMP-$featureName" // Store under "CMP-featureName"
-//        ).toString()
+        val rootDCIM = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
+            "CMP-$featureName" // Store under "CMP-featureName"
+        ).toString()
 
         val rootApp = File(
             context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
@@ -429,8 +429,8 @@ class CameraRepository(
                                             val dirApp = File(rootApp)
                                             if (!dirApp.exists()) dirApp.mkdirs()
 
-//                                            val dirDCIM = File(rootDCIM)
-//                                            if (!dirDCIM.exists()) dirDCIM.mkdirs()
+                                            val dirDCIM = File(rootDCIM)
+                                            if (!dirDCIM.exists()) dirDCIM.mkdirs()
 
                                             val dateFormat =
                                                 SimpleDateFormat("yyyyMdd_HHmmss").format(Calendar.getInstance().time)
@@ -438,9 +438,9 @@ class CameraRepository(
                                                 "${featureName}_${kodeFoto}_${dateFormat}.jpg"
                                             file = File(dirApp, fileName)
 
-//                                            fileDCIM = File(dirDCIM, fileName)
-//                                            if (fileDCIM.exists()) fileDCIM.delete()
-//                                            addToGallery(fileDCIM)
+                                            fileDCIM = File(dirDCIM, fileName)
+                                            if (fileDCIM.exists()) fileDCIM.delete()
+                                            addToGallery(fileDCIM)
 
                                             if (file.exists()) file.delete()
                                             addToGallery(file)

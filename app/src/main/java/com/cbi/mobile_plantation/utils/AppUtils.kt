@@ -150,6 +150,7 @@ object AppUtils {
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
         const val WMInspeksi = "INSPEKSI"
+        const val WMESPB = "E-SPB"
     }
 
 
@@ -1044,6 +1045,95 @@ object AppUtils {
                     .start()
             }
         }
+    }
+
+    fun getDistinctBlokNames(mappedData: List<Map<String, Any?>>): String {
+        return mappedData
+            .map { it["blok_name"].toString() }
+            .distinct()
+            .filter { it != "-" }
+            .sorted()
+            .joinToString(", ")
+    }
+
+    /**
+     * Get blok display information based on featureName
+     */
+    fun getBlokDisplay(mappedData: List<Map<String, Any?>>, featureName: String?): String {
+        return if (featureName == ListFeatureNames.RekapHasilPanen ||
+            featureName == ListFeatureNames.RekapPanenDanRestan || featureName == ListFeatureNames.DetailESPB) {
+            val fieldToExtract = if (featureName == ListFeatureNames.RekapPanenDanRestan || featureName == ListFeatureNames.DetailESPB) "KP" else "TO"
+            mappedData
+                .filter { it["blok_name"].toString() != "-" }
+                .groupBy { it["blok_name"].toString() }
+                .mapValues { (_, items) ->
+                    val count = items.size
+                    val toSum = items.sumOf { item ->
+                        extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
+                    }
+                    "${toSum.toInt()}/$count"  // Convert double sum to integer for display
+                }
+                .toSortedMap() // Sort by blok_name
+                .map { (blokName, summary) -> "$blokName ($summary)" }
+                .joinToString(", ")
+        } else {
+            getDistinctBlokNames(mappedData)
+        }
+    }
+
+    /**
+     * Calculate total JJG count
+     */
+    fun calculateTotalJjgCount(mappedData: List<Map<String, Any?>>, featureName: String?): Int {
+        var totalJjgCount = 0
+        mappedData.forEach { data ->
+            try {
+                val jjgJsonString = data["jjg_json"].toString()
+                val jjgJson = JSONObject(jjgJsonString)
+                val key = if (featureName == ListFeatureNames.RekapPanenDanRestan ||
+                    featureName == "Detail eSPB") "KP" else "TO"
+
+                totalJjgCount += jjgJson.optInt(key, 0)
+            } catch (e: Exception) {
+                AppLogger.e("Error parsing jjg_json: ${e.message}")
+            }
+        }
+        return totalJjgCount
+    }
+
+    /**
+     * Get TPH count
+     */
+    fun getTphCount(mappedData: List<Map<String, Any?>>): Int {
+        return mappedData
+            .mapNotNull { it["tph_id"].toString().toIntOrNull() }
+            .count()
+    }
+
+    /**
+     * Extract a numeric value from a JSON string
+     */
+    private fun extractJSONValue(jsonString: String, key: String): Double {
+        return try {
+            val jsonObject = JSONObject(jsonString)
+            jsonObject.optDouble(key, 0.0)
+        } catch (e: Exception) {
+            AppLogger.e("Error extracting JSON value: ${e.message}")
+            0.0
+        }
+    }
+
+    /**
+     * Get a map of all calculated data for easy access
+     */
+    fun getPanenProcessedData(mappedData: List<Map<String, Any?>>, featureName: String?): Map<String, Any> {
+        return mapOf(
+            "blokNames" to getDistinctBlokNames(mappedData),
+            "blokDisplay" to getBlokDisplay(mappedData, featureName),
+            "totalJjgCount" to calculateTotalJjgCount(mappedData, featureName),
+            "tphCount" to getTphCount(mappedData),
+            "dataCount" to mappedData.size
+        )
     }
 
 }

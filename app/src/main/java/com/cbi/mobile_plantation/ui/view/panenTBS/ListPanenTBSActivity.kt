@@ -1,15 +1,20 @@
 package com.cbi.mobile_plantation.ui.view.panenTBS
 
+import android.Manifest
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.content.res.Resources
 import android.database.sqlite.SQLiteException
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.drawable.BitmapDrawable
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -32,6 +37,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.LifecycleOwner
@@ -58,6 +64,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.ScreenshotUtil
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
 import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
@@ -120,7 +127,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private lateinit var tvEmptyState: TextView
     private lateinit var recyclerView: RecyclerView
     private lateinit var speedDial: SpeedDialView
-
+    private var pemuatNamaESPB = "-"
     private var isAscendingOrder = true
 
     private lateinit var searchEditText: EditText
@@ -589,7 +596,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
                 findViewById<HorizontalScrollView>(R.id.horizontalCardFeature).visibility =
                     View.GONE
-            }else if (featureName == "Rekap panen dan restan") {
+            } else if (featureName == "Rekap panen dan restan") {
 
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
                 findViewById<TextView>(R.id.list_item_tersimpan).text = "Rekap TPH"
@@ -604,6 +611,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
                 ll_detail_espb.visibility = View.VISIBLE
                 espbViewModel.getESPBById(espbId)
+
+
+
+
                 espbViewModel.espbEntity.observe(this@ListPanenTBSActivity) { espbWithRelations ->
                     if (espbWithRelations != null) {
                         try {
@@ -636,6 +647,39 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             tph1 = espb.tph1
                             tph0 = espb.tph0
                             idsToUpdate = espb.ids_to_update
+
+
+                            val idKaryawanStringList = pemuat_id
+                                .toString()                      // ensure it's a string
+                                .split(",")                     // split on comma
+                                .map { it.trim() }              // trim spaces
+                                .filter { it.isNotEmpty() }     // remove empty strings
+
+                            lifecycleScope.launch {
+                                pemuatNamaESPB = try {
+                                    val result = withContext(Dispatchers.IO) {
+                                        panenViewModel.getPemuatByIdList(idKaryawanStringList)
+                                    }
+                                    AppLogger.d(result.toString())
+                                    result?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
+                                        ?.joinToString(", ") ?: "-"
+
+
+                                } catch (e: Exception) {
+                                    AppLogger.e("Gagal mendapatkan data pemuat: ${e.message}")
+                                    Toasty.error(
+                                        this@ListPanenTBSActivity,
+                                        "Terjadi kesalahan saat mengambil data pemuat",
+                                        Toasty.LENGTH_LONG
+                                    ).show()
+                                    "-"
+                                }
+
+                                AppLogger.d("Pemuat Nama ESPB: $pemuatNamaESPB") // ✅ Log AFTER the data is set
+                            }
+
+
+                            AppLogger.d(pemuatNamaESPB)
 
                             btnEditEspb.setOnClickListener {
                                 AlertDialogUtility.withTwoActions(
@@ -1298,7 +1342,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         return if (isEmpty()) "" else joinToString(";")
     }
 
-private fun getAllDataFromList(playSound : Boolean =true) {
+    private fun getAllDataFromList(playSound: Boolean = true) {
         //get manually selected items
         val selectedItems = listAdapter.getSelectedItems()
         Log.d("ListPanenTBSActivityESPB", "selectedItems: $selectedItems")
@@ -1335,7 +1379,7 @@ private fun getAllDataFromList(playSound : Boolean =true) {
         Log.d("ListPanenTBSActivityESPB", "tph1IdPanen:$tph1IdPanen")
 
 
-    //get automatically selected items
+        //get automatically selected items
         val preSelectedItems = listAdapter.getPreSelectedItems()
         Log.d("ListPanenTBSActivityESPB", "preSelectedItems:$preSelectedItems")
 
@@ -1355,13 +1399,13 @@ private fun getAllDataFromList(playSound : Boolean =true) {
             newTph1NoIdPanen
         } else {
             "$tph1NoIdPanen, $newTph1NoIdPanen"
-    }
-    Log.d("ListPanenTBSActivityESPB", "tph1NoIdPanen:$tph1NoIdPanen")
+        }
+        Log.d("ListPanenTBSActivityESPB", "tph1NoIdPanen:$tph1NoIdPanen")
 
 
-    if (playSound) {
-        playSound(R.raw.berhasil_scan)
-    }
+        if (playSound) {
+            playSound(R.raw.berhasil_scan)
+        }
 
         val allItems = listAdapter.getCurrentData()
         Log.d("ListPanenTBSActivityESPB", "listTPHDriver: $listTPHDriver")
@@ -1421,7 +1465,7 @@ private fun getAllDataFromList(playSound : Boolean =true) {
         if (featureName == "Buat eSPB") {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
             btnGenerateQRTPH.setOnClickListener {
-                getAllDataFromList(false    )
+                getAllDataFromList(false)
                 if (tph1.isEmpty() && tph1IdPanen.isEmpty()) {
                     // No selected items, show error message
                     AlertDialogUtility.withSingleAction(
@@ -1433,7 +1477,7 @@ private fun getAllDataFromList(playSound : Boolean =true) {
                         R.color.colorRedDark
                     ) {
                     }
-                }else{
+                } else {
                     AlertDialogUtility.withTwoActions(
                         this,
                         "LANJUT",
@@ -1496,6 +1540,7 @@ private fun getAllDataFromList(playSound : Boolean =true) {
                             // 300dp space + approximately half of QR view height (125dp)
                             scrollContent.smoothScrollTo(0, 600)
                         }
+
 
 //                        // Configure for better zooming
 //                        qrCodeImageView.apply {
@@ -1577,7 +1622,7 @@ private fun getAllDataFromList(playSound : Boolean =true) {
 
                         dialog.show()
 
-                        if (featureName != AppUtils.ListFeatureNames.RekapPanenDanRestan){
+                        if (featureName != AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                             btnConfirmScanPanenTPH.setOnClickListener {
                                 AlertDialogUtility.withTwoActions(
                                     this@ListPanenTBSActivity,
@@ -1720,16 +1765,31 @@ private fun getAllDataFromList(playSound : Boolean =true) {
                                                 }
                                             }
 
-                                            panenViewModel.loadTPHNonESPB(0, 0, 0, globalFormattedDate)
-                                            panenViewModel.countTPHNonESPB(0, 0, 0, globalFormattedDate)
-                                            panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
+                                            panenViewModel.loadTPHNonESPB(
+                                                0,
+                                                0,
+                                                0,
+                                                globalFormattedDate
+                                            )
+                                            panenViewModel.countTPHNonESPB(
+                                                0,
+                                                0,
+                                                0,
+                                                globalFormattedDate
+                                            )
+                                            panenViewModel.countTPHESPB(
+                                                1,
+                                                0,
+                                                0,
+                                                globalFormattedDate
+                                            )
                                         }
                                     }
                                 ) {
 
                                 }
                             }
-                        }else{
+                        } else {
                             btnConfirmScanPanenTPH.setOnClickListener {
                                 onBackPressed()
                             }
@@ -1898,9 +1958,11 @@ private fun getAllDataFromList(playSound : Boolean =true) {
 
                                                     lifecycleScope.launch {
                                                         delay(200)
-playSound(R.raw.berhasil_generate_qr)
-                                                    }
+                                                        playSound(R.raw.berhasil_generate_qr)
+                                                        delay(300)
 
+                                                        takeQRCodeScreenshot(view)
+                                                    }
 
                                                     // Start fade-in animations
                                                     fadeInQR.start()
@@ -2148,12 +2210,14 @@ playSound(R.raw.berhasil_generate_qr)
                                             }
                                         }
 
-                                        val workerName = singlePemuatData?.firstOrNull()?.nama ?: "-"
-                                        val singleKaryawanNama = if (workerName != "-" && karyawanNik.isNotEmpty()) {
-                                            "$workerName - $karyawanNik"
-                                        } else {
-                                            workerName
-                                        }
+                                        val workerName =
+                                            singlePemuatData?.firstOrNull()?.nama ?: "-"
+                                        val singleKaryawanNama =
+                                            if (workerName != "-" && karyawanNik.isNotEmpty()) {
+                                                "$workerName - $karyawanNik"
+                                            } else {
+                                                workerName
+                                            }
 
                                         // Fetch kemandoran name for this specific worker
                                         val singleKemandoranData = withContext(Dispatchers.IO) {
@@ -2234,6 +2298,7 @@ playSound(R.raw.berhasil_generate_qr)
                                             }
                                         }
 
+
                                     val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
                                         ?.takeIf { it.isNotEmpty() }
                                         ?.joinToString("\n") { "• $it" } ?: "-"
@@ -2282,10 +2347,23 @@ playSound(R.raw.berhasil_generate_qr)
                             }.flatten() // Flatten the list of lists into a single list
 
                             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2) {
-                                val globalMergedWorkerMap = mutableMapOf<String, MutableMap<String, Any>>()
+                                val globalMergedWorkerMap =
+                                    mutableMapOf<String, MutableMap<String, Any>>()
 
                                 // Define all JJG types to handle
-                                val jjgTypes = listOf("TO", "UN", "OV", "EM", "AB", "RA", "LO", "TI", "RI", "KP", "PA")
+                                val jjgTypes = listOf(
+                                    "TO",
+                                    "UN",
+                                    "OV",
+                                    "EM",
+                                    "AB",
+                                    "RA",
+                                    "LO",
+                                    "TI",
+                                    "RI",
+                                    "KP",
+                                    "PA"
+                                )
 
                                 for (workerData in allWorkerData) {
                                     val workerName = workerData["nama_karyawans"].toString()
@@ -2304,7 +2382,8 @@ playSound(R.raw.berhasil_generate_qr)
                                         AppLogger.d("Found duplicate worker globally: $workerName")
                                         val existingWorkerData = globalMergedWorkerMap[workerName]!!
 
-                                        val existingJjgJson = JSONObject(existingWorkerData["jjg_json"].toString())
+                                        val existingJjgJson =
+                                            JSONObject(existingWorkerData["jjg_json"].toString())
 
                                         // Update all JJG types in the existing JSON
                                         for (type in jjgTypes) {
@@ -2318,38 +2397,52 @@ playSound(R.raw.berhasil_generate_qr)
                                         existingWorkerData["jjg_json"] = existingJjgJson.toString()
 
                                         // Use PA for jjg_dibayar as in the original code
-                                        val existingJjgDibayar = existingWorkerData["jjg_dibayar"]?.toString()?.toDoubleOrNull() ?: jjgValues["PA"] ?: 0.0
-                                        val newJjgDibayar = existingJjgDibayar + (jjgValues["PA"] ?: 0.0)
-                                        existingWorkerData["jjg_dibayar"] = if (newJjgDibayar == newJjgDibayar.toInt().toDouble()) {
-                                            newJjgDibayar.toInt().toString()
-                                        } else {
-                                            String.format("%.1f", newJjgDibayar)
-                                        }
+                                        val existingJjgDibayar =
+                                            existingWorkerData["jjg_dibayar"]?.toString()
+                                                ?.toDoubleOrNull() ?: jjgValues["PA"] ?: 0.0
+                                        val newJjgDibayar =
+                                            existingJjgDibayar + (jjgValues["PA"] ?: 0.0)
+                                        existingWorkerData["jjg_dibayar"] =
+                                            if (newJjgDibayar == newJjgDibayar.toInt().toDouble()) {
+                                                newJjgDibayar.toInt().toString()
+                                            } else {
+                                                String.format("%.1f", newJjgDibayar)
+                                            }
 
                                         // Use TO for jjg_total_blok as in the original code
                                         val newTotalTO = existingJjgJson.optDouble("TO", 0.0)
-                                        existingWorkerData["jjg_total_blok"] = if (newTotalTO == newTotalTO.toInt().toDouble()) {
-                                            newTotalTO.toInt().toString()
-                                        } else {
-                                            String.format("%.1f", newTotalTO)
-                                        }
+                                        existingWorkerData["jjg_total_blok"] =
+                                            if (newTotalTO == newTotalTO.toInt().toDouble()) {
+                                                newTotalTO.toInt().toString()
+                                            } else {
+                                                String.format("%.1f", newTotalTO)
+                                            }
 
                                         // Update occurrence counter
-                                        val existingOccurrences = (existingWorkerData["occurrence_count"]?.toString()?.toIntOrNull() ?: 1) + 1
-                                        existingWorkerData["occurrence_count"] = existingOccurrences.toString()
+                                        val existingOccurrences =
+                                            (existingWorkerData["occurrence_count"]?.toString()
+                                                ?.toIntOrNull() ?: 1) + 1
+                                        existingWorkerData["occurrence_count"] =
+                                            existingOccurrences.toString()
 
                                         // Update TPH ID tracking
-                                        val tphIds = (existingWorkerData["tph_ids"]?.toString() ?: "").split(",")
-                                            .filter { it.isNotEmpty() }.toMutableSet()
+                                        val tphIds =
+                                            (existingWorkerData["tph_ids"]?.toString() ?: "").split(
+                                                ","
+                                            )
+                                                .filter { it.isNotEmpty() }.toMutableSet()
                                         tphIds.add(tphId)
                                         existingWorkerData["tph_ids"] = tphIds.joinToString(",")
                                         existingWorkerData["tph_count"] = tphIds.size.toString()
 
                                         // Update the jjg_each_blok field
-                                        val existingJjgEachBlok = existingWorkerData["jjg_each_blok"]?.toString() ?: ""
+                                        val existingJjgEachBlok =
+                                            existingWorkerData["jjg_each_blok"]?.toString() ?: ""
 
                                         // Check if this blok already exists in our tracking (accounting for newlines)
-                                        if (existingJjgEachBlok.split("\n").any { it.startsWith("$blokName(") }) {
+                                        if (existingJjgEachBlok.split("\n")
+                                                .any { it.startsWith("$blokName(") }
+                                        ) {
                                             // Blok already exists, find and update its count
                                             val lines = existingJjgEachBlok.split("\n")
                                             val updatedLines = lines.map { line ->
@@ -2357,15 +2450,20 @@ playSound(R.raw.berhasil_generate_qr)
                                                     val regex = "$blokName\\(([0-9.]+)\\)".toRegex()
                                                     val matchResult = regex.find(line)
                                                     if (matchResult != null) {
-                                                        val currentCount = matchResult.groupValues[1].toDouble()
-                                                        val newCount = currentCount + (jjgValues["TO"] ?: 0.0)
+                                                        val currentCount =
+                                                            matchResult.groupValues[1].toDouble()
+                                                        val newCount =
+                                                            currentCount + (jjgValues["TO"] ?: 0.0)
 
                                                         // Format based on whether it's a whole number
-                                                        val formattedCount = if (newCount == newCount.toInt().toDouble()) {
-                                                            newCount.toInt().toString()
-                                                        } else {
-                                                            String.format("%.1f", newCount)
-                                                        }
+                                                        val formattedCount =
+                                                            if (newCount == newCount.toInt()
+                                                                    .toDouble()
+                                                            ) {
+                                                                newCount.toInt().toString()
+                                                            } else {
+                                                                String.format("%.1f", newCount)
+                                                            }
 
                                                         "$blokName($formattedCount)"
                                                     } else {
@@ -2375,7 +2473,8 @@ playSound(R.raw.berhasil_generate_qr)
                                                     line
                                                 }
                                             }
-                                            existingWorkerData["jjg_each_blok"] = updatedLines.joinToString("\n")
+                                            existingWorkerData["jjg_each_blok"] =
+                                                updatedLines.joinToString("\n")
 
                                             // Update the bullet point version after updating jjg_each_blok
                                             val updatedBulletFormat = updatedLines.map { line ->
@@ -2391,69 +2490,82 @@ playSound(R.raw.berhasil_generate_qr)
                                                 }
                                             }.joinToString("\n")
 
-                                            existingWorkerData["jjg_each_blok_bullet"] = updatedBulletFormat
+                                            existingWorkerData["jjg_each_blok_bullet"] =
+                                                updatedBulletFormat
 
                                         } else {
                                             // This is a new blok for this worker
                                             val jjgTO = jjgValues["TO"] ?: 0.0
-                                            val formattedJjgTO = if (jjgTO == jjgTO.toInt().toDouble()) {
-                                                jjgTO.toInt().toString()
-                                            } else {
-                                                String.format("%.1f", jjgTO)
-                                            }
+                                            val formattedJjgTO =
+                                                if (jjgTO == jjgTO.toInt().toDouble()) {
+                                                    jjgTO.toInt().toString()
+                                                } else {
+                                                    String.format("%.1f", jjgTO)
+                                                }
 
-                                            val updatedJjgEachBlok = if (existingJjgEachBlok.isEmpty()) {
-                                                "$blokName($formattedJjgTO)"
-                                            } else {
-                                                "$existingJjgEachBlok\n$blokName($formattedJjgTO)"
-                                            }
+                                            val updatedJjgEachBlok =
+                                                if (existingJjgEachBlok.isEmpty()) {
+                                                    "$blokName($formattedJjgTO)"
+                                                } else {
+                                                    "$existingJjgEachBlok\n$blokName($formattedJjgTO)"
+                                                }
 
                                             existingWorkerData["jjg_each_blok"] = updatedJjgEachBlok
 
                                             // Update the bullet point version after adding new blok
-                                            val updatedJjgEachBlokLines = updatedJjgEachBlok.split("\n")
-                                            val updatedBulletFormat = updatedJjgEachBlokLines.map { line ->
-                                                val regex = "([A-Z0-9-]+)\\(([0-9.]+)\\)".toRegex()
-                                                val matchResult = regex.find(line)
+                                            val updatedJjgEachBlokLines =
+                                                updatedJjgEachBlok.split("\n")
+                                            val updatedBulletFormat =
+                                                updatedJjgEachBlokLines.map { line ->
+                                                    val regex =
+                                                        "([A-Z0-9-]+)\\(([0-9.]+)\\)".toRegex()
+                                                    val matchResult = regex.find(line)
 
-                                                if (matchResult != null) {
-                                                    val blokNameMatch = matchResult.groupValues[1]
-                                                    val count = matchResult.groupValues[2]
-                                                    "• $blokNameMatch ($count Jjg)"
-                                                } else {
-                                                    "• $line"
-                                                }
-                                            }.joinToString("\n")
+                                                    if (matchResult != null) {
+                                                        val blokNameMatch =
+                                                            matchResult.groupValues[1]
+                                                        val count = matchResult.groupValues[2]
+                                                        "• $blokNameMatch ($count Jjg)"
+                                                    } else {
+                                                        "• $line"
+                                                    }
+                                                }.joinToString("\n")
 
-                                            existingWorkerData["jjg_each_blok_bullet"] = updatedBulletFormat
+                                            existingWorkerData["jjg_each_blok_bullet"] =
+                                                updatedBulletFormat
                                         }
                                     } else {
                                         val mutableWorkerData = workerData.toMutableMap()
 
                                         // Format JJG values based on whether they're whole numbers
                                         val jjgTO = jjgValues["TO"] ?: 0.0
-                                        val formattedJjgTO = if (jjgTO == jjgTO.toInt().toDouble()) {
-                                            jjgTO.toInt().toString()
-                                        } else {
-                                            String.format("%.1f", jjgTO)
-                                        }
-                                        mutableWorkerData["jjg_each_blok"] = "$blokName($formattedJjgTO)"
+                                        val formattedJjgTO =
+                                            if (jjgTO == jjgTO.toInt().toDouble()) {
+                                                jjgTO.toInt().toString()
+                                            } else {
+                                                String.format("%.1f", jjgTO)
+                                            }
+                                        mutableWorkerData["jjg_each_blok"] =
+                                            "$blokName($formattedJjgTO)"
 
                                         // Add the bullet point version for new workers
-                                        mutableWorkerData["jjg_each_blok_bullet"] = "• $blokName ($formattedJjgTO Jjg)"
+                                        mutableWorkerData["jjg_each_blok_bullet"] =
+                                            "• $blokName ($formattedJjgTO Jjg)"
 
-                                        mutableWorkerData["jjg_total_blok"] = if (jjgTO == jjgTO.toInt().toDouble()) {
-                                            jjgTO.toInt().toString()
-                                        } else {
-                                            String.format("%.1f", jjgTO)
-                                        }
+                                        mutableWorkerData["jjg_total_blok"] =
+                                            if (jjgTO == jjgTO.toInt().toDouble()) {
+                                                jjgTO.toInt().toString()
+                                            } else {
+                                                String.format("%.1f", jjgTO)
+                                            }
 
                                         val jjgPA = jjgValues["PA"] ?: 0.0
-                                        mutableWorkerData["jjg_dibayar"] = if (jjgPA == jjgPA.toInt().toDouble()) {
-                                            jjgPA.toInt().toString()
-                                        } else {
-                                            String.format("%.1f", jjgPA)
-                                        }
+                                        mutableWorkerData["jjg_dibayar"] =
+                                            if (jjgPA == jjgPA.toInt().toDouble()) {
+                                                jjgPA.toInt().toString()
+                                            } else {
+                                                String.format("%.1f", jjgPA)
+                                            }
 
                                         // Initialize occurrence counter
                                         mutableWorkerData["occurrence_count"] = "1"
@@ -2466,9 +2578,10 @@ playSound(R.raw.berhasil_generate_qr)
                                     }
                                 }
 
-                                val finalMergedData = globalMergedWorkerMap.values.toList().sortedBy {
-                                    it["nama_karyawans"].toString()
-                                }
+                                val finalMergedData =
+                                    globalMergedWorkerMap.values.toList().sortedBy {
+                                        it["nama_karyawans"].toString()
+                                    }
 
                                 AppLogger.d("Final merged data: $finalMergedData")
                                 mappedData = finalMergedData
@@ -2476,65 +2589,20 @@ playSound(R.raw.berhasil_generate_qr)
                                 mappedData = allWorkerData
                                 AppLogger.d("Using standard data (no global merging): $mappedData")
                             }
-                            AppLogger.d("mapped data $mappedData")
-                            val distinctBlokNames = mappedData
-                                .map { it["blok_name"].toString() }
-                                .distinct()
-                                .filter { it != "-" }
-                                .sorted()
-                                .joinToString(", ")
 
-                            val blokDisplay = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen || featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
-                                val fieldToExtract = if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) "KP" else "TO"
-                                mappedData
-                                    .filter { it["blok_name"].toString() != "-" }
-                                    .groupBy { it["blok_name"].toString() }
-                                    .mapValues { (_, items) ->
-                                        val count = items.size
-                                        val toSum = items.sumOf { item ->
-                                            extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
-                                        }
-                                        "${toSum.toInt()}/$count"  // Convert double sum to integer for display
-                                    }
-                                    .toSortedMap() // Sort by blok_name
-                                    .map { (blokName, summary) -> "$blokName ($summary)" }
-                                    .joinToString(", ")
-                            } else {
-                                distinctBlokNames
-                            }
-
-
-                            AppLogger.d("gas $blokDisplay")
-
-                            var totalJjgCount = 0
-                            mappedData.forEach { data ->
-                                try {
-                                    val jjgJsonString = data["jjg_json"].toString()
-                                    val jjgJson = JSONObject(jjgJsonString)
-                                    val key =
-                                        if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
-                                    totalJjgCount += jjgJson.optInt(key, 0)
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error parsing jjg_json: ${e.message}")
-                                }
-                            }
-
-                            // Calculate distinct TPH count
-                            val tphCount = mappedData
-                                .mapNotNull { it["tph_id"].toString().toIntOrNull() }
-//                                .distinct()
-                                .count()
-
+                            val processedData =
+                                AppUtils.getPanenProcessedData(mappedData, featureName)
                             if (featureName != "Detail eSPB") {
                                 blokSection.visibility = View.VISIBLE
                                 totalSection.visibility = View.VISIBLE
                             }
+                            val blokNames = processedData["blokNames"]?.toString() ?: ""
+                            blok = if (blokNames.isEmpty()) "-" else blokNames
 
-                            blok = distinctBlokNames.ifEmpty { "-" }
-                            listBlok.text = blokDisplay
-                            jjg = totalJjgCount
+                            listBlok.text = processedData["blokDisplay"]?.toString()
+                            jjg = processedData["totalJjgCount"]?.toString()!!.toInt()
                             totalJjg.text = jjg.toString()
-                            tph = tphCount
+                            tph = processedData["tphCount"]?.toString()!!.toInt()
                             totalTPH.text = tph.toString()
 
                             // Set Blok
@@ -2602,7 +2670,6 @@ playSound(R.raw.berhasil_generate_qr)
                     lifecycleScope.launch {
 
                         if (panenList.isNotEmpty()) {
-                            AppLogger.d("kasdjflkd")
                             tvEmptyState.visibility = View.GONE
                             recyclerView.visibility = View.VISIBLE
 
@@ -2673,64 +2740,17 @@ playSound(R.raw.berhasil_generate_qr)
                                 )
                             }
 
-                            AppLogger.d("mapped data $mappedData")
-
-                            val distinctBlokNames    = mappedData
-                                .map { it["blok_name"].toString() }
-                                .distinct()
-                                .filter { it != "-" }
-                                .sorted()
-                                .joinToString(", ")
-
-                            val blokDisplay = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen || featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
-                                val fieldToExtract = if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) "KP" else "TO"
-
-                                mappedData
-                                    .filter { it["blok_name"].toString() != "-" }
-                                    .groupBy { it["blok_name"].toString() }
-                                    .mapValues { (_, items) ->
-                                        val count = items.size
-                                        val toSum = items.sumOf { item ->
-                                            extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
-                                        }
-                                        "${toSum.toInt()}/$count"  // Convert double sum to integer for display
-                                    }
-                                    .toSortedMap() // Sort by blok_name
-                                    .map { (blokName, summary) -> "$blokName ($summary)" }
-                                    .joinToString(", ")
-                            } else {
-                                distinctBlokNames
-                            }
-
-                            // Calculate total JJG by parsing JSON and summing TO values
-                            var totalJjgCount = 0
-                            mappedData.forEach { data ->
-                                try {
-                                    val jjgJsonString = data["jjg_json"].toString()
-                                    val jjgJson = JSONObject(jjgJsonString)
-                                    val key =
-                                        if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
-
-                                    totalJjgCount += jjgJson.optInt(key, 0)
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error parsing jjg_json: ${e.message}")
-                                }
-                            }
-
-                            // Calculate distinct TPH count
-                            val tphCount = mappedData
-                                .mapNotNull { it["tph_id"].toString().toIntOrNull() }
-//                                .distinct()
-                                .count()
 
                             if (featureName != "Detail eSPB") {
                                 blokSection.visibility = View.VISIBLE
                                 totalSection.visibility = View.VISIBLE
                             }
-
-                            listBlok.text = blokDisplay
-                            totalJjg.text = totalJjgCount.toString()
-                            totalTPH.text = tphCount.toString()
+                            val processedData =
+                                AppUtils.getPanenProcessedData(mappedData, featureName)
+                            totalTPH.text = tph.toString()
+                            listBlok.text = processedData["blokDisplay"]?.toString()
+                            totalJjg.text = processedData["totalJjgCount"]?.toString()
+                            totalTPH.text = processedData["tphCount"]?.toString()
 
                             listAdapter.updateData(mappedData)
                             originalData =
@@ -2979,6 +2999,214 @@ playSound(R.raw.berhasil_generate_qr)
 
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    private val STORAGE_PERMISSION_CODE = 101
+    private val REQUIRED_PERMISSIONS = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    } else {
+        arrayOf(
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        )
+    }
+
+    // Check permissions
+    private fun checkStoragePermissions(): Boolean {
+        return REQUIRED_PERMISSIONS.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    // Request permissions
+    private fun requestStoragePermissions() {
+        ActivityCompat.requestPermissions(
+            this,
+            REQUIRED_PERMISSIONS,
+            STORAGE_PERMISSION_CODE
+        )
+    }
+
+    // Handle permission results
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == STORAGE_PERMISSION_CODE) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                // Permissions granted, can proceed with screenshot
+                AppLogger.d("Storage permissions granted")
+            } else {
+                // Permissions denied
+                Toast.makeText(
+                    this,
+                    "Izin penyimpanan dibutuhkan untuk menyimpan screenshot",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+
+    private fun takeQRCodeScreenshot(view: View) {
+
+
+        lifecycleScope.launch {
+            try {
+                // Inflate custom screenshot layout
+                val screenshotLayout =
+                    layoutInflater.inflate(R.layout.layout_screenshot_qr_mandor, null)
+
+                // Get references to views in the custom layout
+                val tvUserName = screenshotLayout.findViewById<TextView>(R.id.tvUserName)
+                val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
+                val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
+
+                // Get references to included layouts
+                val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
+                val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
+                val infoTotalTransaksi =
+                    screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+                val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
+                val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
+                val infoNopol = screenshotLayout.findViewById<View>(R.id.infoNopol)
+                val infoPemuat = screenshotLayout.findViewById<View>(R.id.infoPemuat)
+
+                // Helper function to set label and value for included layouts
+                fun setInfoData(includeView: View, labelText: String, valueText: String) {
+                    val tvLabel = includeView.findViewById<TextView>(R.id.tvLabel)
+                    val tvValue = includeView.findViewById<TextView>(R.id.tvValue)
+                    tvLabel.text = labelText
+                    tvValue.text = valueText
+                }
+
+                // Get the QR code bitmap from the current view
+                val currentQrImageView = view.findViewById<ImageView>(R.id.qrCodeImageView)
+                val qrBitmap = currentQrImageView.drawable?.let { drawable ->
+                    if (drawable is BitmapDrawable) {
+                        drawable.bitmap
+                    } else {
+                        // Convert drawable to bitmap if not already a BitmapDrawable
+                        val bitmap = Bitmap.createBitmap(
+                            drawable.intrinsicWidth,
+                            drawable.intrinsicHeight,
+                            Bitmap.Config.ARGB_8888
+                        )
+                        val canvas = Canvas(bitmap)
+                        drawable.setBounds(0, 0, canvas.width, canvas.height)
+                        drawable.draw(canvas)
+                        bitmap
+                    }
+                }
+
+                qrCodeImageView.setImageBitmap(qrBitmap)
+
+                // Generate current date and time for footer
+                val currentDate = Date()
+                val indonesianLocale = Locale("id", "ID")
+                val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
+                val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                val formattedTime = timeFormat.format(currentDate)
+                val processedData = AppUtils.getPanenProcessedData(mappedData, featureName)
+
+                tvUserName.text = "Hasil QR dari ${prefManager!!.nameUserLogin}"
+                if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
+                    infoNoESPB.visibility = View.VISIBLE
+                    infoDriver.visibility = View.VISIBLE
+                    infoNopol.visibility = View.VISIBLE
+                    infoPemuat.visibility = View.VISIBLE
+
+                    setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
+                    setInfoData(
+                        infoTotalJjg,
+                        "Total Janjang",
+                        ": ${processedData["totalJjgCount"]} jjg"
+                    )
+                    setInfoData(
+                        infoTotalTransaksi,
+                        "Jumlah Transaksi",
+                        ": ${processedData["tphCount"]}"
+                    )
+                    setInfoData(infoNoESPB, "E-SPB", ": $no_espb")
+                    setInfoData(infoDriver, "Driver", ": $driver")
+                    setInfoData(infoNopol, "Nomor Polisi", ": $nopol")
+                    setInfoData(infoPemuat, "Pemuat", ": $pemuatNamaESPB")
+                } else {
+                    infoNoESPB.visibility = View.GONE
+                    infoDriver.visibility = View.GONE
+                    infoNopol.visibility = View.GONE
+                    infoPemuat.visibility = View.GONE
+                    setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
+                    setInfoData(
+                        infoTotalJjg,
+                        "Total Janjang",
+                        ": ${processedData["totalJjgCount"]} jjg"
+                    )
+                    setInfoData(
+                        infoTotalTransaksi,
+                        "Jumlah Transaksi",
+                        ": ${processedData["tphCount"]}"
+                    )
+
+                }
+                tvFooter.text =
+                    "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
+
+                val displayMetrics = resources.displayMetrics
+                val width = displayMetrics.widthPixels
+                val height = LinearLayout.LayoutParams.WRAP_CONTENT
+
+                screenshotLayout.measure(
+                    View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                )
+
+                screenshotLayout.layout(
+                    0, 0, screenshotLayout.measuredWidth, screenshotLayout.measuredHeight
+                )
+
+                // Create a meaningful filename
+                val screenshotFileName = if (featureName == "Detail eSPB") {
+                    "eSPB_QR_${no_espb.replace("/", "_")}"
+                } else {
+                    val date =
+                        SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                    "Panen_QR_$date"
+                }
+
+                val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen)
+                    AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
+                else
+                    AppUtils.WaterMarkFotoDanFolder.WMESPB
+                val screenshotFile = ScreenshotUtil.takeScreenshot(
+                    screenshotLayout,
+                    screenshotFileName,
+                    watermarkType
+                )
+
+                if (screenshotFile != null) {
+                    Toasty.success(
+                        this@ListPanenTBSActivity,
+                        "QR sudah tersimpan digaleri",
+                        Toast.LENGTH_LONG,
+                        true
+                    ).show()
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error taking QR screenshot: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@ListPanenTBSActivity,
+                        "Gagal menyimpan QR Code: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
     }
 
@@ -3269,13 +3497,13 @@ playSound(R.raw.berhasil_generate_qr)
             layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
         }
 
-            tphListScan = processScannedResult(listTPHDriver)
+        tphListScan = processScannedResult(listTPHDriver)
 
-            if (tphListScan.isEmpty()) {
-                Toast.makeText(this, "Failed to process TPH QR", Toast.LENGTH_SHORT).show()
-            } else {
-                listAdapter.setFeatureAndScanned(featureName, tphListScan)
-            }
+        if (tphListScan.isEmpty()) {
+            Toast.makeText(this, "Failed to process TPH QR", Toast.LENGTH_SHORT).show()
+        } else {
+            listAdapter.setFeatureAndScanned(featureName, tphListScan)
+        }
 
         if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
             listAdapter.setOnTotalsUpdateListener { tphCount, jjgCount, formattedBlocks ->
