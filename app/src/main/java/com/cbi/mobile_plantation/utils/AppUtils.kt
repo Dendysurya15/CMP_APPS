@@ -57,6 +57,7 @@ object AppUtils {
     const val ZIP_PASSWORD = "CBI@2025"
     const val REQUEST_CHECK_SETTINGS = 0x1
     const val MAX_SELECTIONS_PER_TPH = 3
+    const val MAX_ALERT_FOR_GENERATE_QR = 60
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"
