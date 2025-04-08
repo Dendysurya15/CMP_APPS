@@ -2210,6 +2210,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "username" to (panenWithRelations.panen.username as Any)
                                 )
 
+
+                                AppLogger.d("panenWithRelations $panenWithRelations")
                                 val originalDataMapped = standardData.toMutableMap()
                                 originalMappedData.add(originalDataMapped)
 
@@ -2364,7 +2366,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     allWorkerData.addAll(multiWorkerData)
 
                                     emptyList<Map<String, Any>>()
-                                } else {
+                                }
+                                else {
                                     val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
                                         .map { it.trim() }
                                         .filter { it.isNotEmpty() }
@@ -2589,15 +2592,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                 mappedData = finalMergedData
                             } else if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 3) {
-                                val globalMergedBlokMap =
-                                    mutableMapOf<String, MutableMap<String, Any>>()
+                                val globalMergedBlokMap = mutableMapOf<String, MutableMap<String, Any>>()
 
                                 val jjgTypes = listOf(
                                     "TO", "UN", "OV", "EM", "AB", "RA", "LO", "TI", "RI", "KP", "PA"
                                 )
-
-
-                                AppLogger.d("allWorkerData $allWorkerData")
 
                                 for (blokData in allWorkerData) {
                                     val blokName = blokData["blok_name"].toString()
@@ -2606,16 +2605,47 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     val tphId = blokData["tph_id"].toString()
                                     val jjgJson = JSONObject(blokData["jjg_json"].toString())
 
+                                    // Extract all JJG values
                                     val jjgValues = jjgTypes.associateWith { type ->
                                         jjgJson.optDouble(type, 0.0)
+                                    }
+
+                                    // First handle multiple workers in the current record
+                                    // Some records have multiple workers separated by commas
+                                    val currentKaryawans = blokData["nama_karyawans"].toString()
+                                    val currentKaryawansList = mutableSetOf<String>()
+
+                                    // If there are multiple workers in this record (comma-separated)
+                                    if (currentKaryawans.contains(",")) {
+                                        currentKaryawansList.addAll(
+                                            currentKaryawans.split(",")
+                                                .map { it.trim() }
+                                                .filter { it.isNotEmpty() && it != "-" }
+                                        )
+                                    } else if (currentKaryawans.isNotEmpty() && currentKaryawans != "-") {
+                                        currentKaryawansList.add(currentKaryawans)
+                                    }
+
+                                    // Same for kemandoran names
+                                    val currentKemandorans = blokData["nama_kemandorans"].toString()
+                                    val currentKemandoransList = mutableSetOf<String>()
+
+                                    if (currentKemandorans.contains("\n")) {
+                                        // Your kemandoran format uses bullet points with newlines
+                                        currentKemandoransList.addAll(
+                                            currentKemandorans.split("\n")
+                                                .map { it.trim().removePrefix("• ") }
+                                                .filter { it.isNotEmpty() && it != "-" }
+                                        )
+                                    } else if (currentKemandorans.isNotEmpty() && currentKemandorans != "-") {
+                                        currentKemandoransList.add(currentKemandorans)
                                     }
 
                                     if (globalMergedBlokMap.containsKey(blokName)) {
                                         AppLogger.d("Found duplicate blok globally: $blokName")
                                         val existingBlokData = globalMergedBlokMap[blokName]!!
 
-                                        val existingJjgJson =
-                                            JSONObject(existingBlokData["jjg_json"].toString())
+                                        val existingJjgJson = JSONObject(existingBlokData["jjg_json"].toString())
 
                                         // Update all JJG types in the existing JSON
                                         for (type in jjgTypes) {
@@ -2634,7 +2664,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             if (newTotalTO == newTotalTO.toInt().toDouble()) {
                                                 newTotalTO.toInt().toString()
                                             } else {
-                                                String.format("%.1f", newTotalTO)
+                                                String.format(Locale.US, "%.1f", newTotalTO)
                                             }
 
                                         val jjgPA = existingJjgJson.optDouble("PA", 0.0)
@@ -2642,35 +2672,51 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             if (jjgPA == jjgPA.toInt().toDouble()) {
                                                 jjgPA.toInt().toString()
                                             } else {
-                                                String.format("%.1f", jjgPA)
+                                                String.format(Locale.US, "%.1f", jjgPA)
                                             }
 
                                         val existingTransactions =
                                             (existingBlokData["jumlah_transaksi"]?.toString()
                                                 ?.toIntOrNull() ?: 1) + 1
-                                        existingBlokData["jumlah_transaksi"] =
-                                            existingTransactions.toString()
+                                        existingBlokData["jumlah_transaksi"] = existingTransactions.toString()
 
                                         val tphIds =
-                                            (existingBlokData["tph_ids"]?.toString()
-                                                ?: "").split(",")
+                                            (existingBlokData["tph_ids"]?.toString() ?: "").split(",")
                                                 .filter { it.isNotEmpty() }.toMutableSet()
                                         tphIds.add(tphId)
                                         existingBlokData["tph_ids"] = tphIds.joinToString(",")
                                         existingBlokData["tph_count"] = tphIds.size.toString()
 
+                                        // Process karyawan names properly - get existing ones
                                         val existingKaryawans =
-                                            (existingBlokData["nama_karyawans_all"]?.toString()
-                                                ?: "").split(",")
-                                                .filter { it.isNotEmpty() }.toMutableSet()
-                                        val newKaryawan = blokData["nama_karyawans"].toString()
-                                        if (newKaryawan.isNotEmpty() && newKaryawan != "-") {
-                                            existingKaryawans.add(newKaryawan)
-                                        }
-                                        existingBlokData["nama_karyawans_all"] =
-                                            existingKaryawans.joinToString(", ")
-                                        existingBlokData["karyawan_count"] =
-                                            existingKaryawans.size.toString()
+                                            (existingBlokData["nama_karyawans_all"]?.toString() ?: "").split(",")
+                                                .map { it.trim() }
+                                                .filter { it.isNotEmpty() }
+                                                .toMutableSet()
+
+                                        // Add all current karyawans to the set
+                                        existingKaryawans.addAll(currentKaryawansList)
+
+                                        // Update with the complete set
+                                        existingBlokData["nama_karyawans_all"] = existingKaryawans.joinToString(", ")
+                                        existingBlokData["karyawan_count"] = existingKaryawans.size.toString()
+
+                                        // Process kemandoran names similarly
+                                        val existingKemandorans =
+                                            (existingBlokData["nama_kemandorans_all"]?.toString() ?: "").split("\n")
+                                                .map { it.trim().removePrefix("• ") }
+                                                .filter { it.isNotEmpty() }
+                                                .toMutableSet()
+
+                                        // Add all current kemandorans to the set
+                                        existingKemandorans.addAll(currentKemandoransList)
+
+                                        // Format kemandoran list with bullet points
+                                        val formattedKemandorans = existingKemandorans
+                                            .sorted()
+                                            .joinToString("\n") { "• $it" }
+
+                                        existingBlokData["nama_kemandorans_all"] = formattedKemandorans
 
                                         existingBlokData["jjg_each_blok"] =
                                             "${existingBlokData["jjg_total"]} (${existingBlokData["jjg_dibayar"]})"
@@ -2684,7 +2730,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             if (jjgTO == jjgTO.toInt().toDouble()) {
                                                 jjgTO.toInt().toString()
                                             } else {
-                                                String.format("%.1f", jjgTO)
+                                                String.format(Locale.US, "%.1f", jjgTO)
                                             }
 
                                         val jjgPA = jjgValues["PA"] ?: 0.0
@@ -2692,7 +2738,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             if (jjgPA == jjgPA.toInt().toDouble()) {
                                                 jjgPA.toInt().toString()
                                             } else {
-                                                String.format("%.1f", jjgPA)
+                                                String.format(Locale.US, "%.1f", jjgPA)
                                             }
 
                                         // Add blok-specific fields
@@ -2701,15 +2747,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         mutableBlokData["jumlah_transaksi"] = "1"
                                         mutableBlokData["tph_ids"] = tphId
                                         mutableBlokData["tph_count"] = "1"
-                                        mutableBlokData["jjg_each_blok"] =
-                                            "$formattedJjgTO ($formattedJjgPA)"
+                                        mutableBlokData["jjg_each_blok"] = "$formattedJjgTO ($formattedJjgPA)"
 
-                                        // Add worker tracking
-                                        val karyawan = mutableBlokData["nama_karyawans"].toString()
-                                        mutableBlokData["nama_karyawans_all"] =
-                                            if (karyawan.isNotEmpty() && karyawan != "-") karyawan else ""
-                                        mutableBlokData["karyawan_count"] =
-                                            if (karyawan.isNotEmpty() && karyawan != "-") "1" else "0"
+                                        // Create worker tracking with proper handling of multiple workers
+                                        mutableBlokData["nama_karyawans_all"] = currentKaryawansList.joinToString(", ")
+                                        mutableBlokData["karyawan_count"] = currentKaryawansList.size.toString()
+
+                                        // Format kemandoran list with bullet points
+                                        val formattedKemandorans = currentKemandoransList
+                                            .sorted()
+                                            .joinToString("\n") { "• $it" }
+
+                                        mutableBlokData["nama_kemandorans_all"] = formattedKemandorans
 
                                         globalMergedBlokMap[blokName] = mutableBlokData
                                     }
@@ -2792,7 +2841,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         tvGenQRFull.visibility = View.GONE
                         btnGenerateQRTPH.visibility = View.GONE
 
-                    } else if (panenList.size > 0 && featureName == "Rekap Hasil Panen" && currentState != 2) {
+                    } else if (panenList.size > 0 && featureName == "Rekap Hasil Panen" && currentState != 2 && currentState != 3) {
                         btnGenerateQRTPH.visibility = View.VISIBLE
                         btnGenerateQRTPHUnl.visibility = View.VISIBLE
                         tvGenQR60.visibility = View.VISIBLE
