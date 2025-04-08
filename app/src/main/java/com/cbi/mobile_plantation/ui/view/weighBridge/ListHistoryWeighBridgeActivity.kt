@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -44,6 +45,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.datepicker.MaterialDatePicker
 import com.leinardi.android.speeddial.SpeedDialActionItem
 import com.leinardi.android.speeddial.SpeedDialView
 import kotlinx.coroutines.CompletableDeferred
@@ -57,6 +59,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlin.coroutines.resume
@@ -78,6 +81,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private var afdelingUser: String? = null
     private var infoApp: String = ""
     private lateinit var datasetViewModel: DatasetViewModel
+    private var globalFormattedDate: String = ""
 
     private var globalESPBIds: List<Int> = emptyList()
     private lateinit var loadingDialog: LoadingDialog
@@ -89,6 +93,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private var zipFileName: String? = null
     private lateinit var tvEmptyState: TextView // Add this
     private lateinit var headerCheckBoxWB: CheckBox // Add this
+    private lateinit var dateButton: Button
+
     private var trackingIdsUpload: List<Int> = emptyList()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,14 +114,68 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         initializeViews()
         setupSpeedDial()
         setupObserveData()
-        weightBridgeViewModel.loadHistoryUploadeSPB()
+        val backButton = findViewById<ImageView>(R.id.btn_back)
+        backButton.setOnClickListener { onBackPressed() }
+        globalFormattedDate = AppUtils.currentDate
+        val todayDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        weightBridgeViewModel.loadHistoryESPB(todayDate)
+
+        findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.VISIBLE
+        dateButton = findViewById(R.id.calendarPicker)
+        dateButton.text = AppUtils.getTodaysDate()
+
+        val filterAllData: CheckBox = findViewById(R.id.calendarCheckbox)
+
+        filterAllData.setOnCheckedChangeListener { _, isChecked ->
+            val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)
+            val nameFilterDate = findViewById<TextView>(R.id.name_filter_date)
+            if (isChecked) {
+                filterDateContainer.visibility = View.VISIBLE
+                nameFilterDate.text = "Semua Data"
+
+                dateButton.isEnabled = false
+                dateButton.alpha = 0.5f
+
+                weightBridgeViewModel.loadHistoryESPB()
+            } else {
+                // For line 136 (use date from date picker)
+                val displayDate = formatGlobalDate(globalFormattedDate)
+                weightBridgeViewModel.loadHistoryESPB(globalFormattedDate)
+                nameFilterDate.text = displayDate
+                dateButton.isEnabled = true
+                dateButton.alpha = 1f // Make the button appear darker
+                Log.d("FilterAllData", "Checkbox is UNCHECKED. Button enabled.")
+            }
+
+            val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_date)
+
+            removeFilterDate.setOnClickListener {
+                if (filterAllData.isChecked) {
+                    filterAllData.isChecked = false
+                }
+
+                filterDateContainer.visibility = View.GONE
+
+                val todayBackendDate = AppUtils.formatDateForBackend(
+                    Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                    Calendar.getInstance().get(Calendar.MONTH) + 1,
+                    Calendar.getInstance().get(Calendar.YEAR)
+                )
+                // Reset the selected date in your utils
+                AppUtils.setSelectedDate(todayBackendDate)
+
+                // Update the dateButton to show today's date
+                val todayDisplayDate = AppUtils.getTodaysDate()
+                dateButton.text = todayDisplayDate
+
+            }
+            }
     }
 
     private fun initializeViews() {
         tvEmptyState = findViewById(R.id.tvEmptyStateKraniTimbang)
         speedDial = findViewById(R.id.dial_tph_list_krani_timbang_espb)
     }
-
 
     private fun handleUpload(selectedItems: List<Map<String, Any>>) {
         var number =
@@ -180,7 +240,6 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                 )
             )
         }
-
 
         if (allUploadZipFilesToday.isNotEmpty()) {
             allUploadZipFilesToday.forEach { file ->
@@ -268,7 +327,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
         cancelDownloadDataset.setOnClickListener {
             speedDial.close()
-            weightBridgeViewModel.loadHistoryUploadeSPB()
+            weightBridgeViewModel.loadHistoryESPB()
             zipFileName = null
             zipFilePath = null
             dialog.dismiss()
@@ -505,7 +564,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                             Toast.LENGTH_SHORT
                         ).show()
                         // Reload data based on current state
-                        weightBridgeViewModel.loadHistoryUploadeSPB()
+                        weightBridgeViewModel.loadHistoryESPB()
                     } else {
                         Toast.makeText(
                             this,
@@ -815,8 +874,6 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                 }
             }
         }
-
-
     }
 
     private fun setupObserveData() {
@@ -1111,9 +1168,83 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         val intent = Intent(this, HomePageActivity::class.java)
         startActivity(intent)
         finishAffinity()
-
-
     }
 
-    fun openDatePicker(view: View) {}
+    fun formatGlobalDate(dateString: String): String {
+        // Parse the date string in format "YYYY-MM-DD"
+        val parts = dateString.split("-")
+        if (parts.size != 3) return dateString // Return original if format doesn't match
+
+        val year = parts[0].toInt()
+        val month = parts[1].toInt()
+        val day = parts[2].toInt()
+
+        // Return formatted date string using getMonthFormat
+        return "${AppUtils.getMonthFormat(month)} $day $year"
+    }
+
+    fun openDatePicker(view: View) {
+        initMaterialDatePicker()
+    }
+
+    private fun initMaterialDatePicker() {
+        val builder = MaterialDatePicker.Builder.datePicker()
+        builder.setTitleText("Pilih Tanggal")
+        builder.setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+
+        val datePicker = builder.build()
+
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = selection
+            val year = calendar.get(Calendar.YEAR)
+            val month = calendar.get(Calendar.MONTH) + 1
+            val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+            val displayDate = AppUtils.makeDateString(day, month, year)
+            dateButton.text = displayDate
+
+            val formattedDate = AppUtils.formatDateForBackend(day, month, year)
+            globalFormattedDate = formattedDate
+            AppUtils.setSelectedDate(formattedDate)
+            processSelectedDate(formattedDate)
+        }
+        datePicker.show(supportFragmentManager, "MATERIAL_DATE_PICKER")
+    }
+    private fun processSelectedDate(selectedDate: String) {
+
+        val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)
+        val nameFilterDate = findViewById<TextView>(R.id.name_filter_date)
+        val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_date)
+
+        val displayDate = AppUtils.formatSelectedDateForDisplay(selectedDate)
+        nameFilterDate.text = displayDate
+        weightBridgeViewModel.loadHistoryESPB(selectedDate)
+
+        removeFilterDate.setOnClickListener {
+            filterDateContainer.visibility = View.GONE
+//            loadingDialog.show()
+//            loadingDialog.setMessage("Sedang mengambil data...", true)
+            // Get today's date in backend format
+            val todayBackendDate = AppUtils.formatDateForBackend(
+                Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                Calendar.getInstance().get(Calendar.MONTH) + 1,
+                Calendar.getInstance().get(Calendar.YEAR)
+            )
+
+            // Reset the selected date in your utils
+            AppUtils.setSelectedDate(todayBackendDate)
+
+            // Update the dateButton to show today's date
+            val todayDisplayDate = AppUtils.getTodaysDate()
+            dateButton.text = todayDisplayDate
+
+            weightBridgeViewModel.loadHistoryESPB(selectedDate)
+
+        }
+
+        filterDateContainer.visibility = View.VISIBLE
+    }
+
+
 }

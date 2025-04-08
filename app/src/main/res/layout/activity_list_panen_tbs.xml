@@ -656,11 +656,25 @@
         app:rippleColor="@color/bgLightOrange"
         app:tint="@color/white"/>
 
+    <TextView
+        android:id="@+id/tvGenQR60"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Gen QR 60"
+        android:visibility="gone"
+        android:outlineSpotShadowColor="@color/white"
+        android:outlineAmbientShadowColor="@color/white"
+        android:shadowColor="@color/white"
+        android:fontFamily="@font/manrope_bold"
+        app:layout_constraintEnd_toEndOf="@+id/btnGenerateQRTPH"
+        app:layout_constraintStart_toStartOf="@+id/btnGenerateQRTPH"
+        app:layout_constraintTop_toBottomOf="@+id/btnGenerateQRTPH" />
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnGenerateQRTPHUnl"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginRight="20dp"
+        android:layout_marginRight="30dp"
         android:layout_marginBottom="30dp"
         android:src="@drawable/qrcode_solid"
         android:tooltipText="Generate QR TPH"
@@ -671,6 +685,20 @@
         app:maxImageSize="30dp"
         app:rippleColor="@color/bgLightOrange"
         app:tint="@color/white" />
+
+    <TextView
+        android:id="@+id/tvGenQRFull"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/manrope_bold"
+        android:text="Gen QR Full"
+        android:shadowColor="@color/white"
+        android:outlineSpotShadowColor="@color/white"
+        android:outlineAmbientShadowColor="@color/white"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="@+id/btnGenerateQRTPHUnl"
+        app:layout_constraintStart_toStartOf="@+id/btnGenerateQRTPHUnl"
+        app:layout_constraintTop_toBottomOf="@+id/btnGenerateQRTPHUnl" />
 
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton

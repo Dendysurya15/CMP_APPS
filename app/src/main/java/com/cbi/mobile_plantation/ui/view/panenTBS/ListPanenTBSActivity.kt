@@ -1414,12 +1414,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
         Log.d("ListPanenTBSActivityESPB", "Final tph1: $tph1")
         Log.d("ListPanenTBSActivityESPB", "Final tph1IdPanen: $tph1IdPanen")
 
-
     }
 
     private fun setupButtonGenerateQR() {
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
         val btnGenerateQRTPHUnl = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPHUnl)
+
         if (featureName == "Buat eSPB") {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
             btnGenerateQRTPH.setOnClickListener {
@@ -2035,6 +2035,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val totalSection = findViewById<LinearLayout>(R.id.total_section)
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
         val btnGenerateQRTPHUnl = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPHUnl)
+        val tvGenQR60 = findViewById<TextView>(R.id.tvGenQR60)
+        val tvGenQRFull = findViewById<TextView>(R.id.tvGenQRFull)
 
         blokSection.visibility = View.GONE
         totalSection.visibility = View.GONE
@@ -2641,14 +2643,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     }
 
-
                     if (panenList.size == 0 && featureName == "Rekap Hasil Panen") {
                         btnGenerateQRTPHUnl.visibility = View.GONE
+                        tvGenQR60.visibility = View.GONE
+                        tvGenQRFull.visibility = View.GONE
                         btnGenerateQRTPH.visibility = View.GONE
 
                     } else if (panenList.size > 0 && featureName == "Rekap Hasil Panen" && currentState != 2) {
                         btnGenerateQRTPH.visibility = View.VISIBLE
                         btnGenerateQRTPHUnl.visibility = View.VISIBLE
+                        tvGenQR60.visibility = View.VISIBLE
+                        tvGenQRFull.visibility = View.VISIBLE
                     }
                 }, 500)
             }
@@ -2659,6 +2664,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 listAdapter.updateData(emptyList())
                 btnGenerateQRTPH.visibility = View.GONE
                 btnGenerateQRTPHUnl.visibility = View.GONE
+                tvGenQR60.visibility = View.GONE
+                tvGenQRFull.visibility = View.GONE
 
                 val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)

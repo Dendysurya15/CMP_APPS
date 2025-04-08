@@ -72,6 +72,15 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
+    suspend fun loadHistoryESPB(date: String? = null): List<ESPBEntity> {
+        return try {
+            espbDao.getAllESPBS(date)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB history: ${e.message}")
+            emptyList()  // Return empty list if there's an error
+        }
+    }
+
     suspend fun getActiveESPBByIds(ids: List<Int>): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
         try {
             val data = espbDao.getActiveESPBByIds(ids)
