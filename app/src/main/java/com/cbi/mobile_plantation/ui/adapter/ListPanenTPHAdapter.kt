@@ -431,7 +431,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 itemView.setOnClickListener {
 
 
-                    AppLogger.d(data.toString())
                     val context = itemView.context
                     val bottomSheetDialog = BottomSheetDialog(context)
                     val view = LayoutInflater.from(context)
@@ -456,8 +455,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
 
                     val infoItems = listOf(
-                        DetailInfoType.KEMANDORAN to "${data["nama_kemandorans"]}",
-                        DetailInfoType.NAMA_PEMANEN to "${data["nama_karyawans"]}",
+                        DetailInfoType.KEMANDORAN to "${data["nama_kemandorans_all"]}",
+                        DetailInfoType.NAMA_PEMANEN to "${data["nama_karyawans_all"]}",
                         DetailInfoType.TOTAL_JANJANG to jjgJson.optDouble("TO", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
                         DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK to jjgJson.optDouble("KP", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
                         DetailInfoType.TOTAL_DATA_BUAH_MASAK to jjgJson.optDouble("RI", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
