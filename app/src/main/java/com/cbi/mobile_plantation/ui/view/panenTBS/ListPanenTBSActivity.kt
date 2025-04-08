@@ -40,7 +40,6 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.widget.NestedScrollView
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -59,7 +58,6 @@ import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
-import com.cbi.mobile_plantation.utils.AppUtils.setMaxBrightness
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
@@ -74,10 +72,8 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -86,7 +82,6 @@ import com.leinardi.android.speeddial.SpeedDialActionItem
 import com.leinardi.android.speeddial.SpeedDialView
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -155,6 +150,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var tph = 0
     private var tph0 = ""
     private var tph1 = ""
+    private var limit = 0
     private var tphListScan: List<String> = emptyList()
 
     private var blok_jjg = "NULL"
@@ -1562,7 +1558,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
-    private fun generateQRTPH(limit: Int) {
+    private fun generateQRTPH(limitFun: Int) {
+        limit = limitFun
         AlertDialogUtility.withTwoActions(
             this,
             "Generate QR",
@@ -1708,7 +1705,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         var successCount = 0
                                         val errorMessages = mutableListOf<String>()
 
-                                        mappedData.forEach { item ->
+                                        val effectiveLimit = if (limit == 0) mappedData.size else limit
+
+                                        // Take only the required number of items
+                                        val limitedData = mappedData.take(effectiveLimit)
+
+                                        limitedData.forEach { item ->
                                             try {
                                                 // Null check for item
                                                 if (item == null) {
@@ -1888,7 +1890,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                     gson.toJson(rootObject)
                                 } else {
-                                    val effectiveLimit = if (limit == 0) mappedData.size else limit
+                                    val effectiveLimit = if (limitFun == 0) mappedData.size else limitFun
 
                                     // Take only the required number of items
                                     val limitedData = mappedData.take(effectiveLimit)
