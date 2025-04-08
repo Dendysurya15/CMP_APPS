@@ -671,7 +671,7 @@ class FormESPBActivity : AppCompatActivity() {
                     val job = lifecycleScope.async(Dispatchers.IO) {
                         try {
                             val result = weightBridgeViewModel.getPemuatByIdList(idKaryawanStringList)
-                            result?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
+                            result?.mapNotNull { "${it.nama} - ${it.nik}" }?.takeIf { it.isNotEmpty() }
                                 ?.joinToString(", ") ?: "-"
                         } catch (e: Exception) {
                             AppLogger.e("Gagal mendapatkan data pemuat: ${e.message}")

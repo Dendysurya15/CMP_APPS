@@ -996,7 +996,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setActiveCard(cardRekapPerPemanen)
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
                 val rekapHeaders =
-                    listOf("NAMA\nPEMANEN", "BLOK/JJG", "JUMLAH\nTPH", "TOTAL JJG/\nJJG DIBAYAR")
+                    listOf("NAMA\nPEMANEN", "BLOK/JJG", "JUMLAH\nTRANSAKSI", "TOTAL JJG/\nJJG DIBAYAR")
                 updateTableHeaders(rekapHeaders)
             }
             loadingDialog.show()
@@ -1034,7 +1034,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setActiveCard(cardRekapPerBlok)
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
                 val rekapHeaders =
-                    listOf("NAMA\nBlok", "BLOK/JJG", "JUMLAH\nTPH", "TOTAL JJG/\nJJG DIBAYAR")
+                    listOf("NAMA\nBLOK", "JUMLAH\nTRANSAKSI","TOTAL\nJJG", "TOTAL\nDIBAYAR")
                 updateTableHeaders(rekapHeaders)
             }
             loadingDialog.show()
@@ -2197,7 +2197,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 originalMappedData.add(originalDataMapped)
 
                                 if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2) {
-                                    // Parse karyawan IDs, kemandoran IDs, and NIKs
                                     val karyawanIds =
                                         panenWithRelations.panen.karyawan_id.toString().split(",")
                                             .map { it.trim() }
@@ -2641,7 +2640,129 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                 AppLogger.d("Final merged data: $finalMergedData")
                                 mappedData = finalMergedData
-                            } else {
+                            }else if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 3) {
+                                val globalMergedBlokMap = mutableMapOf<String, MutableMap<String, Any>>()
+
+                                val jjgTypes = listOf(
+                                    "TO", "UN", "OV", "EM", "AB", "RA", "LO", "TI", "RI", "KP", "PA"
+                                )
+
+                                for (blokData in allWorkerData) {
+                                    val blokName = blokData["blok_name"].toString()
+                                    AppLogger.d("Global processing blok: $blokName")
+
+                                    val tphId = blokData["tph_id"].toString()
+                                    val jjgJson = JSONObject(blokData["jjg_json"].toString())
+
+                                    // Extract all JJG values
+                                    val jjgValues = jjgTypes.associateWith { type ->
+                                        jjgJson.optDouble(type, 0.0)
+                                    }
+
+                                    if (globalMergedBlokMap.containsKey(blokName)) {
+                                        AppLogger.d("Found duplicate blok globally: $blokName")
+                                        val existingBlokData = globalMergedBlokMap[blokName]!!
+
+                                        val existingJjgJson = JSONObject(existingBlokData["jjg_json"].toString())
+
+                                        // Update all JJG types in the existing JSON
+                                        for (type in jjgTypes) {
+                                            val existingValue = existingJjgJson.optDouble(type, 0.0)
+                                            val newValue = jjgValues[type] ?: 0.0
+                                            val totalValue = existingValue + newValue
+                                            existingJjgJson.put(type, totalValue)
+                                        }
+
+                                        // Update the JJG JSON in the existing blok data
+                                        existingBlokData["jjg_json"] = existingJjgJson.toString()
+
+                                        // For jjg_total and jjg_dibayar, use TO and PA as in state 2
+                                        val newTotalTO = existingJjgJson.optDouble("TO", 0.0)
+                                        existingBlokData["jjg_total"] =
+                                            if (newTotalTO == newTotalTO.toInt().toDouble()) {
+                                                newTotalTO.toInt().toString()
+                                            } else {
+                                                String.format("%.1f", newTotalTO)
+                                            }
+
+                                        val jjgPA = existingJjgJson.optDouble("PA", 0.0)
+                                        existingBlokData["jjg_dibayar"] =
+                                            if (jjgPA == jjgPA.toInt().toDouble()) {
+                                                jjgPA.toInt().toString()
+                                            } else {
+                                                String.format("%.1f", jjgPA)
+                                            }
+
+                                        val existingTransactions =
+                                            (existingBlokData["jumlah_transaksi"]?.toString()?.toIntOrNull() ?: 1) + 1
+                                        existingBlokData["jumlah_transaksi"] = existingTransactions.toString()
+
+                                        val tphIds =
+                                            (existingBlokData["tph_ids"]?.toString() ?: "").split(",")
+                                                .filter { it.isNotEmpty() }.toMutableSet()
+                                        tphIds.add(tphId)
+                                        existingBlokData["tph_ids"] = tphIds.joinToString(",")
+                                        existingBlokData["tph_count"] = tphIds.size.toString()
+
+                                        val existingKaryawans =
+                                            (existingBlokData["nama_karyawans_all"]?.toString() ?: "").split(",")
+                                                .filter { it.isNotEmpty() }.toMutableSet()
+                                        val newKaryawan = blokData["nama_karyawans"].toString()
+                                        if (newKaryawan.isNotEmpty() && newKaryawan != "-") {
+                                            existingKaryawans.add(newKaryawan)
+                                        }
+                                        existingBlokData["nama_karyawans_all"] = existingKaryawans.joinToString(", ")
+                                        existingBlokData["karyawan_count"] = existingKaryawans.size.toString()
+
+                                        existingBlokData["jjg_each_blok"] = "${existingBlokData["jjg_total"]} (${existingBlokData["jjg_dibayar"]})"
+                                    } else {
+                                        // This is a new blok, create a new entry
+                                        val mutableBlokData = blokData.toMutableMap()
+
+                                        // Format the TO and PA values
+                                        val jjgTO = jjgValues["TO"] ?: 0.0
+                                        val formattedJjgTO =
+                                            if (jjgTO == jjgTO.toInt().toDouble()) {
+                                                jjgTO.toInt().toString()
+                                            } else {
+                                                String.format("%.1f", jjgTO)
+                                            }
+
+                                        val jjgPA = jjgValues["PA"] ?: 0.0
+                                        val formattedJjgPA =
+                                            if (jjgPA == jjgPA.toInt().toDouble()) {
+                                                jjgPA.toInt().toString()
+                                            } else {
+                                                String.format("%.1f", jjgPA)
+                                            }
+
+                                        // Add blok-specific fields
+                                        mutableBlokData["jjg_total"] = formattedJjgTO
+                                        mutableBlokData["jjg_dibayar"] = formattedJjgPA
+                                        mutableBlokData["jumlah_transaksi"] = "1"
+                                        mutableBlokData["tph_ids"] = tphId
+                                        mutableBlokData["tph_count"] = "1"
+                                        mutableBlokData["jjg_each_blok"] = "$formattedJjgTO ($formattedJjgPA)"
+
+                                        // Add worker tracking
+                                        val karyawan = mutableBlokData["nama_karyawans"].toString()
+                                        mutableBlokData["nama_karyawans_all"] =
+                                            if (karyawan.isNotEmpty() && karyawan != "-") karyawan else ""
+                                        mutableBlokData["karyawan_count"] =
+                                            if (karyawan.isNotEmpty() && karyawan != "-") "1" else "0"
+
+                                        globalMergedBlokMap[blokName] = mutableBlokData
+                                    }
+                                }
+
+                                val finalMergedData =
+                                    globalMergedBlokMap.values.toList().sortedBy {
+                                        it["blok_name"].toString()
+                                    }
+
+                                AppLogger.d("Final merged blok data: $finalMergedData")
+                                mappedData = finalMergedData
+                            }  else {
                                 mappedData = allWorkerData
                                 AppLogger.d("Using standard data (no global merging): $mappedData")
                             }
