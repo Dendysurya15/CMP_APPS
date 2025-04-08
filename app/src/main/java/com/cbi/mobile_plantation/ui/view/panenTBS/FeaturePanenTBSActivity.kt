@@ -359,9 +359,27 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
                     }
 
+                    val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
 
-                    AppLogger.d(panenStoredLocal.toString())
+                    panenViewModel.getAllKaryawan() // This should be added to your ViewModel
+                    delay(100)
 
+                    withContext(Dispatchers.Main) {
+
+                        panenViewModel.allKaryawanList.observe(this@FeaturePanenTBSActivity) { list ->
+                            val allKaryawan = list ?: emptyList()
+
+                            // Store in both lists to use for main workers and secondary (lain) workers
+                            karyawanList = allKaryawan
+                            karyawanLainList = allKaryawan
+                            if (allKaryawan.isNotEmpty()) {
+                                val sampleSize = minOf(3, allKaryawan.size)
+                                val sample = allKaryawan.take(sampleSize)
+                            }
+
+                            karyawanDeferred.complete(allKaryawan)
+                        }
+                    }
 
                     val divisiDeferred = async {
                         try {
@@ -373,6 +391,33 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
 
                     divisiList = divisiDeferred.await()
+                    val panenList = panenDeferred.await()
+                    val allKaryawan = karyawanDeferred.await()
+
+
+                    if (allKaryawan.isNotEmpty()) {
+                        // Setup the karyawan dropdown
+                        val nameCounts = mutableMapOf<String, Int>()
+                        allKaryawan.forEach {
+                            it.nama?.trim()?.let { nama ->
+                                nameCounts[nama] = (nameCounts[nama] ?: 0) + 1
+                            }
+                        }
+
+                        allKaryawan.forEach {
+                            it.nama?.trim()?.let { nama ->
+                                val key = if (nameCounts[nama]!! > 1) {
+                                    "$nama - ${it.nik}"
+                                } else {
+                                    nama
+                                }
+                                karyawanIdMap[key] = it.id!!
+                                if (it.kemandoran_id != null) {
+                                    kemandoranIdMap[key] = it.kemandoran_id!!
+                                }
+                            }
+                        }
+                    }
 
                     if (divisiList.isNullOrEmpty()) {
                         throw Exception("Periksa kembali dataset dengan melakukan Sinkronisasi Data!")
@@ -734,16 +779,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             titleScannedTPHInsideRadius.visibility = View.GONE
             descScannedTPHInsideRadius.visibility = View.GONE
             emptyScannedTPHInsideRadius.visibility = View.GONE
-            layoutAncak.visibility = View.GONE
-            layoutTipePanen.visibility = View.GONE
-            layoutPemanen.visibility = View.GONE
-            layoutSelAsistensi.visibility = View.GONE
-            layoutKemandoran.visibility = View.GONE
-            layoutKemandoranLain.visibility = View.GONE
-            layoutPemanenLain.visibility = View.GONE
-            alertCardScanRadius.visibility = View.GONE
-            btnScanTPHRadius.visibility = View.GONE
+        }
 
+        val kemandoranLayout = findViewById<LinearLayout>(R.id.layoutKemandoran)
+        val kemandoranLainLayout = findViewById<LinearLayout>(R.id.layoutKemandoranLain)
+
+        // Reset main kemandoran filter container
+        val kemandoranFilterContainer = kemandoranLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+        if (kemandoranFilterContainer != null && kemandoranFilterContainer.visibility == View.VISIBLE) {
+            kemandoranFilterContainer.visibility = View.GONE
+        }
+
+        // Reset kemandoranLain filter container
+        val kemandoranLainFilterContainer = kemandoranLainLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+        if (kemandoranLainFilterContainer != null && kemandoranLainFilterContainer.visibility == View.VISIBLE) {
+            kemandoranLainFilterContainer.visibility = View.GONE
         }
 
         val divisiNames =
@@ -755,16 +805,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val afdelingLayout = findViewById<LinearLayout>(R.id.layoutAfdeling)
         val afdelingSpinner = afdelingLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
 
-        // Log the current state for debugging
-        AppLogger.d("Before reset - selectedAfdelingIdSpinner: $selectedAfdelingIdSpinner, selectedAfdeling: $selectedAfdeling")
-        AppLogger.d("Available divisions: $divisiNames")
-
         // First try to find the position by name (this handles reordering)
         var newPosition = divisiNames.indexOf(selectedAfdeling)
 
         // If we can't find the name or it's invalid, fall back to the stored index
         if (newPosition < 0) {
-            AppLogger.d("Previously selected afdeling '$selectedAfdeling' not found in the list, using stored index")
             newPosition = selectedAfdelingIdSpinner
         }
 
@@ -775,9 +820,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             else -> newPosition  // Use the calculated position if it's valid
         }
 
-        AppLogger.d("Setting spinner to position $safePosition")
-
-        // Set the spinner to the calculated position
         afdelingSpinner.setSelectedIndex(safePosition)
 
         // Update our stored variables to match what's now selected
@@ -811,14 +853,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
-        setupSpinnerView(findViewById(R.id.layoutKemandoran), emptyList())
-        setupSpinnerView(findViewById(R.id.layoutPemanen), emptyList())
         setupSpinnerView(findViewById(R.id.layoutNoTPH), emptyList())
         setupSpinnerView(findViewById(R.id.layoutKemandoran), emptyList())
-        setupSpinnerView(findViewById(R.id.layoutPemanen), emptyList())
         setupSpinnerView(findViewById(R.id.layoutKemandoranLain), emptyList())
-        setupSpinnerView(findViewById(R.id.layoutPemanenLain), emptyList())
-
 
         val etHomeMarkerTPH = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
         etHomeMarkerTPH.setText("")
@@ -827,25 +864,74 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         kemandoranList = emptyList()
         kemandoranLainList = emptyList()
         tphList = emptyList()
-        karyawanList = emptyList()
-        karyawanLainList = emptyList()
         ancakInput = ""
 
 
-        //scroll to up
-        val scPanen = findViewById<ScrollView>(R.id.scPanen)
-        scPanen.post {
-            scPanen.fullScroll(ScrollView.FOCUS_UP)
-        }
 
         resetAllCounters()
+
+        lifecycleScope.launch {
+            val layoutPemanen = findViewById<LinearLayout>(R.id.layoutPemanen)
+            val layoutPemanenLain = findViewById<LinearLayout>(R.id.layoutPemanenLain)
+            loadingDialog.show()
+            loadingDialog.setMessage("Sedang memproses data...")
+            delay(300)
+            try {
+                // Reload all karyawan
+                withContext(Dispatchers.IO) {
+                    panenViewModel.getAllKaryawan()
+                    delay(100)
+                }
+
+                val allKaryawan = panenViewModel.allKaryawanList.value ?: emptyList()
+
+                // Store in both lists to use for main workers and secondary workers
+                karyawanList = allKaryawan
+                karyawanLainList = allKaryawan
+
+                AppLogger.d("Reset: Reloaded ${allKaryawan.size} karyawan")
+
+                withContext(Dispatchers.Main) {
+                    // Set up spinner views for both layouts
+                    if (allKaryawan.isNotEmpty()) {
+                        val karyawanNames = allKaryawan
+                            .sortedBy { it.nama }
+                            .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                        AppLogger.d(karyawanNames.toString())
+                        setupSpinnerView(layoutPemanen, karyawanNames)
+                        setupSpinnerView(layoutPemanenLain, karyawanNames)
+                        layoutPemanen.visibility = View.VISIBLE
+
+                    }
+
+                    // Now scroll to top AFTER all data loading and UI setup is complete
+                    val scPanen = findViewById<ScrollView>(R.id.scPanen)
+                    scPanen.fullScroll(ScrollView.FOCUS_UP)
+
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error reloading karyawan in reset: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Error reloading worker data: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    // Still try to scroll even if there was an error
+                    val scPanen = findViewById<ScrollView>(R.id.scPanen)
+                    scPanen.fullScroll(ScrollView.FOCUS_UP)
+                }
+            }
+            loadingDialog.dismiss()
+        }
 
         //reset all image
         photoCount = 0
         photoFiles.clear()
         komentarFoto.clear()
         takeFotoPreviewAdapter?.resetAllSections()
-
     }
 
     @SuppressLint("SetTextI18n")
@@ -1246,6 +1332,34 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             setupSpinnerView(layoutView, divisiNames)
                         }
 
+                        R.id.layoutPemanen -> {
+                            // Prepare the data but don't show the dropdown yet
+                            if (karyawanList.isNotEmpty()) {
+                                val karyawanNames = karyawanList
+                                    .sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                setupSpinnerView(layoutView, karyawanNames)
+                                // Initially hidden - will be shown when needed
+                                layoutView.visibility = View.GONE
+                            } else {
+                                setupSpinnerView(layoutView, emptyList())
+                            }
+                        }
+
+                        R.id.layoutPemanenLain -> {
+                            // Prepare the data but don't show the dropdown yet
+                            if (karyawanLainList.isNotEmpty()) {
+                                val karyawanNames = karyawanLainList
+                                    .sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                setupSpinnerView(layoutView, karyawanNames)
+                                // Initially hidden - will be shown when needed
+                                layoutView.visibility = View.GONE
+                            } else {
+                                setupSpinnerView(layoutView, emptyList())
+                            }
+                        }
+
                         R.id.layoutTipePanen -> {
                             val tipePanenOptions =
                                 resources.getStringArray(R.array.tipe_panen_options).toList()
@@ -1255,13 +1369,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         else -> {
                             setupSpinnerView(layoutView, emptyList())
                         }
-
                     }
                 }
 
                 InputType.EDITTEXT -> setupEditTextView(layoutView)
                 else -> {}
-
             }
         }
 
@@ -1649,10 +1761,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             R.id.layoutBlok,
             R.id.layoutNoTPH,
             R.id.layoutKemandoran,
-            R.id.layoutPemanen,
+
             R.id.layoutKemandoranLain,
-            R.id.layoutPemanenLain
-        )
+
+            )
 
         // Reset each dependent spinner
         dependentLayouts.forEach { layoutId ->
@@ -1665,8 +1777,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         kemandoranList = emptyList()
         kemandoranLainList = emptyList()
         tphList = emptyList()
-        karyawanList = emptyList()
-        karyawanLainList = emptyList()
 
 
         // Reset selected values
@@ -1779,7 +1889,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
-    // Modify the setupSwitchBlokBanjir function to handle auto scan visibility
     private fun setupSwitchBlokBanjir() {
         val switchBlokBanjir = findViewById<SwitchMaterial>(R.id.selBlokBanjir)
 
@@ -1788,6 +1897,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
 
         switchBlokBanjir.setOnCheckedChangeListener { _, isChecked ->
+            val cachedKaryawanList = karyawanList
+            val cachedKaryawanLainList = karyawanLainList
+
             if (isChecked) {
                 // Stop auto scan if it's running
                 autoScanEnabled = false
@@ -1801,15 +1913,132 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 if (switchAsistensi.isChecked) {
                     switchAsistensi.isChecked = false
                 }
-                // ...
-            } else {
-                // Rest of your existing code...
+                layoutTahunTanam.visibility = View.VISIBLE
+                layoutBlok.visibility = View.VISIBLE
+                layoutNoTPH.visibility = View.VISIBLE
+                layoutAncak.visibility = View.VISIBLE
+                layoutKemandoran.visibility = View.VISIBLE
+                layoutPemanen.visibility = View.VISIBLE
+                layoutSelAsistensi.visibility = View.VISIBLE
+                layoutTipePanen.visibility = View.VISIBLE
 
-                // Make auto scan layout visible again when blok banjir is off
+                blokList = emptyList()
+                kemandoranList = emptyList()
+                kemandoranLainList = emptyList()
+                tphList = emptyList()
+
+                // Don't reset karyawan lists
+                // karyawanList = emptyList()
+                // karyawanLainList = emptyList()
+
+                setupSpinnerView(layoutBlok, emptyList())
+                setupSpinnerView(layoutNoTPH, emptyList())
+                setupSpinnerView(layoutKemandoran, emptyList())
+
+                // Repopulate pemanen spinners with cached data
+                if (cachedKaryawanList.isNotEmpty()) {
+                    val karyawanNames = cachedKaryawanList
+                        .sortedBy { it.nama }
+                        .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                    setupSpinnerView(layoutPemanen, karyawanNames)
+                } else {
+                    setupSpinnerView(layoutPemanen, emptyList())
+                }
+
+                etAncak.setText("")
+                ancakInput = ""
+
+                selectedTipePanen = ""
+                setupSpinnerView(layoutTipePanen, tipePanenOptions)
+
+                // Reset selected values
+                selectedTahunTanamValue = null
+                selectedBlok = ""
+                selectedBlokValue = null
+                selectedTPH = ""
+                selectedTPHValue = null
+                selectedKemandoranLain = ""
+
+                // Clear adapters if they exist
+                selectedPemanenAdapter.clearAllWorkers()
+                selectedPemanenLainAdapter.clearAllWorkers()
+
+                blokBanjir = 1
+
+                alertCardScanRadius.visibility = View.GONE
+                alertTvScannedRadius.visibility = View.GONE
+                btnScanTPHRadius.visibility = View.GONE
+                titleScannedTPHInsideRadius.visibility = View.GONE
+                descScannedTPHInsideRadius.visibility = View.GONE
+                emptyScannedTPHInsideRadius.visibility = View.GONE
+                tphScannedResultRecyclerView.visibility = View.GONE
+
+                tvErrorScannedNotSelected.visibility = View.GONE
+
+                resetAllCounters()
+
+                //reset all image
+                photoCount = 0
+                photoFiles.clear()
+                komentarFoto.clear()
+                takeFotoPreviewAdapter?.resetAllSections()
+            } else {
+                if (switchAsistensi.isChecked) {
+                    switchAsistensi.isChecked = false
+                }
+                blokBanjir = 0
                 layoutAutoScan.visibility = View.VISIBLE
+                setupSpinnerView(layoutBlok, emptyList())
+                setupSpinnerView(layoutNoTPH, emptyList())
+                setupSpinnerView(layoutKemandoran, emptyList())
+
+                etAncak.setText("")
+                ancakInput = ""
+
+                selectedTipePanen = ""
+                setupSpinnerView(layoutTipePanen, tipePanenOptions)
+                layoutTahunTanam.visibility = View.GONE
+                layoutBlok.visibility = View.GONE
+                layoutNoTPH.visibility = View.GONE
+                layoutAncak.visibility = View.GONE
+                layoutKemandoran.visibility = View.GONE
+                layoutPemanen.visibility = View.GONE
+                layoutSelAsistensi.visibility = View.GONE
+                layoutTipePanen.visibility = View.GONE
+                blokList = emptyList()
+                kemandoranList = emptyList()
+                kemandoranLainList = emptyList()
+                tphList = emptyList()
+
+                // Don't reset karyawan lists
+                // karyawanList = emptyList()
+                // karyawanLainList = emptyList()
+
+                selectedTahunTanamValue = null
+                selectedBlok = ""
+                selectedBlokValue = null
+                selectedTPH = ""
+                selectedTPHValue = null
+                selectedKemandoranLain = ""
+
+                selectedPemanenAdapter.clearAllWorkers()
+                selectedPemanenLainAdapter.clearAllWorkers()
+                resetAllCounters()
+
+                //reset all image
+                photoCount = 0
+                photoFiles.clear()
+                komentarFoto.clear()
+                takeFotoPreviewAdapter?.resetAllSections()
             }
+
+            // Restore karyawan lists after all other operations
+            karyawanList = cachedKaryawanList
+            karyawanLainList = cachedKaryawanLainList
         }
     }
+
+
     private fun setupSwitchAsistensi() {
         val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
 
@@ -1896,54 +2125,45 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
-        val isKemandoranEmpty = selectedKemandoran.isEmpty()
+        // Reset error indicators for primary group
+        layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.GONE
+        layoutPemanen.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+            ContextCompat.getColor(this, R.color.graytextdark)
+        layoutKemandoran.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.GONE
+        layoutKemandoran.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+            ContextCompat.getColor(this, R.color.graytextdark)
+
+        // Check if at least one worker is selected in primary group
         val isPemanenEmpty = selectedPemanen.isEmpty()
         val selectedPemanenWorkers = selectedPemanenAdapter.getSelectedWorkers()
         val arePemanenWorkersSelected = !selectedPemanenWorkers.isEmpty()
 
-        isPrimaryGroupFilled = !isKemandoranEmpty && !isPemanenEmpty && arePemanenWorkersSelected
-
-        layoutKemandoran.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.GONE
-        layoutKemandoran.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
-            ContextCompat.getColor(this, R.color.graytextdark)
-        layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility = View.GONE
-        layoutPemanen.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
-            ContextCompat.getColor(this, R.color.graytextdark)
+        // Primary group is valid if pemanen is selected with at least one worker
+        isPrimaryGroupFilled = !isPemanenEmpty && arePemanenWorkersSelected
 
         if (isAsistensiEnabled) {
-            val isKemandoranLainEmpty = selectedKemandoranLain.isEmpty()
-            val isPemanenLainEmpty = selectedPemanenLain.isEmpty()
-            val selectedPemanenLainWorkers = selectedPemanenLainAdapter.getSelectedWorkers()
-            val arePemanenLainWorkersSelected = !selectedPemanenLainWorkers.isEmpty()
-
             // Reset error indicators for secondary group
-            layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
-                View.GONE
-            layoutKemandoranLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
-                ContextCompat.getColor(this, R.color.graytextdark)
             layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
                 View.GONE
             layoutPemanenLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
                 ContextCompat.getColor(this, R.color.graytextdark)
+            layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                View.GONE
+            layoutKemandoranLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                ContextCompat.getColor(this, R.color.graytextdark)
 
-            // KEY CHANGE: Only require secondary group validation if primary group has no workers selected
+            // Check secondary group only if primary group has no workers selected
             if (!arePemanenWorkersSelected) {
-                // Secondary group is filled if both kemandoran_lain is selected AND pemanen_lain is selected with at least one worker
-                isSecondaryGroupFilled =
-                    !isKemandoranLainEmpty && !isPemanenLainEmpty && arePemanenLainWorkersSelected
-                AppLogger.d("Secondary group filled: $isSecondaryGroupFilled")
+                val isPemanenLainEmpty = selectedPemanenLain.isEmpty()
+                val selectedPemanenLainWorkers = selectedPemanenLainAdapter.getSelectedWorkers()
+                val arePemanenLainWorkersSelected = !selectedPemanenLainWorkers.isEmpty()
+
+                // Secondary group is filled if pemanen_lain is selected with at least one worker
+                isSecondaryGroupFilled = !isPemanenLainEmpty && arePemanenLainWorkersSelected
 
                 // If primary group has no workers AND secondary group is not filled, show errors
                 if (!isSecondaryGroupFilled) {
                     isValid = false
-
-                    if (isKemandoranLainEmpty) {
-                        layoutKemandoranLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
-                            View.VISIBLE
-                        layoutKemandoranLain.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
-                            ContextCompat.getColor(this, R.color.colorRedDark)
-                        missingFields.add(getString(R.string.field_kemandoran_lain))
-                    }
 
                     if (isPemanenLainEmpty) {
                         layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
@@ -1968,24 +2188,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             isSecondaryGroupFilled = false
         }
 
+        // Check if at least one group is properly filled
         if (!isPrimaryGroupFilled && (!isSecondaryGroupFilled || !isAsistensiEnabled)) {
             isValid = false
 
-            // Show errors for primary group if it's partially filled or missing workers
-            if (!isKemandoranEmpty && isPemanenEmpty) {
+            // Show errors for primary group if it's not properly filled
+            if (isPemanenEmpty) {
                 layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
                     View.VISIBLE
                 layoutPemanen.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
                     ContextCompat.getColor(this, R.color.colorRedDark)
                 missingFields.add(getString(R.string.field_pemanen))
-            } else if (isKemandoranEmpty && !isPemanenEmpty) {
-                layoutKemandoran.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
-                    View.VISIBLE
-                layoutKemandoran.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
-                    ContextCompat.getColor(this, R.color.colorRedDark)
-                missingFields.add(getString(R.string.field_kemandoran))
-            } else if (!isKemandoranEmpty && !isPemanenEmpty && !arePemanenWorkersSelected) {
-                // This is the key fix: Only show this error if both dropdowns are filled but no workers are selected
+            } else if (!arePemanenWorkersSelected) {
                 layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
                     View.VISIBLE
                 layoutPemanen.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
@@ -2539,10 +2753,84 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     null
                 }
 
-
                 if (filteredKemandoranId != null) {
                     AppLogger.d("Filtered Kemandoran ID: $filteredKemandoranId")
 
+                    // Show the filter container
+                    val filterContainer =
+                        linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+                    val removeFilterButton =
+                        filterContainer.findViewById<ImageView>(R.id.remove_filter)
+                    filterContainer.visibility = View.VISIBLE
+
+                    // Set up the remove filter button click listener
+                    removeFilterButton.setOnClickListener {
+                        // Hide the filter container
+                        vibrate()
+                        filterContainer.visibility = View.GONE
+
+                        // Don't try to reset the spinner index to -1
+                        // Instead, just clear our tracking variables
+                        selectedKemandoran = ""
+
+                        val kemandoranSpinner =
+                            linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+                        // Get the current adapter items
+                        val kemandoranItems = kemandoranList.map { it.nama }
+
+                        // Recreate the spinner with the same items (this will reset to hint)
+                        setupSpinnerView(linearLayout, kemandoranItems as List<String>)
+
+                        // Reload all karyawan - using original approach
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            withContext(Dispatchers.Main) {
+                                animateLoadingDots(linearLayout)
+                                delay(1000)
+                            }
+
+                            try {
+                                val karyawanDeferred = async {
+                                    panenViewModel.getAllKaryawan()
+                                    delay(100)
+                                    panenViewModel.allKaryawanList.value ?: emptyList()
+                                }
+
+                                karyawanList = karyawanDeferred.await()
+                                karyawanLainList = karyawanList
+
+                                val karyawanNames = karyawanList
+                                    .sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                                withContext(Dispatchers.Main) {
+                                    val layoutPemanen =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                    layoutPemanen.visibility = View.VISIBLE
+                                    if (karyawanNames.isNotEmpty()) {
+                                        setupSpinnerView(layoutPemanen, karyawanNames)
+                                    } else {
+                                        setupSpinnerView(layoutPemanen, emptyList())
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("Error reloading all karyawan: ${e.message}")
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        this@FeaturePanenTBSActivity,
+                                        "Error reloading worker data: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            } finally {
+                                withContext(Dispatchers.Main) {
+                                    hideLoadingDots(linearLayout)
+                                }
+                            }
+                        }
+                    }
+
+                    // Use the original filtering approach
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
                             animateLoadingDots(linearLayout)
@@ -2556,32 +2844,27 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             karyawanList = karyawanDeferred.await()
 
-                            val karyawanList = karyawanDeferred.await()
                             val karyawanNames = karyawanList
                                 .sortedBy { it.nama } // Sort by name alphabetically
-                                .map { "${it.nama} - ${it.nik}" }
-
+                                .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
                             withContext(Dispatchers.Main) {
                                 val layoutPemanen =
                                     linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
                                 layoutPemanen.visibility = View.VISIBLE
 
-
                                 if (karyawanNames.isNotEmpty()) {
                                     setupSpinnerView(layoutPemanen, karyawanNames)
                                 } else {
                                     setupSpinnerView(layoutPemanen, emptyList())
                                 }
-
                             }
-
                         } catch (e: Exception) {
-                            AppLogger.e("Error fetching afdeling data: ${e.message}")
+                            AppLogger.e("Error fetching karyawan data: ${e.message}")
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(
                                     this@FeaturePanenTBSActivity,
-                                    "Error loading afdeling data: ${e.message}",
+                                    "Error loading worker data: ${e.message}",
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -2657,6 +2940,78 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 if (selectedIdKemandoranLain != null) {
                     AppLogger.d("Selected ID Kemandoran Lain: $selectedIdKemandoranLain")
+
+                    val filterContainer =
+                        linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+                    val removeFilterButton =
+                        filterContainer.findViewById<ImageView>(R.id.remove_filter)
+                    filterContainer.visibility = View.VISIBLE
+
+                    // Set up the remove filter button click listener
+                    removeFilterButton.setOnClickListener {
+                        // Hide the filter container
+                        vibrate()
+                        filterContainer.visibility = View.GONE
+
+                        // Don't try to reset the spinner index to -1
+                        // Instead, just clear our tracking variables
+                        selectedKemandoranLain = ""
+
+                        val kemandoranSpinner =
+                            linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+                        // Get the current adapter items
+                        val kemandoranItems = kemandoranLainList.map { it.nama }
+
+                        // Recreate the spinner with the same items (this will reset to hint)
+                        setupSpinnerView(linearLayout, kemandoranItems as List<String>)
+
+                        // Reload all karyawan - using original approach
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            withContext(Dispatchers.Main) {
+                                animateLoadingDots(linearLayout)
+                                delay(1000)
+                            }
+
+                            try {
+                                val karyawanDeferred = async {
+                                    panenViewModel.getAllKaryawan()
+                                    delay(100)
+                                    panenViewModel.allKaryawanList.value ?: emptyList()
+                                }
+
+                                karyawanLainList = karyawanDeferred.await()
+
+                                val karyawanNames = karyawanLainList
+                                    .sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                                withContext(Dispatchers.Main) {
+                                    val layoutPemanen =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                                    layoutPemanen.visibility = View.VISIBLE
+                                    if (karyawanNames.isNotEmpty()) {
+                                        setupSpinnerView(layoutPemanen, karyawanNames)
+                                    } else {
+                                        setupSpinnerView(layoutPemanen, emptyList())
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("Error reloading all karyawan lain: ${e.message}")
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        this@FeaturePanenTBSActivity,
+                                        "Error reloading worker data: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            } finally {
+                                withContext(Dispatchers.Main) {
+                                    hideLoadingDots(linearLayout)
+                                }
+                            }
+                        }
+                    }
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
@@ -2831,22 +3186,26 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         formulas()
         updateCounterTextViews()
     }
-    // Modify your setupScanTPHTrigger function to include the auto scan switch
+
     private fun setupScanTPHTrigger() {
-        val alertCardScanRadius = findViewById<MaterialCardView>(R.id.alertCardScanRadius)
+        val alertCardScanRadius =
+            findViewById<MaterialCardView>(R.id.alertCardScanRadius)
         alertCardScanRadius.visibility = View.VISIBLE
 
-        val alertTvScannedRadius = findViewById<TextView>(R.id.alertTvScannedRadius)
+        val alertTvScannedRadius =
+            findViewById<TextView>(R.id.alertTvScannedRadius)
         alertTvScannedRadius.visibility = View.VISIBLE
 
-        val btnScanTPHRadius = findViewById<MaterialButton>(R.id.btnScanTPHRadius)
+        val btnScanTPHRadius =
+            findViewById<MaterialButton>(R.id.btnScanTPHRadius)
         btnScanTPHRadius.visibility = View.VISIBLE
 
         // Show auto scan switch when scanning is available
         layoutAutoScan.visibility = View.VISIBLE
 
         val radiusText = "${radiusMinimum.toInt()} m"
-        val text = "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
+        val text =
+            "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
         val asterisk = "*"
 
         val spannableScanTPHTitle =
@@ -2855,21 +3214,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 val endIndex = startIndex + radiusText.length
 
                 setSpan(
-                    StyleSpan(Typeface.BOLD),
+                    StyleSpan(Typeface.BOLD), // Make text bold
                     startIndex,
                     endIndex,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
 
                 setSpan(
-                    StyleSpan(Typeface.ITALIC),
+                    StyleSpan(Typeface.ITALIC), // Make text bold
                     startIndex,
                     endIndex,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
 
                 setSpan(
-                    ForegroundColorSpan(Color.RED),
+                    ForegroundColorSpan(Color.RED), // Make asterisk red
                     text.length,
                     length,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -2878,6 +3237,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         alertTvScannedRadius.text = spannableScanTPHTitle
     }
+
     /**
      * Sets up a layout with increment and decrement buttons for counters.
      */
@@ -3053,6 +3413,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         selectedTPHIdByScan = selectedTPH.id
         selectedTPHValue = selectedTPHIdByScan
         layoutAncak.visibility = View.VISIBLE
+        layoutTipePanen.visibility = View.VISIBLE
+        layoutKemandoran.visibility = View.VISIBLE
+        layoutPemanen.visibility = View.VISIBLE
+        layoutSelAsistensi.visibility = View.VISIBLE
     }
 
     private fun showPopupSearchDropdown(

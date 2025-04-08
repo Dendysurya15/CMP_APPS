@@ -373,29 +373,14 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     val maxHeight =
                         (context.resources.displayMetrics.heightPixels * 0.85).toInt()
 
-                    val dateCreatedRaw = data["date_created"] as? String ?: "-"
-                    val originalFormat =
-                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                    val displayFormat =
-                        SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
-
-                    val formattedDate = try {
-                        val date = originalFormat.parse(dateCreatedRaw)
-                        date?.let { displayFormat.format(it) } ?: "-"
-                    } catch (e: Exception) {
-                        "-"
-                    }
-
-
                     view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
-                        "Detail Pemanen - $formattedDate"
+                        "Detail Pemanen"
 
                     val jjgJsonStr =
                         data["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
                     val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
 
                     val infoItems = listOf(
-                        DetailInfoType.TANGGAL_BUAT to formattedDate,
                         DetailInfoType.KEMANDORAN_PEMANEN to "${data["nama_kemandorans"]}",
                         DetailInfoType.NAMA_PEMANEN to "${data["nama_karyawans"]}",
                         DetailInfoType.TOTAL_JANJANG to jjgJson.optDouble("TO", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
@@ -434,13 +419,84 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         }
                 }
             }
+            else if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 3) {
+                binding.td1.text = data["blok_name"].toString()
+                binding.td2.text = data["jumlah_transaksi"].toString()
+                binding.td3.text = data["jjg_total"].toString()
+                binding.td4.text = data["jjg_dibayar"].toString()
+                itemView.isClickable = true
+                itemView.isFocusable = true
+
+
+                itemView.setOnClickListener {
+
+
+                    AppLogger.d(data.toString())
+                    val context = itemView.context
+                    val bottomSheetDialog = BottomSheetDialog(context)
+                    val view = LayoutInflater.from(context)
+                        .inflate(R.layout.layout_bottom_sheet_detail_per_blok, null)
+
+                    view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
+                        "Detail Blok - ${data["nama_estate"]} ${data["nama_afdeling"]} ${data["blok_name"]}"
+
+                    view.findViewById<Button>(R.id.btnCloseDetailTable).setOnClickListener {
+                        bottomSheetDialog.dismiss()
+                    }
+
+                    bottomSheetDialog.show()
+
+                    bottomSheetDialog.setContentView(view)
+
+                    val maxHeight =
+                        (context.resources.displayMetrics.heightPixels * 0.85).toInt()
+
+                    val jjgJsonStr =
+                        data["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
+                    val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
+
+                    val infoItems = listOf(
+                        DetailInfoType.KEMANDORAN to "${data["nama_kemandorans"]}",
+                        DetailInfoType.NAMA_PEMANEN to "${data["nama_karyawans"]}",
+                        DetailInfoType.TOTAL_JANJANG to jjgJson.optDouble("TO", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK to jjgJson.optDouble("KP", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_BUAH_MASAK to jjgJson.optDouble("RI", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_JANJANG_DI_BAYAR to jjgJson.optDouble("PA", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_BUAH_MENTAH to jjgJson.optDouble("UN", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_LEWAT_MASAK to jjgJson.optDouble("OV", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_JJG_KOSONG to jjgJson.optDouble("EM", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_ABNORMAL to jjgJson.optDouble("AB", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_SERANGAN_TIKUS to jjgJson.optDouble("RA", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_TANGKAI_PANJANG to jjgJson.optDouble("LO", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                        DetailInfoType.TOTAL_DATA_TIDAK_VCUT to jjgJson.optDouble("TI", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
+                    )
+
+                    infoItems.forEach { (type, value) ->
+                        val itemView = view.findViewById<View>(type.id)
+                        if (itemView != null) {
+                            setInfoItemValues(itemView, type.label, value)
+                        }
+                    }
+                    bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                        ?.let { bottomSheet ->
+                            val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                            behavior.apply {
+                                this.peekHeight = maxHeight
+                                this.state = BottomSheetBehavior.STATE_EXPANDED
+                                this.isFitToContents = true
+                                this.isDraggable = false
+                            }
+                            bottomSheet.layoutParams?.height = maxHeight
+                        }
+                }
+            }
             else if(featureName == AppUtils.ListFeatureNames.BuatESPB ){
                 binding.td5.visibility = View.VISIBLE
                 val params = binding.td5.layoutParams as LinearLayout.LayoutParams
                 params.weight = 0.2f
                 binding.td5.layoutParams = params
 
-                // Set a different color based on username
                 val username = extractedData.username
                 val color = ListPanenTPHAdapter().getUsernameColor(username, context)
                 binding.td5.setBackgroundColor(color)
@@ -449,7 +505,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 binding.td3.text = extractedData.tanggalText
                 binding.td4.text = extractedData.username
             }
-
             else {
                 binding.td1.text = extractedData.blokText
                 binding.td2.text = extractedData.tphText

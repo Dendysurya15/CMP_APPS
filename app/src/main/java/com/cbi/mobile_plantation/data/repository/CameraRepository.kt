@@ -650,9 +650,6 @@ class CameraRepository(
             setOnClickListener {
                 isEnabled = false
 
-                loadingDialog.show()
-                loadingDialog.setMessage("Sedang mengambil foto...", isAnimate = true)
-
                 if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
                     capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
                     capReq.addTarget(imageReader!!.surface)
@@ -666,17 +663,12 @@ class CameraRepository(
                         capReq.set(CaptureRequest.CONTROL_AE_LOCK, true)
                     }
 
-
                     cameraCaptureSession?.capture(capReq.build(), object : CameraCaptureSession.CaptureCallback() {
                         override fun onCaptureCompleted(session: CameraCaptureSession, request: CaptureRequest, result: TotalCaptureResult) {
                             super.onCaptureCompleted(session, request, result)
 
-                            // Simulate processing time
+                            // Re-enable button after a short delay
                             Handler(Looper.getMainLooper()).postDelayed({
-                                // Dismiss loading dialog
-                                loadingDialog.dismiss()
-
-                                // Re-enable button
                                 isEnabled = true
                             }, 800)
                         }
@@ -684,21 +676,16 @@ class CameraRepository(
                         override fun onCaptureFailed(session: CameraCaptureSession, request: CaptureRequest, failure: CaptureFailure) {
                             super.onCaptureFailed(session, request, failure)
 
-                            // Dismiss after a short delay
+                            // Re-enable button after a short delay
                             Handler(Looper.getMainLooper()).postDelayed({
-                                loadingDialog.dismiss()
                                 isEnabled = true
                             }, 800)
                         }
                     }, null)
                 } else {
-                    // Show error and dismiss dialog if camera components are null
-                    loadingDialog.addStatusMessage("Camera error", LoadingDialog.StatusType.ERROR)
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        loadingDialog.dismiss()
-                        isEnabled = true
-                    }, 800)
+                    // Just log the error and re-enable the button
                     Log.e("CameraError", "CameraDevice or ImageReader is null")
+                    isEnabled = true
                 }
             }
         }
