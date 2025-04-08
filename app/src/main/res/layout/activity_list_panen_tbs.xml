@@ -654,6 +654,22 @@
         app:rippleColor="@color/bgLightOrange"
         app:tint="@color/white" />
 
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnGenerateQRTPHUnl"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="20dp"
+        android:layout_marginBottom="30dp"
+        android:src="@drawable/baseline_qr_code_scanner_24"
+        android:tooltipText="Generate QR TPH"
+        android:visibility="gone"
+        app:backgroundTint="@color/greendarkerbutton"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btnGenerateQRTPH"
+        app:maxImageSize="30dp"
+        app:rippleColor="@color/bgLightOrange"
+        app:tint="@color/white" />
+
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnEditEspb"
