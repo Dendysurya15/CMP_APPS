@@ -12,6 +12,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.Settings
 import android.util.Base64
+import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.AccelerateInterpolator
@@ -77,6 +78,54 @@ object AppUtils {
 
     fun makeDateString(day: Int, month: Int, year: Int): String {
         return "${getMonthFormat(month)} $day $year"
+    }
+
+    // Add this to AppUtils.kt
+    fun parseDateFromDisplay(displayDate: String): Triple<Int, Int, Int>? {
+        try {
+            // Assuming format is "Month DD YYYY" (e.g., "April 08 2025")
+            val parts = displayDate.split(" ")
+            if (parts.size != 3) return null
+
+            val monthName = parts[0]
+            val day = parts[1].toInt()
+            val year = parts[2].toInt()
+
+            // Convert month name to month number (1-12)
+            val month = when (monthName.toLowerCase()) {
+                "january" -> 1
+                "february" -> 2
+                "march" -> 3
+                "april" -> 4
+                "may" -> 5
+                "june" -> 6
+                "july" -> 7
+                "august" -> 8
+                "september" -> 9
+                "october" -> 10
+                "november" -> 11
+                "december" -> 12
+                // Add Indonesian month names if needed
+                "januari" -> 1
+                "februari" -> 2
+                "maret" -> 3
+                "april" -> 4
+                "mei" -> 5
+                "juni" -> 6
+                "juli" -> 7
+                "agustus" -> 8
+                "september" -> 9
+                "oktober" -> 10
+                "november" -> 11
+                "desember" -> 12
+                else -> return null
+            }
+
+            return Triple(day, month, year)
+        } catch (e: Exception) {
+            Log.e("AppUtils", "Error parsing date: ${e.message}")
+            return null
+        }
     }
 
     fun getMonthFormat(month: Int): String {

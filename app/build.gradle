@@ -113,4 +113,7 @@ dependencies {
     implementation 'net.lingala.zip4j:zip4j:2.11.5'
     implementation 'com.github.chrisbanes:PhotoView:2.3.0'
 
+    implementation "androidx.work:work-runtime-ktx:2.8.1"  // Use the latest version
+
+
 }

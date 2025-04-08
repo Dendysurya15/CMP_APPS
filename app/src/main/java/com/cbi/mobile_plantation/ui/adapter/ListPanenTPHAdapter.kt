@@ -713,7 +713,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 binding.numListTerupload.visibility = View.GONE
                 binding.checkBoxPanen.setOnCheckedChangeListener(null)
                 binding.checkBoxPanen.isChecked = isSelected
-                binding.checkBoxPanen.isEnabled = !isScannedItem
+//                binding.checkBoxPanen.isEnabled = !isScannedItem
 
                 val checkedColor = if (isScannedItem) {
                     ContextCompat.getColor(context, R.color.greenDarker)

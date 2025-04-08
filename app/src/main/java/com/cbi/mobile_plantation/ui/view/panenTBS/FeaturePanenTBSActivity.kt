@@ -259,12 +259,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
+    // Add these properties to your FeaturePanenTBSActivity class
+    private var autoScanEnabled = false
+    private val autoScanHandler = Handler(Looper.getMainLooper())
+    private val autoScanInterval = 5000L // 5 seconds
+    private lateinit var switchAutoScan: SwitchMaterial
+    private lateinit var layoutAutoScan: LinearLayout
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_panen_tbs)
         //cek tanggal otomatis
         checkDateTimeSettings()
+        initializeAutoScan()
     }
 
     private fun checkDateTimeSettings() {
@@ -630,9 +638,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             val tphId = selectedTPHValue!!.toInt()
                                             val currentCount = panenStoredLocal[tphId] ?: 0
                                             panenStoredLocal[tphId] = currentCount + 1
-
                                             resetFormAfterSaveData()
-
                                             val totalPanenCount = panenStoredLocal.values.sum()
                                             AppLogger.d("Total panen count after update: $totalPanenCount")
 
@@ -1895,6 +1901,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val cachedKaryawanLainList = karyawanLainList
 
             if (isChecked) {
+                // Stop auto scan if it's running
+                autoScanEnabled = false
+                switchAutoScan.isChecked = false
+                autoScanHandler.removeCallbacks(autoScanRunnable)
+
+                // Hide auto scan layout
+                layoutAutoScan.visibility = View.GONE
+
+                // Rest of your existing code...
                 if (switchAsistensi.isChecked) {
                     switchAsistensi.isChecked = false
                 }
@@ -1972,7 +1987,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     switchAsistensi.isChecked = false
                 }
                 blokBanjir = 0
-
+                layoutAutoScan.visibility = View.VISIBLE
                 setupSpinnerView(layoutBlok, emptyList())
                 setupSpinnerView(layoutNoTPH, emptyList())
                 setupSpinnerView(layoutKemandoran, emptyList())
@@ -3185,6 +3200,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             findViewById<MaterialButton>(R.id.btnScanTPHRadius)
         btnScanTPHRadius.visibility = View.VISIBLE
 
+        // Show auto scan switch when scanning is available
+        layoutAutoScan.visibility = View.VISIBLE
+
         val radiusText = "${radiusMinimum.toInt()} m"
         val text =
             "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
@@ -3713,8 +3731,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     override fun onPause() {
         super.onPause()
+        // Stop auto scanning when activity is paused
+        autoScanEnabled = false
+        autoScanHandler.removeCallbacks(autoScanRunnable)
+
+        // Your existing onPause code...
         locationViewModel.stopLocationUpdates()
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    // Add this to your setupUI or initializeActivity function
+    private fun initializeAutoScan() {
+        setupAutoScanSwitch()
     }
 
     override fun onDestroy() {
@@ -3753,6 +3781,47 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Glide.with(this)
                 .load(photoFile)
                 .into(it.imageView)
+        }
+    }
+
+    // Add this runnable for automatic scanning
+    private val autoScanRunnable = object : Runnable {
+        override fun run() {
+            if (autoScanEnabled) {
+                // Call the scan function
+                checkScannedTPHInsideRadius()
+                // Schedule the next scan
+                autoScanHandler.postDelayed(this, autoScanInterval)
+            }
+        }
+    }
+
+    // Add this function to setup the auto scan switch
+    private fun setupAutoScanSwitch() {
+        layoutAutoScan = findViewById(R.id.layoutAutoScan)
+        switchAutoScan = findViewById(R.id.switchAutoScan)
+
+        switchAutoScan.setOnCheckedChangeListener { _, isChecked ->
+            autoScanEnabled = isChecked
+
+            if (isChecked) {
+                // Start automatic scanning
+                autoScanHandler.post(autoScanRunnable)
+                // Show toast notification
+                Toast.makeText(
+                    this@FeaturePanenTBSActivity,
+                    "Auto-refresh TPH setiap 5 detik diaktifkan",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                // Stop automatic scanning
+                autoScanHandler.removeCallbacks(autoScanRunnable)
+                Toast.makeText(
+                    this@FeaturePanenTBSActivity,
+                    "Auto-refresh TPH dinonaktifkan",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 
