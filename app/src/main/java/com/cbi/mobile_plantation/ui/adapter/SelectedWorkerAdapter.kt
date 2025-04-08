@@ -1,5 +1,6 @@
 package com.cbi.mobile_plantation.ui.adapter
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -7,6 +8,8 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 
 data class Worker(val id: String, val name: String)  // Define a Worker model
 
@@ -17,6 +20,7 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val workerName: TextView = view.findViewById(R.id.worker_name)
         val removeButton: ImageView = view.findViewById(R.id.remove_worker)
+        val context: Context = view.context // Store the context
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -29,7 +33,7 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
         val worker = selectedWorkers[position]
         holder.workerName.text = worker.name.uppercase() // Display name
         holder.removeButton.setOnClickListener {
-            removeWorker(position)
+            removeWorker(position, holder.context)
         }
     }
 
@@ -42,8 +46,9 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
         }
     }
 
-    private fun removeWorker(position: Int) {
+    private fun removeWorker(position: Int, context: Context) {
         selectedWorkers.removeAt(position)
+        context.vibrate() // Use the extension function
         notifyDataSetChanged()
     }
 

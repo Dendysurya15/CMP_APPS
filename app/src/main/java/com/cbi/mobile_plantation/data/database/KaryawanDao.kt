@@ -27,6 +27,9 @@ abstract class KaryawanDao {
         insertAll(karyawan)
     }
 
+    @Query("SELECT * FROM karyawan ORDER BY nama ASC")
+    abstract suspend fun getAllKaryawan(): List<KaryawanModel>
+
     @Query("SELECT COUNT(*) FROM karyawan")
     abstract suspend fun getCount(): Int
 

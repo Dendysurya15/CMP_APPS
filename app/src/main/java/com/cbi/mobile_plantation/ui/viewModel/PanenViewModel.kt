@@ -30,6 +30,8 @@ sealed class SaveDataPanenState {
 class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: AppRepository = AppRepository(application)
 
+    private val _allKaryawanList = MutableLiveData<List<KaryawanModel>>()
+    val allKaryawanList: LiveData<List<KaryawanModel>> = _allKaryawanList
 
     private val _panenCountTPHESPB = MutableLiveData<Int>()
     val panenCountTPHESPB: LiveData<Int> get() = _panenCountTPHESPB
@@ -204,6 +206,18 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _updateStatus.postValue(false)
             }
+        }
+    }
+
+    fun getAllKaryawan() {
+        viewModelScope.launch {
+            repository.getAllKaryawan()
+                .onSuccess { karyawanList ->
+                    _allKaryawanList.postValue(karyawanList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load karyawan data")
+                }
         }
     }
 

@@ -2347,6 +2347,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         multiWorkerData.add(workerData)
                                     }
 
+
+                                    AppLogger.d("multiWorkerData $multiWorkerData")
                                     allWorkerData.addAll(multiWorkerData)
 
                                     emptyList<Map<String, Any>>()
@@ -2582,6 +2584,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "TO", "UN", "OV", "EM", "AB", "RA", "LO", "TI", "RI", "KP", "PA"
                                 )
 
+
+                                AppLogger.d("allWorkerData $allWorkerData")
+
                                 for (blokData in allWorkerData) {
                                     val blokName = blokData["blok_name"].toString()
                                     AppLogger.d("Global processing blok: $blokName")
@@ -2753,9 +2758,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                             val emptyStateMessage =
                                 if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2)
-                                    "Belum ada rekap data pemanen atau pastikan sudah menyimpan/konfirmasi scan"
+                                    "Belum ada rekap data per pemanen atau pastikan sudah menyimpan/konfirmasi scan"
+                                else if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 3){
+                                    "Belum ada rekap data per blok atau pastikan sudah menyimpan/konfirmasi scan"
+                                }
                                 else
-                                    "No saved data available"
+                                    "Tidak ada data"
 
                             tvEmptyState.text = emptyStateMessage
                             tvEmptyState.visibility = View.VISIBLE

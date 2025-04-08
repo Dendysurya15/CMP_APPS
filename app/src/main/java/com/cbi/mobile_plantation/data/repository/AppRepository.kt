@@ -60,6 +60,16 @@ class AppRepository(context: Context) {
     suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {
         return kemandoranDao.getKemandoranById(idKemandoran)
     }
+
+    suspend fun getAllKaryawan(): Result<List<KaryawanModel>> = withContext(Dispatchers.IO) {
+        try {
+            val data = karyawanDao.getAllKaryawan()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<SaveTPHResult> =
         withContext(Dispatchers.IO) {
             try {
