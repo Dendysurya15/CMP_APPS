@@ -183,27 +183,7 @@ class LoginActivity : AppCompatActivity() {
                     val token = loginResponse.data?.token
                     AppLogger.d("Login Success: $loginResponse")
                     if (token != null) {
-
-                        if (prefManager!!.registeredDeviceUsername != null &&
-                            prefManager!!.registeredDeviceUsername!!.isNotEmpty() &&
-                            prefManager!!.registeredDeviceUsername != usernameField.text.toString().trim()) {
-
-                            AlertDialogUtility.withSingleAction(
-                                this@LoginActivity,
-                                stringXML(R.string.al_back),
-                                "Perangkat Terdaftar untuk Pengguna Lain",
-                                "Perangkat ini sudah terdaftar untuk pengguna ${prefManager!!.registeredDeviceUsername}. Silakan gunakan akun yang terdaftar!",
-                                "warning.json",
-                                R.color.colorRedDark
-                            ) { }
-
-                            return@observe
-                        }
-
-                        if (prefManager!!.registeredDeviceUsername.isNullOrEmpty()) {
-                            prefManager!!.registeredDeviceUsername = usernameField.text.toString().trim()
-                        }
-
+                        datasetViewModel.clearAllData()
                         prefManager!!.isFirstTimeLaunch = true
                         prefManager!!.token = token
                         prefManager!!.username = usernameField.text.toString().trim()
@@ -218,6 +198,13 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.companyIdUserLogin = loginResponse.data?.user?.company
                         prefManager!!.companyAbbrUserLogin = loginResponse.data?.user?.company_abbr
                         prefManager!!.companyNamaUserLogin = loginResponse.data?.user?.company_nama
+                        prefManager!!.lastSyncDate = null
+                        prefManager!!.lastModifiedDatasetTPH = null
+                        prefManager!!.lastModifiedDatasetKemandoran = null
+                        prefManager!!.lastModifiedDatasetPemanen = null
+                        prefManager!!.lastModifiedDatasetTransporter = null
+                        prefManager!!.lastModifiedDatasetBlok = null
+                        prefManager!!.clearDatasetMustUpdate()
 
                         Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()
                         navigateToHomePage()
@@ -313,22 +300,6 @@ class LoginActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            if (prefManager!!.registeredDeviceUsername != null &&
-                prefManager!!.registeredDeviceUsername!!.isNotEmpty() &&
-                prefManager!!.registeredDeviceUsername != username) {
-
-                AlertDialogUtility.withSingleAction(
-                    this@LoginActivity,
-                    stringXML(R.string.al_back),
-                    "Perangkat Terdaftar untuk Pengguna Lain",
-                    "Perangkat ini sudah terdaftar untuk pengguna ${prefManager!!.registeredDeviceUsername}. Silakan gunakan akun yang terdaftar!",
-                    "warning.json",
-                    R.color.colorRedDark
-                ) { }
-
-                return@setOnClickListener
-            }
-
             lifecycleScope.launch {
                 loadingDialog.show()
                 loadingDialog.setMessage(
@@ -337,8 +308,8 @@ class LoginActivity : AppCompatActivity() {
                 ) // Checking credentials
                 delay(1000)
 
-                if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() &&
-                    prefManager?.username == username && prefManager?.password == password) {
+
+                if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() && prefManager?.username == username && prefManager?.password == password) {
                     navigateToHomePage()
                 } else {
                     if (AppUtils.isNetworkAvailable(this@LoginActivity)) {
@@ -361,7 +332,9 @@ class LoginActivity : AppCompatActivity() {
                         }
                     }
                 }
+
             }
+
         }
 
 

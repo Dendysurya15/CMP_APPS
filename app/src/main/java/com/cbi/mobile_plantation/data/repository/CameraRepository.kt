@@ -46,6 +46,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
+import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.daimajia.androidanimations.library.Techniques
@@ -230,15 +231,17 @@ class CameraRepository(
     ) {
         setDefaultIconTorchButton(view)
         loadingDialog = LoadingDialog(context)
-//        val rootDCIM = File(
-//            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
-//            "CMP-$featureName" // Store under "CMP-featureName"
-//        ).toString()
+        val rootDCIM = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
+            "CMP-$featureName" // Store under "CMP-featureName"
+        ).toString()
 
         val rootApp = File(
             context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
             "CMP-$featureName" // Store under "CMP-featureName"
         ).toString()
+
+        AppLogger.d(rootApp)
 
         view.visibility = View.VISIBLE
         textureViewCam = TextureView(context)
@@ -426,8 +429,8 @@ class CameraRepository(
                                             val dirApp = File(rootApp)
                                             if (!dirApp.exists()) dirApp.mkdirs()
 
-//                                            val dirDCIM = File(rootDCIM)
-//                                            if (!dirDCIM.exists()) dirDCIM.mkdirs()
+                                            val dirDCIM = File(rootDCIM)
+                                            if (!dirDCIM.exists()) dirDCIM.mkdirs()
 
                                             val dateFormat =
                                                 SimpleDateFormat("yyyyMdd_HHmmss").format(Calendar.getInstance().time)
@@ -435,9 +438,9 @@ class CameraRepository(
                                                 "${featureName}_${kodeFoto}_${dateFormat}.jpg"
                                             file = File(dirApp, fileName)
 
-//                                            fileDCIM = File(dirDCIM, fileName)
-//                                            if (fileDCIM.exists()) fileDCIM.delete()
-//                                            addToGallery(fileDCIM)
+                                            fileDCIM = File(dirDCIM, fileName)
+                                            if (fileDCIM.exists()) fileDCIM.delete()
+                                            addToGallery(fileDCIM)
 
                                             if (file.exists()) file.delete()
                                             addToGallery(file)

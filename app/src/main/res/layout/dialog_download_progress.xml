@@ -59,7 +59,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="File Data"
+            android:text="File Data: "
             android:layout_marginLeft="10dp"
             android:id="@+id/tv_title_progress_jumlah"
             android:textColor="@color/black"
@@ -74,9 +74,46 @@
             android:layout_height="wrap_content"
             android:id="@+id/counter_dataset"
             android:textColor="@color/black"
+            android:fontFamily="@font/manrope_semibold"
             android:layout_marginLeft="5dp"
             android:textSize="@dimen/m"
             />
+
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        android:id="@+id/counterSizeFile"
+        tools:ignore="MissingConstraints">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Total: "
+            android:layout_marginLeft="10dp"
+            android:textColor="@color/black"
+            android:paddingVertical="5dp"
+            android:textStyle="bold"
+            android:fontFamily="@font/manrope_medium"
+            android:textSize="@dimen/m"
+            />
+
+
+        <TextView
+            android:id="@+id/total_size_progress"
+            android:layout_width="match_parent"
+            android:layout_marginLeft="5dp"
+            android:layout_height="wrap_content"
+            android:text="0 KB / 0 KB (0%)"
+            android:textColor="@color/black"
+            android:fontFamily="@font/manrope_semibold"
+            android:gravity="left"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
 
     </LinearLayout>
 

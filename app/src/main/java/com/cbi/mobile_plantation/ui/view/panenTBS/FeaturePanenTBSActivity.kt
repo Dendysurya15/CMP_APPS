@@ -594,6 +594,23 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             val currentCount = panenStoredLocal[tphId] ?: 0
                                             panenStoredLocal[tphId] = currentCount + 1
                                             resetFormAfterSaveData()
+                                            val totalPanenCount = panenStoredLocal.values.sum()
+                                            AppLogger.d("Total panen count after update: $totalPanenCount")
+
+                                            if (totalPanenCount >= AppUtils.MAX_ALERT_FOR_GENERATE_QR) {
+
+                                                AlertDialogUtility.withSingleAction(
+                                                    this@FeaturePanenTBSActivity,
+                                                    stringXML(R.string.al_back),
+                                                    stringXML(R.string.al_notified_alert),
+                                                    stringXML(R.string.al_notify_to_generate_qr_after_60_transaction),
+                                                    "warning.json",
+                                                    R.color.orangeButton
+                                                ) {
+                                                    AppLogger.d("alert show")
+                                                }
+
+                                            }
                                         }
                                     }
 
@@ -729,17 +746,50 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         }
 
-        val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
+        val divisiNames =
+            divisiList.sortedBy { it.divisi_abbr }.mapNotNull { it.divisi_abbr }
+
+        AppLogger.d(divisiList.toString())
         setupSpinnerView(findViewById(R.id.layoutAfdeling), divisiNames)
 
         val afdelingLayout = findViewById<LinearLayout>(R.id.layoutAfdeling)
         val afdelingSpinner = afdelingLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
 
-        afdelingSpinner.setSelectedIndex(selectedAfdelingIdSpinner)
+        // Log the current state for debugging
+        AppLogger.d("Before reset - selectedAfdelingIdSpinner: $selectedAfdelingIdSpinner, selectedAfdeling: $selectedAfdeling")
+        AppLogger.d("Available divisions: $divisiNames")
 
-        if (selectedAfdelingIdSpinner >= 0 && selectedAfdelingIdSpinner < divisiNames.size) {
-            val selectedItem = divisiNames[selectedAfdelingIdSpinner]
-            handleItemSelection(afdelingLayout, selectedAfdelingIdSpinner, selectedItem)
+        // First try to find the position by name (this handles reordering)
+        var newPosition = divisiNames.indexOf(selectedAfdeling)
+
+        // If we can't find the name or it's invalid, fall back to the stored index
+        if (newPosition < 0) {
+            AppLogger.d("Previously selected afdeling '$selectedAfdeling' not found in the list, using stored index")
+            newPosition = selectedAfdelingIdSpinner
+        }
+
+        // Ensure the position is valid for the current list
+        val safePosition = when {
+            newPosition < 0 -> 0  // Default to first item if negative
+            newPosition >= divisiNames.size -> 0  // Default to first if beyond list bounds
+            else -> newPosition  // Use the calculated position if it's valid
+        }
+
+        AppLogger.d("Setting spinner to position $safePosition")
+
+        // Set the spinner to the calculated position
+        afdelingSpinner.setSelectedIndex(safePosition)
+
+        // Update our stored variables to match what's now selected
+        if (safePosition >= 0 && safePosition < divisiNames.size) {
+            val selectedItem = divisiNames[safePosition]
+            selectedAfdelingIdSpinner = safePosition
+            selectedAfdeling = selectedItem
+
+            // Trigger any necessary UI updates based on this selection
+            handleItemSelection(afdelingLayout, safePosition, selectedItem)
+
+            AppLogger.d("After reset - selectedAfdelingIdSpinner: $selectedAfdelingIdSpinner, selectedAfdeling: $selectedAfdeling")
         }
 
         setupSpinnerView(findViewById(R.id.layoutTahunTanam), emptyList())

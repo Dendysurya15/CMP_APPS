@@ -1,10 +1,15 @@
 package com.cbi.mobile_plantation.ui.view.espb
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
@@ -32,6 +37,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -53,11 +59,14 @@ import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
+import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.setMaxBrightness
+import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.ScreenshotUtil
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.flexbox.FlexboxLayoutManager
@@ -72,6 +81,7 @@ import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -102,6 +112,7 @@ class FormESPBActivity : AppCompatActivity() {
     private lateinit var thp1Map: Map<Int, Int>
     private lateinit var kemandoranMap: Map<String, Int>
     private lateinit var karyawanNikMap: Map<String, String>
+    private var pemuatNama = "-"
 
     var idsToUpdate = listOf<Int>()
     var idsToUpdateNo = listOf<Int>()
@@ -129,7 +140,7 @@ class FormESPBActivity : AppCompatActivity() {
 
     private var prefManager: PrefManager? = null
     private var divisiList: List<TPHNewModel> = emptyList()
-
+    private lateinit var weightBridgeViewModel: WeighBridgeViewModel
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
     private val dateTimeCheckRunnable = object : Runnable {
         override fun run() {
@@ -145,10 +156,11 @@ class FormESPBActivity : AppCompatActivity() {
         checkDateTimeSettings()
     }
 
-    private fun setupUI(){
-        findViewById<ConstraintLayout>(R.id.headerFormESPB).findViewById<ImageView>(R.id.statusLocation).apply {
-            visibility = View.GONE
-        }
+    private fun setupUI() {
+        findViewById<ConstraintLayout>(R.id.headerFormESPB).findViewById<ImageView>(R.id.statusLocation)
+            .apply {
+                visibility = View.GONE
+            }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 AlertDialogUtility.withTwoActions(
@@ -186,6 +198,7 @@ class FormESPBActivity : AppCompatActivity() {
             Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 0 $e", Toasty.LENGTH_LONG)
                 .show()
         }
+        AppLogger.d(tph1)
         try {
             tph1 = removeRecordsWithStatus2(intent.getStringExtra("tph_1").toString())
             Log.d("FormESPBActivityTPH1", "tph1: $tph1")
@@ -193,6 +206,9 @@ class FormESPBActivity : AppCompatActivity() {
             Toasty.error(this, "Terjadi Kesalahan saat mengambil TPH 1 $e", Toasty.LENGTH_LONG)
                 .show()
         }
+
+
+        AppLogger.d(tph1.toString())
         try {
             ///tph1IdPanen is sometin like 1,23,4,5,2,3
             tph1IdPanen = intent.getStringExtra("tph_1_id_panen").toString()
@@ -229,7 +245,7 @@ class FormESPBActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Toasty.error(
                 this,
-                "Terjadi Kesalahan saat mengambil idsToUpdateNo $e",
+                "Tidak terdapat data scan TPH dari driver! $e",
                 Toasty.LENGTH_LONG
             ).show()
         }
@@ -242,7 +258,7 @@ class FormESPBActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Toasty.error(
                 this,
-                "Terjadi Kesalahan saat mengambil idsTpUpdateAdd $e",
+                "Tidak terdapat data scan TPH dari driver! $e",
                 Toasty.LENGTH_LONG
             ).show()
         }
@@ -256,7 +272,7 @@ class FormESPBActivity : AppCompatActivity() {
             janjangMap.forEach { (blockId, janjangSum) ->
                 Log.d("BlockJanjang", "Block $blockId: $janjangSum janjang")
             }
-AppLogger.d("jjgMap $janjangMap")
+            AppLogger.d("jjgMap $janjangMap")
             // Convert the map to string format INSIDE the observer
             formattedJanjangString = convertJanjangMapToString(janjangMap)
             Log.d("FormattedJanjang", "Formatted string: $formattedJanjangString")
@@ -648,7 +664,44 @@ AppLogger.d("jjgMap $janjangMap")
                 .map { it.toString() }
                 .joinToString(",")
 
-            val pemuatListId = selectedPemanen.map { it.id }
+            runBlocking {
+                try {
+                    val idKaryawanStringList = idKaryawanList.map { it.toString() }
+
+                    val job = lifecycleScope.async(Dispatchers.IO) {
+                        try {
+                            val result = weightBridgeViewModel.getPemuatByIdList(idKaryawanStringList)
+                            result?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
+                                ?.joinToString(", ") ?: "-"
+                        } catch (e: Exception) {
+                            AppLogger.e("Gagal mendapatkan data pemuat: ${e.message}")
+                            "-"
+                        }
+                    }
+
+                    // Wait for the job to complete and get the result
+                    pemuatNama = job.await()
+
+                } catch (e: Exception) {
+                    AppLogger.e("Error getting pemuat data: ${e.message}")
+                    pemuatNama = "-"
+
+                    withContext(Dispatchers.Main) {
+                        Toasty.error(
+                            this@FormESPBActivity,
+                            "Terjadi kesalahan saat mengambil data pemuat",
+                            Toasty.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+
+
+            AppLogger.d(tph1)
+            val blokDisplay = getFormattedBlokDisplay(tph1)
+
+            AppLogger.d(blokDisplay)
+
             if (selectedNopol == "NULL" || selectedNopol == "") {
                 Toasty.error(
                     this,
@@ -745,7 +798,7 @@ AppLogger.d("jjgMap $janjangMap")
                             pemuat_nik = uniqueNikPemanen,
                             kemandoran_id = uniqueKemandoranId
                         )
-                        AppLogger.d(json)
+
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
                         val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
                         ListPanenTBSActivity().generateHighQualityQRCode(
@@ -755,6 +808,8 @@ AppLogger.d("jjgMap $janjangMap")
                         setMaxBrightness(this, true)
                         playSound(R.raw.berhasil_generate_qr)
 //                        btKonfirmScanESPB.isEnabled = true
+
+                        takeQRCodeScreenshot(qrCodeImageView, pemuatNama, driver, blokDisplay)
                     }
 //                    btnGenerateQRESPB.isEnabled = true
                 },
@@ -810,6 +865,150 @@ AppLogger.d("jjgMap $janjangMap")
     private fun initViewModel() {
         val factory = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
+        val factory2 = WeighBridgeViewModel.WeightBridgeViewModelFactory(application)
+        weightBridgeViewModel = ViewModelProvider(this, factory2)[WeighBridgeViewModel::class.java]
+    }
+
+    private fun takeQRCodeScreenshot(sourceQrImageView: ImageView, pemuatNama :String, driver:String, blokDisplay:String) {
+
+        lifecycleScope.launch {
+            try {
+                // Inflate custom screenshot layout
+                val screenshotLayout = layoutInflater.inflate(R.layout.layout_screenshot_qr_mandor, null)
+
+                // Get references to views in the custom layout
+                val tvUserName = screenshotLayout.findViewById<TextView>(R.id.tvUserName)
+                val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
+                val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
+
+                // Get references to included layouts
+                val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
+                val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
+                val infoTotalTransaksi = screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+                val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
+                val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
+                val infoNopol = screenshotLayout.findViewById<View>(R.id.infoNopol)
+                val infoPemuat = screenshotLayout.findViewById<View>(R.id.infoPemuat)
+
+                // Helper function to set label and value for included layouts
+                fun setInfoData(includeView: View, labelText: String, valueText: String) {
+                    val tvLabel = includeView.findViewById<TextView>(R.id.tvLabel)
+                    val tvValue = includeView.findViewById<TextView>(R.id.tvValue)
+                    tvLabel.text = labelText
+                    tvValue.text = valueText
+                }
+
+                val tphRecords = tph1.split(";")
+
+                val tphIds = tphRecords.mapNotNull { record ->
+                    val parts = record.split(",")
+                    if (parts.isNotEmpty()) {
+                        parts[0].toIntOrNull()  // Extract the TPH ID (first part)
+                    } else {
+                        null
+                    }
+                }
+
+                val tphCount = tphIds.size
+
+                val blokJjgList = tphRecords.mapNotNull { record ->
+                    val parts = record.split(",")
+                    if (parts.size >= 3) {  // Make sure there are at least 3 parts
+                        val id = parts[0].toIntOrNull()
+                        val jjg = parts[2].toIntOrNull()  // The jjg value is at index 2
+                        if (id != null && jjg != null) {
+                            id to jjg
+                        } else {
+                            null
+                        }
+                    } else {
+                        null
+                    }
+                }
+
+                val totalJjg = blokJjgList.sumOf { it.second }
+
+                // Get the QR code bitmap from the passed ImageView
+                val qrBitmap = sourceQrImageView.drawable?.let { drawable ->
+                    if (drawable is BitmapDrawable) {
+                        drawable.bitmap
+                    } else {
+                        // Convert drawable to bitmap if not already a BitmapDrawable
+                        val bitmap = Bitmap.createBitmap(
+                            drawable.intrinsicWidth,
+                            drawable.intrinsicHeight,
+                            Bitmap.Config.ARGB_8888
+                        )
+                        val canvas = Canvas(bitmap)
+                        drawable.setBounds(0, 0, canvas.width, canvas.height)
+                        drawable.draw(canvas)
+                        bitmap
+                    }
+                }
+
+                // Set QR code image
+                qrCodeImageView.setImageBitmap(qrBitmap)
+
+                // Generate current date and time for footer
+                val currentDate = Date()
+                val indonesianLocale = Locale("id", "ID")
+                val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
+                val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                val formattedTime = timeFormat.format(currentDate)
+
+                // Set data for eSPB
+                tvUserName.text = "Hasil QR dari ${prefManager!!.nameUserLogin}"
+                setInfoData(infoBlokList, "Blok", ": $blokDisplay")
+                setInfoData(infoTotalJjg, "Total Janjang", ": $totalJjg")
+                setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": $tphCount")
+                setInfoData(infoNoESPB, "E-SPB", ": $noESPBStr")
+                setInfoData(infoDriver, "Driver", ": $driver")
+                setInfoData(infoNopol, "Nomor Polisi", ": $selectedNopol")
+                setInfoData(infoPemuat, "Pemuat", ": $pemuatNama")
+
+
+                tvFooter.text = "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
+
+                // Measure and layout the screenshot view
+                val displayMetrics = resources.displayMetrics
+                val width = displayMetrics.widthPixels
+                val height = LinearLayout.LayoutParams.WRAP_CONTENT
+
+                screenshotLayout.measure(
+                    View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                )
+
+                screenshotLayout.layout(
+                    0, 0, screenshotLayout.measuredWidth, screenshotLayout.measuredHeight
+                )
+
+                // Create a meaningful filename
+                val screenshotFileName = "eSPB_QR_${noESPBStr.replace("/", "_")}"
+
+                // Take the screenshot of the custom layout
+                val screenshotFile = ScreenshotUtil.takeScreenshot(
+                    screenshotLayout,
+                    screenshotFileName,
+                    AppUtils.WaterMarkFotoDanFolder.WMESPB
+                )
+
+                if (screenshotFile != null) {
+                    Toasty.success(this@FormESPBActivity, "QR sudah tersimpan digaleri", Toast.LENGTH_LONG, true).show()
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error taking QR screenshot: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@FormESPBActivity,
+                        "Gagal menyimpan QR Code: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -1070,7 +1269,7 @@ AppLogger.d("jjgMap $janjangMap")
         selectedItem: String
     ) {
         when (linearLayout.id) {
-            R.id.formEspbAfdeling->{
+            R.id.formEspbAfdeling -> {
 
                 val selectedDivisiId = try {
                     divisiList.find { it.divisi_abbr == selectedItem }?.divisi
@@ -1114,7 +1313,7 @@ AppLogger.d("jjgMap $janjangMap")
                             try {
                                 val kemandoranNames = kemandoranList.map { it.nama }
                                 setupSpinner(
-                                    R.id.formEspbKemandoran     ,
+                                    R.id.formEspbKemandoran,
                                     kemandoranNames as List<String>
                                 )
                             } catch (e: Exception) {
@@ -1133,6 +1332,7 @@ AppLogger.d("jjgMap $janjangMap")
                     }
                 }
             }
+
             R.id.formEspbKemandoran -> {
                 selectedKemandoranId = try {
                     kemandoranList.find { it.nama == selectedItem }?.id!!
@@ -1198,9 +1398,11 @@ AppLogger.d("jjgMap $janjangMap")
 
                 // Create a map to count occurrences of each name
                 val nameCounts = mutableMapOf<String, Int>()
-                pemuatList.forEach { it.nama?.trim()?.let { nama ->
-                    nameCounts[nama] = (nameCounts[nama] ?: 0) + 1
-                }}
+                pemuatList.forEach {
+                    it.nama?.trim()?.let { nama ->
+                        nameCounts[nama] = (nameCounts[nama] ?: 0) + 1
+                    }
+                }
 
                 // Update map keys to include NIK for duplicate names
                 pemuatList.forEach {
@@ -1310,6 +1512,98 @@ AppLogger.d("jjgMap $janjangMap")
         return gson.toJson(rootObject)
     }
 
+    private fun getFormattedBlokDisplay(tph1: String): String {
+        var formattedBlokDisplay = "-"
+
+        runBlocking {
+            try {
+                // Parse TPH records
+                val tphRecords = tph1.split(";")
+
+                // Extract TPH IDs
+                val tphIds = tphRecords.mapNotNull { record ->
+                    val parts = record.split(",")
+                    if (parts.isNotEmpty()) {
+                        parts[0].toIntOrNull()
+                    } else {
+                        null
+                    }
+                }
+
+                // Extract JJG data with TPH ID mapping
+                val tphJjgMap = tphRecords.mapNotNull { record ->
+                    val parts = record.split(",")
+                    if (parts.size >= 3) {
+                        val id = parts[0].toIntOrNull()
+                        val jjg = parts[2].toIntOrNull()
+                        if (id != null && jjg != null) {
+                            id to jjg
+                        } else {
+                            null
+                        }
+                    } else {
+                        null
+                    }
+                }.toMap()
+
+                // Fetch TPH data from database
+                val tphList = withContext(Dispatchers.IO) {
+                    datasetViewModel.getTPHsByIds(tphIds)
+                }
+
+                // Create a lookup map of id to TPH
+                val tphLookupMap = tphList.associateBy { it.id }
+
+                // Process each record separately
+                val blokJjgMap = mutableMapOf<String, Int>()
+                val blokCountMap = mutableMapOf<String, Int>()
+
+                tphRecords.forEach { record ->
+                    val parts = record.split(",")
+                    if (parts.size >= 3) {
+                        val tphId = parts[0].toIntOrNull()
+                        val jjg = parts[2].toIntOrNull() ?: 0
+
+                        if (tphId != null) {
+                            val tph = tphLookupMap[tphId]
+                            val blokKode = tph?.blok_kode ?: "-"
+
+                            // Increment JJG sum for this block
+                            blokJjgMap[blokKode] = (blokJjgMap[blokKode] ?: 0) + jjg
+
+                            // Increment record count for this block
+                            blokCountMap[blokKode] = (blokCountMap[blokKode] ?: 0) + 1
+                        }
+                    }
+                }
+
+                // Build the formatted display string
+                formattedBlokDisplay = blokJjgMap.keys
+                    .sortedBy { it }
+                    .mapNotNull { blokKode ->
+                        val jjgSum = blokJjgMap[blokKode] ?: 0
+                        val recordCount = blokCountMap[blokKode] ?: 0
+
+                        if (recordCount > 0) {
+                            "$blokKode($jjgSum/$recordCount)"
+                        } else {
+                            null
+                        }
+                    }
+                    .joinToString(", ")
+
+                if (formattedBlokDisplay.isEmpty()) {
+                    formattedBlokDisplay = "-"
+                }
+
+            } catch (e: Exception) {
+                AppLogger.e("Error formatting blok display: ${e.message}")
+                formattedBlokDisplay = "-"
+            }
+        }
+
+        return formattedBlokDisplay
+    }
     class ESPBViewModelFactory(private val repository: AppRepository) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(ESPBViewModel::class.java)) {
@@ -1373,7 +1667,7 @@ AppLogger.d("jjgMap $janjangMap")
         transporter_id: Int,
         pemuat_id: String,
         kemandoran_id: String,
-        pemuat_nik:String,
+        pemuat_nik: String,
         mill_id: Int,
         tph0: String,
         tph1: String,
@@ -1425,12 +1719,16 @@ AppLogger.d("jjgMap $janjangMap")
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        Toasty.error(this@FormESPBActivity, "Gagal menyimpan ESPB: ID tidak valid", Toasty.LENGTH_LONG).show()
+                        Toasty.error(
+                            this@FormESPBActivity,
+                            "Gagal menyimpan ESPB: ID tidak valid",
+                            Toasty.LENGTH_LONG
+                        ).show()
                     }
                 }
-               try{
-                   viewModel.deleteESPBById(intent.getIntExtra("id_espb",0))
-                }catch (e: Exception){
+                try {
+                    viewModel.deleteESPBById(intent.getIntExtra("id_espb", 0))
+                } catch (e: Exception) {
                     Log.e("FormESPBActivity", "Error parsing id_espb: ${e.message}")
                 }
             } catch (e: Exception) {
@@ -1442,8 +1740,10 @@ AppLogger.d("jjgMap $janjangMap")
                     val errorMessage = when {
                         e.message?.contains("UNIQUE constraint failed") == true ->
                             "ESPB dengan nomor tersebut sudah ada"
+
                         e.message?.contains("foreign key constraint") == true ->
                             "Referensi data tidak valid"
+
                         else -> "Gagal menyimpan data ESPB: ${e.message}"
                     }
 

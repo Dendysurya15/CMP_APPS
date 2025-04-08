@@ -35,8 +35,10 @@
     <string name="al_must_fill_either_primary_or_secondary_group">Harap Mengisi salah satu dari kemandoran dan pemanen atau asistensi dengan pemanen!</string>
 
     <string name="al_failed_fetch_data_desc">Gagal Mengambil Data!</string>
+    <string name="al_must_have_check_data">Minimal melakukan centang 1 data untuk membuat E-SPB!</string>
     <string name="al_failed_fetch_data">Terjadi Kesalahan!</string>
     <string name="al_no_data_for_upload_cmp">Data Tidak ada</string>
+    <string name="al_have_check_data">E-SPB gagal dibuat!</string>
     <string name="al_no_data_for_upload_cmp_description">Belum ada data yang perlu di-Upload ke Server</string>
 
     <string name="submit_text_krani_timbang">Simpan Data</string>
@@ -89,6 +91,8 @@
     <string name="al_success_download_dataset">Berhasil unduh data</string>
     <string name="al_success_download_dataset_description">Dataset aplikasi berhasil diunduh!</string>
     <string name="al_description_success_save_local">Data berhasil disimpan!</string>
+    <string name="al_notified_alert">Perhatian!</string>
+    <string name="al_notify_to_generate_qr_after_60_transaction">Segera melakukan Generate QR, karena transaksi anda sudah mencapai 60, QR yg sudah tergenerate akan tersimpan di galeri!</string>
     <string name="al_description_success_save_local_and_espb_krani_timbang">Data e-SPB berhasil disimpan!</string>
     <string name="al_success_save_local">Sukses Simpan</string>
     <string name="al_success_delete">Berhasil Hapus</string>
