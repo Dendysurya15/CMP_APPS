@@ -52,11 +52,14 @@ class DataCleanupWorker(
             // 1. Delete old panen records from database
             cleanupOldPanenRecords()
 
-            // 2. Delete old panen photos
+            // 2. Delete old panen photos in app's private storage
             cleanupOldPanenPhotos()
 
             // 3. Delete old zip files
             cleanupOldZipFiles()
+
+            // 4. Delete old photos from public DCIM directories
+            cleanupDCIMDirectories()
 
             AppLogger.d("DataCleanupWorker", "Data cleanup completed successfully")
             Result.success()
@@ -159,5 +162,51 @@ class DataCleanupWorker(
         }
 
         AppLogger.d("DataCleanupWorker", "Deleted $deletedCount zip files older than $RETENTION_DAYS days")
+    }
+
+    private fun cleanupDCIMDirectories() {
+        // The list of CMP directories to clean up in public DCIM
+        val featureDirectories = listOf("CMP-E-SPB", "CMP-PANEN TPH")
+        val now = LocalDateTime.now()
+        var totalDeletedCount = 0
+
+        for (featureName in featureDirectories) {
+            val directory = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
+                featureName
+            )
+
+            if (!directory.exists() || !directory.isDirectory) {
+                AppLogger.d("DataCleanupWorker", "DCIM directory does not exist: ${directory.absolutePath}")
+                continue
+            }
+
+            var featureDeletedCount = 0
+
+            directory.listFiles()?.forEach { file ->
+                if (file.isFile) {
+                    val lastModified = LocalDateTime.ofInstant(
+                        java.time.Instant.ofEpochMilli(file.lastModified()),
+                        java.time.ZoneId.systemDefault()
+                    )
+
+                    val daysBetween = ChronoUnit.DAYS.between(lastModified, now)
+
+                    if (daysBetween > RETENTION_DAYS) {
+                        val deleted = file.delete()
+                        if (deleted) {
+                            featureDeletedCount++
+                            totalDeletedCount++
+                        } else {
+                            AppLogger.e("DataCleanupWorker", "Failed to delete DCIM file: ${file.absolutePath}")
+                        }
+                    }
+                }
+            }
+
+            AppLogger.d("DataCleanupWorker", "Deleted $featureDeletedCount files from $featureName directory")
+        }
+
+        AppLogger.d("DataCleanupWorker", "Total deleted $totalDeletedCount files from DCIM directories")
     }
 }

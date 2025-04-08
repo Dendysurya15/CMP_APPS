@@ -638,6 +638,8 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </ScrollView>
 
+
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnGenerateQRTPH"
         android:layout_width="wrap_content"
@@ -652,7 +654,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:maxImageSize="30dp"
         app:rippleColor="@color/bgLightOrange"
-        app:tint="@color/white" />
+        app:tint="@color/white"/>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnGenerateQRTPHUnl"
@@ -660,7 +662,7 @@
         android:layout_height="wrap_content"
         android:layout_marginRight="20dp"
         android:layout_marginBottom="30dp"
-        android:src="@drawable/baseline_qr_code_scanner_24"
+        android:src="@drawable/qrcode_solid"
         android:tooltipText="Generate QR TPH"
         android:visibility="gone"
         app:backgroundTint="@color/greendarkerbutton"
