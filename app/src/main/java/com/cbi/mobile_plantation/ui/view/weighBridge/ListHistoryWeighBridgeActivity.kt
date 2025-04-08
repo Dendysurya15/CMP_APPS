@@ -115,7 +115,9 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         setupSpeedDial()
         setupObserveData()
         val backButton = findViewById<ImageView>(R.id.btn_back)
-        backButton.setOnClickListener { onBackPressed() }
+        backButton.setOnClickListener {
+            onBackPressed()
+        }
         globalFormattedDate = AppUtils.currentDate
         val todayDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         weightBridgeViewModel.loadHistoryESPB(todayDate)
