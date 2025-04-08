@@ -2,6 +2,7 @@ package com.cbi.mobile_plantation.data.database
 
 import androidx.room.*
 import com.cbi.mobile_plantation.data.model.ESPBEntity
+import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 
 @Dao
 abstract class ESPBDao {
@@ -129,6 +130,7 @@ abstract class ESPBDao {
     WHERE (:date IS NULL OR strftime('%Y-%m-%d', created_at) = :date)
 """)
     abstract suspend fun getAllESPBS(date: String? = null): List<ESPBEntity>
+
 
 
 }

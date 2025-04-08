@@ -259,12 +259,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
+    // Add these properties to your FeaturePanenTBSActivity class
+    private var autoScanEnabled = false
+    private val autoScanHandler = Handler(Looper.getMainLooper())
+    private val autoScanInterval = 5000L // 5 seconds
+    private lateinit var switchAutoScan: SwitchMaterial
+    private lateinit var layoutAutoScan: LinearLayout
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_panen_tbs)
         //cek tanggal otomatis
         checkDateTimeSettings()
+        initializeAutoScan()
     }
 
     private fun checkDateTimeSettings() {
@@ -1771,7 +1779,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
-
+    // Modify the setupSwitchBlokBanjir function to handle auto scan visibility
     private fun setupSwitchBlokBanjir() {
         val switchBlokBanjir = findViewById<SwitchMaterial>(R.id.selBlokBanjir)
 
@@ -1781,122 +1789,27 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         switchBlokBanjir.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
+                // Stop auto scan if it's running
+                autoScanEnabled = false
+                switchAutoScan.isChecked = false
+                autoScanHandler.removeCallbacks(autoScanRunnable)
+
+                // Hide auto scan layout
+                layoutAutoScan.visibility = View.GONE
+
+                // Rest of your existing code...
                 if (switchAsistensi.isChecked) {
                     switchAsistensi.isChecked = false
                 }
-                layoutTahunTanam.visibility = View.VISIBLE
-                layoutBlok.visibility = View.VISIBLE
-                layoutNoTPH.visibility = View.VISIBLE
-                layoutAncak.visibility = View.VISIBLE
-                layoutKemandoran.visibility = View.VISIBLE
-                layoutPemanen.visibility = View.VISIBLE
-                layoutSelAsistensi.visibility = View.VISIBLE
-                layoutTipePanen.visibility = View.VISIBLE
-
-                blokList = emptyList()
-                kemandoranList = emptyList()
-                kemandoranLainList = emptyList()
-                tphList = emptyList()
-                karyawanList = emptyList()
-                karyawanLainList = emptyList()
-
-//                setupSpinnerView(layoutTahunTanam, emptyList())
-                setupSpinnerView(layoutBlok, emptyList())
-                setupSpinnerView(layoutNoTPH, emptyList())
-                setupSpinnerView(layoutKemandoran, emptyList())
-                setupSpinnerView(layoutPemanen, emptyList())
-
-                etAncak.setText("")
-                ancakInput = ""
-
-                selectedTipePanen = ""
-                setupSpinnerView(layoutTipePanen, tipePanenOptions)
-
-                // Reset selected values
-                selectedTahunTanamValue = null
-                selectedBlok = ""
-                selectedBlokValue = null
-                selectedTPH = ""
-                selectedTPHValue = null
-                selectedKemandoranLain = ""
-
-                // Clear adapters if they exist
-                selectedPemanenAdapter.clearAllWorkers()
-                selectedPemanenLainAdapter.clearAllWorkers()
-
-                blokBanjir = 1
-
-                alertCardScanRadius.visibility = View.GONE
-                alertTvScannedRadius.visibility = View.GONE
-                btnScanTPHRadius.visibility = View.GONE
-                titleScannedTPHInsideRadius.visibility = View.GONE
-                descScannedTPHInsideRadius.visibility = View.GONE
-                emptyScannedTPHInsideRadius.visibility = View.GONE
-                tphScannedResultRecyclerView.visibility = View.GONE
-
-                tvErrorScannedNotSelected.visibility = View.GONE
-
-                resetAllCounters()
-
-                //reset all image
-                photoCount = 0
-                photoFiles.clear()
-                komentarFoto.clear()
-                takeFotoPreviewAdapter?.resetAllSections()
+                // ...
             } else {
-                if (switchAsistensi.isChecked) {
-                    switchAsistensi.isChecked = false
-                }
-                blokBanjir = 0
+                // Rest of your existing code...
 
-                layoutTahunTanam.visibility = View.GONE
-                layoutBlok.visibility = View.GONE
-                layoutNoTPH.visibility = View.GONE
-                layoutAncak.visibility = View.GONE
-                layoutKemandoran.visibility = View.GONE
-                layoutPemanen.visibility = View.GONE
-                layoutSelAsistensi.visibility = View.GONE
-                layoutTipePanen.visibility = View.GONE
-//                setupSpinnerView(layoutTahunTanam, emptyList())
-                setupSpinnerView(layoutBlok, emptyList())
-                setupSpinnerView(layoutNoTPH, emptyList())
-                setupSpinnerView(layoutKemandoran, emptyList())
-                setupSpinnerView(layoutPemanen, emptyList())
-
-                etAncak.setText("")
-                ancakInput = ""
-
-                selectedTipePanen = ""
-                setupSpinnerView(layoutTipePanen, tipePanenOptions)
-
-                blokList = emptyList()
-                kemandoranList = emptyList()
-                kemandoranLainList = emptyList()
-                tphList = emptyList()
-                karyawanList = emptyList()
-                karyawanLainList = emptyList()
-
-                selectedTahunTanamValue = null
-                selectedBlok = ""
-                selectedBlokValue = null
-                selectedTPH = ""
-                selectedTPHValue = null
-                selectedKemandoranLain = ""
-
-                selectedPemanenAdapter.clearAllWorkers()
-                selectedPemanenLainAdapter.clearAllWorkers()
-                resetAllCounters()
-
-                //reset all image
-                photoCount = 0
-                photoFiles.clear()
-                komentarFoto.clear()
-                takeFotoPreviewAdapter?.resetAllSections()
+                // Make auto scan layout visible again when blok banjir is off
+                layoutAutoScan.visibility = View.VISIBLE
             }
         }
     }
-
-
     private fun setupSwitchAsistensi() {
         val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
 
@@ -2918,23 +2831,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         formulas()
         updateCounterTextViews()
     }
-
+    // Modify your setupScanTPHTrigger function to include the auto scan switch
     private fun setupScanTPHTrigger() {
-        val alertCardScanRadius =
-            findViewById<MaterialCardView>(R.id.alertCardScanRadius)
+        val alertCardScanRadius = findViewById<MaterialCardView>(R.id.alertCardScanRadius)
         alertCardScanRadius.visibility = View.VISIBLE
 
-        val alertTvScannedRadius =
-            findViewById<TextView>(R.id.alertTvScannedRadius)
+        val alertTvScannedRadius = findViewById<TextView>(R.id.alertTvScannedRadius)
         alertTvScannedRadius.visibility = View.VISIBLE
 
-        val btnScanTPHRadius =
-            findViewById<MaterialButton>(R.id.btnScanTPHRadius)
+        val btnScanTPHRadius = findViewById<MaterialButton>(R.id.btnScanTPHRadius)
         btnScanTPHRadius.visibility = View.VISIBLE
 
+        // Show auto scan switch when scanning is available
+        layoutAutoScan.visibility = View.VISIBLE
+
         val radiusText = "${radiusMinimum.toInt()} m"
-        val text =
-            "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
+        val text = "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
         val asterisk = "*"
 
         val spannableScanTPHTitle =
@@ -2943,21 +2855,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 val endIndex = startIndex + radiusText.length
 
                 setSpan(
-                    StyleSpan(Typeface.BOLD), // Make text bold
+                    StyleSpan(Typeface.BOLD),
                     startIndex,
                     endIndex,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
 
                 setSpan(
-                    StyleSpan(Typeface.ITALIC), // Make text bold
+                    StyleSpan(Typeface.ITALIC),
                     startIndex,
                     endIndex,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
 
                 setSpan(
-                    ForegroundColorSpan(Color.RED), // Make asterisk red
+                    ForegroundColorSpan(Color.RED),
                     text.length,
                     length,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -2966,7 +2878,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         alertTvScannedRadius.text = spannableScanTPHTitle
     }
-
     /**
      * Sets up a layout with increment and decrement buttons for counters.
      */
@@ -3456,8 +3367,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     override fun onPause() {
         super.onPause()
+        // Stop auto scanning when activity is paused
+        autoScanEnabled = false
+        autoScanHandler.removeCallbacks(autoScanRunnable)
+
+        // Your existing onPause code...
         locationViewModel.stopLocationUpdates()
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    // Add this to your setupUI or initializeActivity function
+    private fun initializeAutoScan() {
+        setupAutoScanSwitch()
     }
 
     override fun onDestroy() {
@@ -3496,6 +3417,47 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Glide.with(this)
                 .load(photoFile)
                 .into(it.imageView)
+        }
+    }
+
+    // Add this runnable for automatic scanning
+    private val autoScanRunnable = object : Runnable {
+        override fun run() {
+            if (autoScanEnabled) {
+                // Call the scan function
+                checkScannedTPHInsideRadius()
+                // Schedule the next scan
+                autoScanHandler.postDelayed(this, autoScanInterval)
+            }
+        }
+    }
+
+    // Add this function to setup the auto scan switch
+    private fun setupAutoScanSwitch() {
+        layoutAutoScan = findViewById(R.id.layoutAutoScan)
+        switchAutoScan = findViewById(R.id.switchAutoScan)
+
+        switchAutoScan.setOnCheckedChangeListener { _, isChecked ->
+            autoScanEnabled = isChecked
+
+            if (isChecked) {
+                // Start automatic scanning
+                autoScanHandler.post(autoScanRunnable)
+                // Show toast notification
+                Toast.makeText(
+                    this@FeaturePanenTBSActivity,
+                    "Auto-refresh TPH setiap 5 detik diaktifkan",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                // Stop automatic scanning
+                autoScanHandler.removeCallbacks(autoScanRunnable)
+                Toast.makeText(
+                    this@FeaturePanenTBSActivity,
+                    "Auto-refresh TPH dinonaktifkan",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 

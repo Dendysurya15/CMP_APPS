@@ -6,7 +6,6 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -15,7 +14,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
-import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity.InfoType
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.card.MaterialCardView
@@ -58,6 +56,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
     RecyclerView.Adapter<WeighBridgeAdapter.ViewHolder>() {
 
     private val selectedItems = mutableSetOf<WBData>() // Track selected items
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val td1: TextView = view.findViewById(R.id.td1)
@@ -89,7 +88,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
             view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
                 "Detail E-SPB ${item.noSPB}"
 
-            view.findViewById<Button>(R.id.btnCloseDetailTable).setOnClickListener {
+            view.findViewById<android.widget.Button>(R.id.btnCloseDetailTable).setOnClickListener {
                 bottomSheetDialog.dismiss()
             }
 
@@ -334,14 +333,11 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         parentView.addView(cardView)
     }
 
-
-
     private fun Int.dpToPx(context: Context): Int {
         return (this * context.resources.displayMetrics.density).toInt()
     }
 
     private fun setInfoItemValues(view: View, label: String, value: String) {
-
         view.findViewById<TextView>(R.id.tvLabel)?.text = label
 
         view.findViewById<TextView>(R.id.tvValue)?.text = when (view.id) {
@@ -351,15 +347,30 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
     }
 
     fun updateList(newList: List<WBData>) {
-        items = newList
+        // Sort the list by created_at date (newest first)
+        val sortedList = sortListByDate(newList)
+        items = sortedList
         selectedItems.clear() // Clear selection on update
         notifyDataSetChanged()
+    }
+
+    private fun sortListByDate(list: List<WBData>): List<WBData> {
+        return list.sortedByDescending {
+            try {
+                // Parse the created_at date string to a Date object
+                dateFormat.parse(it.created_at)?.time ?: 0L
+            } catch (e: Exception) {
+                // If parsing fails, return 0 (oldest date)
+                Log.e("WeighBridgeAdapter", "Date parsing error: ${e.message}")
+                0L
+            }
+        }
     }
 
     fun getSelectedItemsIdLocal(): List<Map<String, Any>> {
         return selectedItems.map { selectedItem ->
             mapOf(
-                "id" to (selectedItem.id ?: "")
+                "id" to (selectedItem.id)
             )
         }
     }
@@ -367,20 +378,20 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
     fun getSelectedItemsForUpload(): List<Map<String, Any>> {
         return selectedItems.map { selectedItem ->
             mapOf(
-                "id" to (selectedItem.id ?: ""),
-                "ip" to (selectedItem.ip ?: ""),
-                "dept_ppro" to (selectedItem.dept_ppro ?: ""),
-                "divisi_ppro" to (selectedItem.divisi_ppro ?: ""),
-                "commodity" to (selectedItem.commodity ?: ""),
-                "blok_jjg" to (selectedItem.blok_jjg ?: ""),
-                "nopol" to (selectedItem.nopol ?: ""),
-                "driver" to (selectedItem.driver ?: ""),
-                "pemuat_id" to (selectedItem.pemuat_id ?: ""),
-                "transporter_id" to (selectedItem.transporter_id ?: ""),
-                "mill_id" to (selectedItem.mill_id ?: ""),
-                "created_by_id" to (selectedItem.created_by_id ?: ""),
-                "created_at" to (selectedItem.created_at ?: ""),
-                "no_espb" to (selectedItem.noSPB ?: ""),
+                "id" to (selectedItem.id),
+                "ip" to (selectedItem.ip),
+                "dept_ppro" to (selectedItem.dept_ppro),
+                "divisi_ppro" to (selectedItem.divisi_ppro),
+                "commodity" to (selectedItem.commodity),
+                "blok_jjg" to (selectedItem.blok_jjg),
+                "nopol" to (selectedItem.nopol),
+                "driver" to (selectedItem.driver),
+                "pemuat_id" to (selectedItem.pemuat_id),
+                "transporter_id" to (selectedItem.transporter_id),
+                "mill_id" to (selectedItem.mill_id),
+                "created_by_id" to (selectedItem.created_by_id),
+                "created_at" to (selectedItem.created_at),
+                "no_espb" to (selectedItem.noSPB),
             )
         }
     }
@@ -407,7 +418,6 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         MILL(R.id.infoMill, "Mill"),
         TRANSPORTER(R.id.infoTransporter, "Transporter"),
     }
-
 
     override fun getItemCount() = items.size
 }

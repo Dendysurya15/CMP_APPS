@@ -14,6 +14,7 @@ import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.launch
 
 sealed class SaveDataESPBKraniTimbangState {
@@ -236,6 +237,15 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun loadHistoryESPB(date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadHistoryESPB(date)
+            _savedESPBByKrani.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB history: ${e.message}")
+            _savedESPBByKrani.value = emptyList()  // Return empty list if there's an error
+        }
+    }
 
     suspend fun saveDataLocalKraniTimbangESPB(
         blok_jjg: String,
