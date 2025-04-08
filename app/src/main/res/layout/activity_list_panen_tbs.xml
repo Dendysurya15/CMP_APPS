@@ -483,6 +483,39 @@
 
                         </com.google.android.material.card.MaterialCardView>
 
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/card_rekap_per_blok"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:layout_marginLeft="5dp"
+                            android:foreground="?attr/selectableItemBackground"
+                            android:visibility="gone"
+                            app:cardBackgroundColor="@color/graylight"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="0dp"
+                            app:strokeColor="@color/graylightDarker">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:layout_marginVertical="10dp"
+                                android:orientation="horizontal"
+                                android:paddingHorizontal="10dp">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:fontFamily="@font/manrope_semibold"
+                                    android:text="Rekap Per Blok"
+                                    android:textColor="@color/black"
+                                    android:textSize="@dimen/m"
+                                    android:textStyle="bold" />
+
+                            </LinearLayout>
+
+                        </com.google.android.material.card.MaterialCardView>
+
                     </LinearLayout>
 
                 </HorizontalScrollView>

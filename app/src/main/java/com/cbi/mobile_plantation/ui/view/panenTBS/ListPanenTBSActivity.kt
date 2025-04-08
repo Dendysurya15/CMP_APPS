@@ -122,6 +122,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private lateinit var cardTersimpan: MaterialCardView
     private lateinit var cardTerscan: MaterialCardView
     private lateinit var cardRekapPerPemanen: MaterialCardView
+    private lateinit var cardRekapPerBlok: MaterialCardView
     private lateinit var counterTersimpan: TextView
     private lateinit var counterTerscan: TextView
     private lateinit var tvEmptyState: TextView
@@ -129,7 +130,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private lateinit var speedDial: SpeedDialView
     private var pemuatNamaESPB = "-"
     private var isAscendingOrder = true
-
+    private var originalMappedData: MutableList<Map<String, Any>> = mutableListOf()
     private lateinit var searchEditText: EditText
     private lateinit var sortButton: ImageView // Add this at class level
     private lateinit var filterSection: LinearLayout
@@ -927,7 +928,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     panenViewModel.countTPHESPB(0, 1, 1, dateToUse)
                 }
             } else {
-                loadingDialog.setMessage("Loading data tersimpan...")
+                loadingDialog.setMessage("Loading data tersimpan",true)
                 if (isAllDataFiltered) {
                     panenViewModel.loadTPHNonESPB(0, 0, 0)
                     panenViewModel.countTPHNonESPB(0, 0, 0)
@@ -977,7 +978,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     panenViewModel.countTPHESPB(0, 1, 1, dateToUse)
                 }
             } else {
-                loadingDialog.setMessage("Loading data terscan...")
+                loadingDialog.setMessage("Loading data terscan", true)
                 if (isAllDataFiltered) {
                     panenViewModel.loadTPHESPB(1, 0, 0)
                     panenViewModel.countTPHESPB(1, 0, 0)
@@ -1014,7 +1015,45 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
             flCheckBoxTableHeaderLayout.visibility = View.GONE
 
-            loadingDialog.setMessage("Loading Rekap Per Pemanen...")
+            loadingDialog.setMessage("Loading Rekap Per Pemanen", true)
+            if (isAllDataFiltered) {
+                panenViewModel.loadTPHNonESPB(1, 0, 0)
+                panenViewModel.loadPanenCountArchive()
+                panenViewModel.countTPHESPB(1, 0, 0)
+                panenViewModel.countTPHNonESPB(0, 0, 0)
+            } else {
+                panenViewModel.loadTPHNonESPB(1, 0, 0, dateToUse)
+                panenViewModel.loadPanenCountArchive()
+                panenViewModel.countTPHESPB(1, 0, 0, dateToUse)
+                panenViewModel.countTPHNonESPB(0, 0, 0, dateToUse)
+            }
+        }
+
+        cardRekapPerBlok.setOnClickListener {
+            currentState = 3
+            setActiveCard(cardRekapPerBlok)
+            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                val rekapHeaders =
+                    listOf("NAMA\nBlok", "BLOK/JJG", "JUMLAH\nTPH", "TOTAL JJG/\nJJG DIBAYAR")
+                updateTableHeaders(rekapHeaders)
+            }
+            loadingDialog.show()
+
+            val isAllDataFiltered = filterAllData.isChecked
+            val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
+
+            tvEmptyState.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+            speedDial.visibility = View.GONE
+            listAdapter.updateArchiveState(currentState)
+            val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+            headerCheckBox.visibility = View.GONE
+            val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
+            flCheckBoxTableHeaderLayout.visibility = View.GONE
+
+            loadingDialog.setMessage("Loading Rekap Per Blok", true)
             if (isAllDataFiltered) {
                 panenViewModel.loadTPHNonESPB(1, 0, 0)
                 panenViewModel.loadPanenCountArchive()
@@ -1033,7 +1072,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
         cardTersimpan = findViewById(R.id.card_item_tersimpan)
         cardTerscan = findViewById(R.id.card_item_terscan)
         cardRekapPerPemanen = findViewById(R.id.card_rekap_per_pemanen)
+        cardRekapPerBlok = findViewById(R.id.card_rekap_per_blok)
         cardRekapPerPemanen.visibility =
+            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) View.VISIBLE else View.GONE
+        cardRekapPerBlok.visibility =
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) View.VISIBLE else View.GONE
         counterTersimpan = findViewById(R.id.counter_item_tersimpan)
         counterTerscan = findViewById(R.id.counter_item_terscan)
@@ -1054,6 +1096,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         cardRekapPerPemanen.apply {
+            setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
+            strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
+        }
+
+        cardRekapPerBlok.apply {
             setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
             strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
         }
@@ -2106,7 +2153,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
         panenViewModel.activePanenList.observe(this) { panenList ->
-            if (currentState == 0 || currentState == 2) {
+            if (currentState == 0 || currentState == 2 || currentState == 3) {
                 listAdapter.updateData(emptyList())
                 Handler(Looper.getMainLooper()).postDelayed({
                     loadingDialog.dismiss()
@@ -2118,8 +2165,36 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             recyclerView.visibility = View.VISIBLE
                             val allWorkerData = mutableListOf<Map<String, Any>>()
 
-
+                            originalMappedData.clear()
                             panenList.map { panenWithRelations ->
+
+                                val standardData = mapOf<String, Any>(
+                                    "id" to (panenWithRelations.panen.id as Any),
+                                    "tph_id" to (panenWithRelations.panen.tph_id as Any),
+                                    "date_created" to (panenWithRelations.panen.date_created as Any),
+                                    "blok_name" to (panenWithRelations.tph?.blok_kode ?: "Unknown"),
+                                    "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                    "created_by" to (panenWithRelations.panen.created_by as Any),
+                                    "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
+                                    "foto" to (panenWithRelations.panen.foto as Any),
+                                    "komentar" to (panenWithRelations.panen.komentar as Any),
+                                    "asistensi" to (panenWithRelations.panen.asistensi as Any),
+                                    "lat" to (panenWithRelations.panen.lat as Any),
+                                    "lon" to (panenWithRelations.panen.lon as Any),
+                                    "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
+                                    "ancak" to (panenWithRelations.panen.ancak as Any),
+                                    "archive" to (panenWithRelations.panen.archive as Any),
+                                    "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
+                                    "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
+                                    "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
+                                    "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
+                                    "nama_karyawans" to "",
+                                    "nama_kemandorans" to "",
+                                    "username" to (panenWithRelations.panen.username as Any)
+                                )
+
+                                val originalDataMapped = standardData.toMutableMap()
+                                originalMappedData.add(originalDataMapped)
 
                                 if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2) {
                                     // Parse karyawan IDs, kemandoran IDs, and NIKs
@@ -2300,7 +2375,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             }
                                         }
 
-
                                     val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
                                         ?.takeIf { it.isNotEmpty() }
                                         ?.joinToString("\n") { "• $it" } ?: "-"
@@ -2313,40 +2387,21 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     }?.takeIf { it.isNotEmpty() }
                                         ?.joinToString(", ") ?: "-"
 
+                                    // Update the original data with the fetched names
+                                    originalDataMapped["nama_karyawans"] = karyawanNamas
+                                    originalDataMapped["nama_kemandorans"] = kemandoranNamas
 
-                                    val standardData = mapOf<String, Any>(
-                                        "id" to (panenWithRelations.panen.id as Any),
-                                        "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                        "date_created" to (panenWithRelations.panen.date_created as Any),
-                                        "blok_name" to (panenWithRelations.tph?.blok_kode
-                                            ?: "Unknown"),
-                                        "nomor" to (panenWithRelations.tph!!.nomor as Any),
-                                        "created_by" to (panenWithRelations.panen.created_by as Any),
-                                        "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
-                                        "foto" to (panenWithRelations.panen.foto as Any),
-                                        "komentar" to (panenWithRelations.panen.komentar as Any),
-                                        "asistensi" to (panenWithRelations.panen.asistensi as Any),
-                                        "lat" to (panenWithRelations.panen.lat as Any),
-                                        "lon" to (panenWithRelations.panen.lon as Any),
-                                        "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
-                                        "ancak" to (panenWithRelations.panen.ancak as Any),
-                                        "archive" to (panenWithRelations.panen.archive as Any),
-                                        "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
-                                        "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
-                                        "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
-                                        "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
-                                        "nama_karyawans" to karyawanNamas as Any,
-                                        "nama_kemandorans" to kemandoranNamas as Any,
-                                        "username" to (panenWithRelations.panen.username as Any)
-                                    )
+                                    val updatedStandardData = standardData.toMutableMap().apply {
+                                        this["nama_karyawans"] = karyawanNamas
+                                        this["nama_kemandorans"] = kemandoranNamas
+                                    }
 
-                                    // Add this standard data to our global collection too
-                                    allWorkerData.add(standardData)
+                                    allWorkerData.add(updatedStandardData)
 
-                                    // Return this data for the map operation
-                                    listOf(standardData)
+                                    listOf(updatedStandardData)
+
                                 }
-                            }.flatten() // Flatten the list of lists into a single list
+                            }.flatten()
 
                             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2) {
                                 val globalMergedWorkerMap =
@@ -2441,7 +2496,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         val existingJjgEachBlok =
                                             existingWorkerData["jjg_each_blok"]?.toString() ?: ""
 
-                                        // Check if this blok already exists in our tracking (accounting for newlines)
                                         if (existingJjgEachBlok.split("\n")
                                                 .any { it.startsWith("$blokName(") }
                                         ) {
@@ -2593,11 +2647,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
 
                             val processedData =
-                                AppUtils.getPanenProcessedData(mappedData, featureName)
+                                AppUtils.getPanenProcessedData(originalMappedData, featureName)
                             if (featureName != "Detail eSPB") {
                                 blokSection.visibility = View.VISIBLE
                                 totalSection.visibility = View.VISIBLE
                             }
+
                             val blokNames = processedData["blokNames"]?.toString() ?: ""
                             blok = if (blokNames.isEmpty()) "-" else blokNames
 
@@ -2749,6 +2804,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
                             val processedData =
                                 AppUtils.getPanenProcessedData(mappedData, featureName)
+
+
+                            AppLogger.d(processedData.toString())
                             totalTPH.text = tph.toString()
                             listBlok.text = processedData["blokDisplay"]?.toString()
                             totalJjg.text = processedData["totalJjgCount"]?.toString()
