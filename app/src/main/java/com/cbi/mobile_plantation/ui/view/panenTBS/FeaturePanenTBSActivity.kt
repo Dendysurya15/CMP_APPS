@@ -639,23 +639,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             val currentCount = panenStoredLocal[tphId] ?: 0
                                             panenStoredLocal[tphId] = currentCount + 1
                                             resetFormAfterSaveData()
-                                            val totalPanenCount = panenStoredLocal.values.sum()
-                                            AppLogger.d("Total panen count after update: $totalPanenCount")
-
-                                            if (totalPanenCount >= AppUtils.MAX_ALERT_FOR_GENERATE_QR) {
-
-                                                AlertDialogUtility.withSingleAction(
-                                                    this@FeaturePanenTBSActivity,
-                                                    stringXML(R.string.al_back),
-                                                    stringXML(R.string.al_notified_alert),
-                                                    stringXML(R.string.al_notify_to_generate_qr_after_60_transaction),
-                                                    "warning.json",
-                                                    R.color.orangeButton
-                                                ) {
-                                                    AppLogger.d("alert show")
-                                                }
-
-                                            }
                                         }
                                     }
 
@@ -2357,6 +2340,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     AppLogger.e("Error mapping allIdAfdeling: ${e.message}")
                     emptyList()
                 }
+
                 val otherDivisiIds = try {
                     allIdAfdeling.filter { divisiId ->
                         selectedDivisiId == null || divisiId != selectedDivisiId
@@ -2365,6 +2349,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     AppLogger.e("Error filtering otherDivisiIds: ${e.message}")
                     emptyList()
                 }
+                
                 lifecycleScope.launch(Dispatchers.IO) {
                     withContext(Dispatchers.Main) {
                         animateLoadingDots(linearLayout)
@@ -2391,9 +2376,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         val kemandoranLainDeferred = async {
                             try {
-                                datasetViewModel.getKemandoranEstateExcept(
-                                    estateId!!.toInt(),
-                                    otherDivisiIds as List<Int>
+                                datasetViewModel.getKemandoranEstate(
+                                    estateId!!.toInt()
                                 )
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching kemandoranList: ${e.message}")
@@ -2934,9 +2918,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }?.id
                 } catch (e: Exception) {
                     AppLogger.e("Error finding selected Kemandoran: ${e.message}")
-                    null // Return null to prevent crashes
+                    null
                 }
-
 
                 if (selectedIdKemandoranLain != null) {
                     AppLogger.d("Selected ID Kemandoran Lain: $selectedIdKemandoranLain")
@@ -2953,7 +2936,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         vibrate()
                         filterContainer.visibility = View.GONE
 
-                        // Don't try to reset the spinner index to -1
                         // Instead, just clear our tracking variables
                         selectedKemandoranLain = ""
 

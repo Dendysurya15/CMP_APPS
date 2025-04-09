@@ -199,6 +199,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:minWidth="0dp"
+                        android:visibility="invisible"
                         android:fontFamily="@font/manrope_semibold"
                         android:text="Simpan Login"
                         android:textColor="@color/graytextdark"

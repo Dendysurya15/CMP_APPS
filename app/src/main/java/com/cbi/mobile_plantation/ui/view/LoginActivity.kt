@@ -89,15 +89,15 @@ class LoginActivity : AppCompatActivity() {
         val btn_finger = findViewById<MaterialButton>(R.id.btn_finger)
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        if (prefManager!!.rememberLogin) {
+        if (!prefManager!!.username.toString().isEmpty() && !prefManager!!.password.toString().isEmpty()) {
             if (AppUtils.checkBiometricSupport(this)) {
                 btn_finger.visibility = View.VISIBLE
-
                 biometricPrompt()
             } else {
                 btn_finger.visibility = View.GONE
-
             }
+        } else {
+            btn_finger.visibility = View.GONE
         }
         val etPasswordLayout = findViewById<TextInputLayout>(R.id.etPasswordLayout)
         etPasswordLayout.setEndIconTintList(ColorStateList.valueOf(getColor(R.color.graytextdark)))
@@ -183,7 +183,26 @@ class LoginActivity : AppCompatActivity() {
                     val token = loginResponse.data?.token
                     AppLogger.d("Login Success: $loginResponse")
                     if (token != null) {
-                        datasetViewModel.clearAllData()
+                        if (prefManager!!.registeredDeviceUsername != null &&
+                            prefManager!!.registeredDeviceUsername!!.isNotEmpty() &&
+                            prefManager!!.registeredDeviceUsername != usernameField.text.toString().trim()) {
+
+                            AlertDialogUtility.withSingleAction(
+                                this@LoginActivity,
+                                stringXML(R.string.al_back),
+                                "Perangkat Terdaftar untuk Pengguna Lain",
+                                "Perangkat ini sudah terdaftar untuk pengguna ${prefManager!!.registeredDeviceUsername}. Silakan gunakan akun yang terdaftar!",
+                                "warning.json",
+                                R.color.colorRedDark
+                            ) { }
+                            return@observe
+                        }
+
+                        if (prefManager!!.registeredDeviceUsername.isNullOrEmpty()) {
+                            AppLogger.d("test registeredDeviceUsername is null or empty")
+                            prefManager!!.registeredDeviceUsername = usernameField.text.toString().trim()
+                        }
+
                         prefManager!!.isFirstTimeLaunch = true
                         prefManager!!.token = token
                         prefManager!!.username = usernameField.text.toString().trim()
@@ -198,13 +217,6 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.companyIdUserLogin = loginResponse.data?.user?.company
                         prefManager!!.companyAbbrUserLogin = loginResponse.data?.user?.company_abbr
                         prefManager!!.companyNamaUserLogin = loginResponse.data?.user?.company_nama
-                        prefManager!!.lastSyncDate = null
-                        prefManager!!.lastModifiedDatasetTPH = null
-                        prefManager!!.lastModifiedDatasetKemandoran = null
-                        prefManager!!.lastModifiedDatasetPemanen = null
-                        prefManager!!.lastModifiedDatasetTransporter = null
-                        prefManager!!.lastModifiedDatasetBlok = null
-                        prefManager!!.clearDatasetMustUpdate()
 
                         Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()
                         navigateToHomePage()
@@ -235,7 +247,7 @@ class LoginActivity : AppCompatActivity() {
                         ) {
 
                         }
-                        hideLoading() // Hide loading after dialog
+                        hideLoading()
                     }
                 }
             } else {
@@ -264,11 +276,11 @@ class LoginActivity : AppCompatActivity() {
         }
 
 
-        val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
-        checkRememberMe.setResponsiveTextSizeWithConstraints(17F, 12F, 18F)
-        checkRememberMe.setOnCheckedChangeListener { _, isChecked ->
-            prefManager!!.rememberLogin = isChecked
-        }
+//        val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
+//        checkRememberMe.setResponsiveTextSizeWithConstraints(17F, 12F, 18F)
+//        checkRememberMe.setOnCheckedChangeListener { _, isChecked ->
+//            prefManager!!.rememberLogin = isChecked
+//        }
 
         setTampilan()
 
@@ -300,6 +312,20 @@ class LoginActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            if (prefManager!!.registeredDeviceUsername != null &&
+                prefManager!!.registeredDeviceUsername!!.isNotEmpty() &&
+                prefManager!!.registeredDeviceUsername != username) {
+                AlertDialogUtility.withSingleAction(
+                    this@LoginActivity,
+                    stringXML(R.string.al_back),
+                    "Perangkat Terdaftar untuk Pengguna Lain",
+                    "Perangkat ini sudah terdaftar untuk pengguna ${prefManager!!.registeredDeviceUsername}. Silakan gunakan akun yang terdaftar!",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) { }
+                return@setOnClickListener
+            }
+
             lifecycleScope.launch {
                 loadingDialog.show()
                 loadingDialog.setMessage(
@@ -308,8 +334,8 @@ class LoginActivity : AppCompatActivity() {
                 ) // Checking credentials
                 delay(1000)
 
-
-                if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() && prefManager?.username == username && prefManager?.password == password) {
+                if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() &&
+                    prefManager?.username == username && prefManager?.password == password) {
                     navigateToHomePage()
                 } else {
                     if (AppUtils.isNetworkAvailable(this@LoginActivity)) {
@@ -332,9 +358,7 @@ class LoginActivity : AppCompatActivity() {
                         }
                     }
                 }
-
             }
-
         }
 
 
@@ -369,34 +393,28 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun setTampilan() {
-        val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
         val usernameField = findViewById<EditText>(R.id.usernameInput)
         val passwordField = findViewById<EditText>(R.id.passwordInput)
 
-        if (prefManager!!.rememberLogin) {
-            checkRememberMe.isChecked = true
-            if (prefManager!!.username.toString().isNotEmpty() && prefManager!!.password.toString()
-                    .isNotEmpty()
-            ) {
+        AppLogger.d(prefManager!!.username.toString())
+        AppLogger.d(prefManager!!.password.toString())
 
+        if (prefManager!!.username.toString().isNotEmpty()) {
+            usernameField.setText(prefManager!!.username, TextView.BufferType.SPANNABLE)
+        }
 
-                usernameField.setText(prefManager!!.username, TextView.BufferType.SPANNABLE)
-                passwordField.setText(prefManager!!.password, TextView.BufferType.SPANNABLE)
-                username = prefManager!!.username.toString()
-                pass = prefManager!!.password.toString()
-            }
-        } else {
-            checkRememberMe.isChecked = false
+        if (prefManager!!.password.toString().isNotEmpty()) {
+            passwordField.setText(prefManager!!.password, TextView.BufferType.SPANNABLE)
         }
     }
 
     private fun navigateToHomePage() {
-        val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
-        if (!checkRememberMe.isChecked) {
-            prefManager!!.username = ""
-            prefManager!!.password = ""
-            prefManager!!.rememberLogin = false
-        }
+//        val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
+//        if (!checkRememberMe.isChecked) {
+//            prefManager!!.username = ""
+//            prefManager!!.password = ""
+//            prefManager!!.rememberLogin = false
+//        }
         startActivity(Intent(this, HomePageActivity::class.java))
         finish()
     }

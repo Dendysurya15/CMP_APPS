@@ -239,6 +239,99 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <!-- After scan QR title -->
+
+        <LinearLayout
+            android:id="@+id/blok_section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal"
+            android:visibility="gone"
+
+            app:layout_constraintTop_toBottomOf="@id/filterDateContainer"
+            tools:ignore="MissingConstraints">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/manrope_bold"
+                android:text="Blok: "
+                android:textColor="@color/black"
+                android:textSize="@dimen/m" />
+
+            <TextView
+                android:id="@+id/listBlok"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/manrope_medium"
+                android:textColor="@color/black"
+                android:textSize="@dimen/m"
+
+                android:textStyle="italic" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/total_section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+
+            android:orientation="horizontal"
+
+            android:visibility="gone"
+            android:weightSum="2"
+            app:layout_constraintTop_toBottomOf="@id/blok_section"
+            tools:ignore="MissingConstraints">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/manrope_bold"
+                    android:text="Total Jjg: "
+                    android:textColor="@color/black"
+                    android:textSize="@dimen/m" />
+
+                <TextView
+                    android:id="@+id/totalJjg"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/manrope_medium"
+                    android:text="0"
+                    android:textColor="@color/black"
+                    android:textSize="@dimen/m" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvTotalTPH"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/manrope_bold"
+                    android:text="Jmlh Transaksi: "
+                    android:textColor="@color/black"
+                    android:textSize="@dimen/m" />
+
+                <TextView
+                    android:id="@+id/totalTPH"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/manrope_medium"
+                    android:textColor="@color/black"
+                    android:textSize="@dimen/m" />
+            </LinearLayout>
+
+
+        </LinearLayout>
         <TextView
             android:id="@+id/titleAfterScanQR"
             android:layout_width="match_parent"
@@ -294,12 +387,12 @@
             android:id="@+id/btnConfirmScanPanenTPH"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+
             android:layout_weight="1"
             android:backgroundTint="@color/greenDarker"
             android:text="Sudah Scan"
             android:textAllCaps="false"
-            android:textSize="@dimen/m"
+            android:textSize="@dimen/l"
             android:visibility="gone"
             app:cornerRadius="8dp"
             app:icon="@drawable/baseline_qr_code_scanner_24"
@@ -311,7 +404,7 @@
             android:id="@+id/btnSaveUploadeSPB"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+
             android:layout_weight="1"
             android:backgroundTint="@color/greenDarker"
             android:text="Simpan &amp; Upload e-SPB"

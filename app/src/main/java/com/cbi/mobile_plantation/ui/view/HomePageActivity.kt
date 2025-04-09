@@ -568,7 +568,7 @@ class HomePageActivity : AppCompatActivity() {
         checkPermissions()
         setupRecyclerView()
         setupCheckingAfterLogoutUser()
-
+        prefManager!!.registeredDeviceUsername = prefManager!!.username
         panenViewModel.updateStatus.observeOnce(this) { success ->
             if (success) {
                 AppLogger.d("✅ Panen Archive Updated Successfully")

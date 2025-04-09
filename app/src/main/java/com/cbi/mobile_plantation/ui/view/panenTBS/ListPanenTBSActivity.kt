@@ -1917,7 +1917,21 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
                         }
 
-                        // Switch to the main thread for UI updates
+
+                        val effectiveLimit =
+                            if (limit == 0) mappedData.size else limit
+                        val limitedData = mappedData.take(effectiveLimit)
+                        val processedData =
+                            AppUtils.getPanenProcessedData(limitedData, featureName)
+
+                        val listBlok = view.findViewById<TextView>(R.id.listBlok)
+                        val totalJjg = view.findViewById<TextView>(R.id.totalJjg)
+                        val totalTPH = view.findViewById<TextView>(R.id.totalTPH)
+                        val blokSection = view.findViewById<LinearLayout>(R.id.blok_section)
+                        val totalSection = view.findViewById<LinearLayout>(R.id.total_section)
+                        listBlok.text = processedData["blokDisplay"].toString()
+                        totalJjg.text = processedData["totalJjgCount"].toString()
+                        totalTPH.text = processedData["tphCount"].toString()
                         withContext(Dispatchers.Main) {
                             try {
                                 generateHighQualityQRCode(encodedData, qrCodeImageView)
@@ -1937,7 +1951,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             duration = 250
                                         }
 
-                                // Ensure QR code and other elements start invisible
+                                blokSection.alpha = 0f
+                                totalSection.alpha = 0f
                                 qrCodeImageView.alpha = 0f
                                 dashedLine.alpha = 0f
                                 tvTitleQRGenerate.alpha = 0f
@@ -1948,6 +1963,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
                                 // Create fade-in animations
+
+                                val fadeInBlokSection =
+                                    ObjectAnimator.ofFloat(blokSection, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
+                                val fadeInTotalSection =
+                                    ObjectAnimator.ofFloat(totalSection, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
                                 val fadeInQR =
                                     ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
                                         .apply {
@@ -2023,7 +2052,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             tvTitleQRGenerate.visibility = View.VISIBLE
                                             qrCodeImageView.visibility = View.VISIBLE
                                             dashedLine.visibility = View.VISIBLE
-
+                                            blokSection.visibility = View.VISIBLE
+                                            totalSection.visibility = View.VISIBLE
                                             btnConfirmScanPanenTPH.visibility = View.VISIBLE
 
                                             lifecycleScope.launch {
@@ -2034,8 +2064,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                             }
 
-
                                             // Start fade-in animations
+                                            fadeInBlokSection.start()
+                                            fadeInTotalSection.start()
                                             fadeInQR.start()
                                             fadeInDashedLine.start()
                                             fadeInTitle.start()
@@ -3540,30 +3571,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setOnActionSelectedListener { actionItem ->
                 when (actionItem.id) {
                     R.id.scan_qr -> {
-//                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
 //
-//                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
-//
-//                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
-//                        dialog.setContentView(view)
-////                        view.layoutParams.height = 500.toPx()
-//
-//                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-//                        val data = "test"
-//                        generateHighQualityQRCode(data, qrCodeImageView)
-//                        dialog.setOnShowListener {
-//                            val bottomSheet =
-//                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-//                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
-//                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
-//                        }
-//                        dialog.show()
                         true
                     }
-//                    R.id.cancelSelection -> {
-//                        listAdapter.clearSelections()
-//                        true
-//                    }
+//
                     R.id.deleteSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()
                         handleDelete(selectedItems)
@@ -3573,18 +3584,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     R.id.uploadSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()
 
-//                        if (AppUtils.isInternetAvailable(this@ListPanenTBSActivity)) {
-//                            handleUpload(selectedItems)
-//                        } else {
-//                            AlertDialogUtility.withSingleAction(
-//                                this@ListPanenTBSActivity,
-//                                getString(R.string.al_back),
-//                                getString(R.string.al_no_internet_connection),
-//                                getString(R.string.al_no_internet_connection_description),
-//                                "network_error.json",
-//                                R.color.colorRedDark
-//                            ) {}
-//                        }
+//
                         true
                     }
 
