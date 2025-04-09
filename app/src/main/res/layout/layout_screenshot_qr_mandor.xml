@@ -121,7 +121,7 @@
             android:id="@+id/tvFooter"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-
+            android:textColor="@color/black"
             android:textSize="@dimen/s"
             android:fontFamily="@font/manrope_semibold"
             android:gravity="center"
