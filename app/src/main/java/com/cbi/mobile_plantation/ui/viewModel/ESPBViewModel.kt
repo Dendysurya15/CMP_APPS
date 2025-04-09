@@ -196,4 +196,15 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         // Implement this method to retrieve the mill name from your repository or database
         return repository.getMillNameById(millId)
     }
+
+    suspend fun getCountCreatedToday():Int{
+        val count = try {
+            repository.getCountCreatedToday()
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB created today: ${e.message}")
+            0
+        }
+        return count
+    }
+
 }

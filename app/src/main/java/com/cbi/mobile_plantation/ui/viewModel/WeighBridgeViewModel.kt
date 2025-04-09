@@ -247,6 +247,16 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    suspend fun getCountCreatedToday():Int{
+        val count = try {
+            repository.getCountCreatedToday()
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB created today: ${e.message}")
+            0
+        }
+        return count
+    }
+
     suspend fun saveDataLocalKraniTimbangESPB(
         blok_jjg: String,
         created_by_id: Int,
