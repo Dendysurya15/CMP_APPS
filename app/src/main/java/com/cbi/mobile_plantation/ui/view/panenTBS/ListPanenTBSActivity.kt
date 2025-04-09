@@ -1923,7 +1923,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val limitedData = mappedData.take(effectiveLimit)
                         val processedData =
                             AppUtils.getPanenProcessedData(limitedData, featureName)
-
+                        AppLogger.d(processedData.toString())
                         val listBlok = view.findViewById<TextView>(R.id.listBlok)
                         val totalJjg = view.findViewById<TextView>(R.id.totalJjg)
                         val totalTPH = view.findViewById<TextView>(R.id.totalTPH)
