@@ -132,5 +132,9 @@ abstract class ESPBDao {
     abstract suspend fun getAllESPBS(date: String? = null): List<ESPBEntity>
 
 
+    @Query("SELECT COUNT(*) FROM espb_table WHERE strftime('%Y-%m-%d', created_at) = strftime('%Y-%m-%d', 'now', 'localtime')")
+    abstract suspend fun getCountCreatedToday(): Int
+
+
 
 }

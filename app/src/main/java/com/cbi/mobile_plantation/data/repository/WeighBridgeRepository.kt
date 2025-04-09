@@ -81,6 +81,17 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
+    suspend fun getCountCreatedToday(): Int {
+        return try {
+            espbDao.getCountCreatedToday()
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB created today: ${e.message}")
+            0
+        }
+    }
+
+
+
     suspend fun getActiveESPBByIds(ids: List<Int>): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
         try {
             val data = espbDao.getActiveESPBByIds(ids)

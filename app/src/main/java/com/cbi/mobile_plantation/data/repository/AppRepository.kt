@@ -461,6 +461,15 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getCountCreatedToday(): Int {
+        return try {
+            espbDao.getCountCreatedToday()
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB created today: ${e.message}")
+            0
+        }
+    }
+
     fun getBlokById( listBlokId: List<Int>): List<TPHNewModel> {
         return tphDao.getBlokById(listBlokId)
     }

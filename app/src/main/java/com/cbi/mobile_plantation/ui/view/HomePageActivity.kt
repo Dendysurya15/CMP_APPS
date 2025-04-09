@@ -194,7 +194,7 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
                 try {
-                    val countDeferred = async { espbViewModel.getCountDraftESPB() }
+                    val countDeferred = async { espbViewModel.getCountCreatedToday()}
                     countActiveESPB = countDeferred.await()
                     withContext(Dispatchers.Main) {
                         featureAdapter.updateCount("Rekap eSPB", countActiveESPB.toString())
@@ -207,7 +207,7 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
                 try {
-                    val counteSPBWBDeferred = async { weightBridgeViewModel.coundESPBUploaded() }
+                    val counteSPBWBDeferred = async { weightBridgeViewModel.getCountCreatedToday()}
                     counteSPBWBScanned = counteSPBWBDeferred.await()
                     withContext(Dispatchers.Main) {
                         featureAdapter.updateCount(
