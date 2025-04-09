@@ -5,6 +5,7 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -1705,8 +1706,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         var successCount = 0
                                         val errorMessages = mutableListOf<String>()
 
-                                        val effectiveLimit = if (limit == 0) mappedData.size else limit
-
+                                        val effectiveLimit =
+                                            if (limit == 0) mappedData.size else limit
+                                        takeQRCodeScreenshot(view)
                                         // Take only the required number of items
                                         val limitedData = mappedData.take(effectiveLimit)
 
@@ -1787,28 +1789,27 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                                         ).show()
                                                     }
 
-                                                            else -> {
-                                                                AppLogger.d("All items archived successfully")
-                                                                playSound(R.raw.berhasil_konfirmasi)
-                                                                Toast.makeText(
-                                                                    this@ListPanenTBSActivity,
-                                                                    "Semua data berhasil diarsipkan",
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
-
-                                                                takeQRCodeScreenshot(view)
-                                                            }
-                                                        }
-                                                        dialog.dismiss()
-                                                    } catch (e: Exception) {
-                                                        AppLogger.e("Error in UI update: ${e.message}")
+                                                    else -> {
+                                                        AppLogger.d("All items archived successfully")
+                                                        playSound(R.raw.berhasil_konfirmasi)
                                                         Toast.makeText(
                                                             this@ListPanenTBSActivity,
-                                                            "Terjadi kesalahan pada UI",
+                                                            "Semua data berhasil diarsipkan",
                                                             Toast.LENGTH_SHORT
                                                         ).show()
+
                                                     }
                                                 }
+                                                dialog.dismiss()
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error in UI update: ${e.message}")
+                                                Toast.makeText(
+                                                    this@ListPanenTBSActivity,
+                                                    "Terjadi kesalahan pada UI",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
 
                                     } catch (e: Exception) {
                                         AppLogger.e("Fatal error in archiving process: ${e.message}")
@@ -1852,7 +1853,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
                     }
                 } else {
+
                     btnConfirmScanPanenTPH.setOnClickListener {
+                        takeQRCodeScreenshot(view)
                         onBackPressed()
                     }
                 }
@@ -1890,7 +1893,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                     gson.toJson(rootObject)
                                 } else {
-                                    val effectiveLimit = if (limitFun == 0) mappedData.size else limitFun
+                                    val effectiveLimit =
+                                        if (limitFun == 0) mappedData.size else limitFun
 
                                     // Take only the required number of items
                                     val limitedData = mappedData.take(effectiveLimit)
@@ -1903,8 +1907,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
                         }
 
-                        AppLogger.d("jsonData $jsonData")
-
                         val encodedData = withContext(Dispatchers.IO) {
                             try {
                                 encodeJsonToBase64ZipQR(jsonData)
@@ -1915,7 +1917,21 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
                         }
 
-                        // Switch to the main thread for UI updates
+
+                        val effectiveLimit =
+                            if (limit == 0) mappedData.size else limit
+                        val limitedData = mappedData.take(effectiveLimit)
+                        val processedData =
+                            AppUtils.getPanenProcessedData(limitedData, featureName)
+                        AppLogger.d(processedData.toString())
+                        val listBlok = view.findViewById<TextView>(R.id.listBlok)
+                        val totalJjg = view.findViewById<TextView>(R.id.totalJjg)
+                        val totalTPH = view.findViewById<TextView>(R.id.totalTPH)
+                        val blokSection = view.findViewById<LinearLayout>(R.id.blok_section)
+                        val totalSection = view.findViewById<LinearLayout>(R.id.total_section)
+                        listBlok.text = processedData["blokDisplay"].toString()
+                        totalJjg.text = processedData["totalJjgCount"].toString()
+                        totalTPH.text = processedData["tphCount"].toString()
                         withContext(Dispatchers.Main) {
                             try {
                                 generateHighQualityQRCode(encodedData, qrCodeImageView)
@@ -1935,7 +1951,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             duration = 250
                                         }
 
-                                // Ensure QR code and other elements start invisible
+                                blokSection.alpha = 0f
+                                totalSection.alpha = 0f
                                 qrCodeImageView.alpha = 0f
                                 dashedLine.alpha = 0f
                                 tvTitleQRGenerate.alpha = 0f
@@ -1946,6 +1963,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
                                 // Create fade-in animations
+
+                                val fadeInBlokSection =
+                                    ObjectAnimator.ofFloat(blokSection, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
+                                val fadeInTotalSection =
+                                    ObjectAnimator.ofFloat(totalSection, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
                                 val fadeInQR =
                                     ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
                                         .apply {
@@ -2010,6 +2041,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 AnimatorSet().apply {
                                     playTogether(fadeOut, fadeOutDots)
                                     addListener(object : AnimatorListenerAdapter() {
+                                        @SuppressLint("SuspiciousIndentation")
                                         override fun onAnimationEnd(animation: Animator) {
                                             // Hide loading elements
                                             loadingLogo.visibility = View.GONE
@@ -2020,21 +2052,21 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             tvTitleQRGenerate.visibility = View.VISIBLE
                                             qrCodeImageView.visibility = View.VISIBLE
                                             dashedLine.visibility = View.VISIBLE
-
+                                            blokSection.visibility = View.VISIBLE
+                                            totalSection.visibility = View.VISIBLE
                                             btnConfirmScanPanenTPH.visibility = View.VISIBLE
 
-                                                    lifecycleScope.launch {
-                                                        delay(200)
-                                                        playSound(R.raw.berhasil_generate_qr)
-                                                        delay(300)
+                                            lifecycleScope.launch {
+                                                delay(200)
+                                                playSound(R.raw.berhasil_generate_qr)
+                                                delay(300)
 
 
-                                                    }
-
-
-
+                                            }
 
                                             // Start fade-in animations
+                                            fadeInBlokSection.start()
+                                            fadeInTotalSection.start()
                                             fadeInQR.start()
                                             fadeInDashedLine.start()
                                             fadeInTitle.start()
@@ -2093,6 +2125,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     // Helper function to show errors
     fun showErrorMessageGenerateQR(view: View, message: String) {
+        val titleLayoutText = view.findViewById<TextView>(R.id.textTitleQRGenerate)
+        val dashedLine = view.findViewById<View>(R.id.dashedLine)
+        dashedLine.visibility = View.VISIBLE
+        titleLayoutText.visibility = View.VISIBLE
+        titleLayoutText.text = "Terjadi Kesalahan Generate QR!"
+        titleLayoutText.setTextColor(
+            ContextCompat.getColor(
+                this,
+                R.color.colorRedDark
+            )
+        )
         val errorCard = view.findViewById<MaterialCardView>(R.id.errorCard)
         val errorText = view.findViewById<TextView>(R.id.errorText)
         errorText.text = message
@@ -2368,8 +2411,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     allWorkerData.addAll(multiWorkerData)
 
                                     emptyList<Map<String, Any>>()
-                                }
-                                else {
+                                } else {
                                     val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
                                         .map { it.trim() }
                                         .filter { it.isNotEmpty() }
@@ -2594,7 +2636,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                 mappedData = finalMergedData
                             } else if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 3) {
-                                val globalMergedBlokMap = mutableMapOf<String, MutableMap<String, Any>>()
+                                val globalMergedBlokMap =
+                                    mutableMapOf<String, MutableMap<String, Any>>()
 
                                 val jjgTypes = listOf(
                                     "TO", "UN", "OV", "EM", "AB", "RA", "LO", "TI", "RI", "KP", "PA"
@@ -2647,7 +2690,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         AppLogger.d("Found duplicate blok globally: $blokName")
                                         val existingBlokData = globalMergedBlokMap[blokName]!!
 
-                                        val existingJjgJson = JSONObject(existingBlokData["jjg_json"].toString())
+                                        val existingJjgJson =
+                                            JSONObject(existingBlokData["jjg_json"].toString())
 
                                         // Update all JJG types in the existing JSON
                                         for (type in jjgTypes) {
@@ -2680,10 +2724,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         val existingTransactions =
                                             (existingBlokData["jumlah_transaksi"]?.toString()
                                                 ?.toIntOrNull() ?: 1) + 1
-                                        existingBlokData["jumlah_transaksi"] = existingTransactions.toString()
+                                        existingBlokData["jumlah_transaksi"] =
+                                            existingTransactions.toString()
 
                                         val tphIds =
-                                            (existingBlokData["tph_ids"]?.toString() ?: "").split(",")
+                                            (existingBlokData["tph_ids"]?.toString()
+                                                ?: "").split(",")
                                                 .filter { it.isNotEmpty() }.toMutableSet()
                                         tphIds.add(tphId)
                                         existingBlokData["tph_ids"] = tphIds.joinToString(",")
@@ -2691,7 +2737,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                         // Process karyawan names properly - get existing ones
                                         val existingKaryawans =
-                                            (existingBlokData["nama_karyawans_all"]?.toString() ?: "").split(",")
+                                            (existingBlokData["nama_karyawans_all"]?.toString()
+                                                ?: "").split(",")
                                                 .map { it.trim() }
                                                 .filter { it.isNotEmpty() }
                                                 .toMutableSet()
@@ -2700,12 +2747,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         existingKaryawans.addAll(currentKaryawansList)
 
                                         // Update with the complete set
-                                        existingBlokData["nama_karyawans_all"] = existingKaryawans.joinToString(", ")
-                                        existingBlokData["karyawan_count"] = existingKaryawans.size.toString()
+                                        existingBlokData["nama_karyawans_all"] =
+                                            existingKaryawans.joinToString(", ")
+                                        existingBlokData["karyawan_count"] =
+                                            existingKaryawans.size.toString()
 
                                         // Process kemandoran names similarly
                                         val existingKemandorans =
-                                            (existingBlokData["nama_kemandorans_all"]?.toString() ?: "").split("\n")
+                                            (existingBlokData["nama_kemandorans_all"]?.toString()
+                                                ?: "").split("\n")
                                                 .map { it.trim().removePrefix("• ") }
                                                 .filter { it.isNotEmpty() }
                                                 .toMutableSet()
@@ -2718,7 +2768,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             .sorted()
                                             .joinToString("\n") { "• $it" }
 
-                                        existingBlokData["nama_kemandorans_all"] = formattedKemandorans
+                                        existingBlokData["nama_kemandorans_all"] =
+                                            formattedKemandorans
 
                                         existingBlokData["jjg_each_blok"] =
                                             "${existingBlokData["jjg_total"]} (${existingBlokData["jjg_dibayar"]})"
@@ -2749,18 +2800,22 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         mutableBlokData["jumlah_transaksi"] = "1"
                                         mutableBlokData["tph_ids"] = tphId
                                         mutableBlokData["tph_count"] = "1"
-                                        mutableBlokData["jjg_each_blok"] = "$formattedJjgTO ($formattedJjgPA)"
+                                        mutableBlokData["jjg_each_blok"] =
+                                            "$formattedJjgTO ($formattedJjgPA)"
 
                                         // Create worker tracking with proper handling of multiple workers
-                                        mutableBlokData["nama_karyawans_all"] = currentKaryawansList.joinToString(", ")
-                                        mutableBlokData["karyawan_count"] = currentKaryawansList.size.toString()
+                                        mutableBlokData["nama_karyawans_all"] =
+                                            currentKaryawansList.joinToString(", ")
+                                        mutableBlokData["karyawan_count"] =
+                                            currentKaryawansList.size.toString()
 
                                         // Format kemandoran list with bullet points
                                         val formattedKemandorans = currentKemandoransList
                                             .sorted()
                                             .joinToString("\n") { "• $it" }
 
-                                        mutableBlokData["nama_kemandorans_all"] = formattedKemandorans
+                                        mutableBlokData["nama_kemandorans_all"] =
+                                            formattedKemandorans
 
                                         globalMergedBlokMap[blokName] = mutableBlokData
                                     }
@@ -2822,10 +2877,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             val emptyStateMessage =
                                 if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2)
                                     "Belum ada rekap data per pemanen atau pastikan sudah menyimpan/konfirmasi scan"
-                                else if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 3){
+                                else if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 3) {
                                     "Belum ada rekap data per blok atau pastikan sudah menyimpan/konfirmasi scan"
-                                }
-                                else
+                                } else
                                     "Tidak ada data"
 
                             tvEmptyState.text = emptyStateMessage
@@ -2848,6 +2902,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         btnGenerateQRTPHUnl.visibility = View.VISIBLE
                         tvGenQR60.visibility = View.VISIBLE
                         tvGenQRFull.visibility = View.VISIBLE
+                    } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                        if (panenList.size > 0) {
+                            btnGenerateQRTPH.visibility = View.VISIBLE
+                        } else {
+                            btnGenerateQRTPH.visibility = View.GONE
+                        }
                     }
                 }, 500)
             }
@@ -3511,30 +3571,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setOnActionSelectedListener { actionItem ->
                 when (actionItem.id) {
                     R.id.scan_qr -> {
-//                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
 //
-//                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
-//
-//                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
-//                        dialog.setContentView(view)
-////                        view.layoutParams.height = 500.toPx()
-//
-//                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-//                        val data = "test"
-//                        generateHighQualityQRCode(data, qrCodeImageView)
-//                        dialog.setOnShowListener {
-//                            val bottomSheet =
-//                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-//                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
-//                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
-//                        }
-//                        dialog.show()
                         true
                     }
-//                    R.id.cancelSelection -> {
-//                        listAdapter.clearSelections()
-//                        true
-//                    }
+//
                     R.id.deleteSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()
                         handleDelete(selectedItems)
@@ -3544,18 +3584,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     R.id.uploadSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()
 
-//                        if (AppUtils.isInternetAvailable(this@ListPanenTBSActivity)) {
-//                            handleUpload(selectedItems)
-//                        } else {
-//                            AlertDialogUtility.withSingleAction(
-//                                this@ListPanenTBSActivity,
-//                                getString(R.string.al_back),
-//                                getString(R.string.al_no_internet_connection),
-//                                getString(R.string.al_no_internet_connection_description),
-//                                "network_error.json",
-//                                R.color.colorRedDark
-//                            ) {}
-//                        }
+//
                         true
                     }
 
