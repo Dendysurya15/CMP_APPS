@@ -372,7 +372,32 @@ object AppUtils {
         context: Context,
         featureDataList: List<Pair<String, List<Map<String, Any>>>>,
         userId: String,
-        onResult: (Boolean, String, String) -> Unit // Callback returns full path
+        onResult: (Boolean, String, String) -> Unit // Original callback
+    ) {
+        // Call the new implementation with a wrapper that ignores the List<File> parameter
+        createAndSaveZipUploadCMPImpl(context, featureDataList, userId) { success, fileName, fullPath, _ ->
+            // Only pass the first three parameters to the original callback
+            onResult(success, fileName, fullPath)
+        }
+    }
+
+    // New implementation with expanded callback
+    fun createAndSaveZipUploadCMPWithFiles(
+        context: Context,
+        featureDataList: List<Pair<String, List<Map<String, Any>>>>,
+        userId: String,
+        onResult: (Boolean, String, String, List<File>) -> Unit // New callback with List<File>
+    ) {
+        // Directly call the implementation
+        createAndSaveZipUploadCMPImpl(context, featureDataList, userId, onResult)
+    }
+
+    // Actual implementation (private or internal)
+    private fun createAndSaveZipUploadCMPImpl(
+        context: Context,
+        featureDataList: List<Pair<String, List<Map<String, Any>>>>,
+        userId: String,
+        onResult: (Boolean, String, String, List<File>) -> Unit // Implementation uses new callback
     ) {
         try {
             val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
@@ -387,76 +412,99 @@ object AppUtils {
                 File(context.getExternalFilesDir(null)?.parent ?: "", "Pictures")
             ).filterNotNull()
 
-            val zipFileName = "${userId}_$dateTime.zip"
-            val zipFile = File(appFilesDir, zipFileName)
+            // Check for existing zip files to determine the next sequence number
+            val existingFiles = appFilesDir.listFiles()?.filter {
+                it.name.matches(Regex("${userId}_\\d{14}_\\d+\\.zip"))
+            } ?: emptyList()
 
-            val zip = ZipFile(zipFile)
-            zip.setPassword(ZIP_PASSWORD.toCharArray())
+            // Find the highest sequence number used so far today
+            val todayPrefix = "${userId}_$dateTime".substring(0, userId.length + 9) // Just match the date part (yyyyMMdd)
+            var nextSequenceNumber = 1
 
-            val zipParams = ZipParameters().apply {
-                compressionMethod = CompressionMethod.DEFLATE
-                isEncryptFiles = true
-                encryptionMethod = EncryptionMethod.ZIP_STANDARD
+            existingFiles.forEach { file ->
+                if (file.name.startsWith(todayPrefix)) {
+                    // Extract the sequence number from filename
+                    val sequenceMatch = Regex("${userId}_\\d{14}_(\\d+)\\.zip").find(file.name)
+                    sequenceMatch?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { seq ->
+                        if (seq >= nextSequenceNumber) {
+                            nextSequenceNumber = seq + 1
+                        }
+                    }
+                }
             }
+
+            // Process all data and create zips with max 12 records each
+            val allZipFiles = mutableListOf<File>() // List of all created zip files
+
+            // Flatten all data into a single list
+            val allData = mutableListOf<Triple<String, Map<String, Any>, String>>() // (feature, data, photo path)
 
             featureDataList.forEach { (featureKey, dataList) ->
-                // Add JSON data
-                val jsonString = convertDataToJsonString(dataList)
-                val jsonBytes = jsonString.toByteArray()
-
-                val inputStream = ByteArrayInputStream(jsonBytes)
-                zip.addStream(
-                    inputStream,
-                    zipParams.apply { fileNameInZip = "$featureKey/data.json" })
-
-                // Add photos for this feature
-                addFeaturePhotosToZip(context, dataList, featureKey, picturesDirs, zip, zipParams)
+                dataList.forEach { data ->
+                    // Add the data with its feature key
+                    allData.add(Triple(featureKey, data, ""))
+                }
             }
 
-            onResult(true, zipFileName, zipFile.absolutePath) // Return full path
+            // Now chunk the combined data into groups of 12
+            val chunkedAllData = allData.chunked(12)
 
+            // Create a zip file for each chunk
+            chunkedAllData.forEach { chunk ->
+                val zipFileName = "${userId}_${dateTime}_${nextSequenceNumber}.zip"
+                val zipFile = File(appFilesDir, zipFileName)
+
+                val zip = ZipFile(zipFile)
+                zip.setPassword(ZIP_PASSWORD.toCharArray())
+
+                val zipParams = ZipParameters().apply {
+                    compressionMethod = CompressionMethod.DEFLATE
+                    isEncryptFiles = true
+                    encryptionMethod = EncryptionMethod.ZIP_STANDARD
+                }
+
+                // Group the data by feature key
+                val groupedByFeature = chunk.groupBy { it.first }
+
+                // Add each feature's data to the zip
+                groupedByFeature.forEach { (featureKey, featureData) ->
+                    // Extract just the data maps
+                    val dataMapList = featureData.map { it.second }
+
+                    // Add JSON data for this feature
+                    val jsonString = convertDataToJsonString(dataMapList)
+                    val jsonBytes = jsonString.toByteArray()
+
+                    val inputStream = ByteArrayInputStream(jsonBytes)
+                    zip.addStream(
+                        inputStream,
+                        zipParams.apply { fileNameInZip = "$featureKey/data.json" }
+                    )
+
+                    // Add photos for this chunk's data
+                    addFeaturePhotosToZip(context, dataMapList, featureKey, picturesDirs, zip, zipParams)
+                }
+
+                // Add to our results list
+                allZipFiles.add(zipFile)
+
+                // Increment for next file
+                nextSequenceNumber++
+            }
+
+            // Return the result using the callback
+            if (allZipFiles.isNotEmpty()) {
+                // For backward compatibility, still return the first zip's info in the original parameters
+                val firstZip = allZipFiles.first()
+                onResult(true, firstZip.name, firstZip.absolutePath, allZipFiles)
+            } else {
+                onResult(false, "No zip files created", "", emptyList())
+            }
         } catch (e: Exception) {
             val errorMessage = "❌ Error creating encrypted ZIP file: ${e.message}"
             AppLogger.e(errorMessage)
-            onResult(false, errorMessage, "") // Return empty path on failure
+            onResult(false, errorMessage, "", emptyList())
         }
-    }
-
-    fun extractIdsAsIntegers(inputString: String): List<Int> {
-        return inputString.split(";").map { entry ->
-            entry.split(",")[0].toInt()
-        }
-    }
-
-    // Format TPH data as requested
-    fun formatTPHDataList(tphString: String, tphDataList: List<TPHNewModel>?): String {
-        if (tphDataList.isNullOrEmpty()) return "-"
-
-        // Create a map of ID to TPH model for quick lookup
-        val tphMap = tphDataList.associateBy { it.id }
-
-        // Process each entry from the string individually to preserve duplicates
-        val formattedEntries = mutableListOf<String>()
-
-        tphString.split(";").forEach { entry ->
-            if (entry.isNotBlank()) {
-                try {
-                    val parts = entry.split(",")
-                    val id = parts[0].toInt()
-                    val jjg = parts[2].toInt()
-
-                    // Look up the TPH details
-                    val tph = tphMap[id]
-                    if (tph != null) {
-                        formattedEntries.add("• TPH nomor ${tph.nomor} (${tph.blok_kode}) $jjg jjg")
-                    }
-                } catch (e: Exception) {
-                    // Skip invalid entries
-                }
-            }
-        }
-
-        return formattedEntries.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
     }
 
     class ProgressRequestBody(

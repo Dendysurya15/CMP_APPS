@@ -416,102 +416,111 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                     uploadCMPViewModel.getAllIds()
                     delay(500)
 
-                    val idDeferred = CompletableDeferred<List<Int>>()
-                    uploadCMPViewModel.allIds.observe(this@ListHistoryWeighBridgeActivity) { ids ->
-                        idDeferred.complete(ids ?: emptyList()) // Ensure it's never null
+                    withContext(Dispatchers.Main) {
+                        containerDownloadDataset.visibility = View.VISIBLE
+                        cancelDownloadDataset.visibility = View.VISIBLE
+                        btnUploadDataCMP.visibility = View.GONE
+                        closeDialogBtn.isEnabled = true
+                        closeDialogBtn.alpha = 1f
+                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+                        loadingDialog.dismiss()
                     }
-                    val data = idDeferred.await()
-
-                    trackingIdsUpload = data
-                    datasetViewModel.updateLocalUploadCMP(trackingIdsUpload)
-                    datasetViewModel.isCompleted.observe(this@ListHistoryWeighBridgeActivity) { isCompleted ->
-                        if (isCompleted) {
-                            lifecycleScope.launch {
-                                try {
-                                    // Set a timeout for the entire operation
-                                    withTimeout(30 * 1000L) { // 30 seconds timeout
-                                        try {
-                                            val regionalIdString = prefManager!!.regionalIdUserLogin
-                                            val estateIdString = prefManager!!.estateIdUserLogin
-                                            val lastModifiedDatasetTPH = prefManager!!.lastModifiedDatasetTPH
-                                            val lastModifiedDatasetBlok = prefManager!!.lastModifiedDatasetBlok
-                                            val lastModifiedDatasetKemandoran = prefManager!!.lastModifiedDatasetKemandoran
-                                            val lastModifiedDatasetPemanen = prefManager!!.lastModifiedDatasetPemanen
-                                            val lastModifiedDatasetTransporter = prefManager!!.lastModifiedDatasetTransporter
-                                            val lastModifiedDatasetKendaraan = prefManager!!.lastModifiedDatasetKendaraan
-                                            val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
-
-                                            if (!estateIdString.isNullOrEmpty() && !estateIdString.isBlank()) {
-                                                try {
-                                                    val estateId = estateIdString.toInt()
-                                                    if (estateId > 0) {
-                                                        // Get datasets for silent download
-                                                        val datasets = getDatasetsToDownload(
-                                                            regionalIdString!!.toInt(),
-                                                            estateId,
-                                                            lastModifiedDatasetTPH,
-                                                            lastModifiedDatasetBlok,
-                                                            lastModifiedDatasetPemanen,
-                                                            lastModifiedDatasetKemandoran,
-                                                            lastModifiedDatasetTransporter,
-                                                            lastModifiedDatasetKendaraan,
-                                                            lastModifiedSettingJSON
-                                                        )
-
-                                                        if (datasets.isNotEmpty()) {
-                                                            AppLogger.d("Starting silent download for ${datasets.size} datasets")
-
-                                                            // Call the silent download function with its own timeout (also 30 seconds)
-                                                            val results = withTimeout(30 * 1000L) {
-                                                                datasetViewModel.downloadDatasetsSilently(datasets).await()
-                                                            }
-
-                                                            // Log results but don't update UI based on them
-                                                            val successCount = results.values.count { it }
-                                                            AppLogger.d("Silent download completed: $successCount/${results.size} datasets updated successfully")
-                                                        } else {
-                                                            AppLogger.d("No datasets to download silently")
-                                                        }
-                                                    } else {
-                                                        AppLogger.e("Invalid estate ID for silent download: $estateId")
-                                                    }
-                                                } catch (e: NumberFormatException) {
-                                                    AppLogger.e("Error parsing estate ID for silent download: ${e.message}")
-                                                }
-                                            } else {
-                                                AppLogger.e("Estate ID is null or empty for silent download")
-                                            }
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Error in silent download: ${e.message}")
-                                            throw e // Re-throw to be caught by the outer catch
-                                        }
-                                    }
-                                } catch (e: TimeoutCancellationException) {
-                                    // Handle timeout specifically
-                                    AppLogger.e("Silent download timed out after 30 seconds")
-                                    Toast.makeText(
-                                        this@ListHistoryWeighBridgeActivity,
-                                        "Proses sinkronisasi data melebihi batas waktu (30 detik)",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                } catch (e: Exception) {
-                                    // Handle other exceptions
-                                    AppLogger.e("Error or timeout in silent download process: ${e.message}")
-                                } finally {
-                                    // Always update UI, even if there's a timeout or error
-                                    withContext(Dispatchers.Main) {
-                                        containerDownloadDataset.visibility = View.VISIBLE
-                                        cancelDownloadDataset.visibility = View.VISIBLE
-                                        btnUploadDataCMP.visibility = View.GONE
-                                        closeDialogBtn.isEnabled = true
-                                        closeDialogBtn.alpha = 1f
-                                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
-                                        loadingDialog.dismiss()
-                                    }
-                                }
-                            }
-                        }
-                    }
+//                    val idDeferred = CompletableDeferred<List<Int>>()
+//                    uploadCMPViewModel.allIds.observe(this@ListHistoryWeighBridgeActivity) { ids ->
+//                        idDeferred.complete(ids ?: emptyList()) // Ensure it's never null
+//                    }
+//                    val data = idDeferred.await()
+//
+//                    trackingIdsUpload = data
+//                    datasetViewModel.updateLocalUploadCMP(trackingIdsUpload)
+//                    datasetViewModel.isCompleted.observe(this@ListHistoryWeighBridgeActivity) { isCompleted ->
+//                        if (isCompleted) {
+//                            lifecycleScope.launch {
+//                                try {
+//                                    // Set a timeout for the entire operation
+//                                    withTimeout(30 * 1000L) { // 30 seconds timeout
+//                                        try {
+//                                            val regionalIdString = prefManager!!.regionalIdUserLogin
+//                                            val estateIdString = prefManager!!.estateIdUserLogin
+//                                            val lastModifiedDatasetTPH = prefManager!!.lastModifiedDatasetTPH
+//                                            val lastModifiedDatasetBlok = prefManager!!.lastModifiedDatasetBlok
+//                                            val lastModifiedDatasetKemandoran = prefManager!!.lastModifiedDatasetKemandoran
+//                                            val lastModifiedDatasetPemanen = prefManager!!.lastModifiedDatasetPemanen
+//                                            val lastModifiedDatasetTransporter = prefManager!!.lastModifiedDatasetTransporter
+//                                            val lastModifiedDatasetKendaraan = prefManager!!.lastModifiedDatasetKendaraan
+//                                            val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
+//
+//                                            if (!estateIdString.isNullOrEmpty() && !estateIdString.isBlank()) {
+//                                                try {
+//                                                    val estateId = estateIdString.toInt()
+//                                                    if (estateId > 0) {
+//                                                        // Get datasets for silent download
+//                                                        val datasets = getDatasetsToDownload(
+//                                                            regionalIdString!!.toInt(),
+//                                                            estateId,
+//                                                            lastModifiedDatasetTPH,
+//                                                            lastModifiedDatasetBlok,
+//                                                            lastModifiedDatasetPemanen,
+//                                                            lastModifiedDatasetKemandoran,
+//                                                            lastModifiedDatasetTransporter,
+//                                                            lastModifiedDatasetKendaraan,
+//                                                            lastModifiedSettingJSON
+//                                                        )
+//
+//                                                        if (datasets.isNotEmpty()) {
+//                                                            AppLogger.d("Starting silent download for ${datasets.size} datasets")
+//
+//                                                            // Call the silent download function with its own timeout (also 30 seconds)
+//                                                            val results = withTimeout(30 * 1000L) {
+//                                                                datasetViewModel.downloadDatasetsSilently(datasets).await()
+//                                                            }
+//
+//                                                            // Log results but don't update UI based on them
+//                                                            val successCount = results.values.count { it }
+//                                                            AppLogger.d("Silent download completed: $successCount/${results.size} datasets updated successfully")
+//                                                        } else {
+//                                                            AppLogger.d("No datasets to download silently")
+//                                                        }
+//                                                    } else {
+//                                                        AppLogger.e("Invalid estate ID for silent download: $estateId")
+//                                                    }
+//                                                } catch (e: NumberFormatException) {
+//                                                    AppLogger.e("Error parsing estate ID for silent download: ${e.message}")
+//                                                }
+//                                            } else {
+//                                                AppLogger.e("Estate ID is null or empty for silent download")
+//                                            }
+//                                        } catch (e: Exception) {
+//                                            AppLogger.e("Error in silent download: ${e.message}")
+//                                            throw e // Re-throw to be caught by the outer catch
+//                                        }
+//                                    }
+//                                } catch (e: TimeoutCancellationException) {
+//                                    // Handle timeout specifically
+//                                    AppLogger.e("Silent download timed out after 30 seconds")
+//                                    Toast.makeText(
+//                                        this@ListHistoryWeighBridgeActivity,
+//                                        "Proses sinkronisasi data melebihi batas waktu (30 detik)",
+//                                        Toast.LENGTH_LONG
+//                                    ).show()
+//                                } catch (e: Exception) {
+//                                    // Handle other exceptions
+//                                    AppLogger.e("Error or timeout in silent download process: ${e.message}")
+//                                } finally {
+//                                    // Always update UI, even if there's a timeout or error
+//                                    withContext(Dispatchers.Main) {
+//                                        containerDownloadDataset.visibility = View.VISIBLE
+//                                        cancelDownloadDataset.visibility = View.VISIBLE
+//                                        btnUploadDataCMP.visibility = View.GONE
+//                                        closeDialogBtn.isEnabled = true
+//                                        closeDialogBtn.alpha = 1f
+//                                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+//                                        loadingDialog.dismiss()
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    }
 
                 }
 
