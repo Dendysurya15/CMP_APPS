@@ -88,6 +88,7 @@ import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import android.widget.ListView
 import android.widget.PopupWindow
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.DividerItemDecoration
@@ -158,7 +159,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var layoutSelAsistensi: LinearLayout
     private lateinit var tvErrorScannedNotSelected: TextView
     private lateinit var mbSaveDataPanenTBS: MaterialButton
-
+    private lateinit var progressBarScanTPHManual: ProgressBar
+    private lateinit var progressBarScanTPHAuto: ProgressBar
     private var keyboardBeingDismissed = false
 
     data class ScannedTPHLocation(
@@ -174,8 +176,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val blockCode: String,
         val distance: Float,
         val isAlreadySelected: Boolean,
-        val selectionCount: Int = 0,
-        val canBeSelectedAgain: Boolean = true
+        val selectionCount: Int,
+        val canBeSelectedAgain: Boolean,
+        val isWithinRange: Boolean = true
     )
 
 
@@ -735,7 +738,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         titleScannedTPHInsideRadius = findViewById(R.id.titleScannedTPHInsideRadius)
         descScannedTPHInsideRadius = findViewById(R.id.descScannedTPHInsideRadius)
         emptyScannedTPHInsideRadius = findViewById(R.id.emptyScanTPHInsideRadius)
-
+        progressBarScanTPHManual = findViewById(R.id.progressBarScanTPHManual)
+        progressBarScanTPHAuto = findViewById(R.id.progressBarScanTPHAuto)
         mbSaveDataPanenTBS = findViewById(R.id.mbSaveDataPanenTBS)
 
         layoutAncak = findViewById(R.id.layoutAncak)
@@ -768,13 +772,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val kemandoranLainLayout = findViewById<LinearLayout>(R.id.layoutKemandoranLain)
 
         // Reset main kemandoran filter container
-        val kemandoranFilterContainer = kemandoranLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+        val kemandoranFilterContainer =
+            kemandoranLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
         if (kemandoranFilterContainer != null && kemandoranFilterContainer.visibility == View.VISIBLE) {
             kemandoranFilterContainer.visibility = View.GONE
         }
 
         // Reset kemandoranLain filter container
-        val kemandoranLainFilterContainer = kemandoranLainLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+        val kemandoranLainFilterContainer =
+            kemandoranLainLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
         if (kemandoranLainFilterContainer != null && kemandoranLainFilterContainer.visibility == View.VISIBLE) {
             kemandoranLainFilterContainer.visibility = View.GONE
         }
@@ -1214,7 +1220,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         tphScannedResultRecyclerView.removeItemDecoration(decoration) // Remove if applied
 
         btnScanTPHRadius.setOnClickListener {
-//            btnScanTPHRadius.isEnabled = false
             isTriggeredBtnScanned = true
             if (currentAccuracy > boundaryAccuracy) {
                 AlertDialogUtility.withTwoActions(
@@ -1225,14 +1230,24 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     "warning.json",
                     ContextCompat.getColor(this@FeaturePanenTBSActivity, R.color.greendarkerbutton),
                     function = {
-                        checkScannedTPHInsideRadius()
+                        selectedTPHIdByScan = null
+                        selectedTPHValue = null
+                        progressBarScanTPHManual.visibility = View.VISIBLE
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            checkScannedTPHInsideRadius()
+                        }, 500)
                     },
                     cancelFunction = {
-//                        btnScanTPHRadius.isEnabled = true
                     }
                 )
             } else {
-                checkScannedTPHInsideRadius()
+                // Reset the selectedTPHIdByScan when manually refreshing
+                selectedTPHIdByScan = null
+                selectedTPHValue = null
+                progressBarScanTPHManual.visibility = View.VISIBLE
+                Handler(Looper.getMainLooper()).postDelayed({
+                    checkScannedTPHInsideRadius()
+                }, 400)
             }
 
         }
@@ -1466,8 +1481,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private fun checkScannedTPHInsideRadius() {
         if (lat != null && lon != null) {
             val tphList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
-
-            if (tphList.isNotEmpty()) {
+            if (tphList.isNotEmpty() || selectedTPHIdByScan != null) {
                 isEmptyScannedTPH = false
                 tphScannedResultRecyclerView.visibility = View.VISIBLE
                 titleScannedTPHInsideRadius.visibility = View.VISIBLE
@@ -1489,17 +1503,23 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 if (recyclerViewHeightPx > maxHeightPx) {
                     tphScannedResultRecyclerView.isNestedScrollingEnabled = true
-                    tphScannedResultRecyclerView.overScrollMode =
-                        View.OVER_SCROLL_ALWAYS
+                    tphScannedResultRecyclerView.overScrollMode = View.OVER_SCROLL_ALWAYS
                 } else {
                     tphScannedResultRecyclerView.isNestedScrollingEnabled = false
-                    tphScannedResultRecyclerView.overScrollMode =
-                        View.OVER_SCROLL_NEVER // Disable bounce effect
+                    tphScannedResultRecyclerView.overScrollMode = View.OVER_SCROLL_NEVER
                 }
 
                 tphScannedResultRecyclerView.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
-                tphScannedResultRecyclerView.isVerticalScrollBarEnabled =
-                    true // Force scrollbar visibility
+                tphScannedResultRecyclerView.isVerticalScrollBarEnabled = true
+
+                if (selectedTPHIdByScan != null) {
+                    for (i in tphList.indices) {
+                        if (tphList[i].id == selectedTPHIdByScan) {
+                            tphScannedResultRecyclerView.scrollToPosition(i)
+                            break
+                        }
+                    }
+                }
             } else {
                 tphScannedResultRecyclerView.visibility = View.GONE
                 titleScannedTPHInsideRadius.visibility = View.VISIBLE
@@ -1513,7 +1533,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             isEmptyScannedTPH = true
         }
 
-        loadingDialog.dismiss()
+        if (progressBarScanTPHManual.visibility == View.VISIBLE) {
+            progressBarScanTPHManual.visibility = View.GONE
+        }
+
+        if (progressBarScanTPHAuto.visibility == View.VISIBLE) {
+            progressBarScanTPHAuto.visibility = View.GONE
+        }
     }
 
     private fun setupFormulasView() {
@@ -1697,28 +1723,42 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         coordinates: Map<Int, ScannedTPHLocation>
     ): List<ScannedTPHSelectionItem> {
         val resultsList = mutableListOf<ScannedTPHSelectionItem>()
+        var currentlySelectedIncluded = false
 
+        // First, add all TPHs within radius
         for ((id, location) in coordinates) {
             val results = FloatArray(1)
             Location.distanceBetween(userLat, userLon, location.lat, location.lon, results)
             val distance = results[0]
 
-            if (distance <= radiusMinimum) {
-                val selectedCount = panenStoredLocal[id] ?: 0
+            // Get selection data from panenStoredLocal
+            val selectedCount = panenStoredLocal[id] ?: 0
+            val isSelected = selectedCount > 0
+            val isCurrentlySelected = id == selectedTPHIdByScan
 
+            // Include if within radius OR is the currently selected TPH
+            if (distance <= radiusMinimum || isCurrentlySelected) {
                 resultsList.add(
                     ScannedTPHSelectionItem(
                         id = id,
                         number = location.nomor,
                         blockCode = location.blokKode,
                         distance = distance,
-                        isAlreadySelected = selectedCount > 0,
+                        isAlreadySelected = isSelected,
                         selectionCount = selectedCount,
-                        canBeSelectedAgain = selectedCount < AppUtils.MAX_SELECTIONS_PER_TPH
+                        canBeSelectedAgain = selectedCount < AppUtils.MAX_SELECTIONS_PER_TPH,
+                        isWithinRange = distance <= radiusMinimum,
                     )
                 )
+
+                if (isCurrentlySelected) {
+                    currentlySelectedIncluded = true
+                }
             }
         }
+
+        // If we have a currently selected TPH (selectedTPHIdByScan) but it wasn't found in coordinates,
+        // we don't add a placeholder - just let the empty state handle it
 
         return resultsList.sortedBy { it.distance }
     }
@@ -1904,15 +1944,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 layoutPemanen.visibility = View.VISIBLE
                 layoutSelAsistensi.visibility = View.VISIBLE
                 layoutTipePanen.visibility = View.VISIBLE
-
+                selectedTPHIdByScan = null
+                selectedTPHValue = null
                 blokList = emptyList()
                 kemandoranList = emptyList()
                 kemandoranLainList = emptyList()
                 tphList = emptyList()
-
-                // Don't reset karyawan lists
-                // karyawanList = emptyList()
-                // karyawanLainList = emptyList()
 
                 setupSpinnerView(layoutBlok, emptyList())
                 setupSpinnerView(layoutNoTPH, emptyList())
@@ -1970,7 +2007,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     switchAsistensi.isChecked = false
                 }
                 blokBanjir = 0
-                layoutAutoScan.visibility = View.VISIBLE
+//                layoutAutoScan.visibility = View.VISIBLE
                 setupSpinnerView(layoutBlok, emptyList())
                 setupSpinnerView(layoutNoTPH, emptyList())
                 setupSpinnerView(layoutKemandoran, emptyList())
@@ -2003,6 +2040,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 selectedTPH = ""
                 selectedTPHValue = null
                 selectedKemandoranLain = ""
+
 
                 selectedPemanenAdapter.clearAllWorkers()
                 selectedPemanenLainAdapter.clearAllWorkers()
@@ -2216,7 +2254,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
-        if (!isSwitchBlokBanjirEnabled && !isTriggeredBtnScanned && selectedAfdeling.isNotEmpty()) {
+        if (!isSwitchBlokBanjirEnabled && !isTriggeredBtnScanned && selectedAfdeling.isNotEmpty() && !autoScanEnabled) {
             isValid = false
             errorMessages.add(stringXML(R.string.al_for_attempting_get_tph_in_radius))
             tvErrorScannedNotSelected.text = stringXML(R.string.al_for_attempting_get_tph_in_radius)
@@ -2349,7 +2387,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     AppLogger.e("Error filtering otherDivisiIds: ${e.message}")
                     emptyList()
                 }
-                
+
                 lifecycleScope.launch(Dispatchers.IO) {
                     withContext(Dispatchers.Main) {
                         animateLoadingDots(linearLayout)
@@ -2407,29 +2445,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             AppLogger.e("Error processing tahunTanamList: ${e.message}")
                             emptyList()
                         }
-
-//                        if (blokBanjir == 1) {
-//                            val blokDeferred = async {
-//                                try {
-//                                    datasetViewModel.getBlokList(
-//                                        estateId!!.toInt(),
-//                                        selectedDivisiId
-//                                    )
-//                                } catch (e: Exception) {
-//                                    AppLogger.e("Error fetching blokList: ${e.message}")
-//                                    emptyList()
-//                                }
-//                            }
-//                            blokList = blokDeferred.await()
-//                            tahunTanamList = try {
-//                                blokList.mapNotNull { it.tahun }.distinct()
-//                                    .sortedBy { it.toIntOrNull() }
-//                            } catch (e: Exception) {
-//                                AppLogger.e("Error processing tahunTanamList: ${e.message}")
-//                                emptyList()
-//                            }
-//
-//                        }
                         if (blokBanjir == 0) {
                             latLonMap = emptyMap()
                             latLonMap = async {
@@ -3180,7 +3195,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val btnScanTPHRadius =
             findViewById<MaterialButton>(R.id.btnScanTPHRadius)
-        btnScanTPHRadius.visibility = View.VISIBLE
+
+        if(autoScanEnabled){
+            btnScanTPHRadius.visibility = View.GONE
+            selectedTPHIdByScan = null
+            selectedTPHValue = null
+        }else{
+            btnScanTPHRadius.visibility = View.VISIBLE
+        }
 
         // Show auto scan switch when scanning is available
         layoutAutoScan.visibility = View.VISIBLE
@@ -3383,12 +3405,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
     override fun onTPHSelected(selectedTPH: ScannedTPHSelectionItem) {
-//        Toast.makeText(
-//            this,
-//            "Selected: ID=${selectedTPH.id}, ${selectedTPH.number} - ${selectedTPH.blockCode}",
-//            Toast.LENGTH_SHORT
-//        ).show()
-
         val tvErrorScannedNotSelected = findViewById<TextView>(R.id.tvErrorScannedNotSelected)
         tvErrorScannedNotSelected.visibility = View.GONE
 
@@ -3561,6 +3577,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             parent = parent.parent
         }
         return null
+    }
+
+    override fun getCurrentlySelectedTPHId(): Int? {
+        return selectedTPHIdByScan
     }
 
 
@@ -3766,14 +3786,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
-    // Add this runnable for automatic scanning
     private val autoScanRunnable = object : Runnable {
         override fun run() {
             if (autoScanEnabled) {
-                // Call the scan function
-                checkScannedTPHInsideRadius()
-                // Schedule the next scan
-                autoScanHandler.postDelayed(this, autoScanInterval)
+                progressBarScanTPHAuto.visibility = View.VISIBLE
+                Handler(Looper.getMainLooper()).postDelayed({
+                    checkScannedTPHInsideRadius()
+                    autoScanHandler.postDelayed(this, autoScanInterval)
+                }, 400) // Shorter delay for auto-scan (300ms)
             }
         }
     }
@@ -3787,9 +3807,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             autoScanEnabled = isChecked
 
             if (isChecked) {
-                // Start automatic scanning
                 autoScanHandler.post(autoScanRunnable)
-                // Show toast notification
+                btnScanTPHRadius.visibility = View.GONE
                 Toast.makeText(
                     this@FeaturePanenTBSActivity,
                     "Auto-refresh TPH setiap 5 detik diaktifkan",
@@ -3798,6 +3817,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             } else {
                 // Stop automatic scanning
                 autoScanHandler.removeCallbacks(autoScanRunnable)
+                btnScanTPHRadius.visibility = View.VISIBLE
                 Toast.makeText(
                     this@FeaturePanenTBSActivity,
                     "Auto-refresh TPH dinonaktifkan",
