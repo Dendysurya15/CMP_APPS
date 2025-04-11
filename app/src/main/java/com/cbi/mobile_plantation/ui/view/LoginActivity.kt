@@ -87,38 +87,56 @@ class LoginActivity : AppCompatActivity() {
         if (!activityInitialized) {
             activityInitialized = true
             prefManager = PrefManager(this)
-//            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-//            val todayDate = dateFormat.format(Date())
-//
-//            val lastSyncRaw = prefManager!!.lastSyncDate ?: ""
-//            val lastSyncDateOnly = try {
-//                // Parse the full datetime and format it to just date
-//                val fullDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-//                val parsedDate = fullDateFormat.parse(lastSyncRaw)
-//                dateFormat.format(parsedDate!!)
-//            } catch (e: Exception) {
-//                "" // If parsing fails
-//            }
-//
-//            val isSameDay = todayDate == lastSyncDateOnly
-//
-//            AppLogger.d("Today: $todayDate")
-//            AppLogger.d("Last Sync: $lastSyncDateOnly")
-//
-//            if (isSameDay) {
-              setupUI()
-//            } else {
-//                AlertDialogUtility.withSingleAction(
-//                    this@LoginActivity,
-//                    stringXML(R.string.al_back),
-//                    "Sinkronisasi Tanggal",
-//                    "Sistem mendeteksi tanggal berbeda dengan tanggal terakhir sinkronisasi data.\nSilakan sambungkan perangkat ke Internet untuk sinkronisasi data!.",
-//                    "warning.json",
-//                    R.color.colorRedDark
-//                ) {
-//                    finish()
-//                }
-//            }
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val todayDate = dateFormat.format(Date())
+            val today = dateFormat.parse(todayDate) ?: Date()
+
+            val lastSyncRaw = prefManager!!.lastSyncDate ?: ""
+            val lastSyncDateOnly = try {
+                // Parse the full datetime and format it to just date
+                val fullDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                val parsedDate = fullDateFormat.parse(lastSyncRaw)
+                dateFormat.format(parsedDate!!)
+            } catch (e: Exception) {
+                "" // If parsing fails
+            }
+
+            val lastSyncDate = try {
+                dateFormat.parse(lastSyncDateOnly)
+            } catch (e: Exception) {
+                null
+            }
+
+            // Check if same day
+            val isSameDay = todayDate == lastSyncDateOnly
+
+            // Check if within 90 days
+            val isWithin90Days = if (lastSyncDate != null) {
+                val diffInMillis = today.time - lastSyncDate.time
+                val diffInDays = diffInMillis / (1000 * 60 * 60 * 24)
+                diffInDays <= 90
+            } else {
+                false
+            }
+
+            AppLogger.d("Today: $todayDate")
+            AppLogger.d("Last Sync: $lastSyncDateOnly")
+            AppLogger.d("Within 90 days: $isWithin90Days")
+
+            if (isSameDay || isWithin90Days) {
+                setupUI()
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@LoginActivity,
+                    stringXML(R.string.al_back),
+                    "Sinkronisasi Tanggal",
+                    "Sistem mendeteksi tanggal berbeda dengan tanggal terakhir sinkronisasi data.\nSilakan sambungkan perangkat ke Internet untuk sinkronisasi data!.",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {
+                    finish()
+                }
+            }
         }
     }
 
