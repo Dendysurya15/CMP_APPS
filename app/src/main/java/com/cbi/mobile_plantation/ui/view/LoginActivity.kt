@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
@@ -36,6 +37,9 @@ import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class LoginActivity : AppCompatActivity() {
     private var username = ""
@@ -78,18 +82,53 @@ class LoginActivity : AppCompatActivity() {
     }
 
 
+    @SuppressLint("SuspiciousIndentation")
     private fun initializeActivity() {
         if (!activityInitialized) {
             activityInitialized = true
-            setupUI()
+            prefManager = PrefManager(this)
+//            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+//            val todayDate = dateFormat.format(Date())
+//
+//            val lastSyncRaw = prefManager!!.lastSyncDate ?: ""
+//            val lastSyncDateOnly = try {
+//                // Parse the full datetime and format it to just date
+//                val fullDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+//                val parsedDate = fullDateFormat.parse(lastSyncRaw)
+//                dateFormat.format(parsedDate!!)
+//            } catch (e: Exception) {
+//                "" // If parsing fails
+//            }
+//
+//            val isSameDay = todayDate == lastSyncDateOnly
+//
+//            AppLogger.d("Today: $todayDate")
+//            AppLogger.d("Last Sync: $lastSyncDateOnly")
+//
+//            if (isSameDay) {
+              setupUI()
+//            } else {
+//                AlertDialogUtility.withSingleAction(
+//                    this@LoginActivity,
+//                    stringXML(R.string.al_back),
+//                    "Sinkronisasi Tanggal",
+//                    "Sistem mendeteksi tanggal berbeda dengan tanggal terakhir sinkronisasi data.\nSilakan sambungkan perangkat ke Internet untuk sinkronisasi data!.",
+//                    "warning.json",
+//                    R.color.colorRedDark
+//                ) {
+//                    finish()
+//                }
+//            }
         }
     }
 
     private fun setupUI() {
         val btn_finger = findViewById<MaterialButton>(R.id.btn_finger)
         loadingDialog = LoadingDialog(this)
-        prefManager = PrefManager(this)
-        if (!prefManager!!.username.toString().isEmpty() && !prefManager!!.password.toString().isEmpty()) {
+
+        if (!prefManager!!.username.toString().isEmpty() && !prefManager!!.password.toString()
+                .isEmpty()
+        ) {
             if (AppUtils.checkBiometricSupport(this)) {
                 btn_finger.visibility = View.VISIBLE
                 biometricPrompt()
@@ -185,7 +224,9 @@ class LoginActivity : AppCompatActivity() {
                     if (token != null) {
                         if (prefManager!!.registeredDeviceUsername != null &&
                             prefManager!!.registeredDeviceUsername!!.isNotEmpty() &&
-                            prefManager!!.registeredDeviceUsername != usernameField.text.toString().trim()) {
+                            prefManager!!.registeredDeviceUsername != usernameField.text.toString()
+                                .trim()
+                        ) {
 
                             AlertDialogUtility.withSingleAction(
                                 this@LoginActivity,
@@ -200,7 +241,8 @@ class LoginActivity : AppCompatActivity() {
 
                         if (prefManager!!.registeredDeviceUsername.isNullOrEmpty()) {
                             AppLogger.d("test registeredDeviceUsername is null or empty")
-                            prefManager!!.registeredDeviceUsername = usernameField.text.toString().trim()
+                            prefManager!!.registeredDeviceUsername =
+                                usernameField.text.toString().trim()
                         }
 
                         prefManager!!.isFirstTimeLaunch = true
@@ -314,7 +356,8 @@ class LoginActivity : AppCompatActivity() {
 
             if (prefManager!!.registeredDeviceUsername != null &&
                 prefManager!!.registeredDeviceUsername!!.isNotEmpty() &&
-                prefManager!!.registeredDeviceUsername != username) {
+                prefManager!!.registeredDeviceUsername != username
+            ) {
                 AlertDialogUtility.withSingleAction(
                     this@LoginActivity,
                     stringXML(R.string.al_back),
@@ -335,7 +378,8 @@ class LoginActivity : AppCompatActivity() {
                 delay(1000)
 
                 if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() &&
-                    prefManager?.username == username && prefManager?.password == password) {
+                    prefManager?.username == username && prefManager?.password == password
+                ) {
                     navigateToHomePage()
                 } else {
                     if (AppUtils.isNetworkAvailable(this@LoginActivity)) {

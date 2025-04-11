@@ -887,12 +887,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             .sortedBy { it.nama }
                             .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
-                        AppLogger.d(karyawanNames.toString())
                         setupSpinnerView(layoutPemanen, karyawanNames)
                         setupSpinnerView(layoutPemanenLain, karyawanNames)
-                        layoutPemanen.visibility = View.VISIBLE
+                        if (blokBanjir != 0) {
+                            layoutPemanen.visibility = View.VISIBLE
+                        } else {
+                            layoutKemandoran.visibility = View.GONE
+                            layoutPemanen.visibility = View.GONE
+                            layoutSelAsistensi.visibility = View.GONE
+
+                        }
+
 
                     }
+                    delay(100)
 
                     // Now scroll to top AFTER all data loading and UI setup is complete
                     val scPanen = findViewById<ScrollView>(R.id.scPanen)
