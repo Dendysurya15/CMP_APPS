@@ -814,11 +814,10 @@ object AppUtils {
     fun showDateTimeNetworkWarning(activity: Activity) {
         val isOnline = isNetworkAvailable(activity)
         val message = if (isOnline) {
-            "Please enable automatic date and time for better app experience."
+            "Silakan aktifkan tanggal dan waktu otomatis untuk pengalaman aplikasi yang lebih baik."
         } else {
-            "Please enable automatic date and time and connect to the internet to ensure correct time synchronization."
+            "Silakan aktifkan tanggal dan waktu otomatis serta sambungkan ke internet untuk memastikan sinkronisasi waktu yang benar."
         }
-
         AlertDialogUtility.withTwoActions(
             activity,
             "Pengaturan",

@@ -122,6 +122,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private lateinit var cardRekapPerBlok: MaterialCardView
     private lateinit var counterTersimpan: TextView
     private lateinit var counterTerscan: TextView
+    private lateinit var counterPerPemanen: TextView
     private lateinit var tvEmptyState: TextView
     private lateinit var recyclerView: RecyclerView
     private lateinit var speedDial: SpeedDialView
@@ -359,19 +360,26 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         panenViewModel.loadTPHNonESPB(0, 0, 1)
                     } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                         if (currentState == 0) {
+                            AppLogger.d(" gess")
                             panenViewModel.loadTPHNonESPB(0, 0, 1)
                             panenViewModel.countTPHNonESPB(0, 0, 1)
-                            panenViewModel.countTPHESPB(0, 1, 1)
+                            panenViewModel.countTPHESPB(1, 0, 1)
+                            panenViewModel.countHasBeenESPB(0, 1, 1)
                         } else if (currentState == 1) {
+                            AppLogger.d("gas terus bro  gess")
+                            panenViewModel.loadTPHESPB(1, 0, 1)
+                            panenViewModel.countTPHNonESPB(0, 0, 1)
+                            panenViewModel.countTPHESPB(1, 0, 1)
+                            panenViewModel.countHasBeenESPB(0, 1, 1)
+                        } else {
+                            AppLogger.d("nais gess")
                             panenViewModel.loadTPHESPB(0, 1, 1)
                             panenViewModel.countTPHNonESPB(0, 0, 1)
-                            panenViewModel.countTPHESPB(0, 1, 1)
+                            panenViewModel.countTPHESPB(1, 0, 1)
+                            panenViewModel.countHasBeenESPB(0, 1, 1)
                         }
                     }
                 } else {
-//                    loadingDialog.show()
-//                    loadingDialog.setMessage("Sedang mengambil data...", true)
-
 
                     val displayDate = formatGlobalDate(globalFormattedDate)
                     dateButton.text = displayDate
@@ -392,13 +400,25 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
                     } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                         if (currentState == 0) {
+                            AppLogger.d("masuk sini gess")
+
+                            AppLogger.d(globalFormattedDate)
                             panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
                             panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
-                            panenViewModel.countTPHESPB(0, 1, 1, globalFormattedDate)
+                            panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
+                        } else if (currentState == 1) {
+                            AppLogger.d("nah kan")
+                            panenViewModel.loadTPHESPB(1, 0, 1, globalFormattedDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
+                            panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
                         } else {
+                            AppLogger.d("masuk sini gess terus")
                             panenViewModel.loadTPHESPB(0, 1, 1, globalFormattedDate)
                             panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
                             panenViewModel.countTPHESPB(0, 1, 1, globalFormattedDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
                         }
                     } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
                         panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
@@ -422,8 +442,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     filterDateContainer.visibility = View.GONE
 
 
-//            loadingDialog.show()
-//            loadingDialog.setMessage("Sedang mengambil data...", true)
                     // Get today's date in backend format
                     val todayBackendDate = AppUtils.formatDateForBackend(
                         Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
@@ -454,13 +472,23 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
                     } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                         if (currentState == 0) {
-                            panenViewModel.loadTPHNonESPB(0, 0, 1, todayBackendDate)
-                            panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
-                            panenViewModel.countTPHESPB(0, 1, 1, todayBackendDate)
+                            AppLogger.d(" gess")
+                            panenViewModel.loadTPHNonESPB(0, 0, 1,todayBackendDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1,todayBackendDate)
+                            panenViewModel.countTPHESPB(1, 0, 1,todayBackendDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1,todayBackendDate)
+                        } else if (currentState == 1) {
+                            AppLogger.d("gas terus bro  gess")
+                            panenViewModel.loadTPHESPB(1, 0, 1,todayBackendDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1,todayBackendDate)
+                            panenViewModel.countTPHESPB(1, 0, 1,todayBackendDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1,todayBackendDate)
                         } else {
-                            panenViewModel.loadTPHESPB(0, 1, 1, todayBackendDate)
-                            panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
-                            panenViewModel.countTPHESPB(0, 1, 1, todayBackendDate)
+                            AppLogger.d("nais gess")
+                            panenViewModel.loadTPHESPB(0, 1, 1,todayBackendDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1,todayBackendDate)
+                            panenViewModel.countTPHESPB(1, 0, 1,todayBackendDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1,todayBackendDate)
                         }
                     } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
                         panenViewModel.loadTPHNonESPB(0, 0, 1, todayBackendDate)
@@ -479,7 +507,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             ""
         }
 
-        Log.d("listTPHDriver", listTPHDriver.toString())
+//        Log.d("listTPHDriver", listTPHDriver.toString())
 
         prefManager = PrefManager(this)
         userName = prefManager!!.nameUserLogin
@@ -508,7 +536,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         if (listTPHDriver.isNotEmpty()) {
 
-//playSound(R.raw.berhasil_scan)
             // Extract TPH IDs from the current scan
             val currentScanTphIds = try {
                 val tphString = listTPHDriver
@@ -567,9 +594,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         currentState = 0
         setActiveCard(cardTersimpan)
         if (featureName == "Detail eSPB") {
-            // set to gone card_item_tersimpan
             cardTersimpan.visibility = View.GONE
-            // set to gone card_item_terscan
             cardTerscan.visibility = View.GONE
             val app = AppRepository(application)
             val espbViewModelFactory = ESPBViewModel.ESPBViewModelFactory(app)
@@ -598,11 +623,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
             } else if (featureName == "Rekap panen dan restan") {
 
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
-                findViewById<TextView>(R.id.list_item_tersimpan).text = "Rekap TPH"
-                findViewById<TextView>(R.id.list_item_terscan).text = "TPH Menjadi E-SPB"
+                findViewById<TextView>(R.id.tv_card_tersimpan).text = "Rekap TPH"
+                findViewById<TextView>(R.id.tv_card_terscan).text = "Sudah Transfer"
+                cardRekapPerPemanen.visibility = View.VISIBLE
+                findViewById<TextView>(R.id.tv_card_pemanen).text = "TPH Menjadi E-SPB"
+                AppLogger.d("gas bro")
                 panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
                 panenViewModel.countTPHNonESPB(0, 0, 1, AppUtils.currentDate)
-                panenViewModel.countTPHESPB(0, 1, 1, AppUtils.currentDate)
+                panenViewModel.countTPHESPB(1, 0, 1, AppUtils.currentDate)
 
             } else if (featureName == "Detail eSPB") {
                 val btnEditEspb = findViewById<FloatingActionButton>(R.id.btnEditEspb)
@@ -659,7 +687,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     val result = withContext(Dispatchers.IO) {
                                         panenViewModel.getPemuatByIdList(idKaryawanStringList)
                                     }
-                                    AppLogger.d(result.toString())
+
                                     result?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
                                         ?.joinToString(", ") ?: "-"
 
@@ -677,8 +705,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 AppLogger.d("Pemuat Nama ESPB: $pemuatNamaESPB") // ✅ Log AFTER the data is set
                             }
 
-
-                            AppLogger.d(pemuatNamaESPB)
 
                             btnEditEspb.setOnClickListener {
                                 AlertDialogUtility.withTwoActions(
@@ -917,13 +943,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
             } else if (featureName == "Rekap panen dan restan") {
                 loadingDialog.setMessage("Loading data tph...")
                 if (isAllDataFiltered) {
+                    AppLogger.d("lagi yuyh")
                     panenViewModel.loadTPHNonESPB(0, 0, 1)
                     panenViewModel.countTPHNonESPB(0, 0, 1)
-                    panenViewModel.countTPHESPB(0, 1, 1)
+                    panenViewModel.countTPHESPB(1, 0, 1)
+                    panenViewModel.countHasBeenESPB(0, 1, 1)
                 } else {
-                    panenViewModel.loadTPHNonESPB(0, 0, 1, dateToUse)
-                    panenViewModel.countTPHNonESPB(0, 0, 1, dateToUse)
-                    panenViewModel.countTPHESPB(0, 1, 1, dateToUse)
+                    AppLogger.d("ok gas terus pokoknya")
+                    panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
+                    panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
+                    panenViewModel.countHasBeenESPB(0, 1, 1,globalFormattedDate)
                 }
             } else {
                 loadingDialog.setMessage("Loading data tersimpan", true)
@@ -932,9 +962,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     panenViewModel.countTPHNonESPB(0, 0, 0)
                     panenViewModel.countTPHESPB(1, 0, 0)
                 } else {
-                    panenViewModel.loadTPHNonESPB(0, 0, 0, dateToUse)
-                    panenViewModel.countTPHNonESPB(0, 0, 0, dateToUse)
-                    panenViewModel.countTPHESPB(1, 0, 0, dateToUse)
+                    panenViewModel.loadTPHNonESPB(0, 0, 0, globalFormattedDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 0, globalFormattedDate)
+                    panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
                 }
             }
         }
@@ -963,17 +993,24 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
             flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
 
+            loadingDialog.setMessage("Loading data terscan", true)
+
+
             if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
-                loadingDialog.setMessage("Loading TPH menjadi E-SPB...")
+                loadingDialog.setMessage("Loadia sdfasdff")
 
                 if (isAllDataFiltered) {
-                    panenViewModel.loadTPHESPB(0, 1, 1)
+                    panenViewModel.loadTPHESPB(1, 0, 1)
+                    panenViewModel.countTPHESPB(1, 0, 1)
                     panenViewModel.countTPHNonESPB(0, 0, 1)
-                    panenViewModel.countTPHESPB(0, 1, 1)
+                    panenViewModel.countHasBeenESPB(0, 1, 1)
                 } else {
-                    panenViewModel.loadTPHESPB(0, 1, 1, dateToUse)
-                    panenViewModel.countTPHNonESPB(0, 0, 1, dateToUse)
-                    panenViewModel.countTPHESPB(0, 1, 1, dateToUse)
+                    AppLogger.d("asldjkflaskdf")
+                    AppLogger.d("dateToUse $dateToUse")
+                    panenViewModel.loadTPHESPB(1, 0, 1, globalFormattedDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
+                    panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
+                    panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
                 }
             } else {
                 loadingDialog.setMessage("Loading data terscan", true)
@@ -982,9 +1019,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     panenViewModel.countTPHESPB(1, 0, 0)
                     panenViewModel.countTPHNonESPB(0, 0, 0)
                 } else {
-                    panenViewModel.loadTPHESPB(1, 0, 0, dateToUse)
-                    panenViewModel.countTPHESPB(1, 0, 0, dateToUse)
-                    panenViewModel.countTPHNonESPB(0, 0, 0, dateToUse)
+                    panenViewModel.loadTPHESPB(1, 0, 0, globalFormattedDate)
+                    panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 0, globalFormattedDate)
                 }
             }
         }
@@ -1018,17 +1055,34 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
             flCheckBoxTableHeaderLayout.visibility = View.GONE
 
-            loadingDialog.setMessage("Loading Rekap Per Pemanen", true)
-            if (isAllDataFiltered) {
-                panenViewModel.loadTPHNonESPB(1, 0, 0)
-                panenViewModel.loadPanenCountArchive()
-                panenViewModel.countTPHESPB(1, 0, 0)
-                panenViewModel.countTPHNonESPB(0, 0, 0)
+            if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                loadingDialog.setMessage("Loading TPH menjadi E-SPB...")
+
+                if (isAllDataFiltered) {
+                    AppLogger.d("nais bro ooooo")
+
+                    panenViewModel.loadTPHESPB(0, 1, 1)
+                    panenViewModel.countTPHNonESPB(0, 0, 1)
+                    panenViewModel.countTPHESPB(1, 0, 1)
+                    panenViewModel.countHasBeenESPB(0, 1, 1)
+                } else {
+                    AppLogger.d("nais bro kah")
+                    panenViewModel.loadTPHESPB(0, 1, 1, globalFormattedDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
+                    panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
+                    panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
+                }
             } else {
-                panenViewModel.loadTPHNonESPB(1, 0, 0, dateToUse)
-                panenViewModel.loadPanenCountArchive()
-                panenViewModel.countTPHESPB(1, 0, 0, dateToUse)
-                panenViewModel.countTPHNonESPB(0, 0, 0, dateToUse)
+                loadingDialog.setMessage("Loading Rekap Per Pemanen", true)
+                if (isAllDataFiltered) {
+                    panenViewModel.loadTPHNonESPB(1, 0, 0)
+                    panenViewModel.loadPanenCountArchive()
+                    panenViewModel.countTPHESPB(1, 0, 0)
+                } else {
+                    panenViewModel.loadTPHNonESPB(1, 0, 0, globalFormattedDate)
+                    panenViewModel.loadPanenCountArchive()
+                    panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
+                }
             }
         }
 
@@ -1082,6 +1136,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) View.VISIBLE else View.GONE
         counterTersimpan = findViewById(R.id.counter_item_tersimpan)
         counterTerscan = findViewById(R.id.counter_item_terscan)
+        counterPerPemanen = findViewById(R.id.counter_item_perpemanen)
         tvEmptyState = findViewById(R.id.tvEmptyState)
         recyclerView = findViewById(R.id.rvTableData) // Initialize RecyclerView
     }
@@ -1678,7 +1733,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                 dialog.show()
 
-                if (featureName != AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan || featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
                     btnConfirmScanPanenTPH.setOnClickListener {
                         AlertDialogUtility.withTwoActions(
                             this@ListPanenTBSActivity,
@@ -1923,7 +1978,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val limitedData = mappedData.take(effectiveLimit)
                         val processedData =
                             AppUtils.getPanenProcessedData(limitedData, featureName)
-                        AppLogger.d(processedData.toString())
+
                         val listBlok = view.findViewById<TextView>(R.id.listBlok)
                         val totalJjg = view.findViewById<TextView>(R.id.totalJjg)
                         val totalTPH = view.findViewById<TextView>(R.id.totalTPH)
@@ -2210,9 +2265,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
             counterTersimpan.text = count.toString()
         }
         panenViewModel.panenCountArchived.observe(this) { count ->
+            AppLogger.d(count.toString())
             counterTerscan.text = count.toString()
-        }
 
+
+        }
+        panenViewModel.panenCountHasBeenESPB.observe(this) { count ->
+            counterPerPemanen.text = count.toString()
+        }
 
         panenViewModel.activePanenList.observe(this) { panenList ->
             if (currentState == 0 || currentState == 2 || currentState == 3) {
@@ -2255,8 +2315,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "username" to (panenWithRelations.panen.username as Any)
                                 )
 
-
-                                AppLogger.d("panenWithRelations $panenWithRelations")
                                 val originalDataMapped = standardData.toMutableMap()
                                 originalMappedData.add(originalDataMapped)
 
@@ -2407,7 +2465,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     }
 
 
-                                    AppLogger.d("multiWorkerData $multiWorkerData")
                                     allWorkerData.addAll(multiWorkerData)
 
                                     emptyList<Map<String, Any>>()
@@ -2645,7 +2702,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                 for (blokData in allWorkerData) {
                                     val blokName = blokData["blok_name"].toString()
-                                    AppLogger.d("Global processing blok: $blokName")
+
 
                                     val tphId = blokData["tph_id"].toString()
                                     val jjgJson = JSONObject(blokData["jjg_json"].toString())
@@ -2655,8 +2712,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         jjgJson.optDouble(type, 0.0)
                                     }
 
-                                    // First handle multiple workers in the current record
-                                    // Some records have multiple workers separated by commas
                                     val currentKaryawans = blokData["nama_karyawans"].toString()
                                     val currentKaryawansList = mutableSetOf<String>()
 
@@ -2687,7 +2742,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     }
 
                                     if (globalMergedBlokMap.containsKey(blokName)) {
-                                        AppLogger.d("Found duplicate blok globally: $blokName")
                                         val existingBlokData = globalMergedBlokMap[blokName]!!
 
                                         val existingJjgJson =
@@ -2826,11 +2880,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         it["blok_name"].toString()
                                     }
 
-                                AppLogger.d("Final merged blok data: $finalMergedData")
                                 mappedData = finalMergedData
                             } else {
                                 mappedData = allWorkerData
-                                AppLogger.d("Using standard data (no global merging): $mappedData")
                             }
 
                             val processedData =
@@ -2905,6 +2957,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                         if (panenList.size > 0) {
                             btnGenerateQRTPH.visibility = View.VISIBLE
+                            tvGenQRFull.visibility = View.VISIBLE
+                            btnGenerateQRTPHUnl.visibility = View.VISIBLE
+                            tvGenQR60.visibility = View.VISIBLE
                         } else {
                             btnGenerateQRTPH.visibility = View.GONE
                         }
@@ -2914,7 +2969,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         panenViewModel.archivedPanenList.observe(this) { panenList ->
-            if (currentState == 1) {
+            if (currentState == 1 || currentState == 2) {
                 listAdapter.updateData(emptyList())
                 btnGenerateQRTPH.visibility = View.GONE
                 btnGenerateQRTPHUnl.visibility = View.GONE
@@ -3010,7 +3065,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 AppUtils.getPanenProcessedData(mappedData, featureName)
 
 
-                            AppLogger.d(processedData.toString())
                             totalTPH.text = tph.toString()
                             listBlok.text = processedData["blokDisplay"]?.toString()
                             totalJjg.text = processedData["totalJjgCount"]?.toString()
@@ -3022,17 +3076,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             filterSection.visibility =
                                 View.GONE // Hide filter section for new data
                         } else {
-                            tvEmptyState.text = "No scanned data available"
+                            tvEmptyState.text = "Tidak ada data"
                             tvEmptyState.visibility = View.VISIBLE
                             recyclerView.visibility = View.GONE
                             blokSection.visibility = View.GONE
                             totalSection.visibility = View.GONE
 
-                            AppLogger.d("kasdjflkd")
                         }
 
                     }
-                    counterTerscan.text = panenList.size.toString()
                 }, 500)
             }
         }

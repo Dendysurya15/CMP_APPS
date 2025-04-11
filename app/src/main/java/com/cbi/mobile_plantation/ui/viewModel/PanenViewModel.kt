@@ -66,6 +66,8 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _panenCountActive = MutableLiveData<Int>()
     val panenCountActive: LiveData<Int> = _panenCountActive
 
+    private val _panenCountHasBeenESPB = MutableLiveData<Int>()
+    val panenCountHasBeenESPB: LiveData<Int> = _panenCountHasBeenESPB
 
     private val _panenCountArchived = MutableLiveData<Int>()
     val panenCountArchived: LiveData<Int> = _panenCountArchived
@@ -104,6 +106,16 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
             _panenCountActive.value = 0
+        }
+    }
+
+    fun countHasBeenESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val count = repository.countESPB(archive, statusEspb, scanStatus, date)
+            _panenCountHasBeenESPB.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB: ${e.message}")
+            _panenCountHasBeenESPB.value = 0
         }
     }
 

@@ -40,20 +40,18 @@
     </LinearLayout>
 
     <!-- Status messages container outside the content_container -->
-    <TextView
-        android:id="@+id/status_message_text"
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/content_container"
         android:layout_marginTop="16dp"
-        android:fontFamily="@font/manrope_medium"
-        android:layout_centerHorizontal="true"
-        android:layout_marginHorizontal="40dp"
-        android:gravity="center"
-        android:textSize="@dimen/m"
-        android:textColor="@color/white"
-        android:visibility="gone" />
+        android:layout_marginHorizontal="40dp">
 
-
-
+        <LinearLayout
+            android:id="@+id/status_messages_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal" />
+    </ScrollView>
 </RelativeLayout>

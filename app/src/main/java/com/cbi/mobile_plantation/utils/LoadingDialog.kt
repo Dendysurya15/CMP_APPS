@@ -18,6 +18,7 @@ import android.view.animation.AnimationUtils
 import android.view.animation.DecelerateInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
@@ -44,6 +45,7 @@ class LoadingDialog(context: Context) : Dialog(context) {
 
         loadingLogo = findViewById<ImageView>(R.id.loading_logo)
         messageTextView = findViewById(R.id.loading_message)
+        statusMessagesContainer = findViewById(R.id.status_messages_container)
 
         contentContainer = findViewById(R.id.content_container)
         bounceAnimation = AnimationUtils.loadAnimation(context, R.anim.bounce)
@@ -93,40 +95,52 @@ class LoadingDialog(context: Context) : Dialog(context) {
                 updateMessageWithDots(value)
             }
 
-        start()
+            start()
         }
     }
 
     fun addStatusMessage(message: String, status: StatusType = StatusType.INFO, showIcon: Boolean = true) {
-        // Find the TextView directly from the layout
-        val statusMessageText = findViewById<TextView>(R.id.status_message_text)
-
-        statusMessageText?.let {
-            // Update text and make visible
-            it.text = message
-            it.visibility = View.VISIBLE
-
-            // Set icon if needed
-            if (showIcon) {
-                val iconDrawable = ContextCompat.getDrawable(context, when(status) {
-                    StatusType.SUCCESS -> R.drawable.baseline_check_box_24
-                    StatusType.ERROR -> R.drawable.baseline_close_24
-                    StatusType.WARNING -> R.drawable.baseline_error_24
-                    StatusType.INFO -> R.drawable.baseline_file_upload_24
-                })
-
-                iconDrawable?.let { drawable ->
-                    DrawableCompat.setTint(drawable, ContextCompat.getColor(context, when(status) {
-                        StatusType.SUCCESS -> R.color.greendarkerbutton
-                        StatusType.ERROR -> R.color.colorRedDark
-                        StatusType.WARNING -> R.color.orangeButton
-                        StatusType.INFO -> R.color.white
-                    }))
-                    it.setCompoundDrawablesWithIntrinsicBounds(null, null, drawable, null)
-                    it.compoundDrawablePadding = 5
+        statusMessagesContainer?.let { container ->
+            // Create a new TextView for this status message
+            val statusTextView = TextView(context).apply {
+                text = message
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, 0, 0, 16) // Bottom margin for spacing between messages
                 }
-            } else {
-                it.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+                gravity = Gravity.CENTER
+                typeface = ResourcesCompat.getFont(context, R.font.manrope_medium)
+                textSize = context.resources.getDimension(R.dimen.m) / context.resources.displayMetrics.density
+                setTextColor(ContextCompat.getColor(context, R.color.white))
+
+                if (showIcon) {
+                    val iconDrawable = ContextCompat.getDrawable(context, when(status) {
+                        StatusType.SUCCESS -> R.drawable.baseline_check_box_24
+                        StatusType.ERROR -> R.drawable.baseline_close_24
+                        StatusType.WARNING -> R.drawable.baseline_error_24
+                        StatusType.INFO -> R.drawable.baseline_file_upload_24
+                    })
+
+                    iconDrawable?.let { drawable ->
+                        DrawableCompat.setTint(drawable, ContextCompat.getColor(context, when(status) {
+                            StatusType.SUCCESS -> R.color.greendarkerbutton
+                            StatusType.ERROR -> R.color.colorRedDark
+                            StatusType.WARNING -> R.color.orangeButton
+                            StatusType.INFO -> R.color.white
+                        }))
+                        setCompoundDrawablesWithIntrinsicBounds(null, null, drawable, null)
+                        compoundDrawablePadding = 5
+                    }
+                }
+            }
+
+            // Add the new TextView to the container
+            container.post {
+                container.addView(statusTextView)
+                // Scroll to the bottom to show latest message
+                (container.parent as? ScrollView)?.fullScroll(ScrollView.FOCUS_DOWN)
             }
         }
     }
@@ -155,6 +169,5 @@ class LoadingDialog(context: Context) : Dialog(context) {
     // Clear all status messages
     fun clearStatusMessages() {
         statusMessagesContainer?.removeAllViews()
-        statusMessagesContainer?.visibility = View.GONE
     }
 }
