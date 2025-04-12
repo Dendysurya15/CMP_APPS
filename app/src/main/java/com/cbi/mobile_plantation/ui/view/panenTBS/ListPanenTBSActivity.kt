@@ -473,22 +473,22 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                         if (currentState == 0) {
                             AppLogger.d(" gess")
-                            panenViewModel.loadTPHNonESPB(0, 0, 1,todayBackendDate)
-                            panenViewModel.countTPHNonESPB(0, 0, 1,todayBackendDate)
-                            panenViewModel.countTPHESPB(1, 0, 1,todayBackendDate)
-                            panenViewModel.countHasBeenESPB(0, 1, 1,todayBackendDate)
+                            panenViewModel.loadTPHNonESPB(0, 0, 1, todayBackendDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
+                            panenViewModel.countTPHESPB(1, 0, 1, todayBackendDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1, todayBackendDate)
                         } else if (currentState == 1) {
                             AppLogger.d("gas terus bro  gess")
-                            panenViewModel.loadTPHESPB(1, 0, 1,todayBackendDate)
-                            panenViewModel.countTPHNonESPB(0, 0, 1,todayBackendDate)
-                            panenViewModel.countTPHESPB(1, 0, 1,todayBackendDate)
-                            panenViewModel.countHasBeenESPB(0, 1, 1,todayBackendDate)
+                            panenViewModel.loadTPHESPB(1, 0, 1, todayBackendDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
+                            panenViewModel.countTPHESPB(1, 0, 1, todayBackendDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1, todayBackendDate)
                         } else {
                             AppLogger.d("nais gess")
-                            panenViewModel.loadTPHESPB(0, 1, 1,todayBackendDate)
-                            panenViewModel.countTPHNonESPB(0, 0, 1,todayBackendDate)
-                            panenViewModel.countTPHESPB(1, 0, 1,todayBackendDate)
-                            panenViewModel.countHasBeenESPB(0, 1, 1,todayBackendDate)
+                            panenViewModel.loadTPHESPB(0, 1, 1, todayBackendDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
+                            panenViewModel.countTPHESPB(1, 0, 1, todayBackendDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1, todayBackendDate)
                         }
                     } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
                         panenViewModel.loadTPHNonESPB(0, 0, 1, todayBackendDate)
@@ -630,7 +630,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
                 panenViewModel.countTPHNonESPB(0, 0, 1, AppUtils.currentDate)
                 panenViewModel.countTPHESPB(1, 0, 1, AppUtils.currentDate)
-
+                panenViewModel.countHasBeenESPB(0, 1, 1, AppUtils.currentDate)
             } else if (featureName == "Detail eSPB") {
                 val btnEditEspb = findViewById<FloatingActionButton>(R.id.btnEditEspb)
                 btnEditEspb.visibility = View.VISIBLE
@@ -952,7 +952,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
                     panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
                     panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
-                    panenViewModel.countHasBeenESPB(0, 1, 1,globalFormattedDate)
+                    panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
                 }
             } else {
                 loadingDialog.setMessage("Loading data tersimpan", true)
@@ -1881,24 +1881,33 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         }
                                     }
 
-                                    panenViewModel.loadTPHNonESPB(
-                                        0,
-                                        0,
-                                        0,
-                                        globalFormattedDate
-                                    )
-                                    panenViewModel.countTPHNonESPB(
-                                        0,
-                                        0,
-                                        0,
-                                        globalFormattedDate
-                                    )
-                                    panenViewModel.countTPHESPB(
-                                        1,
-                                        0,
-                                        0,
-                                        globalFormattedDate
-                                    )
+
+                                    if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan){
+                                        panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
+                                        panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
+                                        panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
+                                        panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
+                                    }else{
+                                        panenViewModel.loadTPHNonESPB(
+                                            0,
+                                            0,
+                                            0,
+                                            globalFormattedDate
+                                        )
+                                        panenViewModel.countTPHNonESPB(
+                                            0,
+                                            0,
+                                            0,
+                                            globalFormattedDate
+                                        )
+                                        panenViewModel.countTPHESPB(
+                                            1,
+                                            0,
+                                            0,
+                                            globalFormattedDate
+                                        )
+                                    }
+
                                 }
                             }
                         ) {

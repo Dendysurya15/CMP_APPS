@@ -208,9 +208,10 @@ class FormESPBActivity : AppCompatActivity() {
         }
 
 
-        AppLogger.d(tph1.toString())
+        AppLogger.d("tph1 $tph1")
         try {
             ///tph1IdPanen is sometin like 1,23,4,5,2,3
+            AppLogger.d("tph_1_id_panen ${intent.getStringExtra("tph_1_id_panen")}")
             tph1IdPanen = intent.getStringExtra("tph_1_id_panen").toString()
             // Split the string by comma to get individual IDs
             val idStrings = tph1IdPanen.split(",")
@@ -231,6 +232,8 @@ class FormESPBActivity : AppCompatActivity() {
         }
         try {
             ///tph1IdPanen is sometin like 1,23,4,5,2,3
+
+            AppLogger.d("tph_normal ${intent.getStringExtra("tph_normal")}")
             tph1NoIdPanen = intent.getStringExtra("tph_normal").toString()
             // Split the string by comma to get individual IDs
             val idStrings = tph1NoIdPanen.split(",")
