@@ -627,7 +627,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 findViewById<TextView>(R.id.tv_card_terscan).text = "Sudah Transfer"
                 cardRekapPerPemanen.visibility = View.VISIBLE
                 findViewById<TextView>(R.id.tv_card_pemanen).text = "TPH Menjadi E-SPB"
-                AppLogger.d("gas bro")
                 panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
                 panenViewModel.countTPHNonESPB(0, 0, 1, AppUtils.currentDate)
                 panenViewModel.countTPHESPB(1, 0, 1, AppUtils.currentDate)
@@ -997,7 +996,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
             if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
-                loadingDialog.setMessage("Loadia sdfasdff")
+                loadingDialog.setMessage("Loading TPH")
 
                 if (isAllDataFiltered) {
                     panenViewModel.loadTPHESPB(1, 0, 1)
@@ -1005,7 +1004,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     panenViewModel.countTPHNonESPB(0, 0, 1)
                     panenViewModel.countHasBeenESPB(0, 1, 1)
                 } else {
-                    AppLogger.d("asldjkflaskdf")
                     AppLogger.d("dateToUse $dateToUse")
                     panenViewModel.loadTPHESPB(1, 0, 1, globalFormattedDate)
                     panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
@@ -3428,7 +3426,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val formattedTime = timeFormat.format(currentDate)
                 val processedData = AppUtils.getPanenProcessedData(mappedData, featureName)
 
-                tvUserName.text = "Hasil QR dari ${prefManager!!.nameUserLogin}"
+                tvUserName.text = "Hasil QR dari ${prefManager!!.jabatanUserLogin}"
                 if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                     val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
                     val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)

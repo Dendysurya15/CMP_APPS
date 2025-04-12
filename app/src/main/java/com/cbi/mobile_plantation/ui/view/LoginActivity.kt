@@ -96,21 +96,29 @@ class LoginActivity : AppCompatActivity() {
                 // Parse the full datetime and format it to just date
                 val fullDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                 val parsedDate = fullDateFormat.parse(lastSyncRaw)
-                dateFormat.format(parsedDate!!)
+                if (parsedDate != null) {
+                    dateFormat.format(parsedDate)
+                } else {
+                    ""
+                }
             } catch (e: Exception) {
                 "" // If parsing fails
             }
 
             val lastSyncDate = try {
-                dateFormat.parse(lastSyncDateOnly)
+                if (lastSyncDateOnly.isNotEmpty()) {
+                    dateFormat.parse(lastSyncDateOnly)
+                } else {
+                    null
+                }
             } catch (e: Exception) {
                 null
             }
 
-            // Check if same day
-            val isSameDay = todayDate == lastSyncDateOnly
+            // Check if same day - only if lastSyncDateOnly is not empty
+            val isSameDay = lastSyncDateOnly.isNotEmpty() && todayDate == lastSyncDateOnly
 
-            // Check if within 90 days
+            // Check if within 90 days - only if lastSyncDate is not null
             val isWithin90Days = if (lastSyncDate != null) {
                 val diffInMillis = today.time - lastSyncDate.time
                 val diffInDays = diffInMillis / (1000 * 60 * 60 * 24)
@@ -123,7 +131,9 @@ class LoginActivity : AppCompatActivity() {
             AppLogger.d("Last Sync: $lastSyncDateOnly")
             AppLogger.d("Within 90 days: $isWithin90Days")
 
-            if (isSameDay || isWithin90Days) {
+            val isFirstTimeLogin = lastSyncRaw.isNullOrEmpty()
+
+            if (isFirstTimeLogin || isSameDay || isWithin90Days) {
                 setupUI()
             } else {
                 AlertDialogUtility.withSingleAction(

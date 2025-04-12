@@ -960,7 +960,7 @@ class FormESPBActivity : AppCompatActivity() {
                 val formattedTime = timeFormat.format(currentDate)
 
                 // Set data for eSPB
-                tvUserName.text = "Hasil QR dari ${prefManager!!.nameUserLogin}"
+                tvUserName.text = "Hasil QR dari ${prefManager!!.jabatanUserLogin}"
                 setInfoData(infoBlokList, "Blok", ": $blokDisplay")
                 setInfoData(infoTotalJjg, "Total Janjang", ": $totalJjg")
                 setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": $tphCount")
