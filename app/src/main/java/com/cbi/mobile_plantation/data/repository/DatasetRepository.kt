@@ -134,7 +134,7 @@ class DatasetRepository(
         return apiService.downloadSmallDataset(mapOf("regional" to regional))
     }
 
-    suspend fun checkStatusUploadCMP(ids: List<Int>): Response<ResponseBody> {
+    suspend fun checkStatusUploadCMP(ids: List<String>): Response<ResponseBody> {
         val idDataString = ids.joinToString(",") // Convert list to "1,2,3,4"
         return apiService.checkStatusUploadCMP(idDataString)
     }

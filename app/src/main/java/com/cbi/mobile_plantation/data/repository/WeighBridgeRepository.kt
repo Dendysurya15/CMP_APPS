@@ -472,48 +472,48 @@ class WeighBridgeRepository(context: Context) {
                                     val responseBody = response.body()
 
 
-                                    responseBody?.let {
-                                        val jsonResultTableIds = createJsonTableNameMapping(globalIdESPB) // Pass globalIdESPB
-
-                                        val uploadData = UploadCMPModel(
-                                            tracking_id = it.trackingId,
-                                            nama_file = it.nama_file,
-                                            status = it.status,
-                                            tanggal_upload = it.tanggal_upload,
-                                            table_ids = jsonResultTableIds
-                                        )
-
-                                        withContext(Dispatchers.IO) {
-                                            val existingCount = uploadCMPDao.getTrackingIdCount(uploadData.tracking_id!!)
-
-                                            if (existingCount > 0) {
-                                                uploadCMPDao.updateStatus(uploadData.tracking_id, uploadData.status!!)
-                                            } else {
-                                                uploadCMPDao.insertNewData(uploadData)
-                                            }
-                                        }
-
-                                        delay(100) // Small delay before the next operation
-                                    }
-
-                                    // update espb id untuk status_cmp_upload = 1
-                                    for (id in idsESPB) {
-                                        try {
-                                            withContext(Dispatchers.IO) { // Ensures it runs in background & waits
-                                                updateUploadStatusCMP(
-                                                    id, // ✅ Replace itemId with id from idsESPB
-                                                    1,
-                                                    uploaderInfo,
-                                                    uploadedAt,
-                                                    uploadedById,
-                                                    "Success Uploading to CMP"
-                                                )
-                                            }
-                                            AppLogger.d("ESPB table dengan id $id has been updated")
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
-                                        }
-                                    }
+//                                    responseBody?.let {
+//                                        val jsonResultTableIds = createJsonTableNameMapping(globalIdESPB) // Pass globalIdESPB
+//
+//                                        val uploadData = UploadCMPModel(
+//                                            tracking_id = it.trackingId,
+//                                            nama_file = it.nama_file,
+//                                            status = it.status,
+//                                            tanggal_upload = it.tanggal_upload,
+//                                            table_ids = jsonResultTableIds
+//                                        )
+//
+//                                        withContext(Dispatchers.IO) {
+//                                            val existingCount = uploadCMPDao.getTrackingIdCount(uploadData.tracking_id!!)
+//
+//                                            if (existingCount > 0) {
+//                                                uploadCMPDao.updateStatus(uploadData.tracking_id, uploadData.status!!)
+//                                            } else {
+//                                                uploadCMPDao.insertNewData(uploadData)
+//                                            }
+//                                        }
+//
+//                                        delay(100) // Small delay before the next operation
+//                                    }
+//
+//                                    // update espb id untuk status_cmp_upload = 1
+//                                    for (id in idsESPB) {
+//                                        try {
+//                                            withContext(Dispatchers.IO) { // Ensures it runs in background & waits
+//                                                updateUploadStatusCMP(
+//                                                    id, // ✅ Replace itemId with id from idsESPB
+//                                                    1,
+//                                                    uploaderInfo,
+//                                                    uploadedAt,
+//                                                    uploadedById,
+//                                                    "Success Uploading to CMP"
+//                                                )
+//                                            }
+//                                            AppLogger.d("ESPB table dengan id $id has been updated")
+//                                        } catch (e: Exception) {
+//                                            AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+//                                        }
+//                                    }
 
 
                                     results[num] = true

@@ -6,6 +6,7 @@ import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.mobile_plantation.data.model.weighBridge.UploadStagingResponse
 import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -115,6 +116,16 @@ interface ApiService {
     @POST("cmpmain/upload")
     suspend fun uploadZip(
         @Part zipFile: MultipartBody.Part
+    ): Response<UploadCMPResponse>
+
+    //for testing
+    @Multipart
+    @POST("cmpmain/uploadv2")
+    suspend fun uploadZipV2(
+        @Part zipFile: MultipartBody.Part,
+        @Part("uuid") uuid: RequestBody,
+        @Part("part") part: RequestBody,
+        @Part("total") total: RequestBody
     ): Response<UploadCMPResponse>
 
     @FormUrlEncoded

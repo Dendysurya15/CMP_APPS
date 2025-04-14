@@ -94,8 +94,11 @@ class UploadCMPRepository(context: Context) {
         }
     }
 
-    suspend fun uploadZipToServer(
+    suspend fun uploadZipToServerV2(
         fileZipPath: String,
+        batchUuid: String,
+        partNumber: Int,
+        totalParts: Int,
         onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
     ): Result<UploadCMPResponse> {
         return try {
@@ -117,13 +120,20 @@ class UploadCMPRepository(context: Context) {
 
                     // Additional tracking can be done here, but we're preserving the original callback signature
                 }
+
+                // Create the parts for the multipart request
                 val filePart = MultipartBody.Part.createFormData("zipFile", file.name, progressRequestBody)
 
-                AppLogger.d("Sending upload request...")
+                // Create RequestBody objects for the new parameters
+                val uuidPart = RequestBody.create("text/plain".toMediaTypeOrNull(), batchUuid)
+                val partPart = RequestBody.create("text/plain".toMediaTypeOrNull(), partNumber.toString())
+                val totalPart = RequestBody.create("text/plain".toMediaTypeOrNull(), totalParts.toString())
 
-                val response = CMPApiClient.instance.uploadZip(filePart)
+                AppLogger.d("Sending upload request with UUID: $batchUuid, Part: $partNumber, Total: $totalParts")
 
-                AppLogger.d(response.toString())
+                val response = TestingAPIClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
+
+                AppLogger.d("response $response")
                 if (response.isSuccessful) {
                     val responseBody = response.body()
                     return@withContext if (responseBody != null) {
@@ -157,6 +167,70 @@ class UploadCMPRepository(context: Context) {
             Result.failure(Exception(errorMsg))
         }
     }
+
+        suspend fun uploadZipToServer(
+            fileZipPath: String,
+            onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
+        ): Result<UploadCMPResponse> {
+            return try {
+                withContext(Dispatchers.IO) {
+                    val file = File(fileZipPath)
+                    if (!file.exists()) {
+                        val errorMsg = "File does not exist: $fileZipPath"
+                        AppLogger.d(errorMsg)
+                        return@withContext Result.failure(Exception(errorMsg))
+                    }
+
+                    val fileSize = file.length()
+                    AppLogger.d("Starting file upload: ${file.name}, Size: ${AppUtils.formatFileSize(fileSize)}")
+                    val progressRequestBody = ProgressRequestBody(file, "application/zip") { progress, bytesUploaded, totalBytes, done ->
+                        AppLogger.d("Upload progress: $progress% (${AppUtils.formatFileSize(bytesUploaded)}/${AppUtils.formatFileSize(totalBytes)})")
+
+                        // Still call the original callback to maintain compatibility
+                        onProgressUpdate(progress, false, null)
+
+                        // Additional tracking can be done here, but we're preserving the original callback signature
+                    }
+                    val filePart = MultipartBody.Part.createFormData("zipFile", file.name, progressRequestBody)
+
+                    AppLogger.d("Sending upload request...")
+
+                    val response = CMPApiClient.instance.uploadZip(filePart)
+
+                    AppLogger.d(response.toString())
+                    if (response.isSuccessful) {
+                        val responseBody = response.body()
+                        return@withContext if (responseBody != null) {
+                            AppLogger.d("Upload successful: ${file.name}")
+                            AppLogger.d("Response Code: ${response.code()}")
+                            AppLogger.d("Response Headers: ${response.headers()}")
+                            AppLogger.d("Response Body: ${responseBody}")
+
+                            onProgressUpdate(100, true, null)
+                            Result.success(responseBody)
+                        } else {
+                            val errorMsg = "Upload successful but response body is null"
+                            AppLogger.d(errorMsg)
+                            onProgressUpdate(100, false, errorMsg)
+                            Result.failure(Exception(errorMsg))
+                        }
+                    } else {
+                        val errorBody = response.errorBody()?.string()
+                        val errorMsg = "Upload failed - Code: ${response.code()}, Error: $errorBody"
+
+                        AppLogger.d("Upload failed: $errorMsg")
+                        AppLogger.d("Response Headers: ${response.headers()}")
+
+                        onProgressUpdate(100, false, errorMsg)
+                        Result.failure(Exception(errorMsg))
+                    }
+                }
+            } catch (e: Exception) {
+                val errorMsg = "Error uploading file: ${e.message}"
+                onProgressUpdate(100, false, errorMsg)
+                Result.failure(Exception(errorMsg))
+            }
+        }
 
 
 

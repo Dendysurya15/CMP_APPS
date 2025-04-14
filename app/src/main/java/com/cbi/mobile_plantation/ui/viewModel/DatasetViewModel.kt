@@ -490,7 +490,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val message: String
     )
 
-    fun updateLocalUploadCMP(trackingIds: List<Int>) {
+    fun updateLocalUploadCMP(trackingIds: List<String>) {
         viewModelScope.launch {
             _isCompleted.value = false
 

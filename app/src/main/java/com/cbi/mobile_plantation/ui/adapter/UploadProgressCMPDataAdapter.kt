@@ -16,6 +16,9 @@ data class UploadCMPItem(
     val id: Int,
     val title: String,
     val fullPath: String,
+    val partNumber: Int,
+    val totalParts: Int,
+    val baseFilename: String
 )
 
 class UploadProgressCMPDataAdapter(
@@ -32,7 +35,7 @@ class UploadProgressCMPDataAdapter(
         val tvNameProgress: TextView = itemView.findViewById(R.id.tv_name_progress)
         val progressBarUpload: ProgressBar = itemView.findViewById(R.id.progressBarUpload)
         val percentage: TextView = itemView.findViewById(R.id.percentageProgressBarCard)
-        val statusProgress: TextView = itemView.findViewById(R.id.status_progress)
+            val statusProgress: TextView = itemView.findViewById(R.id.status_progress)
         val iconStatus: ImageView = itemView.findViewById(R.id.icon_status_progress)
         val loadingCircular: ProgressBar = itemView.findViewById(R.id.progress_circular_loading)
     }
@@ -166,5 +169,29 @@ class UploadProgressCMPDataAdapter(
             size < 1024 * 1024 -> "${size / 1024} KB"
             else -> String.format("%.2f MB", size / (1024.0 * 1024.0))
         }
+    }
+
+    // Add this method to UploadProgressCMPDataAdapter
+    fun resetState() {
+        uploadProgressMap.clear()
+        uploadStatusMap.clear()
+        uploadErrorMap.clear()
+        uploadedBytesMap.clear()
+
+        // Initialize file size map again
+        uploadItems.forEach { item ->
+            try {
+                val file = File(item.fullPath)
+                if (file.exists()) {
+                    fileSizeMap[item.id] = file.length()
+                } else {
+                    fileSizeMap[item.id] = 0L
+                }
+            } catch (e: Exception) {
+                fileSizeMap[item.id] = 0L
+            }
+        }
+
+        notifyDataSetChanged()
     }
 }

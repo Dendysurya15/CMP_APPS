@@ -11,8 +11,10 @@ import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.mobile_plantation.data.repository.UploadCMPRepository
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
+import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class UploadCMPViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: UploadCMPRepository = UploadCMPRepository(application)
@@ -41,8 +43,8 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
 //    private val _uploadResponseCMP = MutableLiveData<UploadCMPResponse?>()
 //    val uploadResponseCMP: LiveData<UploadCMPResponse?> get() = _uploadResponseCMP
 
-    private val _allIds = MutableLiveData<List<Int>>() // Store only IDs
-    val allIds: LiveData<List<Int>> get() = _allIds
+    private val _allIds = MutableLiveData<List<String>>() // Store only IDs
+    val allIds: LiveData<List<String>> get() = _allIds
 
     fun getAllIds() {
         viewModelScope.launch {
@@ -63,9 +65,27 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun resetState() {
+        viewModelScope.launch {
+            // Reset all LiveData values
+            _completedCount.value = 0
+            _totalCount.value = 0
+            _uploadProgressCMP.value = 0
+            _uploadStatusCMP.value = AppUtils.UploadStatusUtils.WAITING
+            _uploadErrorCMP.value = null
+            _uploadResponseCMP.value = null
+
+            // Clear all maps
+            _itemProgressMap.value = emptyMap()
+            _itemStatusMap.value = emptyMap()
+            _itemErrorMap.value = emptyMap()
+            _itemResponseMap.value = emptyMap()
+        }
+    }
+
 
     fun UpdateOrInsertDataUpload(
-        tracking_id: Int,
+        tracking_id: String,
         nama_file: String,
         status: Int,
         tanggal_upload: String,
@@ -122,8 +142,8 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
 
 
 
-    private val _updateStatus = MutableLiveData<Pair<Int, Boolean>>()
-    val updateStatusUploadCMP: LiveData<Pair<Int, Boolean>> = _updateStatus
+    private val _updateStatus = MutableLiveData<Pair<String, Boolean>>()
+    val updateStatusUploadCMP: LiveData<Pair<String, Boolean>> = _updateStatus
 
     private val _uploadProgressCMP = MutableLiveData<Int>()
     val uploadProgressCMP: LiveData<Int> get() = _uploadProgressCMP
@@ -192,6 +212,83 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                 if (it.isSuccess) {
                     _uploadResponseCMP.postValue(it.getOrNull()) // Store response
                 }
+            }
+        }
+    }
+
+
+    fun uploadMultipleZipsV2(items: List<UploadCMPItem>) {
+        viewModelScope.launch {
+            // Reset counters
+            _completedCount.value = 0
+            _totalCount.value = items.size
+
+            // Initialize maps with default values
+            val progressMap = items.associate { it.id to 0 }
+            val statusMap = items.associate { it.id to AppUtils.UploadStatusUtils.WAITING }
+            val errorMap = items.associate { it.id to null as String? }
+            val responseMap = items.associate { it.id to null as UploadCMPResponse? }
+
+            _itemProgressMap.value = progressMap
+            _itemStatusMap.value = statusMap
+            _itemErrorMap.value = errorMap
+            _itemResponseMap.value = responseMap
+
+            // Generate a unique batch UUID for this upload session
+            val batchUuid = UUID.randomUUID().toString()
+            AppLogger.d("Generated batch UUID: $batchUuid for ${items.size} files")
+
+            // For each item, upload sequentially
+            for (item in items) {
+                // For current item, also update the original LiveData
+                _uploadProgressCMP.value = 0
+                _uploadStatusCMP.value = AppUtils.UploadStatusUtils.WAITING
+                _uploadErrorCMP.value = null
+                _uploadResponseCMP.value = null
+
+                // Update status to uploading
+                updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
+
+                AppLogger.d("Uploading file ${item.title} as part ${item.partNumber} of ${item.totalParts}, UUID: $batchUuid")
+
+                val result = repository.uploadZipToServerV2(
+                    fileZipPath = item.fullPath,
+                    batchUuid = batchUuid,
+                    partNumber = item.partNumber,
+                    totalParts = item.totalParts
+                ) { progress, isSuccess, error ->
+                    // Update item's progress
+                    updateItemProgress(item.id, progress)
+
+                    // Determine status
+                    val status = when {
+                        !isSuccess && !error.isNullOrEmpty() -> AppUtils.UploadStatusUtils.FAILED
+                        isSuccess -> AppUtils.UploadStatusUtils.SUCCESS
+                        progress in 1..99 -> AppUtils.UploadStatusUtils.UPLOADING
+                        else -> AppUtils.UploadStatusUtils.WAITING
+                    }
+
+                    // Update item's status and error
+                    updateItemStatus(item.id, status)
+                    updateItemError(item.id, error)
+
+                    // Also update the original LiveData for current item
+                    _uploadProgressCMP.postValue(progress)
+                    _uploadStatusCMP.postValue(status)
+                    _uploadErrorCMP.postValue(error)
+                }
+
+                // Process result
+                result?.let {
+                    if (it.isSuccess) {
+                        val response = it.getOrNull()
+                        // Update item's response
+                        updateItemResponse(item.id, response)
+                    }
+                }
+
+                // Increase completed count regardless of success or failure
+                _completedCount.value = (_completedCount.value ?: 0) + 1
             }
         }
     }

@@ -8,5 +8,5 @@ data class DatasetRequest(
     @SerializedName("regional") val regional: Int? = null,
     @SerializedName("last_modified") val lastModified: String?,
     @SerializedName("dataset") val dataset: String,
-    @SerializedName("data") val data: List<Int>? = null
+    @SerializedName("data") val data: List<String>? = null
 )
