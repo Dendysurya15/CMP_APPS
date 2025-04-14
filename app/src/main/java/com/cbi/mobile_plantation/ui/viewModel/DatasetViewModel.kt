@@ -267,7 +267,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             val dataArray = jsonObject.getAsJsonArray("data")
             val resultList = mutableListOf<TPHNewModel>()
 
-            dataArray.forEach { element ->
+            dataArray.forEachIndexed { index, element ->
                 try {
                     val obj = element.asJsonObject
                     val mappedObj = JsonObject()
@@ -278,34 +278,53 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         mappedObj.add(fieldName, value)
                     }
 
-                    // Manual conversion to TPHNewModel
+                    // Log the mapped JSON before trying to convert
+                    AppLogger.d("Processing item #${index + 1}, mapped JSON: $mappedObj")
+
+                    // Safe way to get values that handles null values properly
+                    fun safeGetString(field: String): String? {
+                        val value = mappedObj.get(field)
+                        return if (value == null || value.isJsonNull) null else value.asString
+                    }
+
+                    fun safeGetInt(field: String): Int? {
+                        val value = mappedObj.get(field)
+                        return if (value == null || value.isJsonNull) null else value.asInt
+                    }
+
+                    fun safeGetDouble(field: String): String? {
+                        val value = mappedObj.get(field)
+                        return if (value == null || value.isJsonNull) null else value.asDouble.toString()
+                    }
+
+                    // Manual conversion to TPHNewModel with proper null handling
                     val model = TPHNewModel(
-                        id = mappedObj.get("id")?.asInt,
-                        regional = mappedObj.get("regional").asInt.toString(),
-                        company = mappedObj.get("company")?.asInt,
-                        company_abbr = mappedObj.get("company_abbr")?.asString,
-                        wilayah = mappedObj.get("wilayah")?.asString,
-                        dept = mappedObj.get("dept")?.asInt,
-                        dept_ppro = mappedObj.get("dept_ppro")?.asInt,
-                        dept_abbr = mappedObj.get("dept_abbr")?.asString,
-                        divisi = mappedObj.get("divisi")?.asInt,
-                        divisi_ppro = mappedObj.get("divisi_ppro")?.asInt,
-                        divisi_abbr = mappedObj.get("divisi_abbr")?.asString,
-                        divisi_nama = mappedObj.get("divisi_nama")?.asString,
-                        blok = mappedObj.get("blok")?.asInt,
-                        blok_ppro = mappedObj.get("blok_ppro")?.asInt,
-                        blok_kode = mappedObj.get("blok_kode")?.asString,
-                        blok_nama = mappedObj.get("blok_nama")?.asString,
-                        ancak = mappedObj.get("ancak")?.asString,
-                        nomor = mappedObj.get("nomor")?.asString,
-                        tahun = mappedObj.get("tahun")?.asString,
-                        luas_area = mappedObj.get("luas_area")?.asString,
-                        jml_pokok = mappedObj.get("jml_pokok")?.asString,
-                        jml_pokok_ha = mappedObj.get("jml_pokok_ha")?.asString,
-                        lat = mappedObj.get("lat")?.asString,
-                        lon = mappedObj.get("lon")?.asString,
-                        update_date = mappedObj.get("update_date")?.asString,
-                        status = mappedObj.get("status")?.asString
+                        id = safeGetInt("id"),
+                        regional = safeGetString("regional") ?: safeGetInt("regional")?.toString() ?: "0",
+                        company = safeGetInt("company"),
+                        company_abbr = safeGetString("company_abbr"),
+                        wilayah = safeGetString("wilayah"),
+                        dept = safeGetInt("dept"),
+                        dept_ppro = safeGetInt("dept_ppro"),
+                        dept_abbr = safeGetString("dept_abbr"),
+                        divisi = safeGetInt("divisi"),
+                        divisi_ppro = safeGetInt("divisi_ppro"),
+                        divisi_abbr = safeGetString("divisi_abbr"),
+                        divisi_nama = safeGetString("divisi_nama"),
+                        blok = safeGetInt("blok"),
+                        blok_ppro = safeGetInt("blok_ppro"),
+                        blok_kode = safeGetString("blok_kode"),
+                        blok_nama = safeGetString("blok_nama"),
+                        ancak = safeGetString("ancak"),
+                        nomor = safeGetString("nomor"),
+                        tahun = safeGetString("tahun"),
+                        luas_area = safeGetDouble("luas_area"),
+                        jml_pokok = safeGetString("jml_pokok"),
+                        jml_pokok_ha = safeGetString("jml_pokok_ha"),
+                        lat = safeGetString("lat"),
+                        lon = safeGetString("lon"),
+                        update_date = safeGetString("update_date"),
+                        status = safeGetString("status")
                     )
 
                     // Log the first few items to check conversion
@@ -313,9 +332,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         AppLogger.d("Converted item ${resultList.size + 1}: $model")
                     }
 
+                    AppLogger.d("model $model")
                     resultList.add(model)
                 } catch (e: Exception) {
-                    AppLogger.e("Error converting single item: ${e.message}")
+                    AppLogger.e("Error converting item #${index + 1}")
+                    AppLogger.e("Error JSON: ${element}")
+                    AppLogger.e("Error details: ${e.message}")
+
                     // Continue with next item
                 }
             }
