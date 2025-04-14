@@ -134,4 +134,12 @@ abstract class PanenDao {
     @Transaction
     @Query("SELECT * FROM panen_table WHERE date(date_created) < date(:cutoffDate)")
     abstract suspend fun getPanenOlderThan(cutoffDate: String): List<PanenEntityWithRelations>
+
+    //getall where status_scan_mpanen = 0
+    @Query("SELECT * FROM panen_table WHERE status_scan_mpanen = :status_scan_mpanen")
+    abstract fun getAllScanMPanen(status_scan_mpanen: Int = 0): List<PanenEntity>
+
+    @Query("SELECT * FROM panen_table WHERE status_scan_mpanen = :status_scan_mpanen AND strftime('%Y-%m-%d', date_created) = :date")
+    abstract fun getAllScanMPanenByDate(status_scan_mpanen: Int, date: String): List<PanenEntity>
+
 }

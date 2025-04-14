@@ -443,6 +443,15 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getAllScanMPanenByDate(status_scan_mpanen: Int, date: String)= withContext(Dispatchers.IO)  {
+        try {
+            val data = panenDao.getAllScanMPanenByDate(status_scan_mpanen, date)
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
 //    suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
 //        try {
 //            val data = espbDao.getAllESPBS()

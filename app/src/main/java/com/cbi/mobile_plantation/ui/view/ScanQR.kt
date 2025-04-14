@@ -50,7 +50,7 @@ class ScanQR : AppCompatActivity() {
         }
 
         when (menuString) {
-            "Buat eSPB" -> intent = Intent(this, ListPanenTBSActivity::class.java).apply {
+            AppUtils.ListFeatureNames.BuatESPB -> intent = Intent(this, ListPanenTBSActivity::class.java).apply {
                 putExtra("scannedResult", result)
                 Log.d("scannedResult", "result: $result")
                 putExtra("FEATURE_NAME", menuString)

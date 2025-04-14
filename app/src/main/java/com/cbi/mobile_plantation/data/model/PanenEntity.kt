@@ -30,5 +30,7 @@ data class PanenEntity(
     val dataIsZipped: Int = 0,
     val no_espb: String = "NULL",
     val username: String = "NULL",
-    val status_pengangkutan: Int = 0 //1 diangkut unit, 0 belum diangkut, 2 status angkut manual
+    val status_pengangkutan: Int = 0, //1 diangkut unit, 0 belum diangkut, 2 status angkut manual
+    val status_insert_mpanen: Int = 0,
+    val status_scan_mpanen: Int = 0
 )

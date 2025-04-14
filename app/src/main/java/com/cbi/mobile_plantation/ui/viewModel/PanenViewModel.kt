@@ -198,6 +198,20 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+
+
+    fun getAllScanMPanenByDate(status_mpanen: Int, date: String) {
+        viewModelScope.launch {
+            repository.getAllScanMPanenByDate(status_mpanen, date)
+                .onSuccess { panenList ->
+                    _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
     fun updateDataIsZippedPanen(ids: List<Int>, status:Int) {
         viewModelScope.launch {
             try {
@@ -287,7 +301,6 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-
 
     fun archivePanenById(id: Int) {
         viewModelScope.launch {

@@ -165,9 +165,11 @@ object AppUtils {
         const val BLOK = "blok"
         const val UPLOADCMP = "upload_cmp"
         const val FLAGESPB = "flag_espb"
+        const val HEKTAR_PANEN = "hektar_panen"
     }
 
     object ListFeatureByRoleUser {
+        const val MandorPanen = "Mandor Panen"
         const val KeraniTimbang = "Kerani Timbang"
         const val Asisten = "Asisten"
         const val Mandor1 = "Mandor 1"
@@ -194,6 +196,11 @@ object AppUtils {
         const val ScanAbsensiPanen = "Scan absensi panen"
         const val SinkronisasiData = "Sinkronisasi data"
         const val UploadDataCMP = "Upload Data CMP"
+
+        const val ScanPanenMPanen = "Scan Mandor Panen"
+        const val DaftarHektarPanen = "Daftar Hektar Panen"
+        const val TransferHektarPanen = "Transfer Hektar Panen"
+
     }
 
     object WaterMarkFotoDanFolder {
