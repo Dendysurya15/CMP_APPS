@@ -533,7 +533,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             status[tableName] = item.status
                                         }
 
-                                        uploadCMPDao.updateStatus(item.id, item.status)
+                                        uploadCMPDao.updateStatus(item.id.toString(), item.nama_file, item.status)
                                     } catch (e: Exception) {
                                         AppLogger.e("Error processing item ${item.id}: ${e.localizedMessage}")
                                     }
@@ -1047,7 +1047,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                 status[tableName] = item.status
                                                             }
 
-                                                            uploadCMPDao.updateStatus(item.id, item.status)
+                                                            uploadCMPDao.updateStatus(item.id.toString(), item.nama_file,  item.status)
                                                         } catch (e: Exception) {
                                                             AppLogger.e("Silent download: Error processing item ${item.id}: ${e.message}")
                                                         }
@@ -1558,7 +1558,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                     }
 
                                                                 uploadCMPDao.updateStatus(
-                                                                    item.id,
+                                                                    item.id.toString(),
+                                                                    item.nama_file,
                                                                     item.status
                                                                 )
                                                             } catch (e: Exception) {

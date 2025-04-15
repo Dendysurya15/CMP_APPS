@@ -59,6 +59,7 @@ object AppUtils {
     const val REQUEST_CHECK_SETTINGS = 0x1
     const val MAX_SELECTIONS_PER_TPH = 3
     const val MAX_ALERT_FOR_GENERATE_QR = 60
+    const val max_data_in_zip = 2
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"
@@ -447,7 +448,7 @@ object AppUtils {
             }
 
             // Now chunk the combined data into groups of 12
-            val chunkedAllData = allData.chunked(12)
+            val chunkedAllData = allData.chunked(max_data_in_zip)
 
             // Create a zip file for each chunk
             chunkedAllData.forEach { chunk ->

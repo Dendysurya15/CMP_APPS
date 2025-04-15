@@ -67,7 +67,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
         KendaraanModel::class,
         BlokModel::class,
     ],
-    version = 26
+    version = 28
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -107,7 +107,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_11_12,
                         MIGRATION_13_14,
                         MIGRATION_14_15,
-                        MIGRATION_25_26
+                        MIGRATION_25_26,
+                        MIGRATION_26_27,
+                        MIGRATION_27_28
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -246,29 +248,105 @@ abstract class AppDatabase : RoomDatabase() {
                 // Step 1: Create a temporary table with the new schema
                 database.execSQL(
                     """
-                    CREATE TABLE IF NOT EXISTS upload_cmp_temp (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
-                        tracking_id TEXT, 
-                        nama_file TEXT, 
-                        status TEXT, 
-                        tanggal_upload TEXT, 
-                        table_ids TEXT
-                    )
-                    """
+            CREATE TABLE IF NOT EXISTS upload_cmp_temp (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                tracking_id TEXT, 
+                nama_file TEXT, 
+                status INTEGER,
+                tanggal_upload TEXT, 
+                table_ids TEXT
+            )
+            """
                 )
 
-                // Step 2: Copy data from the old table to the new table, converting Int to String
+                // Step 2: Copy data from the old table to the new table, converting only tracking_id to String
                 database.execSQL(
                     """
-                    INSERT INTO upload_cmp_temp (id, tracking_id, nama_file, status, tanggal_upload, table_ids) 
-                    SELECT id, 
-                           CAST(tracking_id AS TEXT), 
-                           nama_file, 
-                           CAST(status AS TEXT), 
-                           tanggal_upload, 
-                           table_ids 
-                    FROM ${AppUtils.DatabaseTables.UPLOADCMP}
+            INSERT INTO upload_cmp_temp (id, tracking_id, nama_file, status, tanggal_upload, table_ids) 
+            SELECT id, 
+                   CAST(tracking_id AS TEXT), 
+                   nama_file, 
+                   status,  
+                   tanggal_upload, 
+                   table_ids 
+            FROM ${AppUtils.DatabaseTables.UPLOADCMP}
+            """
+                )
+
+                // Step 3: Drop the old table
+                database.execSQL("DROP TABLE ${AppUtils.DatabaseTables.UPLOADCMP}")
+
+                // Step 4: Rename the new table to the original name
+                database.execSQL("ALTER TABLE upload_cmp_temp RENAME TO ${AppUtils.DatabaseTables.UPLOADCMP}")
+            }
+        }
+
+        private val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Step 1: Create a temporary table with the new schema
+                database.execSQL(
                     """
+            CREATE TABLE IF NOT EXISTS upload_cmp_temp (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                tracking_id INTEGER, 
+                nama_file TEXT, 
+                status INTEGER,
+                tanggal_upload TEXT, 
+                table_ids TEXT
+            )
+            """
+                )
+
+                // Step 2: Copy data from the old table to the new table, converting tracking_id back to INTEGER
+                database.execSQL(
+                    """
+            INSERT INTO upload_cmp_temp (id, tracking_id, nama_file, status, tanggal_upload, table_ids) 
+            SELECT id, 
+                   CAST(tracking_id AS INTEGER), 
+                   nama_file, 
+                   status,  
+                   tanggal_upload, 
+                   table_ids 
+            FROM ${AppUtils.DatabaseTables.UPLOADCMP}
+            """
+                )
+
+                // Step 3: Drop the old table
+                database.execSQL("DROP TABLE ${AppUtils.DatabaseTables.UPLOADCMP}")
+
+                // Step 4: Rename the new table to the original name
+                database.execSQL("ALTER TABLE upload_cmp_temp RENAME TO ${AppUtils.DatabaseTables.UPLOADCMP}")
+            }
+        }
+
+        private val MIGRATION_27_28 = object : Migration(25, 26) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Step 1: Create a temporary table with the new schema
+                database.execSQL(
+                    """
+            CREATE TABLE IF NOT EXISTS upload_cmp_temp (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                tracking_id TEXT, 
+                nama_file TEXT, 
+                status INTEGER,
+                tanggal_upload TEXT, 
+                table_ids TEXT
+            )
+            """
+                )
+
+                // Step 2: Copy data from the old table to the new table, converting only tracking_id to String
+                database.execSQL(
+                    """
+            INSERT INTO upload_cmp_temp (id, tracking_id, nama_file, status, tanggal_upload, table_ids) 
+            SELECT id, 
+                   CAST(tracking_id AS TEXT), 
+                   nama_file, 
+                   status,  
+                   tanggal_upload, 
+                   table_ids 
+            FROM ${AppUtils.DatabaseTables.UPLOADCMP}
+            """
                 )
 
                 // Step 3: Drop the old table

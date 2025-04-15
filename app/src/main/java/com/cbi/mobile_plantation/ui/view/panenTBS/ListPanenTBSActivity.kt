@@ -1765,6 +1765,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         // Take only the required number of items
                                         val limitedData = mappedData.take(effectiveLimit)
 
+
+                                        AppLogger.d(limitedData.size.toString())
                                         limitedData.forEach { item ->
                                             try {
                                                 // Null check for item
@@ -1983,9 +1985,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val effectiveLimit =
                             if (limit == 0) mappedData.size else limit
                         val limitedData = mappedData.take(effectiveLimit)
+
+                        AppLogger.d(limitedData.size.toString())
                         val processedData =
                             AppUtils.getPanenProcessedData(limitedData, featureName)
 
+
+
+                        AppLogger.d(limit.toString())
                         val listBlok = view.findViewById<TextView>(R.id.listBlok)
                         val totalJjg = view.findViewById<TextView>(R.id.totalJjg)
                         val totalTPH = view.findViewById<TextView>(R.id.totalTPH)
@@ -3433,7 +3440,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                 val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
                 val formattedTime = timeFormat.format(currentDate)
-                val processedData = AppUtils.getPanenProcessedData(mappedData, featureName)
+
+                val effectiveLimit =
+                    if (limit == 0) mappedData.size else limit
+                val limitedData = mappedData.take(effectiveLimit)
+
+                val processedData =
+                    AppUtils.getPanenProcessedData(limitedData, featureName)
 
                 tvUserName.text = "Hasil QR dari ${prefManager!!.jabatanUserLogin}"
                 if (featureName == AppUtils.ListFeatureNames.DetailESPB) {

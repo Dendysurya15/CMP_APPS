@@ -95,7 +95,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private lateinit var headerCheckBoxWB: CheckBox // Add this
     private lateinit var dateButton: Button
 
-    private var trackingIdsUpload: List<Int> = emptyList()
+    private var trackingIdsUpload: List<String> = emptyList()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefManager = PrefManager(this)
@@ -685,7 +685,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                     uploadCMPViewModel.getAllIds()
                                     delay(500)
 
-                                    val idDeferred = CompletableDeferred<List<Int>>()
+                                    val idDeferred = CompletableDeferred<List<String>>()
                                     uploadCMPViewModel.allIds.observe(this@ListHistoryWeighBridgeActivity) { ids ->
                                         idDeferred.complete(ids ?: emptyList()) // Ensure it's never null
                                     }

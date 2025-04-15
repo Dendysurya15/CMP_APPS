@@ -178,7 +178,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
     val itemResponseMap: LiveData<Map<Int, UploadCMPResponse?>> get() = _itemResponseMap
 
     // Track completed uploads count
-    private val _completedCount = MutableLiveData(0)
+    val _completedCount = MutableLiveData(0)
     val completedCount: LiveData<Int> get() = _completedCount
 
     // Track total uploads count
@@ -215,6 +215,8 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
     }
+
+
 
 
     fun uploadMultipleZipsV2(items: List<UploadCMPItem>) {
@@ -360,19 +362,19 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     // Helper functions to update maps - FIXED to use postValue instead of setValue
-    private fun updateItemProgress(id: Int, progress: Int) {
+    fun updateItemProgress(id: Int, progress: Int) {
         val currentMap = _itemProgressMap.value?.toMutableMap() ?: mutableMapOf()
         currentMap[id] = progress
         _itemProgressMap.postValue(currentMap)  // Changed to postValue
     }
 
-    private fun updateItemStatus(id: Int, status: String) {
+     fun updateItemStatus(id: Int, status: String) {
         val currentMap = _itemStatusMap.value?.toMutableMap() ?: mutableMapOf()
         currentMap[id] = status
         _itemStatusMap.postValue(currentMap)  // Changed to postValue
     }
 
-    private fun updateItemError(id: Int, error: String?) {
+     fun updateItemError(id: Int, error: String?) {
         val currentMap = _itemErrorMap.value?.toMutableMap() ?: mutableMapOf()
         currentMap[id] = error
         _itemErrorMap.postValue(currentMap)  // Changed to postValue

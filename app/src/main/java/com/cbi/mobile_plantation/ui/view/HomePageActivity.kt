@@ -82,6 +82,7 @@ import com.google.gson.Gson
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -135,7 +136,17 @@ class HomePageActivity : AppCompatActivity() {
     private var zipFileName: String? = null
     private var trackingIdsUpload: List<String> = emptyList()
     private lateinit var allUploadZipFilesToday: MutableList<File>
-    data class ResponseJsonUpload(val uuid: String, val fileName: String, val status: Int, val tanggal_upload:String)
+    private var uploadTimeoutJob: Job? = null
+    private var uploadTimedOut = false
+    data class ResponseJsonUpload(
+        val uuid: String,
+        val tracking_id: Int,
+        val fileName: String,
+        val statusCode: Int,
+        val tanggal_upload: String,
+        val partNumber: Int
+    )
+
     private val globalResponseJsonUploadList = mutableListOf<ResponseJsonUpload>()
 
     private lateinit var datasetViewModel: DatasetViewModel
@@ -550,7 +561,8 @@ class HomePageActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-
+        uploadTimeoutJob?.cancel()
+        uploadTimeoutJob = null
         // Ensure handler callbacks are removed
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
@@ -583,7 +595,7 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
-        uploadCMPViewModel.updateStatusUploadCMP.observeOnce(this) { (id, success) ->
+        uploadCMPViewModel.updateStatusUploadCMP.observe(this) { (id, success) ->
             if (success) {
                 AppLogger.d("✅ Upload Data with Tracking ID $id Inserted or Updated Successfully")
             } else {
@@ -1061,14 +1073,18 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
-    fun createJsonTableNameMapping(): String {
+    private fun createJsonTableNameMapping(partNumber: Int): String {
         val tableMap = mutableMapOf<String, List<Int>>()
 
-        if (globalPanenIds.isNotEmpty()) {
-            tableMap[AppUtils.DatabaseTables.PANEN] = globalPanenIds
+        // Get IDs for this specific part
+        val panenIds = globalPanenIdsByPart[partNumber] ?: emptyList()
+        val espbIds = globalEspbIdsByPart[partNumber] ?: emptyList()
+
+        if (panenIds.isNotEmpty()) {
+            tableMap[AppUtils.DatabaseTables.PANEN] = panenIds
         }
-        if (globalESPBIds.isNotEmpty()) {
-            tableMap[AppUtils.DatabaseTables.ESPB] = globalESPBIds
+        if (espbIds.isNotEmpty()) {
+            tableMap[AppUtils.DatabaseTables.ESPB] = espbIds
         }
 
         return Gson().toJson(tableMap) // Convert to JSON string
@@ -1393,11 +1409,13 @@ class HomePageActivity : AppCompatActivity() {
 //
 //    }
 
-
     @SuppressLint("SetTextI18n")
     private fun setupDialogUpload() {
+        // Reset state for a fresh upload dialog
         uploadCMPViewModel.resetState()
+        uploadTimedOut = false
         loadingDialog.dismiss()
+
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
         val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
         titleTV.text = "Upload Data CMP"
@@ -1412,7 +1430,8 @@ class HomePageActivity : AppCompatActivity() {
         val btnUploadDataCMP = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
         val btnRetryUpload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
 
-        val containerDownloadDataset = dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
+        val containerDownloadDataset =
+            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
         containerDownloadDataset.visibility = View.VISIBLE
 
         // Initially show only close and upload buttons
@@ -1475,6 +1494,25 @@ class HomePageActivity : AppCompatActivity() {
 
         // Function to start the upload process
         fun startUpload() {
+            // Check network connectivity first
+            if (!AppUtils.isNetworkAvailable(this)) {
+                AlertDialogUtility.withSingleAction(
+                    this@HomePageActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
+                return
+            }
+
+            // Reset timeout flag
+            uploadTimedOut = false
+
+            // Cancel any existing timeout job
+            uploadTimeoutJob?.cancel()
+
             // Disable both buttons during upload
             btnUploadDataCMP.isEnabled = false
             closeDialogBtn.isEnabled = false
@@ -1494,7 +1532,8 @@ class HomePageActivity : AppCompatActivity() {
             uploadCMPViewModel.uploadMultipleZipsV2(uploadItems)
         }
 
-        btnUploadDataCMP.setOnClickListener {AppLogger.d("globalESPBIds $globalESPBIds")
+        btnUploadDataCMP.setOnClickListener {
+            AppLogger.d("globalESPBIds $globalESPBIds")
             AppLogger.d("globalPanenIds $globalPanenIds")
             if (AppUtils.isNetworkAvailable(this)) {
                 AlertDialogUtility.withTwoActions(
@@ -1553,6 +1592,12 @@ class HomePageActivity : AppCompatActivity() {
             zipFileName = null
             zipFilePath = null
             uploadCMPViewModel.resetState()
+
+            // Cancel timeout job
+            uploadTimeoutJob?.cancel()
+            uploadTimeoutJob = null
+            uploadTimedOut = false
+
             dialog.dismiss()
         }
 
@@ -1581,6 +1626,7 @@ class HomePageActivity : AppCompatActivity() {
                 " ${AppUtils.formatFileSize(uploadedBytes)} / ${AppUtils.formatFileSize(totalBytes)} ($overallProgress%)"
         }
 
+        // Observe status for each item
         uploadCMPViewModel.itemStatusMap.observe(this) { statusMap ->
             // Update status for each item
             for ((id, status) in statusMap) {
@@ -1595,7 +1641,84 @@ class HomePageActivity : AppCompatActivity() {
             val hasErrors = statusMap.values.any { it == AppUtils.UploadStatusUtils.FAILED }
 
             AppLogger.d("statusMap $statusMap")
+
+            // Start a timeout job if uploads are in progress and no timeout has occurred yet
+            if (statusMap.isNotEmpty() && !allFinished && !uploadTimedOut) {
+                // Cancel any existing timeout job
+                uploadTimeoutJob?.cancel()
+
+                // Create a new timeout job
+                uploadTimeoutJob = lifecycleScope.launch {
+                    try {
+                        // Wait for 30 seconds
+                        delay(10000)
+
+                        // If we reach here, timeout occurred - force update all remaining items to failed
+                        AppLogger.d("Upload timeout occurred! Marking remaining items as failed.")
+
+                        // Set flag to prevent multiple timeouts
+                        uploadTimedOut = true
+
+                        val currentStatusMap = uploadCMPViewModel.itemStatusMap.value ?: return@launch
+                        var updatedItemCount = 0
+
+                        // For any item still in WAITING or UPLOADING status, update to FAILED
+                        for ((id, status) in currentStatusMap) {
+                            if (status == AppUtils.UploadStatusUtils.WAITING ||
+                                status == AppUtils.UploadStatusUtils.UPLOADING) {
+
+                                updatedItemCount++
+
+                                uploadCMPViewModel.updateItemStatus(id, AppUtils.UploadStatusUtils.FAILED)
+                                uploadCMPViewModel.updateItemError(id, "Connection timeout: Server did not respond in time")
+                                uploadCMPViewModel.updateItemProgress(id, 100)
+
+                                // Update adapter immediately for UI
+                                adapter.updateStatus(id, AppUtils.UploadStatusUtils.FAILED)
+                                adapter.updateError(id, "Connection timeout: Server did not respond in time")
+                                adapter.updateProgress(id, 100)
+                            }
+                        }
+
+                        // Update completedCount to match totalCount
+                        val totalItems = uploadCMPViewModel.totalCount.value ?: 0
+                        uploadCMPViewModel._completedCount.postValue(totalItems)
+
+                        AppLogger.d("Updated $updatedItemCount items to FAILED status due to timeout")
+
+                        // Handle UI update after timeout
+                        withContext(Dispatchers.Main) {
+                            titleTV.text = "Upload Timeout"
+                            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
+
+                            // Show retry button and hide upload button
+                            btnUploadDataCMP.visibility = View.GONE
+                            btnRetryUpload.visibility = View.VISIBLE
+
+                            // Re-enable buttons
+                            closeDialogBtn.isEnabled = true
+                            closeDialogBtn.alpha = 1f
+                            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+
+                            btnRetryUpload.isEnabled = true
+                            btnRetryUpload.alpha = 1f
+                            btnRetryUpload.iconTint = ColorStateList.valueOf(Color.WHITE)
+
+                            loadingDialog.dismiss()
+
+                            AppLogger.d("Upload timeout handled - retry button shown")
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error in upload timeout handler: ${e.message}")
+                    }
+                }
+            }
+
             if (allFinished && statusMap.isNotEmpty()) {
+                // Cancel any timeout job
+                uploadTimeoutJob?.cancel()
+                uploadTimeoutJob = null
+
                 lifecycleScope.launch {
                     loadingDialog.show()
                     loadingDialog.setMessage("Sedang proses data", true)
@@ -1606,17 +1729,37 @@ class HomePageActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         // Update UI based on upload results
                         if (allSuccess) {
-                            titleTV.text = "Upload Berhasil"
-                            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.greenDarker))
-
-                            btnUploadDataCMP.visibility = View.GONE
-                            btnRetryUpload.visibility = View.GONE
-
                             launch {
-
-                                processUploadResponses()
+                                val processingComplete = processUploadResponses()
 
                                 withContext(Dispatchers.Main) {
+                                    if (processingComplete) {
+                                        // Processing was successful
+                                        titleTV.text = "Upload Berhasil"
+                                        titleTV.setTextColor(
+                                            ContextCompat.getColor(
+                                                titleTV.context,
+                                                R.color.greenDarker
+                                            )
+                                        )
+
+                                        btnUploadDataCMP.visibility = View.GONE
+                                        btnRetryUpload.visibility = View.GONE
+                                    } else {
+                                        // Upload completed but processing not finished (status code not 3)
+                                        titleTV.text = "Upload Gagal"
+                                        titleTV.setTextColor(
+                                            ContextCompat.getColor(
+                                                titleTV.context,
+                                                R.color.colorRedDark
+                                            )
+                                        )
+
+                                        // Show retry button to let user retry processing
+                                        btnUploadDataCMP.visibility = View.GONE
+                                        btnRetryUpload.visibility = View.VISIBLE
+                                    }
+
                                     // Re-enable buttons
                                     closeDialogBtn.isEnabled = true
                                     closeDialogBtn.alpha = 1f
@@ -1631,7 +1774,12 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         } else {
                             titleTV.text = "Upload Selesai Dengan Kesalahan"
-                            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
+                            titleTV.setTextColor(
+                                ContextCompat.getColor(
+                                    titleTV.context,
+                                    R.color.colorRedDark
+                                )
+                            )
 
                             // Show retry button and hide upload button
                             btnUploadDataCMP.visibility = View.GONE
@@ -1668,7 +1816,6 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
-
         // Observe errors for each item
         uploadCMPViewModel.itemErrorMap.observe(this) { errorMap ->
             for ((id, error) in errorMap) {
@@ -1690,17 +1837,28 @@ class HomePageActivity : AppCompatActivity() {
                 globalEspbIdsByPart.clear()
                 globalResponseJsonUploadList.clear()
 
+                AppLogger.d("responseMap $responseMap")
+
                 for ((_, response) in responseMap) {
                     response?.let {
-                        // Store response info
-                        globalResponseJsonUploadList.add(ResponseJsonUpload(response.uuid, response.fileName, response.status, response.tanggal_upload))
+                        globalResponseJsonUploadList.add(
+                            ResponseJsonUpload(
+                                response.uuid,
+                                response.tracking_id,
+                                response.fileName,
+                                response.statusCode,
+                                response.tanggal_upload,
+                                response.uploadedParts
+                            )
+                        )
 
                         // Get the part number from the response
                         val partNumber = response.uploadedParts
 
                         if (allUploadZipFilesToday.isNotEmpty()) {
                             try {
-                                val extractionDeferred = CompletableDeferred<Pair<List<Int>, List<Int>>>()
+                                val extractionDeferred =
+                                    CompletableDeferred<Pair<List<Int>, List<Int>>>()
 
                                 AppLogger.d("Starting ZIP extraction for ${response.fileName}, part $partNumber")
 
@@ -1729,7 +1887,7 @@ class HomePageActivity : AppCompatActivity() {
 
                             } catch (e: Exception) {
                                 AppLogger.e("Error during ZIP extraction for part $partNumber: ${e.message}")
-                                // Store empty lists for failed extractions
+
                                 globalPanenIdsByPart[partNumber] = emptyList()
                                 globalEspbIdsByPart[partNumber] = emptyList()
                             }
@@ -1737,35 +1895,67 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
 
-//                // For convenience, also store all IDs combined in the original global variables
-//                globalPanenIds = globalPanenIdsByPart.values.flatten()
-//                globalESPBIds = globalEspbIdsByPart.values.flatten()
-
                 AppLogger.d("Stored IDs by part: ${globalPanenIdsByPart.keys}")
                 AppLogger.d("Total IDs - PANEN: ${globalPanenIds.size}, ESPB: ${globalESPBIds.size}")
             }
         }
     }
 
-//     Modified to not take a parameter since we'll use globalResponseJsonUploadList
-    private suspend fun processUploadResponses() {
-        // Create temporary lists to accumulate all IDs
-        val allPanenIds = mutableListOf<Int>()
-        val allEspbIds = mutableListOf<Int>()
+    private suspend fun processUploadResponses(): Boolean {
+        // First loop: Check the last response in the list to get the final status code
+        var finalStatusCode = 0
 
-        // Create JSON mapping once using all accumulated IDs
-        val jsonResultTableIds = createJsonTableNameMapping()
+        if (globalResponseJsonUploadList.isNotEmpty()) {
+            // Sort by partNumber to ensure we get the last part
+            val sortedResponses = globalResponseJsonUploadList.sortedBy { it.partNumber }
+            val lastResponse = sortedResponses.lastOrNull()
 
-        // Now update the database for each response with the same JSON mapping
-        for (responseInfo in globalResponseJsonUploadList) {
-            uploadCMPViewModel.UpdateOrInsertDataUpload(
-                responseInfo.uuid,
-                responseInfo.fileName,
-                responseInfo.status,
-                responseInfo.tanggal_upload,
-                jsonResultTableIds
-            )
-            delay(100)
+            if (lastResponse != null) {
+                finalStatusCode = lastResponse.statusCode
+                AppLogger.d("Final status code from last response: $finalStatusCode (part ${lastResponse.partNumber})")
+            }
+        } else {
+            AppLogger.d("No responses found in globalResponseJsonUploadList")
+            return false
+        }
+
+        // Second loop: Process responses only if status code is 3 (complete)
+        if (finalStatusCode == 3) {
+            AppLogger.d("Status code is 3 (processing complete), processing all upload responses")
+
+            // Remove duplicates by using a Set to track processed files
+            val processedFiles = mutableSetOf<String>()
+
+            for (responseInfo in globalResponseJsonUploadList) {
+                val partNumber = responseInfo.partNumber
+                val fileIdentifier = "${responseInfo.uuid}_${responseInfo.fileName}"
+
+                // Skip if we've already processed this file
+                if (fileIdentifier in processedFiles) {
+                    AppLogger.d("Skipping duplicate processing for ${responseInfo.fileName}")
+                    continue
+                }
+
+                processedFiles.add(fileIdentifier)
+
+                val jsonResultTableIds = createJsonTableNameMapping(partNumber)
+
+                AppLogger.d("Processing part $partNumber for file ${responseInfo.fileName}")
+                AppLogger.d("JSON mapping: $jsonResultTableIds")
+
+                uploadCMPViewModel.UpdateOrInsertDataUpload(
+                    responseInfo.uuid,
+                    responseInfo.fileName,
+                    finalStatusCode,
+                    responseInfo.tanggal_upload,
+                    jsonResultTableIds
+                )
+                delay(100)
+            }
+            return true
+        } else {
+            AppLogger.d("Status code is $finalStatusCode, not 3 (processing not complete), skipping processing")
+            return false
         }
     }
 

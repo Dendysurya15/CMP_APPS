@@ -14,11 +14,11 @@ abstract class UploadCMPDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertNewData(espbData: UploadCMPModel)
 
-    @Query("SELECT COUNT(*) FROM upload_cmp WHERE tracking_id = :trackingId")
-    abstract suspend fun getTrackingIdCount(trackingId: Int): Int
+    @Query("SELECT COUNT(*) FROM upload_cmp WHERE tracking_id = :trackingId and nama_file =:nama_file")
+    abstract suspend fun getTrackingIdCount(trackingId: String, nama_file: String): Int
 
-    @Query("UPDATE upload_cmp SET status = :status WHERE tracking_id = :trackingId")
-    abstract suspend fun updateStatus(trackingId: Int, status: Int)
+    @Query("UPDATE upload_cmp SET status = :status WHERE tracking_id = :trackingId and nama_file = :nama_file")
+    abstract suspend fun updateStatus(trackingId: String, nama_file: String, status: Int)
 
     @Query("SELECT table_ids FROM upload_cmp WHERE tracking_id = :trackingId")
     abstract suspend fun getTableIdsByTrackingId(trackingId: Int): String?

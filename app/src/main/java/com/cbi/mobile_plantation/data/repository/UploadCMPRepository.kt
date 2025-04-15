@@ -30,10 +30,10 @@ class UploadCMPRepository(context: Context) {
 
 
     suspend fun UpdateOrInsertDataUpload(data: UploadCMPModel) {
-        val existingCount = uploadCMPDao.getTrackingIdCount(data.tracking_id!!)
+        val existingCount = uploadCMPDao.getTrackingIdCount(data.tracking_id!!,data.nama_file!!)
 
         if (existingCount > 0) {
-            uploadCMPDao.updateStatus(data.tracking_id, data.status!!)
+            uploadCMPDao.updateStatus(data.tracking_id,data.nama_file!!,  data.status!!)
         } else {
             uploadCMPDao.insertNewData(data)
         }
@@ -131,7 +131,7 @@ class UploadCMPRepository(context: Context) {
 
                 AppLogger.d("Sending upload request with UUID: $batchUuid, Part: $partNumber, Total: $totalParts")
 
-                val response = TestingAPIClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
+                val response = CMPApiClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
 
                 AppLogger.d("response $response")
                 if (response.isSuccessful) {
@@ -151,15 +151,24 @@ class UploadCMPRepository(context: Context) {
                         Result.failure(Exception(errorMsg))
                     }
                 } else {
-                    val errorBody = response.errorBody()?.string()
+                    val errorBody = response.errorBody()?.string()  // Get the error body
                     val errorMsg = "Upload failed - Code: ${response.code()}, Error: $errorBody"
 
-                    AppLogger.d("Upload failed: $errorMsg")
-                    AppLogger.d("Response Headers: ${response.headers()}")
+                    // Log the error details for more clarity
+                    AppLogger.d("Upload failed: $errorMsg")  // Log the general error
+                    AppLogger.d("Response Code: ${response.code()}")  // Log response code
+                    AppLogger.d("Response Message: ${response.message()}")  // Log response message (additional detail)
+                    AppLogger.d("Response Headers: ${response.headers()}")  // Log response headers
+                    AppLogger.d("Response Body: $errorBody")  // Log the error body to show server response
 
+
+                    // Call progress update to notify about the failure
                     onProgressUpdate(100, false, errorMsg)
+
+                    // Return failure with the exception message
                     Result.failure(Exception(errorMsg))
                 }
+
             }
         } catch (e: Exception) {
             val errorMsg = "Error uploading file: ${e.message}"
