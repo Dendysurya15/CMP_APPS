@@ -1643,6 +1643,7 @@ class HomePageActivity : AppCompatActivity() {
     private fun startDownloads() {
         val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
+        val lastModifiedDatasetEstate = prefManager!!.lastModifiedDatasetEstate
         val lastModifiedDatasetTPH = prefManager!!.lastModifiedDatasetTPH
         val lastModifiedDatasetBlok = prefManager!!.lastModifiedDatasetBlok
         val lastModifiedDatasetKemandoran = prefManager!!.lastModifiedDatasetKemandoran
@@ -1669,6 +1670,7 @@ class HomePageActivity : AppCompatActivity() {
                 getDatasetsToDownload(
                     regionalIdString!!.toInt(),
                     estateId,
+                    lastModifiedDatasetEstate,
                     lastModifiedDatasetTPH,
                     lastModifiedDatasetBlok,
                     lastModifiedDatasetPemanen,
@@ -1681,6 +1683,7 @@ class HomePageActivity : AppCompatActivity() {
                 getDatasetsToDownload(
                     regionalIdString!!.toInt(),
                     estateId,
+                    lastModifiedDatasetEstate,
                     lastModifiedDatasetTPH,
                     lastModifiedDatasetBlok,
                     lastModifiedDatasetPemanen,
@@ -1708,6 +1711,7 @@ class HomePageActivity : AppCompatActivity() {
     private fun getDatasetsToDownload(
         regionalId: Int,
         estateId: Int,
+        lastModifiedDatasetEstate: String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetBlok: String?,
         lastModifiedDatasetPemanen: String?,
@@ -1747,35 +1751,32 @@ class HomePageActivity : AppCompatActivity() {
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
                     dataset = AppUtils.DatasetNames.tph
-                )
+                ),
+            )
+
+            datasets.add(
+                DatasetRequest(
+                    regional = regionalUser,
+                    lastModified = lastModifiedDatasetEstate,
+                    dataset = AppUtils.DatasetNames.estate
+                ),
             )
         }
 
-        datasets.add(
-            if (isKeraniTimbang) {
+        datasets.addAll(
+            listOf(
                 DatasetRequest(
                     regional = regionalUser,
                     lastModified = lastModifiedDatasetPemanen,
                     dataset = AppUtils.DatasetNames.pemanen
-                )
-            } else {
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetPemanen,
-                    dataset = AppUtils.DatasetNames.pemanen
-                )
-            }
-        )
-
-        datasets.addAll(
-            listOf(
+                ),
                 DatasetRequest(
                     regional = regionalId,
                     lastModified = null,
                     dataset = AppUtils.DatasetNames.mill
                 ),
                 DatasetRequest(
-                    estate = estateId,
+                    regional = regionalId,
                     lastModified = lastModifiedDatasetKemandoran,
                     dataset = AppUtils.DatasetNames.kemandoran
                 ),

@@ -24,6 +24,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -76,6 +77,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _millStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val millStatus: StateFlow<Result<Boolean>> = _millStatus.asStateFlow()
+
+    private val _estateStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
+    val estateStatus: StateFlow<Result<Boolean>> = _estateStatus.asStateFlow()
 
     private val _transporterStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val transporterStatus: StateFlow<Result<Boolean>> = _transporterStatus.asStateFlow()
@@ -152,6 +156,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 _blokStatus.value = Result.success(true)
             } catch (e: Exception) {
                 _blokStatus.value = Result.failure(e)
+            }
+        }
+
+    fun updateOrInsertEstate(estate: List<EstateModel>) =
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.updateOrInsertEstate(estate)
+                _estateStatus.value = Result.success(true)
+            } catch (e: Exception) {
+                _estateStatus.value = Result.failure(e)
             }
         }
 
@@ -300,7 +314,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     // Manual conversion to TPHNewModel with proper null handling
                     val model = TPHNewModel(
                         id = safeGetInt("id"),
-                        regional = safeGetString("regional") ?: safeGetInt("regional")?.toString() ?: "0",
+                        regional = safeGetString("regional") ?: safeGetInt("regional")?.toString()
+                        ?: "0",
                         company = safeGetInt("company"),
                         company_abbr = safeGetString("company_abbr"),
                         wilayah = safeGetString("wilayah"),
@@ -514,7 +529,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 async {
                                     try {
                                         // Get table_ids JSON from DB
-                                        val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(item.id) ?: "{}"
+                                        val tableIdsJson =
+                                            uploadCMPDao.getTableIdsByTrackingId(item.id) ?: "{}"
                                         val tableIdsObj = Gson().fromJson(
                                             tableIdsJson,
                                             JsonObject::class.java
@@ -523,11 +539,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         AppLogger.d(tableIdsObj.toString())
 
                                         tableIdsObj?.keySet()?.forEach { tableName ->
-                                            val ids = tableIdsObj.getAsJsonArray(tableName).map { it.asInt }
+                                            val ids = tableIdsObj.getAsJsonArray(tableName)
+                                                .map { it.asInt }
 
                                             when (tableName) {
-                                                AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(ids)
-                                                AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(ids)
+                                                AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(
+                                                    ids
+                                                )
+
+                                                AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(
+                                                    ids
+                                                )
                                             }
 
                                             status[tableName] = item.status
@@ -684,7 +706,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         when {
                             // Handle ZIP files
                             contentType?.contains("application/zip") == true -> {
-                                AppLogger.d("Silent download: Processing ZIP response for ${request.dataset}, size: ${response.body()?.contentLength() ?: 0} bytes")
+                                AppLogger.d(
+                                    "Silent download: Processing ZIP response for ${request.dataset}, size: ${
+                                        response.body()?.contentLength() ?: 0
+                                    } bytes"
+                                )
                                 val inputStream = response.body()?.byteStream()
                                 if (inputStream != null) {
                                     try {
@@ -753,13 +779,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                     try {
                                                                         updateOrInsertTPH(models).join()
                                                                         AppLogger.d("Silent download: Successfully stored ${models.size} TPH items")
-                                                                        prefManager!!.lastModifiedDatasetTPH = lastModified ?: ""
+                                                                        prefManager!!.lastModifiedDatasetTPH =
+                                                                            lastModified ?: ""
                                                                         AppLogger.d("Silent download: Updated lastModified for TPH to: ${lastModified ?: "[not set]"}")
-                                                                        prefManager!!.addDataset(request.dataset)
-                                                                        results[request.dataset] = true
+                                                                        prefManager!!.addDataset(
+                                                                            request.dataset
+                                                                        )
+                                                                        results[request.dataset] =
+                                                                            true
                                                                     } catch (e: Exception) {
                                                                         AppLogger.e("Silent download: Error updating TPH dataset: ${e.message}")
-                                                                        results[request.dataset] = false
+                                                                        results[request.dataset] =
+                                                                            false
                                                                     }
                                                                 }
                                                             } else {
@@ -769,7 +800,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     }
 
                                                     AppUtils.DatasetNames.kemandoran -> {
-                                                        val models = parseStructuredJsonToList(jsonContent, KemandoranModel::class.java)
+                                                        val models = parseStructuredJsonToList(
+                                                            jsonContent,
+                                                            KemandoranModel::class.java
+                                                        )
                                                         AppLogger.d("Silent download: Parsed ${models.size} Kemandoran items")
 
                                                         // Validate data
@@ -779,7 +813,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             try {
                                                                 updateOrInsertKemandoran(models).join()
                                                                 AppLogger.d("Silent download: Successfully stored ${models.size} Kemandoran items")
-                                                                prefManager!!.lastModifiedDatasetKemandoran = lastModified ?: ""
+                                                                prefManager!!.lastModifiedDatasetKemandoran =
+                                                                    lastModified ?: ""
                                                                 AppLogger.d("Silent download: Updated lastModified for Kemandoran to: ${lastModified ?: "[not set]"}")
                                                                 prefManager!!.addDataset(request.dataset)
 
@@ -791,7 +826,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     }
 
                                                     AppUtils.DatasetNames.pemanen -> {
-                                                        val models = parseStructuredJsonToList(jsonContent, KaryawanModel::class.java)
+                                                        val models = parseStructuredJsonToList(
+                                                            jsonContent,
+                                                            KaryawanModel::class.java
+                                                        )
                                                         AppLogger.d("Silent download: Parsed ${models.size} Pemanen items")
 
                                                         // Validate data
@@ -802,7 +840,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             try {
                                                                 updateOrInsertKaryawan(models).join()
                                                                 AppLogger.d("Silent download: Successfully stored ${models.size} Pemanen items")
-                                                                prefManager!!.lastModifiedDatasetPemanen = lastModified ?: ""
+                                                                prefManager!!.lastModifiedDatasetPemanen =
+                                                                    lastModified ?: ""
                                                                 AppLogger.d("Silent download: Updated lastModified for Pemanen to: ${lastModified ?: "[not set]"}")
                                                                 prefManager!!.addDataset(request.dataset)
                                                             } catch (e: Exception) {
@@ -813,7 +852,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     }
 
                                                     AppUtils.DatasetNames.mill -> {
-                                                        val models = parseStructuredJsonToList(jsonContent, MillModel::class.java)
+                                                        val models = parseStructuredJsonToList(
+                                                            jsonContent,
+                                                            MillModel::class.java
+                                                        )
                                                         AppLogger.d("Silent download: Parsed ${models.size} Mill items")
 
                                                         // Validate data
@@ -834,7 +876,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     }
 
                                                     AppUtils.DatasetNames.blok -> {
-                                                        val models = parseStructuredJsonToList(jsonContent, BlokModel::class.java)
+                                                        val models = parseStructuredJsonToList(
+                                                            jsonContent,
+                                                            BlokModel::class.java
+                                                        )
                                                         AppLogger.d("Silent download: Parsed ${models.size} Blok items")
 
                                                         // Validate data
@@ -845,7 +890,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             try {
                                                                 updateOrInsertBlok(models).join()
                                                                 AppLogger.d("Silent download: Successfully stored ${models.size} Blok items")
-                                                                prefManager!!.lastModifiedDatasetBlok = lastModified ?: ""
+                                                                prefManager!!.lastModifiedDatasetBlok =
+                                                                    lastModified ?: ""
                                                                 AppLogger.d("Silent download: Updated lastModified for Blok to: ${lastModified ?: "[not set]"}")
                                                                 prefManager!!.addDataset(request.dataset)
 
@@ -857,7 +903,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     }
 
                                                     AppUtils.DatasetNames.transporter -> {
-                                                        val models = parseStructuredJsonToList(jsonContent, TransporterModel::class.java)
+                                                        val models = parseStructuredJsonToList(
+                                                            jsonContent,
+                                                            TransporterModel::class.java
+                                                        )
                                                         AppLogger.d("Silent download: Parsed ${models.size} Transporter items")
 
                                                         // Validate data
@@ -868,7 +917,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             try {
                                                                 InsertTransporter(models).join()
                                                                 AppLogger.d("Silent download: Successfully stored ${models.size} Transporter items")
-                                                                prefManager!!.lastModifiedDatasetTransporter = lastModified ?: ""
+                                                                prefManager!!.lastModifiedDatasetTransporter =
+                                                                    lastModified ?: ""
                                                                 AppLogger.d("Silent download: Updated lastModified for Transporter to: ${lastModified ?: "[not set]"}")
                                                                 prefManager!!.addDataset(request.dataset)
 
@@ -880,7 +930,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     }
 
                                                     AppUtils.DatasetNames.kendaraan -> {
-                                                        val models = parseStructuredJsonToList(jsonContent, KendaraanModel::class.java)
+                                                        val models = parseStructuredJsonToList(
+                                                            jsonContent,
+                                                            KendaraanModel::class.java
+                                                        )
                                                         AppLogger.d("Silent download: Parsed ${models.size} Kendaraan items")
 
                                                         // Validate data
@@ -891,7 +944,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             try {
                                                                 InsertKendaraan(models).join()
                                                                 AppLogger.d("Silent download: Successfully stored ${models.size} Kendaraan items")
-                                                                prefManager!!.lastModifiedDatasetKendaraan = lastModified ?: ""
+                                                                prefManager!!.lastModifiedDatasetKendaraan =
+                                                                    lastModified ?: ""
                                                                 AppLogger.d("Silent download: Updated lastModified for Kendaraan to: ${lastModified ?: "[not set]"}")
                                                                 prefManager!!.addDataset(request.dataset)
 
@@ -910,7 +964,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                             } catch (e: Exception) {
                                                 AppLogger.e("Silent download: Error processing ${request.dataset}: ${e.message}")
-                                                AppLogger.e("Silent download: Error details", e.toString()) // Log stack trace
+                                                AppLogger.e(
+                                                    "Silent download: Error details",
+                                                    e.toString()
+                                                ) // Log stack trace
 
                                             }
                                         } else {
@@ -924,7 +981,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                     } catch (e: Exception) {
                                         AppLogger.e("Silent download: Error extracting zip for ${request.dataset}: ${e.message}")
-                                        AppLogger.e("Silent download: Error details", e.toString()) // Log stack trace
+                                        AppLogger.e(
+                                            "Silent download: Error details",
+                                            e.toString()
+                                        ) // Log stack trace
 
                                     }
                                 } else {
@@ -935,11 +995,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                             // Handle JSON responses
                             contentType?.contains("application/json") == true -> {
-                                val responseBodyString = response.body()?.string() ?: "Empty Response"
+                                val responseBodyString =
+                                    response.body()?.string() ?: "Empty Response"
                                 AppLogger.d("Silent download: JSON response size for ${request.dataset}: ${responseBodyString.length} chars")
 
                                 if (responseBodyString.contains("\"success\":false") &&
-                                    responseBodyString.contains("\"message\":\"Dataset is up to date\"")) {
+                                    responseBodyString.contains("\"message\":\"Dataset is up to date\"")
+                                ) {
                                     // Dataset is up to date
                                     AppLogger.d("Silent download: Dataset ${request.dataset} is up to date")
 
@@ -963,7 +1025,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                         if (isStored) {
                                             prefManager!!.addDataset(request.dataset)
-                                            prefManager!!.lastModifiedSettingJSON = lastModified ?: ""
+                                            prefManager!!.lastModifiedSettingJSON =
+                                                lastModified ?: ""
                                             AppLogger.d("Silent download: Successfully updated settings, lastModified: ${lastModified ?: "[not set]"}")
 
                                         } else {
@@ -972,24 +1035,37 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                     } catch (e: Exception) {
                                         AppLogger.e("Silent download: Error parsing JSON for ${request.dataset}: ${e.message}")
-                                        AppLogger.e("Silent download: Error details", e.toString()) // Log stack trace
+                                        AppLogger.e(
+                                            "Silent download: Error details",
+                                            e.toString()
+                                        ) // Log stack trace
 
                                     }
                                 } else if (request.dataset == AppUtils.DatasetNames.mill) {
                                     try {
                                         AppLogger.d("Silent download: Processing mill JSON response")
                                         // For mill dataset, use the custom parse function
-                                        fun <T> parseMillJsonToList(jsonContent: String, classType: Class<T>): List<T> {
+                                        fun <T> parseMillJsonToList(
+                                            jsonContent: String,
+                                            classType: Class<T>
+                                        ): List<T> {
                                             val gson = Gson()
-                                            val jsonObject = gson.fromJson(jsonContent, JsonObject::class.java)
+                                            val jsonObject =
+                                                gson.fromJson(jsonContent, JsonObject::class.java)
                                             val dataArray = jsonObject.getAsJsonArray("data")
                                             return gson.fromJson(
                                                 dataArray,
-                                                TypeToken.getParameterized(List::class.java, classType).type
+                                                TypeToken.getParameterized(
+                                                    List::class.java,
+                                                    classType
+                                                ).type
                                             )
                                         }
 
-                                        val millList = parseMillJsonToList(responseBodyString, MillModel::class.java)
+                                        val millList = parseMillJsonToList(
+                                            responseBodyString,
+                                            MillModel::class.java
+                                        )
                                         AppLogger.d("Silent download: Parsed ${millList.size} mill items")
 
                                         // Validate data
@@ -1009,7 +1085,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                     } catch (e: Exception) {
                                         AppLogger.e("Silent download: Error processing mill data: ${e.message}")
-                                        AppLogger.e("Silent download: Error details", e.toString()) // Log stack trace
+                                        AppLogger.e(
+                                            "Silent download: Error details",
+                                            e.toString()
+                                        ) // Log stack trace
 
                                     }
                                 } else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
@@ -1030,29 +1109,49 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             val status = mutableMapOf<String, Int>()
 
                                             try {
-                                                val deferredUpdates = jsonResponse.data.map { item ->
-                                                    async {
-                                                        try {
-                                                            val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(item.id) ?: "{}"
-                                                            val tableIdsObj = Gson().fromJson(tableIdsJson, JsonObject::class.java)
+                                                val deferredUpdates =
+                                                    jsonResponse.data.map { item ->
+                                                        async {
+                                                            try {
+                                                                val tableIdsJson =
+                                                                    uploadCMPDao.getTableIdsByTrackingId(
+                                                                        item.id
+                                                                    ) ?: "{}"
+                                                                val tableIdsObj = Gson().fromJson(
+                                                                    tableIdsJson,
+                                                                    JsonObject::class.java
+                                                                )
 
-                                                            tableIdsObj?.keySet()?.forEach { tableName ->
-                                                                val ids = tableIdsObj.getAsJsonArray(tableName).map { it.asInt }
+                                                                tableIdsObj?.keySet()
+                                                                    ?.forEach { tableName ->
+                                                                        val ids =
+                                                                            tableIdsObj.getAsJsonArray(
+                                                                                tableName
+                                                                            ).map { it.asInt }
 
-                                                                when (tableName) {
-                                                                    AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(ids)
-                                                                    AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(ids)
-                                                                }
+                                                                        when (tableName) {
+                                                                            AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(
+                                                                                ids
+                                                                            )
 
-                                                                status[tableName] = item.status
+                                                                            AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(
+                                                                                ids
+                                                                            )
+                                                                        }
+
+                                                                        status[tableName] =
+                                                                            item.status
+                                                                    }
+
+                                                                uploadCMPDao.updateStatus(
+                                                                    item.id,
+                                                                    item.status
+                                                                )
+                                                            } catch (e: Exception) {
+                                                                AppLogger.e("Silent download: Error processing item ${item.id}: ${e.message}")
                                                             }
-
-                                                            uploadCMPDao.updateStatus(item.id, item.status)
-                                                        } catch (e: Exception) {
-                                                            AppLogger.e("Silent download: Error processing item ${item.id}: ${e.message}")
                                                         }
                                                     }
-                                                }
 
                                                 deferredUpdates.awaitAll()
 
@@ -1062,13 +1161,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     if (panenIdsToUpdate.isNotEmpty()) {
                                                         panenDao.updateDataIsZippedPanen(
                                                             panenIdsToUpdate,
-                                                            status[AppUtils.DatabaseTables.PANEN] ?: 0
+                                                            status[AppUtils.DatabaseTables.PANEN]
+                                                                ?: 0
                                                         )
                                                     }
                                                     if (espbIdsToUpdate.isNotEmpty()) {
                                                         espbDao.updateDataIsZippedESPB(
                                                             espbIdsToUpdate,
-                                                            status[AppUtils.DatabaseTables.ESPB] ?: 0
+                                                            status[AppUtils.DatabaseTables.ESPB]
+                                                                ?: 0
                                                         )
                                                     }
 
@@ -1077,12 +1178,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                                 } catch (e: Exception) {
                                                     AppLogger.e("Silent download: Error in batch updates: ${e.message}")
-                                                    AppLogger.e("Silent download: Error details", e.toString())
+                                                    AppLogger.e(
+                                                        "Silent download: Error details",
+                                                        e.toString()
+                                                    )
 
                                                 }
                                             } catch (e: Exception) {
                                                 AppLogger.e("Silent download: Error processing updateSyncLocalData items: ${e.message}")
-                                                AppLogger.e("Silent download: Error details", e.toString())
+                                                AppLogger.e(
+                                                    "Silent download: Error details",
+                                                    e.toString()
+                                                )
 
                                             }
                                         }
@@ -1172,6 +1279,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
+                    } else if (request.dataset == AppUtils.DatasetNames.estate) {
+                        response = repository.downloadListEstate(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
                         response = repository.checkStatusUploadCMP(request.data!!)
                     } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
@@ -1498,6 +1607,146 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         if (!hasShownError) {
                                             results[request.dataset] =
                                                 Resource.Error("Error processing mill data: ${e.message}")
+                                            hasShownError = true
+                                        }
+                                        _downloadStatuses.postValue(results.toMap())
+                                    }
+                                } else if (request.dataset == AppUtils.DatasetNames.estate) {
+
+                                    try {
+                                        // Define the list outside the function
+                                        val estateList = mutableListOf<EstateModel>()
+
+                                        fun parseEstateJsonToList(jsonContent: String) {
+                                            if (jsonContent.isBlank()) {
+                                                Log.w("EstateParser", "Empty JSON content received")
+                                                return
+                                            }
+
+                                            val gson = Gson()
+                                            try {
+                                                val jsonObject = gson.fromJson(
+                                                    jsonContent,
+                                                    JsonObject::class.java
+                                                )
+
+                                                // Check if the JSON has the expected structure
+                                                if (!jsonObject.has("data") || jsonObject.get("data").isJsonNull) {
+                                                    Log.e(
+                                                        "EstateParser",
+                                                        "JSON does not contain 'data' field or it's null"
+                                                    )
+                                                    return
+                                                }
+
+                                                val dataArray = jsonObject.getAsJsonArray("data")
+
+                                                for (i in 0 until dataArray.size()) {
+                                                    try {
+                                                        val estateObject =
+                                                            dataArray.get(i).asJsonObject
+
+                                                        // Safely extract values with null checks
+                                                        val id =
+                                                            if (estateObject.has("id") && !estateObject.get(
+                                                                    "id"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("id").asInt else 0
+
+                                                        val idPpro =
+                                                            if (estateObject.has("id_ppro") && !estateObject.get(
+                                                                    "id_ppro"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("id_ppro").asInt else null
+
+                                                        val abbr =
+                                                            if (estateObject.has("abbr") && !estateObject.get(
+                                                                    "abbr"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("abbr").asString else null
+
+                                                        val nama =
+                                                            if (estateObject.has("nama") && !estateObject.get(
+                                                                    "nama"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("nama").asString else null
+
+                                                        // Create EstateModel without the divisi data
+                                                        val estate = EstateModel(
+                                                            id = id,
+                                                            id_ppro = idPpro,
+                                                            abbr = abbr,
+                                                            nama = nama
+                                                        )
+
+                                                        estateList.add(estate)
+                                                    } catch (e: Exception) {
+                                                        Log.e(
+                                                            "EstateParser",
+                                                            "Error parsing estate at index $i: ${e.message}"
+                                                        )
+                                                        // Continue with the next item rather than failing the entire process
+                                                        continue
+                                                    }
+                                                }
+
+                                                Log.d(
+                                                    "EstateParser",
+                                                    "Successfully parsed ${estateList.size} estates"
+                                                )
+                                            } catch (e: Exception) {
+                                                Log.e(
+                                                    "EstateParser",
+                                                    "Error parsing JSON: ${e.message}"
+                                                )
+                                            }
+                                        }
+
+                                        // Parse the estate data from JSON
+                                        parseEstateJsonToList(responseBodyString)
+
+                                        // Check if we have any data to store
+                                        if (estateList.isEmpty()) {
+                                            Log.w("DownloadResponse", "No estate data to store")
+                                            results[request.dataset] =
+                                                Resource.Error("No estate data found in response")
+                                            _downloadStatuses.postValue(results.toMap())
+                                        }
+
+                                        Log.d(
+                                            "DownloadResponse",
+                                            "Storing ${estateList.size} estates"
+                                        )
+
+                                        // Update status to storing
+                                        results[request.dataset] = Resource.Storing(request.dataset)
+                                        _downloadStatuses.postValue(results.toMap())
+
+                                        // Store the data
+                                        updateOrInsertEstate(estateList).join()
+
+                                        if (estateStatus.value.isSuccess) {
+                                            results[request.dataset] = Resource.Success(response)
+                                            prefManager!!.addDataset(request.dataset)
+                                        } else {
+                                            val error = estateStatus.value.exceptionOrNull()
+                                            throw error ?: Exception("Unknown database error")
+                                        }
+
+                                        _downloadStatuses.postValue(results.toMap())
+
+                                    } catch (e: Exception) {
+                                        Log.e(
+                                            "DownloadResponse",
+                                            "Error processing estate data: ${e.message}"
+                                        )
+                                        if (!hasShownError) {
+                                            results[request.dataset] =
+                                                Resource.Error("Error processing estate data: ${e.message}")
                                             hasShownError = true
                                         }
                                         _downloadStatuses.postValue(results.toMap())

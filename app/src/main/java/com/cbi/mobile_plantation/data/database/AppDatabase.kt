@@ -20,6 +20,7 @@ import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.utils.AppUtils
 
@@ -66,8 +67,9 @@ import com.cbi.mobile_plantation.utils.AppUtils
         InspectionPathModel::class,
         KendaraanModel::class,
         BlokModel::class,
+        EstateModel::class,
     ],
-    version = 25
+    version = 26
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -84,6 +86,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun inspectionPathDao(): InspectionPathDao
     abstract fun kendaraanDao(): KendaraanDao
     abstract fun blokDao(): BlokDao
+    abstract fun estateDao(): EstateDao
 
     companion object {
         @Volatile
@@ -106,7 +109,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_9_10,
                         MIGRATION_11_12,
                         MIGRATION_13_14,
-                        MIGRATION_14_15
+                        MIGRATION_14_15,
+                        MIGRATION_15_26
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -237,6 +241,22 @@ abstract class AppDatabase : RoomDatabase() {
         private val MIGRATION_14_15 = object : Migration(14, 15) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE espb_table ADD COLUMN uploaded_at_ppro_wb TEXT DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_15_26 = object : Migration(26, 27) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+
+                database.execSQL(
+                    """
+            CREATE TABLE estate (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                id_ppro INTEGER,
+                abbr TEXT,
+                nama TEXT
+            )
+            """.trimIndent()
+                )
             }
         }
 

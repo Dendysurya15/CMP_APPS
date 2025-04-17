@@ -164,6 +164,7 @@ object AppUtils {
         const val KENDARAAN = "kendaraan"
         const val BLOK = "blok"
         const val UPLOADCMP = "upload_cmp"
+        const val ESTATE = "estate"
         const val FLAGESPB = "flag_espb"
     }
 
@@ -215,6 +216,7 @@ object AppUtils {
         const val mill = "mill"
         const val tph = "tph"
         const val blok = "blok"
+        const val estate = "estate"
         const val pemanen = "pemanen"
         const val kemandoran = "kemandoran"
         const val transporter = "transporter"

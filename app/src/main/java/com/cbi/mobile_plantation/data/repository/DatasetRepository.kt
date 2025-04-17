@@ -14,6 +14,7 @@ import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -27,6 +28,7 @@ class DatasetRepository(
     private val karyawanDao = database.karyawanDao()
     private val kemandoranDao = database.kemandoranDao()
     private val tphDao = database.tphDao()
+    private val estateDao = database.estateDao()
     private val millDao = database.millDao()
     private val transporterDao = database.transporterDao()
     private val kendaraanDao = database.kendaraanDao()
@@ -44,6 +46,9 @@ class DatasetRepository(
 
     suspend fun updateOrInsertKemandoran(kemandorans: List<KemandoranModel>) =
         kemandoranDao.updateOrInsertKemandoran(kemandorans)
+
+    suspend fun updateOrInsertEstate(estate: List<EstateModel>) =
+        estateDao.updateOrInsertEstate(estate)
 
     suspend fun updateOrInsertBlok(blok: List<BlokModel>) =
         blokDao.updateOrInsertBlok(blok)
@@ -128,6 +133,10 @@ class DatasetRepository(
 
     suspend fun downloadDataset(request: DatasetRequest): Response<ResponseBody> {
         return apiService.downloadDataset(request)
+    }
+
+    suspend fun downloadListEstate(regional: Int): Response<ResponseBody> {
+        return apiService.downloadListEstate(mapOf("regional" to regional))
     }
 
     suspend fun downloadSmallDataset(regional: Int): Response<ResponseBody> {

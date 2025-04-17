@@ -86,6 +86,14 @@ interface ApiService {
     )
     suspend fun downloadSmallDataset(@Body body: Map<String, Int>): Response<ResponseBody>
 
+    @POST("org/fetch-estate")
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json"
+    )
+    suspend fun downloadListEstate(@Body body: Map<String, Int>): Response<ResponseBody>
+
+
     @POST("dataset/get-settings")
     @Headers(
         "Accept: application/json",
