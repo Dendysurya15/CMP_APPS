@@ -16,6 +16,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okio.BufferedSink
 import java.io.File
+import java.io.FileInputStream
 
 
 sealed class SaveResultNewUploadDataCMP {
@@ -104,9 +105,52 @@ class UploadCMPRepository(context: Context) {
         return try {
             withContext(Dispatchers.IO) {
                 val file = File(fileZipPath)
+                // Check if file exists
                 if (!file.exists()) {
                     val errorMsg = "File does not exist: $fileZipPath"
                     AppLogger.d(errorMsg)
+                    onProgressUpdate(100, false, errorMsg)
+                    return@withContext Result.failure(Exception(errorMsg))
+                }
+
+                // Check if file is readable
+                if (!file.canRead()) {
+                    val errorMsg = "File exists but is not readable: $fileZipPath"
+                    AppLogger.d(errorMsg)
+                    onProgressUpdate(100, false, errorMsg)
+                    return@withContext Result.failure(Exception(errorMsg))
+                }
+
+                // Check if file has valid size
+                if (file.length() <= 0) {
+                    val errorMsg = "File exists but is empty (0 bytes): $fileZipPath"
+                    AppLogger.d(errorMsg)
+                    onProgressUpdate(100, false, errorMsg)
+                    return@withContext Result.failure(Exception(errorMsg))
+                }
+
+
+                // Check if file has valid ZIP signature (optional, more thorough validation)
+                try {
+                    val inputStream = FileInputStream(file)
+                    val signature = ByteArray(4)
+                    val bytesRead = inputStream.read(signature)
+                    inputStream.close()
+
+                    if (bytesRead != 4 ||
+                        signature[0] != 0x50.toByte() || // 'P'
+                        signature[1] != 0x4B.toByte() || // 'K'
+                        signature[2] != 0x03.toByte() ||
+                        signature[3] != 0x04.toByte()) {
+                        val errorMsg = "File exists but does not appear to be a valid ZIP file: $fileZipPath"
+                        AppLogger.d(errorMsg)
+                        onProgressUpdate(100, false, errorMsg)
+                        return@withContext Result.failure(Exception(errorMsg))
+                    }
+                } catch (e: Exception) {
+                    val errorMsg = "Error validating ZIP file signature: ${e.message}"
+                    AppLogger.d(errorMsg)
+                    onProgressUpdate(100, false, errorMsg)
                     return@withContext Result.failure(Exception(errorMsg))
                 }
 
@@ -115,10 +159,10 @@ class UploadCMPRepository(context: Context) {
                 val progressRequestBody = ProgressRequestBody(file, "application/zip") { progress, bytesUploaded, totalBytes, done ->
                     AppLogger.d("Upload progress: $progress% (${AppUtils.formatFileSize(bytesUploaded)}/${AppUtils.formatFileSize(totalBytes)})")
 
-                    // Still call the original callback to maintain compatibility
-                    onProgressUpdate(progress, false, null)
-
-                    // Additional tracking can be done here, but we're preserving the original callback signature
+                    // Only update progress during active upload
+                    if (!done) {
+                        onProgressUpdate(progress, false, null)
+                    }
                 }
 
                 // Create the parts for the multipart request
@@ -131,47 +175,53 @@ class UploadCMPRepository(context: Context) {
 
                 AppLogger.d("Sending upload request with UUID: $batchUuid, Part: $partNumber, Total: $totalParts")
 
-                val response = CMPApiClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
+                try {
+                    val response = TestingAPIClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
 
-                AppLogger.d("response $response")
-                if (response.isSuccessful) {
-                    val responseBody = response.body()
-                    return@withContext if (responseBody != null) {
-                        AppLogger.d("Upload successful: ${file.name}")
-                        AppLogger.d("Response Code: ${response.code()}")
-                        AppLogger.d("Response Headers: ${response.headers()}")
-                        AppLogger.d("Response Body: ${responseBody}")
+                    AppLogger.d("response $response")
+                    if (response.isSuccessful) {
+                        val responseBody = response.body()
+                        if (responseBody != null) {
+                            AppLogger.d("Upload successful: ${file.name}")
+                            AppLogger.d("Response Code: ${response.code()}")
+                            AppLogger.d("Response Headers: ${response.headers()}")
+                            AppLogger.d("Response Body: ${responseBody}")
 
-                        onProgressUpdate(100, true, null)
-                        Result.success(responseBody)
+                            // Mark as success with 100% progress
+                            onProgressUpdate(100, true, null)
+                            Result.success(responseBody)
+                        } else {
+                            val errorMsg = "Upload successful but response body is null"
+                            AppLogger.d(errorMsg)
+                            onProgressUpdate(100, false, errorMsg)
+                            Result.failure(Exception(errorMsg))
+                        }
                     } else {
-                        val errorMsg = "Upload successful but response body is null"
-                        AppLogger.d(errorMsg)
+                        val errorBody = response.errorBody()?.string()
+                        val errorMsg = "Upload failed - Code: ${response.code()}, Error: $errorBody"
+
+                        AppLogger.d("Upload failed: $errorMsg")
+                        AppLogger.d("Response Code: ${response.code()}")
+                        AppLogger.d("Response Message: ${response.message()}")
+                        AppLogger.d("Response Headers: ${response.headers()}")
+                        AppLogger.d("Response Body: $errorBody")
+
                         onProgressUpdate(100, false, errorMsg)
                         Result.failure(Exception(errorMsg))
                     }
-                } else {
-                    val errorBody = response.errorBody()?.string()  // Get the error body
-                    val errorMsg = "Upload failed - Code: ${response.code()}, Error: $errorBody"
-
-                    // Log the error details for more clarity
-                    AppLogger.d("Upload failed: $errorMsg")  // Log the general error
-                    AppLogger.d("Response Code: ${response.code()}")  // Log response code
-                    AppLogger.d("Response Message: ${response.message()}")  // Log response message (additional detail)
-                    AppLogger.d("Response Headers: ${response.headers()}")  // Log response headers
-                    AppLogger.d("Response Body: $errorBody")  // Log the error body to show server response
-
-
-                    // Call progress update to notify about the failure
+                } catch (e: Exception) {
+                    // Handle network errors consistently for all files
+                    val errorMsg = "Network error: ${e.message}"
+                    AppLogger.d(errorMsg)
                     onProgressUpdate(100, false, errorMsg)
-
-                    // Return failure with the exception message
-                    Result.failure(Exception(errorMsg))
+                    Result.failure(Exception(errorMsg))  // Return failure directly, don't rethrow
                 }
-
             }
         } catch (e: Exception) {
-            val errorMsg = "Error uploading file: ${e.message}"
+            // This outer catch should now only be hit for errors in the withContext setup
+            // or other unexpected exceptions, not for network errors
+            val errorMsg = "Error preparing upload: ${e.message}"
+            AppLogger.d(errorMsg)
             onProgressUpdate(100, false, errorMsg)
             Result.failure(Exception(errorMsg))
         }

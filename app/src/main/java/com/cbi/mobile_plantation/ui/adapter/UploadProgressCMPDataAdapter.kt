@@ -91,11 +91,13 @@ class UploadProgressCMPDataAdapter(
                 holder.iconStatus.visibility = View.INVISIBLE
                 holder.loadingCircular.visibility = View.INVISIBLE
                 holder.statusProgress.visibility = View.VISIBLE
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
             }
             AppUtils.UploadStatusUtils.UPLOADING -> {
                 holder.iconStatus.visibility = View.INVISIBLE
                 holder.loadingCircular.visibility = View.VISIBLE
                 holder.statusProgress.visibility = View.VISIBLE
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
             }
             AppUtils.UploadStatusUtils.SUCCESS -> {
                 holder.iconStatus.setImageResource(R.drawable.baseline_check_24)

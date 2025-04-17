@@ -1341,7 +1341,7 @@ class HomePageActivity : AppCompatActivity() {
 //            }
 //
 //            if (errorMap.values.any { !it.isNullOrEmpty() }) {
-//                titleTV.text = "Terjadi Kesalahan..."
+//                titleTV.text = "Terjadi Kesalahan Upload..."
 //                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
 //            }
 //        }
@@ -1610,6 +1610,7 @@ class HomePageActivity : AppCompatActivity() {
         uploadCMPViewModel.itemProgressMap.observe(this) { progressMap ->
             // Update progress for each item
             for ((id, progress) in progressMap) {
+                AppLogger.d("Progress update for item $id: $progress%")
                 adapter.updateProgress(id, progress)
             }
 
@@ -1630,6 +1631,8 @@ class HomePageActivity : AppCompatActivity() {
         uploadCMPViewModel.itemStatusMap.observe(this) { statusMap ->
             // Update status for each item
             for ((id, status) in statusMap) {
+
+                AppLogger.d("Status for item $id: $status%")
                 adapter.updateStatus(id, status)
             }
 
@@ -1773,7 +1776,7 @@ class HomePageActivity : AppCompatActivity() {
                                 }
                             }
                         } else {
-                            titleTV.text = "Upload Selesai Dengan Kesalahan"
+                            titleTV.text = "Terjadi Kesalahan Upload"
                             titleTV.setTextColor(
                                 ContextCompat.getColor(
                                     titleTV.context,
@@ -1825,7 +1828,7 @@ class HomePageActivity : AppCompatActivity() {
             }
 
             if (errorMap.values.any { !it.isNullOrEmpty() }) {
-                titleTV.text = "Terjadi Kesalahan..."
+                titleTV.text = "Terjadi Kesalahan Upload"
                 titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
             }
         }
@@ -1852,7 +1855,6 @@ class HomePageActivity : AppCompatActivity() {
                             )
                         )
 
-                        // Get the part number from the response
                         val partNumber = response.uploadedParts
 
                         if (allUploadZipFilesToday.isNotEmpty()) {
@@ -1926,6 +1928,8 @@ class HomePageActivity : AppCompatActivity() {
             // Remove duplicates by using a Set to track processed files
             val processedFiles = mutableSetOf<String>()
 
+
+            AppLogger.d("globalResponseJsonUploadList $globalResponseJsonUploadList")
             for (responseInfo in globalResponseJsonUploadList) {
                 val partNumber = responseInfo.partNumber
                 val fileIdentifier = "${responseInfo.uuid}_${responseInfo.fileName}"

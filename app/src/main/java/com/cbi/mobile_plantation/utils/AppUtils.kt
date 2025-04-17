@@ -393,12 +393,11 @@ object AppUtils {
         createAndSaveZipUploadCMPImpl(context, featureDataList, userId, onResult)
     }
 
-    // Actual implementation (private or internal)
     private fun createAndSaveZipUploadCMPImpl(
         context: Context,
         featureDataList: List<Pair<String, List<Map<String, Any>>>>,
         userId: String,
-        onResult: (Boolean, String, String, List<File>) -> Unit // Implementation uses new callback
+        onResult: (Boolean, String, String, List<File>) -> Unit
     ) {
         try {
             val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
@@ -418,14 +417,14 @@ object AppUtils {
                 it.name.matches(Regex("${userId}_\\d{14}_\\d+\\.zip"))
             } ?: emptyList()
 
-            // Find the highest sequence number used so far today
-            val todayPrefix = "${userId}_$dateTime".substring(0, userId.length + 9) // Just match the date part (yyyyMMdd)
+            // Use the FULL datetime as prefix to reset sequence for each new batch
+            val currentPrefix = "${userId}_$dateTime"
             var nextSequenceNumber = 1
 
             existingFiles.forEach { file ->
-                if (file.name.startsWith(todayPrefix)) {
-                    // Extract the sequence number from filename
-                    val sequenceMatch = Regex("${userId}_\\d{14}_(\\d+)\\.zip").find(file.name)
+                if (file.name.startsWith(currentPrefix)) {
+                    // Extract the sequence number from filename with EXACT datetime match
+                    val sequenceMatch = Regex("${userId}_${dateTime}_(\\d+)\\.zip").find(file.name)
                     sequenceMatch?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { seq ->
                         if (seq >= nextSequenceNumber) {
                             nextSequenceNumber = seq + 1
@@ -434,7 +433,6 @@ object AppUtils {
                 }
             }
 
-            // Process all data and create zips with max 12 records each
             val allZipFiles = mutableListOf<File>() // List of all created zip files
 
             // Flatten all data into a single list
@@ -447,7 +445,7 @@ object AppUtils {
                 }
             }
 
-            // Now chunk the combined data into groups of 12
+            // chunk data di dalam zip dengan batas di max_data_in_zip
             val chunkedAllData = allData.chunked(max_data_in_zip)
 
             // Create a zip file for each chunk
