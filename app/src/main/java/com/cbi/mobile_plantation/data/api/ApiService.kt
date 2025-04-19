@@ -17,6 +17,7 @@ import retrofit2.http.Headers
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.Path
 import retrofit2.http.Streaming
 
 interface ApiService {
@@ -128,14 +129,25 @@ interface ApiService {
         @Part("total") total: RequestBody
     ): Response<UploadCMPResponse>
 
-    @FormUrlEncoded
-    @POST("cmpmain/status")
+//    @FormUrlEncoded
+//    @POST("cmpmain/status")
+//    @Headers(
+//        "Accept: application/json",
+//        "Content-Type: application/x-www-form-urlencoded"
+//    )
+//    suspend fun checkStatusUploadCMP(
+//        @Field("idData") ids: String // Send list as a comma-separated string
+//    ):  Response<ResponseBody>
+//
+//
+
+    // API Service
+    @GET("cmpmain/upload-status/{trackingId}")
     @Headers(
-        "Accept: application/json",
-        "Content-Type: application/x-www-form-urlencoded"
+        "Accept: application/json"
     )
     suspend fun checkStatusUploadCMP(
-        @Field("idData") ids: String // Send list as a comma-separated string
-    ):  Response<ResponseBody>
+        @Path("trackingId") trackingId: String
+    ): Response<ResponseBody>
 
 }

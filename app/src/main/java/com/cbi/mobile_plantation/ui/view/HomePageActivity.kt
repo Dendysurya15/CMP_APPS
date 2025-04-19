@@ -104,6 +104,9 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var loadingDialog: LoadingDialog
     private var prefManager: PrefManager? = null
     private lateinit var absensiViewModel: AbsensiViewModel
+    private var uploadCMPData: List<Pair<String, String>> = emptyList()
+    private val _allIdsAndFilenames = MutableLiveData<List<Pair<String, String>>>()
+    val allIdsAndFilenames: LiveData<List<Pair<String, String>>> = _allIdsAndFilenames
     private lateinit var panenViewModel: PanenViewModel
     private lateinit var espbViewModel: ESPBViewModel
     private lateinit var weightBridgeViewModel: WeighBridgeViewModel
@@ -747,23 +750,24 @@ class HomePageActivity : AppCompatActivity() {
                         loadingDialog.show()
                         loadingDialog.setMessage("Sedang mempersiapkan data...")
 
-                        lifecycleScope.launch {
-                            trackingIdsUpload = emptyList()
-                            uploadCMPViewModel.getAllIds()
-                            delay(100)
-                            val idDeferred = CompletableDeferred<List<String>>()
-
-                            uploadCMPViewModel.allIds.observe(this@HomePageActivity) { ids ->
-                                idDeferred.complete(ids ?: emptyList()) // Ensure it's never null
-                            }
-
-                            val data = idDeferred.await()
-
-                            loadingDialog.dismiss()
-                            trackingIdsUpload = data
-
-                            startDownloads()
-                        }
+//                        lifecycleScope.launch {
+//                            trackingIdsUpload = emptyList()
+//                            uploadCMPViewModel.getAllIds()
+//                            delay(100)
+//                            val idDeferred = CompletableDeferred<List<String>>()
+//
+//                            uploadCMPViewModel.allIds.observe(this@HomePageActivity) { ids ->
+//                                idDeferred.complete(ids ?: emptyList()) // Ensure it's never null
+//                            }
+//
+//                            val data = idDeferred.await()
+//
+//                            loadingDialog.dismiss()
+//                            trackingIdsUpload = data
+//
+//
+//                        }
+                        startDownloads()
                     } else {
 
                         AlertDialogUtility.withSingleAction(
@@ -792,19 +796,19 @@ class HomePageActivity : AppCompatActivity() {
                             loadingDialog.show()
                             loadingDialog.setMessage("Sedang mengupdate data...")
 
-                            trackingIdsUpload = emptyList()
-                            uploadCMPViewModel.getAllIds()
+                            uploadCMPData = emptyList()
+                            uploadCMPViewModel.getAllIdsAndFilenames()
                             delay(500)
 
-                            val idDeferred = CompletableDeferred<List<String>>()
-                            uploadCMPViewModel.allIds.observe(this@HomePageActivity) { ids ->
-                                idDeferred.complete(ids ?: emptyList()) // Ensure it's never null
+                            val dataDeferred = CompletableDeferred<List<Pair<String, String>>>()
+                            uploadCMPViewModel.allIdsAndFilenames.observe(this@HomePageActivity) { data ->
+                                dataDeferred.complete(data ?: emptyList()) // Ensure it's never null
                             }
-                            val data = idDeferred.await()
+                            val data = dataDeferred.await()
 
-                            //kode khusus untuk update UploadCMP sebelum melakukan upload
-                            trackingIdsUpload = data
-                            datasetViewModel.updateLocalUploadCMP(trackingIdsUpload)
+//kode khusus untuk update UploadCMP sebelum melakukan upload
+                            uploadCMPData = data
+                            datasetViewModel.updateLocalUploadCMP(uploadCMPData)
                             datasetViewModel.isCompleted.observe(this@HomePageActivity) { isCompleted ->
                                 if (isCompleted) {
                                     AppLogger.d("sukses update all upload CMP")
@@ -1413,7 +1417,6 @@ class HomePageActivity : AppCompatActivity() {
     private fun setupDialogUpload() {
         // Reset state for a fresh upload dialog
         uploadCMPViewModel.resetState()
-        uploadTimedOut = false
         loadingDialog.dismiss()
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
@@ -1507,12 +1510,6 @@ class HomePageActivity : AppCompatActivity() {
                 return
             }
 
-            // Reset timeout flag
-            uploadTimedOut = false
-
-            // Cancel any existing timeout job
-            uploadTimeoutJob?.cancel()
-
             // Disable both buttons during upload
             btnUploadDataCMP.isEnabled = false
             closeDialogBtn.isEnabled = false
@@ -1593,11 +1590,6 @@ class HomePageActivity : AppCompatActivity() {
             zipFilePath = null
             uploadCMPViewModel.resetState()
 
-            // Cancel timeout job
-            uploadTimeoutJob?.cancel()
-            uploadTimeoutJob = null
-            uploadTimedOut = false
-
             dialog.dismiss()
         }
 
@@ -1631,7 +1623,6 @@ class HomePageActivity : AppCompatActivity() {
         uploadCMPViewModel.itemStatusMap.observe(this) { statusMap ->
             // Update status for each item
             for ((id, status) in statusMap) {
-
                 AppLogger.d("Status for item $id: $status%")
                 adapter.updateStatus(id, status)
             }
@@ -1641,87 +1632,10 @@ class HomePageActivity : AppCompatActivity() {
             }
 
             val allSuccess = statusMap.values.all { it == AppUtils.UploadStatusUtils.SUCCESS }
-            val hasErrors = statusMap.values.any { it == AppUtils.UploadStatusUtils.FAILED }
 
             AppLogger.d("statusMap $statusMap")
 
-            // Start a timeout job if uploads are in progress and no timeout has occurred yet
-            if (statusMap.isNotEmpty() && !allFinished && !uploadTimedOut) {
-                // Cancel any existing timeout job
-                uploadTimeoutJob?.cancel()
-
-                // Create a new timeout job
-                uploadTimeoutJob = lifecycleScope.launch {
-                    try {
-                        // Wait for 30 seconds
-                        delay(10000)
-
-                        // If we reach here, timeout occurred - force update all remaining items to failed
-                        AppLogger.d("Upload timeout occurred! Marking remaining items as failed.")
-
-                        // Set flag to prevent multiple timeouts
-                        uploadTimedOut = true
-
-                        val currentStatusMap = uploadCMPViewModel.itemStatusMap.value ?: return@launch
-                        var updatedItemCount = 0
-
-                        // For any item still in WAITING or UPLOADING status, update to FAILED
-                        for ((id, status) in currentStatusMap) {
-                            if (status == AppUtils.UploadStatusUtils.WAITING ||
-                                status == AppUtils.UploadStatusUtils.UPLOADING) {
-
-                                updatedItemCount++
-
-                                uploadCMPViewModel.updateItemStatus(id, AppUtils.UploadStatusUtils.FAILED)
-                                uploadCMPViewModel.updateItemError(id, "Connection timeout: Server did not respond in time")
-                                uploadCMPViewModel.updateItemProgress(id, 100)
-
-                                // Update adapter immediately for UI
-                                adapter.updateStatus(id, AppUtils.UploadStatusUtils.FAILED)
-                                adapter.updateError(id, "Connection timeout: Server did not respond in time")
-                                adapter.updateProgress(id, 100)
-                            }
-                        }
-
-                        // Update completedCount to match totalCount
-                        val totalItems = uploadCMPViewModel.totalCount.value ?: 0
-                        uploadCMPViewModel._completedCount.postValue(totalItems)
-
-                        AppLogger.d("Updated $updatedItemCount items to FAILED status due to timeout")
-
-                        // Handle UI update after timeout
-                        withContext(Dispatchers.Main) {
-                            titleTV.text = "Upload Timeout"
-                            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
-
-                            // Show retry button and hide upload button
-                            btnUploadDataCMP.visibility = View.GONE
-                            btnRetryUpload.visibility = View.VISIBLE
-
-                            // Re-enable buttons
-                            closeDialogBtn.isEnabled = true
-                            closeDialogBtn.alpha = 1f
-                            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
-
-                            btnRetryUpload.isEnabled = true
-                            btnRetryUpload.alpha = 1f
-                            btnRetryUpload.iconTint = ColorStateList.valueOf(Color.WHITE)
-
-                            loadingDialog.dismiss()
-
-                            AppLogger.d("Upload timeout handled - retry button shown")
-                        }
-                    } catch (e: Exception) {
-                        AppLogger.e("Error in upload timeout handler: ${e.message}")
-                    }
-                }
-            }
-
             if (allFinished && statusMap.isNotEmpty()) {
-                // Cancel any timeout job
-                uploadTimeoutJob?.cancel()
-                uploadTimeoutJob = null
-
                 lifecycleScope.launch {
                     loadingDialog.show()
                     loadingDialog.setMessage("Sedang proses data", true)
@@ -2202,15 +2116,15 @@ class HomePageActivity : AppCompatActivity() {
     ): List<DatasetRequest> {
         val datasets = mutableListOf<DatasetRequest>()
 
-        if (isTriggerButtonSinkronisasiData && trackingIdsUpload.isNotEmpty()) {
-            datasets.add(
-                DatasetRequest(
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.updateSyncLocalData,
-                    data = trackingIdsUpload
-                )
-            )
-        }
+//        if (isTriggerButtonSinkronisasiData && trackingIdsUpload.isNotEmpty()) {
+//            datasets.add(
+//                DatasetRequest(
+//                    lastModified = null,
+//                    dataset = AppUtils.DatasetNames.updateSyncLocalData,
+//                    data = trackingIdsUpload
+//                )
+//            )
+//        }
 
         val jabatan = prefManager!!.jabatanUserLogin
         val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()

@@ -80,7 +80,7 @@ class UploadProgressCMPDataAdapter(
 
         // Set status text
         holder.statusProgress.text = when {
-            status == AppUtils.UploadStatusUtils.UPLOADING -> "${formatFileSize(uploadedBytes)} / ${formatFileSize(fileSize)}"
+            status == AppUtils.UploadStatusUtils.UPLOADING -> "${AppUtils.UploadStatusUtils.UPLOADING}${formatFileSize(uploadedBytes)} / ${formatFileSize(fileSize)}"
             status == AppUtils.UploadStatusUtils.FAILED && !errorMessage.isNullOrEmpty() -> errorMessage
             else -> status
         }

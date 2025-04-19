@@ -104,7 +104,11 @@ class UploadCMPRepository(context: Context) {
     ): Result<UploadCMPResponse> {
         return try {
             withContext(Dispatchers.IO) {
+
+
                 val file = File(fileZipPath)
+
+                onProgressUpdate(0, false, null)
                 // Check if file exists
                 if (!file.exists()) {
                     val errorMsg = "File does not exist: $fileZipPath"

@@ -22,6 +22,7 @@ import retrofit2.Response
 class DatasetRepository(
     context: Context,
     private val apiService: ApiService = CMPApiClient.instance,
+    private val TestingApiService: ApiService = TestingAPIClient.instance,
     ) {
 
     private val database = AppDatabase.getDatabase(context)
@@ -135,9 +136,8 @@ class DatasetRepository(
         return apiService.downloadSmallDataset(mapOf("regional" to regional))
     }
 
-    suspend fun checkStatusUploadCMP(ids: List<String>): Response<ResponseBody> {
-        val idDataString = ids.joinToString(",") // Convert list to "1,2,3,4"
-        return apiService.checkStatusUploadCMP(idDataString)
+    suspend fun checkStatusUploadCMP(trackingId: String): Response<ResponseBody> {
+        return TestingApiService.checkStatusUploadCMP(trackingId)
     }
 
     suspend fun downloadSettingJson(lastModified: String): Response<ResponseBody> {

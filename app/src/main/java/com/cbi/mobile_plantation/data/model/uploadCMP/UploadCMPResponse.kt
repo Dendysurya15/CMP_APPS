@@ -18,4 +18,25 @@ data class UploadCMPResponse(
 )
 
 
+// Data classes for the response structure
+data class CheckZipServerResponse(
+    val success: Boolean,
+    val uuid: String,
+    val uploadStatus: String,
+    val statusCode: Int,
+    val message: String,
+    val uploadedParts: Int,
+    val totalParts: Int,
+    val parts: List<PartInfo>,
+    val missingParts: List<Int>?,
+    val totalSize: Long,
+    val tanggal_upload: String
+)
+
+data class PartInfo(
+    val part: Int,
+    val name: String,
+    val size: Long
+)
+
 

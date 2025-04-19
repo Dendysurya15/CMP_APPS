@@ -692,24 +692,24 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                     val data = idDeferred.await()
 
                                     trackingIdsUpload = data
-                                    datasetViewModel.updateLocalUploadCMP(trackingIdsUpload)
-                                    datasetViewModel.isCompleted.observe(this@ListHistoryWeighBridgeActivity) { isCompleted ->
-                                        if (isCompleted) {
-                                            AppLogger.d("sukses update all upload CMP")
-                                        }
-                                    }
-                                    datasetViewModel.updateResultStatusUploadCMP.observe(this@ListHistoryWeighBridgeActivity) { result ->
-                                        if (result.success) {
-                                            AppLogger.d(result.message)
-                                        } else {
-                                            val errorDetails = if (result.errorItems.isNotEmpty()) {
-                                                "\n\n" + result.errorItems.joinToString("\n") { "• ${it.fileName}: ${it.message}" }
-                                            } else {
-                                                ""
-                                            }
-                                            AppLogger.d(errorDetails)
-                                        }
-                                    }
+//                                    datasetViewModel.updateLocalUploadCMP(trackingIdsUpload)
+//                                    datasetViewModel.isCompleted.observe(this@ListHistoryWeighBridgeActivity) { isCompleted ->
+//                                        if (isCompleted) {
+//                                            AppLogger.d("sukses update all upload CMP")
+//                                        }
+//                                    }
+//                                    datasetViewModel.updateResultStatusUploadCMP.observe(this@ListHistoryWeighBridgeActivity) { result ->
+//                                        if (result.success) {
+//                                            AppLogger.d(result.message)
+//                                        } else {
+//                                            val errorDetails = if (result.errorItems.isNotEmpty()) {
+//                                                "\n\n" + result.errorItems.joinToString("\n") { "• ${it.fileName}: ${it.message}" }
+//                                            } else {
+//                                                ""
+//                                            }
+//                                            AppLogger.d(errorDetails)
+//                                        }
+//                                    }
 
                                     allUploadZipFilesToday =
                                         AppUtils.checkAllUploadZipFiles(

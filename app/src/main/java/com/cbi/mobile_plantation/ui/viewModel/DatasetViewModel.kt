@@ -25,6 +25,7 @@ import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.data.model.uploadCMP.CheckZipServerResponse
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
@@ -490,133 +491,160 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val message: String
     )
 
-    fun updateLocalUploadCMP(trackingIds: List<String>) {
+    fun updateLocalUploadCMP(uploadData: List<Pair<String, String>>) {
         viewModelScope.launch {
             _isCompleted.value = false
 
             try {
-                val response = repository.checkStatusUploadCMP(trackingIds)
-                val responseBodyString = response.body()?.string() ?: "Empty Response"
-                try {
-                    val jsonResponse = Gson().fromJson(
-                        responseBodyString,
-                        FetchStatusCMPResponse::class.java
-                    )
+                val uploadResults = mutableListOf<Pair<String, CheckZipServerResponse>>()
 
-                    viewModelScope.launch(Dispatchers.IO) {
-                        val panenIdsToUpdate = mutableListOf<Int>()
-                        val espbIdsToUpdate = mutableListOf<Int>()
-                        val status = mutableMapOf<String, Int>()  // Store status for batch updates
-
+                // Process each tracking ID individually
+                val deferredResults = uploadData.map { (trackingId, filename) ->
+                    async(Dispatchers.IO) {
                         try {
-                            val deferredUpdates = jsonResponse.data.map { item ->
-                                AppLogger.d(item.toString())
-                                async {
-                                    try {
-                                        // Get table_ids JSON from DB
-                                        val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(item.id) ?: "{}"
-                                        val tableIdsObj = Gson().fromJson(
-                                            tableIdsJson,
-                                            JsonObject::class.java
-                                        )
+                            // Use the new GET endpoint with the UUID
+                            val response = repository.checkStatusUploadCMP(trackingId)
+                            val responseBodyString = response.body()?.string() ?: "Empty Response"
 
-                                        AppLogger.d(tableIdsObj.toString())
 
-                                        tableIdsObj?.keySet()?.forEach { tableName ->
-                                            val ids = tableIdsObj.getAsJsonArray(tableName).map { it.asInt }
-
-                                            when (tableName) {
-                                                AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(ids)
-                                                AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(ids)
-                                            }
-
-                                            status[tableName] = item.status
-                                        }
-
-                                        uploadCMPDao.updateStatus(item.id.toString(), item.nama_file, item.status)
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error processing item ${item.id}: ${e.localizedMessage}")
-                                    }
-                                }
-                            }
-
-                            deferredUpdates.awaitAll()
-
+                            AppLogger.d("responseBodyString $responseBodyString")
                             try {
-                                if (panenIdsToUpdate.isNotEmpty()) {
-                                    panenDao.updateDataIsZippedPanen(
-                                        panenIdsToUpdate,
-                                        status[AppUtils.DatabaseTables.PANEN] ?: 0
-                                    )
-                                }
-                                if (espbIdsToUpdate.isNotEmpty()) {
-                                    espbDao.updateDataIsZippedESPB(
-                                        espbIdsToUpdate,
-                                        status[AppUtils.DatabaseTables.ESPB] ?: 0
-                                    )
-                                }
+                                val statusResponse = Gson().fromJson(
+                                    responseBodyString,
+                                    CheckZipServerResponse::class.java
+                                )
+                                // Return the tracking ID and its status response
+                                Pair(trackingId, statusResponse)
                             } catch (e: Exception) {
-                                AppLogger.e("Error in batch updates: ${e.localizedMessage}")
+                                AppLogger.e("Error parsing JSON for tracking ID $trackingId: ${e.localizedMessage}")
+                                null
                             }
-
-                            withContext(Dispatchers.Main) {
-                                val sortedList = jsonResponse.data
-                                    .filter { it.status >= 4 }
-                                    .sortedByDescending { it.tanggal_upload }
-
-                                val errorItems = sortedList.map { item ->
-                                    ErrorItem(
-                                        fileName = item.nama_file,
-                                        message = item.message ?: "Unknown error"
-                                    )
-                                }
-
-                                val message = if (sortedList.isNotEmpty()) {
-                                    "Terjadi kesalahan insert di server!"
-                                } else {
-                                    "Berhasil sinkronisasi data"
-                                }
-
-                                // Set the result
-                                _updateResult.postValue(
-                                    UpdateResult(
-                                        success = sortedList.isEmpty(),
-                                        message = message,
-                                        errorItems = errorItems
-                                    )
-                                )
-
-                                // Set completed status
-                                _isCompleted.postValue(true)
-                            }
-
                         } catch (e: Exception) {
-                            AppLogger.e("Error in processing dataset updateSyncLocalData: ${e.localizedMessage}")
-                            _updateResult.postValue(
-                                UpdateResult(
-                                    success = false,
-                                    message = "Error processing data: ${e.localizedMessage}"
-                                )
-                            )
-                            _isCompleted.postValue(true)
+                            AppLogger.e("Network error for tracking ID $trackingId: ${e.localizedMessage}")
+                            null
                         }
                     }
-                } catch (e: Exception) {
-                    AppLogger.e("Error parsing JSON response: ${e.localizedMessage}")
-                    _updateResult.postValue(
-                        UpdateResult(
-                            success = false,
-                            message = "Error parsing response: ${e.localizedMessage}"
+                }
+
+                // Collect all valid results
+                deferredResults.awaitAll().filterNotNull().forEach { result ->
+                    uploadResults.add(result)
+                }
+
+                // Process the results
+                viewModelScope.launch(Dispatchers.IO) {
+                    val panenIdsToUpdate = mutableListOf<Int>()
+                    val espbIdsToUpdate = mutableListOf<Int>()
+                    val status = mutableMapOf<String, Int>()  // Store status for batch updates
+
+                    try {
+                        val deferredUpdates = uploadResults.map { (trackingId, statusResponse) ->
+                            AppLogger.d("Processing status for $trackingId: ${statusResponse.uploadStatus}")
+                            async {
+                                try {
+                                    // Find the corresponding filename using the tracking ID
+                                    val filename = uploadData.find { it.first == trackingId }?.second ?: ""
+
+                                    // Get table_ids JSON from DB with both tracking ID and filename
+                                    val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(trackingId, filename) ?: "{}"
+                                    val tableIdsObj = Gson().fromJson(
+                                        tableIdsJson,
+                                        JsonObject::class.java
+                                    )
+
+                                    AppLogger.d(tableIdsObj.toString())
+
+                                    tableIdsObj?.keySet()?.forEach { tableName ->
+                                        val ids = tableIdsObj.getAsJsonArray(tableName).map { it.asInt }
+
+                                        when (tableName) {
+                                            AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(ids)
+                                            AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(ids)
+                                        }
+
+                                        status[tableName] = statusResponse.statusCode
+                                    }
+
+                                    // Update status in the database
+                                    uploadCMPDao.updateStatus(trackingId, filename, statusResponse.statusCode)
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error processing item $trackingId: ${e.localizedMessage}")
+                                }
+                            }
+                        }
+
+                        deferredUpdates.awaitAll()
+
+                        try {
+                            if (panenIdsToUpdate.isNotEmpty()) {
+                                panenDao.updateDataIsZippedPanen(
+                                    panenIdsToUpdate,
+                                    status[AppUtils.DatabaseTables.PANEN] ?: 0
+                                )
+                            }
+                            if (espbIdsToUpdate.isNotEmpty()) {
+                                espbDao.updateDataIsZippedESPB(
+                                    espbIdsToUpdate,
+                                    status[AppUtils.DatabaseTables.ESPB] ?: 0
+                                )
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in batch updates: ${e.localizedMessage}")
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            // Filter items with error status (assuming statusCode >= 4 means error)
+                            val errorItems = uploadResults
+                                .filter { (_, statusResponse) -> statusResponse.statusCode >= 4 }
+                                .map { (trackingId, statusResponse) ->
+                                    // Find the corresponding filename
+                                    val filename = uploadData.find { it.first == trackingId }?.second ?: ""
+                                    ErrorItem(
+                                        fileName = filename,
+                                        message = statusResponse.message
+                                    )
+                                }
+                                .sortedByDescending { item ->
+                                    // Try to find the original response to sort by upload date
+                                    uploadResults.find { it.second.uuid == item.fileName }?.second?.tanggal_upload ?: ""
+                                }
+
+                            val message = if (errorItems.isNotEmpty()) {
+                                "Terjadi kesalahan insert di server!"
+                            } else {
+                                "Berhasil sinkronisasi data"
+                            }
+
+                            // Set the result
+                            _updateResult.postValue(
+                                UpdateResult(
+                                    success = errorItems.isEmpty(),
+                                    message = message,
+                                    errorItems = errorItems
+                                )
+                            )
+
+                            // Set completed status
+                            _isCompleted.postValue(true)
+                        }
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error in processing dataset updateSyncLocalData: ${e.localizedMessage}")
+                        _updateResult.postValue(
+                            UpdateResult(
+                                success = false,
+                                message = "Error processing data: ${e}"
+                            )
                         )
-                    )
-                    _isCompleted.postValue(true)
+                        _isCompleted.postValue(true)
+                    }
                 }
             } catch (e: Exception) {
-                AppLogger.e("Network error: ${e.localizedMessage}")
+                AppLogger.e("Error in updateLocalUploadCMP: ${e}")
                 _updateResult.postValue(
                     UpdateResult(
                         success = false,
-                        message = "Network error: ${e.localizedMessage}"
+                        message = "Error: ${e.localizedMessage}"
                     )
                 )
                 _isCompleted.postValue(true)
@@ -624,514 +652,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun downloadDatasetsSilently(requests: List<DatasetRequest>): Deferred<Map<String, Boolean>> {
-        return viewModelScope.async {
-            val results = mutableMapOf<String, Boolean>() // Dataset name -> success
-            AppLogger.d("=== Starting silent download for ${requests.size} datasets ===")
-
-            for (request in requests) {
-                try {
-                    AppLogger.d("Silent download: Processing ${request.dataset}")
-                    var modifiedRequest = request
-
-                    // Handle datasets that need special lastModified treatment
-                    val validDatasets = setOf(
-                        AppUtils.DatasetNames.pemanen,
-                        AppUtils.DatasetNames.kemandoran,
-                        AppUtils.DatasetNames.tph,
-                        AppUtils.DatasetNames.transporter,
-                        AppUtils.DatasetNames.kendaraan,
-                    )
-
-                    if (request.dataset in validDatasets) {
-                        val count = withContext(Dispatchers.IO) {
-                            repository.getDatasetCount(request.dataset)
-                        }
-
-                        if (count == 0) {
-                            // If no data, modify lastModified to null
-                            modifiedRequest = request.copy(lastModified = null)
-                            AppLogger.d("Silent download: Dataset ${request.dataset} has no records, setting lastModified to null")
-                        } else {
-                            AppLogger.d("Silent download: Dataset ${request.dataset} has $count records, keeping lastModified: ${modifiedRequest.lastModified}")
-                        }
-                    }
-
-                    // Make the appropriate API call based on dataset type
-                    AppLogger.d("Silent download: Making API call for ${request.dataset}")
-                    val response = when (request.dataset) {
-                        AppUtils.DatasetNames.mill ->
-                            repository.downloadSmallDataset(request.regional ?: 0)
-
-                        AppUtils.DatasetNames.updateSyncLocalData ->
-                            repository.checkStatusUploadCMP(request.data!!)
-
-                        AppUtils.DatasetNames.settingJSON ->
-                            repository.downloadSettingJson(request.lastModified!!)
-
-                        else ->
-                            repository.downloadDataset(modifiedRequest)
-                    }
-
-                    // Process response based on HTTP status code
-                    AppLogger.d("Silent download: Received response for ${request.dataset} with status code: ${response.code()}")
-
-                    if (response.isSuccessful) {
-                        val contentType = response.headers()["Content-Type"]
-                        val lastModified = response.headers()["Last-Modified-Dataset"]
-                        AppLogger.d("Silent download: Content type: $contentType, Last-Modified: $lastModified")
-
-                        when {
-                            // Handle ZIP files
-                            contentType?.contains("application/zip") == true -> {
-                                AppLogger.d("Silent download: Processing ZIP response for ${request.dataset}, size: ${response.body()?.contentLength() ?: 0} bytes")
-                                val inputStream = response.body()?.byteStream()
-                                if (inputStream != null) {
-                                    try {
-                                        // Create temp file
-                                        val tempFile = File.createTempFile(
-                                            "temp_",
-                                            ".zip",
-                                            getApplication<Application>().cacheDir
-                                        )
-                                        tempFile.outputStream().use { fileOut ->
-                                            inputStream.copyTo(fileOut)
-                                        }
-
-                                        // Extract with password
-                                        AppLogger.d("Silent download: Extracting ZIP file for ${request.dataset}")
-                                        val zipFile = net.lingala.zip4j.ZipFile(tempFile)
-                                        zipFile.setPassword(AppUtils.ZIP_PASSWORD.toCharArray())
-
-                                        val extractDir = File(
-                                            getApplication<Application>().cacheDir,
-                                            "extracted_${System.currentTimeMillis()}"
-                                        )
-                                        zipFile.extractAll(extractDir.absolutePath)
-                                        AppLogger.d("Silent download: Successfully extracted ZIP for ${request.dataset}")
-
-                                        // Read output.json
-                                        AppLogger.d("Silent download: Reading output.json for ${request.dataset}")
-                                        val jsonFile = File(extractDir, "output.json")
-                                        if (jsonFile.exists()) {
-                                            val jsonContent = jsonFile.readText()
-                                            AppLogger.d("Silent download: JSON content size for ${request.dataset}: ${jsonContent.length} chars")
-
-                                            try {
-                                                // Process the dataset silently using the proper parsing functions
-                                                AppLogger.d("Silent download: Starting JSON parsing for ${request.dataset}")
-                                                when (request.dataset) {
-                                                    AppUtils.DatasetNames.tph -> {
-                                                        val models = parseTPHJsonToList(jsonContent)
-                                                        AppLogger.d("Silent download: Parsed ${models.size} TPH items")
-
-                                                        // Validate data
-                                                        if (models.isEmpty()) {
-                                                            AppLogger.e("Silent download: No valid data found for TPH")
-                                                            results[request.dataset] = false
-                                                        } else {
-                                                            // Check first item for all null values
-                                                            val firstItem = models.firstOrNull()
-                                                            if (firstItem != null) {
-                                                                val allFieldsNull = firstItem.run {
-                                                                    id == null && regional == null && company == null &&
-                                                                            company_abbr == null && wilayah == null && dept == null &&
-                                                                            dept_ppro == null && dept_abbr == null &&
-                                                                            divisi == null && divisi_ppro == null && divisi_abbr == null &&
-                                                                            divisi_nama == null && blok == null &&
-                                                                            blok_ppro == null && blok_kode == null && blok_nama == null &&
-                                                                            ancak == null && nomor == null &&
-                                                                            tahun == null && luas_area == null && jml_pokok == null &&
-                                                                            jml_pokok_ha == null && lat == null && lon == null &&
-                                                                            update_date == null && status == null
-                                                                }
-
-                                                                if (allFieldsNull) {
-                                                                    AppLogger.e("Silent download: Invalid data format - All fields are null in TPH")
-                                                                    results[request.dataset] = false
-                                                                } else {
-                                                                    try {
-                                                                        updateOrInsertTPH(models).join()
-                                                                        AppLogger.d("Silent download: Successfully stored ${models.size} TPH items")
-                                                                        prefManager!!.lastModifiedDatasetTPH = lastModified ?: ""
-                                                                        AppLogger.d("Silent download: Updated lastModified for TPH to: ${lastModified ?: "[not set]"}")
-                                                                        prefManager!!.addDataset(request.dataset)
-                                                                        results[request.dataset] = true
-                                                                    } catch (e: Exception) {
-                                                                        AppLogger.e("Silent download: Error updating TPH dataset: ${e.message}")
-                                                                        results[request.dataset] = false
-                                                                    }
-                                                                }
-                                                            } else {
-                                                                results[request.dataset] = false
-                                                            }
-                                                        }
-                                                    }
-
-                                                    AppUtils.DatasetNames.kemandoran -> {
-                                                        val models = parseStructuredJsonToList(jsonContent, KemandoranModel::class.java)
-                                                        AppLogger.d("Silent download: Parsed ${models.size} Kemandoran items")
-
-                                                        // Validate data
-                                                        if (models.isEmpty()) {
-                                                            AppLogger.e("Silent download: No valid data found for Kemandoran")
-                                                        } else {
-                                                            try {
-                                                                updateOrInsertKemandoran(models).join()
-                                                                AppLogger.d("Silent download: Successfully stored ${models.size} Kemandoran items")
-                                                                prefManager!!.lastModifiedDatasetKemandoran = lastModified ?: ""
-                                                                AppLogger.d("Silent download: Updated lastModified for Kemandoran to: ${lastModified ?: "[not set]"}")
-                                                                prefManager!!.addDataset(request.dataset)
-
-                                                            } catch (e: Exception) {
-                                                                AppLogger.e("Silent download: Error updating Kemandoran dataset: ${e.message}")
-
-                                                            }
-                                                        }
-                                                    }
-
-                                                    AppUtils.DatasetNames.pemanen -> {
-                                                        val models = parseStructuredJsonToList(jsonContent, KaryawanModel::class.java)
-                                                        AppLogger.d("Silent download: Parsed ${models.size} Pemanen items")
-
-                                                        // Validate data
-                                                        if (models.isEmpty()) {
-                                                            AppLogger.e("Silent download: No valid data found for Pemanen")
-
-                                                        } else {
-                                                            try {
-                                                                updateOrInsertKaryawan(models).join()
-                                                                AppLogger.d("Silent download: Successfully stored ${models.size} Pemanen items")
-                                                                prefManager!!.lastModifiedDatasetPemanen = lastModified ?: ""
-                                                                AppLogger.d("Silent download: Updated lastModified for Pemanen to: ${lastModified ?: "[not set]"}")
-                                                                prefManager!!.addDataset(request.dataset)
-                                                            } catch (e: Exception) {
-                                                                AppLogger.e("Silent download: Error updating Pemanen dataset: ${e.message}")
-
-                                                            }
-                                                        }
-                                                    }
-
-                                                    AppUtils.DatasetNames.mill -> {
-                                                        val models = parseStructuredJsonToList(jsonContent, MillModel::class.java)
-                                                        AppLogger.d("Silent download: Parsed ${models.size} Mill items")
-
-                                                        // Validate data
-                                                        if (models.isEmpty()) {
-                                                            AppLogger.e("Silent download: No valid data found for Mill")
-
-                                                        } else {
-                                                            try {
-                                                                updateOrInsertMill(models).join()
-                                                                AppLogger.d("Silent download: Successfully stored ${models.size} Mill items")
-                                                                prefManager!!.addDataset(request.dataset)
-
-                                                            } catch (e: Exception) {
-                                                                AppLogger.e("Silent download: Error updating Mill dataset: ${e.message}")
-
-                                                            }
-                                                        }
-                                                    }
-
-                                                    AppUtils.DatasetNames.blok -> {
-                                                        val models = parseStructuredJsonToList(jsonContent, BlokModel::class.java)
-                                                        AppLogger.d("Silent download: Parsed ${models.size} Blok items")
-
-                                                        // Validate data
-                                                        if (models.isEmpty()) {
-                                                            AppLogger.e("Silent download: No valid data found for Blok")
-
-                                                        } else {
-                                                            try {
-                                                                updateOrInsertBlok(models).join()
-                                                                AppLogger.d("Silent download: Successfully stored ${models.size} Blok items")
-                                                                prefManager!!.lastModifiedDatasetBlok = lastModified ?: ""
-                                                                AppLogger.d("Silent download: Updated lastModified for Blok to: ${lastModified ?: "[not set]"}")
-                                                                prefManager!!.addDataset(request.dataset)
-
-                                                            } catch (e: Exception) {
-                                                                AppLogger.e("Silent download: Error updating Blok dataset: ${e.message}")
-
-                                                            }
-                                                        }
-                                                    }
-
-                                                    AppUtils.DatasetNames.transporter -> {
-                                                        val models = parseStructuredJsonToList(jsonContent, TransporterModel::class.java)
-                                                        AppLogger.d("Silent download: Parsed ${models.size} Transporter items")
-
-                                                        // Validate data
-                                                        if (models.isEmpty()) {
-                                                            AppLogger.e("Silent download: No valid data found for Transporter")
-
-                                                        } else {
-                                                            try {
-                                                                InsertTransporter(models).join()
-                                                                AppLogger.d("Silent download: Successfully stored ${models.size} Transporter items")
-                                                                prefManager!!.lastModifiedDatasetTransporter = lastModified ?: ""
-                                                                AppLogger.d("Silent download: Updated lastModified for Transporter to: ${lastModified ?: "[not set]"}")
-                                                                prefManager!!.addDataset(request.dataset)
-
-                                                            } catch (e: Exception) {
-                                                                AppLogger.e("Silent download: Error updating Transporter dataset: ${e.message}")
-
-                                                            }
-                                                        }
-                                                    }
-
-                                                    AppUtils.DatasetNames.kendaraan -> {
-                                                        val models = parseStructuredJsonToList(jsonContent, KendaraanModel::class.java)
-                                                        AppLogger.d("Silent download: Parsed ${models.size} Kendaraan items")
-
-                                                        // Validate data
-                                                        if (models.isEmpty()) {
-                                                            AppLogger.e("Silent download: No valid data found for Kendaraan")
-
-                                                        } else {
-                                                            try {
-                                                                InsertKendaraan(models).join()
-                                                                AppLogger.d("Silent download: Successfully stored ${models.size} Kendaraan items")
-                                                                prefManager!!.lastModifiedDatasetKendaraan = lastModified ?: ""
-                                                                AppLogger.d("Silent download: Updated lastModified for Kendaraan to: ${lastModified ?: "[not set]"}")
-                                                                prefManager!!.addDataset(request.dataset)
-
-                                                            } catch (e: Exception) {
-                                                                AppLogger.e("Silent download: Error updating Kendaraan dataset: ${e.message}")
-
-                                                            }
-                                                        }
-                                                    }
-
-                                                    else -> {
-                                                        AppLogger.d("Silent download: No processing for ${request.dataset}")
-
-                                                    }
-                                                }
-
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Silent download: Error processing ${request.dataset}: ${e.message}")
-                                                AppLogger.e("Silent download: Error details", e.toString()) // Log stack trace
-
-                                            }
-                                        } else {
-                                            AppLogger.e("Silent download: output.json not found for ${request.dataset}")
-
-                                        }
-
-                                        // Cleanup
-                                        tempFile.delete()
-                                        extractDir.deleteRecursively()
-
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Silent download: Error extracting zip for ${request.dataset}: ${e.message}")
-                                        AppLogger.e("Silent download: Error details", e.toString()) // Log stack trace
-
-                                    }
-                                } else {
-                                    AppLogger.e("Silent download: Null input stream for ${request.dataset}")
-
-                                }
-                            }
-
-                            // Handle JSON responses
-                            contentType?.contains("application/json") == true -> {
-                                val responseBodyString = response.body()?.string() ?: "Empty Response"
-                                AppLogger.d("Silent download: JSON response size for ${request.dataset}: ${responseBodyString.length} chars")
-
-                                if (responseBodyString.contains("\"success\":false") &&
-                                    responseBodyString.contains("\"message\":\"Dataset is up to date\"")) {
-                                    // Dataset is up to date
-                                    AppLogger.d("Silent download: Dataset ${request.dataset} is up to date")
-
-                                } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
-                                    try {
-                                        AppLogger.d("Silent download: Processing setting.json response")
-                                        val jsonObject = JSONObject(responseBodyString)
-                                        val tphRadius = jsonObject.optInt("tph_radius", -1)
-                                        val gpsAccuracy = jsonObject.optInt("gps_accuracy", -1)
-                                        AppLogger.d("Silent download: Setting values - tphRadius: $tphRadius, gpsAccuracy: $gpsAccuracy")
-
-                                        var isStored = false
-                                        if (tphRadius != -1) {
-                                            prefManager.radiusMinimum = tphRadius.toFloat()
-                                            isStored = true
-                                        }
-                                        if (gpsAccuracy != -1) {
-                                            prefManager.boundaryAccuracy = gpsAccuracy.toFloat()
-                                            isStored = true
-                                        }
-
-                                        if (isStored) {
-                                            prefManager!!.addDataset(request.dataset)
-                                            prefManager!!.lastModifiedSettingJSON = lastModified ?: ""
-                                            AppLogger.d("Silent download: Successfully updated settings, lastModified: ${lastModified ?: "[not set]"}")
-
-                                        } else {
-                                            AppLogger.d("Silent download: No settings were updated")
-
-                                        }
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Silent download: Error parsing JSON for ${request.dataset}: ${e.message}")
-                                        AppLogger.e("Silent download: Error details", e.toString()) // Log stack trace
-
-                                    }
-                                } else if (request.dataset == AppUtils.DatasetNames.mill) {
-                                    try {
-                                        AppLogger.d("Silent download: Processing mill JSON response")
-                                        // For mill dataset, use the custom parse function
-                                        fun <T> parseMillJsonToList(jsonContent: String, classType: Class<T>): List<T> {
-                                            val gson = Gson()
-                                            val jsonObject = gson.fromJson(jsonContent, JsonObject::class.java)
-                                            val dataArray = jsonObject.getAsJsonArray("data")
-                                            return gson.fromJson(
-                                                dataArray,
-                                                TypeToken.getParameterized(List::class.java, classType).type
-                                            )
-                                        }
-
-                                        val millList = parseMillJsonToList(responseBodyString, MillModel::class.java)
-                                        AppLogger.d("Silent download: Parsed ${millList.size} mill items")
-
-                                        // Validate data
-                                        if (millList.isEmpty()) {
-                                            AppLogger.e("Silent download: No valid data found for Mill")
-                                            results[request.dataset] = false
-                                        } else {
-                                            try {
-                                                updateOrInsertMill(millList).join()
-                                                AppLogger.d("Silent download: Successfully stored ${millList.size} Mill items")
-                                                prefManager!!.addDataset(request.dataset)
-
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Silent download: Error updating Mill dataset: ${e.message}")
-
-                                            }
-                                        }
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Silent download: Error processing mill data: ${e.message}")
-                                        AppLogger.e("Silent download: Error details", e.toString()) // Log stack trace
-
-                                    }
-                                } else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
-                                    try {
-                                        AppLogger.d("Silent download: Processing updateSyncLocalData response")
-                                        val jsonResponse = Gson().fromJson(
-                                            responseBodyString,
-                                            FetchStatusCMPResponse::class.java
-                                        )
-
-                                        // Validate data
-                                        if (jsonResponse.data.isEmpty()) {
-                                            AppLogger.e("Silent download: No valid data found for updateSyncLocalData")
-                                            results[request.dataset] = false
-                                        } else {
-                                            val panenIdsToUpdate = mutableListOf<Int>()
-                                            val espbIdsToUpdate = mutableListOf<Int>()
-                                            val status = mutableMapOf<String, Int>()
-
-                                            try {
-                                                val deferredUpdates = jsonResponse.data.map { item ->
-                                                    async {
-                                                        try {
-                                                            val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(item.id) ?: "{}"
-                                                            val tableIdsObj = Gson().fromJson(tableIdsJson, JsonObject::class.java)
-
-                                                            tableIdsObj?.keySet()?.forEach { tableName ->
-                                                                val ids = tableIdsObj.getAsJsonArray(tableName).map { it.asInt }
-
-                                                                when (tableName) {
-                                                                    AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(ids)
-                                                                    AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(ids)
-                                                                }
-
-                                                                status[tableName] = item.status
-                                                            }
-
-                                                            uploadCMPDao.updateStatus(item.id.toString(), item.nama_file,  item.status)
-                                                        } catch (e: Exception) {
-                                                            AppLogger.e("Silent download: Error processing item ${item.id}: ${e.message}")
-                                                        }
-                                                    }
-                                                }
-
-                                                deferredUpdates.awaitAll()
-
-                                                try {
-                                                    AppLogger.d("Silent download: Updating ${panenIdsToUpdate.size} PANEN records and ${espbIdsToUpdate.size} ESPB records")
-
-                                                    if (panenIdsToUpdate.isNotEmpty()) {
-                                                        panenDao.updateDataIsZippedPanen(
-                                                            panenIdsToUpdate,
-                                                            status[AppUtils.DatabaseTables.PANEN] ?: 0
-                                                        )
-                                                    }
-                                                    if (espbIdsToUpdate.isNotEmpty()) {
-                                                        espbDao.updateDataIsZippedESPB(
-                                                            espbIdsToUpdate,
-                                                            status[AppUtils.DatabaseTables.ESPB] ?: 0
-                                                        )
-                                                    }
-
-                                                    AppLogger.d("Silent download: Successfully updated records for updateSyncLocalData")
-
-
-                                                } catch (e: Exception) {
-                                                    AppLogger.e("Silent download: Error in batch updates: ${e.message}")
-                                                    AppLogger.e("Silent download: Error details", e.toString())
-
-                                                }
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Silent download: Error processing updateSyncLocalData items: ${e.message}")
-                                                AppLogger.e("Silent download: Error details", e.toString())
-
-                                            }
-                                        }
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Silent download: Error parsing JSON response: ${e.message}")
-                                        AppLogger.e("Silent download: Error details", e.toString())
-
-                                    }
-                                } else {
-                                    // Generic success for other JSON endpoints
-                                    AppLogger.d("Silent download: Generic success for ${request.dataset}")
-
-                                }
-                            }
-
-                            else -> {
-                                AppLogger.d("Silent download: Unknown content type for ${request.dataset}: $contentType")
-
-                            }
-                        }
-                    } else {
-                        // Handle HTTP error
-                        AppLogger.e("Silent download: HTTP error for ${request.dataset}: ${response.code()}")
-                        if (response.errorBody() != null) {
-                            try {
-                                val errorContent = response.errorBody()!!.string()
-                                AppLogger.e("Silent download: Error response body: $errorContent")
-                            } catch (e: Exception) {
-                                AppLogger.e("Silent download: Could not read error body")
-                            }
-                        }
-
-                    }
-
-                } catch (e: Exception) {
-                    AppLogger.e("Silent download: Error for ${request.dataset}: ${e.message}")
-                    AppLogger.e("Silent download: Error details", e.toString())
-
-                }
-
-                AppLogger.d("Silent download: Completed processing ${request.dataset} with result: ${results[request.dataset]}")
-            }
-
-            val successCount = results.values.count { it }
-            AppLogger.d("=== Silent download completed: $successCount/${results.size} datasets processed successfully ===")
-            AppLogger.d("Silent download results by dataset: ${results.entries.joinToString { "${it.key}: ${it.value}" }}")
-            return@async results
-        }
-    }
 
     fun downloadMultipleDatasets(requests: List<DatasetRequest>) {
         viewModelScope.launch {
@@ -1172,9 +692,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
-                    } else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
-                        response = repository.checkStatusUploadCMP(request.data!!)
-                    } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                    }
+//                    else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
+//                        response = repository.checkStatusUploadCMP(request.data!!)
+//                    }
+                    else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified!!)
                     } else {
                         response = repository.downloadDataset(modifiedRequest)
@@ -1502,121 +1024,122 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                         _downloadStatuses.postValue(results.toMap())
                                     }
-                                } else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
-                                    results[request.dataset] = Resource.Loading(0)
-
-                                    try {
-                                        val jsonResponse = Gson().fromJson(
-                                            responseBodyString,
-                                            FetchStatusCMPResponse::class.java
-                                        )
-
-                                        viewModelScope.launch(Dispatchers.IO) {
-                                            val panenIdsToUpdate = mutableListOf<Int>()
-                                            val espbIdsToUpdate = mutableListOf<Int>()
-                                            val status =
-                                                mutableMapOf<String, Int>()  // Store status for batch updates
-
-                                            try {
-                                                val deferredUpdates =
-                                                    jsonResponse.data.map { item ->
-
-                                                        AppLogger.d(item.toString())
-                                                        async {
-                                                            try {
-                                                                // Get table_ids JSON from DB
-                                                                val tableIdsJson =
-                                                                    uploadCMPDao.getTableIdsByTrackingId(
-                                                                        item.id
-                                                                    ) ?: "{}"
-                                                                val tableIdsObj = Gson().fromJson(
-                                                                    tableIdsJson,
-                                                                    JsonObject::class.java
-                                                                )
-
-                                                                AppLogger.d(tableIdsObj.toString())
-
-                                                                tableIdsObj?.keySet()
-                                                                    ?.forEach { tableName ->
-                                                                        val ids =
-                                                                            tableIdsObj.getAsJsonArray(
-                                                                                tableName
-                                                                            ).map { it.asInt }
-
-                                                                        when (tableName) {
-                                                                            AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(
-                                                                                ids
-                                                                            )
-
-                                                                            AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(
-                                                                                ids
-                                                                            )
-                                                                        }
-
-                                                                        status[tableName] =
-                                                                            item.status
-                                                                    }
-
-                                                                uploadCMPDao.updateStatus(
-                                                                    item.id.toString(),
-                                                                    item.nama_file,
-                                                                    item.status
-                                                                )
-                                                            } catch (e: Exception) {
-                                                                AppLogger.e("Error processing item ${item.id}: ${e.localizedMessage}")
-                                                            }
-                                                        }
-                                                    }
-
-                                                deferredUpdates.awaitAll()
-
-                                                try {
-                                                    if (panenIdsToUpdate.isNotEmpty()) {
-                                                        panenDao.updateDataIsZippedPanen(
-                                                            panenIdsToUpdate,
-                                                            status[AppUtils.DatabaseTables.PANEN]
-                                                                ?: 0
-                                                        )
-                                                    }
-                                                    if (espbIdsToUpdate.isNotEmpty()) {
-                                                        espbDao.updateDataIsZippedESPB(
-                                                            espbIdsToUpdate,
-                                                            status[AppUtils.DatabaseTables.ESPB]
-                                                                ?: 0
-                                                        )
-                                                    }
-                                                } catch (e: Exception) {
-                                                    AppLogger.e("Error in batch updates: ${e.localizedMessage}")
-                                                }
-
-                                                withContext(Dispatchers.Main) {
-                                                    val sortedList = jsonResponse.data
-                                                        .filter { it.status >= 4 }
-                                                        .sortedByDescending { it.tanggal_upload }
-                                                    val message = if (sortedList.isNotEmpty()) {
-                                                        "Terjadi kesalahan insert di server!\n\n" + sortedList.joinToString(
-                                                            "\n"
-                                                        ) { item ->
-                                                            "• ${item.nama_file} (${item.message})"
-                                                        }
-                                                    } else {
-                                                        "Berhasil sinkronisasi data"
-                                                    }
-                                                    results[request.dataset] =
-                                                        Resource.Success(response, message)
-                                                    _downloadStatuses.postValue(results.toMap())
-                                                }
-
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Error in processing dataset updateSyncLocalData: ${e.localizedMessage}")
-                                            }
-                                        }
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error parsing JSON response: ${e.localizedMessage}")
-                                    }
-                                } else {
-                                    results[request.dataset] = Resource.Success(response)
                                 }
+//                                else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
+//                                    results[request.dataset] = Resource.Loading(0)
+//
+//                                    try {
+//                                        val jsonResponse = Gson().fromJson(
+//                                            responseBodyString,
+//                                            FetchStatusCMPResponse::class.java
+//                                        )
+//
+//                                        viewModelScope.launch(Dispatchers.IO) {
+//                                            val panenIdsToUpdate = mutableListOf<Int>()
+//                                            val espbIdsToUpdate = mutableListOf<Int>()
+//                                            val status =
+//                                                mutableMapOf<String, Int>()  // Store status for batch updates
+//
+//                                            try {
+//                                                val deferredUpdates =
+//                                                    jsonResponse.data.map { item ->
+//
+//                                                        AppLogger.d(item.toString())
+//                                                        async {
+//                                                            try {
+//                                                                // Get table_ids JSON from DB
+//                                                                val tableIdsJson =
+//                                                                    uploadCMPDao.getTableIdsByTrackingId(
+//                                                                        item.id
+//                                                                    ) ?: "{}"
+//                                                                val tableIdsObj = Gson().fromJson(
+//                                                                    tableIdsJson,
+//                                                                    JsonObject::class.java
+//                                                                )
+//
+//                                                                AppLogger.d(tableIdsObj.toString())
+//
+//                                                                tableIdsObj?.keySet()
+//                                                                    ?.forEach { tableName ->
+//                                                                        val ids =
+//                                                                            tableIdsObj.getAsJsonArray(
+//                                                                                tableName
+//                                                                            ).map { it.asInt }
+//
+//                                                                        when (tableName) {
+//                                                                            AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(
+//                                                                                ids
+//                                                                            )
+//
+//                                                                            AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(
+//                                                                                ids
+//                                                                            )
+//                                                                        }
+//
+//                                                                        status[tableName] =
+//                                                                            item.status
+//                                                                    }
+//
+//                                                                uploadCMPDao.updateStatus(
+//                                                                    item.id.toString(),
+//                                                                    item.nama_file,
+//                                                                    item.status
+//                                                                )
+//                                                            } catch (e: Exception) {
+//                                                                AppLogger.e("Error processing item ${item.id}: ${e.localizedMessage}")
+//                                                            }
+//                                                        }
+//                                                    }
+//
+//                                                deferredUpdates.awaitAll()
+//
+//                                                try {
+//                                                    if (panenIdsToUpdate.isNotEmpty()) {
+//                                                        panenDao.updateDataIsZippedPanen(
+//                                                            panenIdsToUpdate,
+//                                                            status[AppUtils.DatabaseTables.PANEN]
+//                                                                ?: 0
+//                                                        )
+//                                                    }
+//                                                    if (espbIdsToUpdate.isNotEmpty()) {
+//                                                        espbDao.updateDataIsZippedESPB(
+//                                                            espbIdsToUpdate,
+//                                                            status[AppUtils.DatabaseTables.ESPB]
+//                                                                ?: 0
+//                                                        )
+//                                                    }
+//                                                } catch (e: Exception) {
+//                                                    AppLogger.e("Error in batch updates: ${e.localizedMessage}")
+//                                                }
+//
+//                                                withContext(Dispatchers.Main) {
+//                                                    val sortedList = jsonResponse.data
+//                                                        .filter { it.status >= 4 }
+//                                                        .sortedByDescending { it.tanggal_upload }
+//                                                    val message = if (sortedList.isNotEmpty()) {
+//                                                        "Terjadi kesalahan insert di server!\n\n" + sortedList.joinToString(
+//                                                            "\n"
+//                                                        ) { item ->
+//                                                            "• ${item.nama_file} (${item.message})"
+//                                                        }
+//                                                    } else {
+//                                                        "Berhasil sinkronisasi data"
+//                                                    }
+//                                                    results[request.dataset] =
+//                                                        Resource.Success(response, message)
+//                                                    _downloadStatuses.postValue(results.toMap())
+//                                                }
+//
+//                                            } catch (e: Exception) {
+//                                                AppLogger.e("Error in processing dataset updateSyncLocalData: ${e.localizedMessage}")
+//                                            }
+//                                        }
+//                                    } catch (e: Exception) {
+//                                        AppLogger.e("Error parsing JSON response: ${e.localizedMessage}")
+//                                    }
+//                                } else {
+//                                    results[request.dataset] = Resource.Success(response)
+//                                }
                             } else {
                                 Log.d("DownloadResponse", "Unknown response type: $contentType")
                                 results[request.dataset] =

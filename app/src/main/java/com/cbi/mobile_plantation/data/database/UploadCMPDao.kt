@@ -20,8 +20,8 @@ abstract class UploadCMPDao {
     @Query("UPDATE upload_cmp SET status = :status WHERE tracking_id = :trackingId and nama_file = :nama_file")
     abstract suspend fun updateStatus(trackingId: String, nama_file: String, status: Int)
 
-    @Query("SELECT table_ids FROM upload_cmp WHERE tracking_id = :trackingId")
-    abstract suspend fun getTableIdsByTrackingId(trackingId: Int): String?
+    @Query("SELECT table_ids FROM upload_cmp WHERE tracking_id = :trackingId AND nama_file = :filename")
+    abstract suspend fun getTableIdsByTrackingId(trackingId: String, filename: String): String?
 
     @Query("DELETE FROM upload_cmp")
     abstract suspend fun dropAllData()
