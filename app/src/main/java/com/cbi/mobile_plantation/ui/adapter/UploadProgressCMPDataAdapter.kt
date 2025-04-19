@@ -1,9 +1,11 @@
 package com.cbi.mobile_plantation.ui.adapter
 
+import android.animation.ValueAnimator
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -31,11 +33,15 @@ class UploadProgressCMPDataAdapter(
     private val uploadedBytesMap = mutableMapOf<Int, Long>() // Track uploaded bytes
     private val fileSizeMap = mutableMapOf<Int, Long>() // Cache file sizes to avoid recalculating
 
+    // Add these for dot animation
+    private val animators = mutableMapOf<Int, ValueAnimator>()
+    private val dotCountMap = mutableMapOf<Int, Int>()
+
     class UploadViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvNameProgress: TextView = itemView.findViewById(R.id.tv_name_progress)
         val progressBarUpload: ProgressBar = itemView.findViewById(R.id.progressBarUpload)
         val percentage: TextView = itemView.findViewById(R.id.percentageProgressBarCard)
-            val statusProgress: TextView = itemView.findViewById(R.id.status_progress)
+        val statusProgress: TextView = itemView.findViewById(R.id.status_progress)
         val iconStatus: ImageView = itemView.findViewById(R.id.icon_status_progress)
         val loadingCircular: ProgressBar = itemView.findViewById(R.id.progress_circular_loading)
     }
@@ -78,11 +84,24 @@ class UploadProgressCMPDataAdapter(
         holder.percentage.text = if (status == AppUtils.UploadStatusUtils.FAILED || progress == 100) "100%" else "$progress%"
         holder.progressBarUpload.progress = if (status == AppUtils.UploadStatusUtils.FAILED) 100 else progress
 
-        // Set status text
-        holder.statusProgress.text = when {
-            status == AppUtils.UploadStatusUtils.UPLOADING -> "${AppUtils.UploadStatusUtils.UPLOADING}${formatFileSize(uploadedBytes)} / ${formatFileSize(fileSize)}"
-            status == AppUtils.UploadStatusUtils.FAILED && !errorMessage.isNullOrEmpty() -> errorMessage
-            else -> status
+        // Handle status text based on upload status
+        when (status) {
+            AppUtils.UploadStatusUtils.WAITING -> {
+                stopDotsAnimation(item.id)
+                holder.statusProgress.text = status
+            }
+            AppUtils.UploadStatusUtils.UPLOADING -> {
+                // Start dots animation
+                startDotsAnimation(item.id, holder)
+            }
+            AppUtils.UploadStatusUtils.SUCCESS -> {
+                stopDotsAnimation(item.id)
+                holder.statusProgress.text = status
+            }
+            AppUtils.UploadStatusUtils.FAILED -> {
+                stopDotsAnimation(item.id)
+                holder.statusProgress.text = errorMessage ?: status
+            }
         }
 
         // Set visibility of UI elements based on status
@@ -116,6 +135,53 @@ class UploadProgressCMPDataAdapter(
         }
     }
 
+    // Animation functions for the dots
+    private fun startDotsAnimation(id: Int, holder: UploadViewHolder) {
+        // Cancel existing animation if any
+        animators[id]?.cancel()
+
+        // Create a new animator
+        val animator = ValueAnimator.ofInt(0, 4).apply {
+            duration = 1200
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.RESTART
+
+            addUpdateListener { animation ->
+                val dotCount = animation.animatedValue as Int
+                dotCountMap[id] = dotCount
+                updateStatusWithDots(id, holder)
+            }
+        }
+
+        // Store and start the animator
+        animators[id] = animator
+        animator.start()
+    }
+
+    private fun stopDotsAnimation(id: Int) {
+        animators[id]?.cancel()
+        animators.remove(id)
+        dotCountMap.remove(id)
+    }
+
+    private fun updateStatusWithDots(id: Int, holder: UploadViewHolder) {
+        val dotCount = dotCountMap[id] ?: 0
+        val uploadedBytes = uploadedBytesMap[id] ?: 0L
+        val fileSize = fileSizeMap[id] ?: 0L
+
+        val dots = when (dotCount) {
+            0 -> ""
+            1 -> "."
+            2 -> ".."
+            3 -> "..."
+            4 -> "...."
+            else -> "....."
+        }
+
+        // Update the status text with the dots
+        holder.statusProgress.text = "${AppUtils.UploadStatusUtils.UPLOADING}$dots"
+    }
+
     override fun getItemCount(): Int = uploadItems.size
 
     // Update methods
@@ -127,7 +193,21 @@ class UploadProgressCMPDataAdapter(
         val uploadedBytes = (fileSize * progress) / 100
         uploadedBytesMap[id] = uploadedBytes
 
-        notifyItemChanged(uploadItems.indexOfFirst { it.id == id })
+        // Get the position of the item in the list
+        val position = uploadItems.indexOfFirst { it.id == id }
+        if (position != -1) {
+            // Get the ViewHolder if it's visible
+            val holder = (uploadItems[position].id == id) as? UploadViewHolder
+            if (holder != null) {
+                // Update the status text with dots if it's in UPLOADING state
+                val status = uploadStatusMap[id] ?: AppUtils.UploadStatusUtils.WAITING
+                if (status == AppUtils.UploadStatusUtils.UPLOADING) {
+                    updateStatusWithDots(id, holder)
+                }
+            }
+
+            notifyItemChanged(position)
+        }
     }
 
     fun updateStatus(id: Int, status: String) {
@@ -139,7 +219,6 @@ class UploadProgressCMPDataAdapter(
         uploadErrorMap[id] = error
         notifyItemChanged(uploadItems.indexOfFirst { it.id == id })
     }
-
 
     // New method to directly update uploaded bytes
     fun updateUploadedBytes(id: Int, bytes: Long) {
@@ -175,6 +254,11 @@ class UploadProgressCMPDataAdapter(
 
     // Add this method to UploadProgressCMPDataAdapter
     fun resetState() {
+        // Cancel all animations
+        animators.values.forEach { it.cancel() }
+        animators.clear()
+        dotCountMap.clear()
+
         uploadProgressMap.clear()
         uploadStatusMap.clear()
         uploadErrorMap.clear()
@@ -195,5 +279,14 @@ class UploadProgressCMPDataAdapter(
         }
 
         notifyDataSetChanged()
+    }
+
+    // Cleanup method to be called when the RecyclerView is detached
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        // Cancel all animations to prevent memory leaks
+        animators.values.forEach { it.cancel() }
+        animators.clear()
+        dotCountMap.clear()
     }
 }

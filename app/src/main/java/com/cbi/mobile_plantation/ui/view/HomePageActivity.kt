@@ -564,6 +564,7 @@ class HomePageActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+
         uploadTimeoutJob?.cancel()
         uploadTimeoutJob = null
         // Ensure handler callbacks are removed
@@ -1589,7 +1590,7 @@ class HomePageActivity : AppCompatActivity() {
             zipFileName = null
             zipFilePath = null
             uploadCMPViewModel.resetState()
-
+//            (recyclerView.adapter as? UploadProgressCMPDataAdapter)?.onDestroy()
             dialog.dismiss()
         }
 

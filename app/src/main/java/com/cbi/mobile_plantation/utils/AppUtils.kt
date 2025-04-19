@@ -63,7 +63,7 @@ object AppUtils {
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"
-        const val UPLOADING = "Sedang Upload..."
+        const val UPLOADING = "Sedang Upload"
         const val SUCCESS = "Berhasil Upload!"
         const val FAILED = "Gagal Upload!"
     }
