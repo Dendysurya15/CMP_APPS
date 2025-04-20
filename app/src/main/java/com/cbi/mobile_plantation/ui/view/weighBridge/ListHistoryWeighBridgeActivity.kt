@@ -527,18 +527,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             }
         }
 
-        datasetViewModel.updateResultStatusUploadCMP.observe(this@ListHistoryWeighBridgeActivity) { result ->
-            if (result.success) {
-                AppLogger.d(result.message)
-            } else {
-                val errorDetails = if (result.errorItems.isNotEmpty()) {
-                    "\n\n" + result.errorItems.joinToString("\n") { "• ${it.fileName}: ${it.message}" }
-                } else {
-                    ""
-                }
-                AppLogger.d(errorDetails)
-            }
-        }
+
 //        weightBridgeViewModel.uploadResult.observe(this) { result ->
 //            result.onSuccess {
 //                Toast.makeText(this, "Upload Successful!", Toast.LENGTH_SHORT).show()

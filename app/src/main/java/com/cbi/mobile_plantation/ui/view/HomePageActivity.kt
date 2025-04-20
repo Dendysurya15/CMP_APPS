@@ -748,8 +748,8 @@ class HomePageActivity : AppCompatActivity() {
                     if (AppUtils.isNetworkAvailable(this)) {
                         isTriggerButtonSinkronisasiData = true
 
-                        loadingDialog.show()
-                        loadingDialog.setMessage("Sedang mempersiapkan data...")
+//                        loadingDialog.show()
+//                        loadingDialog.setMessage("Sedang mempersiapkan data...")
 
 //                        lifecycleScope.launch {
 //                            trackingIdsUpload = emptyList()
@@ -807,31 +807,25 @@ class HomePageActivity : AppCompatActivity() {
                             }
                             val data = dataDeferred.await()
 
-//kode khusus untuk update UploadCMP sebelum melakukan upload
+                            //kode khusus untuk update UploadCMP sebelum melakukan upload
                             uploadCMPData = data
-                            datasetViewModel.updateLocalUploadCMP(uploadCMPData)
-                            datasetViewModel.isCompleted.observe(this@HomePageActivity) { isCompleted ->
-                                if (isCompleted) {
-                                    AppLogger.d("sukses update all upload CMP")
-                                }
+
+                            if (uploadCMPData.isNotEmpty()) {
+                                AppLogger.d("Starting update for ${uploadCMPData.size} items")
+                                val updateSuccessful = datasetViewModel.updateLocalUploadCMP(uploadCMPData).await()
+                                AppLogger.d("Update status: $updateSuccessful, now proceeding to file check")
+                            } else {
+                                // No data to update, consider it successful
+                                AppLogger.d("No data to update")
+                                val updateSuccessful = true
                             }
-                            datasetViewModel.updateResultStatusUploadCMP.observe(this@HomePageActivity) { result ->
-                                if (result.success) {
-                                    AppLogger.d(result.message)
-                                } else {
-                                    val errorDetails = if (result.errorItems.isNotEmpty()) {
-                                        "\n\n" + result.errorItems.joinToString("\n") { "• ${it.fileName}: ${it.message}" }
-                                    } else {
-                                        ""
-                                    }
-                                    AppLogger.d(errorDetails)
-                                }
-                            }
-                            allUploadZipFilesToday =
-                                AppUtils.checkAllUploadZipFiles(
-                                    prefManager!!.idUserLogin.toString(),
-                                    this@HomePageActivity
-                                ).toMutableList()
+
+// Now check for files only after update is complete
+                            allUploadZipFilesToday = AppUtils.checkAllUploadZipFiles(
+                                prefManager!!.idUserLogin.toString(),
+                                this@HomePageActivity
+                            ).toMutableList()
+
 
                             if (allUploadZipFilesToday.isNotEmpty()) {
                                 uploadCMPViewModel.getUploadCMPTodayData()
@@ -1718,18 +1712,7 @@ class HomePageActivity : AppCompatActivity() {
                         }
                     }
 
-                    datasetViewModel.updateResultStatusUploadCMP.observe(this@HomePageActivity) { result ->
-                        if (result.success) {
-                            AppLogger.d(result.message)
-                        } else {
-                            val errorDetails = if (result.errorItems.isNotEmpty()) {
-                                "\n\n" + result.errorItems.joinToString("\n") { "• ${it.fileName}: ${it.message}" }
-                            } else {
-                                ""
-                            }
-                            AppLogger.d(errorDetails)
-                        }
-                    }
+
                 }
             }
         }
@@ -1836,6 +1819,8 @@ class HomePageActivity : AppCompatActivity() {
             return false
         }
 
+
+        AppLogger.d("globalResponseJsonUploadList $globalResponseJsonUploadList")
         // Second loop: Process responses only if status code is 3 (complete)
         if (finalStatusCode == 3) {
             AppLogger.d("Status code is 3 (processing complete), processing all upload responses")

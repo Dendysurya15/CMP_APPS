@@ -18,7 +18,6 @@ data class UploadCMPResponse(
 )
 
 
-// Data classes for the response structure
 data class CheckZipServerResponse(
     val success: Boolean,
     val uuid: String,
@@ -30,7 +29,11 @@ data class CheckZipServerResponse(
     val parts: List<PartInfo>,
     val missingParts: List<Int>?,
     val totalSize: Long,
-    val tanggal_upload: String
+    val tanggal_upload: String,
+    val processingTriggered: Boolean? = null,
+    val processingStartedAt: String? = null,
+    val processingCompletedAt: String? = null,
+    val trackingInfo: List<TrackingInfo>? = null
 )
 
 data class PartInfo(
@@ -39,4 +42,12 @@ data class PartInfo(
     val size: Long
 )
 
+data class TrackingInfo(
+    val trackingId: Int,
+    val part: Int,
+    val status: Int,
+    val statusText: String,
+    val message: String? = null,
+    val fileName: String
+)
 

@@ -137,7 +137,7 @@ class DatasetRepository(
     }
 
     suspend fun checkStatusUploadCMP(trackingId: String): Response<ResponseBody> {
-        return TestingApiService.checkStatusUploadCMP(trackingId)
+        return apiService.checkStatusUploadCMP(trackingId)
     }
 
     suspend fun downloadSettingJson(lastModified: String): Response<ResponseBody> {

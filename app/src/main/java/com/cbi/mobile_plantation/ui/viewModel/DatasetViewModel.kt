@@ -32,6 +32,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -476,180 +477,97 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val _isCompleted = MutableLiveData<Boolean>(false)
     val isCompleted: LiveData<Boolean> = _isCompleted
 
-    private val _updateResult = MutableLiveData<UpdateResult>()
-    val updateResultStatusUploadCMP: LiveData<UpdateResult> = _updateResult
-
-    // Data class to hold result information
-    data class UpdateResult(
-        val success: Boolean,
-        val message: String,
-        val errorItems: List<ErrorItem> = emptyList()
-    )
-
     data class ErrorItem(
         val fileName: String,
         val message: String
     )
 
-    fun updateLocalUploadCMP(uploadData: List<Pair<String, String>>) {
+    fun updateLocalUploadCMP(uploadData: List<Pair<String, String>>): Deferred<Boolean> {
+        val result = CompletableDeferred<Boolean>()
+
         viewModelScope.launch {
-            _isCompleted.value = false
-
             try {
-                val uploadResults = mutableListOf<Pair<String, CheckZipServerResponse>>()
+                AppLogger.d("Processing upload data: $uploadData")
+                val errorItems = mutableListOf<ErrorItem>()
 
-                // Process each tracking ID individually
-                val deferredResults = uploadData.map { (trackingId, filename) ->
-                    async(Dispatchers.IO) {
-                        try {
-                            // Use the new GET endpoint with the UUID
-                            val response = repository.checkStatusUploadCMP(trackingId)
-                            val responseBodyString = response.body()?.string() ?: "Empty Response"
-
-
-                            AppLogger.d("responseBodyString $responseBodyString")
-                            try {
-                                val statusResponse = Gson().fromJson(
-                                    responseBodyString,
-                                    CheckZipServerResponse::class.java
-                                )
-                                // Return the tracking ID and its status response
-                                Pair(trackingId, statusResponse)
-                            } catch (e: Exception) {
-                                AppLogger.e("Error parsing JSON for tracking ID $trackingId: ${e.localizedMessage}")
-                                null
-                            }
-                        } catch (e: Exception) {
-                            AppLogger.e("Network error for tracking ID $trackingId: ${e.localizedMessage}")
-                            null
-                        }
-                    }
-                }
-
-                // Collect all valid results
-                deferredResults.awaitAll().filterNotNull().forEach { result ->
-                    uploadResults.add(result)
-                }
-
-                // Process the results
-                viewModelScope.launch(Dispatchers.IO) {
-                    val panenIdsToUpdate = mutableListOf<Int>()
-                    val espbIdsToUpdate = mutableListOf<Int>()
-                    val status = mutableMapOf<String, Int>()  // Store status for batch updates
-
+                // Process each item sequentially
+                for ((trackingId, filename) in uploadData) {
                     try {
-                        val deferredUpdates = uploadResults.map { (trackingId, statusResponse) ->
-                            AppLogger.d("Processing status for $trackingId: ${statusResponse.uploadStatus}")
-                            async {
-                                try {
-                                    // Find the corresponding filename using the tracking ID
-                                    val filename = uploadData.find { it.first == trackingId }?.second ?: ""
+                        // Use the GET endpoint with the UUID
+                        val response = repository.checkStatusUploadCMP(trackingId)
+                        val responseBodyString = response.body()?.string() ?: "Empty Response"
 
-                                    // Get table_ids JSON from DB with both tracking ID and filename
-                                    val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(trackingId, filename) ?: "{}"
-                                    val tableIdsObj = Gson().fromJson(
-                                        tableIdsJson,
-                                        JsonObject::class.java
-                                    )
-
-                                    AppLogger.d(tableIdsObj.toString())
-
-                                    tableIdsObj?.keySet()?.forEach { tableName ->
-                                        val ids = tableIdsObj.getAsJsonArray(tableName).map { it.asInt }
-
-                                        when (tableName) {
-                                            AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(ids)
-                                            AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(ids)
-                                        }
-
-                                        status[tableName] = statusResponse.statusCode
-                                    }
-
-                                    // Update status in the database
-                                    uploadCMPDao.updateStatus(trackingId, filename, statusResponse.statusCode)
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error processing item $trackingId: ${e.localizedMessage}")
-                                }
-                            }
-                        }
-
-                        deferredUpdates.awaitAll()
+                        AppLogger.d("Response for $trackingId, file $filename: $responseBodyString")
 
                         try {
-                            if (panenIdsToUpdate.isNotEmpty()) {
-                                panenDao.updateDataIsZippedPanen(
-                                    panenIdsToUpdate,
-                                    status[AppUtils.DatabaseTables.PANEN] ?: 0
-                                )
+                            val statusResponse = Gson().fromJson(
+                                responseBodyString,
+                                CheckZipServerResponse::class.java
+                            )
+
+                            // Find matching tracking info entry for this file
+                            val baseFilename = filename.substringBeforeLast(".zip")
+                            val trackingInfoEntries = statusResponse.trackingInfo ?: emptyList()
+                            AppLogger.d("Tracking info for $filename: $trackingInfoEntries")
+
+                            // Try to find the matching tracking info by filename
+                            val trackingInfoEntry = trackingInfoEntries.find {
+                                it.fileName.contains(baseFilename)
                             }
-                            if (espbIdsToUpdate.isNotEmpty()) {
-                                espbDao.updateDataIsZippedESPB(
-                                    espbIdsToUpdate,
-                                    status[AppUtils.DatabaseTables.ESPB] ?: 0
-                                )
+
+                            // Get the status code to update
+                            val finalStatusCode = trackingInfoEntry?.status ?: statusResponse.statusCode
+                            AppLogger.d("Final status code for $filename: $finalStatusCode")
+
+                            // Update status in the database
+                            uploadCMPDao.updateStatus(trackingId, filename, finalStatusCode)
+
+                            // Check if this was an error status
+                            if (finalStatusCode >= 4) {
+                                val errorMessage = trackingInfoEntry?.message ?: statusResponse.message
+                                errorItems.add(ErrorItem(
+                                    fileName = filename,
+                                    message = errorMessage
+                                ))
                             }
+
                         } catch (e: Exception) {
-                            AppLogger.e("Error in batch updates: ${e.localizedMessage}")
+                            AppLogger.e("Error parsing JSON for $trackingId: ${e.localizedMessage}")
+                            errorItems.add(ErrorItem(
+                                fileName = filename,
+                                message = "Error processing response: ${e.localizedMessage}"
+                            ))
                         }
-
-                        withContext(Dispatchers.Main) {
-                            // Filter items with error status (assuming statusCode >= 4 means error)
-                            val errorItems = uploadResults
-                                .filter { (_, statusResponse) -> statusResponse.statusCode >= 4 }
-                                .map { (trackingId, statusResponse) ->
-                                    // Find the corresponding filename
-                                    val filename = uploadData.find { it.first == trackingId }?.second ?: ""
-                                    ErrorItem(
-                                        fileName = filename,
-                                        message = statusResponse.message
-                                    )
-                                }
-                                .sortedByDescending { item ->
-                                    // Try to find the original response to sort by upload date
-                                    uploadResults.find { it.second.uuid == item.fileName }?.second?.tanggal_upload ?: ""
-                                }
-
-                            val message = if (errorItems.isNotEmpty()) {
-                                "Terjadi kesalahan insert di server!"
-                            } else {
-                                "Berhasil sinkronisasi data"
-                            }
-
-                            // Set the result
-                            _updateResult.postValue(
-                                UpdateResult(
-                                    success = errorItems.isEmpty(),
-                                    message = message,
-                                    errorItems = errorItems
-                                )
-                            )
-
-                            // Set completed status
-                            _isCompleted.postValue(true)
-                        }
-
                     } catch (e: Exception) {
-                        AppLogger.e("Error in processing dataset updateSyncLocalData: ${e.localizedMessage}")
-                        _updateResult.postValue(
-                            UpdateResult(
-                                success = false,
-                                message = "Error processing data: ${e}"
-                            )
-                        )
-                        _isCompleted.postValue(true)
+                        AppLogger.e("Network error for $trackingId: ${e.localizedMessage}")
+                        errorItems.add(ErrorItem(
+                            fileName = filename,
+                            message = "Network error: ${e.localizedMessage}"
+                        ))
                     }
                 }
+
+                // All processing complete
+                withContext(Dispatchers.Main) {
+                    val message = if (errorItems.isNotEmpty()) {
+                        "Terjadi kesalahan insert di server!"
+                    } else {
+                        "Berhasil sinkronisasi data"
+                    }
+
+                    AppLogger.d("Update completed with message: $message")
+
+                    // Complete with success if no errors, or with false if there were errors
+                    result.complete(errorItems.isEmpty())
+                }
+
             } catch (e: Exception) {
                 AppLogger.e("Error in updateLocalUploadCMP: ${e}")
-                _updateResult.postValue(
-                    UpdateResult(
-                        success = false,
-                        message = "Error: ${e.localizedMessage}"
-                    )
-                )
-                _isCompleted.postValue(true)
+                result.complete(false)
             }
         }
+
+        return result
     }
 
 
