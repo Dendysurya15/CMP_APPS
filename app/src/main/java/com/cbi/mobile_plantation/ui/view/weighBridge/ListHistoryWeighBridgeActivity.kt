@@ -82,7 +82,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private var infoApp: String = ""
     private lateinit var datasetViewModel: DatasetViewModel
     private var globalFormattedDate: String = ""
-
+    private var uploadCMPData: List<Pair<String, String>> = emptyList()
     private var globalESPBIds: List<Int> = emptyList()
     private lateinit var loadingDialog: LoadingDialog
     private lateinit var uploadCMPViewModel: UploadCMPViewModel
@@ -171,7 +171,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                 dateButton.text = todayDisplayDate
 
             }
-            }
+        }
     }
 
     private fun initializeViews() {
@@ -183,65 +183,65 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         var number =
             0
 
-        val uploadItems = selectedItems.map { item ->
-            UploadItem(
-                id = item["id"] as Int,
-                ip = item["ip"].toString(),
-                num = number++,
-                deptPpro = (item["dept_ppro"] as Number).toInt(),
-                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
-                commodity = (item["commodity"] as Number).toInt(),
-                blokJjg = item["blok_jjg"] as String,
-                nopol = item["nopol"] as String,
-                driver = item["driver"] as String,
-                pemuatId = item["pemuat_id"].toString(),
-                transporterId = (item["transporter_id"] as Number).toInt(),
-                millId = (item["mill_id"] as Number).toInt(),
-                createdById = (item["created_by_id"] as Number).toInt(),
-                createdAt = item["created_at"] as String,
-                no_espb = item["no_espb"] as String,
-                uploader_info = infoApp,
-                uploaded_at = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
-                    Date()
-                ),
-                uploaded_by_id = prefManager!!.idUserLogin!!.toInt(),
-                file = "",
-                endpoint = AppUtils.DatabaseServer.PPRO
-            )
-        }
+//        val uploadItems = selectedItems.map { item ->
+//            UploadItem(
+//                id = item["id"] as Int,
+//                ip = item["ip"].toString(),
+//                num = number++,
+//                deptPpro = (item["dept_ppro"] as Number).toInt(),
+//                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
+//                commodity = (item["commodity"] as Number).toInt(),
+//                blokJjg = item["blok_jjg"] as String,
+//                nopol = item["nopol"] as String,
+//                driver = item["driver"] as String,
+//                pemuatId = item["pemuat_id"].toString(),
+//                transporterId = (item["transporter_id"] as Number).toInt(),
+//                millId = (item["mill_id"] as Number).toInt(),
+//                createdById = (item["created_by_id"] as Number).toInt(),
+//                createdAt = item["created_at"] as String,
+//                no_espb = item["no_espb"] as String,
+//                uploader_info = infoApp,
+//                uploaded_at = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
+//                    Date()
+//                ),
+//                uploaded_by_id = prefManager!!.idUserLogin!!.toInt(),
+//                file = "",
+//                endpoint = AppUtils.DatabaseServer.PPRO
+//            )
+//        }
 
-//        val uploadItems = emptyList<UploadItem>()
+        val uploadItems = emptyList<UploadItem>()
 
         var nextId = (uploadItems.maxByOrNull { it.id }?.id ?: 0) + 1
 
         val allItems = mutableListOf<UploadItem>().apply { addAll(uploadItems) }
 
-        if (!zipFilePath.isNullOrEmpty() && !zipFileName.isNullOrEmpty()) {
-            allItems.add(
-                UploadItem(
-                    id = nextId++,
-                    ip = "",
-                    num = number++,
-                    deptPpro = 0,
-                    divisiPpro = 0,
-                    commodity = 0,
-                    blokJjg = "",
-                    nopol = "",
-                    driver = "",
-                    pemuatId = "",
-                    transporterId = 0,
-                    millId = 0,
-                    createdById = 0,
-                    createdAt = "",
-                    no_espb = zipFileName.toString(),
-                    uploader_info = "",
-                    uploaded_at = "",
-                    uploaded_by_id = 0,
-                    file = zipFilePath.toString(),
-                    endpoint = AppUtils.DatabaseServer.CMP
-                )
-            )
-        }
+//        if (!zipFilePath.isNullOrEmpty() && !zipFileName.isNullOrEmpty()) {
+//            allItems.add(
+//                UploadItem(
+//                    id = nextId++,
+//                    ip = "",
+//                    num = number++,
+//                    deptPpro = 0,
+//                    divisiPpro = 0,
+//                    commodity = 0,
+//                    blokJjg = "",
+//                    nopol = "",
+//                    driver = "",
+//                    pemuatId = "",
+//                    transporterId = 0,
+//                    millId = 0,
+//                    createdById = 0,
+//                    createdAt = "",
+//                    no_espb = zipFileName.toString(),
+//                    uploader_info = "",
+//                    uploaded_at = "",
+//                    uploaded_by_id = 0,
+//                    file = zipFilePath.toString(),
+//                    endpoint = AppUtils.DatabaseServer.CMP
+//                )
+//            )
+//        }
 
         if (allUploadZipFilesToday.isNotEmpty()) {
             allUploadZipFilesToday.forEach { file ->
@@ -355,7 +355,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                         closeDialogBtn.alpha = 0.7f
                         btnUploadDataCMP.iconTint =
                             ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
-                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+                        closeDialogBtn.iconTint =
+                            ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
 
                         weightBridgeViewModel.uploadESPBKraniTimbang(
                             allUploadItems.map { uploadItem ->
@@ -409,12 +410,12 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             counterTV.text = "$completedCount/${allUploadItems.size}"
             if (completedCount == allUploadItems.size) {
 
-                lifecycleScope.launch{
+                lifecycleScope.launch {
                     loadingDialog.show()
-                    loadingDialog.setMessage("Sedang memproses pembaruan data", true)
-                    trackingIdsUpload = emptyList()
-                    uploadCMPViewModel.getAllIds()
+                    loadingDialog.setMessage("Sedang memproses data", true)
+
                     delay(500)
+
 
                     withContext(Dispatchers.Main) {
                         containerDownloadDataset.visibility = View.VISIBLE
@@ -425,102 +426,6 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                         closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
                         loadingDialog.dismiss()
                     }
-//                    val idDeferred = CompletableDeferred<List<Int>>()
-//                    uploadCMPViewModel.allIds.observe(this@ListHistoryWeighBridgeActivity) { ids ->
-//                        idDeferred.complete(ids ?: emptyList()) // Ensure it's never null
-//                    }
-//                    val data = idDeferred.await()
-//
-//                    trackingIdsUpload = data
-//                    datasetViewModel.updateLocalUploadCMP(trackingIdsUpload)
-//                    datasetViewModel.isCompleted.observe(this@ListHistoryWeighBridgeActivity) { isCompleted ->
-//                        if (isCompleted) {
-//                            lifecycleScope.launch {
-//                                try {
-//                                    // Set a timeout for the entire operation
-//                                    withTimeout(30 * 1000L) { // 30 seconds timeout
-//                                        try {
-//                                            val regionalIdString = prefManager!!.regionalIdUserLogin
-//                                            val estateIdString = prefManager!!.estateIdUserLogin
-//                                            val lastModifiedDatasetTPH = prefManager!!.lastModifiedDatasetTPH
-//                                            val lastModifiedDatasetBlok = prefManager!!.lastModifiedDatasetBlok
-//                                            val lastModifiedDatasetKemandoran = prefManager!!.lastModifiedDatasetKemandoran
-//                                            val lastModifiedDatasetPemanen = prefManager!!.lastModifiedDatasetPemanen
-//                                            val lastModifiedDatasetTransporter = prefManager!!.lastModifiedDatasetTransporter
-//                                            val lastModifiedDatasetKendaraan = prefManager!!.lastModifiedDatasetKendaraan
-//                                            val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
-//
-//                                            if (!estateIdString.isNullOrEmpty() && !estateIdString.isBlank()) {
-//                                                try {
-//                                                    val estateId = estateIdString.toInt()
-//                                                    if (estateId > 0) {
-//                                                        // Get datasets for silent download
-//                                                        val datasets = getDatasetsToDownload(
-//                                                            regionalIdString!!.toInt(),
-//                                                            estateId,
-//                                                            lastModifiedDatasetTPH,
-//                                                            lastModifiedDatasetBlok,
-//                                                            lastModifiedDatasetPemanen,
-//                                                            lastModifiedDatasetKemandoran,
-//                                                            lastModifiedDatasetTransporter,
-//                                                            lastModifiedDatasetKendaraan,
-//                                                            lastModifiedSettingJSON
-//                                                        )
-//
-//                                                        if (datasets.isNotEmpty()) {
-//                                                            AppLogger.d("Starting silent download for ${datasets.size} datasets")
-//
-//                                                            // Call the silent download function with its own timeout (also 30 seconds)
-//                                                            val results = withTimeout(30 * 1000L) {
-//                                                                datasetViewModel.downloadDatasetsSilently(datasets).await()
-//                                                            }
-//
-//                                                            // Log results but don't update UI based on them
-//                                                            val successCount = results.values.count { it }
-//                                                            AppLogger.d("Silent download completed: $successCount/${results.size} datasets updated successfully")
-//                                                        } else {
-//                                                            AppLogger.d("No datasets to download silently")
-//                                                        }
-//                                                    } else {
-//                                                        AppLogger.e("Invalid estate ID for silent download: $estateId")
-//                                                    }
-//                                                } catch (e: NumberFormatException) {
-//                                                    AppLogger.e("Error parsing estate ID for silent download: ${e.message}")
-//                                                }
-//                                            } else {
-//                                                AppLogger.e("Estate ID is null or empty for silent download")
-//                                            }
-//                                        } catch (e: Exception) {
-//                                            AppLogger.e("Error in silent download: ${e.message}")
-//                                            throw e // Re-throw to be caught by the outer catch
-//                                        }
-//                                    }
-//                                } catch (e: TimeoutCancellationException) {
-//                                    // Handle timeout specifically
-//                                    AppLogger.e("Silent download timed out after 30 seconds")
-//                                    Toast.makeText(
-//                                        this@ListHistoryWeighBridgeActivity,
-//                                        "Proses sinkronisasi data melebihi batas waktu (30 detik)",
-//                                        Toast.LENGTH_LONG
-//                                    ).show()
-//                                } catch (e: Exception) {
-//                                    // Handle other exceptions
-//                                    AppLogger.e("Error or timeout in silent download process: ${e.message}")
-//                                } finally {
-//                                    // Always update UI, even if there's a timeout or error
-//                                    withContext(Dispatchers.Main) {
-//                                        containerDownloadDataset.visibility = View.VISIBLE
-//                                        cancelDownloadDataset.visibility = View.VISIBLE
-//                                        btnUploadDataCMP.visibility = View.GONE
-//                                        closeDialogBtn.isEnabled = true
-//                                        closeDialogBtn.alpha = 1f
-//                                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
-//                                        loadingDialog.dismiss()
-//                                    }
-//                                }
-//                            }
-//                        }
-//                    }
 
                 }
 
@@ -622,24 +527,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             setOnActionSelectedListener { actionItem ->
                 when (actionItem.id) {
                     R.id.scan_qr -> {
-//                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
 //
-//                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
-//
-//                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
-//                        dialog.setContentView(view)
-////                        view.layoutParams.height = 500.toPx()
-//
-//                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-//                        val data = "test"
-//                        generateHighQualityQRCode(data, qrCodeImageView)
-//                        dialog.setOnShowListener {
-//                            val bottomSheet =
-//                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-//                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
-//                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
-//                        }
-//                        dialog.show()
                         true
                     }
 
@@ -649,226 +537,215 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                         true
                     }
 
-                        R.id.uploadSelected -> {
-                            val selectedItems = adapter.getSelectedItemsForUpload()
-                            if (selectedItems.isEmpty()) {
-                                // Show a message to the user that they need to select items first
-                                AlertDialogUtility.withSingleAction(
-                                    this@ListHistoryWeighBridgeActivity,
-                                    getString(R.string.al_back),
-                                    "Tidak ada data dipilih",
-                                    "Mohon untuk melakukan centang/pilih untuk upload data",
-                                    "warning.json",
-                                    R.color.yellowbutton
-                                ) {}
-                                return@setOnActionSelectedListener true
-                            }
-                            val selectedIds = selectedItems.map { it["id"] as Int }
+                    R.id.uploadSelected -> {
+                        val selectedItems = adapter.getSelectedItemsForUpload()
+                        if (selectedItems.isEmpty()) {
+                            // Show a message to the user that they need to select items first
+                            AlertDialogUtility.withSingleAction(
+                                this@ListHistoryWeighBridgeActivity,
+                                getString(R.string.al_back),
+                                "Tidak ada data dipilih",
+                                "Mohon untuk melakukan centang/pilih untuk upload data",
+                                "warning.json",
+                                R.color.yellowbutton
+                            ) {}
+                            return@setOnActionSelectedListener true
+                        }
+                        val selectedIds = selectedItems.map { it["id"] as Int }
 
-                            if (AppUtils.isNetworkAvailable(this@ListHistoryWeighBridgeActivity)) {
+                        if (AppUtils.isNetworkAvailable(this@ListHistoryWeighBridgeActivity)) {
 
-                                lifecycleScope.launch {
-                                    loadingDialog.show()
-                                    loadingDialog.setMessage("Sedang mengupdate data...")
-                                    trackingIdsUpload = emptyList()
-                                    uploadCMPViewModel.getAllIds()
-                                    delay(500)
+                            lifecycleScope.launch {
+                                loadingDialog.show()
+                                loadingDialog.setMessage("Sedang mengupdate data...")
+                                uploadCMPData = emptyList()
+                                uploadCMPViewModel.getAllIdsAndFilenames()
+                                delay(500)
 
-                                    val idDeferred = CompletableDeferred<List<String>>()
-                                    uploadCMPViewModel.allIds.observe(this@ListHistoryWeighBridgeActivity) { ids ->
-                                        idDeferred.complete(ids ?: emptyList()) // Ensure it's never null
-                                    }
-                                    val data = idDeferred.await()
+                                val dataDeferred = CompletableDeferred<List<Pair<String, String>>>()
+                                uploadCMPViewModel.allIdsAndFilenames.observe(this@ListHistoryWeighBridgeActivity) { data ->
+                                    dataDeferred.complete(data ?: emptyList()) // Ensure it's never null
+                                }
+                                val data = dataDeferred.await()
 
-                                    trackingIdsUpload = data
-//                                    datasetViewModel.updateLocalUploadCMP(trackingIdsUpload)
-//                                    datasetViewModel.isCompleted.observe(this@ListHistoryWeighBridgeActivity) { isCompleted ->
-//                                        if (isCompleted) {
-//                                            AppLogger.d("sukses update all upload CMP")
-//                                        }
-//                                    }
-//                                    datasetViewModel.updateResultStatusUploadCMP.observe(this@ListHistoryWeighBridgeActivity) { result ->
-//                                        if (result.success) {
-//                                            AppLogger.d(result.message)
-//                                        } else {
-//                                            val errorDetails = if (result.errorItems.isNotEmpty()) {
-//                                                "\n\n" + result.errorItems.joinToString("\n") { "• ${it.fileName}: ${it.message}" }
-//                                            } else {
-//                                                ""
-//                                            }
-//                                            AppLogger.d(errorDetails)
-//                                        }
-//                                    }
-
-                                    allUploadZipFilesToday =
-                                        AppUtils.checkAllUploadZipFiles(
-                                            prefManager!!.idUserLogin.toString(),
-                                            this@ListHistoryWeighBridgeActivity
-                                        )
-                                            .toMutableList()
-
-
-
-                                    if (allUploadZipFilesToday.isNotEmpty()) {
-                                        uploadCMPViewModel.getUploadCMPTodayData()
-                                        delay(100)
-                                        val filteredFiles = withContext(Dispatchers.Main) {
-                                            suspendCoroutine<List<File>> { continuation ->
-                                                uploadCMPViewModel.fileData.observeOnce(this@ListHistoryWeighBridgeActivity) { fileList ->
-                                                    val filesToRemove =
-                                                        fileList.filter { it.status == 2 || it.status == 3 }
-                                                            .map { it.nama_file }
-                                                    // Filter files and update `allUploadZipFilesToday`
-                                                    allUploadZipFilesToday =
-                                                        allUploadZipFilesToday.filter { file ->
-                                                            !filesToRemove.contains(file.name)
-                                                        }.toMutableList()
-
-                                                    continuation.resume(allUploadZipFilesToday) // Resume coroutine with valid files
-                                                }
-                                            }
-                                        }
-
-                                        if (filteredFiles.isNotEmpty()) {
-                                            Log.d("VALID_FILES", "Filtered valid files: $filteredFiles")
-                                        } else {
-                                            Log.d("VALID_FILES", "No valid files found.")
-                                        }
-                                    }
-
-                                    lifecycleScope.launch {
-                                        val espbDeferred = CompletableDeferred<List<ESPBEntity>>()
-                                        val zipDeferred = CompletableDeferred<Boolean>()
-
-                                        weightBridgeViewModel.fetchActiveESPBByIds(selectedIds)
-                                        delay(100)
-                                        weightBridgeViewModel.activeESPBByIds.observeOnce(this@ListHistoryWeighBridgeActivity) { list ->
-                                            Log.d(
-                                                "UploadCheck",
-                                                "📌 Filtered ESPB Data Received: ${list.size}"
-                                            )
-                                            espbDeferred.complete(list ?: emptyList())
-                                        }
-
-                                        var mappedESPBData: List<Map<String, Any>> = emptyList()
-
-                                        try {
-                                            val espbList = espbDeferred.await()
-
-
-                                            AppLogger.d("as;dkf $espbList")
-                                            if (espbList.isNotEmpty()) {
-                                                mappedESPBData = espbList.map { data ->
-                                                    val blokJjgList =
-                                                        data.blok_jjg.split(";").mapNotNull {
-                                                            it.split(",").takeIf { it.size == 2 }
-                                                                ?.let { (id, jjg) ->
-                                                                    id.toIntOrNull()
-                                                                        ?.let { it to jjg.toIntOrNull() }
-                                                                }
-                                                        }
-                                                    val idBlokList = blokJjgList.map { it.first }
-                                                    val concatenatedIds = idBlokList.joinToString(",")
-                                                    val totalJjg =
-                                                        blokJjgList.mapNotNull { it.second }.sum()
-
-
-                                                    AppLogger.d("gas $data")
-                                                    mapOf(
-                                                        "id" to data.id,
-                                                        "blok_id" to concatenatedIds,
-                                                        "blok_jjg" to data.blok_jjg,
-                                                        "jjg" to totalJjg,
-                                                        "created_by_id" to data.created_by_id,
-                                                        "created_at" to data.created_at,
-                                                        "pemuat_id" to data.pemuat_id,
-                                                        "kemandoran_id" to data.kemandoran_id,
-                                                        "pemuat_nik" to data.pemuat_nik,
-                                                        "nopol" to data.nopol,
-                                                        "driver" to data.driver,
-                                                        "transporter_id" to data.transporter_id,
-                                                        "mill_id" to data.mill_id,
-                                                        "creator_info" to data.creator_info,
-                                                        "no_espb" to data.noESPB,
-                                                        "tph0" to data.tph0,
-                                                        "tph1" to data.tph1,
-                                                        "update_info_sp" to data.update_info_sp,
-                                                        "app_version" to AppUtils.getDeviceInfo(this@ListHistoryWeighBridgeActivity)
-                                                            .toString(),
-                                                        "jabatan" to prefManager!!.jabatanUserLogin.toString(),
-                                                    )
-                                                }
-                                                globalESPBIds = mappedESPBData.map { it["id"] as Int }
-                                            }
-
-                                        } catch (e: Exception) {
-                                            Log.e("UploadCheck", "❌ Error: ${e.message}")
-                                        } finally {
-                                            val uploadDataList =
-                                                mutableListOf<Pair<String, List<Map<String, Any>>>>()
-                                            if (mappedESPBData.isNotEmpty()) uploadDataList.add(AppUtils.DatabaseTables.ESPB to mappedESPBData)
-                                            if (uploadDataList.isNotEmpty()) {
-                                                lifecycleScope.launch(Dispatchers.IO) {
-                                                    AppUtils.createAndSaveZipUploadCMP(
-                                                        this@ListHistoryWeighBridgeActivity,
-                                                        uploadDataList,
-                                                        prefManager!!.idUserLogin.toString()
-                                                    ) { success, fileName, fullPath ->
-                                                        if (success) {
-                                                            zipFilePath = fullPath
-                                                            zipFileName = fileName
-
-                                                            lifecycleScope.launch(Dispatchers.IO) {
-                                                                val ids = globalESPBIds
-                                                                if (ids.isNotEmpty()) {
-                                                                    weightBridgeViewModel.updateDataIsZippedESPB(
-                                                                        ids,
-                                                                        1
-                                                                    )
-                                                                }
-                                                            }
-                                                            zipDeferred.complete(true)
-                                                        } else {
-                                                            Log.e(
-                                                                "UploadCheck",
-                                                                "❌ ZIP creation failed"
-                                                            )
-                                                            zipDeferred.complete(false)
-                                                        }
-                                                    }
-                                                }
-                                            } else {
-                                                zipDeferred.complete(false)
-                                            }
-
-                                            loadingDialog.dismiss()
-                                        }
-
-                                        // Wait for ZIP to complete before calling the next function
-                                        val zipSuccess = zipDeferred.await()
-                                        if (zipSuccess || allUploadZipFilesToday.isNotEmpty()) {
-                                            handleUpload(selectedItems)
-                                        } else {
-                                            handleUpload(selectedItems)
-                                        }
-                                    }
-
+                                //kode khusus untuk update UploadCMP sebelum melakukan upload
+                                uploadCMPData = data
+                                if (uploadCMPData.isNotEmpty()) {
+                                    AppLogger.d("Starting update for ${uploadCMPData.size} items")
+                                    val updateSuccessful = datasetViewModel.updateLocalUploadCMP(uploadCMPData).await()
+                                    AppLogger.d("Update status: $updateSuccessful, now proceeding to file check")
+                                } else {
+                                    AppLogger.d("No data to update")
 
                                 }
 
+                                allUploadZipFilesToday =
+                                    AppUtils.checkAllUploadZipFiles(
+                                        prefManager!!.idUserLogin.toString(),
+                                        this@ListHistoryWeighBridgeActivity
+                                    )
+                                        .toMutableList()
 
-                            } else {
-                                AlertDialogUtility.withSingleAction(
-                                    this@ListHistoryWeighBridgeActivity,
-                                    getString(R.string.al_back),
-                                    getString(R.string.al_no_internet_connection),
-                                    getString(R.string.al_no_internet_connection_description_upload_espb_krani),
-                                    "network_error.json",
-                                    R.color.colorRedDark
-                                ) {}
+                                if (allUploadZipFilesToday.isNotEmpty()) {
+                                    uploadCMPViewModel.getUploadCMPTodayData()
+                                    delay(100)
+                                    val filteredFiles = withContext(Dispatchers.Main) {
+                                        suspendCoroutine<List<File>> { continuation ->
+                                            uploadCMPViewModel.fileData.observeOnce(this@ListHistoryWeighBridgeActivity) { fileList ->
+                                                val filesToRemove =
+                                                    fileList.filter { it.status == 2 || it.status == 3 }
+                                                        .map { it.nama_file }
+                                                // Filter files and update `allUploadZipFilesToday`
+                                                allUploadZipFilesToday =
+                                                    allUploadZipFilesToday.filter { file ->
+                                                        !filesToRemove.contains(file.name)
+                                                    }.toMutableList()
+
+                                                continuation.resume(allUploadZipFilesToday) // Resume coroutine with valid files
+                                            }
+                                        }
+                                    }
+
+                                    if (filteredFiles.isNotEmpty()) {
+                                        Log.d("VALID_FILES", "Filtered valid files: $filteredFiles")
+                                    } else {
+                                        Log.d("VALID_FILES", "No valid files found.")
+                                    }
+                                }
+
+                                lifecycleScope.launch {
+                                    val espbDeferred = CompletableDeferred<List<ESPBEntity>>()
+                                    val zipDeferred = CompletableDeferred<Boolean>()
+
+                                    weightBridgeViewModel.fetchActiveESPBByIds(selectedIds)
+                                    delay(100)
+                                    weightBridgeViewModel.activeESPBByIds.observeOnce(this@ListHistoryWeighBridgeActivity) { list ->
+                                        Log.d(
+                                            "UploadCheck",
+                                            "📌 Filtered ESPB Data Received: ${list.size}"
+                                        )
+                                        espbDeferred.complete(list ?: emptyList())
+                                    }
+
+                                    var mappedESPBData: List<Map<String, Any>> = emptyList()
+
+                                    try {
+                                        val espbList = espbDeferred.await()
+
+
+                                        AppLogger.d("as;dkf $espbList")
+                                        if (espbList.isNotEmpty()) {
+                                            mappedESPBData = espbList.map { data ->
+                                                val blokJjgList =
+                                                    data.blok_jjg.split(";").mapNotNull {
+                                                        it.split(",").takeIf { it.size == 2 }
+                                                            ?.let { (id, jjg) ->
+                                                                id.toIntOrNull()
+                                                                    ?.let { it to jjg.toIntOrNull() }
+                                                            }
+                                                    }
+                                                val idBlokList = blokJjgList.map { it.first }
+                                                val concatenatedIds = idBlokList.joinToString(",")
+                                                val totalJjg =
+                                                    blokJjgList.mapNotNull { it.second }.sum()
+
+
+                                                AppLogger.d("gas $data")
+                                                mapOf(
+                                                    "id" to data.id,
+                                                    "blok_id" to concatenatedIds,
+                                                    "blok_jjg" to data.blok_jjg,
+                                                    "jjg" to totalJjg,
+                                                    "created_by_id" to data.created_by_id,
+                                                    "created_at" to data.created_at,
+                                                    "pemuat_id" to data.pemuat_id,
+                                                    "kemandoran_id" to data.kemandoran_id,
+                                                    "pemuat_nik" to data.pemuat_nik,
+                                                    "nopol" to data.nopol,
+                                                    "driver" to data.driver,
+                                                    "transporter_id" to data.transporter_id,
+                                                    "mill_id" to data.mill_id,
+                                                    "creator_info" to data.creator_info,
+                                                    "no_espb" to data.noESPB,
+                                                    "tph0" to data.tph0,
+                                                    "tph1" to data.tph1,
+                                                    "update_info_sp" to data.update_info_sp,
+                                                    "app_version" to AppUtils.getDeviceInfo(this@ListHistoryWeighBridgeActivity)
+                                                        .toString(),
+                                                    "jabatan" to prefManager!!.jabatanUserLogin.toString(),
+                                                )
+                                            }
+                                            globalESPBIds = mappedESPBData.map { it["id"] as Int }
+                                        }
+
+                                    } catch (e: Exception) {
+                                        Log.e("UploadCheck", "❌ Error: ${e.message}")
+                                    } finally {
+                                        val uploadDataList =
+                                            mutableListOf<Pair<String, List<Map<String, Any>>>>()
+                                        if (mappedESPBData.isNotEmpty()) uploadDataList.add(AppUtils.DatabaseTables.ESPB to mappedESPBData)
+                                        if (uploadDataList.isNotEmpty()) {
+                                            lifecycleScope.launch(Dispatchers.IO) {
+                                                AppUtils.createAndSaveZipUploadCMP(
+                                                    this@ListHistoryWeighBridgeActivity,
+                                                    uploadDataList,
+                                                    prefManager!!.idUserLogin.toString()
+                                                ) { success, fileName, fullPath ->
+                                                    if (success) {
+                                                        zipFilePath = fullPath
+                                                        zipFileName = fileName
+
+                                                        lifecycleScope.launch(Dispatchers.IO) {
+                                                            val ids = globalESPBIds
+                                                            if (ids.isNotEmpty()) {
+                                                                weightBridgeViewModel.updateDataIsZippedESPB(
+                                                                    ids,
+                                                                    1
+                                                                )
+                                                            }
+                                                        }
+                                                        zipDeferred.complete(true)
+                                                    } else {
+                                                        Log.e(
+                                                            "UploadCheck",
+                                                            "❌ ZIP creation failed"
+                                                        )
+                                                        zipDeferred.complete(false)
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            zipDeferred.complete(false)
+                                        }
+
+                                        loadingDialog.dismiss()
+                                    }
+
+                                    // Wait for ZIP to complete before calling the next function
+                                    val zipSuccess = zipDeferred.await()
+                                    if (zipSuccess || allUploadZipFilesToday.isNotEmpty()) {
+                                        handleUpload(selectedItems)
+                                    } else {
+                                        handleUpload(selectedItems)
+                                    }
+                                }
+
+
                             }
-                            true
+
+
+                        } else {
+                            AlertDialogUtility.withSingleAction(
+                                this@ListHistoryWeighBridgeActivity,
+                                getString(R.string.al_back),
+                                getString(R.string.al_no_internet_connection),
+                                getString(R.string.al_no_internet_connection_description_upload_espb_krani),
+                                "network_error.json",
+                                R.color.colorRedDark
+                            ) {}
                         }
+                        true
+                    }
 
                     else -> false
                 }
@@ -1211,6 +1088,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         }
         datePicker.show(supportFragmentManager, "MATERIAL_DATE_PICKER")
     }
+
     private fun processSelectedDate(selectedDate: String) {
 
         val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)

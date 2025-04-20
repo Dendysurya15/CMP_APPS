@@ -815,7 +815,7 @@ class HomePageActivity : AppCompatActivity() {
                                 AppLogger.d("Update status: $updateSuccessful, now proceeding to file check")
                             } else {
                                 AppLogger.d("No data to update")
-                                val updateSuccessful = true
+
                             }
 
                             // Now check for files only after update is complete
