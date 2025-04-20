@@ -1829,32 +1829,28 @@ class HomePageActivity : AppCompatActivity() {
             return false
         }
 
-
         AppLogger.d("globalResponseJsonUploadList $globalResponseJsonUploadList")
         // Second loop: Process responses only if status code is 3 (complete)
         if (finalStatusCode == 3) {
             AppLogger.d("Status code is 3 (processing complete), processing all upload responses")
 
-            // Remove duplicates by using a Set to track processed files
-            val processedFiles = mutableSetOf<String>()
+            // Create a Set with unique combinations of UUID and filename
+            val processedCombinations = mutableSetOf<Pair<String, String>>()
 
-
-            AppLogger.d("globalResponseJsonUploadList $globalResponseJsonUploadList")
             for (responseInfo in globalResponseJsonUploadList) {
-                val keyZipName = responseInfo.fileName
-                val fileIdentifier = "${responseInfo.uuid}_${responseInfo.fileName}"
+                val uniqueKey = Pair(responseInfo.uuid, responseInfo.fileName)
 
-                // Skip if we've already processed this file
-                if (fileIdentifier in processedFiles) {
-                    AppLogger.d("Skipping duplicate processing for ${responseInfo.fileName}")
+                // Skip if we've already processed this specific UUID + filename combination
+                if (uniqueKey in processedCombinations) {
+                    AppLogger.d("Skipping duplicate processing for UUID: ${responseInfo.uuid}, filename: ${responseInfo.fileName}")
                     continue
                 }
 
-                processedFiles.add(fileIdentifier)
+                processedCombinations.add(uniqueKey)
 
-                val jsonResultTableIds = createJsonTableNameMapping(keyZipName)
+                val jsonResultTableIds = createJsonTableNameMapping(responseInfo.fileName)
 
-                AppLogger.d("Processing part ${responseInfo.partNumber} for file ${responseInfo.fileName}")
+                AppLogger.d("Processing file ${responseInfo.fileName} with UUID ${responseInfo.uuid}")
                 AppLogger.d("JSON mapping: $jsonResultTableIds")
 
                 uploadCMPViewModel.UpdateOrInsertDataUpload(
