@@ -131,8 +131,8 @@ class HomePageActivity : AppCompatActivity() {
     private var hasShownErrorDialog = false  // Add this property
     private val permissionRequestCode = 1001
     private lateinit var adapter: DownloadProgressDatasetAdapter
-    private val globalPanenIdsByPart = mutableMapOf<Int, List<Int>>()
-    private val globalEspbIdsByPart = mutableMapOf<Int, List<Int>>()
+    private val globalPanenIdsByPart = mutableMapOf<String, List<Int>>()
+    private val globalEspbIdsByPart = mutableMapOf<String, List<Int>>()
     private var globalPanenIds: List<Int> = emptyList()
     private var globalESPBIds: List<Int> = emptyList()
     private var zipFilePath: String? = null
@@ -809,18 +809,16 @@ class HomePageActivity : AppCompatActivity() {
 
                             //kode khusus untuk update UploadCMP sebelum melakukan upload
                             uploadCMPData = data
-
                             if (uploadCMPData.isNotEmpty()) {
                                 AppLogger.d("Starting update for ${uploadCMPData.size} items")
                                 val updateSuccessful = datasetViewModel.updateLocalUploadCMP(uploadCMPData).await()
                                 AppLogger.d("Update status: $updateSuccessful, now proceeding to file check")
                             } else {
-                                // No data to update, consider it successful
                                 AppLogger.d("No data to update")
                                 val updateSuccessful = true
                             }
 
-// Now check for files only after update is complete
+                            // Now check for files only after update is complete
                             allUploadZipFilesToday = AppUtils.checkAllUploadZipFiles(
                                 prefManager!!.idUserLogin.toString(),
                                 this@HomePageActivity
@@ -834,7 +832,7 @@ class HomePageActivity : AppCompatActivity() {
                                     suspendCoroutine<List<File>> { continuation ->
                                         uploadCMPViewModel.fileData.observeOnce(this@HomePageActivity) { fileList ->
                                             val filesToRemove =
-                                                fileList.filter { it.status == 2 || it.status == 3 }
+                                                fileList.filter { it.status == 3 }
                                                     .map { it.nama_file }
                                             // Filter files and update `allUploadZipFilesToday`
                                             allUploadZipFilesToday =
@@ -1072,7 +1070,7 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
-    private fun createJsonTableNameMapping(partNumber: Int): String {
+    private fun createJsonTableNameMapping(partNumber: String): String {
         val tableMap = mutableMapOf<String, List<Int>>()
 
         // Get IDs for this specific part
@@ -1445,31 +1443,41 @@ class HomePageActivity : AppCompatActivity() {
         } else {
             AppLogger.d("Files to upload:")
 
-            // Extract base filename (everything before the last underscore)
-            val firstFile = allUploadZipFilesToday.firstOrNull()
-            val baseFilename = firstFile?.name?.substringBeforeLast('_') ?: ""
-
-            // Sort files by part number to ensure they're processed in order
-            val sortedFiles = allUploadZipFilesToday.sortedBy { file ->
-                val partMatch = Regex("_(\\d+)\\.zip$").find(file.name)
-                partMatch?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+            // Group files by their datetime identifier (everything before the last part number)
+            val groupedFiles = allUploadZipFilesToday.groupBy { file ->
+                // Extract the datetime part (like "2_20250420084723" from "2_20250420084723_1.zip")
+                val regex = Regex("(.+)_\\d+\\.zip$")
+                val match = regex.find(file.name)
+                match?.groupValues?.getOrNull(1) ?: file.name
             }
 
-            sortedFiles.forEachIndexed { index, file ->
-                val partMatch = Regex("_(\\d+)\\.zip$").find(file.name)
-                val partNumber = partMatch?.groupValues?.getOrNull(1)?.toIntOrNull() ?: (index + 1)
+            var itemId = 0
 
-                AppLogger.d("File $index: ${file.name} (${file.absolutePath}), Part: $partNumber of ${sortedFiles.size}")
-                uploadItems.add(
-                    UploadCMPItem(
-                        id = index,
-                        title = file.name,
-                        fullPath = file.absolutePath,
-                        partNumber = partNumber,
-                        totalParts = sortedFiles.size,
-                        baseFilename = baseFilename
+            // Process each group separately
+            groupedFiles.forEach { (baseFilename, files) ->
+                // Sort files within each group by part number
+                val sortedGroupFiles = files.sortedBy { file ->
+                    val partMatch = Regex("_(\\d+)\\.zip$").find(file.name)
+                    partMatch?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+                }
+
+                // Process files in the sorted order
+                sortedGroupFiles.forEach { file ->
+                    val partMatch = Regex("_(\\d+)\\.zip$").find(file.name)
+                    val partNumber = partMatch?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 1
+
+                    AppLogger.d("File ${itemId}: ${file.name} (${file.absolutePath}), Part: $partNumber of ${sortedGroupFiles.size}")
+                    uploadItems.add(
+                        UploadCMPItem(
+                            id = itemId++,
+                            title = file.name,
+                            fullPath = file.absolutePath,
+                            partNumber = partNumber,
+                            totalParts = sortedGroupFiles.size,
+                            baseFilename = baseFilename
+                        )
                     )
-                )
+                }
             }
         }
 
@@ -1753,14 +1761,16 @@ class HomePageActivity : AppCompatActivity() {
                             )
                         )
 
-                        val partNumber = response.uploadedParts
+                        AppLogger.d("ini response nya bng ${response.fileName}")
+
+                        val keyZipName = response.fileName
 
                         if (allUploadZipFilesToday.isNotEmpty()) {
                             try {
                                 val extractionDeferred =
                                     CompletableDeferred<Pair<List<Int>, List<Int>>>()
 
-                                AppLogger.d("Starting ZIP extraction for ${response.fileName}, part $partNumber")
+                                AppLogger.d("Starting ZIP extraction for ${response.fileName}, part $keyZipName")
 
                                 launch(Dispatchers.IO) {
                                     try {
@@ -1779,17 +1789,17 @@ class HomePageActivity : AppCompatActivity() {
                                     extractionDeferred.await()
                                 }
 
-                                AppLogger.d("Extraction complete for part $partNumber. PANEN IDs: ${panenIds.size}, ESPB IDs: ${espbIds.size}")
+                                AppLogger.d("Extraction complete for zip $keyZipName. PANEN IDs: ${panenIds.size}, ESPB IDs: ${espbIds.size}")
 
                                 // Store IDs by part number
-                                globalPanenIdsByPart[partNumber] = panenIds
-                                globalEspbIdsByPart[partNumber] = espbIds
+                                globalPanenIdsByPart[keyZipName] = panenIds
+                                globalEspbIdsByPart[keyZipName] = espbIds
 
                             } catch (e: Exception) {
-                                AppLogger.e("Error during ZIP extraction for part $partNumber: ${e.message}")
+                                AppLogger.e("Error during ZIP extraction for part $keyZipName: ${e.message}")
 
-                                globalPanenIdsByPart[partNumber] = emptyList()
-                                globalEspbIdsByPart[partNumber] = emptyList()
+                                globalPanenIdsByPart[keyZipName] = emptyList()
+                                globalEspbIdsByPart[keyZipName] = emptyList()
                             }
                         }
                     }
@@ -1831,7 +1841,7 @@ class HomePageActivity : AppCompatActivity() {
 
             AppLogger.d("globalResponseJsonUploadList $globalResponseJsonUploadList")
             for (responseInfo in globalResponseJsonUploadList) {
-                val partNumber = responseInfo.partNumber
+                val keyZipName = responseInfo.fileName
                 val fileIdentifier = "${responseInfo.uuid}_${responseInfo.fileName}"
 
                 // Skip if we've already processed this file
@@ -1842,9 +1852,9 @@ class HomePageActivity : AppCompatActivity() {
 
                 processedFiles.add(fileIdentifier)
 
-                val jsonResultTableIds = createJsonTableNameMapping(partNumber)
+                val jsonResultTableIds = createJsonTableNameMapping(keyZipName)
 
-                AppLogger.d("Processing part $partNumber for file ${responseInfo.fileName}")
+                AppLogger.d("Processing part ${responseInfo.partNumber} for file ${responseInfo.fileName}")
                 AppLogger.d("JSON mapping: $jsonResultTableIds")
 
                 uploadCMPViewModel.UpdateOrInsertDataUpload(
