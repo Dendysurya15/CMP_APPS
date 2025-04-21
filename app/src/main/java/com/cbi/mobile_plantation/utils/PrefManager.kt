@@ -80,6 +80,20 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    private val PREF_ESTATE_LAST_MODIFIED_PREFIX = "estate_last_modified_"
+
+    // Set last modified timestamp for a specific estate
+    fun setEstateLastModified(estateAbbr: String, timestamp: String) {
+        val editor = pref.edit()
+        editor.putString("$PREF_ESTATE_LAST_MODIFIED_PREFIX$estateAbbr", timestamp)
+        editor.apply()
+    }
+
+    // Get last modified timestamp for a specific estate
+    fun getEstateLastModified(estateAbbr: String): String? {
+        return pref.getString("$PREF_ESTATE_LAST_MODIFIED_PREFIX$estateAbbr", null)
+    }
+
     var regionalIdUserLogin: String?
         get() = pref.getString("regionalIdUserLogin", "")
         set(regionalIdUserLogin) {

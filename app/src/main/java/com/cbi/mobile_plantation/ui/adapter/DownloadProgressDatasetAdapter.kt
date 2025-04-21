@@ -143,7 +143,7 @@ class DownloadProgressDatasetAdapter : RecyclerView.Adapter<DownloadProgressData
                 }
                 else -> {
                     statusProgress.visibility = View.VISIBLE
-                    statusProgress.text = "Pending"
+                    statusProgress.text = "Menunggu"
                     iconStatus.visibility = View.GONE
                     loadingCircular.visibility = View.GONE
                     progressBar.isIndeterminate = false

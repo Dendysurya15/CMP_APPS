@@ -56,6 +56,7 @@ class DatasetRepository(
 
     suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) = tphDao.updateOrInsertTPH(tph)
 
+    suspend fun insertTPH(tph: List<TPHNewModel>) = tphDao.insertTPHAsistensi(tph)
 
     suspend fun getDatasetCount(datasetName: String): Int {
         return when (datasetName) {

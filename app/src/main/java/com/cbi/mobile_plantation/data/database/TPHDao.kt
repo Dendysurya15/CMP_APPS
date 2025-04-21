@@ -26,6 +26,9 @@ abstract class TPHDao {
         insertAll(tph)
     }
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertTPHAsistensi(tph: List<TPHNewModel>)
+
     @Query("SELECT * FROM tph WHERE dept = :idEstate GROUP BY divisi")
     abstract fun getDivisiByCriteria(idEstate: Int): List<TPHNewModel>
 

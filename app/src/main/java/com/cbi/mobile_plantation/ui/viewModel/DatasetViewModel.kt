@@ -207,10 +207,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
-    fun updateOrInsertTPH(tph: List<TPHNewModel>) = viewModelScope.launch(Dispatchers.IO) {
+    fun updateOrInsertTPH(tph: List<TPHNewModel>, isAsistensi: Boolean = false) = viewModelScope.launch(Dispatchers.IO) {
         try {
-            AppLogger.d("ViewModel: Starting updateOrInsertTPH with ${tph.size} records")
-            repository.updateOrInsertTPH(tph)
+            AppLogger.d("ViewModel: Starting updateOrInsertTPH with ${tph.size} records, asistensi: $isAsistensi")
+
+            if (isAsistensi) {
+                // Just insert the new records without deleting existing ones
+                repository.insertTPH(tph)
+            } else {
+                // Original behavior: delete all and then insert
+                repository.updateOrInsertTPH(tph)
+            }
+
             _tphStatus.value = Result.success(true)
             AppLogger.d("ViewModel: Successfully updated database")
         } catch (e: Exception) {
@@ -401,6 +409,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         statusFlow: StateFlow<Result<Boolean>>,
         hasShownError: Boolean,
         lastModifiedTimestamp: String,
+        isDownloadMasterTPHAsistensi: Boolean = false,
+        estateAbbr: String? = null  // Add estateAbbr parameter
     ): Boolean {
         var updatedHasShownError = hasShownError
         try {
@@ -414,8 +424,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 results[dataset] = Resource.Error("Error parsing $dataset data: ${e.message}")
                 return updatedHasShownError
             }
-//
-//            AppLogger.d("Parsed ${dataset} list size: ${dataList.size}")
 
             // Check if data is valid
             if (dataList.isEmpty()) {
@@ -450,7 +458,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
 
-
             try {
                 AppLogger.d("Executing update operation for dataset: $dataset")
                 updateOperation(dataList).join()
@@ -466,9 +473,22 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 AppLogger.d("Update operation successful for dataset: $dataset")
                 results[dataset] = Resource.Success(response)
 
+                // Store last modified timestamp
                 when (dataset) {
-                    AppUtils.DatasetNames.tph -> prefManager.lastModifiedDatasetTPH =
-                        lastModifiedTimestamp
+                    AppUtils.DatasetNames.tph -> {
+                        if (isDownloadMasterTPHAsistensi) {
+                            // If it's an asistensi download, only store the estate-specific timestamp
+                            if (!estateAbbr.isNullOrEmpty() && lastModifiedTimestamp.isNotEmpty()) {
+                                AppLogger.d("Storing last modified timestamp for estate $estateAbbr: $lastModifiedTimestamp")
+                                prefManager.setEstateLastModified(estateAbbr, lastModifiedTimestamp)
+                            }
+                        } else {
+                            // For regular downloads, store the global timestamp
+
+                            AppLogger.d("gas bro")
+                            prefManager.lastModifiedDatasetTPH = lastModifiedTimestamp
+                        }
+                    }
 
                     AppUtils.DatasetNames.kemandoran -> prefManager.lastModifiedDatasetKemandoran =
                         lastModifiedTimestamp
@@ -725,11 +745,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             modelClass = TPHNewModel::class.java,
                                                             results = results,
                                                             response = response,
-                                                            updateOperation = ::updateOrInsertTPH,
+                                                            updateOperation = if (request.isDownloadMasterTPHAsistensi)
+                                                                { tph -> updateOrInsertTPH(tph, true) }
+                                                            else
+                                                                { tph -> updateOrInsertTPH(tph, false) },
                                                             statusFlow = tphStatus,
                                                             hasShownError = hasShownError,
                                                             lastModifiedTimestamp = lastModified
-                                                                ?: ""
+                                                                ?: "",
+                                                            isDownloadMasterTPHAsistensi = request.isDownloadMasterTPHAsistensi,
+                                                            estateAbbr = request.estateAbbr
                                                         )
 
                                                     AppUtils.DatasetNames.kemandoran -> hasShownError =
