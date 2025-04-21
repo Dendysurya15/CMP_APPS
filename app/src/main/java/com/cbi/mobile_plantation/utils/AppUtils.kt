@@ -59,7 +59,7 @@ object AppUtils {
     const val REQUEST_CHECK_SETTINGS = 0x1
     const val MAX_SELECTIONS_PER_TPH = 3
     const val MAX_ALERT_FOR_GENERATE_QR = 60
-    const val max_data_in_zip = 2
+    const val max_data_in_zip = 12
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"
@@ -159,6 +159,7 @@ object AppUtils {
         const val ABSENSI = "absensi"
         const val MILL = "mill"
         const val TPH = "tph"
+        const val ESTATE = "estate"
         const val KEMANDORAN = "kemandoran"
         const val KARYAWAN = "karyawan"
         const val TRANSPORTER = "transporter"
@@ -180,6 +181,7 @@ object AppUtils {
     object ListFeatureNames {
         const val PanenTBS = "Panen TBS"
         const val RekapHasilPanen = "Rekap Hasil Panen"
+        const val AsistensiEstateLain = "Asistensi Panen TBS Estate Lain"
         const val ScanHasilPanen = "Scan Hasil Panen"
         const val RekapPanenDanRestan = "Rekap panen dan restan"
         const val BuatESPB = "Buat eSPB"
@@ -216,6 +218,7 @@ object AppUtils {
         const val mill = "mill"
         const val tph = "tph"
         const val blok = "blok"
+        const val estate = "estate"
         const val pemanen = "pemanen"
         const val kemandoran = "kemandoran"
         const val transporter = "transporter"
@@ -948,6 +951,10 @@ object AppUtils {
     ) {
         val userInfo = buildString {
             userName?.takeIf { it.isNotEmpty() }?.let { append(formatToCamelCase(it)) }
+            prefManager!!.jabatanUserLogin?.takeIf { it.isNotEmpty() }?.let {
+                if (length > 0) append(" - ")
+                append(it)
+            }
         }
 
         userSection.text = userInfo

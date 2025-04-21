@@ -129,6 +129,14 @@ interface ApiService {
         @Part("total") total: RequestBody
     ): Response<UploadCMPResponse>
 
+    @POST("org/fetch-estate")
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json"
+    )
+    suspend fun downloadListEstate(@Body body: Map<String, Int>): Response<ResponseBody>
+
+
 //    @FormUrlEncoded
 //    @POST("cmpmain/status")
 //    @Headers(

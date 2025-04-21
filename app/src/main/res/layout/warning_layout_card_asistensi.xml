@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/warningCardAsistensi"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="1dp"
+    android:visibility="visible"
+    app:cardBackgroundColor="@color/bgLightYellow"
+    app:cardCornerRadius="0dp"
+    app:cardElevation="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:src="@drawable/circle_exclamation_solid"
+            android:tint="@color/anotherYellow"
+            tools:ignore="UseAppTint" />
+
+        <TextView
+            android:id="@+id/warningText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="16dp"
+            android:fontFamily="@font/manrope_semibold"
+            android:layout_weight="1"
+            android:text="Peringatan, form ini merupakan form khusus untuk asistensi panen TBS ke Estate lain!"
+            android:textColor="@color/black"
+            android:textSize="14sp" />
+
+        <ImageButton
+            android:id="@+id/btnCloseWarning"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="5dp"
+            android:background="@drawable/rounded_radius_background"
+            android:contentDescription="Close warning"
+            android:src="@drawable/baseline_close_24"
+            android:tint="@color/colorRedDark"
+            tools:ignore="UseAppTint" />
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

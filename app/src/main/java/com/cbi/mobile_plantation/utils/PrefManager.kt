@@ -73,6 +73,13 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var lastModifiedDatasetEstate: String?
+        get() = pref.getString("lastModifiedDatasetEstate", "")
+        set(lastModifiedDatasetEstate) {
+            editor.putString("lastModifiedDatasetEstate", lastModifiedDatasetEstate)
+            editor.commit()
+        }
+
     var regionalIdUserLogin: String?
         get() = pref.getString("regionalIdUserLogin", "")
         set(regionalIdUserLogin) {

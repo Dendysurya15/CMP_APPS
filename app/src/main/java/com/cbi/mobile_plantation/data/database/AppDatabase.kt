@@ -20,6 +20,7 @@ import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.utils.AppUtils
 
@@ -66,8 +67,9 @@ import com.cbi.mobile_plantation.utils.AppUtils
         InspectionPathModel::class,
         KendaraanModel::class,
         BlokModel::class,
+        EstateModel::class,
     ],
-    version = 28
+    version = 29
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -84,6 +86,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun inspectionPathDao(): InspectionPathDao
     abstract fun kendaraanDao(): KendaraanDao
     abstract fun blokDao(): BlokDao
+    abstract fun estateDao(): EstateDao
 
     companion object {
         @Volatile
@@ -109,7 +112,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_14_15,
                         MIGRATION_25_26,
                         MIGRATION_26_27,
-                        MIGRATION_27_28
+                        MIGRATION_27_28,
+                        MIGRATION_28_29
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -354,6 +358,22 @@ abstract class AppDatabase : RoomDatabase() {
 
                 // Step 4: Rename the new table to the original name
                 database.execSQL("ALTER TABLE upload_cmp_temp RENAME TO ${AppUtils.DatabaseTables.UPLOADCMP}")
+            }
+        }
+
+        val MIGRATION_28_29 = object : Migration(28, 29) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+
+                database.execSQL(
+                    """
+            CREATE TABLE estate (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                id_ppro INTEGER,
+                abbr TEXT,
+                nama TEXT
+            )
+            """.trimIndent()
+                )
             }
         }
 

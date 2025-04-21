@@ -14,8 +14,11 @@ import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
 import retrofit2.Response
 
@@ -29,6 +32,7 @@ class DatasetRepository(
     private val karyawanDao = database.karyawanDao()
     private val kemandoranDao = database.kemandoranDao()
     private val tphDao = database.tphDao()
+    private val estateDao = database.estateDao()
     private val millDao = database.millDao()
     private val transporterDao = database.transporterDao()
     private val kendaraanDao = database.kendaraanDao()
@@ -63,6 +67,15 @@ class DatasetRepository(
         }
     }
 
+    suspend fun getAllEstates(): Result<List<EstateModel>> = withContext(Dispatchers.IO) {
+        try {
+            val data = estateDao.getAllEstates()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
 //    suspend fun getDeptByRegionalAndEstate(estateId: String): List<DeptModel> {
 //        // Fetch dept data by regionalId and estateId
 //        return deptDao.getDeptByCriteria(estateId)
@@ -92,6 +105,9 @@ class DatasetRepository(
     suspend fun getKemandoranEstateExcept(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
         return kemandoranDao.getKemandoranEstateExcept(idEstate, idDivisiArray)
     }
+
+    suspend fun updateOrInsertEstate(estate: List<EstateModel>) =
+        estateDao.updateOrInsertEstate(estate)
 
     suspend fun getAllTransporter(): List<TransporterModel> {
         return transporterDao.getAllTransporter()
@@ -135,6 +151,11 @@ class DatasetRepository(
     suspend fun downloadSmallDataset(regional: Int): Response<ResponseBody> {
         return apiService.downloadSmallDataset(mapOf("regional" to regional))
     }
+
+    suspend fun downloadListEstate(regional: Int): Response<ResponseBody> {
+        return apiService.downloadListEstate(mapOf("regional" to regional))
+    }
+
 
     suspend fun checkStatusUploadCMP(trackingId: String): Response<ResponseBody> {
         return apiService.checkStatusUploadCMP(trackingId)

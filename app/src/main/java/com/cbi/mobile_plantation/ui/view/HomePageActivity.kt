@@ -298,6 +298,15 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
+                featureName = AppUtils.ListFeatureNames.AsistensiEstateLain,
+                featureNameBackgroundColor = R.color.greenDarker,
+                iconResource = R.drawable.panen_tbs_icon,
+                count = null,
+                functionDescription = "Asistensi pencatatan panen TBS ke estate lain",
+                displayType = DisplayType.ICON
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDefault,
                 featureName = AppUtils.ListFeatureNames.ScanHasilPanen,
                 featureNameBackgroundColor = R.color.blueLightBorder,
                 iconResource = R.drawable.scan_hasil_panen_icon,
@@ -445,6 +454,7 @@ class HomePageActivity : AppCompatActivity() {
                 AppUtils.ListFeatureByRoleUser.KeraniPanen -> listOf(
                     features.find { it.featureName == AppUtils.ListFeatureNames.PanenTBS },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapHasilPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.AsistensiEstateLain },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
@@ -630,6 +640,8 @@ class HomePageActivity : AppCompatActivity() {
     }
 
     private fun onFeatureCardClicked(feature: FeatureCard) {
+
+        vibrate()
         when (feature.featureName) {
             AppUtils.ListFeatureNames.PanenTBS -> {
                 if (feature.displayType == DisplayType.ICON) {
@@ -644,6 +656,28 @@ class HomePageActivity : AppCompatActivity() {
                     val intent = Intent(this, ListPanenTBSActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
+                }
+            }
+
+            AppUtils.ListFeatureNames.AsistensiEstateLain -> {
+                if (feature.displayType == DisplayType.ICON) {
+
+                    AlertDialogUtility.withTwoActions(
+                        this,
+                        "Ya",
+                        getString(R.string.confirmation_asistensi_estate),
+                        getString(R.string.al_confirm_asistensi),
+                        "warning.json",
+                        ContextCompat.getColor(this, R.color.bluedarklight),
+                        function = {
+                            vibrate()
+                            val intent = Intent(this, FeaturePanenTBSActivity::class.java)
+                            intent.putExtra("FEATURE_NAME", feature.featureName)
+                            startActivity(intent)
+                        },
+                        cancelFunction = { }
+                    )
+
                 }
             }
 
@@ -2033,6 +2067,7 @@ class HomePageActivity : AppCompatActivity() {
     private fun startDownloads() {
         val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
+        val lastModifiedDatasetEstate = prefManager!!.lastModifiedDatasetEstate
         val lastModifiedDatasetTPH = prefManager!!.lastModifiedDatasetTPH
         val lastModifiedDatasetBlok = prefManager!!.lastModifiedDatasetBlok
         val lastModifiedDatasetKemandoran = prefManager!!.lastModifiedDatasetKemandoran
@@ -2059,6 +2094,7 @@ class HomePageActivity : AppCompatActivity() {
                 getDatasetsToDownload(
                     regionalIdString!!.toInt(),
                     estateId,
+                    lastModifiedDatasetEstate,
                     lastModifiedDatasetTPH,
                     lastModifiedDatasetBlok,
                     lastModifiedDatasetPemanen,
@@ -2071,6 +2107,7 @@ class HomePageActivity : AppCompatActivity() {
                 getDatasetsToDownload(
                     regionalIdString!!.toInt(),
                     estateId,
+                    lastModifiedDatasetEstate,
                     lastModifiedDatasetTPH,
                     lastModifiedDatasetBlok,
                     lastModifiedDatasetPemanen,
@@ -2098,6 +2135,7 @@ class HomePageActivity : AppCompatActivity() {
     private fun getDatasetsToDownload(
         regionalId: Int,
         estateId: Int,
+        lastModifiedDatasetEstate: String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetBlok: String?,
         lastModifiedDatasetPemanen: String?,
@@ -2137,35 +2175,32 @@ class HomePageActivity : AppCompatActivity() {
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
                     dataset = AppUtils.DatasetNames.tph
-                )
+                ),
+            )
+
+            datasets.add(
+                DatasetRequest(
+                    regional = regionalUser,
+                    lastModified = lastModifiedDatasetEstate,
+                    dataset = AppUtils.DatasetNames.estate
+                ),
             )
         }
 
-        datasets.add(
-            if (isKeraniTimbang) {
+        datasets.addAll(
+            listOf(
                 DatasetRequest(
                     regional = regionalUser,
                     lastModified = lastModifiedDatasetPemanen,
                     dataset = AppUtils.DatasetNames.pemanen
-                )
-            } else {
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetPemanen,
-                    dataset = AppUtils.DatasetNames.pemanen
-                )
-            }
-        )
-
-        datasets.addAll(
-            listOf(
+                ),
                 DatasetRequest(
                     regional = regionalId,
                     lastModified = null,
                     dataset = AppUtils.DatasetNames.mill
                 ),
                 DatasetRequest(
-                    estate = estateId,
+                    regional = regionalId,
                     lastModified = lastModifiedDatasetKemandoran,
                     dataset = AppUtils.DatasetNames.kemandoran
                 ),
@@ -2222,6 +2257,10 @@ class HomePageActivity : AppCompatActivity() {
         val userName = prefManager!!.nameUserLogin ?: "Unknown"
         val userInfo = buildString {
             userName?.takeIf { it.isNotEmpty() }?.let { append(formatToCamelCase(it)) }
+            prefManager!!.jabatanUserLogin?.takeIf { it.isNotEmpty() }?.let {
+                if (length > 0) append(" - ")
+                append(it)
+            }
         }
         findViewById<TextView>(R.id.userSection).text = userInfo
         globalLastSync.observe(this) { timestamp ->

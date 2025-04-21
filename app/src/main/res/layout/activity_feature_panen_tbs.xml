@@ -23,13 +23,24 @@
 <!--        tools:ignore="MissingConstraints" />-->
 
     <include
-        android:id="@+id/test"
+        android:id="@+id/header_layout"
         layout="@layout/header_feature_layout"
+
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <include
+        android:id="@+id/warning_card"
+        layout="@layout/warning_layout_card_asistensi"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/header_layout" />
 
     <!-- ScrollView Section -->
     <ScrollView
@@ -40,7 +51,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/test">
+        app:layout_constraintTop_toBottomOf="@id/warning_card">
 
 
         <RelativeLayout
@@ -74,7 +85,42 @@
 <!--                                        layout="@layout/pertanyaan_spinner_layout"-->
 <!--                                        android:visibility="gone"-->
 <!--                                        android:id="@+id/layoutWilayah"/>-->
+                    <TextView
+                        android:id="@+id/title_data_master"
+                        android:layout_width="200dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginTop="10dp"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:gravity="center|left"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/l"
+                        android:visibility="gone"
+                        tools:ignore="HardcodedText,RtlHardcoded" />
 
+                    <include
+                        android:id="@+id/layoutMasterTPH"
+                        android:visibility="gone"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnDownloadDataset"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginTop="10dp"
+                        android:backgroundTint="@color/greenDarker"
+                        android:fontFamily="@font/manrope_bold"
+                        android:text="Refresh"
+                        android:textColor="@color/white"
+                        android:textAllCaps="false"
+                        android:textSize="@dimen/m"
+                        android:visibility="gone"
+                        app:cornerRadius="8dp"
+                        app:icon="@drawable/baseline_download_24"
+                        app:iconGravity="textEnd"
+                        app:iconTint="@color/white"
+                        app:iconPadding="8dp" />
                     <TextView
                         android:id="@+id/title_data_informasi_blok"
                         android:layout_width="200dp"

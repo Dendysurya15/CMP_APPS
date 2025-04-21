@@ -11,8 +11,8 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
-import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.ScannedTPHSelectionItem
 import com.google.android.material.radiobutton.MaterialRadioButton
 
 /**
@@ -20,7 +20,7 @@ import com.google.android.material.radiobutton.MaterialRadioButton
  */
 
 class ListTPHInsideRadiusAdapter(
-    private val tphList: List<FeaturePanenTBSActivity.ScannedTPHSelectionItem>,
+    private val tphList: List<ScannedTPHSelectionItem>,
     private val listener: OnTPHSelectedListener
 ) : RecyclerView.Adapter<ListTPHInsideRadiusAdapter.ViewHolder>() {
 
@@ -31,7 +31,7 @@ class ListTPHInsideRadiusAdapter(
 
     // Updated interface
     interface OnTPHSelectedListener {
-        fun onTPHSelected(selectedTPH: FeaturePanenTBSActivity.ScannedTPHSelectionItem)
+        fun onTPHSelected(selectedTPH: ScannedTPHSelectionItem)
         fun getCurrentlySelectedTPHId(): Int? // New method to get currently selected TPH ID
     }
 

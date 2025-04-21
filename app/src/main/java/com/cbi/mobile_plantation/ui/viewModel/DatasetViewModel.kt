@@ -24,6 +24,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckZipServerResponse
 import com.google.gson.Gson
@@ -62,6 +63,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val absensiDao = database.absensiDao()
     private val blokDao = database.blokDao()
 
+    private val _error = MutableLiveData<String>()
+    val error: LiveData<String> = _error
 
     private val _downloadStatuses = MutableLiveData<Map<String, Resource<Response<ResponseBody>>>>()
     val downloadStatuses: LiveData<Map<String, Resource<Response<ResponseBody>>>> =
@@ -78,6 +81,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _millStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val millStatus: StateFlow<Result<Boolean>> = _millStatus.asStateFlow()
+
+
+    private val _allEstatesList = MutableLiveData<List<EstateModel>>()
+    val allEstatesList: LiveData<List<EstateModel>> = _allEstatesList
+
+    private val _estateStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
+    val estateStatus: StateFlow<Result<Boolean>> = _estateStatus.asStateFlow()
 
     private val _transporterStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val transporterStatus: StateFlow<Result<Boolean>> = _transporterStatus.asStateFlow()
@@ -120,6 +130,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 _kemandoranStatus.value = Result.success(true)
             } catch (e: Exception) {
                 _kemandoranStatus.value = Result.failure(e)
+            }
+        }
+
+    fun updateOrInsertEstate(estate: List<EstateModel>) =
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.updateOrInsertEstate(estate)
+                _estateStatus.value = Result.success(true)
+            } catch (e: Exception) {
+                _estateStatus.value = Result.failure(e)
             }
         }
 
@@ -256,6 +276,19 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     suspend fun getKaryawanKemandoranList(filteredIds: List<String>): List<KaryawanDao.KaryawanKemandoranData> {
         return repository.getKaryawanKemandoranList(filteredIds) // Pass list directly
+    }
+
+
+    fun getAllEstates() {
+        viewModelScope.launch {
+            repository.getAllEstates()
+                .onSuccess { estateList ->
+                    _allEstatesList.postValue(estateList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load estate data")
+                }
+        }
     }
 
 
@@ -610,6 +643,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
+                    }else if (request.dataset == AppUtils.DatasetNames.estate) {
+                        response = repository.downloadListEstate(request.regional ?: 0)
                     }
 //                    else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
 //                        response = repository.checkStatusUploadCMP(request.data!!)
@@ -938,6 +973,147 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         if (!hasShownError) {
                                             results[request.dataset] =
                                                 Resource.Error("Error processing mill data: ${e.message}")
+                                            hasShownError = true
+                                        }
+                                        _downloadStatuses.postValue(results.toMap())
+                                    }
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.estate) {
+
+                                    try {
+                                        // Define the list outside the function
+                                        val estateList = mutableListOf<EstateModel>()
+
+                                        fun parseEstateJsonToList(jsonContent: String) {
+                                            if (jsonContent.isBlank()) {
+                                                Log.w("EstateParser", "Empty JSON content received")
+                                                return
+                                            }
+
+                                            val gson = Gson()
+                                            try {
+                                                val jsonObject = gson.fromJson(
+                                                    jsonContent,
+                                                    JsonObject::class.java
+                                                )
+
+                                                // Check if the JSON has the expected structure
+                                                if (!jsonObject.has("data") || jsonObject.get("data").isJsonNull) {
+                                                    Log.e(
+                                                        "EstateParser",
+                                                        "JSON does not contain 'data' field or it's null"
+                                                    )
+                                                    return
+                                                }
+
+                                                val dataArray = jsonObject.getAsJsonArray("data")
+
+                                                for (i in 0 until dataArray.size()) {
+                                                    try {
+                                                        val estateObject =
+                                                            dataArray.get(i).asJsonObject
+
+                                                        // Safely extract values with null checks
+                                                        val id =
+                                                            if (estateObject.has("id") && !estateObject.get(
+                                                                    "id"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("id").asInt else 0
+
+                                                        val idPpro =
+                                                            if (estateObject.has("id_ppro") && !estateObject.get(
+                                                                    "id_ppro"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("id_ppro").asInt else null
+
+                                                        val abbr =
+                                                            if (estateObject.has("abbr") && !estateObject.get(
+                                                                    "abbr"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("abbr").asString else null
+
+                                                        val nama =
+                                                            if (estateObject.has("nama") && !estateObject.get(
+                                                                    "nama"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("nama").asString else null
+
+                                                        // Create EstateModel without the divisi data
+                                                        val estate = EstateModel(
+                                                            id = id,
+                                                            id_ppro = idPpro,
+                                                            abbr = abbr,
+                                                            nama = nama
+                                                        )
+
+                                                        estateList.add(estate)
+                                                    } catch (e: Exception) {
+                                                        Log.e(
+                                                            "EstateParser",
+                                                            "Error parsing estate at index $i: ${e.message}"
+                                                        )
+                                                        // Continue with the next item rather than failing the entire process
+                                                        continue
+                                                    }
+                                                }
+
+                                                Log.d(
+                                                    "EstateParser",
+                                                    "Successfully parsed ${estateList.size} estates"
+                                                )
+                                            } catch (e: Exception) {
+                                                Log.e(
+                                                    "EstateParser",
+                                                    "Error parsing JSON: ${e.message}"
+                                                )
+                                            }
+                                        }
+
+                                        // Parse the estate data from JSON
+                                        parseEstateJsonToList(responseBodyString)
+
+                                        // Check if we have any data to store
+                                        if (estateList.isEmpty()) {
+                                            Log.w("DownloadResponse", "No estate data to store")
+                                            results[request.dataset] =
+                                                Resource.Error("No estate data found in response")
+                                            _downloadStatuses.postValue(results.toMap())
+                                        }
+
+                                        Log.d(
+                                            "DownloadResponse",
+                                            "Storing ${estateList.size} estates"
+                                        )
+
+                                        // Update status to storing
+                                        results[request.dataset] = Resource.Storing(request.dataset)
+                                        _downloadStatuses.postValue(results.toMap())
+
+                                        // Store the data
+                                        updateOrInsertEstate(estateList).join()
+
+                                        if (estateStatus.value.isSuccess) {
+                                            results[request.dataset] = Resource.Success(response)
+                                            prefManager!!.addDataset(request.dataset)
+                                        } else {
+                                            val error = estateStatus.value.exceptionOrNull()
+                                            throw error ?: Exception("Unknown database error")
+                                        }
+
+                                        _downloadStatuses.postValue(results.toMap())
+
+                                    } catch (e: Exception) {
+                                        Log.e(
+                                            "DownloadResponse",
+                                            "Error processing estate data: ${e.message}"
+                                        )
+                                        if (!hasShownError) {
+                                            results[request.dataset] =
+                                                Resource.Error("Error processing estate data: ${e.message}")
                                             hasShownError = true
                                         }
                                         _downloadStatuses.postValue(results.toMap())

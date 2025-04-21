@@ -11,8 +11,10 @@
     <string name="confirmation_dialog_cancel">Batal</string>
     <string name="confirmation_dialog_accept">Ya</string>
     <string name="confirmation_dialog_title">Konfirmasi Pilihan Anda!</string>
+    <string name="confirmation_asistensi_estate">Asistensi Panen Estate Lain!</string>
     <string name="confirmation_dialog_description">Pastikan Anda telah memeriksa dengan teliti sebelum melanjutkan.</string>
     <string name="al_yes">Ya</string>
+    <string name="al_confirm_asistensi">Menu ini digunakan untuk input panen asistensi ke estate lain, Pastikan pilihan anda benar!</string>
     <string name="al_confirm_upload">Apakah anda yakin untuk upload data CMP?</string>
     <string name="al_confirm_out">Apakah anda yakin untuk keluar dari aplikasi ini?</string>
     <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah anda yakin untuk simpan &amp; upload data e-SPB ini?</string>
@@ -69,6 +71,7 @@
     <string name="field_wilayah">Wilayah</string>
     <string name="field_estate">Estate</string>
     <string name="field_afdeling">Afdeling</string>
+    <string name="field_master_tph_estate">Download Data Estate Asistensi</string>
     <string name="field_tahun_tanam">Tahun Tanam</string>
     <string name="field_blok">Blok</string>
     <string name="field_ancak">Ancak</string>
@@ -114,7 +117,7 @@
     <string-array name="tipe_panen_options">
         <item>Normal</item>
         <item>Cut &amp; Carry</item>
-<!--        <item>Mekanisasi</item>-->
+        <!--        <item>Mekanisasi</item>-->
     </string-array>
 
     <array name="autosize_text_sizes">

@@ -1,7 +1,9 @@
 package com.cbi.mobile_plantation.ui.view.panenTBS
 
 import android.Manifest
+import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -34,6 +36,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowManager
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.ImageView
@@ -86,15 +90,21 @@ import kotlin.reflect.KMutableProperty0
 import android.text.InputType as AndroidInputType
 import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.CheckBox
+import android.widget.ImageButton
 import android.widget.ListView
 import android.widget.PopupWindow
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.transition.Visibility
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.ui.adapter.ListPanenTPHAdapter
@@ -102,6 +112,8 @@ import com.cbi.mobile_plantation.ui.adapter.ListTPHInsideRadiusAdapter
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
+import com.cbi.mobile_plantation.utils.ScannedTPHLocation
+import com.cbi.mobile_plantation.utils.ScannedTPHSelectionItem
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -133,6 +145,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     var currentAccuracy: Float = 0F
     private var prefManager: PrefManager? = null
+    private val _masterEstateChoice = MutableLiveData<Map<Int, Boolean>>(mutableMapOf())
+    val masterEstateChoice: LiveData<Map<Int, Boolean>> = _masterEstateChoice
+    private val masterEstateHasBeenChoice = mutableMapOf<Int, Boolean>()
 
     private var featureName: String? = null
     private lateinit var cameraViewModel: CameraViewModel
@@ -154,6 +169,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var layoutPemanenLain: LinearLayout
     private lateinit var layoutPemanen: LinearLayout
     private lateinit var layoutTahunTanam: LinearLayout
+    private lateinit var layoutMasterTPH: LinearLayout
     private lateinit var layoutNoTPH: LinearLayout
     private lateinit var layoutBlok: LinearLayout
     private lateinit var layoutSelAsistensi: LinearLayout
@@ -163,29 +179,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var progressBarScanTPHAuto: ProgressBar
     private var keyboardBeingDismissed = false
 
-    data class ScannedTPHLocation(
-        val lat: Double,
-        val lon: Double,
-        val nomor: String,
-        val blokKode: String
-    )
-
-    data class ScannedTPHSelectionItem(
-        val id: Int,
-        val number: String,
-        val blockCode: String,
-        val distance: Float,
-        val isAlreadySelected: Boolean,
-        val selectionCount: Int,
-        val canBeSelectedAgain: Boolean,
-        val isWithinRange: Boolean = true
-    )
-
 
     private var latLonMap: Map<Int, ScannedTPHLocation> = emptyMap()
 
     private lateinit var takeFotoPreviewAdapter: TakeFotoPreviewAdapter
 
+    private var estateList: List<EstateModel> = emptyList()
     private var divisiList: List<TPHNewModel> = emptyList()
     private var blokList: List<TPHNewModel> = emptyList()
     private var karyawanList: List<KaryawanModel> = emptyList()
@@ -423,8 +422,25 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
 
                     if (divisiList.isNullOrEmpty()) {
-                        throw Exception("Periksa kembali dataset dengan melakukan Sinkronisasi Data!")
+                        throw Exception("Periksa kembali dataset TPH dengan melakukan Sinkronisasi Data!")
                     }
+
+                    datasetViewModel.getAllEstates()
+                    delay(100)
+
+                    withContext(Dispatchers.Main) {
+                        datasetViewModel.allEstatesList.observe(this@FeaturePanenTBSActivity) { list ->
+                            val allEstates = list ?: emptyList()
+                            estateList = allEstates
+
+                            AppLogger.d(estateList.toString())
+                        }
+                    }
+
+                    if (estateList.isNullOrEmpty()) {
+                        throw Exception("Periksa kembali dataset estate dengan melakukan Sinkronisasi Data!")
+                    }
+
                 }
 
                 withContext(Dispatchers.Main) {
@@ -471,6 +487,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             false
         }
 
+        masterEstateChoice.observe(this) { selections ->
+            updateDownloadMasterDataButtonText(selections)
+        }
+
         mbSaveDataPanenTBS.setOnClickListener {
             if (validateAndShowErrors()) {
                 AlertDialogUtility.withTwoActions(
@@ -484,7 +504,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             try {
                                 val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
 
-// Log for debugging
                                 AppLogger.d("karyawanIdMap $karyawanIdMap")
 
                                 val idKaryawanList = selectedPemanen.mapNotNull { worker ->
@@ -752,6 +771,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         layoutSelAsistensi = findViewById(R.id.layoutSelAsistensi)
         layoutTipePanen = findViewById(R.id.layoutTipePanen)
         layoutTahunTanam = findViewById(R.id.layoutTahunTanam)
+        layoutMasterTPH = findViewById(R.id.layoutMasterTPH)
 
         tvErrorScannedNotSelected = findViewById(R.id.tvErrorScannedNotSelected)
     }
@@ -1273,6 +1293,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 InputType.SPINNER
             ),
             Triple(
+                findViewById<LinearLayout>(R.id.layoutMasterTPH),
+                getString(R.string.field_master_tph_estate),
+                InputType.SPINNER
+            ),
+            Triple(
                 findViewById<LinearLayout>(R.id.layoutTahunTanam),
                 getString(R.string.field_tahun_tanam),
                 InputType.SPINNER
@@ -1326,8 +1351,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             when (inputType) {
                 InputType.SPINNER -> {
                     when (layoutView.id) {
+                        R.id.layoutMasterTPH -> {
+                            val estateNames =
+                                estateList.sortedBy { it.abbr }.mapNotNull { "${it.nama}" }
+                            setupSpinnerView(layoutView, estateNames)
+                        }
                         R.id.layoutEstate -> {
                             val namaEstate = listOf(prefManager!!.estateUserLengkapLogin ?: "")
+                            AppLogger.d(namaEstate.toString())
                             setupSpinnerView(layoutView, namaEstate)
                             findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
                         }
@@ -1443,6 +1474,25 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         setupSwitchBlokBanjir()
         setupSwitchAsistensi()
         setupFormulasView()
+        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+
+            val tvDescMaster: TextView = findViewById(R.id.title_data_master)
+            tvDescMaster.visibility = View.VISIBLE
+            layoutMasterTPH.visibility = View.VISIBLE
+            val btnDownloadDataset = findViewById<MaterialButton>(R.id.btnDownloadDataset)
+            btnDownloadDataset.visibility = View.VISIBLE
+            // Option 1: Find the included layout directly with cast
+            val warningCardLayout = findViewById<ViewGroup>(R.id.warning_card)
+            warningCardLayout.visibility = View.VISIBLE
+
+            // Find the views inside the included layout
+            val btnCloseWarning = warningCardLayout.findViewById<ImageButton>(R.id.btnCloseWarning)
+
+            // Set up close button click listener
+            btnCloseWarning.setOnClickListener {
+                warningCardLayout.visibility = View.GONE
+            }
+        }
     }
 
 
@@ -1450,13 +1500,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val tvDescDatagrading: TextView = findViewById(R.id.title_data_grading)
         val tvDescLampiran: TextView = findViewById(R.id.title_lampiran_foto)
         val tvDescInformasiBlok: TextView = findViewById(R.id.title_data_informasi_blok)
+        val tvDescMaster: TextView = findViewById(R.id.title_data_master)
 
+        val textMaster = "Master Data Estate*"
         val textGrading = "Data Grading*"
         val textLampiran = "Lampiran Foto*"
         val textBlok = "Informasi Blok*"
         val spannable = SpannableString(textGrading)
         val spannable2 = SpannableString(textLampiran)
         val spannable3 = SpannableString(textBlok)
+        val spannable4 = SpannableString(textMaster)
 
         val starColor = ContextCompat.getColor(this, R.color.colorRedDark) //
         spannable.setSpan(
@@ -1480,9 +1533,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
         )
 
+        spannable4.setSpan(
+            ForegroundColorSpan(starColor),
+            textMaster.length - 1,  // Use textMaster instead of textBlok
+            textMaster.length,      // Use textMaster instead of textBlok
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
         tvDescDatagrading.text = spannable
         tvDescLampiran.text = spannable2
         tvDescInformasiBlok.text = spannable3
+        tvDescMaster.text = spannable4
 
     }
 
@@ -1867,7 +1928,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private fun setupSpinnerView(
         linearLayout: LinearLayout,
         data: List<String>,
-        onItemSelected: (Int) -> Unit = {}
+        isMultiSelect: Boolean = false,
+        onItemSelected: (Int) -> Unit = {},
+        onMultiItemsSelected: (List<String>, List<Int>) -> Unit = { _, _ -> }
     ) {
         val editText = linearLayout.findViewById<EditText>(R.id.etHomeMarkerTPH)
         val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
@@ -1883,28 +1946,83 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             editText.clearFocus()
         }
 
-        if (linearLayout.id == R.id.layoutKemandoran || linearLayout.id == R.id.layoutPemanen || linearLayout.id == R.id.layoutKemandoranLain || linearLayout.id == R.id.layoutPemanenLain) {
-//            Spinner khusus saerch
+        // For layoutMasterTPH use multi-select with checkboxes
+        if (linearLayout.id == R.id.layoutMasterTPH) {
             spinner.setOnTouchListener { _, event ->
-
                 ensureKeyboardHidden()
                 if (event.action == MotionEvent.ACTION_UP) {
-                    // ✅ Pass `linearLayout` to avoid error
+                    // Always use isMultiSelect=true for layoutMasterTPH
                     showPopupSearchDropdown(
                         spinner,
                         data,
                         editText,
-                        linearLayout
+                        linearLayout,
+                        true // Force multi-select for this layout
                     ) { selectedItem, position ->
                         spinner.text = selectedItem // Update spinner UI
                         tvError.visibility = View.GONE
-                        onItemSelected(position) // Ensure selection callback works
+
+                        if (selectedItem.contains(",") || selectedItem.contains("item terpilih")) {
+                            // Parse selected items
+                            if (selectedItem.contains("item terpilih")) {
+                                // Extract numbers of selections from "X item terpilih"
+                                val count = selectedItem.split(" ")[0].toIntOrNull() ?: 0
+                                Log.d("Spinner", "Multiple items selected: $count")
+                            } else {
+                                // Parse comma separated values
+                                val selectedValues = selectedItem.split(", ")
+                                val selectedIndices = selectedValues.mapNotNull { value ->
+                                    data.indexOf(value).takeIf { it >= 0 }
+                                }
+                                onMultiItemsSelected(selectedValues, selectedIndices)
+                            }
+                        } else {
+                            // For single select (though multi-select is enabled)
+                            onItemSelected(position)
+                        }
+                    }
+                }
+                true // Consume event, preventing default behavior
+            }
+
+            val selectedCount = masterEstateHasBeenChoice.count { it.value }
+            if (selectedCount > 0) {
+                val selectedTexts = masterEstateHasBeenChoice.filter { it.value }.keys.toList().sorted()
+                    .mapNotNull { idx -> data.getOrNull(idx) }
+
+                spinner.text = if (selectedTexts.size > 2) {
+                    "${selectedTexts.size} item terpilih"
+                } else {
+                    selectedTexts.joinToString(", ")
+                }
+            }
+
+            // Update the button text initially
+            updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+        }
+        // For these layouts use regular search dropdown (no checkboxes)
+        else if (linearLayout.id == R.id.layoutKemandoran || linearLayout.id == R.id.layoutPemanen ||
+            linearLayout.id == R.id.layoutKemandoranLain || linearLayout.id == R.id.layoutPemanenLain) {
+            // Spinner with regular search (no checkboxes)
+            spinner.setOnTouchListener { _, event ->
+                ensureKeyboardHidden()
+                if (event.action == MotionEvent.ACTION_UP) {
+                    // Always use isMultiSelect=false for these layouts
+                    showPopupSearchDropdown(
+                        spinner,
+                        data,
+                        editText,
+                        linearLayout,
+                        false // Force single-select for these layouts
+                    ) { selectedItem, position ->
+                        spinner.text = selectedItem // Update spinner UI
+                        tvError.visibility = View.GONE
+                        onItemSelected(position) // Single selection callback
                     }
                 }
                 true // Consume event, preventing default behavior
             }
         }
-
 
         if (linearLayout.id == R.id.layoutEstate) {
             spinner.isEnabled = false // Disable spinner
@@ -3430,6 +3548,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         data: List<String>,
         editText: EditText,
         linearLayout: LinearLayout,
+        isMultiSelect: Boolean = false,
         onItemSelected: (String, Int) -> Unit
     ) {
         val popupView =
@@ -3439,6 +3558,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val scrollView = findScrollView(linearLayout)
         val rootView = linearLayout.rootView
+
+        val selectedItems = if (linearLayout.id == R.id.layoutMasterTPH) {
+            masterEstateHasBeenChoice // Use the class variable directly
+        } else {
+            mutableMapOf<Int, Boolean>()
+        }
+
+        // Update button text initially
+        if (linearLayout.id == R.id.layoutMasterTPH) {
+            updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+        }
 
         // Create PopupWindow first
         val popupWindow = PopupWindow(
@@ -3488,18 +3618,66 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
         var filteredData = data
-        val adapter = object : ArrayAdapter<String>(
-            spinner.context,
-            android.R.layout.simple_list_item_1,
-            filteredData
-        ) {
-            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                val view = super.getView(position, convertView, parent)
-                val textView = view.findViewById<TextView>(android.R.id.text1)
-                textView.setTextColor(Color.BLACK)
-                return view
+
+        // Choose adapter based on selection mode
+        val adapter = if (isMultiSelect) {
+            object : ArrayAdapter<String>(
+                spinner.context,
+                R.layout.list_item_dropdown_multiple,
+                R.id.text1,
+                filteredData
+            ) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val view = super.getView(position, convertView, parent)
+                    val checkbox = view.findViewById<CheckBox>(R.id.checkbox)
+                    val textView = view.findViewById<TextView>(R.id.text1)
+
+                    // Set checkbox state based on selection status
+                    checkbox.isChecked = selectedItems[position] == true
+
+                    // Handle checkbox clicks
+                    checkbox.setOnClickListener {
+                        selectedItems[position] = checkbox.isChecked
+
+                        // Update button text immediately if this is master layout
+                        if (linearLayout.id == R.id.layoutMasterTPH) {
+                            updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+                        }
+                    }
+
+                    // Handle entire row clicks
+                    view.setOnClickListener {
+                        checkbox.isChecked = !checkbox.isChecked
+                        selectedItems[position] = checkbox.isChecked
+
+                        // Update button text immediately if this is master layout
+                        if (linearLayout.id == R.id.layoutMasterTPH) {
+                            updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+                        }
+                    }
+
+                    return view
+                }
+
+                override fun isEnabled(position: Int): Boolean {
+                    return filteredData.isNotEmpty()
+                }
+            }
+        } else {
+            object : ArrayAdapter<String>(
+                spinner.context,
+                android.R.layout.simple_list_item_1,
+                filteredData
+            ) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val view = super.getView(position, convertView, parent)
+                    val textView = view.findViewById<TextView>(android.R.id.text1)
+                    textView.setTextColor(Color.BLACK)
+                    return view
+                }
             }
         }
+
         listView.adapter = adapter
 
         editTextSearch.addTextChangedListener(object : TextWatcher {
@@ -3514,44 +3692,103 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     data
                 }
 
-                val filteredAdapter = object : ArrayAdapter<String>(
-                    spinner.context,
-                    android.R.layout.simple_list_item_1,
-                    if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                        listOf("Data tidak tersedia!")
-                    } else {
-                        filteredData
-                    }
-                ) {
-                    override fun getView(
-                        position: Int,
-                        convertView: View?,
-                        parent: ViewGroup
-                    ): View {
-                        val view = super.getView(position, convertView, parent)
-                        val textView = view.findViewById<TextView>(android.R.id.text1)
-
+                // Update adapter based on selection mode
+                val filteredAdapter = if (isMultiSelect) {
+                    object : ArrayAdapter<String>(
+                        spinner.context,
+                        R.layout.list_item_dropdown_multiple,
+                        R.id.text1,
                         if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                            textView.setTextColor(
-                                ContextCompat.getColor(
-                                    context,
-                                    R.color.colorRedDark
-                                )
-                            )
-                            textView.setTypeface(textView.typeface, Typeface.ITALIC)
-                            view.isEnabled = false
+                            listOf("Data tidak tersedia!")
                         } else {
-                            textView.setTextColor(Color.BLACK)
-                            textView.setTypeface(textView.typeface, Typeface.NORMAL)
-                            view.isEnabled = true
+                            filteredData
                         }
-                        return view
-                    }
+                    ) {
+                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                            val view = super.getView(position, convertView, parent)
+                            val textView = view.findViewById<TextView>(R.id.text1)
+                            val checkbox = view.findViewById<CheckBox>(R.id.checkbox)
 
-                    override fun isEnabled(position: Int): Boolean {
-                        return filteredData.isNotEmpty()
+                            if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                                textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
+                                textView.setTypeface(textView.typeface, Typeface.ITALIC)
+                                checkbox.visibility = View.GONE
+                                view.isEnabled = false
+                            } else {
+                                textView.setTextColor(Color.BLACK)
+                                textView.setTypeface(textView.typeface, Typeface.NORMAL)
+                                checkbox.visibility = View.VISIBLE
+
+                                // Get the real position in the original data
+                                val originalPosition = data.indexOf(filteredData[position])
+                                checkbox.isChecked = selectedItems[originalPosition] == true
+
+                                // Handle checkbox clicks
+                                checkbox.setOnClickListener {
+                                    selectedItems[originalPosition] = checkbox.isChecked
+                                    if (linearLayout.id == R.id.layoutMasterTPH) {
+                                        updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+                                    }
+                                }
+
+                                view.setOnClickListener {
+                                    checkbox.isChecked = !checkbox.isChecked
+                                    selectedItems[originalPosition] = checkbox.isChecked
+                                    if (linearLayout.id == R.id.layoutMasterTPH) {
+                                        updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+                                    }
+                                }
+
+                                view.isEnabled = true
+                            }
+                            return view
+                        }
+
+                        override fun isEnabled(position: Int): Boolean {
+                            return filteredData.isNotEmpty()
+                        }
+                    }
+                } else {
+                    object : ArrayAdapter<String>(
+                        spinner.context,
+                        android.R.layout.simple_list_item_1,
+                        if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                            listOf("Data tidak tersedia!")
+                        } else {
+                            filteredData
+                        }
+                    ) {
+                        override fun getView(
+                            position: Int,
+                            convertView: View?,
+                            parent: ViewGroup
+                        ): View {
+                            val view = super.getView(position, convertView, parent)
+                            val textView = view.findViewById<TextView>(android.R.id.text1)
+
+                            if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                                textView.setTextColor(
+                                    ContextCompat.getColor(
+                                        context,
+                                        R.color.colorRedDark
+                                    )
+                                )
+                                textView.setTypeface(textView.typeface, Typeface.ITALIC)
+                                view.isEnabled = false
+                            } else {
+                                textView.setTextColor(Color.BLACK)
+                                textView.setTypeface(textView.typeface, Typeface.NORMAL)
+                                view.isEnabled = true
+                            }
+                            return view
+                        }
+
+                        override fun isEnabled(position: Int): Boolean {
+                            return filteredData.isNotEmpty()
+                        }
                     }
                 }
+
                 listView.adapter = filteredAdapter
             }
 
@@ -3559,12 +3796,84 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
         })
 
-        listView.setOnItemClickListener { _, _, position, _ ->
-            val selectedItem = filteredData[position]
-            spinner.text = selectedItem
-            editText.setText(selectedItem)
-            handleItemSelection(linearLayout, position, selectedItem)
-            popupWindow.dismiss()
+        // Add confirm button for multi-select
+        if (isMultiSelect) {
+            // Create a button container
+            val confirmButtonContainer = LinearLayout(spinner.context).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                setPadding(16, 8, 16, 16)
+                orientation = LinearLayout.VERTICAL
+            }
+
+            // Create button
+            val confirmButton = Button(spinner.context).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                text = "Konfirmasi Pilihan"
+                setBackgroundColor(ContextCompat.getColor(context, R.color.black))
+                setTextColor(Color.WHITE)
+            }
+
+            // Add button to popup
+            confirmButtonContainer.addView(confirmButton)
+            (popupView as ViewGroup).addView(confirmButtonContainer)
+
+            // Set click listener
+            confirmButton.setOnClickListener {
+                // Get selected items
+                val selectedIndices = selectedItems.filter { it.value }.keys.toList().sorted()
+                if (selectedIndices.isNotEmpty()) {
+                    val selectedTexts = selectedIndices.map { data[it] }
+                    val displayText = if (selectedTexts.size > 2) {
+                        "${selectedTexts.size} item terpilih"
+                    } else {
+                        selectedTexts.joinToString(", ")
+                    }
+
+                    // Update spinner text
+                    spinner.text = displayText
+
+                    // No need to update _masterEstateChoice.value since we're using the map directly
+                    if (linearLayout.id == R.id.layoutMasterTPH) {
+                        updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+                    }
+
+                    // Call the callback with the first selected item and its position
+                    onItemSelected(displayText, selectedIndices.first())
+                }
+
+                popupWindow.dismiss()
+            }
+
+            // Set normal click listener for single items
+            listView.setOnItemClickListener { _, view, position, _ ->
+                if (filteredData.isNotEmpty()) {
+                    val checkbox = view.findViewById<CheckBox>(R.id.checkbox)
+                    checkbox?.isChecked = !(checkbox?.isChecked ?: false)
+
+                    // Get original position in the data list
+                    val originalPosition = data.indexOf(filteredData[position])
+                    selectedItems[originalPosition] = checkbox?.isChecked ?: false
+                }
+            }
+        } else {
+            // Set normal click listener for single selection
+            listView.setOnItemClickListener { _, _, position, _ ->
+                if (filteredData.isNotEmpty()) {
+                    val selectedItem = filteredData[position]
+                    val originalPosition = data.indexOf(selectedItem)
+                    spinner.text = selectedItem
+                    editText.setText(selectedItem)
+                    onItemSelected(selectedItem, originalPosition)
+                    handleItemSelection(linearLayout, originalPosition, selectedItem)
+                    popupWindow.dismiss()
+                }
+            }
         }
 
         popupWindow.showAsDropDown(spinner)
@@ -3585,6 +3894,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             parent = parent.parent
         }
         return null
+    }
+
+    private fun updateDownloadMasterDataButtonText(selectedItems: Map<Int, Boolean>) {
+        val count = selectedItems.count { it.value }
+        val downloadButton = findViewById<MaterialButton>(R.id.btnDownloadDataset)
+        downloadButton.text = "Unduh $count master dataset"
     }
 
     override fun getCurrentlySelectedTPHId(): Int? {
