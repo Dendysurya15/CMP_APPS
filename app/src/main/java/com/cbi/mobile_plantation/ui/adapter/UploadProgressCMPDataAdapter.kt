@@ -26,7 +26,7 @@ data class UploadCMPItem(
 class UploadProgressCMPDataAdapter(
     private val uploadItems: List<UploadCMPItem>,
 ) : RecyclerView.Adapter<UploadProgressCMPDataAdapter.UploadViewHolder>() {
-
+    private var dataList = uploadItems.toMutableList()
     private val uploadProgressMap = mutableMapOf<Int, Int>()
     private val uploadStatusMap = mutableMapOf<Int, String>()
     private val uploadErrorMap = mutableMapOf<Int, String>()
@@ -48,7 +48,7 @@ class UploadProgressCMPDataAdapter(
 
     init {
         // Initialize file size map
-        uploadItems.forEach { item ->
+        dataList.forEach { item ->
             try {
                 val file = File(item.fullPath)
                 if (file.exists()) {
@@ -69,12 +69,16 @@ class UploadProgressCMPDataAdapter(
     }
 
     override fun onBindViewHolder(holder: UploadViewHolder, position: Int) {
-        val item = uploadItems[position]
+        val item = dataList[position]
         val fileSize = fileSizeMap[item.id] ?: 0L
         val uploadedBytes = uploadedBytesMap[item.id] ?: 0L
 
-        // Set file name with size
-        holder.tvNameProgress.text = "${item.title} (${formatFileSize(fileSize)})"
+        if (item.title.contains("Master")){
+            holder.tvNameProgress.text = "${item.title}"
+        }else{
+            holder.tvNameProgress.text = "${item.title} (${formatFileSize(fileSize)})"
+        }
+
 
         val progress = uploadProgressMap[item.id] ?: 0
         val status = uploadStatusMap[item.id] ?: AppUtils.UploadStatusUtils.WAITING
@@ -200,7 +204,7 @@ class UploadProgressCMPDataAdapter(
     }
 
 
-    override fun getItemCount(): Int = uploadItems.size
+    override fun getItemCount(): Int = dataList.size
 
     // Update methods
     fun updateProgress(id: Int, progress: Int) {
@@ -212,10 +216,10 @@ class UploadProgressCMPDataAdapter(
         uploadedBytesMap[id] = uploadedBytes
 
         // Get the position of the item in the list
-        val position = uploadItems.indexOfFirst { it.id == id }
+        val position = dataList.indexOfFirst { it.id == id }
         if (position != -1) {
             // Get the ViewHolder if it's visible
-            val holder = (uploadItems[position].id == id) as? UploadViewHolder
+            val holder = (dataList[position].id == id) as? UploadViewHolder
             if (holder != null) {
                 // Update the status text with dots if it's in UPLOADING state
                 val status = uploadStatusMap[id] ?: AppUtils.UploadStatusUtils.WAITING
@@ -230,18 +234,18 @@ class UploadProgressCMPDataAdapter(
 
     fun updateStatus(id: Int, status: String) {
         uploadStatusMap[id] = status
-        notifyItemChanged(uploadItems.indexOfFirst { it.id == id })
+        notifyItemChanged(dataList.indexOfFirst { it.id == id })
     }
 
     fun updateError(id: Int, error: String) {
         uploadErrorMap[id] = error
-        notifyItemChanged(uploadItems.indexOfFirst { it.id == id })
+        notifyItemChanged(dataList.indexOfFirst { it.id == id })
     }
 
     // New method to directly update uploaded bytes
     fun updateUploadedBytes(id: Int, bytes: Long) {
         uploadedBytesMap[id] = bytes
-        notifyItemChanged(uploadItems.indexOfFirst { it.id == id })
+        notifyItemChanged(dataList.indexOfFirst { it.id == id })
     }
 
     // Helper methods for tracking total progress
@@ -283,7 +287,7 @@ class UploadProgressCMPDataAdapter(
         uploadedBytesMap.clear()
 
         // Initialize file size map again
-        uploadItems.forEach { item ->
+        dataList.forEach { item ->
             try {
                 val file = File(item.fullPath)
                 if (file.exists()) {
@@ -299,6 +303,11 @@ class UploadProgressCMPDataAdapter(
         notifyDataSetChanged()
     }
 
+    fun updateItems(newItems: List<UploadCMPItem>) {
+        dataList.clear()
+        dataList.addAll(newItems)
+        notifyDataSetChanged()
+    }
     // Cleanup method to be called when the RecyclerView is detached
     override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
         super.onDetachedFromRecyclerView(recyclerView)

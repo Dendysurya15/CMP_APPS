@@ -1573,13 +1573,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
     private fun resetEstateSelection(successfulEstates: List<String>) {
-        // For each successfully downloaded estate, set its value to false in the map
-        successfulEstates.forEach { estateName ->
-            // Find the estate either by abbr or name
-            val estate = estateList.find { it.abbr == estateName || it.nama == estateName }
+        successfulEstates.forEach { estateAbbr ->
+            // Find the estate by abbreviation
+            val estate = estateList.find { it.abbr == estateAbbr }
             estate?.let {
-                // Use the estate name as the key (assuming that's how masterEstateHasBeenChoice is keyed)
-                val key = it.nama ?: it.abbr
+                // Use the estate name as the key (since that's what's stored in masterEstateHasBeenChoice)
+                val key = it.nama
                 if (key != null) {
                     masterEstateHasBeenChoice[key] = false
                 }
@@ -1589,6 +1588,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         // Update the button text to reflect the new state
         updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
     }
+
 
 
     private fun setupDownloadDialog(datasetRequests: List<DatasetRequest>) {
@@ -1627,7 +1627,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             downloadItems.add(
                 UploadCMPItem(
                     id = itemId++,
-                    title = "${request.estateAbbr} - ${request.dataset}",
+                    title = "Master TPH ${request.estateAbbr}",
                     fullPath = "",
                     partNumber = 1,  // Single part for downloads
                     totalParts = 1,  // Single part for downloads
@@ -1653,8 +1653,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             .create()
         dialog.show()
 
-        // Function to start the download process
-        fun startDownload() {
+        fun startDownload(requestsToDownload: List<DatasetRequest> = datasetRequests,
+                          itemsToShow: List<UploadCMPItem> = downloadItems) {
             // Check network connectivity first
             if (!AppUtils.isNetworkAvailable(this)) {
                 AlertDialogUtility.withSingleAction(
@@ -1668,7 +1668,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 return
             }
 
-            // Disable both buttons during download
+            // Disable buttons during download
             btnDownloadDataset.isEnabled = false
             closeDialogBtn.isEnabled = false
             btnRetryDownload.isEnabled = false
@@ -1683,7 +1683,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
             titleTV.text = "Download Dataset"
 
-            datasetViewModel.downloadDataset(datasetRequests, downloadItems)
+            datasetViewModel.downloadDataset(requestsToDownload, itemsToShow)
         }
 
         btnDownloadDataset.setOnClickListener {
@@ -1712,20 +1712,48 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
-        // Add retry button functionality
+        var failedRequests: List<DatasetRequest> = listOf()
         btnRetryDownload.setOnClickListener {
             if (AppUtils.isNetworkAvailable(this)) {
-                // Reset adapter state
+                // Create new download items only for failed requests
+                val retryDownloadItems = mutableListOf<UploadCMPItem>()
+                var itemId = 0
+
+                AppLogger.d("failedRequests $failedRequests")
+
+                failedRequests.forEach { request ->
+                    retryDownloadItems.add(
+                        UploadCMPItem(
+                            id = itemId++,
+                            title = "${request.estateAbbr} - ${request.dataset}",
+                            fullPath = "",
+                            partNumber = 1,
+                            totalParts = 1,
+                            baseFilename = request.estateAbbr ?: ""
+                        )
+                    )
+                }
+
+                // Clear and update the RecyclerView with only failed items
+                adapter.updateItems(retryDownloadItems)
+
+                // Reset adapter state (progress bars, status icons, etc.)
                 adapter.resetState()
 
-                // Reset download state
+                // Reset view model state
                 datasetViewModel.resetState()
 
-                // Hide retry button, show download button again
+                // Update UI elements
+                counterTV.text = "0/${retryDownloadItems.size}"
+                titleTV.text = "Download Dataset"
+                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
+
+                // Hide retry button, show download button
                 btnRetryDownload.visibility = View.GONE
                 btnDownloadDataset.visibility = View.VISIBLE
 
-                startDownload()
+                // Start download with only failed requests
+                startDownload(failedRequests, retryDownloadItems)
             } else {
                 AlertDialogUtility.withSingleAction(
                     this@FeaturePanenTBSActivity,
@@ -1734,13 +1762,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     stringXML(R.string.al_no_internet_connection_description_login),
                     "network_error.json",
                     R.color.colorRedDark
-                ) {
-                    // Do nothing
-                }
+                ) { }
             }
         }
 
+
         closeDialogBtn.setOnClickListener {
+            // Remove all observers
+            datasetViewModel.processingComplete.removeObservers(this)
+            datasetViewModel.itemProgressMap.removeObservers(this)
+            datasetViewModel.completedCount.removeObservers(this)
+            datasetViewModel.itemStatusMap.removeObservers(this)
+            datasetViewModel.itemErrorMap.removeObservers(this)
+
             datasetViewModel.resetState()
             dialog.dismiss()
         }
@@ -1766,50 +1800,67 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         }
 
+
         datasetViewModel.processingComplete.observe(this) { isComplete ->
             if (isComplete) {
-//                // Show loading dialog first (if it's not already showing)
-//                loadingDialog.show()
-//                loadingDialog.setMessage("Sedang memproses data", true)
-//
-//                // Give a brief delay to ensure UI is responsive
-//                lifecycleScope.launch {
-//                    delay(500)
+                // Check final status of all downloads
+                val currentStatusMap = datasetViewModel.itemStatusMap.value ?: emptyMap()
 
-                    // Check final status of all downloads
-                    val currentStatusMap = datasetViewModel.itemStatusMap.value ?: emptyMap()
-                    val allSuccess = currentStatusMap.values.all { it == AppUtils.UploadStatusUtils.DOWNLOADED }
+                // Separate successful and failed downloads
+                val successfulIds = mutableListOf<Int>()
+                val failedIds = mutableListOf<Int>()
 
-                    // Dismiss loading dialog after checking
-                    loadingDialog.dismiss()
-
-                    if (allSuccess) {
-                        titleTV.text = "Download Berhasil"
-                        val successfulEstates = datasetRequests.map { it.estateAbbr }.filterNotNull()
-                        resetEstateSelection(successfulEstates)
-                        titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.greenDarker))
-                        btnDownloadDataset.visibility = View.GONE
-                        btnRetryDownload.visibility = View.GONE
-
-                        closeDialogBtn.isEnabled = true
-                        closeDialogBtn.alpha = 1f
-                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+                currentStatusMap.forEach { (id, status) ->
+                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED) {
+                        successfulIds.add(id)
                     } else {
-                        titleTV.text = "Terjadi Kesalahan Download"
-                        titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
-                        btnDownloadDataset.visibility = View.GONE
-                        btnRetryDownload.visibility = View.VISIBLE
-
-                        // Re-enable buttons
-                        closeDialogBtn.isEnabled = true
-                        closeDialogBtn.alpha = 1f
-                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
-
-                        btnRetryDownload.isEnabled = true
-                        btnRetryDownload.alpha = 1f
-                        btnRetryDownload.iconTint = ColorStateList.valueOf(Color.WHITE)
+                        failedIds.add(id)
                     }
-//                }
+                }
+
+                // Get successful estate abbreviations
+                val successfulEstates = datasetRequests.filterIndexed { index, _ ->
+                    index in successfulIds
+                }.mapNotNull { it.estateAbbr }
+
+                // Store failed requests for retry
+                failedRequests = datasetRequests.filterIndexed { index, _ ->
+                    index in failedIds
+                }
+
+                // Always reset successful estates, even if some failed
+                if (successfulEstates.isNotEmpty()) {
+                    resetEstateSelection(successfulEstates)
+                }
+
+                loadingDialog.dismiss()
+
+                if (failedIds.isEmpty()) {
+                    // All successful
+                    titleTV.text = "Download Berhasil"
+                    titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.greenDarker))
+                    btnDownloadDataset.visibility = View.GONE
+                    btnRetryDownload.visibility = View.GONE
+
+                    closeDialogBtn.isEnabled = true
+                    closeDialogBtn.alpha = 1f
+                    closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+                } else {
+                    // Some or all failed
+                    titleTV.text = "Terjadi Kesalahan Download"
+                    titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
+                    btnDownloadDataset.visibility = View.GONE
+                    btnRetryDownload.visibility = View.VISIBLE
+
+                    // Re-enable buttons
+                    closeDialogBtn.isEnabled = true
+                    closeDialogBtn.alpha = 1f
+                    closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+
+                    btnRetryDownload.isEnabled = true
+                    btnRetryDownload.alpha = 1f
+                    btnRetryDownload.iconTint = ColorStateList.valueOf(Color.WHITE)
+                }
             }
         }
 
@@ -4013,6 +4064,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         // Disable clicking on the entire row for this item
                         view.setOnTouchListener { _, _ -> true } // Consume touch to prevent popup closing
                     } else {
+                        textView.setTextColor(Color.BLACK)  // Explicitly set color to black
+                        textView.setTypeface(textView.typeface, Typeface.NORMAL)  // Reset to normal typeface
+                        textView.text = itemValue  // Reset text without symbols
                         checkbox.isEnabled = true
 
                         view.isClickable = true
