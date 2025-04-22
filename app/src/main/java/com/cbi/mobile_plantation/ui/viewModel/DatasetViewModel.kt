@@ -27,6 +27,8 @@ import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckZipServerResponse
+import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
+import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
@@ -207,25 +209,26 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
-    fun updateOrInsertTPH(tph: List<TPHNewModel>, isAsistensi: Boolean = false) = viewModelScope.launch(Dispatchers.IO) {
-        try {
-            AppLogger.d("ViewModel: Starting updateOrInsertTPH with ${tph.size} records, asistensi: $isAsistensi")
+    fun updateOrInsertTPH(tph: List<TPHNewModel>, isAsistensi: Boolean = false) =
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                AppLogger.d("ViewModel: Starting updateOrInsertTPH with ${tph.size} records, asistensi: $isAsistensi")
 
-            if (isAsistensi) {
-                // Just insert the new records without deleting existing ones
-                repository.insertTPH(tph)
-            } else {
-                // Original behavior: delete all and then insert
-                repository.updateOrInsertTPH(tph)
+                if (isAsistensi) {
+                    // Just insert the new records without deleting existing ones
+                    repository.insertTPH(tph)
+                } else {
+                    // Original behavior: delete all and then insert
+                    repository.updateOrInsertTPH(tph)
+                }
+
+                _tphStatus.value = Result.success(true)
+                AppLogger.d("ViewModel: Successfully updated database")
+            } catch (e: Exception) {
+                _tphStatus.value = Result.failure(e)
+                AppLogger.e("ViewModel: Error updating database - ${e.message}")
             }
-
-            _tphStatus.value = Result.success(true)
-            AppLogger.d("ViewModel: Successfully updated database")
-        } catch (e: Exception) {
-            _tphStatus.value = Result.failure(e)
-            AppLogger.e("ViewModel: Error updating database - ${e.message}")
         }
-    }
 
 
     suspend fun getDivisiList(idEstate: Int): List<TPHNewModel> {
@@ -322,7 +325,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     }
 
                     // Log the mapped JSON before trying to convert
-                    AppLogger.d("Processing item #${index + 1}, mapped JSON: $mappedObj")
+//                    AppLogger.d("Processing item #${index + 1}, mapped JSON: $mappedObj")
 
                     // Safe way to get values that handles null values properly
                     fun safeGetString(field: String): String? {
@@ -343,7 +346,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     // Manual conversion to TPHNewModel with proper null handling
                     val model = TPHNewModel(
                         id = safeGetInt("id"),
-                        regional = safeGetString("regional") ?: safeGetInt("regional")?.toString() ?: "0",
+                        regional = safeGetString("regional") ?: safeGetInt("regional")?.toString()
+                        ?: "0",
                         company = safeGetInt("company"),
                         company_abbr = safeGetString("company_abbr"),
                         wilayah = safeGetString("wilayah"),
@@ -375,7 +379,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         AppLogger.d("Converted item ${resultList.size + 1}: $model")
                     }
 
-                    AppLogger.d("model $model")
+//                    AppLogger.d("model $model")
                     resultList.add(model)
                 } catch (e: Exception) {
                     AppLogger.e("Error converting item #${index + 1}")
@@ -386,7 +390,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
 
-            AppLogger.d("Successfully converted ${resultList.size} items")
+//            AppLogger.d("Successfully converted ${resultList.size} items")
             return resultList
 
         } catch (e: Exception) {
@@ -569,7 +573,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             }
 
                             // Get the status code to update
-                            val finalStatusCode = trackingInfoEntry?.status ?: statusResponse.statusCode
+                            val finalStatusCode =
+                                trackingInfoEntry?.status ?: statusResponse.statusCode
                             AppLogger.d("Final status code for $filename: $finalStatusCode")
 
                             // Update status in the database
@@ -577,26 +582,33 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                             // Check if this was an error status
                             if (finalStatusCode >= 4) {
-                                val errorMessage = trackingInfoEntry?.message ?: statusResponse.message
-                                errorItems.add(ErrorItem(
-                                    fileName = filename,
-                                    message = errorMessage
-                                ))
+                                val errorMessage =
+                                    trackingInfoEntry?.message ?: statusResponse.message
+                                errorItems.add(
+                                    ErrorItem(
+                                        fileName = filename,
+                                        message = errorMessage
+                                    )
+                                )
                             }
 
                         } catch (e: Exception) {
                             AppLogger.e("Error parsing JSON for $trackingId: ${e.localizedMessage}")
-                            errorItems.add(ErrorItem(
-                                fileName = filename,
-                                message = "Error processing response: ${e.localizedMessage}"
-                            ))
+                            errorItems.add(
+                                ErrorItem(
+                                    fileName = filename,
+                                    message = "Error processing response: ${e.localizedMessage}"
+                                )
+                            )
                         }
                     } catch (e: Exception) {
                         AppLogger.e("Network error for $trackingId: ${e.localizedMessage}")
-                        errorItems.add(ErrorItem(
-                            fileName = filename,
-                            message = "Network error: ${e.localizedMessage}"
-                        ))
+                        errorItems.add(
+                            ErrorItem(
+                                fileName = filename,
+                                message = "Network error: ${e.localizedMessage}"
+                            )
+                        )
                     }
                 }
 
@@ -621,6 +633,268 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
 
         return result
+    }
+
+    private val _totalCount = MutableLiveData<Int>(0)
+    val totalCount: LiveData<Int> get() = _totalCount
+
+
+    private val _itemProgressMap = MutableLiveData<Map<Int, Int>>(mutableMapOf())
+    val itemProgressMap: LiveData<Map<Int, Int>> get() = _itemProgressMap
+
+    // Map to track status for each upload item by ID
+    private val _itemStatusMap = MutableLiveData<Map<Int, String>>(mutableMapOf())
+    val itemStatusMap: LiveData<Map<Int, String>> get() = _itemStatusMap
+
+    // Map to track errors for each upload item by ID
+    private val _itemErrorMap = MutableLiveData<Map<Int, String?>>(mutableMapOf())
+    val itemErrorMap: LiveData<Map<Int, String?>> get() = _itemErrorMap
+
+
+    private val _completedCount = MutableLiveData<Int>(0)
+    val completedCount: LiveData<Int> get() = _completedCount
+
+    private fun incrementCompletedCount() {
+        val current = _completedCount.value ?: 0
+        _completedCount.value = current + 1
+    }
+
+    private val _processingComplete = MutableLiveData<Boolean>(false)
+    val processingComplete: LiveData<Boolean> = _processingComplete
+
+
+    fun downloadDataset(requests: List<DatasetRequest>, downloadItems: List<UploadCMPItem>) {
+        AppLogger.d("Starting download for ${requests.size} datasets")
+
+        // Initialize counts
+        _totalCount.value = requests.size
+        _completedCount.value = 0
+
+        // Create mutable maps for tracking progress and status
+        val progressMap = mutableMapOf<Int, Int>()
+        val statusMap = mutableMapOf<Int, String>()
+        val errorMap = mutableMapOf<Int, String?>()
+
+        // Set initial status for all items
+        downloadItems.forEachIndexed { index, item ->
+            statusMap[item.id] = AppUtils.UploadStatusUtils.WAITING
+            progressMap[item.id] = 0
+            errorMap[item.id] = null
+        }
+
+        // Update LiveData with initial values
+        _itemStatusMap.value = statusMap.toMap()
+        _itemProgressMap.value = progressMap.toMap()
+        _itemErrorMap.value = errorMap.toMap()
+
+        // Process each request sequentially
+        viewModelScope.launch {
+            for (index in requests.indices) {
+                val request = requests[index]
+                val itemId = downloadItems[index].id
+                AppLogger.d("Processing request $index: estate=${request.estateAbbr}, dataset=${request.dataset}")
+
+                // Use DOWNLOADING status
+                statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADING
+                _itemStatusMap.value = statusMap.toMap()
+
+                try {
+                    // Handle special case for valid datasets
+                    val validDatasets = setOf(
+                        AppUtils.DatasetNames.pemanen,
+                        AppUtils.DatasetNames.kemandoran,
+                        AppUtils.DatasetNames.tph,
+                        AppUtils.DatasetNames.transporter
+                    )
+
+                    var modifiedRequest = request
+                    if (request.dataset in validDatasets) {
+                        val count = withContext(Dispatchers.IO) {
+                            repository.getDatasetCount(request.dataset)
+                        }
+                        if (count == 0) {
+                            modifiedRequest = request.copy(lastModified = null)
+                            AppLogger.d("Dataset ${request.dataset} has no records, setting lastModified to null")
+                        }
+                    }
+
+                    // Call API to download dataset
+                    AppLogger.d("Downloading dataset for ${modifiedRequest.estateAbbr}")
+                    val response = withContext(Dispatchers.IO) {
+                        repository.downloadDataset(modifiedRequest)
+                    }
+
+                    if (response.isSuccessful && response.code() == 200) {
+                        val contentType = response.headers()["Content-Type"]
+                        val lastModified = response.headers()["Last-Modified-Dataset"]
+
+                        if (contentType?.contains("application/zip") == true) {
+                            // Create temp file
+                            val tempFile = withContext(Dispatchers.IO) {
+                                val inputStream = response.body()?.byteStream()
+                                if (inputStream == null) {
+                                    return@withContext null
+                                }
+
+                                val tempFile = File.createTempFile(
+                                    "temp_", ".zip", getApplication<Application>().cacheDir
+                                )
+
+                                // Download with progress updates
+                                val contentLength = response.body()?.contentLength() ?: 0L
+                                var downloadedBytes = 0L
+
+                                tempFile.outputStream().use { fileOut ->
+                                    val buffer = ByteArray(8192)
+                                    var bytesRead: Int
+
+                                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                                        fileOut.write(buffer, 0, bytesRead)
+                                        downloadedBytes += bytesRead
+
+                                        // Update progress
+                                        if (contentLength > 0) {
+                                            val progress = (downloadedBytes * 100 / contentLength).toInt()
+                                            progressMap[itemId] = progress
+                                            _itemProgressMap.postValue(progressMap.toMap())
+                                        }
+                                    }
+                                }
+
+                                inputStream.close()
+                                tempFile
+                            }
+
+                            if (tempFile == null) {
+                                statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                                errorMap[itemId] = "Failed to download file"
+                                _itemStatusMap.postValue(statusMap.toMap())
+                                _itemErrorMap.postValue(errorMap.toMap())
+                                incrementCompletedCount()
+                                continue
+                            }
+
+                            // Extract zip file
+                            val extractDir = withContext(Dispatchers.IO) {
+                                val zipFile = net.lingala.zip4j.ZipFile(tempFile)
+                                zipFile.setPassword(AppUtils.ZIP_PASSWORD.toCharArray())
+
+                                val dir = File(
+                                    getApplication<Application>().cacheDir,
+                                    "extracted_${System.currentTimeMillis()}"
+                                )
+                                zipFile.extractAll(dir.absolutePath)
+                                dir
+                            }
+
+                            // Process output.json
+                            val jsonFile = File(extractDir, "output.json")
+                            if (jsonFile.exists()) {
+                                val jsonContent = withContext(Dispatchers.IO) {
+                                    jsonFile.readText()
+                                }
+
+                                when (request.dataset) {
+                                    AppUtils.DatasetNames.tph -> {
+                                        // Parse the TPH data
+                                        val tphList = parseTPHJsonToList(jsonContent) as List<TPHNewModel>
+                                        AppLogger.d("Parsed ${tphList.size} TPH records, starting database update")
+
+                                        // THIS IS THE CRITICAL CHANGE: Wait for database operation to complete
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                if (request.isDownloadMasterTPHAsistensi) {
+                                                    repository.insertTPH(tphList)
+                                                } else {
+                                                    repository.updateOrInsertTPH(tphList)
+                                                }
+                                                AppLogger.d("Database update completed for ${request.estateAbbr}")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Database update error: ${e.message}")
+                                                throw e
+                                            }
+                                        }
+
+                                        // Update last modified timestamp
+                                        if (lastModified != null && request.estateAbbr != null) {
+                                            prefManager.setEstateLastModified(request.estateAbbr, lastModified)
+                                        }
+
+                                        // Use DOWNLOADED status for success
+                                        statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+                                    }
+                                    else -> {
+                                        // Other dataset types - use DOWNLOADED status
+                                        statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+                                    }
+                                }
+                            } else {
+                                statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                                errorMap[itemId] = "Output.json not found in ZIP file"
+                            }
+
+                            // Clean up files
+                            withContext(Dispatchers.IO) {
+                                tempFile.delete()
+                                extractDir.deleteRecursively()
+                            }
+                        } else {
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                            errorMap[itemId] = "Unsupported content type: $contentType"
+                        }
+                    } else {
+                        val errorBody = response.errorBody()?.string()
+                        var errorMessage = "API Error: ${response.code()}"
+
+                        if (!errorBody.isNullOrEmpty()) {
+                            try {
+                                // If error is JSON, parse it
+                                val jsonError = JSONObject(errorBody)
+                                errorMessage = "API Error ${response.code()}: ${jsonError.optString("message", errorBody)}"
+                            } catch (e: Exception) {
+                                // If not JSON, use raw error body
+                                errorMessage = "API Error ${response.code()}: $errorBody"
+                            }
+                        }
+
+                        statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                        errorMap[itemId] = errorMessage
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error processing item $itemId: ${e.message}")
+                    AppLogger.e(e.stackTraceToString())
+                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                    errorMap[itemId] = "Error: ${e.message}"
+                }
+
+                // Update LiveData AFTER all operations are complete for this item
+                _itemStatusMap.postValue(statusMap.toMap())
+                _itemErrorMap.postValue(errorMap.toMap())
+
+                // Log the status update
+                AppLogger.d("Item $itemId processing complete with status: ${statusMap[itemId]}")
+
+                incrementCompletedCount()
+            }
+
+            _processingComplete.postValue(true)
+
+            AppLogger.d("All downloads complete with statuses: $statusMap")
+        }
+    }
+
+
+
+    fun resetState() {
+        viewModelScope.launch {
+            _processingComplete.postValue(false)
+            _itemProgressMap.postValue(emptyMap())
+            _itemStatusMap.postValue(emptyMap())
+            _itemErrorMap.postValue(emptyMap())
+            _completedCount.postValue(0)
+            _totalCount.postValue(0)
+
+        }
     }
 
 
@@ -663,7 +937,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
-                    }else if (request.dataset == AppUtils.DatasetNames.estate) {
+                    } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
                     }
 //                    else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
@@ -746,9 +1020,19 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             results = results,
                                                             response = response,
                                                             updateOperation = if (request.isDownloadMasterTPHAsistensi)
-                                                                { tph -> updateOrInsertTPH(tph, true) }
+                                                                { tph ->
+                                                                    updateOrInsertTPH(
+                                                                        tph,
+                                                                        true
+                                                                    )
+                                                                }
                                                             else
-                                                                { tph -> updateOrInsertTPH(tph, false) },
+                                                                { tph ->
+                                                                    updateOrInsertTPH(
+                                                                        tph,
+                                                                        false
+                                                                    )
+                                                                },
                                                             statusFlow = tphStatus,
                                                             hasShownError = hasShownError,
                                                             lastModifiedTimestamp = lastModified
@@ -849,6 +1133,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     }
 
                                                 }
+                                                AppLogger.d("resultss bro $results")
                                                 _downloadStatuses.postValue(results.toMap())
                                             } catch (e: Exception) {
                                                 AppLogger.e("General processing error: ${e.message}")
@@ -1002,8 +1287,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                         _downloadStatuses.postValue(results.toMap())
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.estate) {
+                                } else if (request.dataset == AppUtils.DatasetNames.estate) {
 
                                     try {
                                         // Define the list outside the function
@@ -1328,6 +1612,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+
     private fun <T> parseStructuredJsonToList(jsonContent: String, classType: Class<T>): List<T> {
         val gson = GsonBuilder()
             .setLenient()  // Add lenient parsing
@@ -1355,9 +1640,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 transformedArray.add(transformedObj)
             }
 
-            AppLogger.d("About to convert array of size: ${transformedArray.size()}")
+//            AppLogger.d("About to convert array of size: ${transformedArray.size()}")
 
-            AppLogger.d(transformedArray.toString())
+//            AppLogger.d(transformedArray.toString())
             return gson.fromJson(
                 transformedArray,
                 TypeToken.getParameterized(List::class.java, classType).type

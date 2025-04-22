@@ -65,6 +65,8 @@ object AppUtils {
         const val WAITING = "Menunggu"
         const val UPLOADING = "Sedang Upload"
         const val SUCCESS = "Berhasil Upload!"
+        const val DOWNLOADING = "Sedang Mengunduh"
+        const val DOWNLOADED = "Berhasil Mengunduh!"
         const val FAILED = "Gagal Upload!"
     }
 
@@ -417,7 +419,8 @@ object AppUtils {
 
             // Check for existing zip files to determine the next sequence number
             val existingFiles = appFilesDir.listFiles()?.filter {
-                it.name.matches(Regex("${userId}_\\d{14}_\\d+\\.zip"))
+                // Update regex to account for the new format with total parts
+                it.name.matches(Regex("${userId}_\\d{14}_\\d+_\\d+\\.zip"))
             } ?: emptyList()
 
             // Use the FULL datetime as prefix to reset sequence for each new batch
@@ -427,8 +430,9 @@ object AppUtils {
             existingFiles.forEach { file ->
                 if (file.name.startsWith(currentPrefix)) {
                     // Extract the sequence number from filename with EXACT datetime match
-                    val sequenceMatch = Regex("${userId}_${dateTime}_(\\d+)\\.zip").find(file.name)
-                    sequenceMatch?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { seq ->
+                    // Updated regex to match new format (userId_datetime_totalparts_sequencenumber.zip)
+                    val sequenceMatch = Regex("${userId}_${dateTime}_(\\d+)_(\\d+)\\.zip").find(file.name)
+                    sequenceMatch?.groupValues?.getOrNull(2)?.toIntOrNull()?.let { seq ->
                         if (seq >= nextSequenceNumber) {
                             nextSequenceNumber = seq + 1
                         }
@@ -451,9 +455,13 @@ object AppUtils {
             // chunk data di dalam zip dengan batas di max_data_in_zip
             val chunkedAllData = allData.chunked(max_data_in_zip)
 
+            // Calculate total parts in advance
+            val totalParts = chunkedAllData.size
+
             // Create a zip file for each chunk
-            chunkedAllData.forEach { chunk ->
-                val zipFileName = "${userId}_${dateTime}_${nextSequenceNumber}.zip"
+            chunkedAllData.forEachIndexed { index, chunk ->
+                // Update the zip filename format to include total parts
+                val zipFileName = "${userId}_${dateTime}_${totalParts}_${index + 1}.zip"
                 val zipFile = File(appFilesDir, zipFileName)
 
                 val zip = ZipFile(zipFile)
@@ -489,9 +497,6 @@ object AppUtils {
 
                 // Add to our results list
                 allZipFiles.add(zipFile)
-
-                // Increment for next file
-                nextSequenceNumber++
             }
 
             // Return the result using the callback

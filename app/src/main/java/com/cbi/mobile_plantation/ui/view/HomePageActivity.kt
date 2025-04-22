@@ -1865,7 +1865,7 @@ class HomePageActivity : AppCompatActivity() {
 
         AppLogger.d("globalResponseJsonUploadList $globalResponseJsonUploadList")
         // Second loop: Process responses only if status code is 3 (complete)
-        if (finalStatusCode == 3) {
+        if (finalStatusCode == 3 || finalStatusCode == 1) {
             AppLogger.d("Status code is 3 (processing complete), processing all upload responses")
 
             // Create a Set with unique combinations of UUID and filename

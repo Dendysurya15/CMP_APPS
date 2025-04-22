@@ -91,8 +91,14 @@ class UploadProgressCMPDataAdapter(
                 holder.statusProgress.text = status
             }
             AppUtils.UploadStatusUtils.UPLOADING -> {
-                // Start dots animation
                 startDotsAnimation(item.id, holder)
+            }
+            AppUtils.UploadStatusUtils.DOWNLOADING -> {
+                startDotsAnimation(item.id, holder)
+            }
+            AppUtils.UploadStatusUtils.DOWNLOADED -> {
+                stopDotsAnimation(item.id)
+                holder.statusProgress.text = status
             }
             AppUtils.UploadStatusUtils.SUCCESS -> {
                 stopDotsAnimation(item.id)
@@ -118,6 +124,19 @@ class UploadProgressCMPDataAdapter(
                 holder.statusProgress.visibility = View.VISIBLE
                 holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
             }
+            AppUtils.UploadStatusUtils.DOWNLOADING -> {
+                holder.iconStatus.visibility = View.INVISIBLE
+                holder.loadingCircular.visibility = View.VISIBLE
+                holder.statusProgress.visibility = View.VISIBLE
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
+            }
+            AppUtils.UploadStatusUtils.DOWNLOADED -> {
+                holder.iconStatus.setImageResource(R.drawable.baseline_check_24)
+                holder.iconStatus.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+                holder.iconStatus.visibility = View.VISIBLE
+                holder.loadingCircular.visibility = View.INVISIBLE
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+            }
             AppUtils.UploadStatusUtils.SUCCESS -> {
                 holder.iconStatus.setImageResource(R.drawable.baseline_check_24)
                 holder.iconStatus.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
@@ -135,7 +154,6 @@ class UploadProgressCMPDataAdapter(
         }
     }
 
-    // Animation functions for the dots
     private fun startDotsAnimation(id: Int, holder: UploadViewHolder) {
         // Cancel existing animation if any
         animators[id]?.cancel()
@@ -166,8 +184,7 @@ class UploadProgressCMPDataAdapter(
 
     private fun updateStatusWithDots(id: Int, holder: UploadViewHolder) {
         val dotCount = dotCountMap[id] ?: 0
-        val uploadedBytes = uploadedBytesMap[id] ?: 0L
-        val fileSize = fileSizeMap[id] ?: 0L
+        val currentStatus = uploadStatusMap[id] ?: AppUtils.UploadStatusUtils.WAITING
 
         val dots = when (dotCount) {
             0 -> ""
@@ -178,9 +195,10 @@ class UploadProgressCMPDataAdapter(
             else -> "....."
         }
 
-        // Update the status text with the dots
-        holder.statusProgress.text = "${AppUtils.UploadStatusUtils.UPLOADING}$dots"
+        // Use the current status (could be UPLOADING or DOWNLOADING) with dots
+        holder.statusProgress.text = "$currentStatus$dots"
     }
+
 
     override fun getItemCount(): Int = uploadItems.size
 

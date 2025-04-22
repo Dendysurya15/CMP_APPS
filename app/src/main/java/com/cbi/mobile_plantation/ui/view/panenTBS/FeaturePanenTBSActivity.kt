@@ -5,10 +5,12 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.Typeface
@@ -113,6 +115,8 @@ import com.cbi.mobile_plantation.ui.adapter.DownloadItem
 import com.cbi.mobile_plantation.ui.adapter.DownloadProgressDatasetAdapter
 import com.cbi.mobile_plantation.ui.adapter.ListPanenTPHAdapter
 import com.cbi.mobile_plantation.ui.adapter.ListTPHInsideRadiusAdapter
+import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
+import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
@@ -1494,50 +1498,65 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             btnDownloadDataset.visibility = View.VISIBLE
 
             btnDownloadDataset.setOnClickListener {
-                // When processing selected estates, use the values directly
-                val selectedEstates = masterEstateHasBeenChoice.filter { it.value }.keys.toList()
+                if (AppUtils.isNetworkAvailable(this)) {
+                    datasetViewModel.resetState()
+                    // When processing selected estates, use the values directly
+                    val selectedEstates = masterEstateHasBeenChoice.filter { it.value }.keys.toList()
 
+                    if (selectedEstates.isEmpty()) {
+                        // No estates selected
+                        Log.d("Estate Selection", "No estates selected")
+                        Toast.makeText(this, "Silakan pilih estate terlebih dahulu", Toast.LENGTH_SHORT)
+                            .show()
+                    } else {
+                        // Create dataset requests for each selected estate
+                        val datasetRequests = mutableListOf<DatasetRequest>()
 
-                if (selectedEstates.isEmpty()) {
-                    // No estates selected
-                    Log.d("Estate Selection", "No estates selected")
-                    Toast.makeText(this, "Silakan pilih estate terlebih dahulu", Toast.LENGTH_SHORT)
-                        .show()
-                } else {
-                    // Create dataset requests for each selected estate
-                    val datasetRequests = mutableListOf<DatasetRequest>()
+                        selectedEstates.forEach { estateName ->
+                            // Find the estate in your estate list by name
+                            val estate =
+                                estateList.find { it.abbr == estateName || it.nama == estateName }
+                            estate?.let {
+                                val estateId = it.id ?: 0
+                                val estateAbbr = it.abbr ?: "unknown"
+                                val lastModified = prefManager!!.getEstateLastModified(estateAbbr)
 
-                    selectedEstates.forEach { estateName ->
-                        // Find the estate in your estate list by name
-                        val estate =
-                            estateList.find { it.abbr == estateName || it.nama == estateName }
-                        estate?.let {
-                            val estateId = it.id ?: 0
-                            val estateAbbr = it.abbr ?: "unknown"
-                            val lastModified = prefManager!!.getEstateLastModified(estateAbbr)
-
-                            Log.d(
-                                "Estate Download",
-                                "Adding estate: $estateAbbr (ID: $estateId), Last modified: $lastModified"
-                            )
-
-                            // Add TPH dataset request for this estate
-                            datasetRequests.add(
-                                DatasetRequest(
-                                    estate = estateId,
-                                    estateAbbr = estateAbbr,
-                                    lastModified = lastModified,
-                                    dataset = AppUtils.DatasetNames.tph,
-                                    isDownloadMasterTPHAsistensi = true
+                                Log.d(
+                                    "Estate Download",
+                                    "Adding estate: $estateAbbr (ID: $estateId), Last modified: $lastModified"
                                 )
-                            )
+
+                                // Add TPH dataset request for this estate
+                                datasetRequests.add(
+                                    DatasetRequest(
+                                        estate = estateId,
+                                        estateAbbr = estateAbbr,
+                                        lastModified = lastModified,
+                                        dataset = AppUtils.DatasetNames.tph,
+                                        isDownloadMasterTPHAsistensi = true
+                                    )
+                                )
+                            }
+                        }
+
+                        if (datasetRequests.isNotEmpty()) {
+                            setupDownloadDialog(datasetRequests)
                         }
                     }
+                }else{
+                    AlertDialogUtility.withSingleAction(
+                        this@FeaturePanenTBSActivity,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_no_internet_connection),
+                        stringXML(R.string.al_no_internet_connection_description_login),
+                        "network_error.json",
+                        R.color.colorRedDark
+                    ) {
 
-                    if (datasetRequests.isNotEmpty()) {
-                        setupDownloadDialog(datasetRequests)
                     }
                 }
+
+
             }
             // Option 1: Find the included layout directly with cast
             val warningCardLayout = findViewById<ViewGroup>(R.id.warning_card)
@@ -1553,181 +1572,268 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
+    private fun resetEstateSelection(successfulEstates: List<String>) {
+        // For each successfully downloaded estate, set its value to false in the map
+        successfulEstates.forEach { estateName ->
+            // Find the estate either by abbr or name
+            val estate = estateList.find { it.abbr == estateName || it.nama == estateName }
+            estate?.let {
+                // Use the estate name as the key (assuming that's how masterEstateHasBeenChoice is keyed)
+                val key = it.nama ?: it.abbr
+                if (key != null) {
+                    masterEstateHasBeenChoice[key] = false
+                }
+            }
+        }
+
+        // Update the button text to reflect the new state
+        updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+    }
+
+
     private fun setupDownloadDialog(datasetRequests: List<DatasetRequest>) {
-        dialog = Dialog(this)
 
-        val view = layoutInflater.inflate(R.layout.dialog_download_progress, null)
-        dialog.setContentView(view)
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
+        val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
+        titleTV.text = "Download Dataset"
 
-        dialog.setCancelable(false)
-        dialog.setCanceledOnTouchOutside(false)
-        dialog.window?.setLayout(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
+        val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
+        val counterSizeFile = dialogView.findViewById<LinearLayout>(R.id.counterSizeFile)
+        counterSizeFile.visibility = View.VISIBLE
 
-        val recyclerView = view.findViewById<RecyclerView>(R.id.features_recycler_view)
-        adapter = DownloadProgressDatasetAdapter()
-        recyclerView.adapter = adapter
-        recyclerView.layoutManager = LinearLayoutManager(this)
+        // Get all buttons
+        val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+        val btnDownloadDataset = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
+        val btnRetryDownload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
 
-        val titleTV = view.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-        titleTV.text = "Unduh Master Data Estate..."
-        val counterTV = view.findViewById<TextView>(R.id.counter_dataset)
-        counterTV.text = "0/${datasetRequests.size}"
+        // Update button text to reflect download operation
+        btnDownloadDataset.text = "Download Dataset"
+        btnDownloadDataset.setIconResource(R.drawable.baseline_download_24) // Assuming you have this icon
 
-        val closeStatement = view.findViewById<TextView>(R.id.close_progress_statement)
-
-        val retryDownloadDataset = view.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
-        val cancelDownloadDataset = view.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
-        val downloadMasterButton = view.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
         val containerDownloadDataset =
-            view.findViewById<LinearLayout>(R.id.containerDownloadDataset)
+            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
         containerDownloadDataset.visibility = View.VISIBLE
 
-        // Show the start download button
-        downloadMasterButton.visibility = View.VISIBLE
-        downloadMasterButton.text = "Mulai Unduh Data"
-        downloadMasterButton.icon = ContextCompat.getDrawable(this, R.drawable.baseline_download_24)
+        // Initially show only close and download buttons
+        closeDialogBtn.visibility = View.VISIBLE
+        btnDownloadDataset.visibility = View.VISIBLE
+        btnRetryDownload.visibility = View.GONE
 
-        val initialDownloadItems = datasetRequests.map { request ->
-            // Find the estate name to display
-            val estateName =
-                estateList.find { it.id == request.estate }?.nama ?: "Estate ID: ${request.estate}"
+        // Create upload items from dataset requests (we'll reuse the existing adapter)
+        val downloadItems = mutableListOf<UploadCMPItem>()
 
-            // Create a display name for the dataset
-            val displayName = "TPH - $estateName"
-
-            DownloadItem(
-                dataset = displayName,
-                progress = 0,
-                isCompleted = false,
-                isLoading = false,
-                message = "Menunggu untuk diunduh"
+        var itemId = 0
+        datasetRequests.forEach { request ->
+            downloadItems.add(
+                UploadCMPItem(
+                    id = itemId++,
+                    title = "${request.estateAbbr} - ${request.dataset}",
+                    fullPath = "",
+                    partNumber = 1,  // Single part for downloads
+                    totalParts = 1,  // Single part for downloads
+                    baseFilename = request.estateAbbr ?: ""
+                )
             )
         }
-        cancelDownloadDataset.visibility = View.VISIBLE
 
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (counterTV.text == "0/0" && downloadItems.size > 0) {
+                counterTV.text = "0/${downloadItems.size}"
+            }
+        }, 100)
 
-        // Update the adapter with initial items
-        adapter.updateItems(initialDownloadItems)
+        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        val adapter = UploadProgressCMPDataAdapter(downloadItems)
+        recyclerView.adapter = adapter
 
-        // Set click listener for the upload button to start download
-        downloadMasterButton.setOnClickListener {
-            // Hide the upload button after clicking
-            downloadMasterButton.visibility = View.GONE
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+        dialog.show()
 
-            // Start the download
-            datasetViewModel.downloadMultipleDatasets(datasetRequests)
+        // Function to start the download process
+        fun startDownload() {
+            // Check network connectivity first
+            if (!AppUtils.isNetworkAvailable(this)) {
+                AlertDialogUtility.withSingleAction(
+                    this@FeaturePanenTBSActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
+                return
+            }
+
+            // Disable both buttons during download
+            btnDownloadDataset.isEnabled = false
+            closeDialogBtn.isEnabled = false
+            btnRetryDownload.isEnabled = false
+            btnDownloadDataset.alpha = 0.7f
+            closeDialogBtn.alpha = 0.7f
+            btnRetryDownload.alpha = 0.7f
+            btnDownloadDataset.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+            btnRetryDownload.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+
+            // Reset title color
+            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
+            titleTV.text = "Download Dataset"
+
+            datasetViewModel.downloadDataset(datasetRequests, downloadItems)
         }
 
-        cancelDownloadDataset.setOnClickListener {
+        btnDownloadDataset.setOnClickListener {
+            if (AppUtils.isNetworkAvailable(this)) {
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Download",
+                    getString(R.string.confirmation_dialog_title),
+                    getString(R.string.al_confirm_upload),
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = { startDownload() },
+                    cancelFunction = { }
+                )
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@FeaturePanenTBSActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) {
+                    // Do nothing
+                }
+            }
+        }
+
+        // Add retry button functionality
+        btnRetryDownload.setOnClickListener {
+            if (AppUtils.isNetworkAvailable(this)) {
+                // Reset adapter state
+                adapter.resetState()
+
+                // Reset download state
+                datasetViewModel.resetState()
+
+                // Hide retry button, show download button again
+                btnRetryDownload.visibility = View.GONE
+                btnDownloadDataset.visibility = View.VISIBLE
+
+                startDownload()
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@FeaturePanenTBSActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) {
+                    // Do nothing
+                }
+            }
+        }
+
+        closeDialogBtn.setOnClickListener {
+            datasetViewModel.resetState()
             dialog.dismiss()
         }
 
-        retryDownloadDataset.setOnClickListener {
-            containerDownloadDataset.visibility = View.GONE
-            cancelDownloadDataset.visibility = View.GONE
-            retryDownloadDataset.visibility = View.GONE
-            closeStatement.visibility = View.GONE
-            downloadMasterButton.visibility = View.VISIBLE
+        // Observe completed count (connect this to your actual download view model)
+        datasetViewModel.completedCount.observe(this) { completed ->
+            val total = datasetViewModel.totalCount.value ?: downloadItems.size
+            counterTV.text = "$completed/$total"
         }
 
-        // Create a map to track which estate each dataset belongs to
-        val datasetToEstateMap = mutableMapOf<String, String>()
-        datasetRequests.forEach { request ->
-            val estateName =
-                estateList.find { it.id == request.estate }?.nama ?: "Estate ID: ${request.estate}"
-            datasetToEstateMap[request.dataset] = estateName
+        // Observe download progress
+        datasetViewModel.itemProgressMap.observe(this) { progressMap ->
+            // Update progress for each item
+            for ((id, progress) in progressMap) {
+                AppLogger.d("Progress update for item $id: $progress%")
+                adapter.updateProgress(id, progress)
+            }
+
+            // Update title if any download is in progress
+            if (progressMap.values.any { it in 1..99 }) {
+                titleTV.text = "Sedang Download Dataset..."
+            }
+
         }
 
-        datasetViewModel.downloadStatuses.observe(this) { statusMap ->
-            val downloadItems = statusMap.map { (dataset, resource) ->
-                // Get the estate name for this dataset
-                val estateName = datasetToEstateMap[dataset.split("_").firstOrNull()] ?: ""
-                val displayName =
-                    if (estateName.isNotEmpty()) "MASTER TPH - $estateName" else dataset
+        datasetViewModel.processingComplete.observe(this) { isComplete ->
+            if (isComplete) {
+//                // Show loading dialog first (if it's not already showing)
+//                loadingDialog.show()
+//                loadingDialog.setMessage("Sedang memproses data", true)
+//
+//                // Give a brief delay to ensure UI is responsive
+//                lifecycleScope.launch {
+//                    delay(500)
 
-                when (resource) {
-                    is DatasetViewModel.Resource.Success -> {
-                        DownloadItem(
-                            dataset = displayName,
-                            progress = 100,
-                            isCompleted = false,
-                            isExtractionCompleted = false,
-                            isStoringCompleted = true,
-                            message = resource.message
-                        )
-                    }
+                    // Check final status of all downloads
+                    val currentStatusMap = datasetViewModel.itemStatusMap.value ?: emptyMap()
+                    val allSuccess = currentStatusMap.values.all { it == AppUtils.UploadStatusUtils.DOWNLOADED }
 
-                    is DatasetViewModel.Resource.Error -> {
-                        if (!hasShownErrorDialog) {
-                            val errorMessage = resource.message ?: "Unknown error occurred"
-                            if (errorMessage.contains("host", ignoreCase = true)) {
-                                showErrorDialog("Mohon cek koneksi Internet Smartphone anda!")
-                            } else {
-                                showErrorDialog(errorMessage)
-                            }
-                            hasShownErrorDialog = true
-                        }
-                        DownloadItem(dataset = displayName, error = resource.message)
-                    }
+                    // Dismiss loading dialog after checking
+                    loadingDialog.dismiss()
 
-                    is DatasetViewModel.Resource.Loading -> {
-                        DownloadItem(
-                            dataset = displayName,
-                            progress = resource.progress,
-                            isLoading = true
-                        )
-                    }
+                    if (allSuccess) {
+                        titleTV.text = "Download Berhasil"
+                        val successfulEstates = datasetRequests.map { it.estateAbbr }.filterNotNull()
+                        resetEstateSelection(successfulEstates)
+                        titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.greenDarker))
+                        btnDownloadDataset.visibility = View.GONE
+                        btnRetryDownload.visibility = View.GONE
 
-                    is DatasetViewModel.Resource.Extracting -> {
-                        DownloadItem(
-                            dataset = displayName,
-                            progress = 100,
-                            isLoading = false,
-                            isExtracting = true,
-                            message = resource.message
-                        )
-                    }
+                        closeDialogBtn.isEnabled = true
+                        closeDialogBtn.alpha = 1f
+                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+                    } else {
+                        titleTV.text = "Terjadi Kesalahan Download"
+                        titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
+                        btnDownloadDataset.visibility = View.GONE
+                        btnRetryDownload.visibility = View.VISIBLE
 
-                    is DatasetViewModel.Resource.Storing -> {
-                        AppLogger.d("Download Status: $displayName is being stored")
-                        DownloadItem(
-                            dataset = displayName,
-                            progress = 100,
-                            isLoading = false,
-                            isExtracting = false,
-                            isStoring = true,
-                            message = resource.message
-                        )
-                    }
+                        // Re-enable buttons
+                        closeDialogBtn.isEnabled = true
+                        closeDialogBtn.alpha = 1f
+                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
 
-                    is DatasetViewModel.Resource.UpToDate -> {
-                        DownloadItem(
-                            dataset = displayName,
-                            progress = 100,
-                            isUpToDate = true,
-                            message = resource.message
-                        )
+                        btnRetryDownload.isEnabled = true
+                        btnRetryDownload.alpha = 1f
+                        btnRetryDownload.iconTint = ColorStateList.valueOf(Color.WHITE)
                     }
+//                }
+            }
+        }
+
+        datasetViewModel.itemStatusMap.observe(this) { statusMap ->
+            // Update status for each item
+            for ((id, status) in statusMap) {
+                // No need for mapping - just pass the status directly to adapter
+                adapter.updateStatus(id, status)
+            }
+        }
+
+        // Observe errors for each item
+        datasetViewModel.itemErrorMap.observe(this) { errorMap ->
+            for ((id, error) in errorMap) {
+                if (!error.isNullOrEmpty()) {
+                    adapter.updateError(id, error)
                 }
             }
 
-            adapter.updateItems(downloadItems)
-
-            val completedCount =
-                downloadItems.count { it.isStoringCompleted || it.isUpToDate || it.error != null }
-            AppLogger.d("Progress: $completedCount/${downloadItems.size} completed")
-            counterTV.text = "$completedCount/${downloadItems.size}"
-
-            // Rest of your existing code to handle completion...
-            if (downloadItems.all { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
-                // Your existing completion handling
+            if (errorMap.values.any { !it.isNullOrEmpty() }) {
+                titleTV.text = "Terjadi Kesalahan Download"
+                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
             }
         }
-
-        dialog.show()
     }
 
 
@@ -2198,7 +2304,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         tvError.visibility = View.GONE
 
 
-                            onItemSelected(position)
+                        onItemSelected(position)
 
                     }
                 }
@@ -3865,8 +3971,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         false
                     }
 
-// If it has existing data, add an indicator and disable selection
-                    if (hasExistingData) {
+                    val isUserEstate = itemValue == prefManager!!.estateUserLengkapLogin
+
+                    // If it has existing data, add an indicator and disable selection
+                    if (hasExistingData || isUserEstate) {
                         // Set a visual indicator that this estate already has data
                         textView.setTypeface(textView.typeface, Typeface.BOLD)
                         textView.setTextColor(
@@ -3878,20 +3986,32 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         // Add indicator
                         val existingText = itemValue
-                        textView.text = "$existingText ✓"
+
+                        if (isUserEstate) {
+
+                            textView.text = "★ $existingText"
+                            textView.setTypeface(textView.typeface, Typeface.BOLD)
+                            textView.setTextColor(
+                                ContextCompat.getColor(
+                                    context,
+                                    R.color.greendarkerbutton
+                                )
+                            )
+                        } else {
+                            textView.text = "✓ $existingText"
+                        }
 
                         checkbox.isChecked = true
                         checkbox.isEnabled = true
                         checkbox.isClickable = false
                         checkbox.isFocusable = false
 
+                        // Don't modify the selection map here
+                        // Remove: selectedItems[itemValue] = true
 
-                        // Make sure this item is marked as selected
-                        selectedItems[itemValue] = true
                         view.alpha = 1.0f
                         // Disable clicking on the entire row for this item
                         view.setOnTouchListener { _, _ -> true } // Consume touch to prevent popup closing
-
                     } else {
                         checkbox.isEnabled = true
 
@@ -3900,7 +4020,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         checkbox.isChecked = selectedItems[itemValue] == true
 
-                        // 🔁 Only add click listeners for selectable items
                         checkbox.setOnClickListener {
                             selectedItems[itemValue] = checkbox.isChecked
                             if (linearLayout.id == R.id.layoutMasterTPH) {
