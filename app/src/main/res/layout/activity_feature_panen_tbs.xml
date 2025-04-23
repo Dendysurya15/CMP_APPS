@@ -121,6 +121,19 @@
                         app:iconGravity="textEnd"
                         app:iconTint="@color/white"
                         app:iconPadding="8dp" />
+
+                    <View
+                        android:id="@+id/dashedLine"
+                        android:layout_width="match_parent"
+                        android:layout_height="10dp"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/dashed_straight_line"
+                        android:visibility="gone"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@+id/titleDialogDetailTable" />
+
+
                     <TextView
                         android:id="@+id/title_data_informasi_blok"
                         android:layout_width="200dp"
@@ -200,7 +213,7 @@
 
 
                     <include
-                        android:id="@+id/layoutEstate"
+                            android:id="@+id/layoutEstate"
                         layout="@layout/pertanyaan_spinner_layout" />
 
                     <include

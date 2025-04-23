@@ -19,6 +19,7 @@ import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
@@ -68,8 +69,9 @@ import com.cbi.mobile_plantation.utils.AppUtils
         KendaraanModel::class,
         BlokModel::class,
         EstateModel::class,
+        AfdelingModel::class,
     ],
-    version = 29
+    version = 30
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -87,6 +89,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun kendaraanDao(): KendaraanDao
     abstract fun blokDao(): BlokDao
     abstract fun estateDao(): EstateDao
+    abstract fun afdelingDao(): AfdelingDao
 
     companion object {
         @Volatile
@@ -113,7 +116,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_25_26,
                         MIGRATION_26_27,
                         MIGRATION_27_28,
-                        MIGRATION_28_29
+                        MIGRATION_28_29,
+                        MIGRATION_29_30,
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -371,6 +375,23 @@ abstract class AppDatabase : RoomDatabase() {
                 id_ppro INTEGER,
                 abbr TEXT,
                 nama TEXT
+            )
+            """.trimIndent()
+                )
+            }
+        }
+
+
+        val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+            CREATE TABLE IF NOT EXISTS afdeling (
+                id INTEGER PRIMARY KEY NOT NULL,
+                id_ppro INTEGER,
+                abbr TEXT,
+                nama TEXT,
+                estate_id INTEGER NOT NULL
             )
             """.trimIndent()
                 )

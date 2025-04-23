@@ -107,6 +107,7 @@ import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.transition.Visibility
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
@@ -174,6 +175,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var alertTvScannedRadius: TextView
     private lateinit var backButton: ImageView
     private lateinit var layoutAncak: View
+    private lateinit var layoutEstate: LinearLayout
     private lateinit var layoutKemandoran: LinearLayout
     private lateinit var layoutKemandoranLain: LinearLayout
     private lateinit var layoutTipePanen: LinearLayout
@@ -195,12 +197,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     private lateinit var takeFotoPreviewAdapter: TakeFotoPreviewAdapter
 
+    private var masterDeptInfoMap: Map<String, String> = emptyMap()
     private var estateList: List<EstateModel> = emptyList()
     private var divisiList: List<TPHNewModel> = emptyList()
     private var blokList: List<TPHNewModel> = emptyList()
     private var karyawanList: List<KaryawanModel> = emptyList()
     private var karyawanLainList: List<KaryawanModel> = emptyList()
     private var kemandoranList: List<KemandoranModel> = emptyList()
+    private var afdelingList: List<AfdelingModel> = emptyList()
     private var kemandoranLainList: List<KemandoranModel> = emptyList()
 
     private var tphList: List<TPHNewModel> = emptyList()
@@ -223,6 +227,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var selectedTipePanen: String = ""
     private var selectedAfdeling: String = ""
     private var selectedAfdelingIdSpinner: Int = 0
+    private var selectedEstate: String = ""
+    private var selectedEstateIdSpinner: Int = 0
     private var selectedBlok: String = ""
     private var selectedTPH: String = ""
     private var selectedKemandoran: String = ""
@@ -445,14 +451,30 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         datasetViewModel.allEstatesList.observe(this@FeaturePanenTBSActivity) { list ->
                             val allEstates = list ?: emptyList()
                             estateList = allEstates
-
-                            AppLogger.d(estateList.toString())
                         }
                     }
 
                     if (estateList.isNullOrEmpty()) {
                         throw Exception("Periksa kembali dataset estate dengan melakukan Sinkronisasi Data!")
                     }
+
+
+                    val departmentInfoDeferred = CompletableDeferred<Map<String, String>>()
+
+                    withContext(Dispatchers.Main) {
+                        datasetViewModel.distinctDeptInfoList.observe(this@FeaturePanenTBSActivity) { list ->
+                            val distinctDeptInfos = list ?: emptyList()
+                            val deptInfoMap = distinctDeptInfos.associate { it.dept to it.dept_abbr }
+                            masterDeptInfoMap = deptInfoMap
+                            departmentInfoDeferred.complete(deptInfoMap)
+                        }
+
+                        // Trigger the data fetch on the main thread
+                        datasetViewModel.getDistinctMasterDeptInfo()
+                    }
+
+                    // Wait for the department info to be loaded
+                    masterDeptInfoMap = departmentInfoDeferred.await()
 
                 }
 
@@ -774,6 +796,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         progressBarScanTPHAuto = findViewById(R.id.progressBarScanTPHAuto)
         mbSaveDataPanenTBS = findViewById(R.id.mbSaveDataPanenTBS)
 
+        layoutEstate = findViewById(R.id.layoutEstate)
         layoutAncak = findViewById(R.id.layoutAncak)
         layoutPemanen = findViewById(R.id.layoutPemanen)
         layoutPemanenLain = findViewById(R.id.layoutPemanenLain)
@@ -821,7 +844,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val divisiNames =
             divisiList.sortedBy { it.divisi_abbr }.mapNotNull { it.divisi_abbr }
 
-        AppLogger.d(divisiList.toString())
+
         setupSpinnerView(findViewById(R.id.layoutAfdeling), divisiNames)
 
         val afdelingLayout = findViewById<LinearLayout>(R.id.layoutAfdeling)
@@ -1336,12 +1359,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             ),
             Triple(
                 findViewById<LinearLayout>(R.id.layoutKemandoran),
-                getString(R.string.field_kemandoran),
+                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) getString(R.string.field_kemandoran) + " " + prefManager!!.estateUserLogin else getString(R.string.field_kemandoran),
                 InputType.SPINNER
             ),
             Triple(
                 findViewById<LinearLayout>(R.id.layoutPemanen),
-                getString(R.string.field_pemanen),
+                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) getString(R.string.field_pemanen) + " " + prefManager!!.estateUserLogin else getString(R.string.field_pemanen),
                 InputType.SPINNER
             ),
             Triple(
@@ -1370,16 +1393,25 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
 
                         R.id.layoutEstate -> {
-                            val namaEstate = listOf(prefManager!!.estateUserLengkapLogin ?: "")
-                            AppLogger.d(namaEstate.toString())
-                            setupSpinnerView(layoutView, namaEstate)
-                            findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
+                            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain){
+                                val masterDeptAbbrList = masterDeptInfoMap.values.toList()
+                                setupSpinnerView(layoutView, masterDeptAbbrList)
+                            }else{
+                                val namaEstates = listOf(prefManager!!.estateUserLengkapLogin ?: "")
+                                setupSpinnerView(layoutView, namaEstates)
+                                findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
+                            }
                         }
 
                         R.id.layoutAfdeling -> {
-                            val divisiNames =
-                                divisiList.sortedBy { it.divisi_abbr }.mapNotNull { it.divisi_abbr }
-                            setupSpinnerView(layoutView, divisiNames)
+                            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain){
+                                setupSpinnerView(layoutView, emptyList())
+                            }else{
+                                val divisiNames =
+                                    divisiList.sortedBy { it.divisi_abbr }.mapNotNull { it.divisi_abbr }
+                                setupSpinnerView(layoutView, divisiNames)
+                            }
+
                         }
 
                         R.id.layoutPemanen -> {
@@ -1491,11 +1523,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         //khusus menampilkan dan handle unduh dataset Master TPH
         if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
 
+            layoutSelAsistensi.visibility = View.GONE
             val tvDescMaster: TextView = findViewById(R.id.title_data_master)
             tvDescMaster.visibility = View.VISIBLE
             layoutMasterTPH.visibility = View.VISIBLE
             val btnDownloadDataset = findViewById<MaterialButton>(R.id.btnDownloadDataset)
             btnDownloadDataset.visibility = View.VISIBLE
+            val dashedLine = findViewById<View>(R.id.dashedLine)
+            dashedLine.visibility = View.VISIBLE
 
             btnDownloadDataset.setOnClickListener {
                 if (AppUtils.isNetworkAvailable(this)) {
@@ -1768,7 +1803,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
         closeDialogBtn.setOnClickListener {
-            // Remove all observers
             datasetViewModel.processingComplete.removeObservers(this)
             datasetViewModel.itemProgressMap.removeObservers(this)
             datasetViewModel.completedCount.removeObservers(this)
@@ -1803,7 +1837,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         datasetViewModel.processingComplete.observe(this) { isComplete ->
             if (isComplete) {
-                // Check final status of all downloads
                 val currentStatusMap = datasetViewModel.itemStatusMap.value ?: emptyMap()
 
                 // Separate successful and failed downloads
@@ -1833,33 +1866,64 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     resetEstateSelection(successfulEstates)
                 }
 
-                loadingDialog.dismiss()
+                // Refresh master data
+                lifecycleScope.launch(Dispatchers.IO) {
+                    withContext(Dispatchers.Main) {
+                        // Update UI based on download results
+                        if (failedIds.isEmpty()) {
+                            // All successful
+                            titleTV.text = "Download Berhasil"
+                            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.greenDarker))
+                            btnDownloadDataset.visibility = View.GONE
+                            btnRetryDownload.visibility = View.GONE
+                        } else {
+                            // Some or all failed
+                            titleTV.text = "Terjadi Kesalahan Download"
+                            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
+                            btnDownloadDataset.visibility = View.GONE
+                            btnRetryDownload.visibility = View.VISIBLE
+                            btnRetryDownload.isEnabled = true
+                            btnRetryDownload.alpha = 1f
+                            btnRetryDownload.iconTint = ColorStateList.valueOf(Color.WHITE)
+                        }
 
-                if (failedIds.isEmpty()) {
-                    // All successful
-                    titleTV.text = "Download Berhasil"
-                    titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.greenDarker))
-                    btnDownloadDataset.visibility = View.GONE
-                    btnRetryDownload.visibility = View.GONE
+// Trigger the data fetch
+                        datasetViewModel.getDistinctMasterDeptInfoCopy()
+                        val departmentInfoDeferred = CompletableDeferred<Map<String, String>>()
 
-                    closeDialogBtn.isEnabled = true
-                    closeDialogBtn.alpha = 1f
-                    closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
-                } else {
-                    // Some or all failed
-                    titleTV.text = "Terjadi Kesalahan Download"
-                    titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
-                    btnDownloadDataset.visibility = View.GONE
-                    btnRetryDownload.visibility = View.VISIBLE
+                        delay(1000
+                        )
+                        datasetViewModel.distinctDeptInfoListCopy.observe(this@FeaturePanenTBSActivity) { list ->
+                            Log.d("DepartmentInfo", "Observed list size: ${list?.size}")
+                            val distinctDeptInfos = list ?: emptyList()
+                            val deptInfoMap = distinctDeptInfos.associate { it.dept to it.dept_abbr }
 
-                    // Re-enable buttons
-                    closeDialogBtn.isEnabled = true
-                    closeDialogBtn.alpha = 1f
-                    closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+                            Log.d("DepartmentInfo", "Department Map: $deptInfoMap")
 
-                    btnRetryDownload.isEnabled = true
-                    btnRetryDownload.alpha = 1f
-                    btnRetryDownload.iconTint = ColorStateList.valueOf(Color.WHITE)
+                            masterDeptInfoMap = deptInfoMap
+                            departmentInfoDeferred.complete(deptInfoMap)
+                        }
+
+
+
+                        // Wait for the deferred to complete
+                        val fullDeptInfoMap = departmentInfoDeferred.await()
+
+                        val masterDeptAbbrList = fullDeptInfoMap.values.toList()
+
+                        Log.d("DepartmentInfo", "Master Dept Abbr List: $masterDeptAbbrList")
+
+                        val layoutEstate = findViewById<LinearLayout>(R.id.layoutEstate)
+
+                        Log.d("DepartmentInfo", "Setting up spinner with list")
+                        setupSpinnerView(layoutEstate, masterDeptAbbrList)
+
+                        // Enable close button
+                        closeDialogBtn.isEnabled = true
+                        closeDialogBtn.alpha = 1f
+                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+
+                    }
                 }
             }
         }
@@ -2399,7 +2463,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
-        if (linearLayout.id == R.id.layoutEstate) {
+        if (linearLayout.id == R.id.layoutEstate && featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
             spinner.isEnabled = false // Disable spinner
         }
 
@@ -2844,6 +2908,35 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
         when (linearLayout.id) {
+
+            R.id.layoutEstate->{
+                val selectedDept = masterDeptInfoMap.entries.find { it.value == selectedItem }?.key
+                selectedEstateIdSpinner = position
+
+                lifecycleScope.launch(Dispatchers.IO) {
+                    withContext(Dispatchers.Main) {
+                        animateLoadingDots(linearLayout)
+                        delay(500) // 1 second delay
+                    }
+
+                    val afdelingDeffered = async {
+                        try {
+                            datasetViewModel.getListAfdeling(
+                                selectedDept!!
+                            )
+                        } catch (e: Exception) {
+                            AppLogger.e("Error fetching kemandoranList: ${e.message}")
+                            emptyList()
+                        }
+                    }
+                    afdelingList = afdelingDeffered.await()
+
+                    val layoutAfdeling =
+                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutAfdeling)
+                    setupSpinnerView(layoutAfdeling, afdelingList.mapNotNull { it.abbr })
+                }
+
+            }
             R.id.layoutAfdeling -> {
                 resetDependentSpinners(linearLayout.rootView)
                 val tvErrorScannedNotSelected =

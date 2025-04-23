@@ -13,6 +13,8 @@ import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.database.DepartmentInfo
+import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
@@ -37,6 +39,8 @@ class DatasetRepository(
     private val transporterDao = database.transporterDao()
     private val kendaraanDao = database.kendaraanDao()
     private val blokDao = database.blokDao()
+    private val afdelingDao = database.afdelingDao()
+
 
     suspend fun updateOrInsertKaryawan(karyawans: List<KaryawanModel>) =
         karyawanDao.updateOrInsertKaryawan(karyawans)
@@ -68,6 +72,9 @@ class DatasetRepository(
         }
     }
 
+    suspend fun updateOrInsertAfdeling(afdelings: List<AfdelingModel>) =
+        afdelingDao.updateOrInsertAfdeling(afdelings)
+
     suspend fun getAllEstates(): Result<List<EstateModel>> = withContext(Dispatchers.IO) {
         try {
             val data = estateDao.getAllEstates()
@@ -85,6 +92,15 @@ class DatasetRepository(
 
     suspend fun getDivisiList(idEstate: Int): List<TPHNewModel> {
         return tphDao.getDivisiByCriteria(idEstate)
+    }
+
+    suspend fun getDistinctDeptInfo(): Result<List<DepartmentInfo>> = withContext(Dispatchers.IO) {
+        try {
+            val data = tphDao.getDistinctDeptInfo()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun getBlokList(idEstate: Int, idDivisi: Int): List<TPHNewModel> {
@@ -105,6 +121,10 @@ class DatasetRepository(
 
     suspend fun getKemandoranEstateExcept(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
         return kemandoranDao.getKemandoranEstateExcept(idEstate, idDivisiArray)
+    }
+
+    suspend fun getListAfdeling(idEstate: String): List<AfdelingModel> {
+        return afdelingDao.getListAfdelingFromIdEstate(idEstate)
     }
 
     suspend fun updateOrInsertEstate(estate: List<EstateModel>) =

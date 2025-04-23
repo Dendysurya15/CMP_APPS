@@ -7,6 +7,13 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.repository.DatasetRepository
+
+
+data class DepartmentInfo(
+    val dept: String,
+    val dept_abbr: String
+)
 
 @Dao
 abstract class TPHDao {
@@ -52,6 +59,9 @@ abstract class TPHDao {
         WHERE id = :id
     """)
     abstract suspend fun getTPHAndBlokInfo(id: Int): TPHBlokInfo?
+
+    @Query("SELECT DISTINCT dept, dept_abbr FROM tph WHERE dept IS NOT NULL AND dept_abbr IS NOT NULL")
+    abstract suspend fun getDistinctDeptInfo(): List<DepartmentInfo>
 
     @Query(
         """
