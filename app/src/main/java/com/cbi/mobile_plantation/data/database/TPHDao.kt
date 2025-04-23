@@ -64,7 +64,7 @@ abstract class TPHDao {
 
     // If you need the values separately, keep these queries as well
     @Query("SELECT nomor FROM tph WHERE id = :id")
-    abstract suspend fun getTPHNomor(id: Int): String?
+    abstract suspend fun getNomorTPHbyId(id: Int): String?
 
     @Query("SELECT blok_kode FROM tph WHERE id = :id")
     abstract suspend fun getBlokKode(id: Int): String?
@@ -108,5 +108,9 @@ abstract class TPHDao {
 
     @Query("SELECT * FROM tph WHERE id IN (:tphIds)")
     abstract suspend fun getTPHsByIds(tphIds: List<Int>): List<TPHNewModel>
+
+    //get blok_kode by tphid
+    @Query("SELECT blok_kode FROM tph WHERE id = :tphId")
+    abstract suspend fun getBlokKodeByTphId(tphId: Int): String?
 
 }

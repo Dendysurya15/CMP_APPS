@@ -56,6 +56,7 @@ import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.mobile_plantation.ui.view.HektarPanen.DaftarHektarMPanen
 import com.cbi.mobile_plantation.ui.view.Inspection.ListInspectionActivity
 import com.cbi.mobile_plantation.ui.view.espb.ListHistoryESPBActivity
+import com.cbi.mobile_plantation.ui.view.HektarPanen.TransferHektarPanenActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
@@ -114,6 +115,7 @@ class HomePageActivity : AppCompatActivity() {
     private var counteSPBWBScanned: Int = 0  // Global variable for count
     private var countActiveESPB: Int = 0  // Global variable for count
     private var countHektarZero: Int = 0  // Global variable for count
+    private var countScanMpanen: Int = 0  // Global variable for count
     private var countInspection: String = ""
     private val _globalLastModifiedTPH = MutableLiveData<String>()
     private val globalLastModifiedTPH: LiveData<String> get() = _globalLastModifiedTPH
@@ -250,6 +252,19 @@ class HomePageActivity : AppCompatActivity() {
                     AppLogger.e("Error fetching data: ${e.message}")
                     withContext(Dispatchers.Main) {
                         featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapInspeksiPanen)
+                    }
+                }
+                try {
+                    val countDeferred = async { panenViewModel.getCountScanMPanen(0) }
+                    countScanMpanen = countDeferred.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount(AppUtils.ListFeatureNames.TransferHektarPanen, countScanMpanen.toString())
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferHektarPanen)
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferHektarPanen)
                     }
                 }
             }
@@ -457,9 +472,9 @@ class HomePageActivity : AppCompatActivity() {
 
             val specificFeatures = when (matchedRole) {
                 AppUtils.ListFeatureByRoleUser.KeraniPanen -> listOfNotNull(
-                    features.find { it.featureName == AppUtils.ListFeatureNames.TransferHektarPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.PanenTBS },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapHasilPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.TransferHektarPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
@@ -791,7 +806,7 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.TransferHektarPanen -> {
                 if (feature.displayType == DisplayType.COUNT) {
-                    val intent = Intent(this, TransferHektarPanen::class.java)
+                    val intent = Intent(this, TransferHektarPanenActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }

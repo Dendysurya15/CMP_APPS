@@ -194,6 +194,18 @@ class AppRepository(context: Context) {
         tphDao.geCompanyAbbrByTphId(id)
     }
 
+    suspend fun getBlokKodeByTphId(tphId: Int): String? = withContext(Dispatchers.IO) {
+        tphDao.getBlokKodeByTphId(tphId)
+    }
+
+    suspend fun getNamaByNik(nik: String): String? = withContext(Dispatchers.IO) {
+        karyawanDao.getNamaByNik(nik)
+    }
+
+    suspend fun getNomorTPHbyId(tphId: Int): String? = withContext(Dispatchers.IO) {
+        tphDao.getNomorTPHbyId(tphId)
+    }
+
     suspend fun getPanenCount(): Int {
         return panenDao.getCount()
     }
@@ -414,6 +426,7 @@ class AppRepository(context: Context) {
         }
     }
 
+
     suspend fun getJanjangSumByBlockString(tphData: String): String = withContext(Dispatchers.IO) {
         try {
             val janjangByBlockMap = getJanjangSumByBlock(tphData)
@@ -443,23 +456,32 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun getAllScanMPanenByDate(status_scan_mpanen: Int, date: String)= withContext(Dispatchers.IO)  {
-        try {
-            val data = panenDao.getAllScanMPanenByDate(status_scan_mpanen, date)
-            Result.success(data)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-//    suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
+//    suspend fun getAllScanMPanenByDate(status_scan_mpanen: Int, date: String): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
 //        try {
-//            val data = espbDao.getAllESPBS()
+//            val data = panenDao.getAllScanMPanenByDate(status_scan_mpanen, date)
 //            Result.success(data)
 //        } catch (e: Exception) {
 //            Result.failure(e)
 //        }
 //    }
+
+    suspend fun getAllScanMPanenByDate(status_scan_mpanen: Int, date: String? = null): List<PanenEntityWithRelations> = withContext(Dispatchers.IO) {
+        try {
+            panenDao.getAllScanMPanenByDate(status_scan_mpanen, date)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB: ${e.message}")
+            emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    suspend fun getCountScanMPanen(status_scan_mpanen: Int = 0): Int {
+        return try {
+            panenDao.getCountScanMPanen(status_scan_mpanen)
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB created today: ${e.message}")
+            0
+        }
+    }
 
     suspend fun loadHistoryESPB(date: String? = null): List<ESPBEntity> {
         return try {

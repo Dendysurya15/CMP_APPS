@@ -1,5 +1,6 @@
 package com.cbi.mobile_plantation.ui.adapter
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -20,18 +21,18 @@ import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-data class ESPBData(
+data class TransferHektarPanenData(
     val time: String,
     val blok: String,
     val janjang: String,
-    val tphCount: String,
-    val status_mekanisasi: Int?,
+    val noTph: String,
+    val namaPemanen: String,
     val status_scan: Int?,
     val id: Int?
 )
 
-class TransferHektarPanenAdapter(private var items: List<ESPBData>, private val context: Activity) :
-    RecyclerView.Adapter<ESPBAdapter.ViewHolder>() {
+class TransferHektarPanenAdapter(private var items: List<TransferHektarPanenData>, private val context: Activity) :
+    RecyclerView.Adapter<TransferHektarPanenAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val constraint_table_item_row: ConstraintLayout = view.findViewById(R.id.constraint_table_item_row)
@@ -41,6 +42,7 @@ class TransferHektarPanenAdapter(private var items: List<ESPBData>, private val 
         val td4: TextView = view.findViewById(R.id.td4)
         val td5: LinearLayout = view.findViewById(R.id.td5) // Change to LinearLayout
         val td6: LinearLayout = view.findViewById(R.id.td6) // Change to LinearLayout
+        val td7: TextView = view.findViewById(R.id.td7)
         val checkbox: CheckBox = view.findViewById(R.id.checkBoxPanen) // Add this
         val flCheckBoxItemTph = view.findViewById<FrameLayout>(R.id.flCheckBoxItemTph)
     }
@@ -51,6 +53,7 @@ class TransferHektarPanenAdapter(private var items: List<ESPBData>, private val 
         return ViewHolder(view)
     }
 
+    @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
         holder.flCheckBoxItemTph.visibility = View.GONE
@@ -58,115 +61,35 @@ class TransferHektarPanenAdapter(private var items: List<ESPBData>, private val 
         holder.td2.visibility = View.VISIBLE
         holder.td3.visibility = View.VISIBLE
         holder.td4.visibility = View.VISIBLE
-        holder.td5.visibility = View.VISIBLE
-        holder.td6.visibility = View.VISIBLE
+        holder.td5.visibility = View.GONE
+        holder.td6.visibility = View.GONE
+        holder.td7.visibility = View.VISIBLE
 
         holder.td1.text = formatToIndonesianDateTime(item.time)
         holder.td2.text = item.blok
         holder.td3.text = item.janjang
-        holder.td4.text = item.tphCount
+        holder.td4.text = item.namaPemanen
+        holder.td7.text = item.noTph
 
-        holder.constraint_table_item_row.setOnClickListener {
-            val intent = Intent(context, ListPanenTBSActivity::class.java).putExtra("FEATURE_NAME", "Detail eSPB").putExtra("id_espb", "${item.id}")
-            context.startActivity(intent)
-            (context).overridePendingTransition(0, 0)
-        }
-
-        if (item.status_mekanisasi == 1 && item.status_scan == 1){
-            holder.checkbox.apply {
-                isChecked = true
-                isEnabled = false  // Disable checkbox interaction
-                alpha = 0.5f
-            }
-        }
-
-        val statusMekanisasi = LinearLayout(holder.itemView.context).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-
-            addView(LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                addView(ImageView(context).apply {
-                    setImageResource(
-                        if (item.status_mekanisasi == 1) R.drawable.baseline_check_box_24
-                        else R.drawable.baseline_close_24
-                    )
-                    layoutParams = LinearLayout.LayoutParams(
-                        24.dpToPx(context),
-                        24.dpToPx(context)
-                    )
-                    val color = if (item.status_mekanisasi == 1) {
-                        ContextCompat.getColor(context, R.color.greendarkerbutton)
-                    } else {
-                        ContextCompat.getColor(context, R.color.colorRedDark)
-                    }
-                    setColorFilter(color)
-                })
-            })
-        }
-
-        holder.td5.removeAllViews()
-        holder.td5.addView(statusMekanisasi)
-
-        val statusScan = LinearLayout(holder.itemView.context).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            // SCAN Row
-            addView(LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                addView(ImageView(context).apply {
-                    setImageResource(
-                        if (item.status_scan == 1) R.drawable.baseline_check_box_24
-                        else R.drawable.baseline_close_24
-                    )
-                    layoutParams = LinearLayout.LayoutParams(
-                        24.dpToPx(context),
-                        24.dpToPx(context)
-                    )
-                    val color = if (item.status_scan == 1) {
-                        ContextCompat.getColor(context, R.color.greendarkerbutton)
-                    } else {
-                        ContextCompat.getColor(context, R.color.colorRedDark)
-                    }
-                    setColorFilter(color)
-                })
-            })
-        }
-
-        holder.td6.removeAllViews()
-        holder.td6.addView(statusScan)
-
-        val layoutParamsTd5 = holder.td5.layoutParams as LinearLayout.LayoutParams
-        layoutParamsTd5.weight = 0.3f
-        holder.td5.layoutParams = layoutParamsTd5
-        val layoutParamsTd6 = holder.td6.layoutParams as LinearLayout.LayoutParams
-        layoutParamsTd6.weight = 0.3f
-        holder.td6.layoutParams = layoutParamsTd6
+//        holder.constraint_table_item_row.setOnClickListener {
+//            val intent = Intent(context, ListPanenTBSActivity::class.java).putExtra("FEATURE_NAME", "Detail eSPB").putExtra("id_espb", "${item.id}")
+//            context.startActivity(intent)
+//            (context).overridePendingTransition(0, 0)
+//        }
+//
+//        val layoutParamsTd5 = holder.td5.layoutParams as LinearLayout.LayoutParams
+//        layoutParamsTd5.weight = 0.3f
+//        holder.td5.layoutParams = layoutParamsTd5
+//        val layoutParamsTd6 = holder.td6.layoutParams as LinearLayout.LayoutParams
+//        layoutParamsTd6.weight = 0.3f
+//        holder.td6.layoutParams = layoutParamsTd6
     }
 
     private fun Int.dpToPx(context: Context): Int {
         return (this * context.resources.displayMetrics.density).toInt()
     }
 
-    fun updateList(newList: List<ESPBData>) {
+    fun updateList(newList: List<TransferHektarPanenData>) {
         items = newList
         notifyDataSetChanged()
     }
@@ -180,6 +103,39 @@ class TransferHektarPanenAdapter(private var items: List<ESPBData>, private val 
         } catch (e: Exception) {
             return dateTimeStr
         }
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    fun updateData(newData: List<Map<String, Any>>) {
+
+//        preselectedTphIds.clear()
+//        preselectedTphIds.addAll(tphListScan)
+//
+//        tphList.clear()
+//        selectedItems.clear()
+//        selectAllState = false
+//        isSortAscending = null
+//        tphList.addAll(newData)
+//        manuallyDeselectedItems.clear() // Add this line
+//        filteredList = tphList.toMutableList()
+//
+//        // Pre-select items that match the scanned TPH IDs
+//        if (preselectedTphIds.isNotEmpty()) {
+//            tphList.forEachIndexed { index, item ->
+//                try {
+//                    val tphId = item["tph_id"].toString()
+//                    if (preselectedTphIds.contains(tphId)) {
+//                        selectedItems.add(index)
+//                    }
+//                } catch (e: Exception) {
+//                    Log.e("ListPanenTPHAdapter", "Error pre-selecting TPH: ${e.message}")
+//                }
+//            }
+//        }
+
+        notifyDataSetChanged()
+//        onSelectionChangeListener?.invoke(selectedItems.size)
+//        calculateTotals() // Add this line
     }
 
     override fun getItemCount() = items.size
