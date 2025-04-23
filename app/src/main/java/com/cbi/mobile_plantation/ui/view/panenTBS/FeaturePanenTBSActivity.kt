@@ -911,7 +911,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         val etHomeMarkerTPH = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
         etHomeMarkerTPH.setText("")
 
-        blokList = emptyList()
+//        blokList = emptyList()
         kemandoranList = emptyList()
         kemandoranLainList = emptyList()
         tphList = emptyList()
@@ -1608,17 +1608,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
             }
-            // Option 1: Find the included layout directly with cast
-//            val warningCardLayout = findViewById<ViewGroup>(R.id.warning_card)
-//            warningCardLayout.visibility = View.VISIBLE
-//
-//            // Find the views inside the included layout
-//            val btnCloseWarning = warningCardLayout.findViewById<ImageButton>(R.id.btnCloseWarning)
-//
-//            // Set up close button click listener
-//            btnCloseWarning.setOnClickListener {
-//                warningCardLayout.visibility = View.GONE
-//            }
+
+            val warningCardLayout = findViewById<ViewGroup>(R.id.warning_card)
+            warningCardLayout.visibility = View.VISIBLE
+
+            // Find the views inside the included layout
+            val btnCloseWarning = warningCardLayout.findViewById<ImageButton>(R.id.btnCloseWarning)
+
+            // Set up close button click listener
+            btnCloseWarning.setOnClickListener {
+                warningCardLayout.visibility = View.GONE
+            }
         }
     }
 
@@ -2365,7 +2365,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 kemandoranLainLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
             kemandoranLainFilterContainer.visibility = View.GONE
 
-            if(blokBanjir == 1){
+            if (blokBanjir == 1) {
                 lifecycleScope.launch {
                     loadPemanenFullEstate(rootView)
                 }
@@ -3006,7 +3006,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 lifecycleScope.launch(Dispatchers.IO) {
                     withContext(Dispatchers.Main) {
                         animateLoadingDots(linearLayout)
-                        delay(500) // 1 second delay
+                        delay(300) // 1 second delay
                     }
 
                     val afdelingDeffered = async {
@@ -3087,7 +3087,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 lifecycleScope.launch(Dispatchers.IO) {
                     withContext(Dispatchers.Main) {
                         animateLoadingDots(linearLayout)
-                        delay(500) // 1 second delay
+                        delay(300) // 1 second delay
                     }
 
                     try {
@@ -3529,7 +3529,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         lifecycleScope.launch {
                             try {
                                 loadPemanenFullEstate(linearLayout.rootView)
-                            } catch (e: Exception){
+                            } catch (e: Exception) {
                                 Toast.makeText(
                                     this@FeaturePanenTBSActivity,
                                     "Error load full pemanen estate: ${e.message}",
