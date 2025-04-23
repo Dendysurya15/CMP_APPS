@@ -775,13 +775,27 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                     // Call API to download dataset
                     AppLogger.d("Downloading dataset for ${modifiedRequest.estateAbbr}")
-                    val response = withContext(Dispatchers.IO) {
-                        repository.downloadDataset(modifiedRequest)
+                    var response: Response<ResponseBody>? = null
+                    if (request.dataset == AppUtils.DatasetNames.mill) {
+                        response = repository.downloadSmallDataset(request.regional ?: 0)
+                    } else if (request.dataset == AppUtils.DatasetNames.estate) {
+                        response = repository.downloadListEstate(request.regional ?: 0)
+                    }
+//                    else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
+//                        response = repository.checkStatusUploadCMP(request.data!!)
+//                    }
+                    else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                        response = repository.downloadSettingJson(request.lastModified!!)
+                    } else {
+                        response = repository.downloadDataset(modifiedRequest)
                     }
 
                     if (response.isSuccessful && response.code() == 200) {
                         val contentType = response.headers()["Content-Type"]
                         val lastModified = response.headers()["Last-Modified-Dataset"]
+                        val lastModifiedSettingsJson = response.headers()["Last-Modified-Settings"]
+
+                        AppLogger.d("lastModifiedSettingsJson $lastModifiedSettingsJson")
 
                         if (contentType?.contains("application/zip") == true) {
                             // Create temp file
@@ -849,21 +863,36 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     jsonFile.readText()
                                 }
 
+                                // Handle different dataset types using specific processing
+                                var processed = false
+
                                 when (request.dataset) {
                                     AppUtils.DatasetNames.tph -> {
                                         // Parse the TPH data
                                         val tphList = parseTPHJsonToList(jsonContent) as List<TPHNewModel>
                                         AppLogger.d("Parsed ${tphList.size} TPH records, starting database update")
 
-                                        // THIS IS THE CRITICAL CHANGE: Wait for database operation to complete
                                         withContext(Dispatchers.IO) {
                                             try {
                                                 if (request.isDownloadMasterTPHAsistensi) {
                                                     repository.insertTPH(tphList)
                                                 } else {
-                                                    repository.updateOrInsertTPH(tphList)
+                                                    // Use department-specific update for TPH
+                                                    val deptId = request.estate
+                                                    AppLogger.d("TPH Update - Department ID from request: $deptId, Estate Abbr: ${request.estateAbbr}")
+
+                                                    if (deptId != null) {
+                                                        // Filter records for this specific department
+                                                        val tphForDept = tphList.filter { it.dept == deptId }
+                                                        AppLogger.d("TPH Update - Filtered ${tphForDept.size} records for department $deptId")
+
+                                                        // Update only records for this department
+                                                        repository.updateOrInsertTPH(tphForDept)
+                                                    } else {
+                                                        AppLogger.d("TPH Update - No department ID specified, updating all ${tphList.size} records")
+                                                        repository.updateOrInsertTPH(tphList)
+                                                    }
                                                 }
-                                                AppLogger.d("Database update completed for ${request.estateAbbr}")
                                             } catch (e: Exception) {
                                                 AppLogger.e("Database update error: ${e.message}")
                                                 throw e
@@ -875,13 +904,138 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             prefManager.setEstateLastModified(request.estateAbbr, lastModified)
                                         }
 
-                                        // Use DOWNLOADED status for success
-                                        statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+                                        processed = true
                                     }
-                                    else -> {
-                                        // Other dataset types - use DOWNLOADED status
-                                        statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+
+                                    AppUtils.DatasetNames.kemandoran -> {
+                                        val kemandoranList = parseStructuredJsonToList(jsonContent, KemandoranModel::class.java)
+                                        AppLogger.d("Parsed ${kemandoranList.size} kemandoran records, starting database update")
+
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                repository.updateOrInsertKemandoran(kemandoranList)
+                                                AppLogger.d("Database update completed for kemandoran dataset")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Database update error for kemandoran: ${e.message}")
+                                                throw e
+                                            }
+                                        }
+
+                                        if (lastModified != null) {
+                                            prefManager.lastModifiedDatasetKemandoran = lastModified
+                                        }
+
+                                        processed = true
                                     }
+
+                                    AppUtils.DatasetNames.pemanen -> {
+                                        val karyawanList = parseStructuredJsonToList(jsonContent, KaryawanModel::class.java)
+                                        AppLogger.d("Parsed ${karyawanList.size} pemanen records, starting database update")
+
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                repository.updateOrInsertKaryawan(karyawanList)
+                                                AppLogger.d("Database update completed for pemanen dataset")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Database update error for pemanen: ${e.message}")
+                                                throw e
+                                            }
+                                        }
+
+                                        if (lastModified != null) {
+                                            prefManager.lastModifiedDatasetPemanen = lastModified
+                                        }
+
+                                        processed = true
+                                    }
+
+                                    AppUtils.DatasetNames.mill -> {
+                                        val millList = parseStructuredJsonToList(jsonContent, MillModel::class.java)
+                                        AppLogger.d("Parsed ${millList.size} mill records, starting database update")
+
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                repository.updateOrInsertMill(millList)
+                                                AppLogger.d("Database update completed for mill dataset")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Database update error for mill: ${e.message}")
+                                                throw e
+                                            }
+                                        }
+
+                                        processed = true
+                                    }
+
+                                    AppUtils.DatasetNames.blok -> {
+                                        val blokList = parseStructuredJsonToList(jsonContent, BlokModel::class.java)
+                                        AppLogger.d("Parsed ${blokList.size} blok records, starting database update")
+
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                repository.updateOrInsertBlok(blokList)
+                                                AppLogger.d("Database update completed for blok dataset")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Database update error for blok: ${e.message}")
+                                                throw e
+                                            }
+                                        }
+
+                                        if (lastModified != null) {
+                                            prefManager.lastModifiedDatasetBlok = lastModified
+                                        }
+
+                                        processed = true
+                                    }
+
+                                    AppUtils.DatasetNames.transporter -> {
+                                        val transporterList = parseStructuredJsonToList(jsonContent, TransporterModel::class.java)
+                                        AppLogger.d("Parsed ${transporterList.size} transporter records, starting database update")
+
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                repository.InsertTransporter(transporterList)
+                                                AppLogger.d("Database update completed for transporter dataset")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Database update error for transporter: ${e.message}")
+                                                throw e
+                                            }
+                                        }
+
+                                        if (lastModified != null) {
+                                            prefManager.lastModifiedDatasetTransporter = lastModified
+                                        }
+
+                                        processed = true
+                                    }
+
+                                    AppUtils.DatasetNames.kendaraan -> {
+                                        val kendaraanList = parseStructuredJsonToList(jsonContent, KendaraanModel::class.java)
+                                        AppLogger.d("Parsed ${kendaraanList.size} kendaraan records, starting database update")
+
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                repository.InsertKendaraan(kendaraanList)
+                                                AppLogger.d("Database update completed for kendaraan dataset")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Database update error for kendaraan: ${e.message}")
+                                                throw e
+                                            }
+                                        }
+
+                                        if (lastModified != null) {
+                                            prefManager.lastModifiedDatasetKendaraan = lastModified
+                                        }
+
+                                        processed = true
+                                    }
+                                }
+
+                                // Set success status if processed
+                                if (processed) {
+                                    statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+                                } else {
+                                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                                    errorMap[itemId] = "No processor found for dataset: ${request.dataset}"
                                 }
                             } else {
                                 statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
@@ -893,11 +1047,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 tempFile.delete()
                                 extractDir.deleteRecursively()
                             }
-                        } else {
+                        }
+                        else if (contentType?.contains("application/json") == true) {
+                            // Handle JSON file response for special datasets
+                            handleJsonResponse(request, itemId, response, statusMap, errorMap, lastModified, lastModifiedSettingsJson)
+                        }else {
                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                             errorMap[itemId] = "Unsupported content type: $contentType"
                         }
-                    } else {
+                    }
+                    else {
                         val errorBody = response.errorBody()?.string()
                         var errorMessage = "API Error: ${response.code()}"
 
@@ -936,6 +1095,256 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
             AppLogger.d("All downloads complete with statuses: $statusMap")
         }
+    }
+
+    private suspend fun handleJsonResponse(
+        request: DatasetRequest,
+        itemId: Int,
+        response: Response<ResponseBody>,
+        statusMap: MutableMap<Int, String>,
+        errorMap: MutableMap<Int, String?>,
+        lastModified: String?,
+        lastModifiedSettingsJson: String?
+    ) {
+        // Read response body
+        val responseBodyString = response.body()?.string() ?: "Empty Response"
+        AppLogger.d("Received JSON: $responseBodyString")
+
+        // Check if it's an "up to date" response
+        if (responseBodyString.contains("\"success\":false") &&
+            responseBodyString.contains("\"message\":\"Dataset is up to date\"")) {
+            statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+            AppLogger.d("Dataset ${request.dataset} is up to date")
+            return
+        }
+
+        // Handle different dataset types
+        when (request.dataset) {
+            AppUtils.DatasetNames.settingJSON -> {
+                if (responseBodyString.isBlank()) {
+                    AppLogger.e("Received empty JSON response for settings")
+                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                    errorMap[itemId] = "Empty JSON response"
+                    return
+                }
+
+                try {
+                    val jsonObject = JSONObject(responseBodyString)
+
+                    val tphRadius = jsonObject.optInt("tph_radius", -1) // Default -1 if not found
+                    val gpsAccuracy = jsonObject.optInt("gps_accuracy", -1) // Default -1 if not found
+
+                    var isStored = false
+
+                    if (tphRadius != -1) {
+                        prefManager.radiusMinimum = tphRadius.toFloat()
+                        isStored = true
+                    }
+                    if (gpsAccuracy != -1) {
+                        prefManager.boundaryAccuracy = gpsAccuracy.toFloat()
+                        isStored = true
+                    }
+
+                    if (isStored) {
+                        prefManager.lastModifiedSettingJSON = lastModifiedSettingsJson
+                        statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+                        AppLogger.d("Successfully stored settings JSON")
+                    } else {
+                        statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                        errorMap[itemId] = "No valid settings found in response"
+                    }
+
+                } catch (e: Exception) {
+                    AppLogger.e("Error parsing settings JSON: ${e.message}")
+                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                    errorMap[itemId] = "Error parsing settings: ${e.message}"
+                }
+            }
+
+            AppUtils.DatasetNames.mill -> {
+                try {
+                    val millList = parseMill(responseBodyString)
+                    AppLogger.d("Parsed ${millList.size} mill records")
+
+                    withContext(Dispatchers.IO) {
+                        try {
+                            repository.updateOrInsertMill(millList)
+                            AppLogger.d("Successfully stored mill data")
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+                        } catch (e: Exception) {
+                            AppLogger.e("Error storing mill data: ${e.message}")
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                            errorMap[itemId] = "Error storing mill data: ${e.message}"
+                        }
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error parsing mill data: ${e.message}")
+                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                    errorMap[itemId] = "Error parsing mill data: ${e.message}"
+                }
+            }
+
+            AppUtils.DatasetNames.estate -> {
+                try {
+                    val estateAndAfdeling = parseEstate(responseBodyString)
+                    val estateList = estateAndAfdeling.first
+                    val afdelingList = estateAndAfdeling.second
+
+                    AppLogger.d("Parsed ${estateList.size} estates and ${afdelingList.size} afdelings")
+
+                    withContext(Dispatchers.IO) {
+                        try {
+                            // Store the estate data
+                            repository.updateOrInsertEstate(estateList)
+
+                            // Store the afdeling data
+                            if (afdelingList.isNotEmpty()) {
+                                repository.updateOrInsertAfdeling(afdelingList)
+                            }
+
+                            AppLogger.d("Successfully stored estate data")
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+
+                            // Update last modified timestamp
+                            if (lastModified != null) {
+                                prefManager.lastModifiedDatasetEstate = lastModified
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.e("Error storing estate data: ${e.message}")
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                            errorMap[itemId] = "Error storing estate data: ${e.message}"
+                        }
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error parsing estate data: ${e.message}")
+                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                    errorMap[itemId] = "Error parsing estate data: ${e.message}"
+                }
+            }
+
+            else -> {
+                statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                errorMap[itemId] = "Unsupported JSON dataset: ${request.dataset}"
+            }
+        }
+    }
+
+    // Helper function to parse mill JSON
+    private fun parseMill(jsonContent: String): List<MillModel> {
+        val gson = Gson()
+        val jsonObject = gson.fromJson(jsonContent, JsonObject::class.java)
+        val dataArray = jsonObject.getAsJsonArray("data")
+        return gson.fromJson(
+            dataArray,
+            TypeToken.getParameterized(List::class.java, MillModel::class.java).type
+        )
+    }
+
+    // Helper function to parse estate JSON
+    private fun parseEstate(jsonContent: String): Pair<List<EstateModel>, List<AfdelingModel>> {
+        val estateList = mutableListOf<EstateModel>()
+        val afdelingList = mutableListOf<AfdelingModel>()
+
+        if (jsonContent.isBlank()) {
+            AppLogger.w("Empty JSON content received for estate")
+            return Pair(estateList, afdelingList)
+        }
+
+        val gson = Gson()
+        try {
+            val jsonObject = gson.fromJson(jsonContent, JsonObject::class.java)
+
+            // Check if the JSON has the expected structure
+            if (!jsonObject.has("data") || jsonObject.get("data").isJsonNull) {
+                AppLogger.e("JSON does not contain 'data' field or it's null")
+                return Pair(estateList, afdelingList)
+            }
+
+            val dataArray = jsonObject.getAsJsonArray("data")
+
+            for (i in 0 until dataArray.size()) {
+                try {
+                    val estateObject = dataArray.get(i).asJsonObject
+
+                    // Safely extract estate values with null checks
+                    val id = if (estateObject.has("id") && !estateObject.get("id").isJsonNull)
+                        estateObject.get("id").asInt else 0
+
+                    val idPpro = if (estateObject.has("id_ppro") && !estateObject.get("id_ppro").isJsonNull)
+                        estateObject.get("id_ppro").asInt else null
+
+                    val abbr = if (estateObject.has("abbr") && !estateObject.get("abbr").isJsonNull)
+                        estateObject.get("abbr").asString else null
+
+                    val nama = if (estateObject.has("nama") && !estateObject.get("nama").isJsonNull)
+                        estateObject.get("nama").asString else null
+
+                    // Create EstateModel
+                    val estate = EstateModel(
+                        id = id,
+                        id_ppro = idPpro,
+                        abbr = abbr,
+                        nama = nama
+                    )
+                    estateList.add(estate)
+
+                    // Parse afdeling data if present
+                    if (estateObject.has("divisi") && !estateObject.get("divisi").isJsonNull) {
+                        val divisiArray = estateObject.getAsJsonArray("divisi")
+
+                        for (j in 0 until divisiArray.size()) {
+                            try {
+                                val divisiObject = divisiArray.get(j).asJsonObject
+
+                                val divisiId = if (divisiObject.has("id") && !divisiObject.get("id").isJsonNull)
+                                    divisiObject.get("id").asInt else continue
+
+                                val divisiIdPpro = if (divisiObject.has("id_ppro") && !divisiObject.get("id_ppro").isJsonNull)
+                                    divisiObject.get("id_ppro").asInt else null
+
+                                val divisiAbbr = if (divisiObject.has("abbr") && !divisiObject.get("abbr").isJsonNull)
+                                    divisiObject.get("abbr").asString?.trim() else null
+
+                                val divisiNama = if (divisiObject.has("nama") && !divisiObject.get("nama").isJsonNull)
+                                    divisiObject.get("nama").asString else null
+
+                                val afdeling = AfdelingModel(
+                                    id = divisiId,
+                                    id_ppro = divisiIdPpro,
+                                    abbr = divisiAbbr,
+                                    nama = divisiNama,
+                                    estate_id = id
+                                )
+                                afdelingList.add(afdeling)
+                            } catch (e: Exception) {
+                                AppLogger.e("Error parsing afdeling at index $j for estate $id: ${e.message}")
+                                continue
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error parsing estate at index $i: ${e.message}")
+                    continue
+                }
+            }
+
+            AppLogger.d("Successfully parsed ${estateList.size} estates and ${afdelingList.size} afdelings")
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing JSON: ${e.message}")
+        }
+
+        return Pair(estateList, afdelingList)
+    }
+
+    // Helper function to parse JSON to model list (assuming you have this somewhere)
+    private inline fun <reified T> parseJsonToList(jsonContent: String, modelClass: Class<T>): List<T> {
+        val gson = Gson()
+        val jsonObject = gson.fromJson(jsonContent, JsonObject::class.java)
+        val dataArray = jsonObject.getAsJsonArray("data")
+        return gson.fromJson(
+            dataArray,
+            TypeToken.getParameterized(List::class.java, modelClass).type
+        )
     }
 
 

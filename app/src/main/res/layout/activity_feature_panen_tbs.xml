@@ -32,15 +32,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <include
-        android:id="@+id/warning_card"
-        layout="@layout/warning_layout_card_asistensi"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/header_layout" />
 
     <!-- ScrollView Section -->
     <ScrollView
@@ -51,7 +42,19 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/warning_card">
+        app:layout_constraintTop_toBottomOf="@id/header_layout">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:orientation="vertical"
+            android:layout_height="wrap_content">
+
+        <include
+            android:id="@+id/warning_card"
+            layout="@layout/warning_layout_card_asistensi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
 
 
         <RelativeLayout
@@ -838,6 +841,7 @@
             </LinearLayout>
         </RelativeLayout>
 
+        </LinearLayout>
 
     </ScrollView>
 

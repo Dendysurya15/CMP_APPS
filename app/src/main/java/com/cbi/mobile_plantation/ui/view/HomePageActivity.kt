@@ -141,6 +141,7 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var allUploadZipFilesToday: MutableList<File>
     private var uploadTimeoutJob: Job? = null
     private var uploadTimedOut = false
+
     data class ResponseJsonUpload(
         val uuid: String,
         val tracking_id: Int,
@@ -782,29 +783,35 @@ class HomePageActivity : AppCompatActivity() {
                     if (AppUtils.isNetworkAvailable(this)) {
                         isTriggerButtonSinkronisasiData = true
 
-//                        loadingDialog.show()
-//                        loadingDialog.setMessage("Sedang mempersiapkan data...")
+                        // Show loading dialog
+                        loadingDialog.show()
+                        loadingDialog.setMessage("Sedang mempersiapkan data...")
 
-//                        lifecycleScope.launch {
-//                            trackingIdsUpload = emptyList()
-//                            uploadCMPViewModel.getAllIds()
-//                            delay(100)
-//                            val idDeferred = CompletableDeferred<List<String>>()
-//
-//                            uploadCMPViewModel.allIds.observe(this@HomePageActivity) { ids ->
-//                                idDeferred.complete(ids ?: emptyList()) // Ensure it's never null
-//                            }
-//
-//                            val data = idDeferred.await()
-//
-//                            loadingDialog.dismiss()
-//                            trackingIdsUpload = data
-//
-//
-//                        }
-                        startDownloads()
+                        lifecycleScope.launch {
+                            try {
+
+                                datasetViewModel.getAllEstates()
+
+                                withTimeout(5000) { // 5 second timeout
+                                    while (datasetViewModel.allEstatesList.value == null) {
+                                        delay(100)
+                                    }
+                                }
+
+                                // Now that estates are loaded, call startDownloads
+                                withContext(Dispatchers.Main) {
+                                    startDownloads()
+                                }
+                            } catch (e: Exception) {
+                                // Handle any errors
+                                AppLogger.d("Loading estates failed: ${e.message}")
+                                withContext(Dispatchers.Main) {
+                                    loadingDialog.dismiss()
+                                    showErrorDialog("Error loading estates data: ${e.message}")
+                                }
+                            }
+                        }
                     } else {
-
                         AlertDialogUtility.withSingleAction(
                             this@HomePageActivity,
                             stringXML(R.string.al_back),
@@ -813,12 +820,9 @@ class HomePageActivity : AppCompatActivity() {
                             "network_error.json",
                             R.color.colorRedDark
                         ) {
-
+                            // Do nothing on click
                         }
-
-
                     }
-
                 }
             }
 
@@ -845,7 +849,8 @@ class HomePageActivity : AppCompatActivity() {
                             uploadCMPData = data
                             if (uploadCMPData.isNotEmpty()) {
                                 AppLogger.d("Starting update for ${uploadCMPData.size} items")
-                                val updateSuccessful = datasetViewModel.updateLocalUploadCMP(uploadCMPData).await()
+                                val updateSuccessful =
+                                    datasetViewModel.updateLocalUploadCMP(uploadCMPData).await()
                                 AppLogger.d("Update status: $updateSuccessful, now proceeding to file check")
                             } else {
                                 AppLogger.d("No data to update")
@@ -2064,6 +2069,319 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
+    private fun startDownloadsV2(datasetRequests: List<DatasetRequest>) {
+
+        AppLogger.d(datasetRequests.toString())
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
+        val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
+        titleTV.text = "Sinkronisasi Dataset"
+
+
+        val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
+        val counterSizeFile = dialogView.findViewById<LinearLayout>(R.id.counterSizeFile)
+        counterSizeFile.visibility = View.VISIBLE
+
+        // Get all buttons
+        val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+        val btnDownloadDataset = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
+        val btnRetryDownload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
+
+        // Update button text to reflect download operation
+        btnDownloadDataset.text = "Update Dataset"
+        btnDownloadDataset.setIconResource(R.drawable.baseline_download_24) // Assuming you have this icon
+
+        val containerDownloadDataset =
+            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
+        containerDownloadDataset.visibility = View.VISIBLE
+
+        // Initially show only close and download buttons
+        closeDialogBtn.visibility = View.VISIBLE
+        btnDownloadDataset.visibility = View.VISIBLE
+        btnRetryDownload.visibility = View.GONE
+
+        // Create upload items from dataset requests (we'll reuse the existing adapter)
+        val downloadItems = mutableListOf<UploadCMPItem>()
+
+        var itemId = 0
+        datasetRequests.forEach { request ->
+            val itemTitle = if (!request.estateAbbr.isNullOrEmpty()) {
+                "Master TPH ${request.estateAbbr}"
+            } else {
+                "${request.dataset}"
+            }
+            downloadItems.add(
+                UploadCMPItem(
+                    id = itemId++,
+                    title = itemTitle,
+                    fullPath = "",
+                    partNumber = 1,  // Single part for downloads
+                    totalParts = 1,  // Single part for downloads
+                    baseFilename = request.estateAbbr ?: ""
+                )
+            )
+        }
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (counterTV.text == "0/0" && downloadItems.size > 0) {
+                counterTV.text = "0/${downloadItems.size}"
+            }
+        }, 100)
+
+        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        val adapter = UploadProgressCMPDataAdapter(downloadItems)
+        recyclerView.adapter = adapter
+
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+        dialog.show()
+
+        fun startDownload(
+            requestsToDownload: List<DatasetRequest> = datasetRequests,
+            itemsToShow: List<UploadCMPItem> = downloadItems
+        ) {
+            // Check network connectivity first
+            if (!AppUtils.isNetworkAvailable(this)) {
+                AlertDialogUtility.withSingleAction(
+                    this@HomePageActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
+                return
+            }
+
+            // Disable buttons during download
+            btnDownloadDataset.isEnabled = false
+            closeDialogBtn.isEnabled = false
+            btnRetryDownload.isEnabled = false
+            btnDownloadDataset.alpha = 0.7f
+            closeDialogBtn.alpha = 0.7f
+            btnRetryDownload.alpha = 0.7f
+            btnDownloadDataset.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+            btnRetryDownload.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+
+            // Reset title color
+            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
+            titleTV.text = "Sinkronisasi Dataset"
+
+            datasetViewModel.downloadDataset(requestsToDownload, itemsToShow)
+        }
+
+        btnDownloadDataset.setOnClickListener {
+            if (AppUtils.isNetworkAvailable(this)) {
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Download",
+                    getString(R.string.confirmation_dialog_title),
+                    getString(R.string.al_confirm_upload),
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = { startDownload() },
+                    cancelFunction = { }
+                )
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@HomePageActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) {
+                    // Do nothing
+                }
+            }
+        }
+
+        var failedRequests: List<DatasetRequest> = listOf()
+        btnRetryDownload.setOnClickListener {
+            if (AppUtils.isNetworkAvailable(this)) {
+                // Create new download items only for failed requests
+                val retryDownloadItems = mutableListOf<UploadCMPItem>()
+                var itemId = 0
+
+                AppLogger.d("failedRequests $failedRequests")
+
+                failedRequests.forEach { request ->
+                    retryDownloadItems.add(
+                        UploadCMPItem(
+                            id = itemId++,
+                            title = "${request.estateAbbr} - ${request.dataset}",
+                            fullPath = "",
+                            partNumber = 1,
+                            totalParts = 1,
+                            baseFilename = request.estateAbbr ?: ""
+                        )
+                    )
+                }
+
+                // Clear and update the RecyclerView with only failed items
+                adapter.updateItems(retryDownloadItems)
+
+                // Reset adapter state (progress bars, status icons, etc.)
+                adapter.resetState()
+
+                // Reset view model state
+                datasetViewModel.resetState()
+
+                // Update UI elements
+                counterTV.text = "0/${retryDownloadItems.size}"
+                titleTV.text = "Download Dataset"
+                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
+
+                // Hide retry button, show download button
+                btnRetryDownload.visibility = View.GONE
+                btnDownloadDataset.visibility = View.VISIBLE
+
+                // Start download with only failed requests
+                startDownload(failedRequests, retryDownloadItems)
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@HomePageActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
+            }
+        }
+
+
+        closeDialogBtn.setOnClickListener {
+            datasetViewModel.processingComplete.removeObservers(this)
+            datasetViewModel.itemProgressMap.removeObservers(this)
+            datasetViewModel.completedCount.removeObservers(this)
+            datasetViewModel.itemStatusMap.removeObservers(this)
+            datasetViewModel.itemErrorMap.removeObservers(this)
+
+            datasetViewModel.resetState()
+            dialog.dismiss()
+        }
+
+        // Observe completed count (connect this to your actual download view model)
+        datasetViewModel.completedCount.observe(this) { completed ->
+            val total = datasetViewModel.totalCount.value ?: downloadItems.size
+            counterTV.text = "$completed/$total"
+        }
+
+        // Observe download progress
+        datasetViewModel.itemProgressMap.observe(this) { progressMap ->
+            // Update progress for each item
+            for ((id, progress) in progressMap) {
+                AppLogger.d("Progress update for item $id: $progress%")
+                adapter.updateProgress(id, progress)
+            }
+
+            // Update title if any download is in progress
+            if (progressMap.values.any { it in 1..99 }) {
+                titleTV.text = "Sedang Download Dataset..."
+            }
+
+        }
+
+
+        datasetViewModel.processingComplete.observe(this) { isComplete ->
+            if (isComplete) {
+                val currentStatusMap = datasetViewModel.itemStatusMap.value ?: emptyMap()
+
+                // Separate successful and failed downloads
+                val successfulIds = mutableListOf<Int>()
+                val failedIds = mutableListOf<Int>()
+
+                currentStatusMap.forEach { (id, status) ->
+                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED) {
+                        successfulIds.add(id)
+                    } else {
+                        failedIds.add(id)
+                    }
+                }
+
+                // Get successful estate abbreviations
+                val successfulEstates = datasetRequests.filterIndexed { index, _ ->
+                    index in successfulIds
+                }.mapNotNull { it.estateAbbr }
+
+                // Store failed requests for retry
+                failedRequests = datasetRequests.filterIndexed { index, _ ->
+                    index in failedIds
+                }
+//
+//                // Always reset successful estates, even if some failed
+//                if (successfulEstates.isNotEmpty()) {
+//                    resetEstateSelection(successfulEstates)
+//                }
+
+                // Refresh master data
+                lifecycleScope.launch(Dispatchers.IO) {
+                    withContext(Dispatchers.Main) {
+                        // Update UI based on download results
+                        if (failedIds.isEmpty()) {
+                            // All successful
+                            titleTV.text = "Download Berhasil"
+                            titleTV.setTextColor(
+                                ContextCompat.getColor(
+                                    titleTV.context,
+                                    R.color.greenDarker
+                                )
+                            )
+                            btnDownloadDataset.visibility = View.GONE
+                            btnRetryDownload.visibility = View.GONE
+                        } else {
+                            // Some or all failed
+                            titleTV.text = "Terjadi Kesalahan Download"
+                            titleTV.setTextColor(
+                                ContextCompat.getColor(
+                                    titleTV.context,
+                                    R.color.colorRedDark
+                                )
+                            )
+                            btnDownloadDataset.visibility = View.GONE
+                            btnRetryDownload.visibility = View.VISIBLE
+                            btnRetryDownload.isEnabled = true
+                            btnRetryDownload.alpha = 1f
+                            btnRetryDownload.iconTint = ColorStateList.valueOf(Color.WHITE)
+                        }
+
+                        // Enable close button
+                        closeDialogBtn.isEnabled = true
+                        closeDialogBtn.alpha = 1f
+                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+
+                    }
+                }
+            }
+        }
+
+        datasetViewModel.itemStatusMap.observe(this) { statusMap ->
+            // Update status for each item
+            for ((id, status) in statusMap) {
+                // No need for mapping - just pass the status directly to adapter
+                adapter.updateStatus(id, status)
+            }
+        }
+
+        // Observe errors for each item
+        datasetViewModel.itemErrorMap.observe(this) { errorMap ->
+            for ((id, error) in errorMap) {
+                if (!error.isNullOrEmpty()) {
+                    adapter.updateError(id, error)
+                }
+            }
+
+            if (errorMap.values.any { !it.isNullOrEmpty() }) {
+                titleTV.text = "Terjadi Kesalahan Download"
+                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
+            }
+        }
+    }
+
     private fun startDownloads() {
         val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
@@ -2079,18 +2397,23 @@ class HomePageActivity : AppCompatActivity() {
         if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
             AppLogger.d("Downloads: Estate ID is null or empty, aborting download")
             showErrorDialog("Estate ID is not valid. Current value: '$estateIdString'")
+            loadingDialog.dismiss()
             return
         }
 
+        AppLogger.d(prefManager!!.radiusMinimum.toString())
+        prefManager!!.radiusMinimum = 0.0F
         try {
             val estateId = estateIdString.toInt()
             if (estateId <= 0) {
                 AppLogger.d("Downloads: Estate ID is not a valid positive number: $estateId")
                 showErrorDialog("Estate ID must be a positive number")
+                loadingDialog.dismiss()
                 return
             }
 
             val filteredRequests = if (isTriggerButtonSinkronisasiData) {
+                // Get datasets - estates are already loaded from the click handler
                 getDatasetsToDownload(
                     regionalIdString!!.toInt(),
                     estateId,
@@ -2118,15 +2441,24 @@ class HomePageActivity : AppCompatActivity() {
                 ).filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
             }
 
+            // Dismiss loading dialog if it was shown
+            if (isTriggerButtonSinkronisasiData) {
+                loadingDialog.dismiss()
+            }
+
             if (filteredRequests.isNotEmpty()) {
-                dialog.show()
-                datasetViewModel.downloadMultipleDatasets(filteredRequests)
+                AppLogger.d(filteredRequests.toString())
+                if (isTriggerButtonSinkronisasiData) {
+                    startDownloadsV2(filteredRequests)
+                } else {
+                    dialog.show()
+                    datasetViewModel.downloadMultipleDatasets(filteredRequests)
+                }
             } else {
                 AppLogger.d("All datasets are up-to-date, no download needed.")
             }
-
-
         } catch (e: NumberFormatException) {
+            loadingDialog.dismiss()
             AppLogger.d("Downloads: Failed to parse Estate ID to integer: ${e.message}")
             showErrorDialog("Invalid Estate ID format: ${e.message}")
         }
@@ -2146,21 +2478,38 @@ class HomePageActivity : AppCompatActivity() {
     ): List<DatasetRequest> {
         val datasets = mutableListOf<DatasetRequest>()
 
-//        if (isTriggerButtonSinkronisasiData && trackingIdsUpload.isNotEmpty()) {
-//            datasets.add(
-//                DatasetRequest(
-//                    lastModified = null,
-//                    dataset = AppUtils.DatasetNames.updateSyncLocalData,
-//                    data = trackingIdsUpload
-//                )
-//            )
-//        }
-
         val jabatan = prefManager!!.jabatanUserLogin
         val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
         val isKeraniTimbang =
             jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true)
 
+        if (isTriggerButtonSinkronisasiData && !isKeraniTimbang) {
+            // Process estates data
+            val allEstates = datasetViewModel.allEstatesList.value ?: emptyList()
+            AppLogger.d("--- Estate Timestamps ---")
+            allEstates.forEach { estate ->
+                estate.abbr?.let { abbr ->
+                    val timestamp = prefManager!!.getEstateLastModified(abbr)
+                    AppLogger.d("Estate: $abbr (${estate.nama}) - Last Modified: $timestamp")
+
+                    // Add dataset request for each estate with its last modified time
+                    if (timestamp != null) {
+                        AppLogger.d("Adding estate dataset: $abbr")
+                        datasets.add(
+                            DatasetRequest(
+                                estate = estate.id?.toInt(),
+                                estateAbbr = abbr,
+                                lastModified = timestamp,
+                                dataset = AppUtils.DatasetNames.tph
+                            )
+                        )
+                    }
+                }
+            }
+            AppLogger.d("--- End of Estate Timestamps ---")
+        }
+
+        // Add the rest of the datasets as before
         if (isKeraniTimbang) {
             datasets.add(
                 DatasetRequest(

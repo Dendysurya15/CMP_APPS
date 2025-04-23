@@ -8,6 +8,7 @@ import androidx.room.Transaction
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.repository.DatasetRepository
+import com.cbi.mobile_plantation.utils.AppLogger
 
 
 data class DepartmentInfo(
@@ -24,13 +25,61 @@ abstract class TPHDao {
     @Query("DELETE FROM tph")
     abstract fun deleteAll()
 
+    // New method to delete TPH records by department ID
+    @Query("DELETE FROM tph WHERE dept = :deptId")
+    abstract suspend fun deleteByDept(deptId: Int)
+
+    // New method to check if records for a specific department exist
+    @Query("SELECT COUNT(*) FROM tph WHERE dept = :deptId")
+    abstract suspend fun getCountByDept(deptId: Int): Int
+
+    // The update transaction now checks for department ID
     @Transaction
     open suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) {
-        val count = getCount()
-        if (count > 0) {
-            deleteAll()
+        AppLogger.d("TPH Transaction - Starting update with ${tph.size} records")
+
+        if (tph.isNotEmpty()) {
+            val deptId = tph.firstOrNull()?.dept
+            val deptAbbr = tph.firstOrNull()?.dept_abbr
+
+            AppLogger.d("TPH Transaction - First item Department ID: $deptId, Abbr: $deptAbbr")
+
+            if (deptId != null) {
+                val count = getCountByDept(deptId)
+                AppLogger.d("TPH Transaction - Found $count existing records for Dept ID: $deptId")
+
+                if (count > 0) {
+                    AppLogger.d("TPH Transaction - Deleting records for Dept ID: $deptId")
+                    val deletedCount = deleteByDept(deptId)
+                    AppLogger.d("TPH Transaction - Deleted $deletedCount records for Dept ID: $deptId")
+                }
+            } else {
+                AppLogger.d("TPH Transaction - WARNING: Department ID is null, cannot perform targeted delete")
+            }
+
+            // Log some sample TPH records
+            val sampleSize = minOf(3, tph.size)
+            AppLogger.d("TPH Transaction - Sample of records to insert:")
+            for (i in 0 until sampleSize) {
+                val item = tph[i]
+                AppLogger.d("TPH Transaction - Sample $i: ID=${item.id}, Dept=${item.dept}, Abbr=${item.dept_abbr}, Blok=${item.blok_kode}")
+            }
+
+            AppLogger.d("TPH Transaction - Inserting ${tph.size} TPH records")
+            insertAll(tph)
+            AppLogger.d("TPH Transaction - Insertion completed")
+
+            // Verify counts after insertion
+            if (deptId != null) {
+                val newCount = getCountByDept(deptId)
+                AppLogger.d("TPH Transaction - After insertion: $newCount records for Dept ID: $deptId")
+            }
+
+            val totalCount = getCount()
+            AppLogger.d("TPH Transaction - Total TPH records in database: $totalCount")
+        } else {
+            AppLogger.d("TPH Transaction - Empty TPH list, nothing to update")
         }
-        insertAll(tph)
     }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

@@ -73,10 +73,20 @@ class UploadProgressCMPDataAdapter(
         val fileSize = fileSizeMap[item.id] ?: 0L
         val uploadedBytes = uploadedBytesMap[item.id] ?: 0L
 
-        if (item.title.contains("Master")){
-            holder.tvNameProgress.text = "${item.title}"
-        }else{
-            holder.tvNameProgress.text = "${item.title} (${formatFileSize(fileSize)})"
+        if (item.title.contains("Master")) {
+            holder.tvNameProgress.text = item.title
+        } else {
+            // Check if the title contains any of the standard dataset names
+            val containsStandardDataset = AppUtils.DatasetNames::class.java.declaredFields
+                .filter { it.type == String::class.java }
+                .map { it.get(AppUtils.DatasetNames) as String }
+                .any { datasetName -> item.title.contains(datasetName) }
+
+            if (containsStandardDataset) {
+                holder.tvNameProgress.text = item.title
+            } else {
+                holder.tvNameProgress.text = "${item.title} (${formatFileSize(fileSize)})"
+            }
         }
 
 
