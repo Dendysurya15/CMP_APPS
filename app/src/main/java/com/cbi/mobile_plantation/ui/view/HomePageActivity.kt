@@ -299,7 +299,7 @@ class HomePageActivity : AppCompatActivity() {
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
                 featureName = AppUtils.ListFeatureNames.AsistensiEstateLain,
-                featureNameBackgroundColor = R.color.greenDarker,
+                featureNameBackgroundColor = R.color.bluedarklight,
                 iconResource = R.drawable.panen_tbs_icon,
                 count = null,
                 functionDescription = "Asistensi pencatatan panen TBS ke estate lain",

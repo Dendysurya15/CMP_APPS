@@ -129,6 +129,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.coroutineScope
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -458,24 +459,25 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         throw Exception("Periksa kembali dataset estate dengan melakukan Sinkronisasi Data!")
                     }
 
+                    if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                        val departmentInfoDeferred = CompletableDeferred<Map<String, String>>()
 
-                    val departmentInfoDeferred = CompletableDeferred<Map<String, String>>()
+                        withContext(Dispatchers.Main) {
+                            datasetViewModel.distinctDeptInfoList.observe(this@FeaturePanenTBSActivity) { list ->
+                                val distinctDeptInfos = list ?: emptyList()
+                                val deptInfoMap =
+                                    distinctDeptInfos.associate { it.dept to it.dept_abbr }
+                                masterDeptInfoMap = deptInfoMap
+                                departmentInfoDeferred.complete(deptInfoMap)
+                            }
 
-                    withContext(Dispatchers.Main) {
-                        datasetViewModel.distinctDeptInfoList.observe(this@FeaturePanenTBSActivity) { list ->
-                            val distinctDeptInfos = list ?: emptyList()
-                            val deptInfoMap = distinctDeptInfos.associate { it.dept to it.dept_abbr }
-                            masterDeptInfoMap = deptInfoMap
-                            departmentInfoDeferred.complete(deptInfoMap)
+                            // Trigger the data fetch on the main thread
+                            datasetViewModel.getDistinctMasterDeptInfo()
                         }
 
-                        // Trigger the data fetch on the main thread
-                        datasetViewModel.getDistinctMasterDeptInfo()
+                        // Wait for the department info to be loaded
+                        masterDeptInfoMap = departmentInfoDeferred.await()
                     }
-
-                    // Wait for the department info to be loaded
-                    masterDeptInfoMap = departmentInfoDeferred.await()
-
                 }
 
                 withContext(Dispatchers.Main) {
@@ -667,7 +669,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         jjg_json = jjg_json,
                                         foto = photoFilesString,
                                         komentar = komentarFotoString,
-                                        asistensi = asistensi ?: 0, // Default to 0 if null
+                                        asistensi = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 1 else (asistensi
+                                            ?: 0),
                                         lat = lat ?: 0.0, // Default to 0.0 if null
                                         lon = lon ?: 0.0, // Default to 0.0 if null
                                         jenis_panen = selectedTipePanen?.toIntOrNull()
@@ -834,16 +837,23 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             kemandoranFilterContainer.visibility = View.GONE
         }
 
-        // Reset kemandoranLain filter container
-        val kemandoranLainFilterContainer =
-            kemandoranLainLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
-        if (kemandoranLainFilterContainer != null && kemandoranLainFilterContainer.visibility == View.VISIBLE) {
-            kemandoranLainFilterContainer.visibility = View.GONE
+        if (featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
+            val kemandoranLainFilterContainer =
+                kemandoranLainLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+            if (kemandoranLainFilterContainer != null && kemandoranLainFilterContainer.visibility == View.VISIBLE) {
+                kemandoranLainFilterContainer.visibility = View.GONE
+            }
         }
 
-        val divisiNames =
-            divisiList.sortedBy { it.divisi_abbr }.mapNotNull { it.divisi_abbr }
 
+        var divisiNames = emptyList<String>()
+        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+            divisiNames =
+                afdelingList.sortedBy { it.abbr }.mapNotNull { it.abbr }
+        } else {
+            divisiNames =
+                divisiList.sortedBy { it.divisi_abbr }.mapNotNull { it.divisi_abbr }
+        }
 
         setupSpinnerView(findViewById(R.id.layoutAfdeling), divisiNames)
 
@@ -867,16 +877,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         afdelingSpinner.setSelectedIndex(safePosition)
 
-        // Update our stored variables to match what's now selected
         if (safePosition >= 0 && safePosition < divisiNames.size) {
             val selectedItem = divisiNames[safePosition]
             selectedAfdelingIdSpinner = safePosition
             selectedAfdeling = selectedItem
-
-            // Trigger any necessary UI updates based on this selection
             handleItemSelection(afdelingLayout, safePosition, selectedItem)
 
-            AppLogger.d("After reset - selectedAfdelingIdSpinner: $selectedAfdelingIdSpinner, selectedAfdeling: $selectedAfdeling")
         }
 
         setupSpinnerView(findViewById(R.id.layoutTahunTanam), emptyList())
@@ -1359,12 +1365,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             ),
             Triple(
                 findViewById<LinearLayout>(R.id.layoutKemandoran),
-                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) getString(R.string.field_kemandoran) + " " + prefManager!!.estateUserLogin else getString(R.string.field_kemandoran),
+                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) getString(R.string.field_kemandoran) + " " + prefManager!!.estateUserLogin else getString(
+                    R.string.field_kemandoran
+                ),
                 InputType.SPINNER
             ),
             Triple(
                 findViewById<LinearLayout>(R.id.layoutPemanen),
-                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) getString(R.string.field_pemanen) + " " + prefManager!!.estateUserLogin else getString(R.string.field_pemanen),
+                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) getString(R.string.field_pemanen) + " " + prefManager!!.estateUserLogin else getString(
+                    R.string.field_pemanen
+                ),
                 InputType.SPINNER
             ),
             Triple(
@@ -1393,10 +1403,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
 
                         R.id.layoutEstate -> {
-                            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain){
+                            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
                                 val masterDeptAbbrList = masterDeptInfoMap.values.toList()
                                 setupSpinnerView(layoutView, masterDeptAbbrList)
-                            }else{
+                            } else {
                                 val namaEstates = listOf(prefManager!!.estateUserLengkapLogin ?: "")
                                 setupSpinnerView(layoutView, namaEstates)
                                 findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
@@ -1404,11 +1414,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
 
                         R.id.layoutAfdeling -> {
-                            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain){
+                            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
                                 setupSpinnerView(layoutView, emptyList())
-                            }else{
+                            } else {
                                 val divisiNames =
-                                    divisiList.sortedBy { it.divisi_abbr }.mapNotNull { it.divisi_abbr }
+                                    divisiList.sortedBy { it.divisi_abbr }
+                                        .mapNotNull { it.divisi_abbr }
                                 setupSpinnerView(layoutView, divisiNames)
                             }
 
@@ -1523,7 +1534,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         //khusus menampilkan dan handle unduh dataset Master TPH
         if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
 
-            layoutSelAsistensi.visibility = View.GONE
             val tvDescMaster: TextView = findViewById(R.id.title_data_master)
             tvDescMaster.visibility = View.VISIBLE
             layoutMasterTPH.visibility = View.VISIBLE
@@ -1536,12 +1546,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 if (AppUtils.isNetworkAvailable(this)) {
                     datasetViewModel.resetState()
                     // When processing selected estates, use the values directly
-                    val selectedEstates = masterEstateHasBeenChoice.filter { it.value }.keys.toList()
+                    val selectedEstates =
+                        masterEstateHasBeenChoice.filter { it.value }.keys.toList()
 
                     if (selectedEstates.isEmpty()) {
                         // No estates selected
                         Log.d("Estate Selection", "No estates selected")
-                        Toast.makeText(this, "Silakan pilih estate terlebih dahulu", Toast.LENGTH_SHORT)
+                        Toast.makeText(
+                            this,
+                            "Silakan pilih estate terlebih dahulu",
+                            Toast.LENGTH_SHORT
+                        )
                             .show()
                     } else {
                         // Create dataset requests for each selected estate
@@ -1578,7 +1593,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             setupDownloadDialog(datasetRequests)
                         }
                     }
-                }else{
+                } else {
                     AlertDialogUtility.withSingleAction(
                         this@FeaturePanenTBSActivity,
                         stringXML(R.string.al_back),
@@ -1594,16 +1609,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             }
             // Option 1: Find the included layout directly with cast
-            val warningCardLayout = findViewById<ViewGroup>(R.id.warning_card)
-            warningCardLayout.visibility = View.VISIBLE
-
-            // Find the views inside the included layout
-            val btnCloseWarning = warningCardLayout.findViewById<ImageButton>(R.id.btnCloseWarning)
-
-            // Set up close button click listener
-            btnCloseWarning.setOnClickListener {
-                warningCardLayout.visibility = View.GONE
-            }
+//            val warningCardLayout = findViewById<ViewGroup>(R.id.warning_card)
+//            warningCardLayout.visibility = View.VISIBLE
+//
+//            // Find the views inside the included layout
+//            val btnCloseWarning = warningCardLayout.findViewById<ImageButton>(R.id.btnCloseWarning)
+//
+//            // Set up close button click listener
+//            btnCloseWarning.setOnClickListener {
+//                warningCardLayout.visibility = View.GONE
+//            }
         }
     }
 
@@ -1623,7 +1638,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         // Update the button text to reflect the new state
         updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
     }
-
 
 
     private fun setupDownloadDialog(datasetRequests: List<DatasetRequest>) {
@@ -1688,8 +1702,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             .create()
         dialog.show()
 
-        fun startDownload(requestsToDownload: List<DatasetRequest> = datasetRequests,
-                          itemsToShow: List<UploadCMPItem> = downloadItems) {
+        fun startDownload(
+            requestsToDownload: List<DatasetRequest> = datasetRequests,
+            itemsToShow: List<UploadCMPItem> = downloadItems
+        ) {
             // Check network connectivity first
             if (!AppUtils.isNetworkAvailable(this)) {
                 AlertDialogUtility.withSingleAction(
@@ -1873,13 +1889,23 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         if (failedIds.isEmpty()) {
                             // All successful
                             titleTV.text = "Download Berhasil"
-                            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.greenDarker))
+                            titleTV.setTextColor(
+                                ContextCompat.getColor(
+                                    titleTV.context,
+                                    R.color.greenDarker
+                                )
+                            )
                             btnDownloadDataset.visibility = View.GONE
                             btnRetryDownload.visibility = View.GONE
                         } else {
                             // Some or all failed
                             titleTV.text = "Terjadi Kesalahan Download"
-                            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
+                            titleTV.setTextColor(
+                                ContextCompat.getColor(
+                                    titleTV.context,
+                                    R.color.colorRedDark
+                                )
+                            )
                             btnDownloadDataset.visibility = View.GONE
                             btnRetryDownload.visibility = View.VISIBLE
                             btnRetryDownload.isEnabled = true
@@ -1887,23 +1913,23 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             btnRetryDownload.iconTint = ColorStateList.valueOf(Color.WHITE)
                         }
 
-// Trigger the data fetch
                         datasetViewModel.getDistinctMasterDeptInfoCopy()
                         val departmentInfoDeferred = CompletableDeferred<Map<String, String>>()
 
-                        delay(1000
+                        delay(
+                            1000
                         )
                         datasetViewModel.distinctDeptInfoListCopy.observe(this@FeaturePanenTBSActivity) { list ->
                             Log.d("DepartmentInfo", "Observed list size: ${list?.size}")
                             val distinctDeptInfos = list ?: emptyList()
-                            val deptInfoMap = distinctDeptInfos.associate { it.dept to it.dept_abbr }
+                            val deptInfoMap =
+                                distinctDeptInfos.associate { it.dept to it.dept_abbr }
 
                             Log.d("DepartmentInfo", "Department Map: $deptInfoMap")
 
                             masterDeptInfoMap = deptInfoMap
                             departmentInfoDeferred.complete(deptInfoMap)
                         }
-
 
 
                         // Wait for the deferred to complete
@@ -2304,17 +2330,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             layoutTipePanen.visibility = View.GONE
         }
 
-        val dependentLayouts = listOf(
+        val baseLayouts = listOf(
             R.id.layoutTahunTanam,
             R.id.layoutBlok,
             R.id.layoutNoTPH,
             R.id.layoutKemandoran,
-
             R.id.layoutKemandoranLain,
+        )
 
-            )
+        val dependentLayouts = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+            baseLayouts + R.id.layoutAfdeling
+        } else {
+            baseLayouts
+        }
 
-        // Reset each dependent spinner
         dependentLayouts.forEach { layoutId ->
             val layout = rootView.findViewById<LinearLayout>(layoutId)
             setupSpinnerView(layout, emptyList())
@@ -2326,7 +2355,25 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         kemandoranLainList = emptyList()
         tphList = emptyList()
 
+        val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
+        etAncak.setText("")
 
+        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+
+            val kemandoranLainLayout = findViewById<LinearLayout>(R.id.layoutKemandoranLain)
+            val kemandoranLainFilterContainer =
+                kemandoranLainLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+            kemandoranLainFilterContainer.visibility = View.GONE
+
+            if(blokBanjir == 1){
+                lifecycleScope.launch {
+                    loadPemanenFullEstate(rootView)
+                }
+            }
+
+        }
+
+        ancakInput = ""
         // Reset selected values
         selectedTahunTanamValue = null
         selectedBlok = ""
@@ -2338,6 +2385,44 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         // Clear adapters if they exist
         selectedPemanenAdapter.clearAllWorkers()
         selectedPemanenLainAdapter.clearAllWorkers()
+    }
+
+    private suspend fun loadPemanenFullEstate(rootView: View) {
+        try {
+            val karyawanDeferred = coroutineScope {
+                async {
+                    panenViewModel.getAllKaryawan()
+                    delay(100)
+                    panenViewModel.allKaryawanList.value ?: emptyList()
+                }
+            }
+
+            karyawanList = karyawanDeferred.await()
+            karyawanLainList = karyawanList
+
+            val karyawanNames = karyawanList
+                .sortedBy { it.nama }
+                .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+            withContext(Dispatchers.Main) {
+                val layoutPemanen = rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                layoutPemanen.visibility = View.VISIBLE
+                if (karyawanNames.isNotEmpty()) {
+                    setupSpinnerView(layoutPemanen, karyawanNames)
+                } else {
+                    setupSpinnerView(layoutPemanen, emptyList())
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error reloading all karyawan: ${e.message}")
+            withContext(Dispatchers.Main) {
+                Toast.makeText(
+                    this@FeaturePanenTBSActivity,
+                    "Error reloading worker data: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 
     private fun resetTPHSpinner(rootView: View) {
@@ -2507,11 +2592,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 layoutAncak.visibility = View.VISIBLE
                 layoutKemandoran.visibility = View.VISIBLE
                 layoutPemanen.visibility = View.VISIBLE
-                layoutSelAsistensi.visibility = View.VISIBLE
+                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                    layoutSelAsistensi.visibility = View.GONE
+                } else {
+                    layoutSelAsistensi.visibility = View.VISIBLE
+                }
+
                 layoutTipePanen.visibility = View.VISIBLE
                 selectedTPHIdByScan = null
                 selectedTPHValue = null
-                blokList = emptyList()
                 kemandoranList = emptyList()
                 kemandoranLainList = emptyList()
                 tphList = emptyList()
@@ -2909,8 +2998,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         when (linearLayout.id) {
 
-            R.id.layoutEstate->{
-                val selectedDept = masterDeptInfoMap.entries.find { it.value == selectedItem }?.key
+            R.id.layoutEstate -> {
+                resetDependentSpinners(linearLayout.rootView)
+                selectedEstate = masterDeptInfoMap.entries.find { it.value == selectedItem }?.key!!
                 selectedEstateIdSpinner = position
 
                 lifecycleScope.launch(Dispatchers.IO) {
@@ -2922,7 +3012,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     val afdelingDeffered = async {
                         try {
                             datasetViewModel.getListAfdeling(
-                                selectedDept!!
+                                selectedEstate
                             )
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching kemandoranList: ${e.message}")
@@ -2934,11 +3024,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     val layoutAfdeling =
                         linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutAfdeling)
                     setupSpinnerView(layoutAfdeling, afdelingList.mapNotNull { it.abbr })
+
+
+                    withContext(Dispatchers.Main) {
+                        hideLoadingDots(linearLayout)
+                    }
                 }
 
             }
+
             R.id.layoutAfdeling -> {
-                resetDependentSpinners(linearLayout.rootView)
+
+                if (featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                    resetDependentSpinners(linearLayout.rootView)
+                }
                 val tvErrorScannedNotSelected =
                     findViewById<TextView>(R.id.tvErrorScannedNotSelected)
                 tvErrorScannedNotSelected.visibility = View.GONE
@@ -2947,7 +3046,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 selectedAfdelingIdSpinner = position
 
                 val selectedDivisiId = try {
-                    divisiList.find { it.divisi_abbr == selectedAfdeling }?.divisi
+                    if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                        afdelingList.find { it.abbr == selectedAfdeling }?.id
+                    } else {
+                        divisiList.find { it.divisi_abbr == selectedAfdeling }?.divisi
+                    }
                 } catch (e: Exception) {
                     AppLogger.e("Error finding selectedDivisiId: ${e.message}")
                     null
@@ -2963,7 +3066,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 }
 
-                val selectedDivisiIdList = selectedDivisiId?.let { listOf(it) } ?: emptyList()
                 selectedDivisiValue = selectedDivisiId
 
                 val allIdAfdeling = try {
@@ -2993,37 +3095,51 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             throw IllegalStateException("Estate ID or selectedDivisiId is null!")
                         }
 
-                        val kemandoranDeferred = async {
-                            try {
-                                datasetViewModel.getKemandoranEstateExcept(
-                                    estateId!!.toInt(),
-                                    otherDivisiIds as List<Int>
-                                )
-                            } catch (e: Exception) {
-                                AppLogger.e("Error fetching kemandoranList: ${e.message}")
-                                emptyList()
+                        if (featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                            val kemandoranDeferred = async {
+                                try {
+                                    datasetViewModel.getKemandoranEstateExcept(
+                                        estateId!!.toInt(),
+                                        otherDivisiIds as List<Int>
+                                    )
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error fetching kemandoranList: ${e.message}")
+                                    emptyList()
+                                }
                             }
+                            kemandoranList = kemandoranDeferred.await()
                         }
-                        kemandoranList = kemandoranDeferred.await()
 
                         val kemandoranLainDeferred = async {
                             try {
-                                datasetViewModel.getKemandoranEstate(
-                                    estateId!!.toInt()
-                                )
+                                datasetViewModel.getKemandoranEstate(estateId!!.toInt())
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching kemandoranList: ${e.message}")
                                 emptyList()
                             }
                         }
-                        kemandoranLainList = kemandoranLainDeferred.await()
+
+                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                            kemandoranList = kemandoranLainDeferred.await()
+                        } else {
+                            kemandoranLainList = kemandoranLainDeferred.await()
+                        }
 
                         var tahunTanamList: List<String> = emptyList()
 
+
+                        AppLogger.d(estateId.toString())
+                        AppLogger.d(selectedDivisiId.toString())
                         val blokDeferred = async {
                             try {
+                                val estateIdToUse =
+                                    if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                                        selectedEstate.toInt()
+                                    } else {
+                                        estateId!!.toInt()
+                                    }
                                 datasetViewModel.getBlokList(
-                                    estateId!!.toInt(),
+                                    estateIdToUse,
                                     selectedDivisiId
                                 )
                             } catch (e: Exception) {
@@ -3032,6 +3148,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }
                         }
                         blokList = blokDeferred.await()
+                        AppLogger.d(blokList.toString())
                         tahunTanamList = try {
                             blokList.mapNotNull { it.tahun }.distinct()
                                 .sortedBy { it.toIntOrNull() }
@@ -3043,8 +3160,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             latLonMap = emptyMap()
                             latLonMap = async {
                                 try {
+                                    val estateIdToUse =
+                                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                                            selectedEstate.toInt()
+                                        } else {
+                                            estateId!!.toInt()
+                                        }
                                     datasetViewModel.getLatLonDivisi(
-                                        estateId!!.toInt(),
+                                        estateIdToUse,
                                         selectedDivisiId
                                     )
                                         .mapNotNull {
@@ -3077,23 +3200,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             }.await()
                         }
 
-
                         withContext(Dispatchers.Main) {
                             try {
-
-                                AppLogger.d(tahunTanamList.toString())
-//                                if (blokBanjir == 1) {
                                 val layoutTahunTanam =
                                     linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
                                 setupSpinnerView(
                                     layoutTahunTanam,
                                     tahunTanamList.ifEmpty { emptyList() }
                                 )
-//                                }
                                 if (blokBanjir == 0) {
                                     setupScanTPHTrigger()
                                 }
-
 
                                 val kemandoranNames = kemandoranList.map { it.nama }
                                 setupSpinnerView(
@@ -3101,11 +3218,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                     if (kemandoranNames.isNotEmpty()) kemandoranNames as List<String> else emptyList()
                                 )
 
-                                val kemandoranLainListNames = kemandoranLainList.map { it.nama }
-                                setupSpinnerView(
-                                    layoutKemandoranLain,
-                                    if (kemandoranLainListNames.isNotEmpty()) kemandoranLainListNames as List<String> else emptyList()
-                                )
+                                if (featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                                    val kemandoranLainListNames = kemandoranLainList.map { it.nama }
+                                    setupSpinnerView(
+                                        layoutKemandoranLain,
+                                        if (kemandoranLainListNames.isNotEmpty()) kemandoranLainListNames as List<String> else emptyList()
+                                    )
+                                } else {
+
+                                }
                             } catch (e: Exception) {
                                 AppLogger.e("Error updating UI: ${e.message}")
                             }
@@ -3137,10 +3258,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 AppLogger.d(estateId.toString())
                 AppLogger.d(selectedDivisiValue.toString())
                 AppLogger.d(selectedTahunTanamValue.toString())
+                AppLogger.d(blokList.toString())
 
                 val filteredBlokCodes = blokList.filter {
+                    val estateIdToUse =
+                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                            selectedEstate.toInt()
+                        } else {
+                            estateId!!.toInt()
+                        }
 
-                    it.dept == estateId!!.toInt() &&
+                    it.dept == estateIdToUse &&
                             it.divisi == selectedDivisiValue &&
                             it.tahun == selectedTahunTanamValue
                 }
@@ -3212,8 +3340,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
                 val selectedFieldId = try {
+                    // Determine which estate ID to use
+                    val estateIdToUse =
+                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                            selectedEstate.toIntOrNull()
+                        } else {
+                            estateId?.toIntOrNull()
+                        }
+
                     blokList.find { blok ->
-                        blok.dept == estateId?.toIntOrNull() && // Safe conversion
+                        blok.dept == estateIdToUse &&
                                 blok.divisi == selectedDivisiValue &&
                                 blok.tahun == selectedTahunTanamValue &&
                                 blok.blok_kode == selectedBlok
@@ -3244,8 +3380,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
 
                         val tphDeferred = async {
+                            val estateIdToUse =
+                                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                                    selectedEstate.toInt()
+                                } else {
+                                    estateId!!.toInt()
+                                }
+
                             datasetViewModel.getTPHList(
-                                estateId!!.toInt(),
+                                estateIdToUse,
                                 selectedDivisiValue!!,
                                 selectedTahunTanamValue!!,
                                 selectedBlokValue!!
@@ -3308,10 +3451,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     ).show()
                 }
 
-                AppLogger.d(selectedTPH.toString())
                 val selectedTPHId = try {
+                    // Determine which estate ID to use
+                    val estateIdToUse =
+                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                            selectedEstate.toIntOrNull()
+                        } else {
+                            estateId?.toIntOrNull()
+                        }
+
                     tphList?.find {
-                        it.dept == estateId?.toIntOrNull() && // Safe conversion to prevent crashes
+                        it.dept == estateIdToUse && // Using conditional estate ID
                                 it.divisi == selectedDivisiValue &&
                                 it.blok == selectedBlokValue &&
                                 it.tahun == selectedTahunTanamValue &&
@@ -3356,7 +3506,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         filterContainer.findViewById<ImageView>(R.id.remove_filter)
                     filterContainer.visibility = View.VISIBLE
 
-                    // Set up the remove filter button click listener
+// Set up the remove filter button click listener
                     removeFilterButton.setOnClickListener {
                         // Hide the filter container
                         vibrate()
@@ -3375,50 +3525,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         // Recreate the spinner with the same items (this will reset to hint)
                         setupSpinnerView(linearLayout, kemandoranItems as List<String>)
 
-                        // Reload all karyawan - using original approach
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            withContext(Dispatchers.Main) {
-                                animateLoadingDots(linearLayout)
-                                delay(1000)
-                            }
-
+                        // Reload all karyawan using the new function, but keeping the animations
+                        lifecycleScope.launch {
                             try {
-                                val karyawanDeferred = async {
-                                    panenViewModel.getAllKaryawan()
-                                    delay(100)
-                                    panenViewModel.allKaryawanList.value ?: emptyList()
-                                }
-
-                                karyawanList = karyawanDeferred.await()
-                                karyawanLainList = karyawanList
-
-                                val karyawanNames = karyawanList
-                                    .sortedBy { it.nama }
-                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
-
-                                withContext(Dispatchers.Main) {
-                                    val layoutPemanen =
-                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
-                                    layoutPemanen.visibility = View.VISIBLE
-                                    if (karyawanNames.isNotEmpty()) {
-                                        setupSpinnerView(layoutPemanen, karyawanNames)
-                                    } else {
-                                        setupSpinnerView(layoutPemanen, emptyList())
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                AppLogger.e("Error reloading all karyawan: ${e.message}")
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(
-                                        this@FeaturePanenTBSActivity,
-                                        "Error reloading worker data: ${e.message}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            } finally {
-                                withContext(Dispatchers.Main) {
-                                    hideLoadingDots(linearLayout)
-                                }
+                                loadPemanenFullEstate(linearLayout.rootView)
+                            } catch (e: Exception){
+                                Toast.makeText(
+                                    this@FeaturePanenTBSActivity,
+                                    "Error load full pemanen estate: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         }
                     }
@@ -4158,7 +4274,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         view.setOnTouchListener { _, _ -> true } // Consume touch to prevent popup closing
                     } else {
                         textView.setTextColor(Color.BLACK)  // Explicitly set color to black
-                        textView.setTypeface(textView.typeface, Typeface.NORMAL)  // Reset to normal typeface
+                        textView.setTypeface(
+                            textView.typeface,
+                            Typeface.NORMAL
+                        )  // Reset to normal typeface
                         textView.text = itemValue  // Reset text without symbols
                         checkbox.isEnabled = true
 
