@@ -62,6 +62,10 @@ class UploadProgressCMPDataAdapter(
         }
     }
 
+    fun getItems(): List<UploadCMPItem> {
+        return dataList
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UploadViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.list_progress_download, parent, false)

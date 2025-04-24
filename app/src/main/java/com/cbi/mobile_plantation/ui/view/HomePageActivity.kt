@@ -91,6 +91,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -871,7 +874,7 @@ class HomePageActivity : AppCompatActivity() {
                                     suspendCoroutine<List<File>> { continuation ->
                                         uploadCMPViewModel.fileData.observeOnce(this@HomePageActivity) { fileList ->
                                             val filesToRemove =
-                                                fileList.filter { it.status == 3 }
+                                                fileList.filter { it.status == 3 || it.status == 1 }
                                                     .map { it.nama_file }
                                             // Filter files and update `allUploadZipFilesToday`
                                             allUploadZipFilesToday =
@@ -1474,6 +1477,8 @@ class HomePageActivity : AppCompatActivity() {
         btnUploadDataCMP.visibility = View.VISIBLE
         btnRetryUpload.visibility = View.GONE
 
+        var isRetryOperation = false
+        var failedUploads: List<UploadCMPItem> = listOf()
         val uploadItems = mutableListOf<UploadCMPItem>()
 
         AppLogger.d("allUploadZipFilesToday size: ${allUploadZipFilesToday.size}")
@@ -1537,9 +1542,7 @@ class HomePageActivity : AppCompatActivity() {
             .create()
         dialog.show()
 
-        // Function to start the upload process
-        fun startUpload() {
-            // Check network connectivity first
+        fun startUpload(itemsToUpload: List<UploadCMPItem> = uploadItems) {
             if (!AppUtils.isNetworkAvailable(this)) {
                 AlertDialogUtility.withSingleAction(
                     this@HomePageActivity,
@@ -1552,7 +1555,7 @@ class HomePageActivity : AppCompatActivity() {
                 return
             }
 
-            // Disable both buttons during upload
+            // Disable all buttons during upload
             btnUploadDataCMP.isEnabled = false
             closeDialogBtn.isEnabled = false
             btnRetryUpload.isEnabled = false
@@ -1567,8 +1570,8 @@ class HomePageActivity : AppCompatActivity() {
             titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
             titleTV.text = "Upload Data CMP"
 
-            // Start uploading
-            uploadCMPViewModel.uploadMultipleZipsV2(uploadItems)
+            // Start uploading with the provided items
+            uploadCMPViewModel.uploadMultipleZipsV2(itemsToUpload)
         }
 
         btnUploadDataCMP.setOnClickListener {
@@ -1582,7 +1585,10 @@ class HomePageActivity : AppCompatActivity() {
                     getString(R.string.al_confirm_upload),
                     "warning.json",
                     ContextCompat.getColor(this, R.color.bluedarklight),
-                    function = { startUpload() },
+                    function = {
+                        isRetryOperation = false  // Reset retry flag for fresh upload
+                        startUpload()
+                    },
                     cancelFunction = { }
                 )
             } else {
@@ -1599,20 +1605,50 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
-        // Add retry button functionality
+        // Modify the btnRetryUpload.setOnClickListener code block
         btnRetryUpload.setOnClickListener {
             if (AppUtils.isNetworkAvailable(this)) {
-                // Reset adapter state
+                // Create new upload items only for failed uploads
+                val retryUploadItems = mutableListOf<UploadCMPItem>()
+                var itemId = 0
+
+                AppLogger.d("failedUploads $failedUploads")
+
+                failedUploads.forEach { failedItem ->
+                    retryUploadItems.add(
+                        UploadCMPItem(
+                            id = itemId++,
+                            title = failedItem.title,
+                            fullPath = failedItem.fullPath,
+                            partNumber = failedItem.partNumber,
+                            totalParts = failedItem.totalParts,
+                            baseFilename = failedItem.baseFilename
+                        )
+                    )
+                }
+
+                // Flag that we're in a retry operation
+                isRetryOperation = true
+
+                // Clear and update the RecyclerView with only failed items
+                adapter.updateItems(retryUploadItems)
+
+                // Reset adapter state (progress bars, status icons, etc.)
                 adapter.resetState()
 
-                // Reset view model
+                // Reset view model state
                 uploadCMPViewModel.resetState()
 
-                // Hide retry button, show upload button again
+                // Update UI elements
+                counterTV.text = "0/${retryUploadItems.size}"
+                titleTV.text = "Upload Data CMP"
+                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
+
+                // Hide retry button, show upload button
                 btnRetryUpload.visibility = View.GONE
                 btnUploadDataCMP.visibility = View.VISIBLE
 
-                startUpload()
+                startUpload(retryUploadItems)
             } else {
                 AlertDialogUtility.withSingleAction(
                     this@HomePageActivity,
@@ -1621,9 +1657,7 @@ class HomePageActivity : AppCompatActivity() {
                     stringXML(R.string.al_no_internet_connection_description_login),
                     "network_error.json",
                     R.color.colorRedDark
-                ) {
-                    // Do nothing
-                }
+                ) { }
             }
         }
 
@@ -1631,7 +1665,7 @@ class HomePageActivity : AppCompatActivity() {
             zipFileName = null
             zipFilePath = null
             uploadCMPViewModel.resetState()
-//            (recyclerView.adapter as? UploadProgressCMPDataAdapter)?.onDestroy()
+            // (recyclerView.adapter as? UploadProgressCMPDataAdapter)?.onDestroy()
             dialog.dismiss()
         }
 
@@ -1688,6 +1722,9 @@ class HomePageActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         // Update UI based on upload results
                         if (allSuccess) {
+                            // Reset retry flag since we succeeded
+                            isRetryOperation = false
+
                             launch {
                                 val processingComplete = processUploadResponses()
 
@@ -1732,34 +1769,88 @@ class HomePageActivity : AppCompatActivity() {
                                 }
                             }
                         } else {
-                            titleTV.text = "Terjadi Kesalahan Upload"
-                            titleTV.setTextColor(
-                                ContextCompat.getColor(
-                                    titleTV.context,
-                                    R.color.colorRedDark
-                                )
-                            )
+                            // Determine which items to include in failedUploads based on retry status
+                            if (isRetryOperation) {
+                                // If we're already in a retry operation, use the current adapter's items
+                                val currentItems = adapter.getItems()
+                                failedUploads = currentItems.filter { item ->
+                                    val status = statusMap[item.id]
+                                    status != AppUtils.UploadStatusUtils.SUCCESS
+                                }
+                            } else {
+                                // First failure, use the original upload items
+                                failedUploads = uploadItems.filter { item ->
+                                    val status = statusMap[item.id]
+                                    status != AppUtils.UploadStatusUtils.SUCCESS
+                                }
+                            }
 
-                            // Show retry button and hide upload button
-                            btnUploadDataCMP.visibility = View.GONE
-                            btnRetryUpload.visibility = View.VISIBLE
+                            AppLogger.d("Collected ${failedUploads.size} failed uploads for retry")
 
-                            // For error case, dismiss the dialog immediately
-                            AppLogger.d("gas brroooo")
-                            // Re-enable buttons
-                            closeDialogBtn.isEnabled = true
-                            closeDialogBtn.alpha = 1f
-                            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+                            launch {
+                                val processingComplete = processUploadResponses()
 
-                            btnRetryUpload.isEnabled = true
-                            btnRetryUpload.alpha = 1f
-                            btnRetryUpload.iconTint = ColorStateList.valueOf(Color.WHITE)
+                                withContext(Dispatchers.Main) {
+                                    if (processingComplete) {
+                                        titleTV.text = "Terjadi Kesalahan Upload"
+                                        titleTV.setTextColor(
+                                            ContextCompat.getColor(
+                                                titleTV.context,
+                                                R.color.colorRedDark
+                                            )
+                                        )
 
-                            loadingDialog.dismiss()
+                                        // Show retry button and hide upload button
+                                        btnUploadDataCMP.visibility = View.GONE
+                                        btnRetryUpload.visibility = View.VISIBLE
+
+                                        // For error case, dismiss the dialog immediately
+                                        AppLogger.d("gas brroooo")
+                                        // Re-enable buttons
+                                        closeDialogBtn.isEnabled = true
+                                        closeDialogBtn.alpha = 1f
+                                        closeDialogBtn.iconTint =
+                                            ColorStateList.valueOf(Color.WHITE)
+
+                                        btnRetryUpload.isEnabled = true
+                                        btnRetryUpload.alpha = 1f
+                                        btnRetryUpload.iconTint =
+                                            ColorStateList.valueOf(Color.WHITE)
+
+                                        loadingDialog.dismiss()
+
+                                    } else {
+                                        titleTV.text = "Terjadi Kesalahan Upload"
+                                        titleTV.setTextColor(
+                                            ContextCompat.getColor(
+                                                titleTV.context,
+                                                R.color.colorRedDark
+                                            )
+                                        )
+
+                                        // Show retry button and hide upload button
+                                        btnUploadDataCMP.visibility = View.GONE
+                                        btnRetryUpload.visibility = View.VISIBLE
+
+                                        // For error case, dismiss the dialog immediately
+                                        AppLogger.d("gas brroooo")
+                                        // Re-enable buttons
+                                        closeDialogBtn.isEnabled = true
+                                        closeDialogBtn.alpha = 1f
+                                        closeDialogBtn.iconTint =
+                                            ColorStateList.valueOf(Color.WHITE)
+
+                                        btnRetryUpload.isEnabled = true
+                                        btnRetryUpload.alpha = 1f
+                                        btnRetryUpload.iconTint =
+                                            ColorStateList.valueOf(Color.WHITE)
+
+                                        loadingDialog.dismiss()
+                                    }
+                                }
+                            }
                         }
                     }
-
-
                 }
             }
         }
@@ -1799,8 +1890,6 @@ class HomePageActivity : AppCompatActivity() {
                                 response.uploadedParts
                             )
                         )
-
-                        AppLogger.d("ini response nya bng ${response.fileName}")
 
                         val keyZipName = response.fileName
 
@@ -1851,60 +1940,71 @@ class HomePageActivity : AppCompatActivity() {
     }
 
     private suspend fun processUploadResponses(): Boolean {
-        // First loop: Check the last response in the list to get the final status code
-        var finalStatusCode = 0
-
-        if (globalResponseJsonUploadList.isNotEmpty()) {
-            // Sort by partNumber to ensure we get the last part
-            val sortedResponses = globalResponseJsonUploadList.sortedBy { it.partNumber }
-            val lastResponse = sortedResponses.lastOrNull()
-
-            if (lastResponse != null) {
-                finalStatusCode = lastResponse.statusCode
-                AppLogger.d("Final status code from last response: $finalStatusCode (part ${lastResponse.partNumber})")
-            }
-        } else {
+        if (globalResponseJsonUploadList.isEmpty()) {
             AppLogger.d("No responses found in globalResponseJsonUploadList")
             return false
         }
 
         AppLogger.d("globalResponseJsonUploadList $globalResponseJsonUploadList")
-        // Second loop: Process responses only if status code is 3 (complete)
-        if (finalStatusCode == 3 || finalStatusCode == 1) {
-            AppLogger.d("Status code is 3 (processing complete), processing all upload responses")
 
-            // Create a Set with unique combinations of UUID and filename
-            val processedCombinations = mutableSetOf<Pair<String, String>>()
+        // Track processed UUID+filename pairs to avoid duplicates
+        val processedPairs = mutableSetOf<Pair<String, String>>()
+        var successfullyProcessedCount = 0
 
-            for (responseInfo in globalResponseJsonUploadList) {
-                val uniqueKey = Pair(responseInfo.uuid, responseInfo.fileName)
+        // Filter for successful uploads and sort by part number
+        val successfulUploads = globalResponseJsonUploadList
+            .filter { it.statusCode == 1 || it.statusCode == 3 }
+            .sortedByDescending { it.partNumber ?: 0 }
 
-                // Skip if we've already processed this specific UUID + filename combination
-                if (uniqueKey in processedCombinations) {
-                    AppLogger.d("Skipping duplicate processing for UUID: ${responseInfo.uuid}, filename: ${responseInfo.fileName}")
-                    continue
-                }
+        // Process each successful upload
+        for (responseInfo in successfulUploads) {
+            val uniqueKey = Pair(responseInfo.uuid, responseInfo.fileName)
 
-                processedCombinations.add(uniqueKey)
-
-                val jsonResultTableIds = createJsonTableNameMapping(responseInfo.fileName)
-
-                AppLogger.d("Processing file ${responseInfo.fileName} with UUID ${responseInfo.uuid}")
-                AppLogger.d("JSON mapping: $jsonResultTableIds")
-
-                uploadCMPViewModel.UpdateOrInsertDataUpload(
-                    responseInfo.uuid,
-                    responseInfo.fileName,
-                    finalStatusCode,
-                    responseInfo.tanggal_upload,
-                    jsonResultTableIds
-                )
-                delay(100)
+            // Skip if we've already processed this specific UUID + filename combination
+            if (uniqueKey in processedPairs) {
+                AppLogger.d("Skipping duplicate processing for UUID: ${responseInfo.uuid}, filename: ${responseInfo.fileName}")
+                continue
             }
-            return true
-        } else {
-            AppLogger.d("Status code is $finalStatusCode, not 3 (processing not complete), skipping processing")
-            return false
+
+            processedPairs.add(uniqueKey)
+
+            val jsonResultTableIds = createJsonTableNameMapping(responseInfo.fileName)
+
+            // Format the date string
+            val formattedDate = formatDateString(responseInfo.tanggal_upload)
+
+            AppLogger.d("Processing file ${responseInfo.fileName} with UUID ${responseInfo.uuid}, status code: ${responseInfo.statusCode}")
+            AppLogger.d("JSON mapping: $jsonResultTableIds")
+            AppLogger.d("Original date: ${responseInfo.tanggal_upload}, Formatted date: $formattedDate")
+
+            uploadCMPViewModel.UpdateOrInsertDataUpload(
+                responseInfo.uuid,
+                responseInfo.fileName,
+                responseInfo.statusCode,
+                formattedDate,
+                jsonResultTableIds
+            )
+
+            successfullyProcessedCount++
+        }
+
+        AppLogger.d("Successfully processed $successfullyProcessedCount unique uploads")
+        return successfullyProcessedCount > 0
+    }
+
+    private fun formatDateString(dateStr: String): String {
+        if (!dateStr.contains("T")) return dateStr
+
+        return try {
+            // Use built-in API to parse ISO date
+            val instant = Instant.parse(dateStr)
+            // Format to desired pattern
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                .withZone(ZoneId.systemDefault())
+                .format(instant)
+        } catch (e: Exception) {
+            AppLogger.e("Error formatting date: ${e.message}")
+            dateStr
         }
     }
 

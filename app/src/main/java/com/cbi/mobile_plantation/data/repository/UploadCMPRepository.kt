@@ -109,6 +109,14 @@ class UploadCMPRepository(context: Context) {
                 val file = File(fileZipPath)
 
                 onProgressUpdate(0, false, null)
+//
+//test failure sengaja
+//                if (partNumber == 5) {
+//                    val errorMsg = "Simulated failure for part 5"
+//                    AppLogger.d(errorMsg)
+//                    onProgressUpdate(100, false, errorMsg)
+//                    return@withContext Result.failure(Exception(errorMsg))
+//                }
                 // Check if file exists
                 if (!file.exists()) {
                     val errorMsg = "File does not exist: $fileZipPath"
@@ -180,7 +188,7 @@ class UploadCMPRepository(context: Context) {
                 AppLogger.d("Sending upload request with UUID: $batchUuid, Part: $partNumber, Total: $totalParts")
 
                 try {
-                    val response = TestingAPIClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
+                    val response = CMPApiClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
 
                     AppLogger.d("response $response")
                     if (response.isSuccessful) {
