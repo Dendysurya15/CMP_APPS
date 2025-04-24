@@ -68,6 +68,7 @@ object AppUtils {
         const val DOWNLOADING = "Sedang Mengunduh"
         const val DOWNLOADED = "Berhasil Mengunduh!"
         const val UPTODATE = "tidak ada pembaruan yang diperlukan!"
+        const val UPDATED = "berhasil diperbarui"
         const val FAILED = "Gagal Upload!"
     }
 

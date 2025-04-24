@@ -89,6 +89,21 @@ class PrefManager(_context: Context) {
         editor.apply()
     }
 
+
+    fun getMasterTPHEstateLastModifiedMap(): Map<String, String> {
+        val allEntries = pref.all
+        val estateMap = mutableMapOf<String, String>()
+
+        for ((key, value) in allEntries) {
+            if (key.startsWith(PREF_ESTATE_LAST_MODIFIED_PREFIX) && value is String) {
+                val estateAbbr = key.removePrefix(PREF_ESTATE_LAST_MODIFIED_PREFIX)
+                estateMap[estateAbbr] = value
+            }
+        }
+
+        return estateMap
+    }
+
     // Get last modified timestamp for a specific estate
     fun getEstateLastModified(estateAbbr: String): String? {
         return pref.getString("$PREF_ESTATE_LAST_MODIFIED_PREFIX$estateAbbr", null)

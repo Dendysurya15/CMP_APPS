@@ -787,9 +787,10 @@ class HomePageActivity : AppCompatActivity() {
                         loadingDialog.show()
                         loadingDialog.setMessage("Sedang mempersiapkan data...")
 
+
                         lifecycleScope.launch {
                             try {
-
+                                delay(500)
                                 datasetViewModel.getAllEstates()
 
                                 withTimeout(5000) { // 5 second timeout
@@ -2070,9 +2071,6 @@ class HomePageActivity : AppCompatActivity() {
 
     private fun startDownloadsV2(datasetRequests: List<DatasetRequest>) {
 
-        AppLogger.d(prefManager!!.radiusMinimum.toString())
-        AppLogger.d(prefManager!!.boundaryAccuracy.toString())
-        AppLogger.d(datasetRequests.toString())
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
         val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
         titleTV.text = "Sinkronisasi Master Dataset"
@@ -2171,7 +2169,7 @@ class HomePageActivity : AppCompatActivity() {
             titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
             titleTV.text = "Sedang Melakukan Sinkronisasi..."
 
-            datasetViewModel.downloadDataset(requestsToDownload, itemsToShow)
+            datasetViewModel.downloadDataset(requestsToDownload, itemsToShow, false)
         }
 
         btnSinkronisasiDataset.setOnClickListener {
@@ -2297,7 +2295,7 @@ class HomePageActivity : AppCompatActivity() {
                 val failedIds = mutableListOf<Int>()
 
                 currentStatusMap.forEach { (id, status) ->
-                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED || status == AppUtils.UploadStatusUtils.UPTODATE) {
+                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED || status == AppUtils.UploadStatusUtils.UPTODATE || status == AppUtils.UploadStatusUtils.UPDATED) {
                         successfulIds.add(id)
                     } else {
                         failedIds.add(id)
@@ -2336,6 +2334,7 @@ class HomePageActivity : AppCompatActivity() {
                             btnRetryDownload.visibility = View.GONE
                         } else {
                             // Some or all failed
+                            AppLogger.d("ada yg error update dataset")
                             AppLogger.d(failedIds.toString())
                             titleTV.text = "Terjadi Kesalahan Sinkronisasi"
                             titleTV.setTextColor(
@@ -2446,8 +2445,6 @@ class HomePageActivity : AppCompatActivity() {
             }
 
             if (filteredRequests.isNotEmpty()) {
-                AppLogger.d(filteredRequests.toString())
-                AppLogger.d("gas")
                 if (isTriggerButtonSinkronisasiData) {
                     startDownloadsV2(filteredRequests)
                 } else {
@@ -2484,29 +2481,38 @@ class HomePageActivity : AppCompatActivity() {
             jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true)
 
         if (isTriggerButtonSinkronisasiData && !isKeraniTimbang) {
-            // Process estates data
-            val allEstates = datasetViewModel.allEstatesList.value ?: emptyList()
-            AppLogger.d("--- Estate Timestamps ---")
-            allEstates.forEach { estate ->
-                estate.abbr?.let { abbr ->
-                    val timestamp = prefManager!!.getEstateLastModified(abbr)
-                    AppLogger.d("Estate: $abbr (${estate.nama}) - Last Modified: $timestamp")
+            // Get all estate timestamps directly from prefManager
+            val estateTimestamps = prefManager!!.getMasterTPHEstateLastModifiedMap()
+            AppLogger.d("Estate timestamps (${estateTimestamps.size} estates):")
 
-                    // Add dataset request for each estate with its last modified time
-                    if (timestamp != null) {
-                        AppLogger.d("Adding estate dataset: $abbr")
+            // Check if estateTimestamps is not empty before proceeding
+            if (estateTimestamps.isNotEmpty()) {
+                // For each estate in the timestamps map
+                estateTimestamps.forEach { (abbr, timestamp) ->
+                    AppLogger.d("  $abbr: $timestamp")
+
+                    // Find the estate ID from the allEstatesList
+                    val estate = datasetViewModel.allEstatesList.value?.find { it.abbr == abbr }
+                    val estateId = estate?.id?.toInt()
+                    val estateName = estate?.nama ?: "Unknown Estate"
+
+                    if (estateId != null) {
+                        AppLogger.d("Adding estate dataset: $abbr ($estateName)")
                         datasets.add(
                             DatasetRequest(
-                                estate = estate.id?.toInt(),
+                                estate = estateId,
                                 estateAbbr = abbr,
                                 lastModified = timestamp,
                                 dataset = AppUtils.DatasetNames.tph
                             )
                         )
+                    } else {
+                        AppLogger.d("Skipping estate $abbr - could not find estate ID")
                     }
                 }
+            } else {
+                AppLogger.d("No estate timestamps found to process")
             }
-            AppLogger.d("--- End of Estate Timestamps ---")
         }
 
         // Add the rest of the datasets as before

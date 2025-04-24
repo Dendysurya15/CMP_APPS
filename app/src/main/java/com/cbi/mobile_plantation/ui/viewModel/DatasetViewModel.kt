@@ -718,7 +718,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     val processingComplete: LiveData<Boolean> = _processingComplete
 
 
-    fun downloadDataset(requests: List<DatasetRequest>, downloadItems: List<UploadCMPItem>) {
+    fun downloadDataset(requests: List<DatasetRequest>, downloadItems: List<UploadCMPItem>,  isDownloadDataset: Boolean = true) {
         AppLogger.d("Starting download for ${requests.size} datasets")
         val mutableRequests = requests.toMutableList()
         // Initialize counts
@@ -1033,7 +1033,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                 // Set success status if processed
                                 if (processed) {
-                                    statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+                                    statusMap[itemId] = if (isDownloadDataset) {
+                                        AppUtils.UploadStatusUtils.DOWNLOADED
+                                    } else {
+                                        AppUtils.UploadStatusUtils.UPDATED
+                                    }
                                 } else {
                                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                                     errorMap[itemId] = "No processor found for dataset: ${request.dataset}"
@@ -1050,7 +1054,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             }
                         }
                         else if (contentType?.contains("application/json") == true) {
-                            handleJsonResponse(request, itemId, response, statusMap, errorMap, progressMap, lastModified, lastModifiedSettingsJson)
+                            handleJsonResponse(request, itemId, response, statusMap, errorMap, progressMap, lastModified, lastModifiedSettingsJson, isDownloadDataset)
                         }else {
                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                             errorMap[itemId] = "Unsupported content type: $contentType"
@@ -1105,7 +1109,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         errorMap: MutableMap<Int, String?>,
         progressMap: MutableMap<Int, Int>,  // Add progressMap parameter
         lastModified: String?,
-        lastModifiedSettingsJson: String?
+        lastModifiedSettingsJson: String?,
+        isDownloadDataset: Boolean = true
     ) {
         // Initial progress update - start at 0%
         progressMap[itemId] = 0
@@ -1171,7 +1176,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                     if (isStored) {
                         prefManager.lastModifiedSettingJSON = lastModifiedSettingsJson
-                        statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+                        statusMap[itemId] = if (isDownloadDataset) {
+                            AppUtils.UploadStatusUtils.DOWNLOADED
+                        } else {
+                            AppUtils.UploadStatusUtils.UPDATED
+                        }
                         AppLogger.d("Successfully stored settings JSON")
                     } else {
                         if (responseBodyString.contains("\"success\":false") &&
@@ -1216,7 +1225,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             progressMap[itemId] = 100
                             _itemProgressMap.postValue(progressMap.toMap())
 
-                            statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+                            statusMap[itemId] = if (isDownloadDataset) {
+                                AppUtils.UploadStatusUtils.DOWNLOADED
+                            } else {
+                                AppUtils.UploadStatusUtils.UPDATED
+                            }
                         } catch (e: Exception) {
                             progressMap[itemId] = 100  // Still show 100% even on error
                             _itemProgressMap.postValue(progressMap.toMap())
@@ -1272,7 +1285,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             progressMap[itemId] = 100
                             _itemProgressMap.postValue(progressMap.toMap())
 
-                            statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+                            statusMap[itemId] = if (isDownloadDataset) {
+                                AppUtils.UploadStatusUtils.DOWNLOADED
+                            } else {
+                                AppUtils.UploadStatusUtils.UPDATED
+                            }
 
                             // Update last modified timestamp
                             if (lastModified != null) {

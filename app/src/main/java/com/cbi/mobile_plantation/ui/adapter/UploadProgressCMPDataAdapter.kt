@@ -114,6 +114,10 @@ class UploadProgressCMPDataAdapter(
                 stopDotsAnimation(item.id)
                 holder.statusProgress.text = status
             }
+            AppUtils.UploadStatusUtils.UPDATED -> {
+                stopDotsAnimation(item.id)
+                holder.statusProgress.text = "${item.title} - ${status}"
+            }
             AppUtils.UploadStatusUtils.UPTODATE -> {
                 stopDotsAnimation(item.id)
                 holder.statusProgress.text = "${item.title} - ${status}"
@@ -154,9 +158,16 @@ class UploadProgressCMPDataAdapter(
                 holder.loadingCircular.visibility = View.INVISIBLE
                 holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
             }
-            AppUtils.UploadStatusUtils.UPTODATE -> {
-                holder.iconStatus.setImageResource(R.drawable.baseline_check_box_24)
+            AppUtils.UploadStatusUtils.UPDATED -> {
+                holder.iconStatus.setImageResource(R.drawable.baseline_check_24)
                 holder.iconStatus.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+                holder.iconStatus.visibility = View.VISIBLE
+                holder.loadingCircular.visibility = View.INVISIBLE
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+            }
+            AppUtils.UploadStatusUtils.UPTODATE -> {
+                holder.iconStatus.setImageResource(R.drawable.baseline_do_not_disturb_24)
+                holder.iconStatus.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.graytextdark))
                 holder.iconStatus.visibility = View.VISIBLE
                 holder.loadingCircular.visibility = View.INVISIBLE
                 holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
