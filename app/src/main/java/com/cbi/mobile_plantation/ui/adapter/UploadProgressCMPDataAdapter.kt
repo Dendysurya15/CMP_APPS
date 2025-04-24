@@ -114,6 +114,10 @@ class UploadProgressCMPDataAdapter(
                 stopDotsAnimation(item.id)
                 holder.statusProgress.text = status
             }
+            AppUtils.UploadStatusUtils.UPTODATE -> {
+                stopDotsAnimation(item.id)
+                holder.statusProgress.text = "${item.title} - ${status}"
+            }
             AppUtils.UploadStatusUtils.SUCCESS -> {
                 stopDotsAnimation(item.id)
                 holder.statusProgress.text = status
@@ -124,7 +128,6 @@ class UploadProgressCMPDataAdapter(
             }
         }
 
-        // Set visibility of UI elements based on status
         when (status) {
             AppUtils.UploadStatusUtils.WAITING -> {
                 holder.iconStatus.visibility = View.INVISIBLE
@@ -150,6 +153,13 @@ class UploadProgressCMPDataAdapter(
                 holder.iconStatus.visibility = View.VISIBLE
                 holder.loadingCircular.visibility = View.INVISIBLE
                 holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+            }
+            AppUtils.UploadStatusUtils.UPTODATE -> {
+                holder.iconStatus.setImageResource(R.drawable.baseline_check_box_24)
+                holder.iconStatus.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+                holder.iconStatus.visibility = View.VISIBLE
+                holder.loadingCircular.visibility = View.INVISIBLE
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
             }
             AppUtils.UploadStatusUtils.SUCCESS -> {
                 holder.iconStatus.setImageResource(R.drawable.baseline_check_24)

@@ -798,7 +798,6 @@ class HomePageActivity : AppCompatActivity() {
                                     }
                                 }
 
-                                // Now that estates are loaded, call startDownloads
                                 withContext(Dispatchers.Main) {
                                     startDownloads()
                                 }
@@ -2071,24 +2070,26 @@ class HomePageActivity : AppCompatActivity() {
 
     private fun startDownloadsV2(datasetRequests: List<DatasetRequest>) {
 
+        AppLogger.d(prefManager!!.radiusMinimum.toString())
+        AppLogger.d(prefManager!!.boundaryAccuracy.toString())
         AppLogger.d(datasetRequests.toString())
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
         val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-        titleTV.text = "Sinkronisasi Dataset"
+        titleTV.text = "Sinkronisasi Master Dataset"
 
 
         val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
         val counterSizeFile = dialogView.findViewById<LinearLayout>(R.id.counterSizeFile)
-        counterSizeFile.visibility = View.VISIBLE
+        counterSizeFile.visibility = View.GONE
 
         // Get all buttons
         val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
-        val btnDownloadDataset = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
+        val btnSinkronisasiDataset = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
         val btnRetryDownload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
 
         // Update button text to reflect download operation
-        btnDownloadDataset.text = "Update Dataset"
-        btnDownloadDataset.setIconResource(R.drawable.baseline_download_24) // Assuming you have this icon
+        btnSinkronisasiDataset.text = "Update Dataset"
+        btnSinkronisasiDataset.setIconResource(R.drawable.baseline_download_24) // Assuming you have this icon
 
         val containerDownloadDataset =
             dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
@@ -2096,7 +2097,7 @@ class HomePageActivity : AppCompatActivity() {
 
         // Initially show only close and download buttons
         closeDialogBtn.visibility = View.VISIBLE
-        btnDownloadDataset.visibility = View.VISIBLE
+        btnSinkronisasiDataset.visibility = View.VISIBLE
         btnRetryDownload.visibility = View.GONE
 
         // Create upload items from dataset requests (we'll reuse the existing adapter)
@@ -2156,24 +2157,24 @@ class HomePageActivity : AppCompatActivity() {
             }
 
             // Disable buttons during download
-            btnDownloadDataset.isEnabled = false
+            btnSinkronisasiDataset.isEnabled = false
             closeDialogBtn.isEnabled = false
             btnRetryDownload.isEnabled = false
-            btnDownloadDataset.alpha = 0.7f
+            btnSinkronisasiDataset.alpha = 0.7f
             closeDialogBtn.alpha = 0.7f
             btnRetryDownload.alpha = 0.7f
-            btnDownloadDataset.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+            btnSinkronisasiDataset.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
             closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
             btnRetryDownload.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
 
             // Reset title color
             titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
-            titleTV.text = "Sinkronisasi Dataset"
+            titleTV.text = "Sedang Melakukan Sinkronisasi..."
 
             datasetViewModel.downloadDataset(requestsToDownload, itemsToShow)
         }
 
-        btnDownloadDataset.setOnClickListener {
+        btnSinkronisasiDataset.setOnClickListener {
             if (AppUtils.isNetworkAvailable(this)) {
                 AlertDialogUtility.withTwoActions(
                     this,
@@ -2237,7 +2238,7 @@ class HomePageActivity : AppCompatActivity() {
 
                 // Hide retry button, show download button
                 btnRetryDownload.visibility = View.GONE
-                btnDownloadDataset.visibility = View.VISIBLE
+                btnSinkronisasiDataset.visibility = View.VISIBLE
 
                 // Start download with only failed requests
                 startDownload(failedRequests, retryDownloadItems)
@@ -2281,7 +2282,7 @@ class HomePageActivity : AppCompatActivity() {
 
             // Update title if any download is in progress
             if (progressMap.values.any { it in 1..99 }) {
-                titleTV.text = "Sedang Download Dataset..."
+                titleTV.text = "Sedang Melakukan Sinkronisasi..."
             }
 
         }
@@ -2296,7 +2297,7 @@ class HomePageActivity : AppCompatActivity() {
                 val failedIds = mutableListOf<Int>()
 
                 currentStatusMap.forEach { (id, status) ->
-                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED) {
+                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED || status == AppUtils.UploadStatusUtils.UPTODATE) {
                         successfulIds.add(id)
                     } else {
                         failedIds.add(id)
@@ -2324,25 +2325,26 @@ class HomePageActivity : AppCompatActivity() {
                         // Update UI based on download results
                         if (failedIds.isEmpty()) {
                             // All successful
-                            titleTV.text = "Download Berhasil"
+                            titleTV.text = "Sinkronisasi Berhasil"
                             titleTV.setTextColor(
                                 ContextCompat.getColor(
                                     titleTV.context,
                                     R.color.greenDarker
                                 )
                             )
-                            btnDownloadDataset.visibility = View.GONE
+                            btnSinkronisasiDataset.visibility = View.GONE
                             btnRetryDownload.visibility = View.GONE
                         } else {
                             // Some or all failed
-                            titleTV.text = "Terjadi Kesalahan Download"
+                            AppLogger.d(failedIds.toString())
+                            titleTV.text = "Terjadi Kesalahan Sinkronisasi"
                             titleTV.setTextColor(
                                 ContextCompat.getColor(
                                     titleTV.context,
                                     R.color.colorRedDark
                                 )
                             )
-                            btnDownloadDataset.visibility = View.GONE
+                            btnSinkronisasiDataset.visibility = View.GONE
                             btnRetryDownload.visibility = View.VISIBLE
                             btnRetryDownload.isEnabled = true
                             btnRetryDownload.alpha = 1f
@@ -2400,9 +2402,6 @@ class HomePageActivity : AppCompatActivity() {
             loadingDialog.dismiss()
             return
         }
-
-        AppLogger.d(prefManager!!.radiusMinimum.toString())
-        prefManager!!.radiusMinimum = 0.0F
         try {
             val estateId = estateIdString.toInt()
             if (estateId <= 0) {
@@ -2448,6 +2447,7 @@ class HomePageActivity : AppCompatActivity() {
 
             if (filteredRequests.isNotEmpty()) {
                 AppLogger.d(filteredRequests.toString())
+                AppLogger.d("gas")
                 if (isTriggerButtonSinkronisasiData) {
                     startDownloadsV2(filteredRequests)
                 } else {

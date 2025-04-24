@@ -720,7 +720,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     fun downloadDataset(requests: List<DatasetRequest>, downloadItems: List<UploadCMPItem>) {
         AppLogger.d("Starting download for ${requests.size} datasets")
-
+        val mutableRequests = requests.toMutableList()
         // Initialize counts
         _totalCount.value = requests.size
         _completedCount.value = 0
@@ -745,7 +745,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         // Process each request sequentially
         viewModelScope.launch {
             for (index in requests.indices) {
-                val request = requests[index]
+                var request = mutableRequests[index]
                 val itemId = downloadItems[index].id
                 AppLogger.d("Processing request $index: estate=${request.estateAbbr}, dataset=${request.dataset}")
 
@@ -753,39 +753,55 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADING
                 _itemStatusMap.value = statusMap.toMap()
 
+                if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                    // Check if settings are missing in prefManager
+                    val radiusValue = prefManager.radiusMinimum
+                    val accuracyValue = prefManager.boundaryAccuracy
+
+                    if (radiusValue == 0f || accuracyValue == 0f) {
+                        // Settings are missing, force re-download by setting lastModified to null
+                        AppLogger.d("Settings values missing in prefManager, forcing re-download")
+                        request = request.copy(lastModified = null)
+                        mutableRequests[index] = request
+                    }
+                }
+
                 try {
                     // Handle special case for valid datasets
                     val validDatasets = setOf(
                         AppUtils.DatasetNames.pemanen,
                         AppUtils.DatasetNames.kemandoran,
                         AppUtils.DatasetNames.tph,
-                        AppUtils.DatasetNames.transporter
+                        AppUtils.DatasetNames.transporter,
+                        AppUtils.DatasetNames.kendaraan
                     )
 
                     var modifiedRequest = request
                     if (request.dataset in validDatasets) {
+                        val deptId = if (request.dataset == AppUtils.DatasetNames.tph) request.estate else null
+
                         val count = withContext(Dispatchers.IO) {
-                            repository.getDatasetCount(request.dataset)
+                            repository.getDatasetCount(request.dataset, deptId)
                         }
+
                         if (count == 0) {
                             modifiedRequest = request.copy(lastModified = null)
-                            AppLogger.d("Dataset ${request.dataset} has no records, setting lastModified to null")
+                            if (deptId != null) {
+                                AppLogger.d("Dataset ${request.dataset} has no records for department ID $deptId, setting lastModified to null")
+                            } else {
+                                AppLogger.d("Dataset ${request.dataset} has no records, setting lastModified to null")
+                            }
                         }
                     }
 
-                    // Call API to download dataset
-                    AppLogger.d("Downloading dataset for ${modifiedRequest.estateAbbr}")
+                    AppLogger.d("Downloading dataset for ${modifiedRequest.estateAbbr}/ ${modifiedRequest.dataset}")
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
-                    }
-//                    else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
-//                        response = repository.checkStatusUploadCMP(request.data!!)
-//                    }
-                    else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
-                        response = repository.downloadSettingJson(request.lastModified!!)
+                    } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                        response = repository.downloadSettingJson(request.lastModified ?: "")
                     } else {
                         response = repository.downloadDataset(modifiedRequest)
                     }
@@ -899,9 +915,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             }
                                         }
 
-                                        // Update last modified timestamp
                                         if (lastModified != null && request.estateAbbr != null) {
-                                            prefManager.setEstateLastModified(request.estateAbbr, lastModified)
+                                            val estateAbbr = request.estateAbbr
+                                            prefManager.setEstateLastModified(estateAbbr!!, lastModified)
+                                        }else{
+                                            prefManager.lastModifiedDatasetTPH = lastModified
                                         }
 
                                         processed = true
@@ -944,23 +962,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                         if (lastModified != null) {
                                             prefManager.lastModifiedDatasetPemanen = lastModified
-                                        }
-
-                                        processed = true
-                                    }
-
-                                    AppUtils.DatasetNames.mill -> {
-                                        val millList = parseStructuredJsonToList(jsonContent, MillModel::class.java)
-                                        AppLogger.d("Parsed ${millList.size} mill records, starting database update")
-
-                                        withContext(Dispatchers.IO) {
-                                            try {
-                                                repository.updateOrInsertMill(millList)
-                                                AppLogger.d("Database update completed for mill dataset")
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Database update error for mill: ${e.message}")
-                                                throw e
-                                            }
                                         }
 
                                         processed = true
@@ -1049,8 +1050,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             }
                         }
                         else if (contentType?.contains("application/json") == true) {
-                            // Handle JSON file response for special datasets
-                            handleJsonResponse(request, itemId, response, statusMap, errorMap, lastModified, lastModifiedSettingsJson)
+                            handleJsonResponse(request, itemId, response, statusMap, errorMap, progressMap, lastModified, lastModifiedSettingsJson)
                         }else {
                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                             errorMap[itemId] = "Unsupported content type: $contentType"
@@ -1103,17 +1103,31 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         response: Response<ResponseBody>,
         statusMap: MutableMap<Int, String>,
         errorMap: MutableMap<Int, String?>,
+        progressMap: MutableMap<Int, Int>,  // Add progressMap parameter
         lastModified: String?,
         lastModifiedSettingsJson: String?
     ) {
-        // Read response body
+        // Initial progress update - start at 0%
+        progressMap[itemId] = 0
+        _itemProgressMap.postValue(progressMap.toMap())
+
+        // Read response body - show 25% progress when starting to read
+        progressMap[itemId] = 25
+        _itemProgressMap.postValue(progressMap.toMap())
+
         val responseBodyString = response.body()?.string() ?: "Empty Response"
         AppLogger.d("Received JSON: $responseBodyString")
+
+        // Update to 50% after reading the response
+        progressMap[itemId] = 50
+        _itemProgressMap.postValue(progressMap.toMap())
 
         // Check if it's an "up to date" response
         if (responseBodyString.contains("\"success\":false") &&
             responseBodyString.contains("\"message\":\"Dataset is up to date\"")) {
-            statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+            progressMap[itemId] = 100
+            statusMap[itemId] = AppUtils.UploadStatusUtils.UPTODATE
+            _itemProgressMap.postValue(progressMap.toMap())
             AppLogger.d("Dataset ${request.dataset} is up to date")
             return
         }
@@ -1121,18 +1135,24 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         // Handle different dataset types
         when (request.dataset) {
             AppUtils.DatasetNames.settingJSON -> {
+                // Handle settings JSON with progress updates
                 if (responseBodyString.isBlank()) {
                     AppLogger.e("Received empty JSON response for settings")
+                    progressMap[itemId] = 100  // Still show 100% even on error
                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                     errorMap[itemId] = "Empty JSON response"
+                    _itemProgressMap.postValue(progressMap.toMap())
                     return
                 }
 
                 try {
-                    val jsonObject = JSONObject(responseBodyString)
+                    // Parsing - update to 75%
+                    progressMap[itemId] = 75
+                    _itemProgressMap.postValue(progressMap.toMap())
 
-                    val tphRadius = jsonObject.optInt("tph_radius", -1) // Default -1 if not found
-                    val gpsAccuracy = jsonObject.optInt("gps_accuracy", -1) // Default -1 if not found
+                    val jsonObject = JSONObject(responseBodyString)
+                    val tphRadius = jsonObject.optInt("tph_radius", -1)
+                    val gpsAccuracy = jsonObject.optInt("gps_accuracy", -1)
 
                     var isStored = false
 
@@ -1145,16 +1165,29 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         isStored = true
                     }
 
+                    // Final update - 100%
+                    progressMap[itemId] = 100
+                    _itemProgressMap.postValue(progressMap.toMap())
+
                     if (isStored) {
                         prefManager.lastModifiedSettingJSON = lastModifiedSettingsJson
                         statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
                         AppLogger.d("Successfully stored settings JSON")
                     } else {
-                        statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
-                        errorMap[itemId] = "No valid settings found in response"
+                        if (responseBodyString.contains("\"success\":false") &&
+                            (responseBodyString.contains("\"message\":\"Settings is up to date\"") ||
+                                    responseBodyString.contains("\"message\":\"Dataset is up to date\""))) {
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.UPTODATE
+                            AppLogger.d("${AppUtils.DatasetNames.settingJSON} are up to date")
+                        } else {
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                            errorMap[itemId] = "No valid settings found in response"
+                        }
                     }
-
                 } catch (e: Exception) {
+                    progressMap[itemId] = 100  // Still show 100% even on error
+                    _itemProgressMap.postValue(progressMap.toMap())
+
                     AppLogger.e("Error parsing settings JSON: ${e.message}")
                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                     errorMap[itemId] = "Error parsing settings: ${e.message}"
@@ -1163,21 +1196,40 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
             AppUtils.DatasetNames.mill -> {
                 try {
+                    // Parsing - update to 60%
+                    progressMap[itemId] = 60
+                    _itemProgressMap.postValue(progressMap.toMap())
+
                     val millList = parseMill(responseBodyString)
                     AppLogger.d("Parsed ${millList.size} mill records")
+
+                    // Update to 75% before database operations
+                    progressMap[itemId] = 75
+                    _itemProgressMap.postValue(progressMap.toMap())
 
                     withContext(Dispatchers.IO) {
                         try {
                             repository.updateOrInsertMill(millList)
                             AppLogger.d("Successfully stored mill data")
+
+                            // Final update - 100%
+                            progressMap[itemId] = 100
+                            _itemProgressMap.postValue(progressMap.toMap())
+
                             statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
                         } catch (e: Exception) {
+                            progressMap[itemId] = 100  // Still show 100% even on error
+                            _itemProgressMap.postValue(progressMap.toMap())
+
                             AppLogger.e("Error storing mill data: ${e.message}")
                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                             errorMap[itemId] = "Error storing mill data: ${e.message}"
                         }
                     }
                 } catch (e: Exception) {
+                    progressMap[itemId] = 100  // Still show 100% even on error
+                    _itemProgressMap.postValue(progressMap.toMap())
+
                     AppLogger.e("Error parsing mill data: ${e.message}")
                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                     errorMap[itemId] = "Error parsing mill data: ${e.message}"
@@ -1186,23 +1238,40 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
             AppUtils.DatasetNames.estate -> {
                 try {
+                    // Parsing - update to 60%
+                    progressMap[itemId] = 60
+                    _itemProgressMap.postValue(progressMap.toMap())
+
                     val estateAndAfdeling = parseEstate(responseBodyString)
                     val estateList = estateAndAfdeling.first
                     val afdelingList = estateAndAfdeling.second
 
                     AppLogger.d("Parsed ${estateList.size} estates and ${afdelingList.size} afdelings")
 
+                    // Update to 75% before database operations
+                    progressMap[itemId] = 75
+                    _itemProgressMap.postValue(progressMap.toMap())
+
                     withContext(Dispatchers.IO) {
                         try {
-                            // Store the estate data
+                            // Store the estate data - 85%
                             repository.updateOrInsertEstate(estateList)
+                            progressMap[itemId] = 85
+                            _itemProgressMap.postValue(progressMap.toMap())
 
-                            // Store the afdeling data
+                            // Store the afdeling data - 95%
                             if (afdelingList.isNotEmpty()) {
                                 repository.updateOrInsertAfdeling(afdelingList)
+                                progressMap[itemId] = 95
+                                _itemProgressMap.postValue(progressMap.toMap())
                             }
 
                             AppLogger.d("Successfully stored estate data")
+
+                            // Final update - 100%
+                            progressMap[itemId] = 100
+                            _itemProgressMap.postValue(progressMap.toMap())
+
                             statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
 
                             // Update last modified timestamp
@@ -1210,12 +1279,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 prefManager.lastModifiedDatasetEstate = lastModified
                             }
                         } catch (e: Exception) {
+                            progressMap[itemId] = 100  // Still show 100% even on error
+                            _itemProgressMap.postValue(progressMap.toMap())
+
                             AppLogger.e("Error storing estate data: ${e.message}")
                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                             errorMap[itemId] = "Error storing estate data: ${e.message}"
                         }
                     }
                 } catch (e: Exception) {
+                    progressMap[itemId] = 100  // Still show 100% even on error
+                    _itemProgressMap.postValue(progressMap.toMap())
+
                     AppLogger.e("Error parsing estate data: ${e.message}")
                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                     errorMap[itemId] = "Error parsing estate data: ${e.message}"
@@ -1223,6 +1298,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
 
             else -> {
+                progressMap[itemId] = 100  // Still show 100% even on error
+                _itemProgressMap.postValue(progressMap.toMap())
+
                 statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                 errorMap[itemId] = "Unsupported JSON dataset: ${request.dataset}"
             }

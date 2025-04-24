@@ -62,12 +62,19 @@ class DatasetRepository(
 
     suspend fun insertTPH(tph: List<TPHNewModel>) = tphDao.insertTPHAsistensi(tph)
 
-    suspend fun getDatasetCount(datasetName: String): Int {
+    suspend fun getDatasetCount(datasetName: String, deptId: Int? = null): Int {
         return when (datasetName) {
             AppUtils.DatasetNames.pemanen -> karyawanDao.getCount()
             AppUtils.DatasetNames.kemandoran -> kemandoranDao.getCount()
-            AppUtils.DatasetNames.tph -> tphDao.getCount()
+            AppUtils.DatasetNames.tph -> {
+                if (deptId != null) {
+                    tphDao.getCountByDept(deptId)
+                } else {
+                    tphDao.getCount()
+                }
+            }
             AppUtils.DatasetNames.transporter -> transporterDao.getCount()
+            AppUtils.DatasetNames.kendaraan -> kendaraanDao.getCount()
             else -> 0
         }
     }
