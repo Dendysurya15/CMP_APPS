@@ -717,6 +717,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val _processingComplete = MutableLiveData<Boolean>(false)
     val processingComplete: LiveData<Boolean> = _processingComplete
 
+    fun TPHNewModel.isCompletelyNull(): Boolean {
+        return id == null && regional == null && company == null &&
+                company_abbr == null && wilayah == null && dept == null && dept_ppro == null && dept_abbr == null &&
+                divisi == null && divisi_ppro == null && divisi_abbr == null && divisi_nama == null && blok == null &&
+                blok_ppro == null && blok_kode == null && blok_nama == null && ancak == null && nomor == null &&
+                tahun == null && luas_area == null && jml_pokok == null &&
+                jml_pokok_ha == null && lat == null && lon == null &&
+                update_date == null && status == null
+    }
 
     fun downloadDataset(requests: List<DatasetRequest>, downloadItems: List<UploadCMPItem>,  isDownloadDataset: Boolean = true) {
         AppLogger.d("Starting download for ${requests.size} datasets")
@@ -884,30 +893,37 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                 when (request.dataset) {
                                     AppUtils.DatasetNames.tph -> {
-                                        // Parse the TPH data
                                         val tphList = parseTPHJsonToList(jsonContent) as List<TPHNewModel>
-                                        AppLogger.d("Parsed ${tphList.size} TPH records, starting database update")
+                                        val filteredTphList = tphList.filterNot { it.isCompletelyNull() }
+
+                                        AppLogger.d("Parsed ${tphList.size} TPH records, ${filteredTphList.size} valid after filtering")
+
+                                        if (filteredTphList.isEmpty()) {
+                                            statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                                            errorMap[itemId] = "All TPH records are empty or invalid"
+                                            _itemStatusMap.postValue(statusMap.toMap())
+                                            _itemErrorMap.postValue(errorMap.toMap())
+                                            incrementCompletedCount()
+                                            continue
+                                        }
 
                                         withContext(Dispatchers.IO) {
                                             try {
                                                 if (request.isDownloadMasterTPHAsistensi) {
-                                                    repository.insertTPH(tphList)
+                                                    repository.insertTPH(filteredTphList)
                                                 } else {
-                                                    // Use department-specific update for TPH
                                                     val deptId = request.estate
                                                     AppLogger.d("TPH Update - Department ID from request: $deptId, Estate Abbr: ${request.estateAbbr}")
 
-                                                    if (deptId != null) {
-                                                        // Filter records for this specific department
-                                                        val tphForDept = tphList.filter { it.dept == deptId }
+                                                    val dataToUse = if (deptId != null) {
+                                                        val tphForDept = filteredTphList.filter { it.dept == deptId }
                                                         AppLogger.d("TPH Update - Filtered ${tphForDept.size} records for department $deptId")
-
-                                                        // Update only records for this department
-                                                        repository.updateOrInsertTPH(tphForDept)
+                                                        tphForDept
                                                     } else {
-                                                        AppLogger.d("TPH Update - No department ID specified, updating all ${tphList.size} records")
-                                                        repository.updateOrInsertTPH(tphList)
+                                                        AppLogger.d("TPH Update - No department ID specified, updating all ${filteredTphList.size} records")
+                                                        filteredTphList
                                                     }
+                                                    repository.updateOrInsertTPH(dataToUse)
                                                 }
                                             } catch (e: Exception) {
                                                 AppLogger.e("Database update error: ${e.message}")
@@ -915,15 +931,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             }
                                         }
 
-                                        if (lastModified != null && request.estateAbbr != null) {
-                                            val estateAbbr = request.estateAbbr
-                                            prefManager.setEstateLastModified(estateAbbr!!, lastModified)
-                                        }else{
+                                        request.estateAbbr?.let {
+                                            prefManager.setEstateLastModified(it, lastModified!!)
+                                        } ?: run {
                                             prefManager.lastModifiedDatasetTPH = lastModified
                                         }
 
                                         processed = true
                                     }
+
 
                                     AppUtils.DatasetNames.kemandoran -> {
                                         val kemandoranList = parseStructuredJsonToList(jsonContent, KemandoranModel::class.java)

@@ -1708,7 +1708,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     }
                 }
 
-                val maxHeight = (resources.displayMetrics.heightPixels * 0.85).toInt()
+                val maxHeight = (resources.displayMetrics.heightPixels * 0.95).toInt()
 
                 dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
                     ?.let { bottomSheet ->
