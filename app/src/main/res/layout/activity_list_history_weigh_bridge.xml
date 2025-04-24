@@ -218,7 +218,7 @@
         android:id="@+id/tvGenQR60"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Gen QR 60"
+        android:text="Gen QR 40"
         android:visibility="gone"
         android:outlineSpotShadowColor="@color/white"
         android:outlineAmbientShadowColor="@color/white"
@@ -265,10 +265,8 @@
         android:layout_marginBottom="30dp"
         android:layout_marginRight="20dp"
         android:visibility="gone"
-
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-
         app:sdMainFabClosedBackgroundColor="@color/greenDarker"
         app:sdMainFabClosedIconColor="@color/white"
         app:sdMainFabClosedSrc="@drawable/list_solid"

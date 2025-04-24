@@ -6,9 +6,12 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Base64
 import android.util.Log
 import android.view.View
 import android.view.animation.AnimationUtils
@@ -45,9 +48,14 @@ import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.gson.JsonObject
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -57,8 +65,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONException
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.nio.charset.StandardCharsets
 import java.util.Calendar
 import java.util.Locale
+import java.util.zip.Deflater
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.collections.set
@@ -161,6 +175,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                     "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
                                     "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
                                     "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
+                                    "karyawan_nik" to (panenWithRelations.panen.karyawan_nik as Any),
                                     "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
                                     "nama_karyawans" to "",
                                     "nama_kemandorans" to "",
@@ -637,7 +652,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         tvGenQRFull.visibility = View.VISIBLE
 
         btnGenerateQRTPH.setOnClickListener {
-            generateQRTPH(60)
+            generateQRTPH(40)
         }
         btnGenerateQRTPHUnl.setOnClickListener {
             generateQRTPH(0)
@@ -774,7 +789,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                         AppLogger.d("jsonData $jsonData")
                         val encodedData = withContext(Dispatchers.IO) {
                             try {
-                                ListPanenTBSActivity().encodeJsonToBase64ZipQR(jsonData)
+                                encodeJsonToBase64ZipQR(jsonData)
                                     ?: throw Exception("Encoding failed")
                             } catch (e: Exception) {
                                 AppLogger.e("Error encoding data: ${e.message}")
@@ -785,7 +800,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                         // Switch to the main thread for UI updates
                         withContext(Dispatchers.Main) {
                             try {
-                                ListPanenTBSActivity().generateHighQualityQRCode(encodedData, qrCodeImageView)
+                                generateHighQualityQRCode(encodedData, qrCodeImageView)
                                 val fadeOut =
                                     ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
                                         .apply {
@@ -916,7 +931,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                 loadingLogo.visibility = View.GONE
                                 loadingContainer.visibility = View.GONE
                                 AppLogger.e("QR Generation UI Error: ${e.message}")
-                                ListPanenTBSActivity().showErrorMessageGenerateQR(
+                                showErrorMessageGenerateQR(
                                     view,
                                     "Error generating QR code: ${e.message}"
                                 )
@@ -926,8 +941,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                         // Handle any other errors
                         withContext(Dispatchers.Main) {
                             AppLogger.e("Error in QR process: ${e.message}")
-                            ListPanenTBSActivity().stopLoadingAnimation(loadingLogo, loadingContainer)
-                            ListPanenTBSActivity().showErrorMessageGenerateQR(
+                            stopLoadingAnimation(loadingLogo, loadingContainer)
+                            showErrorMessageGenerateQR(
                                 view,
                                 "Error processing QR code: ${e.message}"
                             )
@@ -946,7 +961,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
             if (mappedData.isEmpty()) {
                 throw IllegalArgumentException("Data TPH is empty.")
             }
-
+            Log.d("formatPanenDataForQR", "mappedData: $mappedData")
             val formattedData = buildString {
                 mappedData.forEach { data ->
                     try {
@@ -954,8 +969,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                             ?: throw IllegalArgumentException("Missing tph_id.")
                         val dateCreated = data["date_created"]?.toString()
                             ?: throw IllegalArgumentException("Missing date_created.")
-                        val nik = data["nik"]?.toString()
-                            ?: throw IllegalArgumentException("Missing nik.")
+                        val nik = data["karyawan_nik"]?.toString()
+                            ?: throw IllegalArgumentException("Missing karyawan_nik.")
 
                         val jjgJsonString = data["jjg_json"]?.toString()
                             ?: throw IllegalArgumentException("Missing jjg_json.")
@@ -1010,7 +1025,11 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                         val time = dateParts[1]  // 13:15:18
 
                         // Use dateIndexMap.size as the index for new dates
-                        append("${dateIndexMap.getOrPut(date) {dateIndexMap.size}},$time,$tphId,${nikIndexMap.getOrPut(nik) {nikIndexMap.size}},$unValue,$ovValue,$emValue,$abValue,$riValue;")
+                        append("${dateIndexMap.getOrPut(date) {dateIndexMap.size}}," +
+                                "$time," +
+                                "$tphId," +
+                                "${nikIndexMap.getOrPut(nik) {nikIndexMap.size}}," +
+                                "$unValue,$ovValue,$emValue,$abValue,$riValue;")
                     } catch (e: Exception) {
                         throw IllegalArgumentException("Error processing data entry: ${e.message}")
                     }
@@ -1037,16 +1056,135 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 nikJson.put(index.toString(), date)
             }
 
-            return JSONObject().apply {
+            val json = JSONObject().apply {
                 put("tph_0", formattedData)
                 put("username", username)
                 put("tgl", tglJson)
                 put("nik", nikJson)
             }.toString()
+
+            Log.d("formatPanenDataForQR", "json: $json")
+
+            return json
         } catch (e: Exception) {
             AppLogger.e("formatPanenDataForQR Error: ${e.message}")
             throw e
         }
     }
+
+    // Helper function to show errors
+    fun showErrorMessageGenerateQR(view: View, message: String) {
+        val errorCard = view.findViewById<MaterialCardView>(R.id.errorCard)
+        val errorText = view.findViewById<TextView>(R.id.errorText)
+        errorText.text = message
+        errorCard.visibility = View.VISIBLE
+    }
+
+    // Helper function to stop the loading animation and hide UI
+    fun stopLoadingAnimation(
+        loadingLogo: ImageView,
+        loadingContainer: LinearLayout
+    ) {
+        loadingLogo.animation?.cancel()
+        loadingLogo.clearAnimation()
+        loadingLogo.visibility = View.GONE
+        loadingContainer.visibility = View.GONE
+    }
+
+    fun encodeJsonToBase64ZipQR(jsonData: String): String? {
+        return try {
+            if (jsonData.isBlank()) throw IllegalArgumentException("JSON data is empty")
+
+            // Minify JSON first
+            val minifiedJson = JSONObject(jsonData).toString()
+
+            // Reject empty JSON
+            if (minifiedJson == "{}") {
+                AppLogger.e("Empty JSON detected, returning null")
+                throw IllegalArgumentException("Empty JSON detected")
+            }
+
+            // Create a byte array output stream to hold the zip data
+            ByteArrayOutputStream().use { byteArrayOutputStream ->
+                ZipOutputStream(byteArrayOutputStream).apply {
+                    setLevel(Deflater.BEST_COMPRESSION)
+                }.use { zipOutputStream ->
+                    val entry = ZipEntry("output.json")
+                    zipOutputStream.putNextEntry(entry)
+                    zipOutputStream.write(minifiedJson.toByteArray(StandardCharsets.UTF_8))
+                    zipOutputStream.closeEntry()
+                }
+
+                val zipBytes = byteArrayOutputStream.toByteArray()
+                val base64Encoded = Base64.encodeToString(zipBytes, Base64.NO_WRAP)
+
+                val midPoint = base64Encoded.length / 2
+                val firstHalf = base64Encoded.substring(0, midPoint)
+                val secondHalf = base64Encoded.substring(midPoint)
+
+                firstHalf + "5nqHzPKdlILxS9ABpClq" + secondHalf
+            }
+        } catch (e: JSONException) {
+            AppLogger.e("JSON Processing Error: ${e.message}")
+            throw IllegalArgumentException(e.message.toString())
+        } catch (e: IOException) {
+            AppLogger.e("IO Error: ${e.message}")
+            throw IllegalArgumentException("${e.message}")
+        } catch (e: Exception) {
+            AppLogger.e("Encoding Error: ${e.message}")
+            throw IllegalArgumentException("${e.message}")
+        }
+    }
+
+    fun generateHighQualityQRCode(
+        content: String,
+        imageView: ImageView,
+        sizePx: Int = 1000
+    ) {
+        try {
+            // Create encoding hints for better quality
+            val hints = hashMapOf<EncodeHintType, Any>().apply {
+                put(
+                    EncodeHintType.ERROR_CORRECTION,
+                    ErrorCorrectionLevel.M
+                ) // Change to M for balance
+                put(EncodeHintType.MARGIN, 1) // Smaller margin
+                put(EncodeHintType.CHARACTER_SET, "UTF-8")
+                // Remove fixed QR version to allow automatic scaling
+            }
+
+            // Create QR code writer with hints
+            val writer = QRCodeWriter()
+            val bitMatrix = writer.encode(
+                content,
+                BarcodeFormat.QR_CODE,
+                sizePx,
+                sizePx,
+                hints
+            )
+
+            // Create bitmap with appropriate size
+            val width = bitMatrix.width
+            val height = bitMatrix.height
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+
+            // Fill the bitmap
+            for (x in 0 until width) {
+                for (y in 0 until height) {
+                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
+                }
+            }
+
+            // Set the bitmap to ImageView with high quality scaling
+            imageView.apply {
+                setImageBitmap(bitmap)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
 
 }

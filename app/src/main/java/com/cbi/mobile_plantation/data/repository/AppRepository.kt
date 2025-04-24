@@ -53,6 +53,66 @@ class AppRepository(context: Context) {
         panenDao.insert(data)
     }
 
+    suspend fun saveScanMPanen(tphDataList: List<PanenEntity>): Result<SaveTPHResult> =
+        withContext(Dispatchers.IO) {
+            try {
+                // Keep track of successes and failures
+                val savedIds = mutableListOf<Long>()
+                val duplicates = mutableListOf<PanenEntity>()
+
+                // Check each item individually
+                for (tphData in tphDataList) {
+                    // Check if this specific item is a duplicate
+                    val isDuplicate = panenDao.exists(tphData.tph_id, tphData.date_created)
+
+                    if (isDuplicate) {
+                        // Add to duplicates list
+                        duplicates.add(tphData)
+                    } else {
+                        // Save non-duplicate - pass the single entity to insertWithTransaction
+                        val result = panenDao.insertWithTransaction(tphData)
+
+                        result.fold(
+                            onSuccess = { id -> savedIds.add(id) },
+                            onFailure = { throw it }
+                        )
+                    }
+                }
+
+                // Create result based on what happened
+                when {
+                    duplicates.isEmpty() -> {
+                        // All items were saved successfully
+                        Result.success(SaveTPHResult.AllSuccess(savedIds))
+                    }
+                    savedIds.isEmpty() -> {
+                        // Everything was a duplicate
+                        val duplicateInfo = duplicates.joinToString("\n") {
+                            "TPH ID: ${it.tph_id}, Date: ${it.date_created}"
+                        }
+                        Result.failure(
+                            Exception("All data is duplicate:\n$duplicateInfo")
+                        )
+                    }
+                    else -> {
+                        // We had partial success
+                        val duplicateInfo = duplicates.joinToString("\n") {
+                            "TPH ID: ${it.tph_id}, Date: ${it.date_created}"
+                        }
+                        Result.success(
+                            SaveTPHResult.PartialSuccess(
+                                savedIds = savedIds,
+                                duplicateCount = duplicates.size,
+                                duplicateInfo = duplicateInfo
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
     suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
         return karyawanDao.getPemuatByIdList(idPemuat)
     }

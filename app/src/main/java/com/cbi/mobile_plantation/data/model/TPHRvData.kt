@@ -2,9 +2,9 @@ package com.cbi.mobile_plantation.data.model
 
 data class TphRvData(
     val namaBlok: String,
-    val noTPH: Int,
+    val noTPH: String,
     val time: String,
-    val jjg: Int,
+    val jjg: String,
     val username: String
 )
 
