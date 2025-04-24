@@ -3593,7 +3593,31 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutPemanen -> {
                 selectedPemanen = selectedItem.toString()
-                val selectedNik = selectedPemanen.substringAfter(" - ").trim()
+
+                // Improved NIK extraction - look for the last occurrence of " - " followed by numbers
+                val lastDashIndex = selectedPemanen.lastIndexOf(" - ")
+                val selectedNik = if (lastDashIndex != -1 && lastDashIndex < selectedPemanen.length - 3) {
+                    val potentialNik = selectedPemanen.substring(lastDashIndex + 3).trim()
+                    // Verify if it's a numeric NIK
+                    if (potentialNik.all { it.isDigit() }) {
+                        potentialNik
+                    } else {
+                        // If not numeric, try to find the NIK in the karyawan list by name
+                        val matchingKaryawan = karyawanList.firstOrNull {
+                            it.nama?.trim() == selectedPemanen.trim()
+                        }
+                        matchingKaryawan?.nik ?: ""
+                    }
+                } else {
+                    // If no dash, try to find the NIK in the karyawan list by name
+                    val matchingKaryawan = karyawanList.firstOrNull {
+                        it.nama?.trim() == selectedPemanen.trim()
+                    }
+                    matchingKaryawan?.nik ?: ""
+                }
+
+                AppLogger.d("Selected Pemanen: $selectedPemanen")
+                AppLogger.d("Extracted NIK: $selectedNik")
 
                 val nikToEmployeeMap = karyawanList.filter { it.nik != null }
                     .associateBy { it.nik!! }
@@ -3619,7 +3643,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 AppLogger.d("karyawanIdMap $karyawanIdMap")
                 AppLogger.d("kemandoranIdMap $kemandoranIdMap")
 
-                val selectedEmployee = nikToEmployeeMap[selectedNik]
+                var selectedEmployee = nikToEmployeeMap[selectedNik]
+
+                if (selectedEmployee == null) {
+                    selectedEmployee = karyawanList.firstOrNull {
+                        it.nama?.trim() == selectedPemanen.trim()
+                    }
+                }
+
+                // If still not found, try to find by name without the NIK part
+                if (selectedEmployee == null && lastDashIndex != -1) {
+                    val nameWithoutNik = selectedPemanen.substring(0, lastDashIndex).trim()
+                    selectedEmployee = karyawanList.firstOrNull {
+                        it.nama?.trim() == nameWithoutNik
+                    }
+                }
+
                 if (selectedEmployee != null) {
                     val worker = Worker(selectedEmployee.toString(), selectedPemanen)
                     selectedPemanenAdapter.addWorker(worker)
@@ -3632,6 +3671,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
 
                     AppLogger.d("Selected Worker: $selectedPemanen, ID: $selectedEmployee")
+                } else {
+                    AppLogger.d("Error: Could not find worker with name $selectedPemanen or NIK $selectedNik")
                 }
             }
 
@@ -3778,16 +3819,36 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             R.id.layoutPemanenLain -> {
                 selectedPemanenLain = selectedItem.toString()
 
-                val hasNik = selectedPemanenLain.contains(" - ")
-                val selectedNik =
-                    if (hasNik) selectedPemanenLain.substringAfter(" - ").trim() else null
-                val selectedNamaPemanenLain = selectedPemanenLain.substringBefore(" - ").trim()
+                // Improved NIK extraction - look for the last occurrence of " - " followed by numbers
+                val lastDashIndex = selectedPemanenLain.lastIndexOf(" - ")
+                val selectedNik = if (lastDashIndex != -1 && lastDashIndex < selectedPemanenLain.length - 3) {
+                    val potentialNik = selectedPemanenLain.substring(lastDashIndex + 3).trim()
+                    // Verify if it's a numeric NIK
+                    if (potentialNik.all { it.isDigit() }) {
+                        potentialNik
+                    } else {
+                        // If not numeric, try to find the NIK in the karyawan list by name
+                        val matchingKaryawan = karyawanLainList.firstOrNull {
+                            it.nama?.trim() == selectedPemanenLain.trim()
+                        }
+                        matchingKaryawan?.nik ?: ""
+                    }
+                } else {
+                    // If no dash, try to find the NIK in the karyawan list by name
+                    val matchingKaryawan = karyawanLainList.firstOrNull {
+                        it.nama?.trim() == selectedPemanenLain.trim()
+                    }
+                    matchingKaryawan?.nik ?: ""
+                }
 
-                // Create NIK to employee map for lookup similar to layoutPemanen
+                AppLogger.d("Selected Pemanen Lain: $selectedPemanenLain")
+                AppLogger.d("Extracted NIK: $selectedNik")
+
+                // Create NIK to employee map for lookup
                 val nikToEmployeeMap = karyawanLainList.filter { it.nik != null }
                     .associateBy { it.nik!! }
 
-                // Create name counts for duplicate handling similar to layoutPemanen
+                // Create name counts for duplicate handling
                 val nameCounts = mutableMapOf<String, Int>()
                 karyawanLainList.forEach {
                     it.nama?.trim()?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 }
@@ -3806,10 +3867,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
                 }
 
-                val selectedEmployee = if (selectedNik != null) {
-                    nikToEmployeeMap[selectedNik]
-                } else {
-                    karyawanLainList.find { it.nama?.trim() == selectedNamaPemanenLain }
+                // Try to find the employee by NIK first
+                var selectedEmployee = nikToEmployeeMap[selectedNik]
+
+                // If not found by NIK, try to find by full name
+                if (selectedEmployee == null) {
+                    selectedEmployee = karyawanLainList.firstOrNull {
+                        it.nama?.trim() == selectedPemanenLain.trim()
+                    }
+                }
+
+                // If still not found, try to find by name without the NIK part
+                if (selectedEmployee == null && lastDashIndex != -1) {
+                    val nameWithoutNik = selectedPemanenLain.substring(0, lastDashIndex).trim()
+                    selectedEmployee = karyawanLainList.firstOrNull {
+                        it.nama?.trim() == nameWithoutNik
+                    }
                 }
 
                 if (selectedEmployee != null) {
@@ -3825,6 +3898,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
 
                     AppLogger.d("Selected Worker: $selectedPemanenLain, ID: $selectedEmployee")
+                } else {
+                    AppLogger.d("Error: Could not find worker with name $selectedPemanenLain or NIK $selectedNik")
                 }
             }
 
