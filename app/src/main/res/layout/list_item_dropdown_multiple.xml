@@ -9,6 +9,7 @@
 
     <CheckBox
         android:id="@+id/checkbox"
+        style="@style/defaultBoxColor"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp" />

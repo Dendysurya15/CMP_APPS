@@ -669,11 +669,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         jjg_json = jjg_json,
                                         foto = photoFilesString,
                                         komentar = komentarFotoString,
-                                        asistensi = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 1 else (asistensi
+                                        asistensi = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 2 else (asistensi
                                             ?: 0),
                                         lat = lat ?: 0.0, // Default to 0.0 if null
                                         lon = lon ?: 0.0, // Default to 0.0 if null
-                                        jenis_panen = selectedTipePanen?.toIntOrNull()
+                                        jenis_panen = selectedTipePanen.toIntOrNull()
                                             ?: 0, // Avoid NumberFormatException
                                         ancakInput = ancakInput.toInt(), // Default to "0" if null
                                         info = infoApp ?: "",
@@ -1550,14 +1550,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         masterEstateHasBeenChoice.filter { it.value }.keys.toList()
 
                     if (selectedEstates.isEmpty()) {
-                        // No estates selected
-                        Log.d("Estate Selection", "No estates selected")
-                        Toast.makeText(
-                            this,
-                            "Silakan pilih estate terlebih dahulu",
-                            Toast.LENGTH_SHORT
-                        )
-                            .show()
+                        layoutMasterTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                            View.VISIBLE
+                        layoutMasterTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                            getString(
+                                R.string.al_must_checked_master_estate
+                            )
                     } else {
                         // Create dataset requests for each selected estate
                         val datasetRequests = mutableListOf<DatasetRequest>()
@@ -1897,6 +1895,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             )
                             btnDownloadDataset.visibility = View.GONE
                             btnRetryDownload.visibility = View.GONE
+                            // Enable close button
+                            closeDialogBtn.isEnabled = true
+                            closeDialogBtn.alpha = 1f
+                            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
                         } else {
                             // Some or all failed
                             titleTV.text = "Terjadi Kesalahan Download"
@@ -1911,6 +1913,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             btnRetryDownload.isEnabled = true
                             btnRetryDownload.alpha = 1f
                             btnRetryDownload.iconTint = ColorStateList.valueOf(Color.WHITE)
+                            // Enable close button
+                            closeDialogBtn.isEnabled = true
+                            closeDialogBtn.alpha = 1f
+                            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
                         }
 
                         datasetViewModel.getDistinctMasterDeptInfoCopy()
@@ -1944,10 +1950,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         Log.d("DepartmentInfo", "Setting up spinner with list")
                         setupSpinnerView(layoutEstate, masterDeptAbbrList)
 
-                        // Enable close button
-                        closeDialogBtn.isEnabled = true
-                        closeDialogBtn.alpha = 1f
-                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+
 
                     }
                 }
@@ -4150,6 +4153,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             mutableMapOf<String, Boolean>()
         }
 
+        fun isAnyCheckboxSelected(): Boolean {
+            return selectedItems.values.any { it }
+        }
         // Update button text initially
         if (linearLayout.id == R.id.layoutMasterTPH) {
             updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
@@ -4224,7 +4230,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     val estateAbbr = estateNameToAbbrMap[itemValue]
 
-// Check if this estate already has data
                     val hasExistingData = if (estateAbbr != null) {
                         prefManager?.getEstateLastModified(estateAbbr) != null
                     } else {
@@ -4284,23 +4289,61 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         view.isClickable = true
                         view.alpha = 1.0f
 
-                        checkbox.isChecked = selectedItems[itemValue] == true
+                        val isChecked = selectedItems[itemValue] == true
+                        checkbox.isChecked = isChecked
+
+                        if (isChecked) {
+                            checkbox.buttonTintList = ColorStateList.valueOf(
+                                ContextCompat.getColor(context, R.color.greenBorder)
+                            )
+                        } else {
+                            checkbox.buttonTintList = ContextCompat.getColorStateList(
+                                context,
+                                R.color.greenBorder
+                            )
+                        }
 
                         checkbox.setOnClickListener {
-                            selectedItems[itemValue] = checkbox.isChecked
+                            val nowChecked = checkbox.isChecked
+                            selectedItems[itemValue] = nowChecked
+
+                            // Update tint based on checked state
+                            checkbox.buttonTintList = ColorStateList.valueOf(
+                                ContextCompat.getColor(
+                                    context,
+                                    if (nowChecked) R.color.greenBorder else R.color.greenBorder
+                                )
+                            )
+
+                            val errorTextView =
+                                layoutMasterTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                            if (errorTextView.visibility == View.VISIBLE && isAnyCheckboxSelected()) {
+                                errorTextView.visibility = View.GONE
+                            }
                             if (linearLayout.id == R.id.layoutMasterTPH) {
                                 updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
                             }
                         }
 
                         view.setOnClickListener {
-                            checkbox.isChecked = !checkbox.isChecked
-                            selectedItems[itemValue] = checkbox.isChecked
+                            val nowChecked = !checkbox.isChecked
+                            checkbox.isChecked = nowChecked
+                            selectedItems[itemValue] = nowChecked
+
+                            // Update tint based on checked state
+                            checkbox.buttonTintList = ColorStateList.valueOf(
+                                ContextCompat.getColor(
+                                    context,
+                                    if (nowChecked) R.color.greenBorder else R.color.greenBorder
+                                )
+                            )
+
                             if (linearLayout.id == R.id.layoutMasterTPH) {
                                 updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
                             }
                         }
                     }
+
 
                     return view
                 }
@@ -4473,6 +4516,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
     }
+
 
     // Helper function to find ScrollView
     private fun findScrollView(view: View): ScrollView? {

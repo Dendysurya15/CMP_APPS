@@ -16,6 +16,7 @@
     <string name="al_yes">Ya</string>
     <string name="al_confirm_asistensi">Menu ini digunakan untuk input panen asistensi ke estate lain, Pastikan pilihan anda benar!</string>
     <string name="al_confirm_upload">Apakah anda yakin untuk upload data CMP?</string>
+    <string name="al_confirm_sinkronisasi_master_dataset">Apakah anda yakin untuk melakukan sinkronisasi master dataset?</string>
     <string name="al_confirm_out">Apakah anda yakin untuk keluar dari aplikasi ini?</string>
     <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah anda yakin untuk simpan &amp; upload data e-SPB ini?</string>
     <string name="al_confirm_generate_qr">Apakah anda yakin untuk Generate data menjadi QR?</string>
@@ -113,6 +114,7 @@
     <string name="fetching_dataset">Sedang mengambil dataset</string>
     <string name="ganti_akun">Ganti Akun?</string>
     <string name="daftar_tph_sudah_terangkut">Informasi TPH Sudah Terangkut</string>
+    <string name="al_must_checked_master_estate">Centang pilihan estate diatas!</string>
 
     <string-array name="tipe_panen_options">
         <item>Normal</item>

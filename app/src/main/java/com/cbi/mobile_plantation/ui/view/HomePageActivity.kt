@@ -2087,7 +2087,7 @@ class HomePageActivity : AppCompatActivity() {
 
         // Update button text to reflect download operation
         btnSinkronisasiDataset.text = "Update Dataset"
-        btnSinkronisasiDataset.setIconResource(R.drawable.baseline_download_24) // Assuming you have this icon
+        btnSinkronisasiDataset.setIconResource(R.drawable.baseline_refresh_24) // Assuming you have this icon
 
         val containerDownloadDataset =
             dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
@@ -2176,9 +2176,9 @@ class HomePageActivity : AppCompatActivity() {
             if (AppUtils.isNetworkAvailable(this)) {
                 AlertDialogUtility.withTwoActions(
                     this,
-                    "Download",
+                    "Perbarui",
                     getString(R.string.confirmation_dialog_title),
-                    getString(R.string.al_confirm_upload),
+                    getString(R.string.al_confirm_sinkronisasi_master_dataset),
                     "warning.json",
                     ContextCompat.getColor(this, R.color.bluedarklight),
                     function = { startDownload() },
