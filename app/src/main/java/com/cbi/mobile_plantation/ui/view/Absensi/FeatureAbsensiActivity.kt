@@ -76,6 +76,7 @@ import com.google.android.material.switchmaterial.SwitchMaterial
 import com.jaredrummler.materialspinner.MaterialSpinner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -149,7 +150,16 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
     private var karyawanId: List<String> = emptyList()
-    private var filteredKemandoranId: Int? = null
+//    private var filteredKemandoranId: Int? = null
+//private var filteredKemandoranId: List<Int> = emptyList()
+    private val filteredKemandoranId = mutableSetOf<Int>()
+    private val selectedKemandoranIds = mutableSetOf<Int>()
+
+    private val selectedKemandoranIdsLain = mutableSetOf<Int>()
+    private val filteredKemandoranIdLain = mutableListOf<Int>()
+
+
+
     private var selectedKemandoranIdLainAbsensi: Int? = null
 
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
@@ -271,30 +281,32 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
 
                                     AppLogger.d("Tgl ${dateAbsen} + idKar ${karyawanMskId}")
 
-                                    val listKemandoran = listOfNotNull(
-                                        filteredKemandoranId,
-                                        selectedKemandoranIdLainAbsensi
-                                    )
-                                        .joinToString(",")
+                                val listKemandoran = (filteredKemandoranId + selectedKemandoranIds + filteredKemandoranIdLain + selectedKemandoranIdsLain)
+                                    .sortedBy { id -> kemandoranList.find { it.id == id }?.divisi_abbr ?: "" } // Urutkan berdasarkan lokasi kerja
+                                    .joinToString(",") // Gabungkan menjadi string
+
+                                AppLogger.d("Sorted Kemandoran List: $listKemandoran")
 
                                     val photoFilesString = photoFiles.joinToString(";")
                                     val komentarFotoString = komentarFoto.joinToString(";")
 
-                                    absensiViewModel.saveDataAbsensi(
-                                        kemandoran_id = listKemandoran,
-                                        date_absen = dateAbsen,
-                                        created_by = userId!!,
-                                        karyawan_msk_id = karyawanMskId,
-                                        karyawan_tdk_msk_id = karyawanTdkMskId,
-                                        foto = photoFilesString,
-                                        komentar = komentarFotoString,
-                                        asistensi = asistensi ?: 0,
-                                        lat = lat ?: 0.0,
-                                        lon = lon ?: 0.0,
-                                        info = infoApp ?: "",
-                                        archive = 0
-                                    )
-                                }
+                                AppLogger.d("Tgl ${listKemandoran}")
+
+                                absensiViewModel.saveDataAbsensi(
+                                    kemandoran_id = listKemandoran,
+                                    date_absen = dateAbsen,
+                                    created_by = userId!!,
+                                    karyawan_msk_id = karyawanMskId,
+                                    karyawan_tdk_msk_id = karyawanTdkMskId,
+                                    foto = photoFilesString,
+                                    komentar = komentarFotoString,
+                                    asistensi = asistensi ?: 0,
+                                    lat = lat ?: 0.0,
+                                    lon = lon ?: 0.0,
+                                    info = infoApp ?: "",
+                                    archive = 0
+                                )
+                            }
 
                                 when (result) {
                                     is SaveDataAbsensiState.Success -> {
@@ -915,6 +927,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
 
                 val selecteKemandoranId = kemandoranMap[selectedKemandoran]
                 if (selecteKemandoranId != null) {
+                    selectedKemandoranIds.add(selecteKemandoranId) // Tambahkan ke Set agar tidak duplikat
+
                     val worker = Worker(selecteKemandoranId.toString(), selectedKemandoran)
                     selectedKemandoranAdapter.addWorker(worker)
 
@@ -932,16 +946,26 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                 AppLogger.d(estateId.toString())
                 AppLogger.d(selectedDivisiValue.toString())
 
-                filteredKemandoranId = try {
-                    kemandoranList.find {
-                        it.dept == estateId?.toIntOrNull() && // Avoids force unwrap (!!)
-                                it.divisi == selectedDivisiValue &&
-                                it.nama == selectedKemandoran
-                    }?.id
-                } catch (e: Exception) {
-                    AppLogger.e("Error finding Kemandoran ID: ${e.message}")
-                    null
-                }
+//                filteredKemandoranId = try {
+//                    kemandoranList.find {
+//                        it.dept == estateId?.toIntOrNull() && // Avoids force unwrap (!!)
+//                                it.divisi == selectedDivisiValue &&
+//                                it.nama == selectedKemandoran
+//                    }?.id
+//                } catch (e: Exception) {
+//                    AppLogger.e("Error finding Kemandoran ID: ${e.message}")
+//                    null
+//                }
+
+                filteredKemandoranId.addAll(
+                    kemandoranList.filter {
+                        it.dept == estateId?.toIntOrNull() &&
+                                it.divisi == selectedDivisiValue
+                    }.map { it.id }
+                )
+
+                filteredKemandoranId.clear()
+                filteredKemandoranId.addAll(selectedKemandoranIds)
 
                 if (filteredKemandoranId != null) {
                     AppLogger.d("Filtered Kemandoran ID: $filteredKemandoranId")
@@ -953,9 +977,21 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                         }
 
                         try {
+//                            val karyawanDeferred = async {
+//                                datasetViewModel.getKaryawanList(filteredKemandoranId)
+//                            }
+//                            val karyawanDeferred = async {
+//                                filteredKemandoranId.firstOrNull()?.let { id ->
+//                                    datasetViewModel.getKaryawanList(id)
+//                                } ?: emptyList() // Jika null, kembalikan list kosong untuk menghindari error
+//                            }
+
                             val karyawanDeferred = async {
-                                datasetViewModel.getKaryawanList(filteredKemandoranId!!)
+                                filteredKemandoranId.map { id ->
+                                    async { datasetViewModel.getKaryawanList(id) }
+                                }.awaitAll().flatten()
                             }
+
 
                             karyawanList = karyawanDeferred.await()
                             val karyawanNames = karyawanList.map { it.nama }
@@ -997,47 +1033,42 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                 selectedKemandoranLain = selectedItem.toString()
 
                 val kemandoranMap = kemandoranLainList.associateBy({ it.nama }, { it.id })
-
                 val selecteKemandoranLainId = kemandoranMap[selectedKemandoranLain]
+
                 if (selecteKemandoranLainId != null) {
+                    selectedKemandoranIdsLain.add(selecteKemandoranLainId) // Tambahkan ke set agar unik
+
                     val worker = Worker(selecteKemandoranLainId.toString(), selectedKemandoranLain)
                     selectedKemandoranLainAdapter.addWorker(worker)
 
                     val availableWorkers = selectedKemandoranLainAdapter.getAvailableWorkers()
-
                     if (availableWorkers.isNotEmpty()) {
-                        setupSpinnerView(
-                            linearLayout,
-                            availableWorkers.map { it.name })  // Extract names
+                        setupSpinnerView(linearLayout, availableWorkers.map { it.name })
                     }
 
                     AppLogger.d("Selected Worker: $selectedKemandoranLain, ID: $selecteKemandoranLainId")
                 }
 
-                AppLogger.d(kemandoranLainList.toString())
-                selectedKemandoranIdLainAbsensi = try {
-                    kemandoranLainList.find {
-                        it.nama == selectedKemandoranLain
-                    }?.id
-                } catch (e: Exception) {
-                    AppLogger.e("Error finding Kemandoran ID: ${e.message}")
-                    null
-                }
+                // Hapus isi sebelumnya agar tidak menumpuk
+                filteredKemandoranIdLain.clear()
+                filteredKemandoranIdLain.addAll(selectedKemandoranIdsLain)
 
-                AppLogger.d(selectedKemandoranIdLainAbsensi.toString())
+                AppLogger.d("Filtered Kemandoran Lain ID: $filteredKemandoranIdLain")
 
-                if (selectedKemandoranIdLainAbsensi != null) {
-                    AppLogger.d("Filtered Kemandoran Lain ID: $selectedKemandoranIdLainAbsensi")
-
+                // Ambil data karyawan hanya jika ada ID kemandoran lain yang dipilih
+                if (filteredKemandoranIdLain.isNotEmpty()) {
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
                             animateLoadingDots(linearLayout)
-                            delay(1000) // 1 second delay
+                            delay(1000) // Simulasi loading
                         }
                         try {
                             val karyawanDeferred = async {
-                                datasetViewModel.getKaryawanList(selectedKemandoranIdLainAbsensi!!)
+                                filteredKemandoranIdLain.map { id ->
+                                    async { datasetViewModel.getKaryawanList(id) }
+                                }.awaitAll().flatten()
                             }
+
                             karyawanLainList = karyawanDeferred.await()
 
                             val karyawanLainNames = karyawanLainList.map { it.nama }
@@ -1051,6 +1082,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                                     jabatan = karyawan.jabatan ?: "-" // Tangani null
                                 )
                             }
+
                             withContext(Dispatchers.Main) {
                                 AppLogger.d(absensiLainList.toString())
                                 absensiAdapter.updateList(absensiLainList, append = true)
@@ -1061,7 +1093,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(
                                     this@FeatureAbsensiActivity,
-                                    "Error loading kemandoran: ${e.message}",
+                                    "Error loading kemandoran lain: ${e.message}",
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -1072,9 +1104,10 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
                         }
                     }
                 } else {
-                    AppLogger.e("Filtered Kemandoran ID is null, skipping data fetch.")
+                    AppLogger.e("Filtered Kemandoran ID is empty, skipping data fetch.")
                 }
             }
+
         }
     }
 
@@ -1276,6 +1309,9 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
             locationEnable = true
             lat = location.latitude
             lon = location.longitude
+            if (::takeFotoPreviewAdapter.isInitialized) {
+                takeFotoPreviewAdapter.updateCoordinates(lat, lon)
+            }
         }
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->

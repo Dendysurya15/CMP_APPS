@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.database
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -24,6 +25,7 @@ import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.utils.AppUtils
+import java.util.concurrent.Executors
 
 /**
  * Database Version History
@@ -71,7 +73,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
         EstateModel::class,
         AfdelingModel::class,
     ],
-    version = 30
+    version = 31
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao

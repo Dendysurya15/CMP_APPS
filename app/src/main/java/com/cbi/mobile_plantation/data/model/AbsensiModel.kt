@@ -18,6 +18,8 @@ data class AbsensiModel(
     val lat: Double,
     val lon: Double,
     val info: String,
+    val status_scan:Int = 0,
     val archive: Int,
     val dataIsZipped: Int = 0,
     )
+

@@ -11,6 +11,7 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
 import android.provider.Settings
+import kotlin.reflect.full.findAnnotation
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -34,6 +35,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.cbi.cmp_project.ui.view.Absensi.ScanAbsensiActivity
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.database.KaryawanDao
 import com.cbi.mobile_plantation.data.model.ESPBEntity
@@ -85,6 +87,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -752,16 +755,20 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.ScanAbsensiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    AlertDialogUtility.withSingleAction(
-                        this@HomePageActivity,
-                        stringXML(R.string.al_back),
-                        stringXML(R.string.al_features_still_in_development),
-                        stringXML(R.string.al_desc_features_still_in_development),
-                        "warning.json",
-                        R.color.yellowbutton
-                    ) {
+//                    AlertDialogUtility.withSingleAction(
+//                        this@HomePageActivity,
+//                        stringXML(R.string.al_back),
+//                        stringXML(R.string.al_features_still_in_development),
+//                        stringXML(R.string.al_desc_features_still_in_development),
+//                        "warning.json",
+//                        R.color.yellowbutton
+//                    ) {
+//
+//                    }
 
-                    }
+                    val intent = Intent(this, ScanAbsensiActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
                 }
             }
 

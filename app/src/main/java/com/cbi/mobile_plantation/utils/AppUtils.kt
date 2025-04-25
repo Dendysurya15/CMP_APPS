@@ -186,7 +186,7 @@ object AppUtils {
     object ListFeatureNames {
         const val PanenTBS = "Panen TBS"
         const val RekapHasilPanen = "Rekap Hasil Panen"
-        const val AsistensiEstateLain = "Asistensi Panen TBS Estate Lain"
+        const val AsistensiEstateLain = "Asistensi Estate Lain"
         const val ScanHasilPanen = "Scan Hasil Panen"
         const val RekapPanenDanRestan = "Rekap panen dan restan"
         const val BuatESPB = "Buat eSPB"
