@@ -24,7 +24,7 @@
             android:gravity="center|left"
             android:text="Loading.."
             android:textColor="@color/black"
-            android:textSize="18sp"
+            android:textSize="@dimen/m"
             tools:ignore="HardcodedText,RtlHardcoded" />
 
         <View
@@ -75,7 +75,7 @@
                             android:text="."
                             android:textColor="@color/greendarkerbutton"
                             android:textColorHint="@color/black"
-                            android:textSize="25dp"
+                            android:textSize="@dimen/xxl"
                             android:textStyle="bold" />
 
                         <TextView
@@ -84,7 +84,7 @@
                             android:layout_height="wrap_content"
                             android:text="."
                             android:textColor="@color/greendarkerbutton"
-                            android:textSize="25dp"
+                            android:textSize="@dimen/xxl"
                             android:textStyle="bold" />
 
                         <TextView
@@ -93,7 +93,7 @@
                             android:layout_height="wrap_content"
                             android:text="."
                             android:textColor="@color/greendarkerbutton"
-                            android:textSize="25dp"
+                            android:textSize="@dimen/xxl"
                             android:textStyle="bold" />
 
                         <TextView
@@ -102,7 +102,7 @@
                             android:layout_height="wrap_content"
                             android:text="."
                             android:textColor="@color/greendarkerbutton"
-                            android:textSize="25dp"
+                            android:textSize="@dimen/xxl"
                             android:textStyle="bold" />
                     </LinearLayout>
 
@@ -134,6 +134,56 @@
                 app:flexWrap="wrap"
                 app:justifyContent="flex_start" />
 
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="4dp"
+                android:layout_marginTop="10dp"
+                android:paddingBottom="-10dp"
+                android:visibility="gone"
+                app:cardCornerRadius="11dp"
+                android:id="@+id/filter_container_pertanyaan_layout"
+                app:cardBackgroundColor="@color/graylight"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/graylightDarker">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp">
+
+
+                    <TextView
+                        android:id="@+id/worker_name"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:text="Hapus Filter"
+                        android:textColor="@color/black"
+                        android:textStyle="italic"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:textSize="@dimen/m"
+                        android:maxLines="2"
+                        android:ellipsize="end" />
+
+                    <ImageView
+                        android:id="@+id/remove_filter"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:tint="@color/colorRedDark"
+                        android:background="@drawable/rounded_radius_background"
+                        android:src="@drawable/baseline_close_24"
+                        android:clickable="true"
+                        android:focusable="true"
+                        tools:ignore="UseAppTint" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
         </LinearLayout>
 
     </LinearLayout>
@@ -159,7 +209,7 @@
             android:paddingBottom="4dp"
             android:text="Jawaban harus diisi!"
             android:textColor="@color/colorRedDark"
-            android:textSize="17sp"
+            android:textSize="@dimen/m"
             android:fontFamily="@font/manrope_bold"
             android:visibility="gone"
             tools:ignore="HardcodedText,RtlSymmetry" />

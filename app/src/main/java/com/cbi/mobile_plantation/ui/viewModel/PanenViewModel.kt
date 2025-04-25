@@ -7,14 +7,19 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.mobile_plantation.data.model.KaryawanModel
+import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.utils.AppLogger
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 
 sealed class SaveDataPanenState {
@@ -24,6 +29,12 @@ sealed class SaveDataPanenState {
 
 class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: AppRepository = AppRepository(application)
+
+    private val _allKaryawanList = MutableLiveData<List<KaryawanModel>>()
+    val allKaryawanList: LiveData<List<KaryawanModel>> = _allKaryawanList
+
+    private val _panenCountTPHESPB = MutableLiveData<Int>()
+    val panenCountTPHESPB: LiveData<Int> get() = _panenCountTPHESPB
 
     private val _panenList = MutableLiveData<List<PanenEntity>>()
     val panenList: LiveData<List<PanenEntity>> get() = _panenList
@@ -52,6 +63,15 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _updateStatus = MutableLiveData<Boolean>()
     val updateStatus: LiveData<Boolean> get() = _updateStatus
 
+    private val _panenCountActive = MutableLiveData<Int>()
+    val panenCountActive: LiveData<Int> = _panenCountActive
+
+    private val _panenCountHasBeenESPB = MutableLiveData<Int>()
+    val panenCountHasBeenESPB: LiveData<Int> = _panenCountHasBeenESPB
+
+    private val _panenCountArchived = MutableLiveData<Int>()
+    val panenCountArchived: LiveData<Int> = _panenCountArchived
+
 
     fun loadAllPanen() {
         viewModelScope.launch {
@@ -69,16 +89,89 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadTPHNonESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadESPB(archive, statusEspb, scanStatus, date)
+            _activePanenList.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB: ${e.message}")
+            _activePanenList.value = emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    fun countTPHNonESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val count = repository.countESPB(archive, statusEspb, scanStatus, date)
+            _panenCountActive.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB: ${e.message}")
+            _panenCountActive.value = 0
+        }
+    }
+
+    fun countHasBeenESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val count = repository.countESPB(archive, statusEspb, scanStatus, date)
+            _panenCountHasBeenESPB.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB: ${e.message}")
+            _panenCountHasBeenESPB.value = 0
+        }
+    }
+
+
+    fun loadTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadESPB(archive, statusEspb, scanStatus, date)
+            _archivedPanenList.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB: ${e.message}")
+            _archivedPanenList.value = emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    fun countTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val count = repository.countESPB(archive, statusEspb, scanStatus, date)
+            _panenCountArchived.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB: ${e.message}")
+            _panenCountArchived.value = 0
+        }
+    }
+
     suspend fun loadPanenCount(): Int {
         val count = repository.getPanenCount()
         _panenCount.value = count
         return count
     }
 
+    fun loadCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val formattedDate = date?.take(10) // Ensures only YYYY-MM-DD is passed
+            val count = repository.loadCountTPHESPB(archive, statusEspb, scanStatus, formattedDate)
+            _panenCountTPHESPB.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error loading TPH ESPB count: ${e.message}")
+            _panenCountTPHESPB.value = 0
+        }
+    }
+
+
     suspend fun loadPanenCountApproval(): Int {
         val count = repository.getPanenCountApproval()
         _panenCount.value = count
         return count
+    }
+
+    suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
+        return repository.getPemuatByIdList(idPemuat)
+    }
+
+    suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {
+        return withContext(Dispatchers.IO) {  // Run on background thread
+            repository.getKemandoranById(idKemandoran)
+        }
     }
 
     fun loadActivePanen() {
@@ -105,6 +198,18 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun getAllTPHHasBeenSelected() {
+        viewModelScope.launch {
+            repository.getAllTPHHasBeenSelected()
+                .onSuccess { panenList ->
+                    _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
     fun updateDataIsZippedPanen(ids: List<Int>, status:Int) {
         viewModelScope.launch {
             try {
@@ -113,6 +218,30 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _updateStatus.postValue(false)
             }
+        }
+    }
+
+    fun getAllKaryawan() {
+        viewModelScope.launch {
+            repository.getAllKaryawan()
+                .onSuccess { karyawanList ->
+                    _allKaryawanList.postValue(karyawanList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load karyawan data")
+                }
+        }
+    }
+
+    fun getAllPanenWhereESPB(no_espb: String) {
+        viewModelScope.launch {
+            repository.getAllPanenWhereESPB(no_espb)
+                .onSuccess { panenList ->
+                    _activePanenList.postValue(panenList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
         }
     }
 
@@ -127,7 +256,6 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 }
         }
     }
-
 
     fun loadArchivedPanen() {
         viewModelScope.launch {
@@ -185,6 +313,8 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         date_created: String,
         created_by: Int,
         karyawan_id: String,
+        kemandoran_id: String,
+        karyawan_nik: String,
         jjg_json: String,
         foto: String,
         komentar: String,
@@ -203,6 +333,8 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 date_created = date_created,
                 created_by = created_by,
                 karyawan_id = karyawan_id,
+                kemandoran_id = kemandoran_id,
+                karyawan_nik = karyawan_nik,
                 jjg_json = jjg_json,
                 foto = foto,
                 komentar = komentar,

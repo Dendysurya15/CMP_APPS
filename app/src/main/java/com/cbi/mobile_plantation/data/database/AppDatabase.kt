@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.data.database
+package com.cbi.mobile_plantation.data.database
 
 import android.content.Context
 import android.util.Log
@@ -7,17 +7,24 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.cbi.cmp_project.data.model.AbsensiModel
-import com.cbi.cmp_project.data.model.ESPBEntity
-import com.cbi.cmp_project.data.model.FlagESPBModel
-import com.cbi.cmp_project.data.model.KaryawanModel
-import com.cbi.cmp_project.data.model.KemandoranModel
-
-import com.cbi.cmp_project.data.model.MillModel
-import com.cbi.cmp_project.data.model.PanenEntity
-import com.cbi.cmp_project.data.model.TransporterModel
-import com.cbi.cmp_project.data.model.UploadCMPModel
+import com.cbi.mobile_plantation.data.database.InspectionDao
+import com.cbi.mobile_plantation.data.model.InspectionModel
+import com.cbi.mobile_plantation.data.model.InspectionPathModel
+import com.cbi.mobile_plantation.data.model.AbsensiModel
+import com.cbi.mobile_plantation.data.model.ESPBEntity
+import com.cbi.mobile_plantation.data.model.FlagESPBModel
+import com.cbi.mobile_plantation.data.model.KaryawanModel
+import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.MillModel
+import com.cbi.mobile_plantation.data.model.PanenEntity
+import com.cbi.mobile_plantation.data.model.TransporterModel
+import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.AfdelingModel
+import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.EstateModel
+import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.utils.AppUtils
 import java.util.concurrent.Executors
 
 /**
@@ -59,8 +66,14 @@ import java.util.concurrent.Executors
         TransporterModel::class,
         UploadCMPModel::class,
         AbsensiModel::class,
+        InspectionModel::class,
+        InspectionPathModel::class,
+        KendaraanModel::class,
+        BlokModel::class,
+        EstateModel::class,
+        AfdelingModel::class,
     ],
-    version = 12
+    version = 31
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -73,6 +86,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transporterDao(): TransporterDao
     abstract fun uploadCMPDao(): UploadCMPDao
     abstract fun absensiDao(): AbsensiDao
+    abstract fun inspectionDao(): InspectionDao
+    abstract fun inspectionPathDao(): InspectionPathDao
+    abstract fun kendaraanDao(): KendaraanDao
+    abstract fun blokDao(): BlokDao
+    abstract fun estateDao(): EstateDao
+    abstract fun afdelingDao(): AfdelingDao
 
     companion object {
         @Volatile
@@ -92,7 +111,15 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_5_6,
                         MIGRATION_6_7,
                         MIGRATION_8_9,
-                        MIGRATION_9_10
+                        MIGRATION_9_10,
+                        MIGRATION_11_12,
+                        MIGRATION_13_14,
+                        MIGRATION_14_15,
+                        MIGRATION_25_26,
+                        MIGRATION_26_27,
+                        MIGRATION_27_28,
+                        MIGRATION_28_29,
+                        MIGRATION_29_30,
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -207,68 +234,171 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_10_11 = object : Migration(9, 10) {
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Rename old table
-                database.execSQL("ALTER TABLE ESPB RENAME TO ESPB_old")
-
-                // Create new table with updated schema
-                database.execSQL(
-                    """CREATE TABLE ESPB (
-                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                blok_jjg TEXT NOT NULL,
-                created_by_id INTEGER NOT NULL,
-                created_at TEXT NOT NULL,
-                nopol TEXT NOT NULL,
-                driver TEXT NOT NULL,
-                transporter_id INTEGER NOT NULL,
-                pemuat_id TEXT NOT NULL,
-                mill_id INTEGER NOT NULL,
-                archive INTEGER NOT NULL,
-                tph0 TEXT NOT NULL,
-                tph1 TEXT NOT NULL,
-                update_info_sp TEXT NOT NULL DEFAULT 'NULL',
-                uploaded_by_id_wb INTEGER NOT NULL DEFAULT 0,
-                uploaded_at_wb TEXT NOT NULL DEFAULT 'NULL',
-                uploaded_by_id_sp INTEGER NOT NULL DEFAULT 0,
-                uploaded_at_sp TEXT NOT NULL DEFAULT 'NULL',
-                status_upload_cmp_sp INTEGER NOT NULL DEFAULT 0,
-                status_upload_cmp_wb INTEGER NOT NULL DEFAULT 0,
-                status_upload_ppro_wb INTEGER NOT NULL DEFAULT 0,
-                status_draft INTEGER NOT NULL DEFAULT 0,
-                status_mekanisasi INTEGER NOT NULL DEFAULT 0,
-                creator_info TEXT NOT NULL,
-                uploader_info_sp TEXT NOT NULL DEFAULT 'NULL',
-                uploader_info_wb TEXT NOT NULL DEFAULT 'NULL',
-                noESPB TEXT NOT NULL,
-                scan_status INTEGER NOT NULL DEFAULT 0,
-                dataIsZipped INTEGER NOT NULL DEFAULT 0
-            )"""
-                )
-
-                // Copy data from old table to new table
-                database.execSQL(
-                    """INSERT INTO ESPB (
-                id, blok_jjg, created_by_id, created_at, nopol, driver, transporter_id, pemuat_id, mill_id, archive,
-                tph0, tph1, update_info_sp, uploaded_by_id_wb, uploaded_at_wb, status_upload_cmp_wb, 
-                status_upload_ppro_wb, status_draft, status_mekanisasi, creator_info, uploader_info_wb, 
-                noESPB, scan_status, dataIsZipped
-            ) 
-            SELECT id, blok_jjg, created_by_id, created_at, nopol, driver, transporter_id, pemuat_id, mill_id, archive,
-                   tph0, tph1, update_info, uploaded_by_id, uploaded_at, status_upload_cmp, 
-                   status_upload_ppro, status_draft, status_mekanisasi, creator_info, uploader_info, 
-                   noESPB, scan_status, dataIsZipped
-            FROM ESPB_old"""
-                )
-
-                // Drop old table
-                database.execSQL("DROP TABLE ESPB_old")
+                database.execSQL("ALTER TABLE panen_table ADD COLUMN status_banjir INTEGER NOT NULL DEFAULT 0")
             }
         }
 
 
+        private val MIGRATION_13_14 = object : Migration(12, 13) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE mill_table ADD COLUMN ip TEXT DEFAULT NULL")
+            }
+        }
+
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE espb_table ADD COLUMN uploaded_at_ppro_wb TEXT DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Step 1: Create a temporary table with the new schema
+                database.execSQL(
+                    """
+            CREATE TABLE IF NOT EXISTS upload_cmp_temp (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                tracking_id TEXT, 
+                nama_file TEXT, 
+                status INTEGER,
+                tanggal_upload TEXT, 
+                table_ids TEXT
+            )
+            """
+                )
+
+                // Step 2: Copy data from the old table to the new table, converting only tracking_id to String
+                database.execSQL(
+                    """
+            INSERT INTO upload_cmp_temp (id, tracking_id, nama_file, status, tanggal_upload, table_ids) 
+            SELECT id, 
+                   CAST(tracking_id AS TEXT), 
+                   nama_file, 
+                   status,  
+                   tanggal_upload, 
+                   table_ids 
+            FROM ${AppUtils.DatabaseTables.UPLOADCMP}
+            """
+                )
+
+                // Step 3: Drop the old table
+                database.execSQL("DROP TABLE ${AppUtils.DatabaseTables.UPLOADCMP}")
+
+                // Step 4: Rename the new table to the original name
+                database.execSQL("ALTER TABLE upload_cmp_temp RENAME TO ${AppUtils.DatabaseTables.UPLOADCMP}")
+            }
+        }
+
+        private val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Step 1: Create a temporary table with the new schema
+                database.execSQL(
+                    """
+            CREATE TABLE IF NOT EXISTS upload_cmp_temp (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                tracking_id INTEGER, 
+                nama_file TEXT, 
+                status INTEGER,
+                tanggal_upload TEXT, 
+                table_ids TEXT
+            )
+            """
+                )
+
+                // Step 2: Copy data from the old table to the new table, converting tracking_id back to INTEGER
+                database.execSQL(
+                    """
+            INSERT INTO upload_cmp_temp (id, tracking_id, nama_file, status, tanggal_upload, table_ids) 
+            SELECT id, 
+                   CAST(tracking_id AS INTEGER), 
+                   nama_file, 
+                   status,  
+                   tanggal_upload, 
+                   table_ids 
+            FROM ${AppUtils.DatabaseTables.UPLOADCMP}
+            """
+                )
+
+                // Step 3: Drop the old table
+                database.execSQL("DROP TABLE ${AppUtils.DatabaseTables.UPLOADCMP}")
+
+                // Step 4: Rename the new table to the original name
+                database.execSQL("ALTER TABLE upload_cmp_temp RENAME TO ${AppUtils.DatabaseTables.UPLOADCMP}")
+            }
+        }
+
+        private val MIGRATION_27_28 = object : Migration(25, 26) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Step 1: Create a temporary table with the new schema
+                database.execSQL(
+                    """
+            CREATE TABLE IF NOT EXISTS upload_cmp_temp (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                tracking_id TEXT, 
+                nama_file TEXT, 
+                status INTEGER,
+                tanggal_upload TEXT, 
+                table_ids TEXT
+            )
+            """
+                )
+
+                // Step 2: Copy data from the old table to the new table, converting only tracking_id to String
+                database.execSQL(
+                    """
+            INSERT INTO upload_cmp_temp (id, tracking_id, nama_file, status, tanggal_upload, table_ids) 
+            SELECT id, 
+                   CAST(tracking_id AS TEXT), 
+                   nama_file, 
+                   status,  
+                   tanggal_upload, 
+                   table_ids 
+            FROM ${AppUtils.DatabaseTables.UPLOADCMP}
+            """
+                )
+
+                // Step 3: Drop the old table
+                database.execSQL("DROP TABLE ${AppUtils.DatabaseTables.UPLOADCMP}")
+
+                // Step 4: Rename the new table to the original name
+                database.execSQL("ALTER TABLE upload_cmp_temp RENAME TO ${AppUtils.DatabaseTables.UPLOADCMP}")
+            }
+        }
+
+        val MIGRATION_28_29 = object : Migration(28, 29) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+
+                database.execSQL(
+                    """
+            CREATE TABLE estate (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                id_ppro INTEGER,
+                abbr TEXT,
+                nama TEXT
+            )
+            """.trimIndent()
+                )
+            }
+        }
 
 
+        val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+            CREATE TABLE IF NOT EXISTS afdeling (
+                id INTEGER PRIMARY KEY NOT NULL,
+                id_ppro INTEGER,
+                abbr TEXT,
+                nama TEXT,
+                estate_id INTEGER NOT NULL
+            )
+            """.trimIndent()
+                )
+            }
+        }
 
 
         fun closeDatabase() {

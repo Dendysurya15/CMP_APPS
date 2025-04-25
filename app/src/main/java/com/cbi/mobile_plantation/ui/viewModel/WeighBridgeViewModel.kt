@@ -13,6 +13,8 @@ import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.launch
 
 sealed class SaveDataESPBKraniTimbangState {
@@ -62,6 +64,24 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     private val _activeESPBByIds = MutableLiveData<List<ESPBEntity>>()
     val activeESPBByIds: LiveData<List<ESPBEntity>> = _activeESPBByIds
 
+
+    fun updateUploadStatus(itemId: Int, status: String, endpoint: String, errorMsg: String? = null) {
+        viewModelScope.launch {
+            val statusEndpointMap = _uploadStatusEndpointMap.value?.toMutableMap() ?: mutableMapOf()
+            val errorMap = _uploadErrorMap.value?.toMutableMap() ?: mutableMapOf()
+
+            // Update status
+            statusEndpointMap[itemId] = UploadItemInfo(status, endpoint)
+
+            // Add error message if provided
+            if (!errorMsg.isNullOrEmpty()) {
+                errorMap[itemId] = errorMsg
+            }
+
+            _uploadStatusEndpointMap.postValue(statusEndpointMap)
+            _uploadErrorMap.postValue(errorMap)
+        }
+    }
 
     fun uploadESPBKraniTimbang(selectedItems: List<Map<String, Any>>, globalIdEspb: List<Int>) {
         viewModelScope.launch {
@@ -129,6 +149,10 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
 
     suspend fun getBlokById(listBlokId: List<Int>): List<TPHNewModel> {
         return repository.getBlokById(listBlokId)
+    }
+
+    suspend fun getDataByIdInBlok(listBlokId: List<Int>): List<BlokModel> {
+        return repository.getDataByIdInBlok(listBlokId)
     }
 
     suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
@@ -213,6 +237,25 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun loadHistoryESPB(date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadHistoryESPB(date)
+            _savedESPBByKrani.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB history: ${e.message}")
+            _savedESPBByKrani.value = emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    suspend fun getCountCreatedToday():Int{
+        val count = try {
+            repository.getCountCreatedToday()
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB created today: ${e.message}")
+            0
+        }
+        return count
+    }
 
     suspend fun saveDataLocalKraniTimbangESPB(
         blok_jjg: String,
@@ -222,6 +265,8 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         driver: String,
         transporter_id: Int,
         pemuat_id: String,
+        kemandoran_id: String,
+        pemuat_nik: String,
         mill_id: Int,
         archive: Int,
         tph0: String,
@@ -247,6 +292,8 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                     driver = driver,
                     transporter_id = transporter_id,
                     pemuat_id = pemuat_id,
+                    kemandoran_id = kemandoran_id,
+                    pemuat_nik = pemuat_nik,
                     mill_id = mill_id,
                     archive = archive,
                     tph0 = tph0,

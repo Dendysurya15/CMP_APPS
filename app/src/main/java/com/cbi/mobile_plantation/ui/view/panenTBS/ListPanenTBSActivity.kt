@@ -1,15 +1,21 @@
 package com.cbi.mobile_plantation.ui.view.panenTBS
 
+import android.Manifest
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
+import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.content.res.Resources
 import android.database.sqlite.SQLiteException
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.drawable.BitmapDrawable
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -20,8 +26,11 @@ import android.util.Log
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AnimationUtils
+import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -29,16 +38,22 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.repository.AppRepository
+import com.cbi.mobile_plantation.data.model.KaryawanModel
+import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.ui.adapter.ListPanenTPHAdapter
 import com.cbi.mobile_plantation.ui.view.espb.FormESPBActivity
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.view.ScanQR
+import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
 
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
@@ -48,12 +63,18 @@ import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.ScreenshotUtil
+import com.cbi.mobile_plantation.utils.SoundPlayer
+import com.cbi.mobile_plantation.utils.playSound
 import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -65,6 +86,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONException
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -73,29 +95,41 @@ import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
+@Suppress("IMPLICIT_CAST_TO_ANY")
 class ListPanenTBSActivity : AppCompatActivity() {
     private var featureName = ""
     private var listTPHDriver = ""
     private lateinit var panenViewModel: PanenViewModel
+    private lateinit var espbViewModel: ESPBViewModel
     private lateinit var listAdapter: ListPanenTPHAdapter
     private lateinit var loadingDialog: LoadingDialog
     private var currentState = 0 // 0 for tersimpan, 1 for terscan
     private var prefManager: PrefManager? = null
     private var isSettingUpCheckbox = false
+    private var activityInitialized = false
+
+    private var globalFormattedDate: String = ""
 
     // Add views for buttons and counters
     private lateinit var cardTersimpan: MaterialCardView
     private lateinit var cardTerscan: MaterialCardView
+    private lateinit var cardRekapPerPemanen: MaterialCardView
+    private lateinit var cardRekapPerBlok: MaterialCardView
     private lateinit var counterTersimpan: TextView
     private lateinit var counterTerscan: TextView
-    private lateinit var tvEmptyState: TextView // Add this
-    private lateinit var recyclerView: RecyclerView // Add this
+    private lateinit var counterPerPemanen: TextView
+    private lateinit var tvEmptyState: TextView
+    private lateinit var recyclerView: RecyclerView
     private lateinit var speedDial: SpeedDialView
-
-    private var isAscendingOrder = true // Add this property at class level
-
-    private lateinit var searchEditText: EditText  // Add this as class property
+    private var pemuatNamaESPB = "-"
+    private var isAscendingOrder = true
+    private var originalMappedData: MutableList<Map<String, Any>> = mutableListOf()
+    private lateinit var searchEditText: EditText
     private lateinit var sortButton: ImageView // Add this at class level
     private lateinit var filterSection: LinearLayout
     private lateinit var filterName: TextView
@@ -108,17 +142,361 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var afdelingUser: String? = null
     private lateinit var btnAddMoreTph: FloatingActionButton
     private var tph1IdPanen = ""
-
+    private var tph1NoIdPanen = ""
     private var mappedData: List<Map<String, Any>> = emptyList()
 
-    private var tph1 = ""
+    private var espbId = 0
+    private var jjg = 0
+    private var noespb = "NULL"
+    private var blok = "NULL"
+    private var tph = 0
     private var tph0 = ""
+    private var tph1 = ""
+    private var limit = 0
+    private var tphListScan: List<String> = emptyList()
 
+    private var blok_jjg = "NULL"
+    private var nopol = "NULL"
+    private var driver = "NULL"
+    private var pemuat_id = "NULL"
+    private var kemandoran_id = "NULL"
+    private var pemuat_nik = "NULL"
+    private var transporter_id = 0
+    private var mill_id = 0
+    private var created_by_id = 0
+    private var no_espb = "NULL"
+    private var tph0QR = "NULL"
+    private var tph1QR = "NULL"
+    private var creatorInfo = "NULL"
+    private var dateTime = "NULL"
+    private lateinit var filterAllData: CheckBox
+    private var idsToUpdate = "NULL"
+    private val todayDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))
+    private val todayDate = todayDateFormat.format(Date())
+    private lateinit var ll_detail_espb: LinearLayout
+    private lateinit var dateButton: Button
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
+    private val dateIndexMap = mutableMapOf<String, Int>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list_panen_tbs)
+        //cek tanggal otomatis
+        checkDateTimeSettings()
+    }
+
+    fun openDatePicker(view: View) {
+        initMaterialDatePicker()
+    }
+
+    private fun initMaterialDatePicker() {
+        val builder = MaterialDatePicker.Builder.datePicker()
+        builder.setTitleText("Pilih Tanggal")
+        builder.setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+
+        val datePicker = builder.build()
+
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = selection
+            val year = calendar.get(Calendar.YEAR)
+            val month = calendar.get(Calendar.MONTH) + 1
+            val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+            val displayDate = AppUtils.makeDateString(day, month, year)
+            dateButton.text = displayDate
+
+            val formattedDate = AppUtils.formatDateForBackend(day, month, year)
+            globalFormattedDate = formattedDate
+            AppUtils.setSelectedDate(formattedDate)
+            processSelectedDate(formattedDate)
+        }
+        datePicker.show(supportFragmentManager, "MATERIAL_DATE_PICKER")
+    }
+
+    private fun processSelectedDate(selectedDate: String) {
+//        loadingDialog.show()
+//        loadingDialog.setMessage("Sedang mengambil data...", true)
+
+        val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)
+        val nameFilterDate = findViewById<TextView>(R.id.name_filter_date)
+        val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_date)
+
+        val displayDate = AppUtils.formatSelectedDateForDisplay(selectedDate)
+        nameFilterDate.text = displayDate
+
+
+        if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+            if (currentState == 0) {
+                panenViewModel.loadTPHNonESPB(0, 0, 0, selectedDate)
+                panenViewModel.countTPHNonESPB(0, 0, 0, selectedDate)
+                panenViewModel.countTPHESPB(1, 0, 0, selectedDate)
+            } else if (currentState == 1) {
+                panenViewModel.loadTPHESPB(1, 0, 0, selectedDate)
+                panenViewModel.countTPHNonESPB(0, 0, 0, selectedDate)
+                panenViewModel.countTPHESPB(1, 0, 0, selectedDate)
+            } else if (currentState == 2) {
+                panenViewModel.loadTPHNonESPB(1, 0, 0, selectedDate)
+                panenViewModel.countTPHNonESPB(0, 0, 0, selectedDate)
+                panenViewModel.countTPHESPB(1, 0, 0, selectedDate)
+            }
+        } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+            if (currentState == 0) {
+                panenViewModel.loadTPHNonESPB(0, 0, 1, selectedDate)
+                panenViewModel.countTPHNonESPB(0, 0, 1, selectedDate)
+                panenViewModel.countTPHESPB(0, 1, 1, selectedDate)
+            } else {
+                panenViewModel.loadTPHESPB(0, 1, 1, selectedDate)
+                panenViewModel.countTPHNonESPB(0, 0, 1, selectedDate)
+                panenViewModel.countTPHESPB(0, 1, 1, selectedDate)
+            }
+        } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
+            panenViewModel.loadTPHNonESPB(0, 0, 1, selectedDate)
+        }
+
+        removeFilterDate.setOnClickListener {
+            filterDateContainer.visibility = View.GONE
+//            loadingDialog.show()
+//            loadingDialog.setMessage("Sedang mengambil data...", true)
+            // Get today's date in backend format
+            val todayBackendDate = AppUtils.formatDateForBackend(
+                Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                Calendar.getInstance().get(Calendar.MONTH) + 1,
+                Calendar.getInstance().get(Calendar.YEAR)
+            )
+
+            // Reset the selected date in your utils
+            AppUtils.setSelectedDate(todayBackendDate)
+
+            // Update the dateButton to show today's date
+            val todayDisplayDate = AppUtils.getTodaysDate()
+            dateButton.text = todayDisplayDate
+
+            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                if (currentState == 0) {
+                    panenViewModel.loadTPHNonESPB(0, 0, 0, todayBackendDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 0, todayBackendDate)
+                    panenViewModel.countTPHESPB(1, 0, 0, todayBackendDate)
+                } else if (currentState == 1) {
+                    panenViewModel.loadTPHESPB(1, 0, 0, todayBackendDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 0, todayBackendDate)
+                    panenViewModel.countTPHESPB(1, 0, 0, todayBackendDate)
+                } else if (currentState == 2) {
+                    panenViewModel.loadTPHNonESPB(1, 0, 0, todayBackendDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 0, todayBackendDate)
+                    panenViewModel.countTPHESPB(1, 0, 0, todayBackendDate)
+                }
+            } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                if (currentState == 0) {
+                    panenViewModel.loadTPHNonESPB(0, 0, 1, todayBackendDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
+                    panenViewModel.countTPHESPB(0, 1, 1, todayBackendDate)
+                } else {
+                    panenViewModel.loadTPHESPB(0, 1, 1, todayBackendDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
+                    panenViewModel.countTPHESPB(0, 1, 1, todayBackendDate)
+                }
+            } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
+                panenViewModel.loadTPHNonESPB(0, 0, 1, todayBackendDate)
+            }
+
+        }
+
+        filterDateContainer.visibility = View.VISIBLE
+    }
+
+    private fun setupUI() {
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
+
+        globalFormattedDate = AppUtils.currentDate
+        if (featureName == AppUtils.ListFeatureNames.BuatESPB || featureName == AppUtils.ListFeatureNames.DetailESPB) {
+            findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.GONE
+            findViewById<LinearLayout>(R.id.filterDateContainer).visibility = View.GONE
+
+
+        } else {
+            findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.VISIBLE
+            dateButton = findViewById(R.id.calendarPicker)
+            dateButton.text = AppUtils.getTodaysDate()
+
+            filterAllData = findViewById(R.id.calendarCheckbox)
+
+            filterAllData.setOnCheckedChangeListener { _, isChecked ->
+                val selectedDate = globalFormattedDate // Get the selected date
+                val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)
+                val nameFilterDate = findViewById<TextView>(R.id.name_filter_date)
+                if (isChecked) {
+//                    loadingDialog.show()
+//                    loadingDialog.setMessage("Sedang mengambil data...", true)
+
+
+                    filterDateContainer.visibility = View.VISIBLE
+                    nameFilterDate.text = "Semua Data"
+
+                    dateButton.isEnabled = false
+                    dateButton.alpha = 0.5f
+
+                    if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                        if (currentState == 0) {
+                            panenViewModel.loadTPHNonESPB(0, 0, 0)
+                            panenViewModel.countTPHNonESPB(0, 0, 0)
+                            panenViewModel.countTPHESPB(1, 0, 0)
+                        } else if (currentState == 1) {
+                            panenViewModel.loadTPHESPB(1, 0, 0)
+                            panenViewModel.countTPHNonESPB(0, 0, 0)
+                            panenViewModel.countTPHESPB(1, 0, 0)
+                        } else if (currentState == 2) {
+                            panenViewModel.loadTPHNonESPB(1, 0, 0)
+                            panenViewModel.countTPHNonESPB(0, 0, 0)
+                            panenViewModel.countTPHESPB(1, 0, 0)
+                        }
+                    } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
+                        panenViewModel.loadTPHNonESPB(0, 0, 1)
+                    } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                        if (currentState == 0) {
+                            AppLogger.d(" gess")
+                            panenViewModel.loadTPHNonESPB(0, 0, 1)
+                            panenViewModel.countTPHNonESPB(0, 0, 1)
+                            panenViewModel.countTPHESPB(1, 0, 1)
+                            panenViewModel.countHasBeenESPB(0, 1, 1)
+                        } else if (currentState == 1) {
+                            AppLogger.d("gas terus bro  gess")
+                            panenViewModel.loadTPHESPB(1, 0, 1)
+                            panenViewModel.countTPHNonESPB(0, 0, 1)
+                            panenViewModel.countTPHESPB(1, 0, 1)
+                            panenViewModel.countHasBeenESPB(0, 1, 1)
+                        } else {
+                            AppLogger.d("nais gess")
+                            panenViewModel.loadTPHESPB(0, 1, 1)
+                            panenViewModel.countTPHNonESPB(0, 0, 1)
+                            panenViewModel.countTPHESPB(1, 0, 1)
+                            panenViewModel.countHasBeenESPB(0, 1, 1)
+                        }
+                    }
+                } else {
+
+                    val displayDate = formatGlobalDate(globalFormattedDate)
+                    dateButton.text = displayDate
+
+                    if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                        if (currentState == 0) {
+                            panenViewModel.loadTPHNonESPB(0, 0, 0, globalFormattedDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 0, globalFormattedDate)
+                            panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
+                        } else if (currentState == 1) {
+                            panenViewModel.loadTPHESPB(1, 0, 0, globalFormattedDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 0, globalFormattedDate)
+                            panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
+                        } else if (currentState == 2) {
+                            panenViewModel.loadTPHNonESPB(1, 0, 0, globalFormattedDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 0, globalFormattedDate)
+                            panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
+                        }
+                    } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                        if (currentState == 0) {
+                            AppLogger.d("masuk sini gess")
+
+                            AppLogger.d(globalFormattedDate)
+                            panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
+                            panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
+                        } else if (currentState == 1) {
+                            AppLogger.d("nah kan")
+                            panenViewModel.loadTPHESPB(1, 0, 1, globalFormattedDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
+                            panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
+                        } else {
+                            AppLogger.d("masuk sini gess terus")
+                            panenViewModel.loadTPHESPB(0, 1, 1, globalFormattedDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
+                            panenViewModel.countTPHESPB(0, 1, 1, globalFormattedDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
+                        }
+                    } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
+                        panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
+                    }
+
+//                    filterDateContainer.visibility = View.GONE
+                    nameFilterDate.text = displayDate
+                    dateButton.isEnabled = true
+                    dateButton.alpha = 1f // Make the button appear darker
+                    Log.d("FilterAllData", "Checkbox is UNCHECKED. Button enabled.")
+                }
+
+
+                val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_date)
+
+                removeFilterDate.setOnClickListener {
+                    if (filterAllData.isChecked) {
+                        filterAllData.isChecked = false
+                    }
+
+                    filterDateContainer.visibility = View.GONE
+
+
+                    // Get today's date in backend format
+                    val todayBackendDate = AppUtils.formatDateForBackend(
+                        Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                        Calendar.getInstance().get(Calendar.MONTH) + 1,
+                        Calendar.getInstance().get(Calendar.YEAR)
+                    )
+
+                    // Reset the selected date in your utils
+                    AppUtils.setSelectedDate(todayBackendDate)
+
+                    // Update the dateButton to show today's date
+                    val todayDisplayDate = AppUtils.getTodaysDate()
+                    dateButton.text = todayDisplayDate
+
+                    if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                        if (currentState == 0) {
+                            panenViewModel.loadTPHNonESPB(0, 0, 0, todayBackendDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 0, todayBackendDate)
+                            panenViewModel.countTPHESPB(1, 0, 0, todayBackendDate)
+                        } else if (currentState == 1) {
+                            panenViewModel.loadTPHESPB(1, 0, 0, todayBackendDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 0, todayBackendDate)
+                            panenViewModel.countTPHESPB(1, 0, 0, todayBackendDate)
+                        } else if (currentState == 2) {
+                            panenViewModel.loadTPHNonESPB(1, 0, 0, todayBackendDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 0, todayBackendDate)
+                            panenViewModel.countTPHESPB(1, 0, 0, todayBackendDate)
+                        }
+                    } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                        if (currentState == 0) {
+                            AppLogger.d(" gess")
+                            panenViewModel.loadTPHNonESPB(0, 0, 1, todayBackendDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
+                            panenViewModel.countTPHESPB(1, 0, 1, todayBackendDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1, todayBackendDate)
+                        } else if (currentState == 1) {
+                            AppLogger.d("gas terus bro  gess")
+                            panenViewModel.loadTPHESPB(1, 0, 1, todayBackendDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
+                            panenViewModel.countTPHESPB(1, 0, 1, todayBackendDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1, todayBackendDate)
+                        } else {
+                            AppLogger.d("nais gess")
+                            panenViewModel.loadTPHESPB(0, 1, 1, todayBackendDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
+                            panenViewModel.countTPHESPB(1, 0, 1, todayBackendDate)
+                            panenViewModel.countHasBeenESPB(0, 1, 1, todayBackendDate)
+                        }
+                    } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
+                        panenViewModel.loadTPHNonESPB(0, 0, 1, todayBackendDate)
+                    }
+
+                }
+            }
+        }
 
         listTPHDriver = try {
             AppUtils.readJsonFromEncryptedBase64Zip(
@@ -129,7 +507,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             ""
         }
 
-        Log.d("listTPHDriver", listTPHDriver.toString())
+//        Log.d("listTPHDriver", listTPHDriver.toString())
 
         prefManager = PrefManager(this)
         userName = prefManager!!.nameUserLogin
@@ -157,6 +535,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         if (listTPHDriver.isNotEmpty()) {
+
             // Extract TPH IDs from the current scan
             val currentScanTphIds = try {
                 val tphString = listTPHDriver
@@ -205,7 +584,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSearch()
         setupObservers()
-        if (featureName != "Buat eSPB" && featureName != "Rekap panen dan restan") {
+        if (featureName != "Buat eSPB" && featureName != "Detail eSPB") {
             setupSpeedDial()
             setupCheckboxControl()  // Add this
         }
@@ -214,30 +593,247 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupSortButton()
         currentState = 0
         setActiveCard(cardTersimpan)
+        if (featureName == "Detail eSPB") {
+            cardTersimpan.visibility = View.GONE
+            cardTerscan.visibility = View.GONE
+            val app = AppRepository(application)
+            val espbViewModelFactory = ESPBViewModel.ESPBViewModelFactory(app)
+            espbViewModel = ViewModelProvider(this, espbViewModelFactory)[ESPBViewModel::class.java]
+            espbId = try {
+                intent.getStringExtra("id_espb").toString().toInt()
+            } catch (e: Exception) {
+                Toasty.error(this, "Error mengambil id eSPB: ${e.message}", Toast.LENGTH_LONG)
+                    .show()
+                0
+            }
+
+            findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.GONE
+            findViewById<LinearLayout>(R.id.filterDateContainer).visibility = View.GONE
+        }
         lifecycleScope.launch {
             if (featureName == "Buat eSPB") {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
-                panenViewModel.loadActivePanenESPB()
-            } else if (featureName == "Rekap panen dan restan") {
-                panenViewModel.loadActivePanenRestan()
-                // Add click listeners here
-                findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
-                findViewById<TextView>(R.id.list_item_tersimpan).apply {
-                    text = "Hasil Rekap"
-                    setOnClickListener {
-                        panenViewModel.loadActivePanenRestan()
-                    }
+                val isStopScan = intent.getBooleanExtra("IS_STOP_SCAN_ESPB", false)
+                if (!isStopScan) {
+                    playSound(R.raw.berhasil_scan)
                 }
-                findViewById<TextView>(R.id.list_item_terscan).apply {
-                    text = "TPH Selesai eSPB"
-                    setOnClickListener {
-                        panenViewModel.loadActivePanenRestan(1)
+                panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
+                findViewById<HorizontalScrollView>(R.id.horizontalCardFeature).visibility =
+                    View.GONE
+            } else if (featureName == "Rekap panen dan restan") {
+
+                findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
+                findViewById<TextView>(R.id.tv_card_tersimpan).text = "Rekap TPH"
+                findViewById<TextView>(R.id.tv_card_terscan).text = "Sudah Transfer"
+                cardRekapPerPemanen.visibility = View.VISIBLE
+                findViewById<TextView>(R.id.tv_card_pemanen).text = "TPH Menjadi E-SPB"
+                panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
+                panenViewModel.countTPHNonESPB(0, 0, 1, AppUtils.currentDate)
+                panenViewModel.countTPHESPB(1, 0, 1, AppUtils.currentDate)
+                panenViewModel.countHasBeenESPB(0, 1, 1, AppUtils.currentDate)
+            } else if (featureName == "Detail eSPB") {
+                val btnEditEspb = findViewById<FloatingActionButton>(R.id.btnEditEspb)
+                btnEditEspb.visibility = View.VISIBLE
+                ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
+                ll_detail_espb.visibility = View.VISIBLE
+                espbViewModel.getESPBById(espbId)
+
+
+
+
+                espbViewModel.espbEntity.observe(this@ListPanenTBSActivity) { espbWithRelations ->
+                    if (espbWithRelations != null) {
+                        try {
+                            // Extract ESPB data
+                            val espb = espbWithRelations
+
+                            // Find all included layouts
+                            val tvNoEspb = findViewById<View>(R.id.tv_no_espb)
+                            val tvNoPol = findViewById<View>(R.id.tv_no_pol)
+                            val tvTransporter = findViewById<View>(R.id.tv_transporter)
+                            val tvDriver = findViewById<View>(R.id.tv_driver)
+                            val tvMill = findViewById<View>(R.id.tv_mill)
+                            val tvMekanisasi = findViewById<View>(R.id.tv_mekanisasi)
+//                            val tvDraft = findViewById<View>(R.id.tv_draft)
+
+                            blok_jjg = espb.blok_jjg
+                            nopol = espb.nopol
+                            driver = espb.driver
+                            pemuat_id = espb.pemuat_id
+                            transporter_id = espb.transporter_id
+                            mill_id = espb.mill_id
+                            created_by_id = espb.created_by_id
+                            no_espb = espb.noESPB
+                            tph0QR = espb.tph0
+                            tph1QR = espb.tph1
+                            creatorInfo = espb.creator_info
+                            dateTime = espb.created_at
+                            kemandoran_id = espb.kemandoran_id
+                            pemuat_nik = espb.pemuat_nik
+                            tph1 = espb.tph1
+                            tph0 = espb.tph0
+                            idsToUpdate = espb.ids_to_update
+
+
+                            val idKaryawanStringList = pemuat_id
+                                .toString()                      // ensure it's a string
+                                .split(",")                     // split on comma
+                                .map { it.trim() }              // trim spaces
+                                .filter { it.isNotEmpty() }     // remove empty strings
+
+                            lifecycleScope.launch {
+                                pemuatNamaESPB = try {
+                                    val result = withContext(Dispatchers.IO) {
+                                        panenViewModel.getPemuatByIdList(idKaryawanStringList)
+                                    }
+
+                                    result?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
+                                        ?.joinToString(", ") ?: "-"
+
+
+                                } catch (e: Exception) {
+                                    AppLogger.e("Gagal mendapatkan data pemuat: ${e.message}")
+                                    Toasty.error(
+                                        this@ListPanenTBSActivity,
+                                        "Terjadi kesalahan saat mengambil data pemuat",
+                                        Toasty.LENGTH_LONG
+                                    ).show()
+                                    "-"
+                                }
+
+                                AppLogger.d("Pemuat Nama ESPB: $pemuatNamaESPB") // ✅ Log AFTER the data is set
+                            }
+
+
+                            btnEditEspb.setOnClickListener {
+                                AlertDialogUtility.withTwoActions(
+                                    this@ListPanenTBSActivity,
+                                    "EDIT",
+                                    "Edit eSPB",
+                                    "Apakah anda yakin ingin mengedit eSPB ini?",
+                                    "warning.json",
+                                    function = {
+                                        val intent = Intent(
+                                            this@ListPanenTBSActivity,
+                                            FormESPBActivity::class.java
+                                        )
+                                        intent.putExtra("tph_1", tph1)
+                                        Log.d("ListPanenTBSActivity", "tph1: $tph1")
+                                        intent.putExtra("tph_0", tph0)
+                                        Log.d("ListPanenTBSActivity", "tph0: $tph0")
+                                        intent.putExtra("id_espb", espbId)
+                                        Log.d("ListPanenTBSActivity", "id_espb: $espbId")
+                                        intent.putExtra("tph_1_id_panen", idsToUpdate)
+                                        Log.d(
+                                            "ListPanenTBSActivity",
+                                            "tph_1_id_panen: $idsToUpdate"
+                                        )
+                                        playSound(R.raw.berhasil_edit_data)
+                                        intent.putExtra("FEATURE_NAME", featureName)
+                                        Log.d("ListPanenTBSActivity", "FEATURE_NAME: $featureName")
+                                        startActivity(intent)
+                                        finishAffinity()
+                                    }
+                                )
+                            }
+
+                            // Set No eSPB
+                            tvNoEspb.findViewById<TextView>(R.id.tvTitleEspb).text = "No eSPB"
+                            noespb = espb.noESPB
+                            panenViewModel.getAllPanenWhereESPB(noespb)
+                            tvNoEspb.findViewById<TextView>(R.id.tvSubTitleEspb).text = espb.noESPB
+
+                            // Set No Polisi
+                            tvNoPol.findViewById<TextView>(R.id.tvTitleEspb).text = "No Polisi"
+                            tvNoPol.findViewById<TextView>(R.id.tvSubTitleEspb).text = espb.nopol
+
+                            // Launch coroutines to fetch transporter and mill names
+                            lifecycleScope.launch {
+                                try {
+                                    // Set Transporter
+                                    tvTransporter.findViewById<TextView>(R.id.tvTitleEspb).text =
+                                        "Transporter"
+                                    val transporterName = withContext(Dispatchers.IO) {
+                                        try {
+                                            espbViewModel.getTransporterNameById(espb.transporter_id)
+                                                ?: "Internal"
+                                        } catch (e: Exception) {
+                                            Log.e(
+                                                "ListPanenTBSActivity",
+                                                "Error fetching transporter",
+                                                e
+                                            )
+                                            "Internal"
+                                        }
+                                    }
+                                    tvTransporter.findViewById<TextView>(R.id.tvSubTitleEspb).text =
+                                        transporterName
+
+                                    // Set Mill
+                                    tvMill.findViewById<TextView>(R.id.tvTitleEspb).text = "Mill"
+                                    val millAbbr = withContext(Dispatchers.IO) {
+                                        try {
+                                            espbViewModel.getMillNameById(espb.mill_id) ?: "Unknown"
+                                        } catch (e: Exception) {
+                                            Log.e("ListPanenTBSActivity", "Error fetching mill", e)
+                                            "Unknown"
+                                        }
+                                    }
+                                    tvMill.findViewById<TextView>(R.id.tvSubTitleEspb).text =
+                                        millAbbr
+                                } catch (e: Exception) {
+                                    Log.e("ListPanenTBSActivity", "Error in coroutine", e)
+                                    Toasty.error(
+                                        this@ListPanenTBSActivity,
+                                        "Error loading details: ${e.message}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+
+                            // Set Driver
+                            tvDriver.findViewById<TextView>(R.id.tvTitleEspb).text = "Driver"
+                            tvDriver.findViewById<TextView>(R.id.tvSubTitleEspb).text = espb.driver
+
+                            // Set Mekanisasi status
+                            tvMekanisasi.findViewById<TextView>(R.id.tvTitleEspb).text =
+                                "Mekanisasi"
+                            val mekanisasiStatus =
+                                if (espb.status_mekanisasi == 1) "Ya" else "Tidak"
+                            tvMekanisasi.findViewById<TextView>(R.id.tvSubTitleEspb).text =
+                                mekanisasiStatus
+
+//                            // Set Draft status
+//                            tvDraft.findViewById<TextView>(R.id.tvTitleEspb).text = "Status"
+//                            val draftStatus = if (espb.status_draft == 1) "Draft" else "Final"
+//                            tvDraft.findViewById<TextView>(R.id.tvSubTitleEspb).text = draftStatus
+
+                            // Make the layout visible now that we've populated it
+                            ll_detail_espb.visibility = View.VISIBLE
+
+                        } catch (e: Exception) {
+                            Toasty.error(
+                                this@ListPanenTBSActivity,
+                                "Error displaying eSPB details: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            Log.e("ListPanenTBSActivity", "Error displaying eSPB details", e)
+                        }
+                    } else {
+                        Toasty.error(
+                            this@ListPanenTBSActivity,
+                            "eSPB data not found",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        ll_detail_espb.visibility = View.GONE
                     }
                 }
             } else {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.VISIBLE
-                panenViewModel.loadActivePanen()
-                panenViewModel.loadPanenCountArchive() // Load archive count
+                panenViewModel.loadTPHNonESPB(0, 0, 0, AppUtils.currentDate)
+                panenViewModel.countTPHNonESPB(0, 0, 0, AppUtils.currentDate)
+                panenViewModel.countTPHESPB(1, 0, 0, AppUtils.currentDate)
+//                panenViewModel.loadPanenCountArchive()
             }
 
         }
@@ -287,7 +883,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             rootLayout.addView(btnAddMoreTph, params)
 
             btnAddMoreTph.setOnClickListener {
-                getAllDataFromList()
+                getAllDataFromList(false)
                 val intent = Intent(this, ScanQR::class.java)
                 intent.putExtra("tph_1", tph1)
                 intent.putExtra("tph_0", tph0)
@@ -312,7 +908,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 )
                 finishAffinity()
             }
-
         })
     }
 
@@ -321,19 +916,55 @@ class ListPanenTBSActivity : AppCompatActivity() {
             currentState = 0
             setActiveCard(cardTersimpan)
             loadingDialog.show()
-            loadingDialog.setMessage("Loading data tersimpan...")
-            // Reset visibility states before loading new data
+            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                val standardHeaders = listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+                updateTableHeaders(standardHeaders)
+            }
+
             tvEmptyState.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
-            listAdapter.updateArchiveState(0)
+            listAdapter.updateArchiveState(currentState)
+            val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+            headerCheckBox.visibility = View.VISIBLE
+            val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
+            flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
             speedDial.visibility =
                 if (listAdapter.getSelectedItems().isNotEmpty()) View.VISIBLE else View.GONE
+
+            // Check if filterAllData is checked
+            val isAllDataFiltered = filterAllData.isChecked
+            val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
+
             if (featureName == "Buat eSPB") {
                 panenViewModel.loadActivePanenESPB()
             } else if (featureName == "Rekap panen dan restan") {
-                panenViewModel.loadActivePanenRestan()
+                loadingDialog.setMessage("Loading data tph...")
+                if (isAllDataFiltered) {
+                    AppLogger.d("lagi yuyh")
+                    panenViewModel.loadTPHNonESPB(0, 0, 1)
+                    panenViewModel.countTPHNonESPB(0, 0, 1)
+                    panenViewModel.countTPHESPB(1, 0, 1)
+                    panenViewModel.countHasBeenESPB(0, 1, 1)
+                } else {
+                    AppLogger.d("ok gas terus pokoknya")
+                    panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
+                    panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
+                    panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
+                }
             } else {
-                panenViewModel.loadActivePanen()
+                loadingDialog.setMessage("Loading data tersimpan", true)
+                if (isAllDataFiltered) {
+                    panenViewModel.loadTPHNonESPB(0, 0, 0)
+                    panenViewModel.countTPHNonESPB(0, 0, 0)
+                    panenViewModel.countTPHESPB(1, 0, 0)
+                } else {
+                    panenViewModel.loadTPHNonESPB(0, 0, 0, globalFormattedDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 0, globalFormattedDate)
+                    panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
+                }
             }
         }
 
@@ -341,21 +972,169 @@ class ListPanenTBSActivity : AppCompatActivity() {
             currentState = 1
             setActiveCard(cardTerscan)
             loadingDialog.show()
-            loadingDialog.setMessage("Loading data terscan...")
-            // Reset visibility states before loading new data
+
+            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                val standardHeaders = listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+                updateTableHeaders(standardHeaders)
+            }
+
+            val isAllDataFiltered = filterAllData.isChecked
+            val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
+
             tvEmptyState.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
             speedDial.visibility = View.GONE
-            listAdapter.updateArchiveState(1)
-            panenViewModel.loadArchivedPanen()
+            listAdapter.updateArchiveState(currentState)
+            val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+            headerCheckBox.visibility = View.VISIBLE
+            val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
+            flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
+
+            loadingDialog.setMessage("Loading data terscan", true)
+
+
+            if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                loadingDialog.setMessage("Loading TPH")
+
+                if (isAllDataFiltered) {
+                    panenViewModel.loadTPHESPB(1, 0, 1)
+                    panenViewModel.countTPHESPB(1, 0, 1)
+                    panenViewModel.countTPHNonESPB(0, 0, 1)
+                    panenViewModel.countHasBeenESPB(0, 1, 1)
+                } else {
+                    AppLogger.d("dateToUse $dateToUse")
+                    panenViewModel.loadTPHESPB(1, 0, 1, globalFormattedDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
+                    panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
+                    panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
+                }
+            } else {
+                loadingDialog.setMessage("Loading data terscan", true)
+                if (isAllDataFiltered) {
+                    panenViewModel.loadTPHESPB(1, 0, 0)
+                    panenViewModel.countTPHESPB(1, 0, 0)
+                    panenViewModel.countTPHNonESPB(0, 0, 0)
+                } else {
+                    panenViewModel.loadTPHESPB(1, 0, 0, globalFormattedDate)
+                    panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 0, globalFormattedDate)
+                }
+            }
+        }
+
+        cardRekapPerPemanen.setOnClickListener {
+            currentState = 2
+            setActiveCard(cardRekapPerPemanen)
+            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                val rekapHeaders =
+                    listOf(
+                        "NAMA\nPEMANEN",
+                        "BLOK/JJG",
+                        "JUMLAH\nTRANSAKSI",
+                        "TOTAL JJG/\nJJG DIBAYAR"
+                    )
+                updateTableHeaders(rekapHeaders)
+            }
+            loadingDialog.show()
+
+            val isAllDataFiltered = filterAllData.isChecked
+            val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
+
+            tvEmptyState.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+            speedDial.visibility = View.GONE
+            listAdapter.updateArchiveState(currentState)
+            val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+            headerCheckBox.visibility = View.GONE
+            val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
+            flCheckBoxTableHeaderLayout.visibility = View.GONE
+
+            if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                loadingDialog.setMessage("Loading TPH menjadi E-SPB...")
+
+                if (isAllDataFiltered) {
+                    AppLogger.d("nais bro ooooo")
+
+                    panenViewModel.loadTPHESPB(0, 1, 1)
+                    panenViewModel.countTPHNonESPB(0, 0, 1)
+                    panenViewModel.countTPHESPB(1, 0, 1)
+                    panenViewModel.countHasBeenESPB(0, 1, 1)
+                } else {
+                    AppLogger.d("nais bro kah")
+                    panenViewModel.loadTPHESPB(0, 1, 1, globalFormattedDate)
+                    panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
+                    panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
+                    panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
+                }
+            } else {
+                loadingDialog.setMessage("Loading Rekap Per Pemanen", true)
+                if (isAllDataFiltered) {
+                    panenViewModel.loadTPHNonESPB(1, 0, 0)
+                    panenViewModel.loadPanenCountArchive()
+                    panenViewModel.countTPHESPB(1, 0, 0)
+                } else {
+                    panenViewModel.loadTPHNonESPB(1, 0, 0, globalFormattedDate)
+                    panenViewModel.loadPanenCountArchive()
+                    panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
+                }
+            }
+        }
+
+        cardRekapPerBlok.setOnClickListener {
+            currentState = 3
+            setActiveCard(cardRekapPerBlok)
+            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                val rekapHeaders =
+                    listOf("NAMA\nBLOK", "JUMLAH\nTRANSAKSI", "TOTAL\nJJG", "TOTAL\nDIBAYAR")
+                updateTableHeaders(rekapHeaders)
+            }
+            loadingDialog.show()
+
+            val isAllDataFiltered = filterAllData.isChecked
+            val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
+
+            tvEmptyState.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+            speedDial.visibility = View.GONE
+            listAdapter.updateArchiveState(currentState)
+            val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+            headerCheckBox.visibility = View.GONE
+            val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
+                .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
+            flCheckBoxTableHeaderLayout.visibility = View.GONE
+
+            loadingDialog.setMessage("Loading Rekap Per Blok", true)
+            if (isAllDataFiltered) {
+                panenViewModel.loadTPHNonESPB(1, 0, 0)
+                panenViewModel.loadPanenCountArchive()
+                panenViewModel.countTPHESPB(1, 0, 0)
+                panenViewModel.countTPHNonESPB(0, 0, 0)
+            } else {
+                panenViewModel.loadTPHNonESPB(1, 0, 0, dateToUse)
+                panenViewModel.loadPanenCountArchive()
+                panenViewModel.countTPHESPB(1, 0, 0, dateToUse)
+                panenViewModel.countTPHNonESPB(0, 0, 0, dateToUse)
+            }
         }
     }
 
     private fun initializeViews() {
         cardTersimpan = findViewById(R.id.card_item_tersimpan)
         cardTerscan = findViewById(R.id.card_item_terscan)
+        cardRekapPerPemanen = findViewById(R.id.card_rekap_per_pemanen)
+        cardRekapPerBlok = findViewById(R.id.card_rekap_per_blok)
+        cardRekapPerPemanen.visibility =
+            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) View.VISIBLE else View.GONE
+        cardRekapPerBlok.visibility =
+            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) View.VISIBLE else View.GONE
         counterTersimpan = findViewById(R.id.counter_item_tersimpan)
         counterTerscan = findViewById(R.id.counter_item_terscan)
+        counterPerPemanen = findViewById(R.id.counter_item_perpemanen)
         tvEmptyState = findViewById(R.id.tvEmptyState)
         recyclerView = findViewById(R.id.rvTableData) // Initialize RecyclerView
     }
@@ -372,6 +1151,16 @@ class ListPanenTBSActivity : AppCompatActivity() {
             strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
         }
 
+        cardRekapPerPemanen.apply {
+            setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
+            strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
+        }
+
+        cardRekapPerBlok.apply {
+            setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
+            strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
+        }
+
         // Set active card colors
         activeCard.apply {
             setCardBackgroundColor(ContextCompat.getColor(context, R.color.bgSelectWorkerGreen))
@@ -379,8 +1168,96 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
-    private fun formatPanenDataForQR(mappedData: List<Map<String, Any?>>): String {
+    private fun formatPanenDataJSONForQR(jsonData: String): String {
+        return try {
+            // Parse the JSON array from the provided string
+            val jsonArray = JSONArray(jsonData)
 
+            // Map the JSON into the format needed
+            val mappedData = mutableListOf<Map<String, Any?>>()
+            for (i in 0 until jsonArray.length()) {
+                val item = jsonArray.getJSONObject(i)
+                mappedData.add(
+                    mapOf(
+                        "tph_id" to item.getLong("tph"),
+                        "date_created" to item.getString("tanggal"),
+                        "jjg_json" to item.getString("jjg_json")
+                    )
+                )
+            }
+
+            if (mappedData.isEmpty()) {
+                throw IllegalArgumentException("Data TPH is empty.")
+            }
+
+            val dateIndexMap = mutableMapOf<String, Int>()
+            val formattedData = buildString {
+                mappedData.forEach { data ->
+                    try {
+                        val tphId = data["tph_id"]?.toString()
+                            ?: throw IllegalArgumentException("Missing tph_id.")
+                        val dateCreated = data["date_created"]?.toString()
+                            ?: throw IllegalArgumentException("Missing date_created.")
+
+                        val jjgJsonString = data["jjg_json"]?.toString()
+                            ?: throw IllegalArgumentException("Missing jjg_json.")
+                        val jjgJson = try {
+                            JSONObject(jjgJsonString)
+                        } catch (e: JSONException) {
+                            throw IllegalArgumentException("Invalid JSON format in jjg_json: $jjgJsonString")
+                        }
+
+                        val key = "KP"  // Using "KP" as the key based on your data
+
+                        val toValue = if (jjgJson.has(key)) {
+                            jjgJson.getInt(key)
+                        } else {
+                            throw IllegalArgumentException("Missing '$key' key in jjg_json: $jjgJsonString")
+                        }
+
+                        // Extract date and time parts
+                        val dateParts = dateCreated.split(" ")
+                        if (dateParts.size != 2) {
+                            throw IllegalArgumentException("Invalid date_created format: $dateCreated")
+                        }
+
+                        val date = dateParts[0]  // 2025-04-03
+                        val time = dateParts[1]  // 07:53:02
+
+                        // Use dateIndexMap.size as the index for new dates
+                        append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue;")
+                    } catch (e: Exception) {
+                        throw IllegalArgumentException("Error processing data entry: ${e.message}")
+                    }
+                }
+            }
+
+            val username = try {
+                PrefManager(this).username.toString().split("@")[0].takeLast(3).uppercase()
+            } catch (e: Exception) {
+                Toasty.error(this, "Error mengambil username: ${e.message}", Toast.LENGTH_LONG)
+                    .show()
+                "NULL"
+            }
+
+            // Create the tgl object with date mappings
+            val tglJson = JSONObject()
+            dateIndexMap.forEach { (date, index) ->
+                tglJson.put(index.toString(), date)
+            }
+
+            return JSONObject().apply {
+                put("tph_0", formattedData)
+                put("username", username)
+                put("tgl", tglJson)
+            }.toString()
+        } catch (e: Exception) {
+            AppLogger.e("formatPanenDataForQR Error: ${e.message}")
+            throw e
+        }
+    }
+
+    private fun formatPanenDataForQR(mappedData: List<Map<String, Any?>>): String {
         return try {
             if (mappedData.isEmpty()) {
                 throw IllegalArgumentException("Data TPH is empty.")
@@ -402,30 +1279,57 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             throw IllegalArgumentException("Invalid JSON format in jjg_json: $jjgJsonString")
                         }
 
-                        val key = if (featureName == "Rekap panen dan restan") "KP" else "TO"
+                        val key =
+                            if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
 
                         val toValue = if (jjgJson.has(key)) {
-                            jjgJson.getInt(key) // Throws JSONException if the key is not an int
+                            jjgJson.getInt(key)
                         } else {
                             throw IllegalArgumentException("Missing '$key' key in jjg_json: $jjgJsonString")
                         }
 
+                        // Extract date and time parts
+                        val dateParts = dateCreated.split(" ")
+                        if (dateParts.size != 2) {
+                            throw IllegalArgumentException("Invalid date_created format: $dateCreated")
+                        }
 
-                        append("$tphId,$dateCreated,$toValue;")
+                        val date = dateParts[0]  // 2025-03-28
+                        val time = dateParts[1]  // 13:15:18
+
+                        // Use dateIndexMap.size as the index for new dates
+                        append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue;")
                     } catch (e: Exception) {
                         throw IllegalArgumentException("Error processing data entry: ${e.message}")
                     }
                 }
             }
 
+            val username = try {
+                PrefManager(this).username.toString().split("@")[0].takeLast(3).uppercase()
+            } catch (e: Exception) {
+                Toasty.error(this, "Error mengambil username: ${e.message}", Toast.LENGTH_LONG)
+                    .show()
+                "NULL"
+            }
+
+            // Create the tgl object with date mappings
+            val tglJson = JSONObject()
+            dateIndexMap.forEach { (date, index) ->
+                tglJson.put(index.toString(), date)
+            }
+
             return JSONObject().apply {
                 put("tph_0", formattedData)
+                put("username", username)
+                put("tgl", tglJson)
             }.toString()
         } catch (e: Exception) {
             AppLogger.e("formatPanenDataForQR Error: ${e.message}")
             throw e
         }
     }
+
 
     fun convertToFormattedString(input: String, int: Int = 1): String {
         try {
@@ -541,7 +1445,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         return if (isEmpty()) "" else joinToString(";")
     }
 
-    private fun getAllDataFromList() {
+    private fun getAllDataFromList(playSound: Boolean = true) {
         //get manually selected items
         val selectedItems = listAdapter.getSelectedItems()
         Log.d("ListPanenTBSActivityESPB", "selectedItems: $selectedItems")
@@ -550,7 +1454,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD0")
         val tph1AD2 =
-            convertToFormattedString(selectedItems.toString(), 2).replace("{\"KP\": ", "")
+            convertToFormattedString(selectedItems.toString(), 1).replace("{\"KP\": ", "")
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD2")
 
@@ -563,6 +1467,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val pattern = Regex("\\{id=(\\d+),")
             val matches = pattern.findAll(selectedItems2.toString())
             matches.map { it.groupValues[1] }.joinToString(", ")
+
         } catch (e: Exception) {
             Toasty.error(this, "Error parsing panen IDs: ${e.message}", Toast.LENGTH_LONG).show()
             ""
@@ -573,6 +1478,36 @@ class ListPanenTBSActivity : AppCompatActivity() {
             newTph1IdPanen
         } else {
             "$tph1IdPanen, $newTph1IdPanen"
+        }
+        Log.d("ListPanenTBSActivityESPB", "tph1IdPanen:$tph1IdPanen")
+
+
+        //get automatically selected items
+        val preSelectedItems = listAdapter.getPreSelectedItems()
+        Log.d("ListPanenTBSActivityESPB", "preSelectedItems:$preSelectedItems")
+
+        // Extract the id values from the matches and join them with commas
+        val newTph1NoIdPanen = try {
+            val pattern = Regex("\\{id=(\\d+),")
+            val matches = pattern.findAll(preSelectedItems.toString())
+            matches.map { it.groupValues[1] }.joinToString(", ")
+
+        } catch (e: Exception) {
+            Toasty.error(this, "Error parsing panen IDs: ${e.message}", Toast.LENGTH_LONG).show()
+            ""
+        }
+
+        // Combine with existing tph1IdPanen if it exists
+        tph1NoIdPanen = if (tph1NoIdPanen.isEmpty()) {
+            newTph1NoIdPanen
+        } else {
+            "$tph1NoIdPanen, $newTph1NoIdPanen"
+        }
+        Log.d("ListPanenTBSActivityESPB", "tph1NoIdPanen:$tph1NoIdPanen")
+
+
+        if (playSound) {
+            playSound(R.raw.berhasil_scan)
         }
 
         val allItems = listAdapter.getCurrentData()
@@ -624,57 +1559,121 @@ class ListPanenTBSActivity : AppCompatActivity() {
         Log.d("ListPanenTBSActivityESPB", "Final tph0: $tph0")
         Log.d("ListPanenTBSActivityESPB", "Final tph1: $tph1")
         Log.d("ListPanenTBSActivityESPB", "Final tph1IdPanen: $tph1IdPanen")
+
     }
 
     private fun setupButtonGenerateQR() {
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
+        val btnGenerateQRTPHUnl = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPHUnl)
+
         if (featureName == "Buat eSPB") {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
             btnGenerateQRTPH.setOnClickListener {
-                getAllDataFromList()
-                AlertDialogUtility.withTwoActions(
-                    this,
-                    "LANJUT",
-                    "PERHATIAN!",
-                    "Apakah anda ingin membuat eSPB dengan data ini?",
-                    "warning.json"
-                ) {
-                    val intent = Intent(this, FormESPBActivity::class.java)
-                    intent.putExtra("tph_1", tph1)
-                    intent.putExtra("tph_0", tph0)
-                    intent.putExtra("tph_1_id_panen", tph1IdPanen)
-                    intent.putExtra("FEATURE_NAME", featureName)
-                    startActivity(intent)
-                    finishAffinity()
+                getAllDataFromList(false)
+                if (tph1.isEmpty() && tph1IdPanen.isEmpty()) {
+                    // No selected items, show error message
+                    AlertDialogUtility.withSingleAction(
+                        this@ListPanenTBSActivity,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_have_check_data),
+                        "${stringXML(R.string.al_must_have_check_data)}",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {
+                    }
+                } else {
+                    AlertDialogUtility.withTwoActions(
+                        this,
+                        "LANJUT",
+                        "PERHATIAN!",
+                        "Apakah anda ingin membuat eSPB dengan data ini?",
+                        "warning.json", function = {
+                            val intent = Intent(this, FormESPBActivity::class.java)
+                            intent.putExtra("tph_1", tph1)
+                            intent.putExtra("tph_normal", tph1NoIdPanen)
+                            intent.putExtra("tph_0", tph0)
+                            intent.putExtra("tph_1_id_panen", tph1IdPanen)
+                            intent.putExtra("FEATURE_NAME", featureName)
+                            startActivity(intent)
+                            finishAffinity()
+                        }
+                    ) {
+                    }
                 }
+
             }
-        } else if (featureName == "Rekap panen dan restan") {
-            btnGenerateQRTPH.visibility = View.GONE
         } else {
             btnGenerateQRTPH.setOnClickListener {
-                val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
-                view.background = ContextCompat.getDrawable(
-                    this@ListPanenTBSActivity,
-                    R.drawable.rounded_top_right_left
-                )
+                generateQRTPH(60)
+            }
+            btnGenerateQRTPHUnl.setOnClickListener {
+                generateQRTPH(0)
+            }
+        }
+    }
 
+    private fun generateQRTPH(limitFun: Int) {
+        limit = limitFun
+        AlertDialogUtility.withTwoActions(
+            this,
+            "Generate QR",
+            getString(R.string.confirmation_dialog_title),
+            getString(R.string.al_confirm_generate_qr),
+            "warning.json",
+            ContextCompat.getColor(this, R.color.bluedarklight),
+            function = {
+                val view =
+                    layoutInflater.inflate(
+                        R.layout.layout_bottom_sheet_generate_qr_panen,
+                        null
+                    )
                 val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
                 dialog.setContentView(view)
-
                 // Get references to views
                 val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
+//                        val qrCodeImageView: com.github.chrisbanes.photoview.PhotoView = view.findViewById(R.id.qrCodeImageView)
                 val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-                val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
-                tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F,25F)
+                val tvTitleQRGenerate: TextView =
+                    view.findViewById(R.id.textTitleQRGenerate)
+                tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
                 val dashedLine: View = view.findViewById(R.id.dashedLine)
                 val loadingContainer: LinearLayout =
                     view.findViewById(R.id.loadingDotsContainerBottomSheet)
+                val titleQRConfirm: TextView = view.findViewById(R.id.titleAfterScanQR)
+                val descQRConfirm: TextView = view.findViewById(R.id.descAfterScanQR)
+                val confimationContainer: LinearLayout =
+                    view.findViewById(R.id.confirmationContainer)
+                val scrollContent: NestedScrollView = view.findViewById(R.id.scrollContent)
+                scrollContent.post {
+                    // Scroll to the middle to show QR code in center
+                    // 300dp space + approximately half of QR view height (125dp)
+                    scrollContent.smoothScrollTo(0, 600)
+                }
+
+
+//                        // Configure for better zooming
+//                        qrCodeImageView.apply {
+//                            // Set minimum scale lower to allow for initial smaller size
+//                            minimumScale = 0.5f  // This allows scaling down to 50%
+//                            maximumScale = 5.0f  // Maximum zoom
+//                            mediumScale = 2.5f   // Medium zoom
+//
+//                             scale = 0.8f  // This will work since it's above minimumScale
+//
+//                            // Enable zooming
+//                            isZoomable = true
+//                        }
+                val btnConfirmScanPanenTPH: MaterialButton =
+                    view.findViewById(R.id.btnConfirmScanPanenTPH)
 
                 // Initially hide QR code and dashed line, show loading
                 qrCodeImageView.visibility = View.GONE
-
                 loadingLogo.visibility = View.VISIBLE
                 loadingContainer.visibility = View.VISIBLE
+
+                // Initial setup for text elements
+                titleQRConfirm.setResponsiveTextSizeWithConstraints(21F, 17F, 25F)
+                descQRConfirm.setResponsiveTextSizeWithConstraints(19F, 15F, 23F)
 
                 // Load and start bounce animation
                 val bounceAnimation = AnimationUtils.loadAnimation(this, R.anim.bounce)
@@ -691,8 +1690,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 dots.forEachIndexed { index, dot ->
                     val translateAnimation =
                         ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
-                    val scaleXAnimation = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 0.8f, 1f)
-                    val scaleYAnimation = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 0.8f, 1f)
+                    val scaleXAnimation =
+                        ObjectAnimator.ofFloat(dot, "scaleX", 1f, 0.8f, 1f)
+                    val scaleYAnimation =
+                        ObjectAnimator.ofFloat(dot, "scaleY", 1f, 0.8f, 1f)
 
                     listOf(
                         translateAnimation,
@@ -707,340 +1708,476 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     }
                 }
 
-                dialog.setOnShowListener {
-                    val bottomSheet =
-                        dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                    val behavior = BottomSheetBehavior.from(bottomSheet!!)
-                    behavior.state = BottomSheetBehavior.STATE_EXPANDED
-                }
+                val maxHeight = (resources.displayMetrics.heightPixels * 0.95).toInt()
+
+                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                    ?.let { bottomSheet ->
+                        val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                        behavior.apply {
+                            this.peekHeight =
+                                maxHeight  // Set the initial height when peeking
+                            this.state =
+                                BottomSheetBehavior.STATE_EXPANDED  // Start fully expanded
+                            this.isFitToContents =
+                                true  // Content will determine the height (up to maxHeight)
+                            this.isDraggable =
+                                false  // Prevent user from dragging the sheet
+                        }
+
+                        // Set a fixed height for the bottom sheet
+                        bottomSheet.layoutParams?.height = maxHeight
+                    }
 
                 dialog.show()
 
-                lifecycleScope.launch(Dispatchers.Default) {
-                    delay(1000)
-                    try {
-                        val dataQR: TextView? = view.findViewById(R.id.dataQR)
-                        val dataQRTitle: TextView? = view.findViewById(R.id.dataQRTitle)
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            delay(1000)
-                            try {
-                                val dataQR: TextView? = view.findViewById(R.id.dataQR)
-                                val titleQRConfirm: TextView =
-                                    view.findViewById(R.id.titleAfterScanQR)
-                                titleQRConfirm.setResponsiveTextSizeWithConstraints(17F, 17F,19F)
-                                val descQRConfirm: TextView =
-                                    view.findViewById(R.id.descAfterScanQR)
-                                descQRConfirm.setResponsiveTextSizeWithConstraints(17F, 15F,19F)
-                                val btnConfirmScanPanenTPH: MaterialButton =
-                                    view.findViewById(R.id.btnConfirmScanPanenTPH)
+                if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan || featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                    btnConfirmScanPanenTPH.setOnClickListener {
+                        AlertDialogUtility.withTwoActions(
+                            this@ListPanenTBSActivity,
+                            getString(R.string.al_yes),
+                            getString(R.string.confirmation_dialog_title),
+                            "${getString(R.string.al_make_sure_scanned_qr)}",
+                            "warning.json",
+                            ContextCompat.getColor(
+                                this@ListPanenTBSActivity,
+                                R.color.bluedarklight
+                            ),
+                            function = {
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    try {
+                                        withContext(Dispatchers.Main) {
+                                            loadingDialog.show()
+                                        }
 
-                                btnConfirmScanPanenTPH.setOnClickListener {
+                                        // Validate data first
+                                        if (mappedData.isEmpty()) {
+                                            throw Exception("No data to archive")
+                                        }
 
-                                    AlertDialogUtility.withTwoActions(
-                                        this@ListPanenTBSActivity,
-                                        getString(R.string.al_delete),
-                                        getString(R.string.confirmation_dialog_title),
-                                        "${getString(R.string.al_make_sure_scanned_qr)}  data?",
-                                        "warning.json",
-                                        ContextCompat.getColor(
-                                            this@ListPanenTBSActivity,
-                                            R.color.greendarkerbutton
-                                        )
-                                    ) {
-                                        lifecycleScope.launch(Dispatchers.IO) {
+                                        var hasError = false
+                                        var successCount = 0
+                                        val errorMessages = mutableListOf<String>()
+
+                                        val effectiveLimit =
+                                            if (limit == 0) mappedData.size else limit
+                                        takeQRCodeScreenshot(view)
+                                        // Take only the required number of items
+                                        val limitedData = mappedData.take(effectiveLimit)
+
+
+                                        AppLogger.d(limitedData.size.toString())
+                                        limitedData.forEach { item ->
                                             try {
-                                                withContext(Dispatchers.Main) {
-                                                    loadingDialog.show()
+                                                // Null check for item
+                                                if (item == null) {
+                                                    errorMessages.add("Found null item in data")
+                                                    hasError = true
+                                                    return@forEach
                                                 }
 
-                                                // Validate data first
-                                                if (mappedData.isEmpty()) {
-                                                    throw Exception("No data to archive")
-                                                }
-
-                                                var hasError = false
-                                                var successCount = 0
-                                                val errorMessages = mutableListOf<String>()
-
-                                                mappedData.forEach { item ->
-                                                    try {
-                                                        // Null check for item
-                                                        if (item == null) {
-                                                            errorMessages.add("Found null item in data")
-                                                            hasError = true
-                                                            return@forEach
-                                                        }
-
-                                                        // ID validation
-                                                        val id = when (val idValue = item["id"]) {
-                                                            null -> {
-                                                                errorMessages.add("ID is null")
-                                                                hasError = true
-                                                                return@forEach
-                                                            }
-
-                                                            !is Number -> {
-                                                                errorMessages.add("Invalid ID format: $idValue")
-                                                                hasError = true
-                                                                return@forEach
-                                                            }
-
-                                                            else -> idValue.toInt()
-                                                        }
-
-                                                        if (id <= 0) {
-                                                            errorMessages.add("Invalid ID value: $id")
-                                                            hasError = true
-                                                            return@forEach
-                                                        }
-
-                                                        try {
-                                                            panenViewModel.archivePanenById(id)
-                                                            successCount++
-                                                        } catch (e: SQLiteException) {
-                                                            errorMessages.add("Database error for ID $id: ${e.message}")
-                                                            hasError = true
-                                                        } catch (e: Exception) {
-                                                            errorMessages.add("Error archiving ID $id: ${e.message}")
-                                                            hasError = true
-                                                        }
-
-                                                    } catch (e: Exception) {
-                                                        errorMessages.add("Unexpected error processing item: ${e.message}")
+                                                // ID validation
+                                                val id = when (val idValue = item["id"]) {
+                                                    null -> {
+                                                        errorMessages.add("ID is null")
                                                         hasError = true
+                                                        return@forEach
                                                     }
+
+                                                    !is Number -> {
+                                                        errorMessages.add("Invalid ID format: $idValue")
+                                                        hasError = true
+                                                        return@forEach
+                                                    }
+
+                                                    else -> idValue.toInt()
                                                 }
 
-                                                // Show results
-                                                withContext(Dispatchers.Main) {
-                                                    try {
-                                                        loadingDialog.dismiss()
+                                                if (id <= 0) {
+                                                    errorMessages.add("Invalid ID value: $id")
+                                                    hasError = true
+                                                    return@forEach
+                                                }
 
-                                                        when {
-                                                            successCount == 0 -> {
-                                                                val errorDetail =
-                                                                    errorMessages.joinToString("\n")
-                                                                AppLogger.e("Archive failed. Errors:\n$errorDetail")
-                                                                Toast.makeText(
-                                                                    this@ListPanenTBSActivity,
-                                                                    "Gagal mengarsipkan data",
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
-                                                            }
-
-                                                            hasError -> {
-                                                                val errorDetail =
-                                                                    errorMessages.joinToString("\n")
-                                                                AppLogger.e("Partial success. Errors:\n$errorDetail")
-                                                                Toast.makeText(
-                                                                    this@ListPanenTBSActivity,
-                                                                    "Beberapa data berhasil diarsipkan ($successCount/${mappedData.size})",
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
-                                                            }
-
-                                                            else -> {
-                                                                AppLogger.d("All items archived successfully")
-                                                                Toast.makeText(
-                                                                    this@ListPanenTBSActivity,
-                                                                    "Semua data berhasil diarsipkan",
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
-                                                            }
-                                                        }
-                                                        dialog.dismiss()
-                                                    } catch (e: Exception) {
-                                                        AppLogger.e("Error in UI update: ${e.message}")
-                                                        Toast.makeText(
-                                                            this@ListPanenTBSActivity,
-                                                            "Terjadi kesalahan pada UI",
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
+                                                try {
+                                                    panenViewModel.archivePanenById(id)
+                                                    successCount++
+                                                } catch (e: SQLiteException) {
+                                                    errorMessages.add("Database error for ID $id: ${e.message}")
+                                                    hasError = true
+                                                } catch (e: Exception) {
+                                                    errorMessages.add("Error archiving ID $id: ${e.message}")
+                                                    hasError = true
                                                 }
 
                                             } catch (e: Exception) {
-                                                AppLogger.e("Fatal error in archiving process: ${e.message}")
-                                                withContext(Dispatchers.Main) {
-                                                    try {
-                                                        loadingDialog.dismiss()
+                                                errorMessages.add("Unexpected error processing item: ${e.message}")
+                                                hasError = true
+                                            }
+                                        }
+
+                                        // Show results
+                                        withContext(Dispatchers.Main) {
+                                            try {
+                                                loadingDialog.dismiss()
+
+                                                when {
+                                                    successCount == 0 -> {
+                                                        val errorDetail =
+                                                            errorMessages.joinToString("\n")
+                                                        AppLogger.e("Archive failed. Errors:\n$errorDetail")
                                                         Toast.makeText(
                                                             this@ListPanenTBSActivity,
-                                                            "Terjadi kesalahan saat mengarsipkan data: ${e.message}",
+                                                            "Gagal mengarsipkan data",
                                                             Toast.LENGTH_SHORT
                                                         ).show()
-                                                        dialog.dismiss()
-                                                    } catch (dialogException: Exception) {
-                                                        AppLogger.e("Error dismissing dialogs: ${dialogException.message}")
+                                                    }
+
+                                                    hasError -> {
+                                                        val errorDetail =
+                                                            errorMessages.joinToString("\n")
+                                                        AppLogger.e("Partial success. Errors:\n$errorDetail")
+                                                        Toast.makeText(
+                                                            this@ListPanenTBSActivity,
+                                                            "Beberapa data berhasil diarsipkan ($successCount/${mappedData.size})",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    }
+
+                                                    else -> {
+                                                        AppLogger.d("All items archived successfully")
+                                                        playSound(R.raw.berhasil_konfirmasi)
+                                                        Toast.makeText(
+                                                            this@ListPanenTBSActivity,
+                                                            "Semua data berhasil diarsipkan",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+
                                                     }
                                                 }
+                                                dialog.dismiss()
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error in UI update: ${e.message}")
+                                                Toast.makeText(
+                                                    this@ListPanenTBSActivity,
+                                                    "Terjadi kesalahan pada UI",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
                                             }
-
-                                            panenViewModel.loadActivePanen()
-                                            panenViewModel.loadPanenCountArchive()
-                                        }
-                                    }
-                                }
-
-                                val jsonData = formatPanenDataForQR(mappedData)
-                                val encodedData =
-                                    encodeJsonToBase64ZipQR(jsonData)
-                                        ?: throw Exception("Encoding failed")
-
-                                withContext(Dispatchers.Main) {
-                                    try {
-
-                                        generateHighQualityQRCode(encodedData, qrCodeImageView)
-                                        // Fade-out the loading elements
-                                        val fadeOut =
-                                            ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
-                                                .apply {
-                                                    duration = 250
-                                                }
-                                        val fadeOutDots =
-                                            ObjectAnimator.ofFloat(
-                                                loadingContainer,
-                                                "alpha",
-                                                1f,
-                                                0f
-                                            )
-                                                .apply {
-                                                    duration = 250
-                                                }
-
-                                        // Ensure QR code, text, and button start fully invisible
-                                        qrCodeImageView.alpha = 0f
-                                        dashedLine.alpha = 0f
-                                        tvTitleQRGenerate.alpha = 0f
-                                        titleQRConfirm.alpha = 0f
-                                        descQRConfirm.alpha = 0f
-                                        btnConfirmScanPanenTPH.alpha = 0f
-
-                                        // Fade-in animations
-                                        val fadeInQR =
-                                            ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-                                        val fadeInDashedLine =
-                                            ObjectAnimator.ofFloat(dashedLine, "alpha", 0f, 1f)
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-                                        val fadeInTitle =
-                                            ObjectAnimator.ofFloat(
-                                                tvTitleQRGenerate,
-                                                "alpha",
-                                                0f,
-                                                1f
-                                            )
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-                                        // Create fade-in animation for QR code and dashed line
-                                        val fadeIn =
-                                            ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-
-                                        tvTitleQRGenerate.alpha =
-                                            0f  // Ensure title starts invisible
-
-                                        // Create fade-in for the dataQR text as well
-                                        val fadeInText =
-                                            ObjectAnimator.ofFloat(dataQR, "alpha", 0f, 1f).apply {
-                                                duration = 250
-                                                startDelay = 150
-                                            }
-                                        val fadeInTitleConfirm =
-                                            ObjectAnimator.ofFloat(titleQRConfirm, "alpha", 0f, 1f)
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-                                        val fadeInDescConfirm =
-                                            ObjectAnimator.ofFloat(descQRConfirm, "alpha", 0f, 1f)
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-                                        val fadeInButton =
-                                            ObjectAnimator.ofFloat(
-                                                btnConfirmScanPanenTPH,
-                                                "alpha",
-                                                0f,
-                                                1f
-                                            )
-                                                .apply {
-                                                    duration = 250
-                                                    startDelay = 150
-                                                }
-
-                                        // Run animations together
-                                        AnimatorSet().apply {
-                                            playTogether(fadeOut, fadeOutDots)
-                                            addListener(object : AnimatorListenerAdapter() {
-                                                override fun onAnimationEnd(animation: Animator) {
-                                                    // Hide loading elements
-                                                    loadingLogo.visibility = View.GONE
-                                                    loadingContainer.visibility = View.GONE
-
-                                                    // Show elements and start fade-in
-                                                    tvTitleQRGenerate.visibility = View.VISIBLE
-                                                    qrCodeImageView.visibility = View.VISIBLE
-                                                    dashedLine.visibility = View.VISIBLE
-                                                    titleQRConfirm.visibility = View.VISIBLE
-                                                    descQRConfirm.visibility = View.VISIBLE
-                                                    btnConfirmScanPanenTPH.visibility = View.VISIBLE
-
-                                                    fadeInQR.start()
-                                                    fadeInDashedLine.start()
-                                                    fadeInTitle.start()
-                                                    fadeInText.start()
-                                                    fadeInTitleConfirm.start()
-                                                    fadeInDescConfirm.start()
-                                                    fadeInButton.start()
-                                                }
-                                            })
-                                            start()
                                         }
 
                                     } catch (e: Exception) {
-                                        loadingLogo.animation?.cancel()
-                                        loadingLogo.clearAnimation()
-                                        loadingLogo.visibility = View.GONE
-                                        loadingContainer.visibility = View.GONE
-                                        AppLogger.e("QR Generation Error: ${e.message}")
-                                        showErrorMessageGenerateQR(
-                                            view,
-                                            "Error Generating QR code: ${e.message}"
+                                        AppLogger.e("Fatal error in archiving process: ${e.message}")
+                                        withContext(Dispatchers.Main) {
+                                            try {
+                                                loadingDialog.dismiss()
+                                                Toast.makeText(
+                                                    this@ListPanenTBSActivity,
+                                                    "Terjadi kesalahan saat mengarsipkan data: ${e.message}",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                dialog.dismiss()
+                                            } catch (dialogException: Exception) {
+                                                AppLogger.e("Error dismissing dialogs: ${dialogException.message}")
+                                            }
+                                        }
+                                    }
+
+
+                                    if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan){
+                                        panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
+                                        panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
+                                        panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
+                                        panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
+                                    }else{
+                                        panenViewModel.loadTPHNonESPB(
+                                            0,
+                                            0,
+                                            0,
+                                            globalFormattedDate
+                                        )
+                                        panenViewModel.countTPHNonESPB(
+                                            0,
+                                            0,
+                                            0,
+                                            globalFormattedDate
+                                        )
+                                        panenViewModel.countTPHESPB(
+                                            1,
+                                            0,
+                                            0,
+                                            globalFormattedDate
                                         )
                                     }
+
                                 }
+                            }
+                        ) {
+
+                        }
+                    }
+                } else {
+
+                    btnConfirmScanPanenTPH.setOnClickListener {
+                        takeQRCodeScreenshot(view)
+                        onBackPressed()
+                    }
+                }
 
 
+                lifecycleScope.launch {
+                    try {
+                        delay(1000)
+
+                        val jsonData = withContext(Dispatchers.IO) {
+                            try {
+                                if (featureName == "Detail eSPB") {
+
+                                    val gson = Gson()
+                                    val espbObject = JsonObject().apply {
+                                        addProperty("blok_jjg", blok_jjg)
+                                        addProperty("nopol", nopol)
+                                        addProperty("driver", driver)
+                                        addProperty("pemuat_id", pemuat_id)
+                                        addProperty("kemandoran_id", kemandoran_id)
+                                        addProperty("pemuat_nik", pemuat_nik)
+                                        addProperty("transporter_id", transporter_id)
+                                        addProperty("mill_id", mill_id)
+                                        addProperty("created_by_id", created_by_id)
+                                        addProperty("creator_info", creatorInfo)
+                                        addProperty("no_espb", no_espb)
+                                        addProperty("created_at", dateTime)
+                                    }
+
+                                    val rootObject = JsonObject().apply {
+                                        add("espb", espbObject)
+                                        addProperty("tph_0", tph0)
+                                        addProperty("tph_1", tph1)
+                                    }
+
+                                    gson.toJson(rootObject)
+                                } else {
+                                    val effectiveLimit =
+                                        if (limitFun == 0) mappedData.size else limitFun
+
+                                    // Take only the required number of items
+                                    val limitedData = mappedData.take(effectiveLimit)
+
+                                    formatPanenDataForQR(limitedData)
+                                }
                             } catch (e: Exception) {
-                                AppLogger.e("Error in QR process: ${e.message}")
-                                withContext(Dispatchers.Main) {
-                                    stopLoadingAnimation(loadingLogo, loadingContainer)
-                                    showErrorMessageGenerateQR(
-                                        view,
-                                        "Error Processing QR code: ${e.message}"
+                                AppLogger.e("Error generating JSON data: ${e.message}")
+                                throw e
+                            }
+                        }
+
+                        val encodedData = withContext(Dispatchers.IO) {
+                            try {
+                                encodeJsonToBase64ZipQR(jsonData)
+                                    ?: throw Exception("Encoding failed")
+                            } catch (e: Exception) {
+                                AppLogger.e("Error encoding data: ${e.message}")
+                                throw e
+                            }
+                        }
+
+
+                        val effectiveLimit =
+                            if (limit == 0) mappedData.size else limit
+                        val limitedData = mappedData.take(effectiveLimit)
+
+                        AppLogger.d(limitedData.size.toString())
+                        val processedData =
+                            AppUtils.getPanenProcessedData(limitedData, featureName)
+
+
+
+                        AppLogger.d(limit.toString())
+                        val listBlok = view.findViewById<TextView>(R.id.listBlok)
+                        val totalJjg = view.findViewById<TextView>(R.id.totalJjg)
+                        val totalTPH = view.findViewById<TextView>(R.id.totalTPH)
+                        val blokSection = view.findViewById<LinearLayout>(R.id.blok_section)
+                        val totalSection = view.findViewById<LinearLayout>(R.id.total_section)
+                        listBlok.text = processedData["blokDisplay"].toString()
+                        totalJjg.text = processedData["totalJjgCount"].toString()
+                        totalTPH.text = processedData["tphCount"].toString()
+                        withContext(Dispatchers.Main) {
+                            try {
+                                generateHighQualityQRCode(encodedData, qrCodeImageView)
+                                val fadeOut =
+                                    ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
+                                        .apply {
+                                            duration = 250
+                                        }
+                                val fadeOutDots =
+                                    ObjectAnimator.ofFloat(
+                                        loadingContainer,
+                                        "alpha",
+                                        1f,
+                                        0f
                                     )
+                                        .apply {
+                                            duration = 250
+                                        }
+
+                                blokSection.alpha = 0f
+                                totalSection.alpha = 0f
+                                qrCodeImageView.alpha = 0f
+                                dashedLine.alpha = 0f
+                                tvTitleQRGenerate.alpha = 0f
+                                titleQRConfirm.alpha = 0f
+                                confimationContainer.alpha = 0f
+                                descQRConfirm.alpha = 0f
+                                btnConfirmScanPanenTPH.alpha = 0f
+
+
+                                // Create fade-in animations
+
+                                val fadeInBlokSection =
+                                    ObjectAnimator.ofFloat(blokSection, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
+                                val fadeInTotalSection =
+                                    ObjectAnimator.ofFloat(totalSection, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+                                val fadeInQR =
+                                    ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+                                val fadeInDashedLine =
+                                    ObjectAnimator.ofFloat(dashedLine, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+                                val fadeInTitle =
+                                    ObjectAnimator.ofFloat(
+                                        tvTitleQRGenerate,
+                                        "alpha",
+                                        0f,
+                                        1f
+                                    )
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+                                val fadeInTitleConfirm =
+                                    ObjectAnimator.ofFloat(titleQRConfirm, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
+
+                                val fadeInDescConfirm =
+                                    ObjectAnimator.ofFloat(descQRConfirm, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
+                                val fadeInConfirmationContainer = ObjectAnimator.ofFloat(
+                                    confimationContainer,
+                                    "alpha",
+                                    0f,
+                                    1f
+                                ).apply {
+                                    duration = 250
+                                    startDelay = 150
                                 }
+                                val fadeInButton =
+                                    ObjectAnimator.ofFloat(
+                                        btnConfirmScanPanenTPH,
+                                        "alpha",
+                                        0f,
+                                        1f
+                                    )
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
+
+                                // Run animations sequentially
+                                AnimatorSet().apply {
+                                    playTogether(fadeOut, fadeOutDots)
+                                    addListener(object : AnimatorListenerAdapter() {
+                                        @SuppressLint("SuspiciousIndentation")
+                                        override fun onAnimationEnd(animation: Animator) {
+                                            // Hide loading elements
+                                            loadingLogo.visibility = View.GONE
+                                            loadingContainer.visibility = View.GONE
+
+                                            // Show elements
+                                            confimationContainer.visibility = View.VISIBLE
+                                            tvTitleQRGenerate.visibility = View.VISIBLE
+                                            qrCodeImageView.visibility = View.VISIBLE
+                                            dashedLine.visibility = View.VISIBLE
+                                            blokSection.visibility = View.VISIBLE
+                                            totalSection.visibility = View.VISIBLE
+                                            btnConfirmScanPanenTPH.visibility = View.VISIBLE
+
+                                            lifecycleScope.launch {
+                                                delay(200)
+                                                playSound(R.raw.berhasil_generate_qr)
+                                                delay(300)
+
+
+                                            }
+
+                                            // Start fade-in animations
+                                            fadeInBlokSection.start()
+                                            fadeInTotalSection.start()
+                                            fadeInQR.start()
+                                            fadeInDashedLine.start()
+                                            fadeInTitle.start()
+                                            fadeInTitleConfirm.start()
+                                            fadeInConfirmationContainer.start()
+                                            fadeInDescConfirm.start()
+                                            fadeInButton.start()
+
+                                        }
+                                    })
+                                    start()
+                                }
+                            } catch (e: Exception) {
+                                // Handle UI-related errors on the main thread
+                                loadingLogo.animation?.cancel()
+                                loadingLogo.clearAnimation()
+                                loadingLogo.visibility = View.GONE
+                                loadingContainer.visibility = View.GONE
+                                AppLogger.e("QR Generation UI Error: ${e.message}")
+                                showErrorMessageGenerateQR(
+                                    view,
+                                    "Error generating QR code: ${e.message}"
+                                )
                             }
                         }
                     } catch (e: Exception) {
-                        AppLogger.e("Error in QR process: ${e.message}")
+                        // Handle any other errors
+                        withContext(Dispatchers.Main) {
+                            AppLogger.e("Error in QR process: ${e.message}")
+                            stopLoadingAnimation(loadingLogo, loadingContainer)
+                            showErrorMessageGenerateQR(
+                                view,
+                                "Error processing QR code: ${e.message}"
+                            )
+                        }
                     }
                 }
+            },
+            cancelFunction = {
+
             }
-        }
+        )
     }
 
     // Helper function to stop the loading animation and hide UI
@@ -1057,6 +2194,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     // Helper function to show errors
     fun showErrorMessageGenerateQR(view: View, message: String) {
+        val titleLayoutText = view.findViewById<TextView>(R.id.textTitleQRGenerate)
+        val dashedLine = view.findViewById<View>(R.id.dashedLine)
+        dashedLine.visibility = View.VISIBLE
+        titleLayoutText.visibility = View.VISIBLE
+        titleLayoutText.text = "Terjadi Kesalahan Generate QR!"
+        titleLayoutText.setTextColor(
+            ContextCompat.getColor(
+                this,
+                R.color.colorRedDark
+            )
+        )
         val errorCard = view.findViewById<MaterialCardView>(R.id.errorCard)
         val errorText = view.findViewById<TextView>(R.id.errorText)
         errorText.text = message
@@ -1117,108 +2265,731 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val blokSection = findViewById<LinearLayout>(R.id.blok_section)
         val totalSection = findViewById<LinearLayout>(R.id.total_section)
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
+        val btnGenerateQRTPHUnl = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPHUnl)
+        val tvGenQR60 = findViewById<TextView>(R.id.tvGenQR60)
+        val tvGenQRFull = findViewById<TextView>(R.id.tvGenQRFull)
+
+        blokSection.visibility = View.GONE
+        totalSection.visibility = View.GONE
 
         loadingDialog.show()
         loadingDialog.setMessage("Loading data...")
 
-
-        panenViewModel.archivedCount.observe(this) { count ->
+        panenViewModel.panenCountActive.observe(this) { count ->
+            counterTersimpan.text = count.toString()
+        }
+        panenViewModel.panenCountArchived.observe(this) { count ->
+            AppLogger.d(count.toString())
             counterTerscan.text = count.toString()
+
+
+        }
+        panenViewModel.panenCountHasBeenESPB.observe(this) { count ->
+            counterPerPemanen.text = count.toString()
         }
 
         panenViewModel.activePanenList.observe(this) { panenList ->
-            if (currentState == 0) {
+            if (currentState == 0 || currentState == 2 || currentState == 3) {
                 listAdapter.updateData(emptyList())
                 Handler(Looper.getMainLooper()).postDelayed({
                     loadingDialog.dismiss()
-                    if (panenList.isNotEmpty()) {
-                        tvEmptyState.visibility = View.GONE
-                        recyclerView.visibility = View.VISIBLE
 
-                        mappedData = panenList.map { panenWithRelations ->
-                            mapOf<String, Any>(
-                                "id" to (panenWithRelations.panen.id as Any),
-                                "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                "date_created" to (panenWithRelations.panen.date_created as Any),
-                                "blok_name" to (panenWithRelations.tph?.blok_kode
-                                    ?: "Unknown"), // Handle null safely
-                                "nomor" to (panenWithRelations.tph!!.nomor as Any),
-                                "created_by" to (panenWithRelations.panen.created_by as Any),
-                                "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
-                                "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
-                                "foto" to (panenWithRelations.panen.foto as Any),
-                                "komentar" to (panenWithRelations.panen.komentar as Any),
-                                "asistensi" to (panenWithRelations.panen.asistensi as Any),
-                                "lat" to (panenWithRelations.panen.lat as Any),
-                                "lon" to (panenWithRelations.panen.lon as Any),
-                                "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
-                                "ancak" to (panenWithRelations.panen.ancak as Any),
-                                "archive" to (panenWithRelations.panen.archive as Any)
-                            )
-                        }
+                    lifecycleScope.launch {
+
+                        if (panenList.isNotEmpty()) {
+                            tvEmptyState.visibility = View.GONE
+                            recyclerView.visibility = View.VISIBLE
+                            val allWorkerData = mutableListOf<Map<String, Any>>()
+
+                            originalMappedData.clear()
+                            panenList.map { panenWithRelations ->
+
+                                val standardData = mapOf<String, Any>(
+                                    "id" to (panenWithRelations.panen.id as Any),
+                                    "tph_id" to (panenWithRelations.panen.tph_id as Any),
+                                    "date_created" to (panenWithRelations.panen.date_created as Any),
+                                    "blok_name" to (panenWithRelations.tph?.blok_kode ?: "Unknown"),
+                                    "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                    "created_by" to (panenWithRelations.panen.created_by as Any),
+                                    "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
+                                    "foto" to (panenWithRelations.panen.foto as Any),
+                                    "komentar" to (panenWithRelations.panen.komentar as Any),
+                                    "asistensi" to (panenWithRelations.panen.asistensi as Any),
+                                    "lat" to (panenWithRelations.panen.lat as Any),
+                                    "lon" to (panenWithRelations.panen.lon as Any),
+                                    "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
+                                    "ancak" to (panenWithRelations.panen.ancak as Any),
+                                    "archive" to (panenWithRelations.panen.archive as Any),
+                                    "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
+                                    "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
+                                    "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
+                                    "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
+                                    "nama_karyawans" to "",
+                                    "nama_kemandorans" to "",
+                                    "username" to (panenWithRelations.panen.username as Any)
+                                )
+
+                                val originalDataMapped = standardData.toMutableMap()
+                                originalMappedData.add(originalDataMapped)
+
+                                if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2) {
+                                    val karyawanIds =
+                                        panenWithRelations.panen.karyawan_id.toString().split(",")
+                                            .map { it.trim() }
+                                            .filter { it.isNotEmpty() }
+
+                                    val kemandoranIds =
+                                        panenWithRelations.panen.kemandoran_id?.toString()
+                                            ?.split(",")
+                                            ?.map { it.trim() }
+                                            ?.filter { it.isNotEmpty() } ?: listOf()
+
+                                    val karyawanNiks =
+                                        panenWithRelations.panen.karyawan_nik?.toString()
+                                            ?.split(",")
+                                            ?.map { it.trim() }
+                                            ?.filter { it.isNotEmpty() } ?: listOf()
+
+                                    val jjgJsonStr =
+                                        panenWithRelations.panen.jjg_json as? String
+                                            ?: "{}" // Ensure it's a valid JSON string
+                                    val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
+
+                                    // Calculate total jjg count
+                                    val totalTO = jjgJson["TO"].toString().toInt()
+                                    val totalUN = jjgJson["UN"].toString().toInt()
+                                    val totalOV = jjgJson["OV"].toString().toInt()
+                                    val totalEM = jjgJson["EM"].toString().toInt()
+                                    val totalAB = jjgJson["AB"].toString().toInt()
+                                    val totalRA = jjgJson["RA"].toString().toInt()
+                                    val totalLO = jjgJson["LO"].toString().toInt()
+                                    val totalTI = jjgJson["TI"].toString().toInt()
+                                    val totalRI = jjgJson["RI"].toString().toInt()
+                                    val totalKP = jjgJson["KP"].toString().toInt()
+                                    val totalPA = jjgJson["PA"].toString().toInt()
+
+                                    // Determine how many workers we need to distribute the jjg to
+                                    val workerCount = maxOf(karyawanIds.size, kemandoranIds.size, 1)
+
+                                    // If there are multiple workers, create separate entries for each
+                                    val multiWorkerData = mutableListOf<Map<String, Any>>()
+
+                                    for (i in 0 until workerCount) {
+                                        // Get the corresponding IDs for this worker
+                                        val karyawanId =
+                                            if (i < karyawanIds.size) karyawanIds[i] else ""
+                                        val kemandoranId =
+                                            if (i < kemandoranIds.size) kemandoranIds[i] else ""
+                                        val karyawanNik =
+                                            if (i < karyawanNiks.size) karyawanNiks[i] else ""
+
+                                        // Divide the jjg counts equally among workers as a decimal value
+                                        // Use toDouble() to ensure decimal division
+                                        val workerTO = totalTO.toDouble() / workerCount
+                                        val workerUN = totalUN.toDouble() / workerCount
+                                        val workerOV = totalOV.toDouble() / workerCount
+                                        val workerEM = totalEM.toDouble() / workerCount
+                                        val workerAB = totalAB.toDouble() / workerCount
+                                        val workerRA = totalRA.toDouble() / workerCount
+                                        val workerLO = totalLO.toDouble() / workerCount
+                                        val workerTI = totalTI.toDouble() / workerCount
+                                        val workerRI = totalRI.toDouble() / workerCount
+                                        val workerKP = totalKP.toDouble() / workerCount
+                                        val workerPA = totalPA.toDouble() / workerCount
+
+                                        // Create worker-specific jjg_json
+                                        val workerJjgJson = JsonObject().apply {
+                                            addProperty("TO", workerTO)
+                                            addProperty("UN", workerUN)
+                                            addProperty("OV", workerOV)
+                                            addProperty("EM", workerEM)
+                                            addProperty("AB", workerAB)
+                                            addProperty("RA", workerRA)
+                                            addProperty("LO", workerLO)
+                                            addProperty("TI", workerTI)
+                                            addProperty("RI", workerRI)
+                                            addProperty("KP", workerKP)
+                                            addProperty("PA", workerPA)
+                                        }
+
+                                        // Fetch karyawan name for this specific worker
+                                        val singlePemuatData = withContext(Dispatchers.IO) {
+                                            try {
+                                                panenViewModel.getPemuatByIdList(listOf(karyawanId))
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error fetching Single Pemuat Data: ${e.message}")
+                                                null
+                                            }
+                                        }
+
+                                        val workerName =
+                                            singlePemuatData?.firstOrNull()?.nama ?: "-"
+                                        val singleKaryawanNama =
+                                            if (workerName != "-" && karyawanNik.isNotEmpty()) {
+                                                "$workerName - $karyawanNik"
+                                            } else {
+                                                workerName
+                                            }
+
+                                        // Fetch kemandoran name for this specific worker
+                                        val singleKemandoranData = withContext(Dispatchers.IO) {
+                                            try {
+                                                panenViewModel.getKemandoranById(listOf(kemandoranId))
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error fetching Single Kemandoran Data: ${e.message}")
+                                                null
+                                            }
+                                        }
+
+                                        val singleKemandoranNama =
+                                            singleKemandoranData?.firstOrNull()?.nama?.let { "$it" }
+                                                ?: "-"
+
+                                        // Create the map for this worker
+                                        val workerData = mapOf<String, Any>(
+                                            "id" to (panenWithRelations.panen.id as Any),
+                                            "tph_id" to (panenWithRelations.panen.tph_id as Any),
+                                            "date_created" to (panenWithRelations.panen.date_created as Any),
+                                            "blok_name" to (panenWithRelations.tph?.blok_kode
+                                                ?: "Unknown"),
+                                            "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                            "created_by" to (panenWithRelations.panen.created_by as Any),
+                                            "karyawan_id" to (karyawanId as Any),
+                                            "kemandoran_id" to (kemandoranId as Any),
+                                            "karyawan_nik" to (karyawanNik as Any),
+                                            "jjg_json" to (workerJjgJson.toString() as Any),
+                                            "foto" to (panenWithRelations.panen.foto as Any),
+                                            "komentar" to (panenWithRelations.panen.komentar as Any),
+                                            "asistensi" to (panenWithRelations.panen.asistensi as Any),
+                                            "lat" to (panenWithRelations.panen.lat as Any),
+                                            "lon" to (panenWithRelations.panen.lon as Any),
+                                            "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
+                                            "ancak" to (panenWithRelations.panen.ancak as Any),
+                                            "archive" to (panenWithRelations.panen.archive as Any),
+                                            "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
+                                            "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
+                                            "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
+                                            "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
+                                            "nama_karyawans" to (singleKaryawanNama as Any),
+                                            "nama_kemandorans" to (singleKemandoranNama as Any),
+                                            "username" to (panenWithRelations.panen.username as Any)
+                                        )
+
+                                        multiWorkerData.add(workerData)
+                                    }
 
 
-                        val distinctBlokNames = mappedData
-                            .map { it["blok_name"].toString() }
-                            .distinct()
-                            .filter { it != "-" }
-                            .sorted()
-                            .joinToString(", ")
+                                    allWorkerData.addAll(multiWorkerData)
 
-                        var totalJjgCount = 0
-                        mappedData.forEach { data ->
-                            try {
-                                val jjgJsonString = data["jjg_json"].toString()
-                                val jjgJson = JSONObject(jjgJsonString)
-                                val key = if (featureName == "Rekap panen dan restan") "KP" else "TO"
-                                totalJjgCount += jjgJson.optInt(key, 0)
-                            } catch (e: Exception) {
-                                AppLogger.e("Error parsing jjg_json: ${e.message}")
+                                    emptyList<Map<String, Any>>()
+                                } else {
+                                    val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
+                                        .map { it.trim() }
+                                        .filter { it.isNotEmpty() }
+
+                                    val pemuatData: List<KaryawanModel>? =
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                panenViewModel.getPemuatByIdList(pemuatList)
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error fetching Pemuat Data: ${e.message}")
+                                                null
+                                            }
+                                        }
+
+                                    val rawKemandoran: List<String> = pemuatData
+                                        ?.mapNotNull { it.kemandoran_id?.toString() }
+                                        ?.distinct() ?: emptyList()
+
+                                    val kemandoranData: List<KemandoranModel>? =
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                panenViewModel.getKemandoranById(rawKemandoran)
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error fetching Kemandoran Data: ${e.message}")
+                                                null
+                                            }
+                                        }
+
+                                    val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
+                                        ?.takeIf { it.isNotEmpty() }
+                                        ?.joinToString("\n") { "• $it" } ?: "-"
+
+                                    val karyawanNamas = pemuatData?.mapNotNull { karyawan ->
+                                        karyawan.nama?.let { nama ->
+                                            // Always append NIK for every worker
+                                            "$nama - ${karyawan.nik ?: "N/A"}"
+                                        }
+                                    }?.takeIf { it.isNotEmpty() }
+                                        ?.joinToString(", ") ?: "-"
+
+                                    // Update the original data with the fetched names
+                                    originalDataMapped["nama_karyawans"] = karyawanNamas
+                                    originalDataMapped["nama_kemandorans"] = kemandoranNamas
+
+                                    val updatedStandardData = standardData.toMutableMap().apply {
+                                        this["nama_karyawans"] = karyawanNamas
+                                        this["nama_kemandorans"] = kemandoranNamas
+                                    }
+
+                                    allWorkerData.add(updatedStandardData)
+
+                                    listOf(updatedStandardData)
+
+                                }
+                            }.flatten()
+
+                            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2) {
+                                val globalMergedWorkerMap =
+                                    mutableMapOf<String, MutableMap<String, Any>>()
+
+                                // Define all JJG types to handle
+                                val jjgTypes = listOf(
+                                    "TO",
+                                    "UN",
+                                    "OV",
+                                    "EM",
+                                    "AB",
+                                    "RA",
+                                    "LO",
+                                    "TI",
+                                    "RI",
+                                    "KP",
+                                    "PA"
+                                )
+
+                                for (workerData in allWorkerData) {
+                                    val workerName = workerData["nama_karyawans"].toString()
+                                    val blokName = workerData["blok_name"].toString()
+                                    val tphId = workerData["tph_id"].toString()
+                                    val jjgJson = JSONObject(workerData["jjg_json"].toString())
+
+                                    // Extract all JJG values
+                                    val jjgValues = jjgTypes.associateWith { type ->
+                                        jjgJson.optDouble(type, 0.0)
+                                    }
+
+                                    // Format JJG TO value
+                                    val jjgTO = jjgValues["TO"] ?: 0.0
+                                    val formattedJjgTO = if (jjgTO == jjgTO.toInt().toDouble()) {
+                                        jjgTO.toInt().toString()
+                                    } else {
+                                        String.format(
+                                            Locale.US,
+                                            "%.1f",
+                                            jjgTO
+                                        )  // Using Locale.US for consistent decimal point
+                                    }
+
+                                    // Format JJG PA value
+                                    val jjgPA = jjgValues["PA"] ?: 0.0
+                                    val formattedJjgPA = if (jjgPA == jjgPA.toInt().toDouble()) {
+                                        jjgPA.toInt().toString()
+                                    } else {
+                                        String.format(Locale.US, "%.1f", jjgPA)
+                                    }
+
+                                    if (globalMergedWorkerMap.containsKey(workerName)) {
+                                        // Update existing worker data
+                                        val existingWorkerData = globalMergedWorkerMap[workerName]!!
+
+                                        // Update JJG JSON
+                                        val existingJjgJson =
+                                            JSONObject(existingWorkerData["jjg_json"].toString())
+                                        for (type in jjgTypes) {
+                                            val existingValue = existingJjgJson.optDouble(type, 0.0)
+                                            val newValue = jjgValues[type] ?: 0.0
+                                            val totalValue = existingValue + newValue
+                                            existingJjgJson.put(type, totalValue)
+                                        }
+                                        existingWorkerData["jjg_json"] = existingJjgJson.toString()
+
+                                        // Update JJG dibayar (PA)
+                                        val newTotalPA = existingJjgJson.optDouble("PA", 0.0)
+                                        existingWorkerData["jjg_dibayar"] =
+                                            if (newTotalPA == newTotalPA.toInt().toDouble()) {
+                                                newTotalPA.toInt().toString()
+                                            } else {
+                                                String.format(Locale.US, "%.1f", newTotalPA)
+                                            }
+
+                                        // Update JJG total (TO)
+                                        val newTotalTO = existingJjgJson.optDouble("TO", 0.0)
+                                        existingWorkerData["jjg_total_blok"] =
+                                            if (newTotalTO == newTotalTO.toInt().toDouble()) {
+                                                newTotalTO.toInt().toString()
+                                            } else {
+                                                String.format(Locale.US, "%.1f", newTotalTO)
+                                            }
+
+                                        // Update counters
+                                        val existingOccurrences =
+                                            (existingWorkerData["occurrence_count"]?.toString()
+                                                ?.toIntOrNull() ?: 1) + 1
+                                        existingWorkerData["occurrence_count"] =
+                                            existingOccurrences.toString()
+
+                                        // Update TPH tracking
+                                        val tphIds =
+                                            (existingWorkerData["tph_ids"]?.toString() ?: "").split(
+                                                ","
+                                            )
+                                                .filter { it.isNotEmpty() }.toMutableSet()
+                                        tphIds.add(tphId)
+                                        existingWorkerData["tph_ids"] = tphIds.joinToString(",")
+                                        existingWorkerData["tph_count"] = tphIds.size.toString()
+
+                                        // Update jjg_each_blok
+                                        val existingBlokMap = parseBlokMap(
+                                            existingWorkerData["jjg_each_blok"]?.toString() ?: ""
+                                        )
+
+                                        // Update or add the current blok
+                                        val currentBlokTO = existingBlokMap[blokName] ?: 0.0
+                                        val newBlokTO = currentBlokTO + jjgTO
+                                        existingBlokMap[blokName] = newBlokTO
+
+                                        // Convert back to formatted string
+                                        val formattedBlokEntries =
+                                            existingBlokMap.entries.map { (blok, value) ->
+                                                val formatted =
+                                                    if (value == value.toInt().toDouble()) {
+                                                        value.toInt().toString()
+                                                    } else {
+                                                        String.format(Locale.US, "%.1f", value)
+                                                    }
+                                                "$blok($formatted)"
+                                            }
+
+                                        // Join and store
+                                        existingWorkerData["jjg_each_blok"] =
+                                            formattedBlokEntries.joinToString("\n")
+
+                                        // Update bullet point format
+                                        existingWorkerData["jjg_each_blok_bullet"] =
+                                            formattedBlokEntries.map { entry ->
+                                                val regex = "([A-Z0-9-]+)\\(([0-9.]+)\\)".toRegex()
+                                                val matchResult = regex.find(entry)
+
+                                                if (matchResult != null) {
+                                                    val blokNameMatch = matchResult.groupValues[1]
+                                                    val count = matchResult.groupValues[2]
+                                                    "• $blokNameMatch ($count Jjg)"
+                                                } else {
+                                                    "• $entry"
+                                                }
+                                            }.joinToString("\n")
+
+                                    } else {
+                                        // Create new worker entry
+                                        val mutableWorkerData = workerData.toMutableMap()
+
+                                        // Set initial values
+                                        mutableWorkerData["jjg_each_blok"] =
+                                            "$blokName($formattedJjgTO)"
+                                        mutableWorkerData["jjg_each_blok_bullet"] =
+                                            "• $blokName ($formattedJjgTO Jjg)"
+                                        mutableWorkerData["jjg_total_blok"] = formattedJjgTO
+                                        mutableWorkerData["jjg_dibayar"] = formattedJjgPA
+                                        mutableWorkerData["occurrence_count"] = "1"
+                                        mutableWorkerData["tph_ids"] = tphId
+                                        mutableWorkerData["tph_count"] = "1"
+
+                                        globalMergedWorkerMap[workerName] = mutableWorkerData
+                                    }
+                                }
+
+                                // Sort and assign the final merged data
+                                val finalMergedData =
+                                    globalMergedWorkerMap.values.toList().sortedBy {
+                                        it["nama_karyawans"].toString()
+                                    }
+
+                                mappedData = finalMergedData
+                            } else if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 3) {
+                                val globalMergedBlokMap =
+                                    mutableMapOf<String, MutableMap<String, Any>>()
+
+                                val jjgTypes = listOf(
+                                    "TO", "UN", "OV", "EM", "AB", "RA", "LO", "TI", "RI", "KP", "PA"
+                                )
+
+                                for (blokData in allWorkerData) {
+                                    val blokName = blokData["blok_name"].toString()
+
+
+                                    val tphId = blokData["tph_id"].toString()
+                                    val jjgJson = JSONObject(blokData["jjg_json"].toString())
+
+                                    // Extract all JJG values
+                                    val jjgValues = jjgTypes.associateWith { type ->
+                                        jjgJson.optDouble(type, 0.0)
+                                    }
+
+                                    val currentKaryawans = blokData["nama_karyawans"].toString()
+                                    val currentKaryawansList = mutableSetOf<String>()
+
+                                    // If there are multiple workers in this record (comma-separated)
+                                    if (currentKaryawans.contains(",")) {
+                                        currentKaryawansList.addAll(
+                                            currentKaryawans.split(",")
+                                                .map { it.trim() }
+                                                .filter { it.isNotEmpty() && it != "-" }
+                                        )
+                                    } else if (currentKaryawans.isNotEmpty() && currentKaryawans != "-") {
+                                        currentKaryawansList.add(currentKaryawans)
+                                    }
+
+                                    // Same for kemandoran names
+                                    val currentKemandorans = blokData["nama_kemandorans"].toString()
+                                    val currentKemandoransList = mutableSetOf<String>()
+
+                                    if (currentKemandorans.contains("\n")) {
+                                        // Your kemandoran format uses bullet points with newlines
+                                        currentKemandoransList.addAll(
+                                            currentKemandorans.split("\n")
+                                                .map { it.trim().removePrefix("• ") }
+                                                .filter { it.isNotEmpty() && it != "-" }
+                                        )
+                                    } else if (currentKemandorans.isNotEmpty() && currentKemandorans != "-") {
+                                        currentKemandoransList.add(currentKemandorans)
+                                    }
+
+                                    if (globalMergedBlokMap.containsKey(blokName)) {
+                                        val existingBlokData = globalMergedBlokMap[blokName]!!
+
+                                        val existingJjgJson =
+                                            JSONObject(existingBlokData["jjg_json"].toString())
+
+                                        // Update all JJG types in the existing JSON
+                                        for (type in jjgTypes) {
+                                            val existingValue = existingJjgJson.optDouble(type, 0.0)
+                                            val newValue = jjgValues[type] ?: 0.0
+                                            val totalValue = existingValue + newValue
+                                            existingJjgJson.put(type, totalValue)
+                                        }
+
+                                        // Update the JJG JSON in the existing blok data
+                                        existingBlokData["jjg_json"] = existingJjgJson.toString()
+
+                                        // For jjg_total and jjg_dibayar, use TO and PA as in state 2
+                                        val newTotalTO = existingJjgJson.optDouble("TO", 0.0)
+                                        existingBlokData["jjg_total"] =
+                                            if (newTotalTO == newTotalTO.toInt().toDouble()) {
+                                                newTotalTO.toInt().toString()
+                                            } else {
+                                                String.format(Locale.US, "%.1f", newTotalTO)
+                                            }
+
+                                        val jjgPA = existingJjgJson.optDouble("PA", 0.0)
+                                        existingBlokData["jjg_dibayar"] =
+                                            if (jjgPA == jjgPA.toInt().toDouble()) {
+                                                jjgPA.toInt().toString()
+                                            } else {
+                                                String.format(Locale.US, "%.1f", jjgPA)
+                                            }
+
+                                        val existingTransactions =
+                                            (existingBlokData["jumlah_transaksi"]?.toString()
+                                                ?.toIntOrNull() ?: 1) + 1
+                                        existingBlokData["jumlah_transaksi"] =
+                                            existingTransactions.toString()
+
+                                        val tphIds =
+                                            (existingBlokData["tph_ids"]?.toString()
+                                                ?: "").split(",")
+                                                .filter { it.isNotEmpty() }.toMutableSet()
+                                        tphIds.add(tphId)
+                                        existingBlokData["tph_ids"] = tphIds.joinToString(",")
+                                        existingBlokData["tph_count"] = tphIds.size.toString()
+
+                                        // Process karyawan names properly - get existing ones
+                                        val existingKaryawans =
+                                            (existingBlokData["nama_karyawans_all"]?.toString()
+                                                ?: "").split(",")
+                                                .map { it.trim() }
+                                                .filter { it.isNotEmpty() }
+                                                .toMutableSet()
+
+                                        // Add all current karyawans to the set
+                                        existingKaryawans.addAll(currentKaryawansList)
+
+                                        // Update with the complete set
+                                        existingBlokData["nama_karyawans_all"] =
+                                            existingKaryawans.joinToString(", ")
+                                        existingBlokData["karyawan_count"] =
+                                            existingKaryawans.size.toString()
+
+                                        // Process kemandoran names similarly
+                                        val existingKemandorans =
+                                            (existingBlokData["nama_kemandorans_all"]?.toString()
+                                                ?: "").split("\n")
+                                                .map { it.trim().removePrefix("• ") }
+                                                .filter { it.isNotEmpty() }
+                                                .toMutableSet()
+
+                                        // Add all current kemandorans to the set
+                                        existingKemandorans.addAll(currentKemandoransList)
+
+                                        // Format kemandoran list with bullet points
+                                        val formattedKemandorans = existingKemandorans
+                                            .sorted()
+                                            .joinToString("\n") { "• $it" }
+
+                                        existingBlokData["nama_kemandorans_all"] =
+                                            formattedKemandorans
+
+                                        existingBlokData["jjg_each_blok"] =
+                                            "${existingBlokData["jjg_total"]} (${existingBlokData["jjg_dibayar"]})"
+                                    } else {
+                                        // This is a new blok, create a new entry
+                                        val mutableBlokData = blokData.toMutableMap()
+
+                                        // Format the TO and PA values
+                                        val jjgTO = jjgValues["TO"] ?: 0.0
+                                        val formattedJjgTO =
+                                            if (jjgTO == jjgTO.toInt().toDouble()) {
+                                                jjgTO.toInt().toString()
+                                            } else {
+                                                String.format(Locale.US, "%.1f", jjgTO)
+                                            }
+
+                                        val jjgPA = jjgValues["PA"] ?: 0.0
+                                        val formattedJjgPA =
+                                            if (jjgPA == jjgPA.toInt().toDouble()) {
+                                                jjgPA.toInt().toString()
+                                            } else {
+                                                String.format(Locale.US, "%.1f", jjgPA)
+                                            }
+
+                                        // Add blok-specific fields
+                                        mutableBlokData["jjg_total"] = formattedJjgTO
+                                        mutableBlokData["jjg_dibayar"] = formattedJjgPA
+                                        mutableBlokData["jumlah_transaksi"] = "1"
+                                        mutableBlokData["tph_ids"] = tphId
+                                        mutableBlokData["tph_count"] = "1"
+                                        mutableBlokData["jjg_each_blok"] =
+                                            "$formattedJjgTO ($formattedJjgPA)"
+
+                                        // Create worker tracking with proper handling of multiple workers
+                                        mutableBlokData["nama_karyawans_all"] =
+                                            currentKaryawansList.joinToString(", ")
+                                        mutableBlokData["karyawan_count"] =
+                                            currentKaryawansList.size.toString()
+
+                                        // Format kemandoran list with bullet points
+                                        val formattedKemandorans = currentKemandoransList
+                                            .sorted()
+                                            .joinToString("\n") { "• $it" }
+
+                                        mutableBlokData["nama_kemandorans_all"] =
+                                            formattedKemandorans
+
+                                        globalMergedBlokMap[blokName] = mutableBlokData
+                                    }
+                                }
+
+                                val finalMergedData =
+                                    globalMergedBlokMap.values.toList().sortedBy {
+                                        it["blok_name"].toString()
+                                    }
+
+                                mappedData = finalMergedData
+                            } else {
+                                mappedData = allWorkerData
                             }
+
+                            val processedData =
+                                AppUtils.getPanenProcessedData(originalMappedData, featureName)
+                            if (featureName != "Detail eSPB") {
+                                blokSection.visibility = View.VISIBLE
+                                totalSection.visibility = View.VISIBLE
+                            }
+
+                            val blokNames = processedData["blokNames"]?.toString() ?: ""
+                            blok = if (blokNames.isEmpty()) "-" else blokNames
+
+                            listBlok.text = processedData["blokDisplay"]?.toString()
+                            jjg = processedData["totalJjgCount"]?.toString()!!.toInt()
+                            totalJjg.text = jjg.toString()
+                            tph = processedData["tphCount"]?.toString()!!.toInt()
+                            totalTPH.text = tph.toString()
+
+                            // Set Blok
+                            val tvBlok = findViewById<View>(R.id.tv_blok)
+                            tvBlok.findViewById<TextView>(R.id.tvTitleEspb).text = "Blok"
+                            tvBlok.findViewById<TextView>(R.id.tvSubTitleEspb).text = blok
+
+                            // Set jjg
+                            val tvJjg = findViewById<View>(R.id.tv_jjg)
+                            tvJjg.findViewById<TextView>(R.id.tvTitleEspb).text = "Janjang"
+                            tvJjg.findViewById<TextView>(R.id.tvSubTitleEspb).text = jjg.toString()
+
+                            // Set jjg
+                            val tvTph = findViewById<View>(R.id.tv_total_tph)
+                            tvTph.findViewById<TextView>(R.id.tvTitleEspb).text = "Jumlah TPH"
+                            tvTph.findViewById<TextView>(R.id.tvSubTitleEspb).text = tph.toString()
+
+                            listAdapter.updateData(mappedData)
+                            originalData =
+                                emptyList() // Reset original data when new data is loaded
+                            filterSection.visibility =
+                                View.GONE // Hide filter section for new data
+
+
+                        } else {
+
+
+                            val emptyStateMessage =
+                                if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 2)
+                                    "Belum ada rekap data per pemanen atau pastikan sudah menyimpan/konfirmasi scan"
+                                else if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 3) {
+                                    "Belum ada rekap data per blok atau pastikan sudah menyimpan/konfirmasi scan"
+                                } else
+                                    "Tidak ada data"
+
+                            tvEmptyState.text = emptyStateMessage
+                            tvEmptyState.visibility = View.VISIBLE
+                            recyclerView.visibility = View.GONE
+                            blokSection.visibility = View.GONE
+                            totalSection.visibility = View.GONE
                         }
 
-                        // Calculate distinct TPH count
-                        val distinctTphCount = mappedData
-                            .mapNotNull { it["tph_id"].toString().toIntOrNull() }
-                            .distinct()
-                            .count()
-
-                        // Update TextViews
-
-                        blokSection.visibility = View.VISIBLE
-                        totalSection.visibility = View.VISIBLE
-                        listBlok.text = distinctBlokNames.ifEmpty { "-" }
-                        totalJjg.text = totalJjgCount.toString()
-                        totalTPH.text = distinctTphCount.toString()
-
-                        listAdapter.updateData(mappedData)
-                        originalData =
-                            emptyList() // Reset original data when new data is loaded
-                        filterSection.visibility =
-                            View.GONE // Hide filter section for new data
-                    } else {
-                        tvEmptyState.text = "No saved data available"
-                        tvEmptyState.visibility = View.VISIBLE
-                        recyclerView.visibility = View.GONE
-                        blokSection.visibility = View.GONE
-                        totalSection.visibility = View.GONE
                     }
-                    counterTersimpan.text = panenList.size.toString()
 
                     if (panenList.size == 0 && featureName == "Rekap Hasil Panen") {
+                        btnGenerateQRTPHUnl.visibility = View.GONE
+                        tvGenQR60.visibility = View.GONE
+                        tvGenQRFull.visibility = View.GONE
                         btnGenerateQRTPH.visibility = View.GONE
-                    } else if (panenList.size > 0 && featureName == "Rekap Hasil Panen") {
+
+                    } else if (panenList.size > 0 && featureName == "Rekap Hasil Panen" && currentState != 2 && currentState != 3) {
                         btnGenerateQRTPH.visibility = View.VISIBLE
+                        btnGenerateQRTPHUnl.visibility = View.VISIBLE
+                        tvGenQR60.visibility = View.VISIBLE
+                        tvGenQRFull.visibility = View.VISIBLE
+                    } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                        if (panenList.size > 0) {
+                            btnGenerateQRTPH.visibility = View.VISIBLE
+                            tvGenQRFull.visibility = View.VISIBLE
+                            btnGenerateQRTPHUnl.visibility = View.VISIBLE
+                            tvGenQR60.visibility = View.VISIBLE
+                        } else {
+                            btnGenerateQRTPH.visibility = View.GONE
+                        }
                     }
                 }, 500)
             }
         }
 
-
         panenViewModel.archivedPanenList.observe(this) { panenList ->
-            if (currentState == 1) { // Only process if we're in terscan state
+            if (currentState == 1 || currentState == 2) {
                 listAdapter.updateData(emptyList())
                 btnGenerateQRTPH.visibility = View.GONE
+                btnGenerateQRTPHUnl.visibility = View.GONE
+                tvGenQR60.visibility = View.GONE
+                tvGenQRFull.visibility = View.GONE
+
                 val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
                 headerCheckBox.visibility = View.GONE
@@ -1226,78 +2997,108 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
                     loadingDialog.dismiss()
-                    if (panenList.isNotEmpty()) {
-                        tvEmptyState.visibility = View.GONE
-                        recyclerView.visibility = View.VISIBLE
-                        mappedData = panenList.map { panenWithRelations ->
-                            mapOf<String, Any>(
-                                "id" to (panenWithRelations.panen.id as Any),
-                                "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                "blok_name" to (panenWithRelations.tph?.blok_kode
-                                    ?: "-"),  // Handle null
-                                "nomor" to (panenWithRelations.tph?.nomor
-                                    ?: "-"),  // Handle null
-                                "date_created" to (panenWithRelations.panen.date_created as Any),
-                                "created_by" to (panenWithRelations.panen.created_by as Any),
-                                "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
-                                "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
-                                "foto" to (panenWithRelations.panen.foto as Any),
-                                "komentar" to (panenWithRelations.panen.komentar as Any),
-                                "asistensi" to (panenWithRelations.panen.asistensi as Any),
-                                "lat" to (panenWithRelations.panen.lat as Any),
-                                "lon" to (panenWithRelations.panen.lon as Any),
-                                "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
-                                "ancak" to (panenWithRelations.panen.ancak as Any),
-                                "archive" to (panenWithRelations.panen.archive as Any)
-                            )
-                        }
+                    lifecycleScope.launch {
 
-                        val distinctBlokNames = mappedData
-                            .map { it["blok_name"]?.toString() ?: "-" }
-                            .distinct()
-                            .filter { it != "-" }
-                            .sorted()
-                            .joinToString(", ")
+                        if (panenList.isNotEmpty()) {
+                            tvEmptyState.visibility = View.GONE
+                            recyclerView.visibility = View.VISIBLE
 
-                        // Calculate total JJG by parsing JSON and summing TO values
-                        var totalJjgCount = 0
-                        mappedData.forEach { data ->
-                            try {
-                                val jjgJsonString = data["jjg_json"].toString()
-                                val jjgJson = JSONObject(jjgJsonString)
-                                val key = if (featureName == "Rekap panen dan restan") "KP" else "TO"
-                                totalJjgCount += jjgJson.optInt(key, 0)
-                            } catch (e: Exception) {
-                                AppLogger.e("Error parsing jjg_json: ${e.message}")
+                            mappedData = panenList.map { panenWithRelations ->
+                                val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
+                                    .map { it.trim() }
+                                    .filter { it.isNotEmpty() }
+
+                                val pemuatData: List<KaryawanModel>? = withContext(Dispatchers.IO) {
+                                    try {
+                                        panenViewModel.getPemuatByIdList(pemuatList)
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error fetching Pemuat Data: ${e.message}")
+                                        null
+                                    }
+                                }
+                                val rawKemandoran: List<String> = pemuatData
+                                    ?.mapNotNull { it.kemandoran_id?.toString() }
+                                    ?.distinct() ?: emptyList()
+
+                                val kemandoranData: List<KemandoranModel>? =
+                                    withContext(Dispatchers.IO) {
+                                        try {
+                                            panenViewModel.getKemandoranById(rawKemandoran)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error fetching Kemandoran Data: ${e.message}")
+                                            null
+                                        }
+                                    }
+
+                                val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
+                                    ?.takeIf { it.isNotEmpty() }
+                                    ?.joinToString("\n") { "• $it" } ?: "-"
+
+                                val karyawanNamas = pemuatData?.mapNotNull { karyawan ->
+                                    karyawan.nama?.let { nama ->
+                                        // Always append NIK for every worker
+                                        "$nama - ${karyawan.nik ?: "N/A"}"
+                                    }
+                                }?.takeIf { it.isNotEmpty() }
+                                    ?.joinToString(", ") ?: "-"
+
+                                mapOf<String, Any>(
+                                    "id" to (panenWithRelations.panen.id as Any),
+                                    "tph_id" to (panenWithRelations.panen.tph_id as Any),
+                                    "date_created" to (panenWithRelations.panen.date_created as Any),
+                                    "blok_name" to (panenWithRelations.tph?.blok_kode
+                                        ?: "Unknown"), // Handle null safely
+                                    "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                    "created_by" to (panenWithRelations.panen.created_by as Any),
+//                                    "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
+                                    "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
+                                    "foto" to (panenWithRelations.panen.foto as Any),
+                                    "komentar" to (panenWithRelations.panen.komentar as Any),
+                                    "asistensi" to (panenWithRelations.panen.asistensi as Any),
+                                    "lat" to (panenWithRelations.panen.lat as Any),
+                                    "lon" to (panenWithRelations.panen.lon as Any),
+                                    "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
+                                    "ancak" to (panenWithRelations.panen.ancak as Any),
+                                    "archive" to (panenWithRelations.panen.archive as Any),
+                                    "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
+                                    "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
+                                    "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
+                                    "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
+                                    "nama_karyawans" to karyawanNamas as Any,
+                                    "nama_kemandorans" to kemandoranNamas as Any,
+                                    "username" to (panenWithRelations.panen.username as Any)
+                                )
                             }
+
+
+                            if (featureName != "Detail eSPB") {
+                                blokSection.visibility = View.VISIBLE
+                                totalSection.visibility = View.VISIBLE
+                            }
+                            val processedData =
+                                AppUtils.getPanenProcessedData(mappedData, featureName)
+
+
+                            totalTPH.text = tph.toString()
+                            listBlok.text = processedData["blokDisplay"]?.toString()
+                            totalJjg.text = processedData["totalJjgCount"]?.toString()
+                            totalTPH.text = processedData["tphCount"]?.toString()
+
+                            listAdapter.updateData(mappedData)
+                            originalData =
+                                emptyList() // Reset original data when new data is loaded
+                            filterSection.visibility =
+                                View.GONE // Hide filter section for new data
+                        } else {
+                            tvEmptyState.text = "Tidak ada data"
+                            tvEmptyState.visibility = View.VISIBLE
+                            recyclerView.visibility = View.GONE
+                            blokSection.visibility = View.GONE
+                            totalSection.visibility = View.GONE
+
                         }
 
-                        // Calculate distinct TPH count
-                        val distinctTphCount = mappedData
-                            .mapNotNull { it["tph_id"].toString().toIntOrNull() }
-                            .distinct()
-                            .count()
-
-                        // Update TextViews
-                        blokSection.visibility = View.VISIBLE
-                        totalSection.visibility = View.VISIBLE
-                        listBlok.text = distinctBlokNames.ifEmpty { "-" }
-                        totalJjg.text = totalJjgCount.toString()
-                        totalTPH.text = distinctTphCount.toString()
-
-                        listAdapter.updateData(mappedData)
-                        originalData =
-                            emptyList() // Reset original data when new data is loaded
-                        filterSection.visibility =
-                            View.GONE // Hide filter section for new data
-                    } else {
-                        tvEmptyState.text = "No scanned data available"
-                        tvEmptyState.visibility = View.VISIBLE
-                        recyclerView.visibility = View.GONE
-                        blokSection.visibility = View.GONE
-                        totalSection.visibility = View.GONE
                     }
-                    counterTerscan.text = panenList.size.toString()
                 }, 500)
             }
         }
@@ -1311,6 +3112,40 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private fun initViewModel() {
         val factory = PanenViewModel.PanenViewModelFactory(application)
         panenViewModel = ViewModelProvider(this, factory)[PanenViewModel::class.java]
+    }
+
+    fun extractJSONValue(jjgJson: String, fieldName: String): Double {
+        return try {
+            // Try to parse as JSON first
+            val jsonObject = JSONObject(jjgJson)
+            if (jsonObject.has(fieldName)) {
+                jsonObject.getDouble(fieldName)
+            } else {
+                0.0
+            }
+        } catch (e: Exception) {
+            try {
+                // Fallback to string parsing if JSON parsing fails
+                val fieldString = "\"$fieldName\":"
+                val startIndex = jjgJson.indexOf(fieldString) + fieldString.length
+
+                // Find the end of the value (either comma or closing brace)
+                val commaIndex = jjgJson.indexOf(",", startIndex)
+                val braceIndex = jjgJson.indexOf("}", startIndex)
+
+                // Choose the appropriate end index
+                val endIndex = if (commaIndex > 0 && (braceIndex < 0 || commaIndex < braceIndex)) {
+                    commaIndex
+                } else {
+                    braceIndex
+                }
+
+                jjgJson.substring(startIndex, endIndex).trim().toDouble()
+            } catch (e: Exception) {
+                AppLogger.d("Failed to extract $fieldName from JSON: $jjgJson")
+                0.0 // Return 0.0 if all parsing attempts fail
+            }
+        }
     }
 
     private fun setupSearch() {
@@ -1365,6 +3200,51 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
+
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        SoundPlayer.releaseMediaPlayer()
+        // Ensure handler callbacks are removed
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
+    }
+
     private fun setupCheckboxControl() {
         val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
             .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
@@ -1389,6 +3269,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
+    fun formatGlobalDate(dateString: String): String {
+        // Parse the date string in format "YYYY-MM-DD"
+        val parts = dateString.split("-")
+        if (parts.size != 3) return dateString // Return original if format doesn't match
+
+        val year = parts[0].toInt()
+        val month = parts[1].toInt()
+        val day = parts[2].toInt()
+
+        // Return formatted date string using getMonthFormat
+        return "${AppUtils.getMonthFormat(month)} $day $year"
+    }
 
     fun generateHighQualityQRCode(
         content: String,
@@ -1440,6 +3332,220 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
+    private val STORAGE_PERMISSION_CODE = 101
+    private val REQUIRED_PERMISSIONS = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    } else {
+        arrayOf(
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        )
+    }
+
+    // Check permissions
+    private fun checkStoragePermissions(): Boolean {
+        return REQUIRED_PERMISSIONS.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    // Request permissions
+    private fun requestStoragePermissions() {
+        ActivityCompat.requestPermissions(
+            this,
+            REQUIRED_PERMISSIONS,
+            STORAGE_PERMISSION_CODE
+        )
+    }
+
+    // Handle permission results
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == STORAGE_PERMISSION_CODE) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                // Permissions granted, can proceed with screenshot
+                AppLogger.d("Storage permissions granted")
+            } else {
+                // Permissions denied
+                Toast.makeText(
+                    this,
+                    "Izin penyimpanan dibutuhkan untuk menyimpan screenshot",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+
+    private fun takeQRCodeScreenshot(view: View) {
+
+
+        lifecycleScope.launch {
+            try {
+                val screenshotLayout: View =
+                    if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
+                        layoutInflater.inflate(R.layout.layout_screenshot_qr_mandor, null)
+                    } else {
+                        layoutInflater.inflate(R.layout.layout_screenshot_qr_kpanen, null)
+                    }
+
+                // Get references to views in the custom layout
+                val tvUserName = screenshotLayout.findViewById<TextView>(R.id.tvUserName)
+                val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
+                val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
+
+                // Get references to included layouts
+                val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
+                val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
+                val infoTotalTransaksi =
+                    screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+
+                fun setInfoData(includeView: View, labelText: String, valueText: String) {
+                    val tvLabel = includeView.findViewById<TextView>(R.id.tvLabel)
+                    val tvValue = includeView.findViewById<TextView>(R.id.tvValue)
+                    tvLabel.text = labelText
+                    tvValue.text = valueText
+                }
+
+                // Get the QR code bitmap from the current view
+                val currentQrImageView = view.findViewById<ImageView>(R.id.qrCodeImageView)
+                val qrBitmap = currentQrImageView.drawable?.let { drawable ->
+                    if (drawable is BitmapDrawable) {
+                        drawable.bitmap
+                    } else {
+                        // Convert drawable to bitmap if not already a BitmapDrawable
+                        val bitmap = Bitmap.createBitmap(
+                            drawable.intrinsicWidth,
+                            drawable.intrinsicHeight,
+                            Bitmap.Config.ARGB_8888
+                        )
+                        val canvas = Canvas(bitmap)
+                        drawable.setBounds(0, 0, canvas.width, canvas.height)
+                        drawable.draw(canvas)
+                        bitmap
+                    }
+                }
+
+                qrCodeImageView.setImageBitmap(qrBitmap)
+
+                // Generate current date and time for footer
+                val currentDate = Date()
+                val indonesianLocale = Locale("id", "ID")
+                val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
+                val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                val formattedTime = timeFormat.format(currentDate)
+
+                val effectiveLimit =
+                    if (limit == 0) mappedData.size else limit
+                val limitedData = mappedData.take(effectiveLimit)
+
+                val processedData =
+                    AppUtils.getPanenProcessedData(limitedData, featureName)
+
+                tvUserName.text = "Hasil QR dari ${prefManager!!.jabatanUserLogin}"
+                if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
+                    val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
+                    val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
+                    val infoNopol = screenshotLayout.findViewById<View>(R.id.infoNopol)
+                    val infoPemuat = screenshotLayout.findViewById<View>(R.id.infoPemuat)
+
+                    infoNoESPB.visibility = View.VISIBLE
+                    infoDriver.visibility = View.VISIBLE
+                    infoNopol.visibility = View.VISIBLE
+                    infoPemuat.visibility = View.VISIBLE
+
+                    setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
+                    setInfoData(
+                        infoTotalJjg,
+                        "Total Janjang",
+                        ": ${processedData["totalJjgCount"]} jjg"
+                    )
+                    setInfoData(
+                        infoTotalTransaksi,
+                        "Jumlah Transaksi",
+                        ": ${processedData["tphCount"]}"
+                    )
+                    setInfoData(infoNoESPB, "E-SPB", ": $no_espb")
+                    setInfoData(infoDriver, "Driver", ": $driver")
+                    setInfoData(infoNopol, "Nomor Polisi", ": $nopol")
+                    setInfoData(infoPemuat, "Pemuat", ": $pemuatNamaESPB")
+                } else {
+
+                    setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
+                    setInfoData(
+                        infoTotalJjg,
+                        "Total Janjang",
+                        ": ${processedData["totalJjgCount"]} jjg"
+                    )
+                    setInfoData(
+                        infoTotalTransaksi,
+                        "Jumlah Transaksi",
+                        ": ${processedData["tphCount"]}"
+                    )
+
+                }
+                tvFooter.text =
+                    "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
+
+                val displayMetrics = resources.displayMetrics
+                val width = displayMetrics.widthPixels
+                val height = LinearLayout.LayoutParams.WRAP_CONTENT
+
+                screenshotLayout.measure(
+                    View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                )
+
+                screenshotLayout.layout(
+                    0, 0, screenshotLayout.measuredWidth, screenshotLayout.measuredHeight
+                )
+
+                // Create a meaningful filename
+                val screenshotFileName = if (featureName == "Detail eSPB") {
+                    "eSPB_QR_${no_espb.replace("/", "_")}"
+                } else {
+                    val date =
+                        SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                    "Panen_QR_$date"
+                }
+
+                val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen)
+                    AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
+                else
+                    AppUtils.WaterMarkFotoDanFolder.WMESPB
+                val screenshotFile = ScreenshotUtil.takeScreenshot(
+                    screenshotLayout,
+                    screenshotFileName,
+                    watermarkType
+                )
+
+                if (screenshotFile != null) {
+                    Toasty.success(
+                        this@ListPanenTBSActivity,
+                        "QR sudah tersimpan digaleri",
+                        Toast.LENGTH_LONG,
+                        true
+                    ).show()
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error taking QR screenshot: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@ListPanenTBSActivity,
+                        "Gagal menyimpan QR Code: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
     private fun handleDelete(selectedItems: List<Map<String, Any>>) {
         this.vibrate()
         AlertDialogUtility.withTwoActions(
@@ -1448,49 +3554,55 @@ class ListPanenTBSActivity : AppCompatActivity() {
             getString(R.string.confirmation_dialog_title),
             "${getString(R.string.al_make_sure_delete)} ${selectedItems.size} data?",
             "warning.json",
-            ContextCompat.getColor(this, R.color.colorRedDark)
-        ) {
-            loadingDialog.show()
-            loadingDialog.setMessage("Deleting items...")
+            ContextCompat.getColor(this, R.color.colorRedDark),
+            function = {
+                loadingDialog.show()
+                loadingDialog.setMessage("Deleting items...")
 
-            panenViewModel.deleteMultipleItems(selectedItems)
+                panenViewModel.deleteMultipleItems(selectedItems)
 
-            // Observe delete result
-            panenViewModel.deleteItemsResult.observe(this) { isSuccess ->
-                loadingDialog.dismiss()
-                if (isSuccess) {
-                    Toast.makeText(
-                        this,
-                        "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    // Reload data based on current state
-                    if (currentState == 0) {
-                        panenViewModel.loadActivePanen()
+                // Observe delete result
+                panenViewModel.deleteItemsResult.observe(this) { isSuccess ->
+                    loadingDialog.dismiss()
+                    if (isSuccess) {
+                        playSound(R.raw.data_terhapus)
+                        Toast.makeText(
+                            this,
+                            "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        // Reload data based on current state
+                        if (currentState == 0) {
+                            panenViewModel.loadTPHNonESPB(0, 0, 0, globalFormattedDate)
+                            panenViewModel.countTPHNonESPB(0, 0, 0, globalFormattedDate)
+                            panenViewModel.countTPHESPB(1, 0, 0, globalFormattedDate)
+                        } else {
+                            panenViewModel.loadArchivedPanen()
+                        }
                     } else {
-                        panenViewModel.loadArchivedPanen()
+                        Toast.makeText(
+                            this,
+                            "${getString(R.string.al_failed_delete)} data",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
-                } else {
-                    Toast.makeText(
-                        this,
-                        "${getString(R.string.al_failed_delete)} data",
-                        Toast.LENGTH_SHORT
-                    ).show()
+
+                    // Reset UI state
+                    val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                        .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                    headerCheckBox.isChecked = false
+                    listAdapter.clearSelections()
+                    speedDial.visibility = View.GONE
                 }
 
-                // Reset UI state
-                val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
-                    .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
-                headerCheckBox.isChecked = false
-                listAdapter.clearSelections()
-                speedDial.visibility = View.GONE
+                // Observe errors
+                panenViewModel.error.observe(this) { errorMessage ->
+                    loadingDialog.dismiss()
+                    Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+                }
             }
+        ) {
 
-            // Observe errors
-            panenViewModel.error.observe(this) { errorMessage ->
-                loadingDialog.dismiss()
-                Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
-            }
         }
     }
 
@@ -1531,30 +3643,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setOnActionSelectedListener { actionItem ->
                 when (actionItem.id) {
                     R.id.scan_qr -> {
-//                        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet, null)
 //
-//                        view.background = ContextCompat.getDrawable(this@ListPanenTBSActivity, R.drawable.rounded_top_right_left)
-//
-//                        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
-//                        dialog.setContentView(view)
-////                        view.layoutParams.height = 500.toPx()
-//
-//                        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-//                        val data = "test"
-//                        generateHighQualityQRCode(data, qrCodeImageView)
-//                        dialog.setOnShowListener {
-//                            val bottomSheet =
-//                                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-//                            val behavior = BottomSheetBehavior.from(bottomSheet!!)
-//                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
-//                        }
-//                        dialog.show()
                         true
                     }
-//                    R.id.cancelSelection -> {
-//                        listAdapter.clearSelections()
-//                        true
-//                    }
+//
                     R.id.deleteSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()
                         handleDelete(selectedItems)
@@ -1564,18 +3656,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     R.id.uploadSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()
 
-//                        if (AppUtils.isInternetAvailable(this@ListPanenTBSActivity)) {
-//                            handleUpload(selectedItems)
-//                        } else {
-//                            AlertDialogUtility.withSingleAction(
-//                                this@ListPanenTBSActivity,
-//                                getString(R.string.al_back),
-//                                getString(R.string.al_no_internet_connection),
-//                                getString(R.string.al_no_internet_connection_description),
-//                                "network_error.json",
-//                                R.color.colorRedDark
-//                            ) {}
-//                        }
+//
                         true
                     }
 
@@ -1682,23 +3763,57 @@ class ListPanenTBSActivity : AppCompatActivity() {
         featureName = intent.getStringExtra("FEATURE_NAME").toString()
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
         val userSection = findViewById<TextView>(R.id.userSection)
+        val titleAppNameAndVersion = findViewById<TextView>(R.id.titleAppNameAndVersionFeature)
+        val lastUpdateText = findViewById<TextView>(R.id.lastUpdate)
         val locationSection = findViewById<LinearLayout>(R.id.locationSection)
+
         locationSection.visibility = View.GONE
 
         AppUtils.setupUserHeader(
             userName = userName,
-            jabatanUser = jabatanUser,
-            estateName = estateName,
-            afdelingUser = afdelingUser,
             userSection = userSection,
             featureName = featureName,
-            tvFeatureName = tvFeatureName
+            tvFeatureName = tvFeatureName,
+            prefManager = prefManager,
+            lastUpdateText = lastUpdateText,
+            titleAppNameAndVersionText = titleAppNameAndVersion,
+            context = this
         )
     }
 
-    private fun setupRecyclerView() {
+    private fun parseBlokMap(blokString: String): MutableMap<String, Double> {
+        val result = mutableMapOf<String, Double>()
+        if (blokString.isEmpty()) return result
 
-        val headers = listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+        blokString.split("\n").forEach { line ->
+            val regex = "([A-Z0-9-]+)\\(([0-9,.]+)\\)".toRegex()
+            val matchResult = regex.find(line)
+
+            if (matchResult != null) {
+                val blokName = matchResult.groupValues[1]
+                // Handle both comma and period as decimal separators
+                val countStr = matchResult.groupValues[2].replace(",", ".")
+                val count = countStr.toDoubleOrNull() ?: 0.0
+                result[blokName] = count
+            }
+        }
+
+        return result
+    }
+
+    private fun setupRecyclerView() {
+        val totalSection: LinearLayout = findViewById(R.id.total_section)
+        val blokSection: LinearLayout = findViewById(R.id.blok_section)
+        val totalJjgTextView: TextView = findViewById(R.id.totalJjg)
+        val totalTphTextView: TextView = findViewById(R.id.totalTPH)
+        val tvTotalTPH: TextView = findViewById(R.id.tvTotalTPH)
+        val listBlokTextView: TextView = findViewById(R.id.listBlok) // Add this line
+
+        val headers = if (featureName == "Buat eSPB") {
+            listOf("BLOK", "NO TPH/JJG", "JAM", "KP")
+        } else {
+            listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+        }
         updateTableHeaders(headers)
 
         listAdapter = ListPanenTPHAdapter()
@@ -1706,13 +3821,47 @@ class ListPanenTBSActivity : AppCompatActivity() {
             adapter = listAdapter
             layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
         }
-        listAdapter.setFeatureAndScanned(featureName, listTPHDriver)
+
+        tphListScan = processScannedResult(listTPHDriver)
+
+        if (tphListScan.isEmpty()) {
+            Toast.makeText(this, "Failed to process TPH QR", Toast.LENGTH_SHORT).show()
+        } else {
+            listAdapter.setFeatureAndScanned(featureName, tphListScan)
+        }
+
+        if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
+            listAdapter.setOnTotalsUpdateListener { tphCount, jjgCount, formattedBlocks ->
+                if (tphCount > 0) {
+                    totalSection.visibility = View.VISIBLE
+                    blokSection.visibility = View.VISIBLE
+                    totalTphTextView.text = tphCount.toString()
+                    totalJjgTextView.text = jjgCount.toString()
+                    tvTotalTPH.text = "Jmlh Transaksi: "
+
+                    // No need to format again, just join the already formatted blocks
+                    val blocksText = formattedBlocks.joinToString(", ")
+                    listBlokTextView.text = blocksText
+                    listBlokTextView.visibility = View.VISIBLE
+                } else {
+                    totalSection.visibility = View.GONE
+                    blokSection.visibility = View.GONE
+                    listBlokTextView.visibility = View.GONE
+                }
+            }
+        }
     }
 
     private fun updateTableHeaders(headerNames: List<String>) {
         val tableHeader = findViewById<View>(R.id.tableHeader)
 
-        val headerIds = listOf(R.id.th1, R.id.th2, R.id.th3, R.id.th4)
+        // Adjust the header ID list to accommodate 5 columns if needed
+        val headerIds = if (headerNames.size == 5) {
+            listOf(R.id.th1, R.id.th2, R.id.th3, R.id.th4, R.id.th5)
+
+        } else {
+            listOf(R.id.th1, R.id.th2, R.id.th3, R.id.th4)
+        }
 
         for (i in headerNames.indices) {
             val textView = tableHeader.findViewById<TextView>(headerIds[i])
@@ -1721,7 +3870,46 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 text = headerNames[i]
             }
         }
+
+        // Hide extra columns if not used (only applicable when switching from 5 to 4)
+        if (headerNames.size < headerIds.size) {
+            for (i in headerNames.size until headerIds.size) {
+                tableHeader.findViewById<TextView>(headerIds[i]).visibility = View.GONE
+            }
+        }
     }
+
+    fun processScannedResult(scannedResult: String): List<String> {
+        // First check if it's already a list of IDs
+        if (scannedResult.startsWith("[") && !scannedResult.contains("tph_0")) {
+            return try {
+                // This handles the case: [172355, 172357, 102354, ...]
+                val listString = scannedResult.trim('[', ']')
+                listString.split(", ").map { it.trim() }
+            } catch (e: Exception) {
+                Log.e("ListPanenTBSActivity", "Error parsing list format: ${e.message}")
+                e.printStackTrace()
+                emptyList()
+            }
+        }
+
+        if (scannedResult.contains("tph_0")) {
+            Log.e("ListPanenTBSActivity", "Invalid data format containing tph_0")
+            return emptyList() // Return null to indicate invalid format
+        }
+        // Default case - try the original parsing method
+        return try {
+            val tphString = scannedResult
+                .removePrefix("""{"tph":"""")
+                .removeSuffix(""""}""")
+            tphString.split(";")
+        } catch (e: Exception) {
+            Log.e("ListPanenTBSActivity", "Error with default parsing: ${e.message}")
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
 
     // Add a helper function to remove duplicate entries
     private fun removeDuplicateEntries(entries: String): String {
@@ -1734,6 +3922,5 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         return uniqueEntries
     }
-
 
 }

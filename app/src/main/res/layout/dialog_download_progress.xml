@@ -28,10 +28,9 @@
             android:paddingVertical="5dp"
             android:id="@+id/tvTitleProgressBarLayout"
             android:textStyle="bold"
-            android:fontFamily="@font/montserrat_bold"
+            android:fontFamily="@font/manrope_bold"
             android:layout_gravity="center_vertical"
-
-            android:textSize="20dp" />
+            android:textSize="@dimen/xl" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/close_progress_bar"
@@ -60,14 +59,14 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="File Data"
+            android:text="File Data: "
             android:layout_marginLeft="10dp"
             android:id="@+id/tv_title_progress_jumlah"
             android:textColor="@color/black"
             android:paddingVertical="5dp"
             android:textStyle="bold"
             android:fontFamily="@font/manrope_medium"
-            android:textSize="19sp"
+            android:textSize="@dimen/m"
             />
 
         <TextView
@@ -75,9 +74,46 @@
             android:layout_height="wrap_content"
             android:id="@+id/counter_dataset"
             android:textColor="@color/black"
+            android:fontFamily="@font/manrope_semibold"
             android:layout_marginLeft="5dp"
-            android:textSize="14dp"
+            android:textSize="@dimen/m"
             />
+
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        android:id="@+id/counterSizeFile"
+        tools:ignore="MissingConstraints">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Total: "
+            android:layout_marginLeft="10dp"
+            android:textColor="@color/black"
+            android:paddingVertical="5dp"
+            android:textStyle="bold"
+            android:fontFamily="@font/manrope_medium"
+            android:textSize="@dimen/m"
+            />
+
+
+        <TextView
+            android:id="@+id/total_size_progress"
+            android:layout_width="match_parent"
+            android:layout_marginLeft="5dp"
+            android:layout_height="wrap_content"
+            android:text="0 KB / 0 KB (0%)"
+            android:textColor="@color/black"
+            android:fontFamily="@font/manrope_semibold"
+            android:gravity="left"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
 
     </LinearLayout>
 
@@ -110,7 +146,7 @@
             android:layout_gravity="center"
             android:textStyle="bold"
             android:fontFamily="@font/montserrat_mediumitalic"
-            android:textSize="18sp" />
+            android:textSize="@dimen/m" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -125,7 +161,7 @@
                 android:layout_weight="1"
                 android:fontFamily="@font/manrope_bold"
                 android:text="Tutup Dialog"
-                android:textSize="18sp"
+                android:textSize="@dimen/m"
                 android:visibility="gone"
                 app:backgroundTint="@color/graytextdark"
                 app:cornerRadius="10dp"
@@ -142,7 +178,7 @@
                 android:layout_weight="1"
                 android:fontFamily="@font/manrope_bold"
                 android:text="Upload Data"
-                android:textSize="18sp"
+                android:textSize="@dimen/m"
                 android:visibility="gone"
                 android:layout_marginStart="5dp"
                 app:backgroundTint="@color/greenDarker"
@@ -161,8 +197,8 @@
                 android:visibility="gone"
                 android:layout_marginStart="10dp"
                 android:fontFamily="@font/montserrat_mediumitalic"
-                android:text="Coba kembali"
-                android:textSize="18sp"
+                android:text="Coba Kembali"
+                android:textSize="@dimen/m"
                 app:backgroundTint="@color/colorRedDark"
                 app:cornerRadius="10dp"
                 app:elevation="4dp"

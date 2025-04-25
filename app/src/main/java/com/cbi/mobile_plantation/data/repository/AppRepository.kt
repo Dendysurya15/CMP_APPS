@@ -2,15 +2,32 @@ package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
 import android.util.Log
+import androidx.room.withTransaction
+import com.cbi.mobile_plantation.data.model.InspectionModel
+import com.cbi.mobile_plantation.data.model.InspectionPathModel
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.ESPBEntity
+import com.cbi.mobile_plantation.data.model.KaryawanModel
+import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
+import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.mobile_plantation.data.model.TphRvData
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+// Add this class to represent the different outcomes
+sealed class SaveTPHResult {
+    data class AllSuccess(val savedIds: List<Long>) : SaveTPHResult()
+    data class PartialSuccess(
+        val savedIds: List<Long>,
+        val duplicateCount: Int,
+        val duplicateInfo: String
+    ) : SaveTPHResult()
+}
 
 class AppRepository(context: Context) {
 
@@ -20,6 +37,12 @@ class AppRepository(context: Context) {
     private val espbDao = database.espbDao()
     private val tphDao = database.tphDao()
     private val millDao = database.millDao()
+    private val karyawanDao = database.karyawanDao()
+    private val kemandoranDao = database.kemandoranDao()
+    private val transporterDao = database.transporterDao()
+    private val inspectionDao = database.inspectionDao()
+    private val inspectionPathDao = database.inspectionPathDao()
+    private val kendaraanDao = database.kendaraanDao()
 
     sealed class SaveResultPanen {
         object Success : SaveResultPanen()
@@ -30,55 +53,101 @@ class AppRepository(context: Context) {
         panenDao.insert(data)
     }
 
+    suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
+        return karyawanDao.getPemuatByIdList(idPemuat)
+    }
 
-    suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<List<Long>> =
+    suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {
+        return kemandoranDao.getKemandoranById(idKemandoran)
+    }
+
+    suspend fun getAllKaryawan(): Result<List<KaryawanModel>> = withContext(Dispatchers.IO) {
+        try {
+            val data = karyawanDao.getAllKaryawan()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<SaveTPHResult> =
         withContext(Dispatchers.IO) {
             try {
-                // Check for duplicates first
-                val duplicates = tphDataList.filter { tphData ->
-                    panenDao.exists(tphData.namaBlok, tphData.time)
-                }
+                // Keep track of successes and failures
+                val savedIds = mutableListOf<Long>()
+                val duplicates = mutableListOf<TphRvData>()
 
-                if (duplicates.isNotEmpty()) {
-                    val duplicateInfo = duplicates.joinToString("\n") {
-                        "TPH ID: ${it.namaBlok}, Date: ${it.time}"
-                    }
-                    return@withContext Result.failure(
-                        Exception("Duplicate data found:\n$duplicateInfo")
-                    )
-                }
+                // Check each item individually
+                for (tphData in tphDataList) {
+                    // Check if this specific item is a duplicate
+                    val isDuplicate = panenDao.exists(tphData.namaBlok, tphData.time)
 
-                // If no duplicates, proceed with saving
-                val results = tphDataList.map { tphData ->
-                    panenDao.insertWithTransaction(
-                        PanenEntity(
-                            tph_id = tphData.namaBlok,
-                            date_created = tphData.time,
-                            created_by = 0,
-                            karyawan_id = "",
-                            jjg_json = "{\"KP\": ${tphData.jjg}}",
-                            foto = "",
-                            komentar = "",
-                            asistensi = 0,
-                            lat = 0.0,
-                            lon = 0.0,
-                            jenis_panen = 0,
-                            ancak = 0,
-                            info = "",
-                            archive = 0,
-                            status_espb = 0,
-                            status_restan = 0,
-                            scan_status = 1
+                    if (isDuplicate) {
+                        // Add to duplicates list
+                        duplicates.add(tphData)
+                    } else {
+                        // Save non-duplicate
+                        val result = panenDao.insertWithTransaction(
+                            PanenEntity(
+                                tph_id = tphData.namaBlok,
+                                date_created = tphData.time,
+                                created_by = 0,
+                                karyawan_id = "",
+                                kemandoran_id = "",
+                                karyawan_nik = "",
+                                jjg_json = "{\"KP\": ${tphData.jjg}}",
+                                foto = "",
+                                komentar = "",
+                                asistensi = 0,
+                                lat = 0.0,
+                                lon = 0.0,
+                                jenis_panen = 0,
+                                ancak = 0,
+                                info = "",
+                                archive = 0,
+                                status_espb = 0,
+                                status_restan = 0,
+                                scan_status = 1,
+                                username = tphData.username
+                            )
                         )
-                    )
+
+                        result.fold(
+                            onSuccess = { id -> savedIds.add(id) },
+                            onFailure = { throw it }
+                        )
+                    }
                 }
 
-                // Collect all successful results or throw the first error
-                val savedIds = results.map { result ->
-                    result.getOrThrow()
+                // Create result based on what happened
+                when {
+                    duplicates.isEmpty() -> {
+                        // All items were saved successfully
+                        Result.success(SaveTPHResult.AllSuccess(savedIds))
+                    }
+                    savedIds.isEmpty() -> {
+                        // Everything was a duplicate
+                        val duplicateInfo = duplicates.joinToString("\n") {
+                            "TPH ID: ${it.namaBlok}, Date: ${it.time}"
+                        }
+                        Result.failure(
+                            Exception("All data is duplicate:\n$duplicateInfo")
+                        )
+                    }
+                    else -> {
+                        // We had partial success
+                        val duplicateInfo = duplicates.joinToString("\n") {
+                            "TPH ID: ${it.namaBlok}, Date: ${it.time}"
+                        }
+                        Result.success(
+                            SaveTPHResult.PartialSuccess(
+                                savedIds = savedIds,
+                                duplicateCount = duplicates.size,
+                                duplicateInfo = duplicateInfo
+                            )
+                        )
+                    }
                 }
-
-                Result.success(savedIds)
             } catch (e: Exception) {
                 Result.failure(e)
             }
@@ -99,6 +168,24 @@ class AppRepository(context: Context) {
         tphDao.getDivisiAbbrByTphId(id)
     }
 
+    suspend fun loadESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null): List<PanenEntityWithRelations> {
+        return try {
+            panenDao.loadESPB(archive, statusEspb, scanStatus, date)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB: ${e.message}")
+            emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    suspend fun countESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null): Int {
+        return try {
+            panenDao.countESPB(archive, statusEspb, scanStatus, date)
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB: ${e.message}")
+            0  // Return 0 if there's an error
+        }
+    }
+
     suspend fun updateDataIsZippedPanen(ids: List<Int>,status:Int) {
         panenDao.updateDataIsZippedPanen(ids, status)
     }
@@ -109,6 +196,15 @@ class AppRepository(context: Context) {
 
     suspend fun getPanenCount(): Int {
         return panenDao.getCount()
+    }
+
+    suspend fun loadCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): Int {
+        return try {
+            panenDao.getCountTPHESPB(archive, statusEspb, scanStatus, date)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading TPH ESPB count: ${e.message}")
+            0  // Return 0 if an error occurs
+        }
     }
 
     suspend fun getCountDraftESPB(): Int {
@@ -136,6 +232,15 @@ class AppRepository(context: Context) {
         panenDao.getAll()
     }
 
+    suspend fun getAllPanenWhereESPB(no_esp: String): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
+        try {
+            val data = panenDao.getAllPanenWhereESPB(no_esp)
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getActivePanen(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
         try {
             val data = panenDao.getAllActiveWithRelations()
@@ -154,6 +259,16 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getAllTPHHasBeenSelected(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
+        try {
+            val data = panenDao.getAllTPHHasBeenSelected()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
     suspend fun getActivePanenRestan(status: Int = 0): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
         try {
             val data = panenDao.getAllAPanenRestan(status)
@@ -162,6 +277,8 @@ class AppRepository(context: Context) {
             Result.failure(e)
         }
     }
+
+
 
     suspend fun getArchivedPanen(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
         try {
@@ -242,21 +359,30 @@ class AppRepository(context: Context) {
         millDao.getAll()
     }
 
+    suspend fun getNopolList() = withContext(Dispatchers.IO) {
+        kendaraanDao.getAll()
+    }
+
     private fun transformTphDataToMap(inputData: String): Map<Int, Int> {
         val records = inputData.split(";")
+        val result = mutableMapOf<Int, Int>()
 
-        return records.mapNotNull {
-            val parts = it.split(",")
+        records.forEach { record ->
+            val parts = record.split(",")
             if (parts.size >= 3) {
                 try {
-                    parts[0].toInt() to parts[2].toInt()
+                    val tphId = parts[0].toInt()
+                    val janjangCount = parts[2].toInt()
+
+                    // If the TPH ID already exists, add to its janjang count
+                    result[tphId] = result.getOrDefault(tphId, 0) + janjangCount
                 } catch (e: NumberFormatException) {
-                    null
+                    // Ignore parsing errors
                 }
-            } else {
-                null
             }
-        }.toMap()
+        }
+
+        return result
     }
 
     suspend fun getJanjangSumByBlock(tphData: String): Map<Int, Int> = withContext(Dispatchers.IO) {
@@ -305,23 +431,107 @@ class AppRepository(context: Context) {
             }
     }
 
-    // Add this to your AppRepository
-    suspend fun updatePanenESPBStatus(ids: List<Int>, status: Int) = withContext(Dispatchers.IO) {
-        panenDao.updateESPBStatusByIds(ids, status)
+    suspend fun updateESPBStatusForMultipleIds(idsList: List<Int>, status: Int, noESPB: String): Int {
+        return database.withTransaction {
+            panenDao.updateESPBStatusByIds(idsList, status, noESPB)
+        }
     }
 
-    suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
-        try {
-            val data = espbDao.getAllESPBS()
-            Result.success(data)
+    suspend fun panenUpdateStatusAngkut(idsList: List<Int>, status: Int): Int {
+        return database.withTransaction {
+            panenDao.panenUpdateStatusAngkut(idsList, status)
+        }
+    }
+
+//    suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
+//        try {
+//            val data = espbDao.getAllESPBS()
+//            Result.success(data)
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
+
+    suspend fun loadHistoryESPB(date: String? = null): List<ESPBEntity> {
+        return try {
+            espbDao.getAllESPBS(date)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB history: ${e.message}")
+            emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    suspend fun getCountCreatedToday(): Int {
+        return try {
+            espbDao.getCountCreatedToday()
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB created today: ${e.message}")
+            0
+        }
+    }
+
+    fun getBlokById( listBlokId: List<Int>): List<TPHNewModel> {
+        return tphDao.getBlokById(listBlokId)
+    }
+
+    suspend fun getTransporterNameById(id: Int): String? {
+        return transporterDao.getTransporterNameById(id)
+    }
+
+    suspend fun getMillNameById(id: Int): String? {
+        return millDao.getMillNameById(id)
+    }
+
+    // Add to AppRepository.kt
+    suspend fun insertESPBAndGetId(espbEntity: ESPBEntity): Long {
+        return espbDao.insertAndGetId(espbEntity)
+    }
+
+    suspend fun addDataInspection(data: List<InspectionModel>): Result<List<Long>> {
+        return try {
+            val insertedIds = inspectionDao.insertAll(data)
+            Result.success(insertedIds)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    suspend fun addPathDataInspection(data: InspectionPathModel): Result<Long> {
+        return try {
+            val insertedId = inspectionPathDao.insert(data)
+            if (insertedId != -1L) {
+                Result.success(insertedId)
+            } else {
+                Result.failure(Exception("Insert failed"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
-    suspend fun getBlokById( listBlokId: List<Int>): List<TPHNewModel> {
-        return tphDao.getBlokById(listBlokId)
+    fun deleteInspectionDatas(ids: List<String>): Result<Unit> {
+        return try {
+            val deletedPath = inspectionPathDao.deleteByID(ids)
+            if (deletedPath > 0) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to delete one or both records"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getInspectionCountCard(archive: Int): Int {
+        return inspectionDao.countCard(archive)
+    }
+
+    suspend fun getInspectionPathsWithTphAndCount(archive: Int): List<PathWithInspectionTphRelations> {
+        return inspectionPathDao.getInspectionPathsWithTphAndCount(archive)
+    }
+
+    suspend fun getInspectionPathWithTphAndCount(pathId: String): PathWithInspectionTphRelations {
+        return inspectionPathDao.getInspectionPathWithTphAndCount(pathId)
     }
 
 }

@@ -14,10 +14,13 @@ data class wbESPBData(
     @SerializedName("nopol") val nopol: String,
     @SerializedName("driver") val driver: String,
     @SerializedName("pemuat_id") val pemuat_id: String,
+    @SerializedName("kemandoran_id") val kemandoran_id: String,
+    @SerializedName("pemuat_nik") val pemuat_nik: String,
     @SerializedName("transporter") val transporter: Int,
     @SerializedName("mill_id") val millId: Int,
     @SerializedName("created_by_id") val createdById: Int,
     @SerializedName("no_espb") val noEspb: String,
     @SerializedName("created_at") val createdAt: String,
+    @SerializedName("update_info_sp") val update_info_sp: String,
     @SerializedName("creator_info") val creatorInfo: JsonElement,
 )

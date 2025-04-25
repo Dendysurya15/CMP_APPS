@@ -5,6 +5,9 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
@@ -13,11 +16,13 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.repository.AuthRepository
 import com.cbi.mobile_plantation.ui.viewModel.AuthViewModel
+import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
@@ -32,29 +37,134 @@ import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class LoginActivity : AppCompatActivity() {
-    private lateinit var loadingDialog: LoadingDialog
-    private lateinit var authViewModel: AuthViewModel
-    private var prefManager: PrefManager? = null
     private var username = ""
     private var pass = ""
+
+    private var prefManager: PrefManager? = null
+    private lateinit var loadingDialog: LoadingDialog
+    private lateinit var authViewModel: AuthViewModel
+    private lateinit var datasetViewModel: DatasetViewModel
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
+    private var activityInitialized = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
-        prefManager = PrefManager(this)
-        loadingDialog = LoadingDialog(this)
+        //cek tanggal otomatis
+        checkDateTimeSettings()
+    }
+
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+
+    @SuppressLint("SuspiciousIndentation")
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            prefManager = PrefManager(this)
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val todayDate = dateFormat.format(Date())
+            val today = dateFormat.parse(todayDate) ?: Date()
+
+            val lastSyncRaw = prefManager!!.lastSyncDate ?: ""
+            val lastSyncDateOnly = try {
+                // Parse the full datetime and format it to just date
+                val fullDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                val parsedDate = fullDateFormat.parse(lastSyncRaw)
+                if (parsedDate != null) {
+                    dateFormat.format(parsedDate)
+                } else {
+                    ""
+                }
+            } catch (e: Exception) {
+                "" // If parsing fails
+            }
+
+            val lastSyncDate = try {
+                if (lastSyncDateOnly.isNotEmpty()) {
+                    dateFormat.parse(lastSyncDateOnly)
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                null
+            }
+
+            // Check if same day - only if lastSyncDateOnly is not empty
+            val isSameDay = lastSyncDateOnly.isNotEmpty() && todayDate == lastSyncDateOnly
+
+            // Check if within 90 days - only if lastSyncDate is not null
+            val isWithin90Days = if (lastSyncDate != null) {
+                val diffInMillis = today.time - lastSyncDate.time
+                val diffInDays = diffInMillis / (1000 * 60 * 60 * 24)
+                diffInDays <= 90
+            } else {
+                false
+            }
+
+            AppLogger.d("Today: $todayDate")
+            AppLogger.d("Last Sync: $lastSyncDateOnly")
+            AppLogger.d("Within 90 days: $isWithin90Days")
+
+            val isFirstTimeLogin = lastSyncRaw.isNullOrEmpty()
+
+            if (isFirstTimeLogin || isSameDay || isWithin90Days) {
+                setupUI()
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@LoginActivity,
+                    stringXML(R.string.al_back),
+                    "Sinkronisasi Tanggal",
+                    "Sistem mendeteksi tanggal berbeda dengan tanggal terakhir sinkronisasi data.\nSilakan sambungkan perangkat ke Internet untuk sinkronisasi data!.",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {
+                    finish()
+                }
+            }
+        }
+    }
+
+    private fun setupUI() {
         val btn_finger = findViewById<MaterialButton>(R.id.btn_finger)
-        if(prefManager!!.rememberLogin){
+        loadingDialog = LoadingDialog(this)
+
+        if (!prefManager!!.username.toString().isEmpty() && !prefManager!!.password.toString()
+                .isEmpty()
+        ) {
             if (AppUtils.checkBiometricSupport(this)) {
                 btn_finger.visibility = View.VISIBLE
-
                 biometricPrompt()
-            }else{
+            } else {
                 btn_finger.visibility = View.GONE
-
             }
+        } else {
+            btn_finger.visibility = View.GONE
         }
         val etPasswordLayout = findViewById<TextInputLayout>(R.id.etPasswordLayout)
         etPasswordLayout.setEndIconTintList(ColorStateList.valueOf(getColor(R.color.graytextdark)))
@@ -71,6 +181,7 @@ class LoginActivity : AppCompatActivity() {
                 usernameInputLayout.error = null
                 usernameInputLayout.isErrorEnabled = false
             }
+
             override fun afterTextChanged(s: Editable?) {}
         })
 
@@ -81,12 +192,13 @@ class LoginActivity : AppCompatActivity() {
                 passwordInputLayout.error = null
                 passwordInputLayout.isErrorEnabled = false
             }
+
             override fun afterTextChanged(s: Editable?) {}
         })
 
 
         val tvForgotLogin = findViewById<TextView>(R.id.tvForgotLogin)
-        tvForgotLogin.setResponsiveTextSizeWithConstraints(17F, 12F,18F)
+        tvForgotLogin.setResponsiveTextSizeWithConstraints(17F, 12F, 18F)
         tvForgotLogin.setOnClickListener {
             AlertDialogUtility.withSingleAction(
                 this@LoginActivity,
@@ -105,6 +217,9 @@ class LoginActivity : AppCompatActivity() {
             this,
             AuthViewModel.Factory(AuthRepository())
         ).get(AuthViewModel::class.java)
+
+        val factory = DatasetViewModel.DatasetViewModelFactory(application)
+        datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
 
         authViewModel.loginResponse.observe(this) { response ->
             hideLoading()
@@ -135,6 +250,29 @@ class LoginActivity : AppCompatActivity() {
                     val token = loginResponse.data?.token
                     AppLogger.d("Login Success: $loginResponse")
                     if (token != null) {
+                        if (prefManager!!.registeredDeviceUsername != null &&
+                            prefManager!!.registeredDeviceUsername!!.isNotEmpty() &&
+                            prefManager!!.registeredDeviceUsername != usernameField.text.toString()
+                                .trim()
+                        ) {
+
+                            AlertDialogUtility.withSingleAction(
+                                this@LoginActivity,
+                                stringXML(R.string.al_back),
+                                "Perangkat Terdaftar untuk Pengguna Lain",
+                                "Perangkat ini sudah terdaftar untuk pengguna ${prefManager!!.registeredDeviceUsername}. Silakan gunakan akun yang terdaftar!",
+                                "warning.json",
+                                R.color.colorRedDark
+                            ) { }
+                            return@observe
+                        }
+
+                        if (prefManager!!.registeredDeviceUsername.isNullOrEmpty()) {
+                            AppLogger.d("test registeredDeviceUsername is null or empty")
+                            prefManager!!.registeredDeviceUsername =
+                                usernameField.text.toString().trim()
+                        }
+
                         prefManager!!.isFirstTimeLaunch = true
                         prefManager!!.token = token
                         prefManager!!.username = usernameField.text.toString().trim()
@@ -159,7 +297,12 @@ class LoginActivity : AppCompatActivity() {
                 } else {
                     AppLogger.d("Login Failed: ${loginResponse?.message}")
 
-                    Toasty.error(this, loginResponse?.message ?: "Login failed", Toast.LENGTH_LONG, true).show()
+                    Toasty.error(
+                        this,
+                        loginResponse?.message ?: "Login failed",
+                        Toast.LENGTH_LONG,
+                        true
+                    ).show()
 
                     lifecycleScope.launch {
                         delay(1000)
@@ -174,7 +317,7 @@ class LoginActivity : AppCompatActivity() {
                         ) {
 
                         }
-                        hideLoading() // Hide loading after dialog
+                        hideLoading()
                     }
                 }
             } else {
@@ -203,11 +346,11 @@ class LoginActivity : AppCompatActivity() {
         }
 
 
-        val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
-        checkRememberMe.setResponsiveTextSizeWithConstraints(17F, 12F,18F)
-        checkRememberMe.setOnCheckedChangeListener { _, isChecked ->
-            prefManager!!.rememberLogin = isChecked
-        }
+//        val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
+//        checkRememberMe.setResponsiveTextSizeWithConstraints(17F, 12F, 18F)
+//        checkRememberMe.setOnCheckedChangeListener { _, isChecked ->
+//            prefManager!!.rememberLogin = isChecked
+//        }
 
         setTampilan()
 
@@ -239,37 +382,55 @@ class LoginActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            showLoading()
+            if (prefManager!!.registeredDeviceUsername != null &&
+                prefManager!!.registeredDeviceUsername!!.isNotEmpty() &&
+                prefManager!!.registeredDeviceUsername != username
+            ) {
+                AlertDialogUtility.withSingleAction(
+                    this@LoginActivity,
+                    stringXML(R.string.al_back),
+                    "Perangkat Terdaftar untuk Pengguna Lain",
+                    "Perangkat ini sudah terdaftar untuk pengguna ${prefManager!!.registeredDeviceUsername}. Silakan gunakan akun yang terdaftar!",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) { }
+                return@setOnClickListener
+            }
 
-            if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() && prefManager?.username == username && prefManager?.password == password){
-                navigateToHomePage()
-            }else{
-                if (AppUtils.isNetworkAvailable(this)) {
-                    AppLogger.d(username.toString())
-                    AppLogger.d(password.toString())
-                    authViewModel.login(username, password)
+            lifecycleScope.launch {
+                loadingDialog.show()
+                loadingDialog.setMessage(
+                    "Sedang verifikasi kredensial...",
+                    true
+                ) // Checking credentials
+                delay(1000)
+
+                if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() &&
+                    prefManager?.username == username && prefManager?.password == password
+                ) {
+                    navigateToHomePage()
                 } else {
-                    lifecycleScope.launch {
-                        delay(500)
+                    if (AppUtils.isNetworkAvailable(this@LoginActivity)) {
+                        authViewModel.login(username, password)
+                    } else {
+                        lifecycleScope.launch {
+                            delay(500)
 
-                        AlertDialogUtility.withSingleAction(
-                            this@LoginActivity,
-                            stringXML(R.string.al_back),
-                            stringXML(R.string.al_no_internet_connection),
-                            stringXML(R.string.al_no_internet_connection_description_login),
-                            "network_error.json",
-                            R.color.colorRedDark
-                        ) {
+                            AlertDialogUtility.withSingleAction(
+                                this@LoginActivity,
+                                stringXML(R.string.al_back),
+                                stringXML(R.string.al_no_internet_connection),
+                                stringXML(R.string.al_no_internet_connection_description_login),
+                                "network_error.json",
+                                R.color.colorRedDark
+                            ) {
 
+                            }
+                            hideLoading() // Hide loading after dialog
                         }
-                        hideLoading() // Hide loading after dialog
                     }
                 }
             }
-
-
-
-
         }
 
 
@@ -279,10 +440,11 @@ class LoginActivity : AppCompatActivity() {
         setAppVersion()
     }
 
+
     @SuppressLint("SetTextI18n")
     private fun setAppVersion() {
         val versionTextView: TextView = findViewById(R.id.version_app)
-        versionTextView?.setResponsiveTextSizeWithConstraints(17F, 12F,18F)
+        versionTextView?.setResponsiveTextSizeWithConstraints(17F, 12F, 18F)
         val appVersion = AppUtils.getAppVersion(this)
         versionTextView.text = "Versi $appVersion"
     }
@@ -303,34 +465,28 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun setTampilan() {
-        val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
         val usernameField = findViewById<EditText>(R.id.usernameInput)
         val passwordField = findViewById<EditText>(R.id.passwordInput)
 
-        if (prefManager!!.rememberLogin) {
-            checkRememberMe.isChecked = true
-            if (prefManager!!.username.toString().isNotEmpty() && prefManager!!.password.toString()
-                    .isNotEmpty()
-            ) {
+        AppLogger.d(prefManager!!.username.toString())
+        AppLogger.d(prefManager!!.password.toString())
 
+        if (prefManager!!.username.toString().isNotEmpty()) {
+            usernameField.setText(prefManager!!.username, TextView.BufferType.SPANNABLE)
+        }
 
-                usernameField.setText(prefManager!!.username, TextView.BufferType.SPANNABLE)
-                passwordField.setText(prefManager!!.password, TextView.BufferType.SPANNABLE)
-                username = prefManager!!.username.toString()
-                pass = prefManager!!.password.toString()
-            }
-        } else {
-            checkRememberMe.isChecked = false
+        if (prefManager!!.password.toString().isNotEmpty()) {
+            passwordField.setText(prefManager!!.password, TextView.BufferType.SPANNABLE)
         }
     }
 
     private fun navigateToHomePage() {
-        val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
-        if (!checkRememberMe.isChecked){
-            prefManager!!.username = ""
-            prefManager!!.password = ""
-            prefManager!!.rememberLogin = false
-        }
+//        val checkRememberMe = findViewById<CheckBox>(R.id.checkRememberMe)
+//        if (!checkRememberMe.isChecked) {
+//            prefManager!!.username = ""
+//            prefManager!!.password = ""
+//            prefManager!!.rememberLogin = false
+//        }
         startActivity(Intent(this, HomePageActivity::class.java))
         finish()
     }
@@ -341,5 +497,26 @@ class LoginActivity : AppCompatActivity() {
 
     private fun hideLoading() {
         loadingDialog.dismiss()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        // Ensure handler callbacks are removed
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 }

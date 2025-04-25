@@ -2,6 +2,7 @@ package com.cbi.mobile_plantation.data.database
 
 import androidx.room.*
 import com.cbi.mobile_plantation.data.model.ESPBEntity
+import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 
 @Dao
 abstract class ESPBDao {
@@ -75,7 +76,8 @@ abstract class ESPBDao {
     UPDATE espb_table 
     SET uploader_info_wb = :uploaderInfoWb, 
         uploaded_by_id_wb = :uploadedByIdWb, 
-        uploaded_at_wb = :uploadedAtWb, 
+        uploaded_at_ppro_wb = :uploadedAtWb,
+        uploaded_ppro_response = :response,
         status_upload_ppro_wb = :status 
     WHERE id = :id
 """
@@ -85,7 +87,8 @@ abstract class ESPBDao {
         status: Int,
         uploaderInfoWb: String,
         uploadedAtWb: String,
-        uploadedByIdWb: Int
+        uploadedByIdWb: Int,
+        response:String?
     ): Int
 
     @Query(
@@ -94,7 +97,8 @@ abstract class ESPBDao {
     SET uploader_info_wb = :uploaderInfoWb, 
         uploaded_by_id_wb = :uploadedByIdWb, 
         uploaded_at_wb = :uploadedAtWb, 
-        status_upload_cmp_wb = :status 
+        uploaded_wb_response = :response,
+        status_upload_cmp_wb = :status
     WHERE id = :id
 """
     )
@@ -103,7 +107,8 @@ abstract class ESPBDao {
         status: Int,
         uploaderInfoWb: String,
         uploadedAtWb: String,
-        uploadedByIdWb: Int
+        uploadedByIdWb: Int,
+        response:String?
     ): Int
 
 
@@ -117,8 +122,19 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table WHERE scan_status = 0")
     abstract fun getAllESPBNonScan(): List<ESPBEntity>
 
-    @Query("SELECT * FROM espb_table")
-    abstract fun getAllESPBS(): List<ESPBEntity>
+//    @Query("SELECT * FROM espb_table")
+//    abstract fun getAllESPBS(): List<ESPBEntity>
+
+    @Query("""
+    SELECT * FROM espb_table 
+    WHERE (:date IS NULL OR strftime('%Y-%m-%d', created_at) = :date)
+""")
+    abstract suspend fun getAllESPBS(date: String? = null): List<ESPBEntity>
+
+
+    @Query("SELECT COUNT(*) FROM espb_table WHERE strftime('%Y-%m-%d', created_at) = strftime('%Y-%m-%d', 'now', 'localtime')")
+    abstract suspend fun getCountCreatedToday(): Int
+
 
 
 }

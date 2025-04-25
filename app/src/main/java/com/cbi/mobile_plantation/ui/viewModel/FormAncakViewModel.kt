@@ -9,6 +9,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
 class FormAncakViewModel : ViewModel() {
     data class PageData(
         val emptyTree: Int = 0,
+        val jjgAkp: Int = 0,
         val priority: Int = 2,
         val harvestTree: Int = 0,
         val ratAttack: Int = 2,
@@ -29,6 +30,10 @@ class FormAncakViewModel : ViewModel() {
         val parit: Int = 0,
         val brdSegar: Int = 0,
         val brdBusuk: Int = 0,
+        val photo: String? = null,
+        val comment: String? = null,
+        val latIssue: Double? = null,
+        val lonIssue: Double? = null
     )
 
     data class ValidationResult(
@@ -45,6 +50,15 @@ class FormAncakViewModel : ViewModel() {
 
     private val _estName = MutableLiveData<String>("-")
     val estName: LiveData<String> = _estName
+
+    private val _afdName = MutableLiveData<String>("-")
+    val afdName: LiveData<String> = _afdName
+
+    private val _blokName = MutableLiveData<String>("-")
+    val blokName: LiveData<String> = _blokName
+
+    private val _isInspection = MutableLiveData<Boolean>(true)
+    val isInspection: LiveData<Boolean> = _isInspection
 
     private val _formData = MutableLiveData<MutableMap<Int, PageData>>(mutableMapOf())
     val formData: LiveData<MutableMap<Int, PageData>> = _formData
@@ -78,18 +92,25 @@ class FormAncakViewModel : ViewModel() {
         _formData.value = currentData
     }
 
-    fun updateEstName(estate: String) {
+    fun updateInfoFormAncak(estate: String, afdeling: String, blok: String) {
         _estName.value = estate
+        _afdName.value = afdeling
+        _blokName.value = blok
     }
 
-    fun validateCurrentPage(): ValidationResult {
+    fun updateTypeInspection(newValue: Boolean) {
+        _isInspection.value = newValue
+    }
+
+    fun validateCurrentPage(inspectionType: Int? = null): ValidationResult {
         val pageNumber = _currentPage.value ?: 1
         ensurePageDataExists(pageNumber)
 
         val data = _formData.value?.get(pageNumber)
 
         if (data?.emptyTree == 0) {
-            val errorMessage = "Titik kosong wajib diisi!"
+            val nameMessage = if (inspectionType != null && inspectionType == 1) "Titik kosong" else "Pokok dipanen"
+            val errorMessage = "$nameMessage wajib diisi!"
 
             val errorMap = mapOf(R.id.lyExistsTreeInspect to errorMessage)
             _fieldValidationError.value = errorMap
@@ -97,7 +118,20 @@ class FormAncakViewModel : ViewModel() {
             return ValidationResult(false, R.id.lyExistsTreeInspect, errorMessage)
         }
 
+        if (inspectionType != null && inspectionType == 2 && data?.emptyTree == 1 && data.jjgAkp <= 0) {
+            val errorMessage = "Janjang panen harus lebih dari 0!"
+
+            val errorMap = mapOf(R.id.lyJjgPanenAKPInspect to errorMessage)
+            _fieldValidationError.value = errorMap
+
+            return ValidationResult(false, R.id.lyJjgPanenAKPInspect, errorMessage)
+        }
+
         _fieldValidationError.value = emptyMap()
         return ValidationResult(true)
+    }
+
+    fun clearValidation() {
+        _fieldValidationError.value = emptyMap()
     }
 }

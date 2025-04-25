@@ -10,8 +10,6 @@
         android:layout_height="match_parent"
         android:layout_centerInParent="true"/>
 
-
-    <!-- CardView Positioned in the Middle Bottom -->
     <com.google.android.material.card.MaterialCardView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -19,8 +17,9 @@
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true"
         android:padding="10dp"
-        app:cardElevation="6dp"
-        app:cardCornerRadius="12dp">
+        app:cardBackgroundColor="@color/white"
+        app:cardElevation="1dp"
+        app:cardCornerRadius="8dp">
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -33,15 +32,47 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:src="@drawable/baseline_qr_code_scanner_24"
-                android:layout_marginEnd="10dp"/>
+                android:layout_marginEnd="10dp"
+                app:tint="@color/greenDarker" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="ARAHKAN KAMERA KE QR CODE"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/black"/>
+                android:textSize="@dimen/l"
+                android:fontFamily="@font/manrope_bold"
+                android:textColor="@color/black"/>
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- CardView Positioned in the Middle Bottom -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="40dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="40dp"
+        android:id="@+id/stop_scan"
+        android:padding="10dp"
+        app:cardElevation="6dp"
+        android:visibility="gone"
+        app:cardCornerRadius="12dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:gravity="center">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/baseline_do_not_disturb_24"
+                android:layout_margin="0dp"/>
+
         </LinearLayout>
 
     </com.google.android.material.card.MaterialCardView>

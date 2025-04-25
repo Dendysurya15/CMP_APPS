@@ -25,8 +25,6 @@ abstract class TransporterDao {
     @Query("DELETE FROM transporter")
     abstract fun deleteAll()
 
-
-
     @Query("SELECT COUNT(*) FROM transporter")
     abstract suspend fun getCount(): Int
 
@@ -39,4 +37,14 @@ abstract class TransporterDao {
     abstract fun getTransporterById(
         idTransporter: Int,
     ): List<TransporterModel>
+
+    @Query("SELECT nama FROM transporter WHERE id = :transporterId LIMIT 1")
+    abstract suspend fun getTransporterNameById(transporterId: Int): String?
+
+    @Query(
+        """
+    SELECT * FROM transporter
+    """
+    )
+    abstract fun getAllTransporter(): List<TransporterModel>
 }

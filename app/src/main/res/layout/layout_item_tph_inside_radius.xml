@@ -10,11 +10,37 @@
         android:layout_height="wrap_content"
         android:buttonTint="@color/greenDarker" />
 
-    <TextView
-        android:id="@+id/tphInfoTextView"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fontFamily="@font/manrope_bold"
-        android:textSize="16sp" />
+        android:orientation="horizontal"
+        android:weightSum="2"
+        android:layout_gravity="center_vertical"
+        android:layout_height="match_parent">
+
+        <TextView
+            android:id="@+id/tphInfoTextView"
+            android:layout_width="match_parent"
+            android:textColor="@color/black"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
+            android:layout_height="wrap_content"
+            android:text="TPH 13 - 39483 (24m diluar radius)"
+            android:fontFamily="@font/manrope_bold"
+            android:textSize="@dimen/m" />
+
+        <TextView
+            android:id="@+id/tphHasBeenSelected"
+            android:layout_width="match_parent"
+            android:layout_weight="1"
+            android:textColor="@color/greendarkerbutton"
+            android:visibility="visible"
+            android:text="TPH sudah terpilih"
+            android:gravity="center_vertical"
+            android:layout_height="match_parent"
+            android:fontFamily="@font/manrope_bold"
+            android:textSize="@dimen/m" />
+    </LinearLayout>
+
+
 
 </LinearLayout>

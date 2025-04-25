@@ -1,12 +1,15 @@
 package com.cbi.mobile_plantation.utils
 
 import android.animation.ValueAnimator
+import android.app.Activity
 import android.app.Dialog
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -15,6 +18,7 @@ import android.view.animation.AnimationUtils
 import android.view.animation.DecelerateInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
@@ -42,9 +46,6 @@ class LoadingDialog(context: Context) : Dialog(context) {
         loadingLogo = findViewById<ImageView>(R.id.loading_logo)
         messageTextView = findViewById(R.id.loading_message)
         statusMessagesContainer = findViewById(R.id.status_messages_container)
-
-        // Set the container to GONE by default
-        statusMessagesContainer?.visibility = View.GONE
 
         contentContainer = findViewById(R.id.content_container)
         bounceAnimation = AnimationUtils.loadAnimation(context, R.anim.bounce)
@@ -99,85 +100,48 @@ class LoadingDialog(context: Context) : Dialog(context) {
     }
 
     fun addStatusMessage(message: String, status: StatusType = StatusType.INFO, showIcon: Boolean = true) {
-        // Make the container visible if it was hidden
-        if (statusMessagesContainer?.visibility == View.GONE) {
-            statusMessagesContainer?.visibility = View.VISIBLE
-        }
-
-        context?.let { ctx ->
-            // Create new TextView for the status message
-            val statusMessage = TextView(ctx).apply {
+        statusMessagesContainer?.let { container ->
+            // Create a new TextView for this status message
+            val statusTextView = TextView(context).apply {
                 text = message
-                textSize = 17f
-                gravity = Gravity.CENTER_VERTICAL
-                try {
-                    val customFont = ResourcesCompat.getFont(ctx, R.font.manrope_bold)
-                    setTypeface(customFont, Typeface.ITALIC)
-                } catch (e: Exception) {
-                    // Fallback to system font if there's an issue loading the custom font
-                    setTypeface(Typeface.DEFAULT, Typeface.ITALIC)
-                    Log.e("FontError", "Could not load Manrope Medium font: ${e.message}")
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, 0, 0, 16) // Bottom margin for spacing between messages
                 }
-
-
-                // Always use white text color
-                setTextColor(ContextCompat.getColor(ctx, R.color.white))
-
-                // Set initial alpha to 0 (invisible)
-                alpha = 0f
+                gravity = Gravity.CENTER
+                typeface = ResourcesCompat.getFont(context, R.font.manrope_medium)
+                textSize = context.resources.getDimension(R.dimen.m) / context.resources.displayMetrics.density
+                setTextColor(ContextCompat.getColor(context, R.color.white))
 
                 if (showIcon) {
-                    val iconDrawable = ContextCompat.getDrawable(ctx, when(status) {
+                    val iconDrawable = ContextCompat.getDrawable(context, when(status) {
                         StatusType.SUCCESS -> R.drawable.baseline_check_box_24
                         StatusType.ERROR -> R.drawable.baseline_close_24
                         StatusType.WARNING -> R.drawable.baseline_error_24
                         StatusType.INFO -> R.drawable.baseline_file_upload_24
                     })
 
-                    // Set the icon color based on status
-                    iconDrawable?.let {
-                        it.setBounds(0, 0, it.intrinsicWidth, it.intrinsicHeight)
-                        DrawableCompat.setTint(
-                            it,
-                            ContextCompat.getColor(ctx, when(status) {
-                                StatusType.SUCCESS -> R.color.greendarkerbutton
-                                StatusType.ERROR -> R.color.colorRedDark
-                                StatusType.WARNING -> R.color.orangeButton
-                                StatusType.INFO -> R.color.white
-                            })
-                        )
-
-                        // Set icon on the right side
-                        setCompoundDrawables(null, null, it, null)
-                        compoundDrawablePadding = 16
+                    iconDrawable?.let { drawable ->
+                        DrawableCompat.setTint(drawable, ContextCompat.getColor(context, when(status) {
+                            StatusType.SUCCESS -> R.color.greendarkerbutton
+                            StatusType.ERROR -> R.color.colorRedDark
+                            StatusType.WARNING -> R.color.orangeButton
+                            StatusType.INFO -> R.color.white
+                        }))
+                        setCompoundDrawablesWithIntrinsicBounds(null, null, drawable, null)
+                        compoundDrawablePadding = 5
                     }
-
                 }
-
-                // Add some padding for better appearance
-                setPadding(16, 8, 16, 8)
             }
 
-            // Create a wrapper layout to center the content horizontally
-            val wrapperLayout = LinearLayout(ctx).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                gravity = Gravity.CENTER_HORIZONTAL
-                addView(statusMessage)
+            // Add the new TextView to the container
+            container.post {
+                container.addView(statusTextView)
+                // Scroll to the bottom to show latest message
+                (container.parent as? ScrollView)?.fullScroll(ScrollView.FOCUS_DOWN)
             }
-
-            // Add the message to the container
-            statusMessagesContainer?.addView(wrapperLayout)
-
-            // Animate the message appearance
-            statusMessage.animate()
-                .alpha(1f)
-                .translationYBy(-20f)
-                .setDuration(300)
-                .setInterpolator(DecelerateInterpolator())
-                .start()
         }
     }
 
@@ -205,6 +169,5 @@ class LoadingDialog(context: Context) : Dialog(context) {
     // Clear all status messages
     fun clearStatusMessages() {
         statusMessagesContainer?.removeAllViews()
-        statusMessagesContainer?.visibility = View.GONE
     }
 }

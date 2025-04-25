@@ -8,7 +8,6 @@
     android:layout_marginVertical="5dp"
     app:cardCornerRadius="5dp"
     android:id="@+id/idListDataP2H"
-
     app:cardBackgroundColor="@color/white">
     <LinearLayout
         android:layout_width="match_parent"
@@ -16,48 +15,44 @@
         android:orientation="vertical"
         android:paddingVertical="10dp"
         android:paddingHorizontal="10dp"
-
         tools:ignore="MissingConstraints">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
-<!--            android:weightSum="1"-->
-
-<!--            <ImageView-->
-<!--                android:layout_width="60dp"-->
-<!--                android:layout_height="match_parent"-->
-<!--                android:id="@+id/imgUploadPreview"-->
-<!--                android:layout_weight="0.1"-->
-<!--                android:visibility="gone"-->
-<!--                android:textColor="@color/black"-->
-<!--                android:src="@drawable/baseline_folder_zip_24"-->
-<!--                android:adjustViewBounds="true"-->
-<!--                android:padding="7dp"-->
-<!--                />-->
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:layout_weight="0.9">
-                <TextView
-                    android:layout_width="wrap_content"
+
+                <!-- File name with size info row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/black"
-                    android:textStyle="bold"
-                    android:id="@+id/tv_name_progress"
-                    android:fontFamily="@font/manrope_extrabold"
-                    android:textSize="19sp"/>
+                    android:orientation="horizontal"
+                    >
 
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/black"
+                        android:textStyle="bold"
+                        android:id="@+id/tv_name_progress"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:textSize="@dimen/m"
+                        />
 
+                </LinearLayout>
 
-                <!-- First section using LinearLayout with 0.9 and 0.1 weights -->
+                <!-- Progress bar row -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:orientation="horizontal"
                     android:weightSum="1"
+                    android:layout_marginTop="4dp"
                     android:layout_height="wrap_content">
 
                     <ProgressBar
@@ -82,10 +77,10 @@
                         android:fontFamily="@font/manrope_bold"
                         android:gravity="center_vertical|center"
                         android:textStyle="italic"
-                        android:textSize="15sp"/>
+                        android:textSize="@dimen/m"/>
                 </LinearLayout>
 
-                <!-- Second section also using LinearLayout with 0.9 and 0.1 weights -->
+                <!-- Status and upload size tracking row -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:orientation="horizontal"
@@ -99,9 +94,9 @@
                         android:ellipsize="end"
                         android:gravity="center_vertical"
                         android:textColor="@color/black"
-                        android:textSize="17sp"
+                        android:textSize="@dimen/m"
                         android:fontFamily="@font/manrope_bold"
-                        android:visibility="gone"
+                        android:visibility="visible"
                         android:textStyle="italic"
                         android:layout_weight="0.8" />
 
@@ -124,19 +119,7 @@
                         android:indeterminate="true"
                         android:layout_weight="0.2" />
                 </LinearLayout>
-
-
-
-
             </LinearLayout>
-
-
         </LinearLayout>
-
-
-
-
     </LinearLayout>
-
-
 </androidx.cardview.widget.CardView>

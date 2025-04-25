@@ -24,6 +24,13 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var registeredDeviceUsername: String?
+        get() = pref.getString(REGISTERED_DEVICE_USERNAME, "")
+        set(value) {
+            editor.putString(REGISTERED_DEVICE_USERNAME, value)
+            editor.commit()
+        }
+
     var nameUserLogin: String?
         get() = pref.getString("nameUserLogin", "")
         set(nameUserLogin) {
@@ -65,6 +72,42 @@ class PrefManager(_context: Context) {
             editor.putString("estateIdUserLogin", estateIdUserLogin)
             editor.commit()
         }
+
+    var lastModifiedDatasetEstate: String?
+        get() = pref.getString("lastModifiedDatasetEstate", "")
+        set(lastModifiedDatasetEstate) {
+            editor.putString("lastModifiedDatasetEstate", lastModifiedDatasetEstate)
+            editor.commit()
+        }
+
+    private val PREF_ESTATE_LAST_MODIFIED_PREFIX = "estate_last_modified_"
+
+    // Set last modified timestamp for a specific estate
+    fun setEstateLastModified(estateAbbr: String, timestamp: String) {
+        val editor = pref.edit()
+        editor.putString("$PREF_ESTATE_LAST_MODIFIED_PREFIX$estateAbbr", timestamp)
+        editor.apply()
+    }
+
+
+    fun getMasterTPHEstateLastModifiedMap(): Map<String, String> {
+        val allEntries = pref.all
+        val estateMap = mutableMapOf<String, String>()
+
+        for ((key, value) in allEntries) {
+            if (key.startsWith(PREF_ESTATE_LAST_MODIFIED_PREFIX) && value is String) {
+                val estateAbbr = key.removePrefix(PREF_ESTATE_LAST_MODIFIED_PREFIX)
+                estateMap[estateAbbr] = value
+            }
+        }
+
+        return estateMap
+    }
+
+    // Get last modified timestamp for a specific estate
+    fun getEstateLastModified(estateAbbr: String): String? {
+        return pref.getString("$PREF_ESTATE_LAST_MODIFIED_PREFIX$estateAbbr", null)
+    }
 
     var regionalIdUserLogin: String?
         get() = pref.getString("regionalIdUserLogin", "")
@@ -108,6 +151,13 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var lastSyncDate: String?
+        get() = pref.getString("lastSyncDate", "")
+        set(lastSyncDate) {
+            editor.putString("lastSyncDate", lastSyncDate)
+            editor.commit()
+        }
+
     var lastModifiedDatasetBlok: String?
         get() = pref.getString("lastModifiedDatasetBlok", "")
         set(lastModifiedDatasetBlok) {
@@ -133,6 +183,13 @@ class PrefManager(_context: Context) {
         get() = pref.getString("lastModifiedDatasetTransporter", "")
         set(lastModifiedDatasetTransporter) {
             editor.putString("lastModifiedDatasetTransporter", lastModifiedDatasetTransporter)
+            editor.commit()
+        }
+
+    var lastModifiedDatasetKendaraan: String?
+        get() = pref.getString("lastModifiedDatasetKendaraan", "")
+        set(lastModifiedDatasetKendaraan) {
+            editor.putString("lastModifiedDatasetKendaraan", lastModifiedDatasetKendaraan)
             editor.commit()
         }
 
@@ -301,6 +358,8 @@ class PrefManager(_context: Context) {
         const val REMEMBERME = "remember_me"
         const val USERNAME = "username"
         const val PASSWORD = "password"
+
+        private const val REGISTERED_DEVICE_USERNAME = "registered_device_username"
     }
 
     init {

@@ -13,41 +13,81 @@ import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.database.DepartmentInfo
+import com.cbi.mobile_plantation.data.model.AfdelingModel
+import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.EstateModel
+import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.data.network.TestingAPIClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
 import retrofit2.Response
 
 class DatasetRepository(
     context: Context,
     private val apiService: ApiService = CMPApiClient.instance,
+    private val TestingApiService: ApiService = TestingAPIClient.instance,
     ) {
 
     private val database = AppDatabase.getDatabase(context)
     private val karyawanDao = database.karyawanDao()
     private val kemandoranDao = database.kemandoranDao()
     private val tphDao = database.tphDao()
+    private val estateDao = database.estateDao()
     private val millDao = database.millDao()
     private val transporterDao = database.transporterDao()
+    private val kendaraanDao = database.kendaraanDao()
+    private val blokDao = database.blokDao()
+    private val afdelingDao = database.afdelingDao()
+
 
     suspend fun updateOrInsertKaryawan(karyawans: List<KaryawanModel>) =
         karyawanDao.updateOrInsertKaryawan(karyawans)
 
     suspend fun updateOrInsertMill(mills: List<MillModel>) = millDao.updateOrInsertMill(mills)
+    suspend fun InsertKendaraan(kendaraan: List<KendaraanModel>) =
+        kendaraanDao.InsertKendaraan(kendaraan)
+
     suspend fun InsertTransporter(transporter: List<TransporterModel>) =
         transporterDao.InsertTransporter(transporter)
 
     suspend fun updateOrInsertKemandoran(kemandorans: List<KemandoranModel>) =
         kemandoranDao.updateOrInsertKemandoran(kemandorans)
 
+    suspend fun updateOrInsertBlok(blok: List<BlokModel>) =
+        blokDao.updateOrInsertBlok(blok)
+
     suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) = tphDao.updateOrInsertTPH(tph)
 
+    suspend fun insertTPH(tph: List<TPHNewModel>) = tphDao.insertTPHAsistensi(tph)
 
-    suspend fun getDatasetCount(datasetName: String): Int {
+    suspend fun getDatasetCount(datasetName: String, deptId: Int? = null): Int {
         return when (datasetName) {
             AppUtils.DatasetNames.pemanen -> karyawanDao.getCount()
             AppUtils.DatasetNames.kemandoran -> kemandoranDao.getCount()
-            AppUtils.DatasetNames.tph -> tphDao.getCount()
+            AppUtils.DatasetNames.tph -> {
+                if (deptId != null) {
+                    tphDao.getCountByDept(deptId)
+                } else {
+                    tphDao.getCount()
+                }
+            }
             AppUtils.DatasetNames.transporter -> transporterDao.getCount()
+            AppUtils.DatasetNames.kendaraan -> kendaraanDao.getCount()
             else -> 0
+        }
+    }
+
+    suspend fun updateOrInsertAfdeling(afdelings: List<AfdelingModel>) =
+        afdelingDao.updateOrInsertAfdeling(afdelings)
+
+    suspend fun getAllEstates(): Result<List<EstateModel>> = withContext(Dispatchers.IO) {
+        try {
+            val data = estateDao.getAllEstates()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -59,6 +99,15 @@ class DatasetRepository(
 
     suspend fun getDivisiList(idEstate: Int): List<TPHNewModel> {
         return tphDao.getDivisiByCriteria(idEstate)
+    }
+
+    suspend fun getDistinctDeptInfo(): Result<List<DepartmentInfo>> = withContext(Dispatchers.IO) {
+        try {
+            val data = tphDao.getDistinctDeptInfo()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun getBlokList(idEstate: Int, idDivisi: Int): List<TPHNewModel> {
@@ -77,8 +126,23 @@ class DatasetRepository(
         return kemandoranDao.getKemandoranEstate(idEstate)
     }
 
+    suspend fun getKemandoranEstateExcept(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
+        return kemandoranDao.getKemandoranEstateExcept(idEstate, idDivisiArray)
+    }
+
+    suspend fun getListAfdeling(idEstate: String): List<AfdelingModel> {
+        return afdelingDao.getListAfdelingFromIdEstate(idEstate)
+    }
+
+    suspend fun updateOrInsertEstate(estate: List<EstateModel>) =
+        estateDao.updateOrInsertEstate(estate)
+
     suspend fun getAllTransporter(): List<TransporterModel> {
-        return kemandoranDao.getAllTransporter()
+        return transporterDao.getAllTransporter()
+    }
+
+    suspend fun getAllNopol(): List<KendaraanModel> {
+        return kendaraanDao.getAll()
     }
 
 
@@ -116,9 +180,13 @@ class DatasetRepository(
         return apiService.downloadSmallDataset(mapOf("regional" to regional))
     }
 
-    suspend fun checkStatusUploadCMP(ids: List<Int>): Response<ResponseBody> {
-        val idDataString = ids.joinToString(",") // Convert list to "1,2,3,4"
-        return apiService.checkStatusUploadCMP(idDataString)
+    suspend fun downloadListEstate(regional: Int): Response<ResponseBody> {
+        return apiService.downloadListEstate(mapOf("regional" to regional))
+    }
+
+
+    suspend fun checkStatusUploadCMP(trackingId: String): Response<ResponseBody> {
+        return apiService.checkStatusUploadCMP(trackingId)
     }
 
     suspend fun downloadSettingJson(lastModified: String): Response<ResponseBody> {

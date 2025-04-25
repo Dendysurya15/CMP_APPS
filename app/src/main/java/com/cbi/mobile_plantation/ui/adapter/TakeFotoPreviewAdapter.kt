@@ -27,11 +27,13 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.repository.CameraRepository
+import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.snackbar.Snackbar
+import es.dmoral.toasty.Toasty
 import java.io.File
 
 class TakeFotoPreviewAdapter(
@@ -45,6 +47,11 @@ class TakeFotoPreviewAdapter(
     private val comments = mutableListOf<String>()
     private val listFileFoto = mutableMapOf<String, File>()
     private val activeItems = mutableListOf<Boolean>()
+    private var currentLatitude: Double? = null
+    private var currentLongitude: Double? = null
+    private var maxVisibleSlots = 1  // Track how many slots have been visible
+
+    var onPhotoDeleted: ((String, Int) -> Unit)? = null
 
     init {
         // Clear any existing data
@@ -59,13 +66,19 @@ class TakeFotoPreviewAdapter(
 
     class FotoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val imageView: ImageView = itemView.findViewById(R.id.ivAddFoto)
-        val commentTextView: TextView = itemView.findViewById(R.id.etPhotoComment)
+        val commentTextView: TextView = itemView.findViewById(R.id.tvPhotoComment)
         val titleCommentTextView: TextView = itemView.findViewById(R.id.titleComment)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FotoViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.take_and_preview_foto_layout, parent, false)
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.take_and_preview_foto_layout, parent, false)
         return FotoViewHolder(view)
+    }
+
+    fun updateCoordinates(latitude: Double?, longitude: Double?) {
+        this.currentLatitude = latitude
+        this.currentLongitude = longitude
     }
 
     override fun onBindViewHolder(holder: FotoViewHolder, position: Int) {
@@ -105,11 +118,15 @@ class TakeFotoPreviewAdapter(
             vibrator.vibrate(80)
         }
 
-        Toast.makeText(context, "Harap Mengisi Komentar Foto Sebelumnya Terlebih Dahulu!", Toast.LENGTH_SHORT).show()
-
+        Toast.makeText(
+            context,
+            "Harap Mengisi Komentar Foto Sebelumnya Terlebih Dahulu!",
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     fun getActiveItemCount(): Int = activeItems.size
+
     private fun hideKeyboardFromView() {
         // Get context from the adapter
         val activity = context as? Activity ?: return
@@ -123,8 +140,16 @@ class TakeFotoPreviewAdapter(
     }
 
     private fun handleCameraAction(position: Int, holder: FotoViewHolder) {
-
         hideKeyboardFromView()
+
+        if (currentLatitude == null || currentLongitude == null) {
+            Toast.makeText(
+                context,
+                "Pastikan GPS mendapatkan titik Koordinat!",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
 
         val uniqueKodeFoto = "${position + 1}"
 
@@ -141,30 +166,35 @@ class TakeFotoPreviewAdapter(
                         null,
                         comments[position],
                         uniqueKodeFoto,
-                        featureName
+                        featureName,
+                        currentLatitude,
+                        currentLongitude
                     )
                 },
                 onDeletePhoto = { pos ->
+                    // Get the filename before removing it
+                    val fileToDelete = listFileFoto[pos]
+                    val fileName = fileToDelete?.name
+
                     // Remove the photo and clear comment
                     listFileFoto.remove(pos)
                     comments[position.toInt()] = ""
                     holder.imageView.setImageResource(R.drawable.baseline_add_a_photo_24)
 
-                    // Check if we should remove this section
-                    val shouldRemoveSection = position == activeItems.size - 1 && // Is this the last section?
-                            !hasPhotosAfterPosition(position) // No photos in later positions
-
-                    if (shouldRemoveSection && activeItems.size > 1) { // Keep at least one section
-                        activeItems.removeAt(position)
-                        comments.removeAt(position)
-                        notifyItemRemoved(position)
-                    } else {
-                        notifyItemChanged(position)
+                    // Notify the activity about the deletion
+                    if (fileName != null) {
+                        AppLogger.d("Photo deleted: $fileName at position $position")
+                        onPhotoDeleted?.invoke(fileName, position.toInt())
                     }
+
+                    // Since we've reached the max visible count, just update the item's view
+                    // Don't remove any slots once we've shown the maximum
+                    notifyItemChanged(position)
                 }
             )
         } else {
-            AppLogger.d("coba ges")
+            AppLogger.d(currentLatitude.toString())
+            AppLogger.d(currentLongitude.toString())
             cameraViewModel.takeCameraPhotos(
                 uniqueKodeFoto,
                 holder.imageView,
@@ -172,7 +202,9 @@ class TakeFotoPreviewAdapter(
                 null,
                 comments[position],
                 uniqueKodeFoto,
-                featureName
+                featureName,
+                currentLatitude,
+                currentLongitude
             )
         }
     }
@@ -193,7 +225,6 @@ class TakeFotoPreviewAdapter(
                 context,
                 android.Manifest.permission.CAMERA
             ) == PackageManager.PERMISSION_GRANTED -> {
-
                 handleCameraAction(position, holder)
             }
 
@@ -232,12 +263,19 @@ class TakeFotoPreviewAdapter(
             return false
         }
 
-        return !ActivityCompat.shouldShowRequestPermissionRationale(activity, android.Manifest.permission.CAMERA)
+        return !ActivityCompat.shouldShowRequestPermissionRationale(
+            activity,
+            android.Manifest.permission.CAMERA
+        )
     }
 
     // ✅ Show Snackbar to open Settings if permanently denied
     private fun showSnackbarWithSettings(message: String) {
-        Snackbar.make((context as Activity).findViewById(android.R.id.content), message, Snackbar.LENGTH_INDEFINITE)
+        Snackbar.make(
+            (context as Activity).findViewById(android.R.id.content),
+            message,
+            Snackbar.LENGTH_INDEFINITE
+        )
             .setAction("Settings") {
                 val intent = Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
@@ -247,7 +285,6 @@ class TakeFotoPreviewAdapter(
             }
             .show()
     }
-
 
     private fun showPermissionRationale() {
         if (context is Activity) {
@@ -270,6 +307,11 @@ class TakeFotoPreviewAdapter(
             activeItems.add(true)
             comments.add("")
             notifyItemInserted(activeItems.size - 1)
+
+            // Update our tracking of how many slots have been visible
+            if (activeItems.size > maxVisibleSlots) {
+                maxVisibleSlots = activeItems.size
+            }
         }
     }
 
@@ -283,14 +325,11 @@ class TakeFotoPreviewAdapter(
         listFileFoto[id] = file
 
         // Only add new position if we didn't have a photo at this position before
+        // and we haven't reached the maximum count yet
         if (!hadExistingPhoto && activeItems.size < maxCount) {
             Log.d("TakeFotoAdapter", "Adding new position. Current size: ${activeItems.size}")
-            activeItems.add(true)
-            comments.add("")
+            addNewItem()
             Log.d("TakeFotoAdapter", "New size: ${activeItems.size}")
-
-            // Notify about the new item
-            notifyItemInserted(activeItems.size - 1)
         }
 
         // Update the UI
@@ -299,7 +338,34 @@ class TakeFotoPreviewAdapter(
     }
 
     fun removePhotoFile(id: String) {
+        // Get the filename before removing it
+        val fileToDelete = listFileFoto[id]
+        val fileName = fileToDelete?.name
+
         listFileFoto.remove(id)
+
+        // Notify the activity about the deletion if we have a filename
+        if (fileName != null) {
+            onPhotoDeleted?.invoke(fileName, id.toInt())
+        }
+
+        // If we've already shown the max slots, don't remove any
+        if (maxVisibleSlots >= maxCount) {
+            notifyItemChanged(id.toInt())
+        } else {
+            // Otherwise, check if we should remove this section
+            val position = id.toInt()
+            val shouldRemoveSection =
+                position == activeItems.size - 1 && !hasPhotosAfterPosition(position)
+
+            if (shouldRemoveSection && activeItems.size > 1) {
+                activeItems.removeAt(position)
+                comments.removeAt(position)
+                notifyItemRemoved(position)
+            } else {
+                notifyItemChanged(position)
+            }
+        }
     }
 
     override fun getItemCount(): Int = activeItems.size
@@ -348,7 +414,8 @@ class TakeFotoPreviewAdapter(
         }
 
         dialog.setOnShowListener {
-            val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            val bottomSheet =
+                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             val behavior = BottomSheetBehavior.from(bottomSheet!!)
             behavior.state = BottomSheetBehavior.STATE_EXPANDED
         }
@@ -357,20 +424,40 @@ class TakeFotoPreviewAdapter(
     }
 
     fun resetAllSections() {
+        // Track the current state before reset
+        val previousMaxVisible = maxVisibleSlots
+
         // Clear all stored data
         listFileFoto.clear()
         comments.clear()
         activeItems.clear()
 
-        // Reset to initial state (one empty section)
-        activeItems.add(true)
-        comments.add("")
+        // If we once had all slots visible, keep them all visible
+        if (previousMaxVisible >= maxCount) {
+            for (i in 0 until maxCount) {
+                activeItems.add(true)
+                comments.add("")
+            }
+            maxVisibleSlots = maxCount
+        } else {
+            // Otherwise reset to initial state (one empty section)
+            activeItems.add(true)
+            comments.add("")
+            maxVisibleSlots = 1
+        }
 
         // Notify adapter to refresh
         notifyDataSetChanged()
     }
 
-    override fun onPhotoTaken(photoFile: File, fname: String, resultCode: String, deletePhoto: View?, position: Int, komentar: String?) {
+    override fun onPhotoTaken(
+        photoFile: File,
+        fname: String,
+        resultCode: String,
+        deletePhoto: View?,
+        position: Int,
+        komentar: String?
+    ) {
         Log.d("TakeFotoAdapter", "onPhotoTaken START - position: $position")
 
         // Add the photo to our list
@@ -380,12 +467,8 @@ class TakeFotoPreviewAdapter(
         // Add new position if we can
         if (activeItems.size < maxCount) {
             Log.d("TakeFotoAdapter", "Adding new position. Current size: ${activeItems.size}")
-            activeItems.add(true)
-            comments.add("")
+            addNewItem()
             Log.d("TakeFotoAdapter", "New size: ${activeItems.size}")
-
-            // Notify about the new item
-            notifyItemInserted(activeItems.size - 1)
         }
 
         // Update the UI
@@ -397,4 +480,3 @@ class TakeFotoPreviewAdapter(
         const val CAMERA_PERMISSION_REQUEST_CODE = 100
     }
 }
-

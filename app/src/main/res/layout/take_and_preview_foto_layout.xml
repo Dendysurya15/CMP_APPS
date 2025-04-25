@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="center_horizontal"
-    android:layout_margin="5dp">
+    >
 
     <ImageView
         android:id="@+id/ivAddFoto"
@@ -27,23 +27,20 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:layout_marginStart="5dp"
-        android:layout_marginEnd="5dp"
         android:textStyle="italic"
         android:fontFamily="@font/manrope_semibold"
         android:textSize="15sp"
+        android:text="Komentar"
         android:textColor="@color/black"
         app:layout_constraintTop_toBottomOf="@id/ivAddFoto"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
     <TextView
-        android:id="@+id/etPhotoComment"
+        android:id="@+id/tvPhotoComment"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="5dp"
-        android:layout_marginStart="5dp"
-        android:layout_marginEnd="5dp"
         android:layout_marginBottom="8dp"
         android:hint="Tambah Komentar disini!"
         android:inputType="text"
@@ -52,6 +49,7 @@
         android:gravity="top|start"
         android:background="@drawable/border_radius"
         android:padding="8dp"
+        android:textColorHint="@color/graytextdark"
         android:foreground="?attr/selectableItemBackground"
         android:textSize="15dp"
         app:layout_constraintTop_toBottomOf="@id/titleComment"
@@ -59,5 +57,28 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         tools:ignore="TextViewEdits" />
+
+    <EditText
+        android:id="@+id/etPhotoComment"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:layout_marginHorizontal="5dp"
+        android:background="@drawable/border_radius"
+        android:foreground="?attr/selectableItemBackground"
+        android:hint="Tambahkan komentar disini!"
+        android:inputType="textMultiLine"
+        android:maxLines="10"
+        android:minLines="1"
+        android:padding="16dp"
+        android:scrollbars="vertical"
+        android:textColor="@color/black"
+        android:textSize="15dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/titleComment"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:ignore="HardcodedText,SpUsage" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

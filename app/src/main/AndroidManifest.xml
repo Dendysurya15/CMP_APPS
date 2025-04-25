@@ -19,6 +19,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_SETTINGS" />
     <uses-permission
         android:name="android.permission.ACT"
         tools:ignore="SystemPermissionTypo" />
@@ -46,6 +47,12 @@
         <activity
             android:name=".ui.view.Absensi.ScanAbsensiActivity"
             android:exported="false" />
+        <activity
+            android:name=".ui.view.panenTBS.FeaturePanenTBSActivity"
+            android:exported="false" />
+        <!-- <activity -->
+        <!-- android:name=".ui.view.espb.DetailESPBActivity" -->
+        <!-- android:exported="false" /> -->
         <activity
             android:name=".ui.view.Inspection.FormInspectionActivity"
             android:exported="false" />

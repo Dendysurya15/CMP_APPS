@@ -12,5 +12,11 @@
     <dimen name="list_item_spacing_half">8dp</dimen>
     <dimen name="search_edit_text_height">48dp</dimen>
     <dimen name="list_item_height">48dp</dimen>
+    <dimen name="s">12sp</dimen>
+    <dimen name="m">15sp</dimen>
+    <dimen name="l">19sp</dimen>
+    <dimen name="xl">23sp</dimen>
+    <dimen name="xxl">27sp</dimen>
+    <dimen name="large_size">50sp</dimen>
 
 </resources>

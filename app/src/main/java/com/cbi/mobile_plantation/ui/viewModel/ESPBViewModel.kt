@@ -9,6 +9,8 @@ import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
@@ -16,6 +18,9 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
 
     private val _espbList = MutableLiveData<List<ESPBEntity>>()
     val espbList: LiveData<List<ESPBEntity>> get() = _espbList
+
+    private val _espbEntity = MutableLiveData<ESPBEntity>()
+    val espbEntity: LiveData<ESPBEntity> get() = _espbEntity
 
     private val _archivedESPBList = MutableLiveData<List<ESPBEntity>>()
     val archivedESPBList: LiveData<List<ESPBEntity>> get() = _archivedESPBList
@@ -31,6 +36,9 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
 
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
+
+    private val _nopolList = MutableLiveData<List<KendaraanModel>>()
+    val nopolList: LiveData<List<KendaraanModel>> = _nopolList
 
     private val _espbDraftCount = MutableStateFlow(0)
 
@@ -49,10 +57,35 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         }
     }
 
+    private fun loadNopol() {
+        viewModelScope.launch {
+            try {
+                val nopol = repository.getNopolList()
+                _nopolList.postValue(nopol)
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
     fun loadAllESPB() {
         viewModelScope.launch {
             _espbList.value = repository.getAllESPB()
         }
+    }
+
+    fun getESPBById(int: Int){
+        viewModelScope.launch {
+            _espbEntity.value = repository.getESPBById(int)
+        }
+    }
+
+    fun deleteESPBById(int: Int): Int{
+        var code = 0
+        viewModelScope.launch {
+            code = repository.deleteESPBById(int)
+        }
+        return code
     }
 
     fun loadActiveESPB() {
@@ -115,16 +148,19 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
     private val _updateResult = MutableLiveData<Result<Int>>()
     val updateResult: LiveData<Result<Int>> = _updateResult
 
-    fun updateESPBStatus(idList: List<Int>, newStatus: Int) {
-        viewModelScope.launch {
-            try {
-                val updatedCount = repository.updatePanenESPBStatus(idList, newStatus)
-                _updateResult.postValue(Result.success(updatedCount))
-            } catch (e: Exception) {
-                _updateResult.postValue(Result.failure(e))
-            }
-        }
+    // Add to ESPBViewModel.kt
+    suspend fun insertESPBAndGetId(espbEntity: ESPBEntity): Long {
+        return repository.insertESPBAndGetId(espbEntity)
     }
+
+    suspend fun updateESPBStatus(idsList: List<Int>, status: Int, noESPB: String): Int {
+        return repository.updateESPBStatusForMultipleIds(idsList, status, noESPB)
+    }
+
+    suspend fun panenUpdateStatusAngkut(idsList: List<Int>, status: Int): Int {
+        return repository.panenUpdateStatusAngkut(idsList, status)
+    }
+
 
     class ESPBViewModelFactory(
         private val application: AppRepository
@@ -137,19 +173,38 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         }
     }
 
-    fun loadHistoryESPBNonScan() {
-        viewModelScope.launch {
-            repository.loadHistoryESPB()
-                .onSuccess { listData ->
-                    _historyEPSB.postValue(listData)
-                }
-                .onFailure { exception ->
-                    _error.postValue(exception.message ?: "Failed to load data")
-                }
+    fun loadHistoryESPBNonScan(date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadHistoryESPB(date)
+            _historyEPSB.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB history: ${e.message}")
+            _historyEPSB.value = emptyList()  // Return empty list if there's an error
         }
     }
 
     suspend fun getBlokById(listBlokId: List<Int>): List<TPHNewModel> {
         return repository.getBlokById(listBlokId)
     }
+
+    suspend fun getTransporterNameById(transporterId: Int): String? {
+        // Implement this method to retrieve the transporter name from your repository or database
+        return repository.getTransporterNameById(transporterId)
+    }
+
+    suspend fun getMillNameById(millId: Int): String? {
+        // Implement this method to retrieve the mill name from your repository or database
+        return repository.getMillNameById(millId)
+    }
+
+    suspend fun getCountCreatedToday():Int{
+        val count = try {
+            repository.getCountCreatedToday()
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB created today: ${e.message}")
+            0
+        }
+        return count
+    }
+
 }

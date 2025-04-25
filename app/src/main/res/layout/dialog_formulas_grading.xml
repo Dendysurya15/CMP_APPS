@@ -4,12 +4,13 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:paddingBottom="20dp"
+    android:background="@drawable/bottom_sheet_background"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <TextView
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:textSize="20sp"
+        android:textSize="@dimen/l"
         android:id="@+id/titleDialogRumus"
         android:textStyle="bold"
         android:text="Rumus Perhitungan Data Grading"
@@ -48,7 +49,8 @@
             android:layout_height="wrap_content"
             android:fontFamily="@font/manrope_semibold"
             android:text="• Dikirim ke Pabrik = Jumlah Jjg - Jjg Kosong"
-            android:textSize="17sp"
+            android:textSize="@dimen/m"
+            android:textColor="@color/black"
             android:textStyle="italic"
             app:layout_constraintStart_toStartOf="parent"
 
@@ -73,9 +75,10 @@
                 android:layout_width="0dp"
                 android:textStyle="italic"
                 android:layout_height="wrap_content"
+                android:textColor="@color/black"
                 android:fontFamily="@font/manrope_semibold"
                 android:text="• TBS yang dibayar = Jumlah Jjg - (Buah Mentah + Jjg Kosong)"
-                android:textSize="17sp"
+                android:textSize="@dimen/m"
                 app:layout_constraintStart_toStartOf="parent"
 
                 tools:ignore="MissingConstraints" />

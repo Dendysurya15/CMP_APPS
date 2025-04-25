@@ -59,7 +59,7 @@
                     android:gravity="center"
                     android:text="CBI Mobile"
                     android:textColor="@color/white"
-                    android:textSize="27sp"
+                    android:textSize="@dimen/xxl"
                     android:textStyle="bold"
                     app:layout_constraintBottom_toTopOf="@+id/subtitleText"
                     app:layout_constraintTop_toBottomOf="@+id/logoImage" />
@@ -73,7 +73,7 @@
                     android:gravity="center"
                     android:text="Plantation"
                     android:textColor="@color/white"
-                    android:textSize="27sp"
+                    android:textSize="@dimen/xxl"
                     android:textStyle="bold"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintTop_toBottomOf="@+id/titleText" />
@@ -98,7 +98,7 @@
                     android:fontFamily="@font/manrope_medium"
                     android:text="@string/login_title"
                     android:textColor="@color/greenDarker"
-                    android:textSize="23sp"
+                    android:textSize="@dimen/l"
                     android:textStyle="bold"
                     app:layout_constraintTop_toTopOf="parent" />
 
@@ -110,7 +110,7 @@
                     android:fontFamily="@font/montserrat_semibold"
                     android:text="@string/login_slogan"
                     android:textColor="@color/grayDefault"
-                    android:textSize="15sp"
+                    android:textSize="@dimen/m"
                     app:layout_constraintTop_toBottomOf="@id/loginTitle" />
 
                 <TextView
@@ -121,7 +121,7 @@
                     android:fontFamily="@font/manrope_semibold"
                     android:text="Email"
                     android:textColor="@color/graydarker"
-                    android:textSize="19sp"
+                    android:textSize="@dimen/l"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/loginSlogan" />
 
@@ -143,7 +143,7 @@
                         android:inputType="textEmailAddress"
                         android:textColor="@color/black"
                         android:textColorHint="@color/graydarker"
-                        android:textSize="19sp" />
+                        android:textSize="@dimen/l" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <TextView
@@ -154,7 +154,7 @@
                     android:fontFamily="@font/manrope_semibold"
                     android:text="Password"
                     android:textColor="@color/graydarker"
-                    android:textSize="19sp"
+                    android:textSize="@dimen/l"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/etUsernameLayout" />
 
@@ -179,7 +179,7 @@
                             android:inputType="textPassword"
                             android:textColor="@color/black"
                             android:textColorHint="@color/graydarker"
-                            android:textSize="19sp" />
+                            android:textSize="@dimen/l" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                 <LinearLayout
@@ -199,6 +199,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:minWidth="0dp"
+                        android:visibility="invisible"
                         android:fontFamily="@font/manrope_semibold"
                         android:text="Simpan Login"
                         android:textColor="@color/graytextdark"
@@ -210,7 +211,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:gravity="end"
-                        android:textSize="20dp"
+                        android:textSize="@dimen/l"
                         android:minWidth="0dp"
                         android:fontFamily="@font/manrope_semibold"
                         android:text="Lupa Sandi?"
@@ -231,7 +232,7 @@
                     android:backgroundTint="@color/greenDarker"
                     android:text="S U B M I T"
                     android:textColor="@color/white"
-                    android:textSize="16sp"
+                    android:textSize="@dimen/l"
                     app:layout_constraintEnd_toStartOf="@+id/btn_finger"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/checkAndForgetSection" />

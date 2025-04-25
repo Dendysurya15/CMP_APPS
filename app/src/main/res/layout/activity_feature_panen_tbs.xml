@@ -9,27 +9,29 @@
     tools:context=".ui.view.panenTBS.FeaturePanenTBSActivity">
 
     <!-- Header Section -->
-    <TextView
-        android:id="@+id/tvWithIcon2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:drawablePadding="8dp"
-        android:fontFamily="@font/manrope_medium"
-        android:gravity="end"
-        android:text="Info"
-        android:textColor="@color/black"
-        android:textSize="15sp"
-        app:drawableEndCompat="@drawable/ic_info_outline_white_24dp"
-        tools:ignore="MissingConstraints" />
+<!--    <TextView-->
+<!--        android:id="@+id/tvWithIcon2"-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:drawablePadding="8dp"-->
+<!--        android:fontFamily="@font/manrope_medium"-->
+<!--        android:gravity="end"-->
+<!--        android:text="Info"-->
+<!--        android:textColor="@color/black"-->
+<!--        android:textSize="15sp"-->
+<!--        app:drawableEndCompat="@drawable/ic_info_outline_white_24dp"-->
+<!--        tools:ignore="MissingConstraints" />-->
 
     <include
-        android:id="@+id/test"
+        android:id="@+id/header_layout"
         layout="@layout/header_feature_layout"
+
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
 
     <!-- ScrollView Section -->
     <ScrollView
@@ -40,7 +42,19 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/test">
+        app:layout_constraintTop_toBottomOf="@id/header_layout">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:orientation="vertical"
+            android:layout_height="wrap_content">
+
+        <include
+            android:id="@+id/warning_card"
+            layout="@layout/warning_layout_card_asistensi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
 
 
         <RelativeLayout
@@ -74,6 +88,54 @@
 <!--                                        layout="@layout/pertanyaan_spinner_layout"-->
 <!--                                        android:visibility="gone"-->
 <!--                                        android:id="@+id/layoutWilayah"/>-->
+                    <TextView
+                        android:id="@+id/title_data_master"
+                        android:layout_width="200dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginTop="10dp"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:gravity="center|left"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/l"
+                        android:visibility="gone"
+                        tools:ignore="HardcodedText,RtlHardcoded" />
+
+                    <include
+                        android:id="@+id/layoutMasterTPH"
+                        android:visibility="gone"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnDownloadDataset"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginTop="10dp"
+                        android:backgroundTint="@color/greenDarker"
+                        android:fontFamily="@font/manrope_bold"
+                        android:text="Refresh"
+                        android:textColor="@color/white"
+                        android:textAllCaps="false"
+                        android:textSize="@dimen/m"
+                        android:visibility="gone"
+                        app:cornerRadius="8dp"
+                        app:icon="@drawable/baseline_download_24"
+                        app:iconGravity="textEnd"
+                        app:iconTint="@color/white"
+                        app:iconPadding="8dp" />
+
+                    <View
+                        android:id="@+id/dashedLine"
+                        android:layout_width="match_parent"
+                        android:layout_height="10dp"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/dashed_straight_line"
+                        android:visibility="gone"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@+id/titleDialogDetailTable" />
+
 
                     <TextView
                         android:id="@+id/title_data_informasi_blok"
@@ -83,7 +145,7 @@
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="center|left"
                         android:textColor="@color/black"
-                        android:textSize="23sp"
+                        android:textSize="@dimen/l"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
@@ -94,7 +156,7 @@
                         android:gravity="center|left"
                         android:text="@string/desc_informasi_blok"
                         android:textColor="@color/black"
-                        android:textSize="19sp"
+                        android:textSize="@dimen/m"
                         android:textStyle="italic"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
@@ -113,9 +175,9 @@
                             android:layout_height="match_parent"
                             android:fontFamily="@font/manrope_semibold"
                             android:gravity="center|left"
-                            android:text="Blok Banjir"
+                            android:text="TPH Manual"
                             android:textColor="@color/black"
-                            android:textSize="18sp"
+                            android:textSize="@dimen/m"
                             tools:ignore="HardcodedText" />
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
@@ -126,9 +188,35 @@
                             app:trackTint="@color/switch_track_selector" />
                     </LinearLayout>
 
+                    <LinearLayout
+                        android:id="@+id/layoutAutoScan"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:fontFamily="@font/manrope_semibold"
+                            android:gravity="center|left"
+                            android:text="Auto-Refresh (setiap 5 detik)"
+                            android:textColor="@color/black"
+                            android:textSize="@dimen/m" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchAutoScan"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            app:thumbTint="@color/switch_thumb_selector"
+                            app:trackTint="@color/switch_track_selector" />
+                    </LinearLayout>
+
 
                     <include
-                        android:id="@+id/layoutEstate"
+                            android:id="@+id/layoutEstate"
                         layout="@layout/pertanyaan_spinner_layout" />
 
                     <include
@@ -182,21 +270,38 @@
 
                     </com.google.android.material.card.MaterialCardView>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnScanTPHRadius"
+                    <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:backgroundTint="@color/bluedarklight"
-                        android:fontFamily="@font/manrope_bold"
-                        android:text="Refresh"
-                        android:textAllCaps="false"
-                        android:textSize="19sp"
-                        android:visibility="gone"
-                        app:cornerRadius="8dp"
-                        app:icon="@drawable/baseline_refresh_24"
-                        app:iconGravity="textEnd"
-                        app:iconPadding="8dp" />
+                        android:orientation="horizontal"
+                        android:layout_height="wrap_content">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnScanTPHRadius"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:backgroundTint="@color/bluedarklight"
+                            android:fontFamily="@font/manrope_bold"
+                            android:text="Refresh"
+                            android:textColor="@color/white"
+                            android:textAllCaps="false"
+                            android:textSize="19sp"
+                            android:visibility="gone"
+                            app:cornerRadius="8dp"
+                            app:icon="@drawable/baseline_refresh_24"
+                            app:iconGravity="textEnd"
+                            app:iconTint="@color/white"
+                            app:iconPadding="8dp" />
+
+                        <ProgressBar
+                            android:id="@+id/progressBarScanTPHManual"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginLeft="10dp"
+                            android:layout_gravity="center"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
 
                     <include
                         android:id="@+id/layoutTahunTanam"
@@ -222,19 +327,33 @@
                             android:orientation="vertical"
                             >
 
-                            <TextView
-                                android:id="@+id/titleScannedTPHInsideRadius"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:orientation="horizontal"
                                 android:layout_marginTop="10dp"
-                                android:fontFamily="@font/manrope_extrabold"
-                                android:gravity="left"
-                                android:text="Daftar Lokasi TPH"
-                                android:textSize="20sp"
-                                android:textColor="@color/black"
-                                android:visibility="gone"
-                                app:layout_constraintTop_toBottomOf="@+id/dashedLine"
-                                tools:ignore="MissingConstraints" />
+                                android:layout_gravity="center_vertical"
+                                android:layout_height="wrap_content">
+                                <TextView
+                                    android:id="@+id/titleScannedTPHInsideRadius"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/manrope_extrabold"
+                                    android:gravity="left"
+                                    android:text="Daftar Lokasi TPH"
+                                    android:textSize="20sp"
+                                    android:textColor="@color/black"
+                                    android:visibility="gone"
+                                    app:layout_constraintTop_toBottomOf="@+id/dashedLine"
+                                    tools:ignore="MissingConstraints" />
+                                <ProgressBar
+                                    android:id="@+id/progressBarScanTPHAuto"
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_marginLeft="10dp"
+                                    android:layout_gravity="center"
+                                    android:visibility="gone" />
+                            </LinearLayout>
+
 
                             <TextView
                                 android:id="@+id/descScannedTPHInsideRadius"
@@ -357,7 +476,7 @@
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="center|left"
                         android:textColor="@color/black"
-                        android:textSize="23sp"
+                        android:textSize="@dimen/l"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
@@ -369,7 +488,7 @@
                         android:gravity="center|left"
                         android:text="@string/desc_data_grading"
                         android:textColor="@color/black"
-                        android:textSize="19sp"
+                        android:textSize="@dimen/m"
                         android:textStyle="italic"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
@@ -442,7 +561,7 @@
                                     android:fontFamily="@font/manrope_bold"
                                     android:text="Hasil Perhitungan"
                                     android:textColor="@color/black"
-                                    android:textSize="22sp" />
+                                    android:textSize="@dimen/l" />
 
                                 <TextView
                                     android:id="@+id/tvFormulas"
@@ -454,7 +573,7 @@
                                     android:fontFamily="@font/manrope_bold"
                                     android:text="Rumus"
                                     android:textColor="@color/anotherYellow"
-                                    android:textSize="17sp" />
+                                    android:textSize="@dimen/m" />
 
                             </LinearLayout>
 
@@ -480,7 +599,8 @@
                                     android:layout_height="wrap_content"
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text="Dikirim ke Pabrik"
-                                    android:textSize="21sp"
+                                    android:textSize="@dimen/m"
+                                    android:textColor="@color/black"
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterKirimPabrik"
                                     app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintWidth_percent="0.5"
@@ -493,7 +613,7 @@
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text=": 0 buah"
                                     android:textColor="@color/black"
-                                    android:textSize="21sp"
+                                    android:textSize="@dimen/m"
                                     app:layout_constraintHorizontal_chainStyle="packed"
                                     app:layout_constraintStart_toEndOf="@id/tvDikirimPabrik"
                                     tools:ignore="MissingConstraints" />
@@ -514,7 +634,9 @@
                                     android:layout_height="wrap_content"
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text="Janjang Dibayar"
-                                    android:textSize="21sp"
+                                    android:textSize="@dimen/m"
+                                    android:textColor="@color/black"
+
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterTBSDibayar"
                                     app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintWidth_percent="0.5"
@@ -527,7 +649,7 @@
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text=": 0 buah"
                                     android:textColor="@color/black"
-                                    android:textSize="21sp"
+                                    android:textSize="@dimen/m"
                                     app:layout_constraintHorizontal_chainStyle="packed"
                                     app:layout_constraintStart_toEndOf="@id/tvJanjangDibayar"
                                     tools:ignore="MissingConstraints" />
@@ -549,7 +671,7 @@
                                     android:fontFamily="@font/manrope_bold"
                                     android:text="Total Janjang"
                                     android:textColor="@color/greenDefault"
-                                    android:textSize="21sp"
+                                    android:textSize="@dimen/m"
                                     app:layout_constraintEnd_toStartOf="@id/tvCounterBuahMasak"
                                     app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintWidth_percent="0.5"
@@ -562,7 +684,7 @@
                                     android:fontFamily="@font/manrope_bold"
                                     android:text=": 0 buah"
                                     android:textColor="@color/greenDefault"
-                                    android:textSize="21sp"
+                                    android:textSize="@dimen/m"
                                     app:layout_constraintHorizontal_chainStyle="packed"
                                     app:layout_constraintStart_toEndOf="@id/tvTotalJjg"
                                     tools:ignore="MissingConstraints" />
@@ -601,7 +723,7 @@
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="center|left"
                         android:textColor="@color/black"
-                        android:textSize="23sp"
+                        android:textSize="@dimen/l"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
@@ -613,7 +735,7 @@
                         android:gravity="center|left"
                         android:text="@string/desc_lampiran_foto"
                         android:textColor="@color/black"
-                        android:textSize="19sp"
+                        android:textSize="@dimen/m"
                         android:textStyle="italic"
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
@@ -641,7 +763,7 @@
                         android:text="Minimal upload 1 foto"
                         android:textColor="@color/colorRedDark"
                         android:fontFamily="@font/manrope_bold"
-                        android:textSize="17sp"
+                        android:textSize="@dimen/m"
                         android:visibility="gone"
                         tools:ignore="HardcodedText,RtlSymmetry" />
 
@@ -701,7 +823,7 @@
                             android:layout_height="wrap_content"
                             android:fontFamily="@font/manrope_semibold"
                             android:text="Simpan Data"
-                            android:textSize="16dp"
+                            android:textSize="@dimen/m"
                             android:visibility="visible"
                             app:backgroundTint="@color/bluedarklight"
                             app:cornerRadius="10dp"
@@ -719,6 +841,7 @@
             </LinearLayout>
         </RelativeLayout>
 
+        </LinearLayout>
 
     </ScrollView>
 
