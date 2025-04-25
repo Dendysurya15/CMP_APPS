@@ -2329,6 +2329,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "username" to (panenWithRelations.panen.username as Any)
                                 )
 
+
+                                AppLogger.d("standardData $standardData")
                                 val originalDataMapped = standardData.toMutableMap()
                                 originalMappedData.add(originalDataMapped)
 
@@ -2515,6 +2517,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         ?.takeIf { it.isNotEmpty() }
                                         ?.joinToString("\n") { "• $it" } ?: "-"
 
+
+
                                     val karyawanNamas = pemuatData?.mapNotNull { karyawan ->
                                         karyawan.nama?.let { nama ->
                                             // Always append NIK for every worker
@@ -2523,6 +2527,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     }?.takeIf { it.isNotEmpty() }
                                         ?.joinToString(", ") ?: "-"
 
+                                    AppLogger.d("karyawanNamas $karyawanNamas")
                                     // Update the original data with the fetched names
                                     originalDataMapped["nama_karyawans"] = karyawanNamas
                                     originalDataMapped["nama_kemandorans"] = kemandoranNamas

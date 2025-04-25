@@ -47,9 +47,6 @@
         <activity
             android:name=".ui.view.Absensi.ScanAbsensiActivity"
             android:exported="false" />
-        <activity
-            android:name=".ui.view.panenTBS.FeaturePanenTBSActivity"
-            android:exported="false" />
         <!-- <activity -->
         <!-- android:name=".ui.view.espb.DetailESPBActivity" -->
         <!-- android:exported="false" /> -->
