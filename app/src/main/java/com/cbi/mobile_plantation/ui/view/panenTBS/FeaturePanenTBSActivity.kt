@@ -2486,92 +2486,150 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         onItemSelected: (Int) -> Unit = {},
         onMultiItemsSelected: (List<String>, List<Int>) -> Unit = { _, _ -> }
     ) {
-        val editText = linearLayout.findViewById<EditText>(R.id.etHomeMarkerTPH)
-        val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-        val tvError = linearLayout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-
-        spinner.setItems(data)
-
-        // Hide keyboard helper
-        fun ensureKeyboardHidden() {
-            val imm =
-                application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.hideSoftInputFromWindow(linearLayout.windowToken, 0)
-            editText.clearFocus()
-        }
-
-        // For layoutMasterTPH use multi-select with checkboxes
-        if (linearLayout.id == R.id.layoutMasterTPH) {
-            spinner.setOnTouchListener { _, event ->
-                ensureKeyboardHidden()
-                if (event.action == MotionEvent.ACTION_UP) {
-                    // Always use isMultiSelect=true for layoutMasterTPH
-                    showPopupSearchDropdown(
-                        spinner,
-                        data,
-                        editText,
-                        linearLayout,
-                        true // Force multi-select for this layout
-                    ) { selectedItem, position ->
-                        spinner.text = selectedItem // Update spinner UI
-                        tvError.visibility = View.GONE
-
-
-                        onItemSelected(position)
-
+        try {
+            // Make sure we're on the main thread
+            if (Looper.myLooper() != Looper.getMainLooper()) {
+                // If we're not on the main thread, post to the main thread
+                Handler(Looper.getMainLooper()).post {
+                    try {
+                        setupSpinnerViewOnMainThread(linearLayout, data, isMultiSelect, onItemSelected, onMultiItemsSelected)
+                    } catch (e: Exception) {
+                        Log.e("SetupSpinnerView", "Error setting up spinner on main thread: ${e.message}", e)
+                        // Handle error - maybe show a fallback UI or toast notification
                     }
                 }
-                true // Consume event, preventing default behavior
+            } else {
+                // Already on main thread, proceed directly
+                setupSpinnerViewOnMainThread(linearLayout, data, isMultiSelect, onItemSelected, onMultiItemsSelected)
             }
-
-            // Modified: Count directly from the value-based map
-            val selectedCount = masterEstateHasBeenChoice.count { it.value }
-            if (selectedCount > 0) {
-                // Modified: Get selected estate names directly from the keys
-                val selectedTexts =
-                    masterEstateHasBeenChoice.filter { it.value }.keys.toList().sorted()
-
-            }
-
-            // Update the button text initially
-            updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+        } catch (e: Exception) {
+            Log.e("SetupSpinnerView", "Error in setupSpinnerView: ${e.message}", e)
+            // Handle error - maybe show a fallback UI or toast notification
         }
-        // For these layouts use regular search dropdown (no checkboxes)
-        else if (linearLayout.id == R.id.layoutKemandoran || linearLayout.id == R.id.layoutPemanen ||
-            linearLayout.id == R.id.layoutKemandoranLain || linearLayout.id == R.id.layoutPemanenLain
-        ) {
-            // Spinner with regular search (no checkboxes)
-            spinner.setOnTouchListener { _, event ->
-                ensureKeyboardHidden()
-                if (event.action == MotionEvent.ACTION_UP) {
-                    // Always use isMultiSelect=false for these layouts
-                    showPopupSearchDropdown(
-                        spinner,
-                        data,
-                        editText,
-                        linearLayout,
-                        false // Force single-select for these layouts
-                    ) { selectedItem, position ->
-                        spinner.text = selectedItem // Update spinner UI
-                        tvError.visibility = View.GONE
-                        onItemSelected(position) // Single selection callback
-                    }
+    }
+
+    // The actual implementation that should run on the main thread
+    private fun setupSpinnerViewOnMainThread(
+        linearLayout: LinearLayout,
+        data: List<String>,
+        isMultiSelect: Boolean = false,
+        onItemSelected: (Int) -> Unit = {},
+        onMultiItemsSelected: (List<String>, List<Int>) -> Unit = { _, _ -> }
+    ) {
+        try {
+            val editText = linearLayout.findViewById<EditText>(R.id.etHomeMarkerTPH)
+            val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+            val tvError = linearLayout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+
+            // This was causing the crash - now safely on main thread
+            spinner.setItems(data)
+
+            // Hide keyboard helper
+            fun ensureKeyboardHidden() {
+                try {
+                    val imm = application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.hideSoftInputFromWindow(linearLayout.windowToken, 0)
+                    editText.clearFocus()
+                } catch (e: Exception) {
+                    Log.e("SetupSpinnerView", "Error hiding keyboard: ${e.message}", e)
                 }
-                true // Consume event, preventing default behavior
             }
-        }
 
-        if (linearLayout.id == R.id.layoutEstate && featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
-            spinner.isEnabled = false // Disable spinner
-        }
+            // For layoutMasterTPH use multi-select with checkboxes
+            if (linearLayout.id == R.id.layoutMasterTPH) {
+                spinner.setOnTouchListener { _, event ->
+                    try {
+                        ensureKeyboardHidden()
+                        if (event.action == MotionEvent.ACTION_UP) {
+                            // Always use isMultiSelect=true for layoutMasterTPH
+                            showPopupSearchDropdown(
+                                spinner,
+                                data,
+                                editText,
+                                linearLayout,
+                                true // Force multi-select for this layout
+                            ) { selectedItem, position ->
+                                try {
+                                    spinner.text = selectedItem // Update spinner UI
+                                    tvError.visibility = View.GONE
+                                    onItemSelected(position)
+                                } catch (e: Exception) {
+                                    Log.e("SetupSpinnerView", "Error in item selection: ${e.message}", e)
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("SetupSpinnerView", "Error in touch listener: ${e.message}", e)
+                    }
+                    true // Consume event, preventing default behavior
+                }
 
-        spinner.setOnItemSelectedListener { _, position, _, item ->
-            tvError.visibility = View.GONE
-            handleItemSelection(
-                linearLayout,
-                position,
-                item.toString()
-            ) // ✅ Ensure `linearLayout` is passed
+                try {
+                    // Modified: Count directly from the value-based map
+                    val selectedCount = masterEstateHasBeenChoice.count { it.value }
+                    if (selectedCount > 0) {
+                        // Modified: Get selected estate names directly from the keys
+                        val selectedTexts = masterEstateHasBeenChoice.filter { it.value }.keys.toList().sorted()
+                    }
+
+                    // Update the button text initially
+                    updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+                } catch (e: Exception) {
+                    Log.e("SetupSpinnerView", "Error processing selection count: ${e.message}", e)
+                }
+            }
+            // For these layouts use regular search dropdown (no checkboxes)
+            else if (linearLayout.id == R.id.layoutKemandoran || linearLayout.id == R.id.layoutPemanen ||
+                linearLayout.id == R.id.layoutKemandoranLain || linearLayout.id == R.id.layoutPemanenLain
+            ) {
+                // Spinner with regular search (no checkboxes)
+                spinner.setOnTouchListener { _, event ->
+                    try {
+                        ensureKeyboardHidden()
+                        if (event.action == MotionEvent.ACTION_UP) {
+                            // Always use isMultiSelect=false for these layouts
+                            showPopupSearchDropdown(
+                                spinner,
+                                data,
+                                editText,
+                                linearLayout,
+                                false // Force single-select for these layouts
+                            ) { selectedItem, position ->
+                                try {
+                                    spinner.text = selectedItem // Update spinner UI
+                                    tvError.visibility = View.GONE
+                                    onItemSelected(position) // Single selection callback
+                                } catch (e: Exception) {
+                                    Log.e("SetupSpinnerView", "Error in item selection: ${e.message}", e)
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("SetupSpinnerView", "Error in touch listener: ${e.message}", e)
+                    }
+                    true // Consume event, preventing default behavior
+                }
+            }
+
+            if (linearLayout.id == R.id.layoutEstate && featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                spinner.isEnabled = false // Disable spinner
+            }
+
+            spinner.setOnItemSelectedListener { _, position, _, item ->
+                try {
+                    tvError.visibility = View.GONE
+                    handleItemSelection(
+                        linearLayout,
+                        position,
+                        item.toString()
+                    ) // ✅ Ensure `linearLayout` is passed
+                } catch (e: Exception) {
+                    Log.e("SetupSpinnerView", "Error in item selected listener: ${e.message}", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SetupSpinnerView", "Error in setupSpinnerViewOnMainThread: ${e.message}", e)
+            // Handle error - maybe show a fallback UI or toast notification
         }
     }
 
@@ -2635,8 +2693,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 etAncak.setText("")
                 ancakInput = ""
 
-                selectedTipePanen = ""
-                setupSpinnerView(layoutTipePanen, tipePanenOptions)
+                val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
+                setupSpinnerView(findViewById(R.id.layoutTipePanen), tipePanenOptions)
+
+                val tipePanenLayout = findViewById<LinearLayout>(R.id.layoutTipePanen)
+                val tipePanenSpinner = tipePanenLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+                if (selectedTipePanen != null && selectedTipePanen.isNotEmpty()) {
+                    val tipePanenPosition = selectedTipePanen.toIntOrNull() ?: 0
+                    tipePanenSpinner.setSelectedIndex(tipePanenPosition)
+
+                    if (tipePanenPosition >= 0 && tipePanenPosition < tipePanenOptions.size) {
+                        val selectedItem = tipePanenOptions[tipePanenPosition]
+                        handleItemSelection(tipePanenLayout, tipePanenPosition, selectedItem)
+                    }
+                }
 
                 // Reset selected values
                 selectedTahunTanamValue = null
@@ -4330,7 +4401,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     val isUserEstate = itemValue == prefManager!!.estateUserLengkapLogin
 
-                    // If it has existing data, add an indicator and disable selection
                     if (hasExistingData || isUserEstate) {
                         // Set a visual indicator that this estate already has data
                         textView.setTypeface(textView.typeface, Typeface.BOLD)
@@ -4345,7 +4415,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         val existingText = itemValue
 
                         if (isUserEstate) {
-
                             textView.text = "★ $existingText"
                             textView.setTypeface(textView.typeface, Typeface.BOLD)
                             textView.setTextColor(
@@ -4363,8 +4432,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         checkbox.isClickable = false
                         checkbox.isFocusable = false
 
-                        // Don't modify the selection map here
-                        // Remove: selectedItems[itemValue] = true
+                        // Important: Set the specific color for these pre-checked items
+                        checkbox.buttonTintList = ColorStateList.valueOf(
+                            ContextCompat.getColor(context, R.color.greendarkerbutton)
+                        )
 
                         view.alpha = 1.0f
                         // Disable clicking on the entire row for this item
@@ -4377,34 +4448,28 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         )  // Reset to normal typeface
                         textView.text = itemValue  // Reset text without symbols
                         checkbox.isEnabled = true
+                        checkbox.isClickable = true  // Make sure this is clickable
+                        checkbox.isFocusable = true  // Make sure this is focusable
 
                         view.isClickable = true
                         view.alpha = 1.0f
+                        view.setOnTouchListener(null)  // Clear any touch listeners
 
                         val isChecked = selectedItems[itemValue] == true
                         checkbox.isChecked = isChecked
 
-                        if (isChecked) {
-                            checkbox.buttonTintList = ColorStateList.valueOf(
-                                ContextCompat.getColor(context, R.color.greenBorder)
-                            )
-                        } else {
-                            checkbox.buttonTintList = ContextCompat.getColorStateList(
-                                context,
-                                R.color.greenBorder
-                            )
-                        }
+                        // Always set the color explicitly based on the current state
+                        checkbox.buttonTintList = ColorStateList.valueOf(
+                            ContextCompat.getColor(context, R.color.greenBorder)
+                        )
 
                         checkbox.setOnClickListener {
                             val nowChecked = checkbox.isChecked
                             selectedItems[itemValue] = nowChecked
 
-                            // Update tint based on checked state
+                            // The color is always greenBorder for these items
                             checkbox.buttonTintList = ColorStateList.valueOf(
-                                ContextCompat.getColor(
-                                    context,
-                                    if (nowChecked) R.color.greenBorder else R.color.greenBorder
-                                )
+                                ContextCompat.getColor(context, R.color.greenBorder)
                             )
 
                             val errorTextView =
@@ -4422,12 +4487,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             checkbox.isChecked = nowChecked
                             selectedItems[itemValue] = nowChecked
 
-                            // Update tint based on checked state
+                            // The color is always greenBorder for these items
                             checkbox.buttonTintList = ColorStateList.valueOf(
-                                ContextCompat.getColor(
-                                    context,
-                                    if (nowChecked) R.color.greenBorder else R.color.greenBorder
-                                )
+                                ContextCompat.getColor(context, R.color.greenBorder)
                             )
 
                             if (linearLayout.id == R.id.layoutMasterTPH) {
