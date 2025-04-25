@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.AbsensiModel
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
@@ -50,7 +51,17 @@ abstract class HektarPanenDao {
     @Query("SELECT * FROM hektar_panen WHERE luas_panen = 0 AND strftime('%Y-%m-%d', date_created_panen) = strftime('%Y-%m-%d', 'now', 'localtime', '-1 day')")
     abstract fun getAllWhereLuasPanenIsZeroYesterday(): List<HektarPanenEntity>
 
+
     //get all where luas_panen is 0 by date
     @Query("SELECT * FROM hektar_panen WHERE luas_panen = 0 AND strftime('%Y-%m-%d', date_created_panen) = :date")
     abstract fun getAllWhereLuasPanenIsZeroByDate(date: String): List<HektarPanenEntity>
+
+    @Insert
+    abstract fun insert(hektarPanen: HektarPanenEntity): Long
+
+    @Query("SELECT * FROM hektar_panen WHERE nik = :nik AND blok = :blok AND date_created_panen = :date")
+    abstract fun getByNikBlokDate(nik: String, blok: Int, date: String): HektarPanenEntity?
+
+    @Update
+    abstract fun update(hektarPanen: HektarPanenEntity)
 }

@@ -8,6 +8,7 @@ import com.cbi.mobile_plantation.data.model.InspectionPathModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.ESPBEntity
+import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
@@ -18,6 +19,9 @@ import com.cbi.mobile_plantation.data.model.TphRvData
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.math.BigDecimal
+import java.math.RoundingMode
 
 // Add this class to represent the different outcomes
 sealed class SaveTPHResult {
@@ -53,14 +57,20 @@ class AppRepository(context: Context) {
         panenDao.insert(data)
     }
 
-    suspend fun saveScanMPanen(tphDataList: List<PanenEntity>): Result<SaveTPHResult> =
-        withContext(Dispatchers.IO) {
-            try {
+    // In AppRepository.kt, update the saveScanMPanen method to use a fully dynamic approach
+    suspend fun saveScanMPanen(
+        tphDataList: List<PanenEntity>,
+        createdBy: String? = null,
+        creatorInfo: String? = null
+    ): Result<SaveTPHResult> = withContext(Dispatchers.IO) {
+        try {
+            database.withTransaction {
                 // Keep track of successes and failures
                 val savedIds = mutableListOf<Long>()
                 val duplicates = mutableListOf<PanenEntity>()
+                val hektarPanenDao = database.hektarPanenDao()
 
-                // Check each item individually
+                // Step 1: First, save all PanenEntity records to the panen table
                 for (tphData in tphDataList) {
                     // Check if this specific item is a duplicate
                     val isDuplicate = panenDao.exists(tphData.tph_id, tphData.date_created)
@@ -69,7 +79,7 @@ class AppRepository(context: Context) {
                         // Add to duplicates list
                         duplicates.add(tphData)
                     } else {
-                        // Save non-duplicate - pass the single entity to insertWithTransaction
+                        // Save non-duplicate
                         val result = panenDao.insertWithTransaction(tphData)
 
                         result.fold(
@@ -79,23 +89,156 @@ class AppRepository(context: Context) {
                     }
                 }
 
-                // Create result based on what happened
+                // Step 2: Build a map of NIK to blocks based on TPH data
+                // For each date, create a mapping of NIK to all blocks they're associated with
+                val nikToBlocksMap = mutableMapOf<Pair<String, String>, MutableSet<Int>>() // (NIK, Date) -> Set of blocks
+
+                for (tphData in tphDataList) {
+                    if (duplicates.contains(tphData)) continue
+
+                    val datePart = tphData.date_created.split(" ")[0]
+                    val tphId = tphData.tph_id.toIntOrNull() ?: continue
+                    val blokId = tphDao.getBlokIdbyIhTph(tphId) ?: continue
+                    val nikDateKey = Pair(tphData.karyawan_nik, datePart)
+
+                    if (!nikToBlocksMap.containsKey(nikDateKey)) {
+                        nikToBlocksMap[nikDateKey] = mutableSetOf()
+                    }
+
+                    nikToBlocksMap[nikDateKey]!!.add(blokId)
+                }
+
+                Log.d("AppRepository", "NIK to blocks map: $nikToBlocksMap")
+
+                // Step 3: Process HektarPanen entries for each unique (NIK, Block, Date) combination
+                val processedCombinations = mutableSetOf<Triple<String, Int, String>>()
+
+                for ((nikDateKey, blocks) in nikToBlocksMap) {
+                    val (nik, datePart) = nikDateKey
+
+                    // Process each block this NIK is associated with
+                    for (blokId in blocks) {
+                        val combinationKey = Triple(nik, blokId, datePart)
+
+                        // If we've already processed this combination, skip it
+                        if (combinationKey in processedCombinations) continue
+
+                        // Mark this combination as processed
+                        processedCombinations.add(combinationKey)
+
+                        // Get all entities for this NIK-blok-date combination
+                        val entitiesForNik = tphDataList.filter { entity ->
+                            if (duplicates.contains(entity)) return@filter false
+
+                            val entityDatePart = entity.date_created.split(" ")[0]
+                            entity.karyawan_nik == nik && entityDatePart == datePart
+                        }
+
+                        val entitiesForBlock = entitiesForNik.filter { entity ->
+                            val entityTphId = entity.tph_id.toIntOrNull() ?: return@filter false
+                            val entityBlokId = tphDao.getBlokIdbyIhTph(entityTphId) ?: return@filter false
+                            entityBlokId == blokId
+                        }
+
+                        // If no entities for this block, continue
+                        if (entitiesForBlock.isEmpty()) continue
+
+                        // Check if an entry already exists
+                        var hektarPanen = hektarPanenDao.getByNikBlokDate(nik, blokId, datePart)
+
+                        // Process values from entities for this combination
+                        val totalJjg = mutableListOf<Int>()
+                        val unripe = mutableListOf<Int>()
+                        val overripe = mutableListOf<Int>()
+                        val emptyBunch = mutableListOf<Int>()
+                        val abnormal = mutableListOf<Int>()
+                        val ripe = mutableListOf<Int>()
+                        val kirimPabrik = mutableListOf<Int>()
+                        val dibayar = mutableListOf<Int>()
+                        val tphIds = mutableListOf<String>()
+                        val dateCreatedPanen = mutableListOf<String>()
+
+                        for (entity in entitiesForBlock) {
+                            try {
+                                val jjgJson = JSONObject(entity.jjg_json)
+                                totalJjg.add(jjgJson.optInt("TO", 0))
+                                unripe.add(jjgJson.optInt("UN", 0))
+                                overripe.add(jjgJson.optInt("OV", 0))
+                                emptyBunch.add(jjgJson.optInt("EM", 0))
+                                abnormal.add(jjgJson.optInt("AB", 0))
+                                ripe.add(jjgJson.optInt("RI", 0))
+                                kirimPabrik.add(jjgJson.optInt("KP", 0))
+                                dibayar.add(jjgJson.optInt("PA", 0))
+
+                                tphIds.add(entity.tph_id)
+                                dateCreatedPanen.add(entity.date_created)
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error parsing jjg_json: ${e.message}")
+                            }
+                        }
+
+                        if (hektarPanen == null) {
+                            // Create new entry
+                            val sampleTphId = entitiesForBlock.firstOrNull()?.tph_id?.toIntOrNull() ?: continue
+
+                            hektarPanen = HektarPanenEntity(
+                                id = null,
+                                nik = nik,
+                                blok = blokId,
+                                luas_panen = 0f,
+                                date_created = System.currentTimeMillis().toString(),
+                                created_by = createdBy ?: "Unknown",
+                                creator_info = creatorInfo ?: "{}",
+                                total_jjg_arr = totalJjg.joinToString(";"),
+                                unripe_arr = unripe.joinToString(";"),
+                                overripe_arr = overripe.joinToString(";"),
+                                empty_bunch_arr = emptyBunch.joinToString(";"),
+                                abnormal_arr = abnormal.joinToString(";"),
+                                ripe_arr = ripe.joinToString(";"),
+                                kirim_pabrik_arr = kirimPabrik.joinToString(";"),
+                                dibayar_arr = dibayar.joinToString(";"),
+                                tph_ids = tphIds.joinToString(";"),
+                                date_created_panen = dateCreatedPanen.joinToString(";"),
+                                luas_blok = try {
+                                    val rawValue = tphDao.getLuasAreaByTphId(sampleTphId)!!.toFloat()
+                                    BigDecimal(rawValue.toDouble()).setScale(2, RoundingMode.HALF_UP).toFloat()
+                                } catch (e: Exception) {
+                                    Log.e("AppRepository", "Error getting luas area: ${e.message}")
+                                    0f
+                                }
+                            )
+                            hektarPanenDao.insert(hektarPanen)
+                        } else {
+                            // Update existing entry by appending arrays
+                            val updatedHektarPanen = hektarPanen.copy(
+                                total_jjg_arr = hektarPanen.total_jjg_arr + ";" + totalJjg.joinToString(";"),
+                                unripe_arr = hektarPanen.unripe_arr + ";" + unripe.joinToString(";"),
+                                overripe_arr = hektarPanen.overripe_arr + ";" + overripe.joinToString(";"),
+                                empty_bunch_arr = hektarPanen.empty_bunch_arr + ";" + emptyBunch.joinToString(";"),
+                                abnormal_arr = hektarPanen.abnormal_arr + ";" + abnormal.joinToString(";"),
+                                ripe_arr = hektarPanen.ripe_arr + ";" + ripe.joinToString(";"),
+                                kirim_pabrik_arr = hektarPanen.kirim_pabrik_arr + ";" + kirimPabrik.joinToString(";"),
+                                dibayar_arr = hektarPanen.dibayar_arr + ";" + dibayar.joinToString(";"),
+                                tph_ids = hektarPanen.tph_ids + ";" + tphIds.joinToString(";"),
+                                date_created_panen = hektarPanen.date_created_panen + ";" + dateCreatedPanen.joinToString(";")
+                            )
+                            hektarPanenDao.update(updatedHektarPanen)
+                        }
+                    }
+                }
+
+                // Return appropriate result based on success/failure
                 when {
                     duplicates.isEmpty() -> {
-                        // All items were saved successfully
                         Result.success(SaveTPHResult.AllSuccess(savedIds))
                     }
                     savedIds.isEmpty() -> {
-                        // Everything was a duplicate
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.tph_id}, Date: ${it.date_created}"
                         }
-                        Result.failure(
-                            Exception("All data is duplicate:\n$duplicateInfo")
-                        )
+                        Result.failure(Exception("All data is duplicate:\n$duplicateInfo"))
                     }
                     else -> {
-                        // We had partial success
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.tph_id}, Date: ${it.date_created}"
                         }
@@ -108,10 +251,11 @@ class AppRepository(context: Context) {
                         )
                     }
                 }
-            } catch (e: Exception) {
-                Result.failure(e)
             }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
+    }
 
     suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
         return karyawanDao.getPemuatByIdList(idPemuat)

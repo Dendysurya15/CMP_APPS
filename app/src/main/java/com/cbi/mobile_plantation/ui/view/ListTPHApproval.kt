@@ -37,6 +37,7 @@ import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.gson.JsonObject
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -220,12 +221,39 @@ class ListTPHApproval : AppCompatActivity() {
                         try {
                             _saveDataPanenState.value = SaveDataPanenState.Loading
 
-                            val result =
-                                if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
-                                    repository.saveTPHDataList(saveData.map { (it as SaveDataType.TPHData).data })
-                                } else {
-                                    repository.saveScanMPanen(saveDataMPanenList)
-                                }
+                            // Get device info
+                            val appVersion: String = try {
+                                this@ListTPHApproval.packageManager.getPackageInfo(
+                                    this@ListTPHApproval.packageName, 0
+                                ).versionName
+                            } catch (e: Exception) {
+                                Log.e("DeviceInfo", "Failed to get app version", e)
+                                "Unknown"
+                            }
+
+                            val osVersion: String = try {
+                                Build.VERSION.RELEASE
+                            } catch (e: Exception) {
+                                Log.e("DeviceInfo", "Failed to get OS version", e)
+                                "Unknown"
+                            }
+
+                            val phoneModel: String = try {
+                                "${Build.MANUFACTURER} ${Build.MODEL}"
+                            } catch (e: Exception) {
+                                Log.e("DeviceInfo", "Failed to get phone model", e)
+                                "Unknown"
+                            }
+
+                            // Create creator info JSON
+                            val creatorInfo = createCreatorInfo(appVersion, osVersion, phoneModel).toString()
+                            val createdBy = prefManager!!.idUserLogin.toString()
+
+                            val result = if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
+                                repository.saveTPHDataList(saveData.map { (it as SaveDataType.TPHData).data })
+                            } else {
+                                repository.saveScanMPanen(saveDataMPanenList, createdBy, creatorInfo)
+                            }
 
                             result.fold(
                                 onSuccess = { saveResult ->
@@ -346,6 +374,14 @@ class ListTPHApproval : AppCompatActivity() {
         }
     }
 
+    private fun createCreatorInfo(appVersion: String, osVersion: String, phoneModel: String): JsonObject {
+        return JsonObject().apply {
+            addProperty("app_version", appVersion)
+            addProperty("os_version", osVersion)
+            addProperty("device_model", phoneModel)
+        }
+    }
+
 
     private fun setupHeader() {
         featureName = intent.getStringExtra("FEATURE_NAME").toString()
@@ -421,8 +457,8 @@ class ListTPHApproval : AppCompatActivity() {
     }
 
     private fun calculateBlokSummary(data: List<TphRvData>): String {
-        // Group by blok name
-        val blokGroups = data.groupBy { it.namaBlok }
+        // Group by normalized blok name (without trailing -xx)
+        val blokGroups = data.groupBy { it.namaBlok.substringBeforeLast("-") }
 
         // For each blok, calculate total jjg and count of unique TPH numbers
         val blokSummaries = blokGroups.map { (blokName, entries) ->
@@ -583,81 +619,98 @@ class ListTPHApproval : AppCompatActivity() {
                                 username = usernameString
                             )
                         } else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
-                            // Extract the values from parts first
-                            idtph = parts[2].toInt()         // TPH ID
-                            dateIndex = parts[0]             // Date index
-                            time = parts[1]                  // Time
-                            jjg = parts[4].toInt() + parts[5].toInt() + parts[6].toInt() + parts[7].toInt() + parts[8].toInt()
+                                // Extract the values from parts first
+                                idtph = parts[2].toInt()         // TPH ID
+                                dateIndex = parts[0]             // Date index
+                                time = parts[1]                  // Time
+                                jjg = parts[4].toInt() + parts[5].toInt() + parts[6].toInt() + parts[7].toInt() + parts[8].toInt()
 
-                            // Get the full date from the date map
-                            val fullDate = dateMap[dateIndex] ?: "Unknown Date"
-                            val fullDateTime = "$fullDate $time"
+                                // Get the full date from the date map
+                                val fullDate = dateMap[dateIndex] ?: "Unknown Date"
+                                val fullDateTime = "$fullDate $time"
 
-                            Log.d(TAG, "Processing idtph: $idtph, dateIndex: $dateIndex, time: $time, jjg: $jjg")
-                            Log.d(TAG, "Full datetime: $fullDateTime")
+                                Log.d(TAG, "Processing idtph: $idtph, dateIndex: $dateIndex, time: $time, jjg: $jjg")
+                                Log.d(TAG, "Full datetime: $fullDateTime")
 
-                            // Now get the TPH info with the proper idtph value
-                            val tphInfo = try {
-                                repository.getTPHAndBlokInfo(idtph)
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error getting TPH info for idtph $idtph", e)
-                                null
+                                // Now get the TPH info with the proper idtph value
+                                val tphInfo = try {
+                                    repository.getTPHAndBlokInfo(idtph)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error getting TPH info for idtph $idtph", e)
+                                    null
+                                }
+
+                                val displayName = tphInfo?.blokKode ?: "Unknown"
+
+                                val noTph = try {
+                                    tphInfo?.tphNomor?.toInt() ?: 0
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error parsing tphNomor: ${tphInfo?.tphNomor}", e)
+                                    0
+                                }
+
+                                // Use the fourth value (index 3) as the NIK key
+                                val nikKey = parts[3]
+                                val nik = nikMap[nikKey] ?: "NULL"
+
+                                Log.d(TAG, "Using NIK key: $nikKey, got NIK: $nik")
+
+                                // Parse names for display
+                                val karyawan = try {
+                                    if (nik.contains(",")) {
+                                        // Multiple NIKs, split and retrieve name for each
+                                        val niks = nik.split(",").map { it.trim() }
+                                        val names = niks.map { singleNik ->
+                                            val name = repository.getNamaByNik(singleNik)
+                                            name ?: singleNik // Fallback to NIK if name can't be found
+                                        }
+                                        names.joinToString(", ")
+                                    } else {
+                                        // Single NIK
+                                        repository.getNamaByNik(nik) ?: nik
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error getting karyawan info for NIK $nik", e)
+                                    nik // Fallback to NIK if name can't be found
+                                }
+
+                                displayData = TphRvData(
+                                    namaBlok = "$displayName-$noTph",
+                                    noTPH = karyawan, // Use karyawan name for display
+                                    time = time,
+                                    jjg = jjg.toString(),
+                                    username = usernameString
+                                )
+
+                                // 2. Create separate PanenEntity for each NIK
+                                val kPpA = parts[5].toInt() + parts[7].toInt() + parts[8].toInt()
+
+                                // Split NIKs if necessary
+                                val nikList = nik.split(",").map { it.trim() }
+
+                                for (singleNik in nikList) {
+                                    val panenEntity = PanenEntity(
+                                        tph_id = idtph.toString(),
+                                        date_created = fullDateTime,
+                                        karyawan_nik = singleNik, // Use individual NIK
+                                        jjg_json = "{\"TO\":$jjg,\"UN\":${parts[4]},\"OV\":${parts[5]},\"EM\":${parts[6]},\"AB\":${parts[7]},\"RI\":${parts[8]},\"KP\":$kPpA,\"PA\":$kPpA}",
+                                        foto = "NULL",
+                                        komentar = "NULL",
+                                        asistensi = 0,
+                                        lat = 0.0,
+                                        lon = 0.0,
+                                        jenis_panen = 0,
+                                        ancak = 0,
+                                        info = "NULL",
+                                        scan_status = 0,
+                                        dataIsZipped = 0,
+                                        created_by = 0,
+                                        karyawan_id = "NULL",
+                                        kemandoran_id = "NULL"
+                                    )
+                                    saveDataMPanenList.add(panenEntity)
+                                }
                             }
-
-                            val displayName = tphInfo?.blokKode ?: "Unknown"
-
-                            val noTph = try {
-                                tphInfo?.tphNomor?.toInt() ?: 0
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error parsing tphNomor: ${tphInfo?.tphNomor}", e)
-                                0
-                            }
-
-                            // Use the fourth value (index 3) as the NIK key
-                            val nikKey = parts[3]
-                            val nik = nikMap[nikKey] ?: "NULL"
-
-                            Log.d(TAG, "Using NIK key: $nikKey, got NIK: $nik")
-
-                            // Look up employee name
-                            val karyawan = try {
-                                repository.getNamaByNik(nik)
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error getting karyawan info for NIK $nik", e)
-                                nik // Fallback to NIK if name can't be found
-                            }
-
-                            displayData = TphRvData(
-                                namaBlok = "$displayName-$noTph",
-                                noTPH = karyawan ?: nik, // Use karyawan name or fallback to NIK
-                                time = time,             // Just show the time part for display
-                                jjg = jjg.toString(),
-                                username = usernameString
-                            )
-
-                            // Create save data with original values
-                            val kPpA = parts[5].toInt() + parts[7].toInt() + parts[8].toInt()
-                            val panenEntity = PanenEntity(
-                                tph_id = idtph.toString(),
-                                date_created = fullDateTime,
-                                karyawan_nik = nik,
-                                jjg_json = "{\"TO\":$jjg,\"UN\":${parts[4]},\"OV\":${parts[5]},\"EM\":${parts[6]},\"AB\":${parts[7]},\"RI\":${parts[8]},\"KP\":$kPpA,\"PA\":$kPpA}",
-                                foto = "NULL",
-                                komentar = "NULL",
-                                asistensi = 0,
-                                lat = 0.0,
-                                lon = 0.0,
-                                jenis_panen = 0,
-                                ancak = 0,
-                                info = "NULL",
-                                scan_status = 0,
-                                dataIsZipped = 0,
-                                created_by = 0,
-                                karyawan_id = "NULL",
-                                kemandoran_id = "NULL"
-                            )
-                            saveDataMPanenList.add(panenEntity)
-                        }
                         Pair(displayData, saveDataHasilPanen)
                     } catch (e: Exception) {
                         Log.e(TAG, "Error parsing entry: $entry", e)
@@ -679,9 +732,11 @@ class ListTPHApproval : AppCompatActivity() {
         }
 
 
+
     // 1. Create a sealed class to represent different types of save data
     sealed class SaveDataType {
         data class TPHData(val data: TphRvData) : SaveDataType()
         data class PanenData(val data: PanenEntity) : SaveDataType()
     }
+
 }

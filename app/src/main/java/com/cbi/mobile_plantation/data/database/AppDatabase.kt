@@ -69,9 +69,9 @@ import com.cbi.mobile_plantation.utils.AppUtils
         BlokModel::class,
         HektarPanenEntity::class
     ],
-    version = 25
+    version = 26
 )
-abstract class AppDatabase : RoomDatabase() {
+    abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
     abstract fun karyawanDao(): KaryawanDao
     abstract fun panenDao(): PanenDao
