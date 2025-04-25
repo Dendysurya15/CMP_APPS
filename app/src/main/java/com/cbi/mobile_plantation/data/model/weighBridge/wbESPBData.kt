@@ -16,7 +16,7 @@ data class wbESPBData(
     @SerializedName("pemuat_id") val pemuat_id: String,
     @SerializedName("kemandoran_id") val kemandoran_id: String,
     @SerializedName("pemuat_nik") val pemuat_nik: String,
-    @SerializedName("transporter") val transporter: Int,
+    @SerializedName("transporter_id") val transporter: Int,
     @SerializedName("mill_id") val millId: Int,
     @SerializedName("created_by_id") val createdById: Int,
     @SerializedName("no_espb") val noEspb: String,

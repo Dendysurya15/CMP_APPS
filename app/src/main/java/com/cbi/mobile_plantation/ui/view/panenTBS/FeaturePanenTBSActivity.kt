@@ -895,8 +895,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         }
 
-        setupSpinnerView(findViewById(R.id.layoutTahunTanam), emptyList())
-        setupSpinnerView(findViewById(R.id.layoutBlok), emptyList())
+//        setupSpinnerView(findViewById(R.id.layoutTahunTanam), emptyList())
+//        setupSpinnerView(findViewById(R.id.layoutBlok), emptyList())
 
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         setupSpinnerView(findViewById(R.id.layoutTipePanen), tipePanenOptions)
@@ -922,7 +922,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         etHomeMarkerTPH.setText("")
 
 //        blokList = emptyList()
-        kemandoranList = emptyList()
+//        kemandoranList = emptyList()
         kemandoranLainList = emptyList()
         tphList = emptyList()
         ancakInput = ""
@@ -2614,13 +2614,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 layoutTipePanen.visibility = View.VISIBLE
                 selectedTPHIdByScan = null
                 selectedTPHValue = null
-                kemandoranList = emptyList()
+//                kemandoranList = emptyList()
                 kemandoranLainList = emptyList()
                 tphList = emptyList()
 
                 setupSpinnerView(layoutBlok, emptyList())
                 setupSpinnerView(layoutNoTPH, emptyList())
-                setupSpinnerView(layoutKemandoran, emptyList())
+//                setupSpinnerView(layoutKemandoran, emptyList())
 
                 // Repopulate pemanen spinners with cached data
                 if (cachedKaryawanList.isNotEmpty()) {
