@@ -183,34 +183,34 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         var number =
             0
 
-//        val uploadItems = selectedItems.map { item ->
-//            UploadItem(
-//                id = item["id"] as Int,
-//                ip = item["ip"].toString(),
-//                num = number++,
-//                deptPpro = (item["dept_ppro"] as Number).toInt(),
-//                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
-//                commodity = (item["commodity"] as Number).toInt(),
-//                blokJjg = item["blok_jjg"] as String,
-//                nopol = item["nopol"] as String,
-//                driver = item["driver"] as String,
-//                pemuatId = item["pemuat_id"].toString(),
-//                transporterId = (item["transporter_id"] as Number).toInt(),
-//                millId = (item["mill_id"] as Number).toInt(),
-//                createdById = (item["created_by_id"] as Number).toInt(),
-//                createdAt = item["created_at"] as String,
-//                no_espb = item["no_espb"] as String,
-//                uploader_info = infoApp,
-//                uploaded_at = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
-//                    Date()
-//                ),
-//                uploaded_by_id = prefManager!!.idUserLogin!!.toInt(),
-//                file = "",
-//                endpoint = AppUtils.DatabaseServer.PPRO
-//            )
-//        }
+        val uploadItems = selectedItems.map { item ->
+            UploadItem(
+                id = item["id"] as Int,
+                ip = item["ip"].toString(),
+                num = number++,
+                deptPpro = (item["dept_ppro"] as Number).toInt(),
+                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
+                commodity = (item["commodity"] as Number).toInt(),
+                blokJjg = item["blok_jjg"] as String,
+                nopol = item["nopol"] as String,
+                driver = item["driver"] as String,
+                pemuatId = item["pemuat_id"].toString(),
+                transporterId = (item["transporter_id"] as Number).toInt(),
+                millId = (item["mill_id"] as Number).toInt(),
+                createdById = (item["created_by_id"] as Number).toInt(),
+                createdAt = item["created_at"] as String,
+                no_espb = item["no_espb"] as String,
+                uploader_info = infoApp,
+                uploaded_at = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
+                    Date()
+                ),
+                uploaded_by_id = prefManager!!.idUserLogin!!.toInt(),
+                file = "",
+                endpoint = AppUtils.DatabaseServer.PPRO
+            )
+        }
 
-        val uploadItems = emptyList<UploadItem>()
+//        val uploadItems = emptyList<UploadItem>()
 
         var nextId = (uploadItems.maxByOrNull { it.id }?.id ?: 0) + 1
 

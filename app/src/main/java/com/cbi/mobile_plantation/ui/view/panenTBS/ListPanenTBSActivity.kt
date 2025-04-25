@@ -6,6 +6,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -15,6 +16,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -23,7 +26,11 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Base64
 import android.util.Log
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
+import android.view.Window
+import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AnimationUtils
 import android.widget.Button
@@ -67,6 +74,7 @@ import com.cbi.mobile_plantation.utils.ScreenshotUtil
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
 import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
+import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
@@ -1665,6 +1673,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
 //                        }
                 val btnConfirmScanPanenTPH: MaterialButton =
                     view.findViewById(R.id.btnConfirmScanPanenTPH)
+                val btnPreviewFullQR: MaterialButton =
+                    view.findViewById(R.id.btnPreviewFullQR)
+
+                btnPreviewFullQR.setOnClickListener {
+                    showQrCodeFullScreen(qrCodeImageView.drawable, view)
+                }
 
                 // Initially hide QR code and dashed line, show loading
                 qrCodeImageView.visibility = View.GONE
@@ -1708,7 +1722,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     }
                 }
 
-                val maxHeight = (resources.displayMetrics.heightPixels * 0.95).toInt()
+                val maxHeight = (resources.displayMetrics.heightPixels * 0.85).toInt()
 
                 dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
                     ?.let { bottomSheet ->
@@ -2029,6 +2043,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 confimationContainer.alpha = 0f
                                 descQRConfirm.alpha = 0f
                                 btnConfirmScanPanenTPH.alpha = 0f
+                                btnPreviewFullQR.alpha = 0f
 
 
                                 // Create fade-in animations
@@ -2105,6 +2120,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             startDelay = 150
                                         }
 
+                                val fadeInButtonPreviewBtn =
+                                    ObjectAnimator.ofFloat(
+                                        btnPreviewFullQR,
+                                        "alpha",
+                                        0f,
+                                        1f
+                                    )
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
 
                                 // Run animations sequentially
                                 AnimatorSet().apply {
@@ -2124,6 +2151,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             blokSection.visibility = View.VISIBLE
                                             totalSection.visibility = View.VISIBLE
                                             btnConfirmScanPanenTPH.visibility = View.VISIBLE
+                                            btnPreviewFullQR.visibility = View.VISIBLE
 
                                             lifecycleScope.launch {
                                                 delay(200)
@@ -2143,7 +2171,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             fadeInConfirmationContainer.start()
                                             fadeInDescConfirm.start()
                                             fadeInButton.start()
-
+                                            fadeInButtonPreviewBtn.start()
                                         }
                                     })
                                     start()
@@ -2178,6 +2206,93 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
             }
         )
+    }
+
+    private fun showQrCodeFullScreen(qrDrawable: Drawable?, bottomSheetView: View) {
+        if (qrDrawable == null) return
+
+        // Get the bottom sheet behavior to control it
+        val bottomSheetBehavior = BottomSheetBehavior.from(bottomSheetView.parent as View)
+
+        // Save current state to restore later
+        val previousState = bottomSheetBehavior.state
+
+        // Expand bottom sheet fully first
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+
+        // Create a dialog to display the QR code
+        val context = bottomSheetView.context
+        val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+
+        // Make dialog dismissible with back button
+        dialog.setCancelable(true)
+        dialog.setOnCancelListener {
+            // Restore previous bottom sheet state when dismissed with back button
+            bottomSheetBehavior.state = previousState
+        }
+
+        // Inflate the camera_edit layout
+        val fullscreenView = layoutInflater.inflate(R.layout.camera_edit, null)
+        dialog.setContentView(fullscreenView)
+
+        // Find views within the dialog layout
+        val fotoLayout = fullscreenView.findViewById<ConstraintLayout>(R.id.clZoomLayout)
+        val photoView = fullscreenView.findViewById<PhotoView>(R.id.fotoZoom)
+        val closeZoomCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardCloseZoom)
+        val changePhotoCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardChangePhoto)
+        val deletePhotoCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
+
+        // Find the TextView and ImageView for color changes
+        val tvCardCloseButton = fullscreenView.findViewById<TextView>(R.id.tvCardCloseButton)
+        val closeZoomIcon = fullscreenView.findViewById<ImageView>(R.id.closeZoom)
+
+        // Set the image to the PhotoView
+        photoView.setImageDrawable(qrDrawable)
+
+        // Hide edit options
+        changePhotoCard.visibility = View.GONE
+        deletePhotoCard.visibility = View.GONE
+
+        // Set background color of the layout to white using your color resource
+        fotoLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.white))
+
+        // Set close button background color to green using your color resource
+        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
+
+        // Change the text color to white
+        tvCardCloseButton.setTextColor(ContextCompat.getColor(context, R.color.white))
+
+        // Change the close icon tint to white
+        closeZoomIcon.setColorFilter(ContextCompat.getColor(context, R.color.white))
+
+        // Set up close button to restore previous bottom sheet state
+        closeZoomCard.setOnClickListener {
+            dialog.dismiss()
+            // Restore previous bottom sheet state
+            bottomSheetBehavior.state = previousState
+        }
+
+        // Make dialog display properly
+        dialog.window?.apply {
+            // Set window background to white using your color resource
+            setBackgroundDrawable(ColorDrawable(ContextCompat.getColor(context, R.color.white)))
+            setDimAmount(0f) // Remove dimming since we have a white background
+
+            // This is important - use TYPE_APPLICATION to ensure it appears above the bottom sheet
+            attributes.type = WindowManager.LayoutParams.TYPE_APPLICATION
+
+            // Make sure to set the layout flags properly
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+
+            // Add FLAG_NOT_TOUCH_MODAL to make sure it gets all touch events
+            addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+
+            // This helps ensure it appears on top
+            setGravity(Gravity.CENTER)
+        }
+
+        dialog.show()
     }
 
     // Helper function to stop the loading animation and hide UI
