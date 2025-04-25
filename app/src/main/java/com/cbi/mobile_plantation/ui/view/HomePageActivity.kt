@@ -35,7 +35,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.cbi.cmp_project.ui.view.Absensi.ScanAbsensiActivity
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.database.KaryawanDao
 import com.cbi.mobile_plantation.data.model.ESPBEntity
@@ -56,6 +55,7 @@ import com.cbi.mobile_plantation.ui.view.Absensi.FeatureAbsensiActivity
 import com.cbi.mobile_plantation.ui.view.Absensi.ListAbsensiActivity
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
+import com.cbi.mobile_plantation.ui.view.Absensi.ScanAbsensiActivity
 import com.cbi.mobile_plantation.ui.view.Inspection.ListInspectionActivity
 import com.cbi.mobile_plantation.ui.view.espb.ListHistoryESPBActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ListHistoryWeighBridgeActivity
@@ -465,6 +465,7 @@ class HomePageActivity : AppCompatActivity() {
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen }
                 ).filterNotNull()
 
                 AppUtils.ListFeatureByRoleUser.KeraniTimbang -> listOf(

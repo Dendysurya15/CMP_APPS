@@ -1,4 +1,4 @@
-package com.cbi.cmp_project.ui.view.Absensi
+package com.cbi.mobile_plantation.ui.view.Absensi
 
 import android.annotation.SuppressLint
 import android.content.Intent
