@@ -1288,7 +1288,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
 
                         val key =
-                            if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
+                            if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB" || featureName == AppUtils.ListFeatureNames.RekapHasilPanen) "KP" else "TO"
 
                         val toValue = if (jjgJson.has(key)) {
                             jjgJson.getInt(key)
@@ -1305,6 +1305,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val date = dateParts[0]  // 2025-03-28
                         val time = dateParts[1]  // 13:15:18
 
+
+                        AppLogger.d(key.toString())
                         // Use dateIndexMap.size as the index for new dates
                         append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue;")
                     } catch (e: Exception) {
@@ -1984,6 +1986,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 throw e
                             }
                         }
+
+                        AppLogger.d(jsonData.toString())
 
                         val encodedData = withContext(Dispatchers.IO) {
                             try {
@@ -3019,6 +3023,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 mappedData = allWorkerData
                             }
 
+
+
+
+                            AppLogger.d("mappedData $mappedData")
+
                             val processedData =
                                 AppUtils.getPanenProcessedData(originalMappedData, featureName)
                             if (featureName != "Detail eSPB") {
@@ -3928,7 +3937,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val totalTphTextView: TextView = findViewById(R.id.totalTPH)
         val tvTotalTPH: TextView = findViewById(R.id.tvTotalTPH)
         val listBlokTextView: TextView = findViewById(R.id.listBlok) // Add this line
-
+        val titleTotalJjg: TextView = findViewById(R.id.titleTotalJjg)
         val headers = if (featureName == "Buat eSPB") {
             listOf("BLOK", "NO TPH/JJG", "JAM", "KP")
         } else {
@@ -3958,6 +3967,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     totalTphTextView.text = tphCount.toString()
                     totalJjgTextView.text = jjgCount.toString()
                     tvTotalTPH.text = "Jmlh Transaksi: "
+                    titleTotalJjg.text = "Kirim Pabrik: "
 
                     // No need to format again, just join the already formatted blocks
                     val blocksText = formattedBlocks.joinToString(", ")
@@ -3969,6 +3979,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     listBlokTextView.visibility = View.GONE
                 }
             }
+        }else if(featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan){
+            titleTotalJjg.text = "Kirim Pabrik: "
         }
     }
 

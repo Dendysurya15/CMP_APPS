@@ -464,8 +464,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.AsistensiEstateLain },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen }
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen }
                 ).filterNotNull()
 
                 AppUtils.ListFeatureByRoleUser.KeraniTimbang -> listOf(
@@ -480,8 +480,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                 ).filterNotNull()
 
                 AppUtils.ListFeatureByRoleUser.Asisten -> listOf(
@@ -491,8 +491,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                 ).filterNotNull()
 
                 AppUtils.ListFeatureByRoleUser.IT -> features
@@ -2587,6 +2587,12 @@ class HomePageActivity : AppCompatActivity() {
         val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
         val isKeraniTimbang =
             jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true)
+
+        val isMandor1 =
+            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.Mandor1, ignoreCase = true)
+
+        val isAsisten =
+            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.Asisten, ignoreCase = true)
 
         if (isTriggerButtonSinkronisasiData && !isKeraniTimbang) {
             // Get all estate timestamps directly from prefManager

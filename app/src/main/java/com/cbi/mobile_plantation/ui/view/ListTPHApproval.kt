@@ -369,6 +369,7 @@ class ListTPHApproval : AppCompatActivity() {
                                 val totalSection: LinearLayout = findViewById(R.id.total_section)
                                 val blokSection: LinearLayout = findViewById(R.id.blok_section)
                                 val totalJjgTextView: TextView = findViewById(R.id.totalJjg)
+                                val titleTotalJjg: TextView = findViewById(R.id.titleTotalJjg)
                                 val totalTphTextView: TextView = findViewById(R.id.totalTPH)
                                 val listBlokTextView: TextView = findViewById(R.id.listBlok)
 
@@ -377,8 +378,10 @@ class ListTPHApproval : AppCompatActivity() {
 
                                 val blokSummary = calculateBlokSummary(data)
 
+
                                 totalSection.visibility = View.VISIBLE
                                 blokSection.visibility = View.VISIBLE
+                                titleTotalJjg.text = "Kirim Pabrik: "
                                 totalJjgTextView.text = totalJjg.toString()
                                 totalTphTextView.text = totalTphCount.toString()
                                 listBlokTextView.text = blokSummary
