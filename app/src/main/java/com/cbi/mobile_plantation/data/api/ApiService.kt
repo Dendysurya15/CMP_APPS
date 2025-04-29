@@ -3,6 +3,7 @@ package com.cbi.mobile_plantation.data.api
 import com.cbi.mobile_plantation.data.model.LoginResponse
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
+import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.model.weighBridge.UploadStagingResponse
 import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
@@ -117,7 +118,7 @@ interface ApiService {
     @POST("cmpmain/upload")
     suspend fun uploadZip(
         @Part zipFile: MultipartBody.Part
-    ): Response<UploadCMPResponse>
+    ): Response<UploadWBCMPResponse>
 
     //for testing
     @Multipart
