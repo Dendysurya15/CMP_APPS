@@ -3097,7 +3097,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         btnGenerateQRTPHUnl.visibility = View.VISIBLE
                         tvGenQR60.visibility = View.VISIBLE
                         tvGenQRFull.visibility = View.VISIBLE
-                    } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                    }
+                    else if(featureName == "Rekap Hasil Panen" && (currentState == 2 || currentState == 3)){
+                        btnGenerateQRTPHUnl.visibility = View.GONE
+                        tvGenQR60.visibility = View.GONE
+                        tvGenQRFull.visibility = View.GONE
+                        btnGenerateQRTPH.visibility = View.GONE
+                    }
+                    else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                         if (panenList.size > 0) {
                             btnGenerateQRTPH.visibility = View.VISIBLE
                             tvGenQRFull.visibility = View.VISIBLE

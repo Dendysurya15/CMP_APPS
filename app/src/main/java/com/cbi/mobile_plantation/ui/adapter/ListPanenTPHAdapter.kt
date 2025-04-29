@@ -701,6 +701,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
 
             if (archiveState == 1 || featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") {
+                if(binding.flCheckBoxItemTph.visibility  == View.GONE){
+                    binding.flCheckBoxItemTph.visibility = View.VISIBLE
+                }
                 binding.checkBoxPanen.visibility = View.GONE
                 binding.numListTerupload.visibility = View.VISIBLE
                 binding.numListTerupload.text = "${adapterPosition + 1}."
@@ -731,6 +734,23 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 // Add listener AFTER setting state
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
                     onCheckedChange(isChecked)
+                }
+
+                if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState ==3 ){
+                    if (binding.checkBoxPanen.visibility == View.VISIBLE){
+                        binding.flCheckBoxItemTph.visibility = View.GONE
+                    }
+                }
+                else if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState ==0){
+                    if (binding.flCheckBoxItemTph.visibility == View.GONE){
+                        binding.flCheckBoxItemTph.visibility = View.VISIBLE
+                    }
+                }
+                else if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState ==1){
+                    AppLogger.d("masuk sini gesss")
+                    if (binding.flCheckBoxItemTph.visibility == View.GONE){
+                        binding.flCheckBoxItemTph.visibility = View.VISIBLE
+                    }
                 }
             }
         }
