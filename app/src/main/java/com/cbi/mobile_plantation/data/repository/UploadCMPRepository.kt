@@ -113,7 +113,7 @@ class UploadCMPRepository(context: Context) {
 //
 //test failure sengaja
 //                AppLogger.d("askljdlfkjasdf")
-//                if (partNumber == 7 || partNumber == 9) {
+//                if (partNumber == 2 || partNumber == 4) {
 //                    val errorMsg = "Simulated failure for part $partNumber"
 //                    AppLogger.d(errorMsg)
 //                    onProgressUpdate(100, false, errorMsg)
@@ -191,8 +191,7 @@ class UploadCMPRepository(context: Context) {
                 AppLogger.d("Sending upload request with UUID: $batchUuid, Part: $partNumber, Total: $totalParts")
 
                 try {
-                    AppLogger.d("kasjdf")
-                    val response = CMPApiClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
+                    val response = TestingAPIClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
 
                     AppLogger.d("response $response")
                     if (response.isSuccessful) {

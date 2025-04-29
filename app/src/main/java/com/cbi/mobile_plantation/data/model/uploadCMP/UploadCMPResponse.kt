@@ -3,7 +3,7 @@ package com.cbi.mobile_plantation.data.model.uploadCMP
 import com.google.gson.annotations.SerializedName
 
 data class UploadCMPResponse(
-    @SerializedName("tracking_id") val tracking_id: Int,
+    @SerializedName("trackingId") val trackingId: Int,
     val success: Boolean,
     val message: String,
     @SerializedName("uploadedParts") val uploadedParts: Int,

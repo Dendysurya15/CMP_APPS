@@ -228,6 +228,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var selectedTipePanen: String = ""
     private var selectedAfdeling: String = ""
     private var selectedAfdelingIdSpinner: Int = 0
+    private var selectedKemandoranIdSpinner: Int = 0
     private var selectedEstate: String = ""
     private var selectedEstateIdSpinner: Int = 0
     private var selectedBlok: String = ""
@@ -287,6 +288,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private val autoScanInterval = 5000L // 5 seconds
     private lateinit var switchAutoScan: SwitchMaterial
     private lateinit var layoutAutoScan: LinearLayout
+
+    private val _tempKemandoranList = MutableLiveData<List<KemandoranModel>>()
+    val tempKemandoranList: LiveData<List<KemandoranModel>> = _tempKemandoranList
+
+    // 2. Add this function to update your temp list
+    private fun updateTempKemandoranList(newList: List<KemandoranModel>) {
+        _tempKemandoranList.value = newList
+    }
+
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -637,22 +647,24 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                     }
                                 }
 
-                                val selectedNikPemanenLainIds = selectedPemanenLain.mapNotNull { worker ->
-                                    if (worker.name.contains(" - ")) {
-                                        // Find the last occurrence of " - " to extract only the NIK
-                                        val lastDashIndex = worker.name.lastIndexOf(" - ")
-                                        if (lastDashIndex != -1) {
-                                            worker.name.substring(lastDashIndex + 3).trim()
+                                val selectedNikPemanenLainIds =
+                                    selectedPemanenLain.mapNotNull { worker ->
+                                        if (worker.name.contains(" - ")) {
+                                            // Find the last occurrence of " - " to extract only the NIK
+                                            val lastDashIndex = worker.name.lastIndexOf(" - ")
+                                            if (lastDashIndex != -1) {
+                                                worker.name.substring(lastDashIndex + 3).trim()
+                                            } else {
+                                                null
+                                            }
                                         } else {
                                             null
                                         }
-                                    } else {
-                                        null
                                     }
-                                }
 
-                                val uniqueNikPemanen = (selectedNikPemanenIds + selectedNikPemanenLainIds)
-                                    .joinToString(",")
+                                val uniqueNikPemanen =
+                                    (selectedNikPemanenIds + selectedNikPemanenLainIds)
+                                        .joinToString(",")
 
                                 val uniqueIdKaryawan = (idKaryawanList + idKaryawanLainList)
                                     .map { it.toString() }
@@ -827,6 +839,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
     private fun resetFormAfterSaveData() {
+
+        tempKemandoranList.value?.let { savedList ->
+            if (kemandoranList.isEmpty() && savedList.isNotEmpty()) {
+                kemandoranList = savedList
+                AppLogger.d("Restored kemandoranList from tempKemandoranList: ${kemandoranList.size} items")
+            }
+        }
         selectedPemanenAdapter.clearAllWorkers()
         selectedPemanenLainAdapter.clearAllWorkers()
 
@@ -884,9 +903,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             newPosition >= divisiNames.size -> 0  // Default to first if beyond list bounds
             else -> newPosition  // Use the calculated position if it's valid
         }
-
         afdelingSpinner.setSelectedIndex(safePosition)
-
         if (safePosition >= 0 && safePosition < divisiNames.size) {
             val selectedItem = divisiNames[safePosition]
             selectedAfdelingIdSpinner = safePosition
@@ -895,8 +912,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         }
 
-//        setupSpinnerView(findViewById(R.id.layoutTahunTanam), emptyList())
-//        setupSpinnerView(findViewById(R.id.layoutBlok), emptyList())
+        AppLogger.d(kemandoranList.toString())
+        handleItemSelection(kemandoranLayout, selectedKemandoranIdSpinner, selectedKemandoran)
 
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         setupSpinnerView(findViewById(R.id.layoutTipePanen), tipePanenOptions)
@@ -915,7 +932,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
         setupSpinnerView(findViewById(R.id.layoutNoTPH), emptyList())
-        setupSpinnerView(findViewById(R.id.layoutKemandoran), emptyList())
         setupSpinnerView(findViewById(R.id.layoutKemandoranLain), emptyList())
 
         val etHomeMarkerTPH = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
@@ -1961,7 +1977,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         setupSpinnerView(layoutEstate, masterDeptAbbrList)
 
 
-
                     }
                 }
             }
@@ -2492,15 +2507,31 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 // If we're not on the main thread, post to the main thread
                 Handler(Looper.getMainLooper()).post {
                     try {
-                        setupSpinnerViewOnMainThread(linearLayout, data, isMultiSelect, onItemSelected, onMultiItemsSelected)
+                        setupSpinnerViewOnMainThread(
+                            linearLayout,
+                            data,
+                            isMultiSelect,
+                            onItemSelected,
+                            onMultiItemsSelected
+                        )
                     } catch (e: Exception) {
-                        Log.e("SetupSpinnerView", "Error setting up spinner on main thread: ${e.message}", e)
+                        Log.e(
+                            "SetupSpinnerView",
+                            "Error setting up spinner on main thread: ${e.message}",
+                            e
+                        )
                         // Handle error - maybe show a fallback UI or toast notification
                     }
                 }
             } else {
                 // Already on main thread, proceed directly
-                setupSpinnerViewOnMainThread(linearLayout, data, isMultiSelect, onItemSelected, onMultiItemsSelected)
+                setupSpinnerViewOnMainThread(
+                    linearLayout,
+                    data,
+                    isMultiSelect,
+                    onItemSelected,
+                    onMultiItemsSelected
+                )
             }
         } catch (e: Exception) {
             Log.e("SetupSpinnerView", "Error in setupSpinnerView: ${e.message}", e)
@@ -2527,7 +2558,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             // Hide keyboard helper
             fun ensureKeyboardHidden() {
                 try {
-                    val imm = application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    val imm =
+                        application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                     imm.hideSoftInputFromWindow(linearLayout.windowToken, 0)
                     editText.clearFocus()
                 } catch (e: Exception) {
@@ -2554,7 +2586,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                     tvError.visibility = View.GONE
                                     onItemSelected(position)
                                 } catch (e: Exception) {
-                                    Log.e("SetupSpinnerView", "Error in item selection: ${e.message}", e)
+                                    Log.e(
+                                        "SetupSpinnerView",
+                                        "Error in item selection: ${e.message}",
+                                        e
+                                    )
                                 }
                             }
                         }
@@ -2569,7 +2605,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     val selectedCount = masterEstateHasBeenChoice.count { it.value }
                     if (selectedCount > 0) {
                         // Modified: Get selected estate names directly from the keys
-                        val selectedTexts = masterEstateHasBeenChoice.filter { it.value }.keys.toList().sorted()
+                        val selectedTexts =
+                            masterEstateHasBeenChoice.filter { it.value }.keys.toList().sorted()
                     }
 
                     // Update the button text initially
@@ -2600,7 +2637,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                     tvError.visibility = View.GONE
                                     onItemSelected(position) // Single selection callback
                                 } catch (e: Exception) {
-                                    Log.e("SetupSpinnerView", "Error in item selection: ${e.message}", e)
+                                    Log.e(
+                                        "SetupSpinnerView",
+                                        "Error in item selection: ${e.message}",
+                                        e
+                                    )
                                 }
                             }
                         }
@@ -2697,7 +2738,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 setupSpinnerView(findViewById(R.id.layoutTipePanen), tipePanenOptions)
 
                 val tipePanenLayout = findViewById<LinearLayout>(R.id.layoutTipePanen)
-                val tipePanenSpinner = tipePanenLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                val tipePanenSpinner =
+                    tipePanenLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
 
                 if (selectedTipePanen != null && selectedTipePanen.isNotEmpty()) {
                     val tipePanenPosition = selectedTipePanen.toIntOrNull() ?: 0
@@ -3570,9 +3612,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 //
             R.id.layoutKemandoran -> {
                 selectedKemandoran = selectedItem.toString()
+                val workingKemandoranList = if (kemandoranList.isEmpty() && tempKemandoranList.value?.isNotEmpty() == true) {
+                    tempKemandoranList.value!!
+                } else {
+                    kemandoranList
+                }
+
+                AppLogger.d("kemandoranList $workingKemandoranList")
+                AppLogger.d("selectedItem $selectedItem")
 
                 val filteredKemandoranId: Int? = try {
-                    kemandoranList.find {
+                    workingKemandoranList.find {
                         it.nama == selectedKemandoran
                     }?.id
                 } catch (e: Exception) {
@@ -3678,16 +3728,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 // Extract NIK from the selection
                 val lastDashIndex = selectedPemanen.lastIndexOf(" - ")
-                val selectedNik = if (lastDashIndex != -1 && lastDashIndex < selectedPemanen.length - 3) {
-                    val potentialNik = selectedPemanen.substring(lastDashIndex + 3).trim()
-                    if (potentialNik.all { it.isDigit() }) potentialNik else ""
-                } else ""
+                val selectedNik =
+                    if (lastDashIndex != -1 && lastDashIndex < selectedPemanen.length - 3) {
+                        val potentialNik = selectedPemanen.substring(lastDashIndex + 3).trim()
+                        if (potentialNik.all { it.isDigit() }) potentialNik else ""
+                    } else ""
 
                 AppLogger.d("Extracted NIK: $selectedNik")
 
                 // Find the selected employee in karyawanList
                 var selectedEmployee = karyawanList.firstOrNull {
-                    it.nik == selectedNik || it.nama?.trim()?.equals(selectedPemanen.trim(), ignoreCase = true) == true
+                    it.nik == selectedNik || it.nama?.trim()
+                        ?.equals(selectedPemanen.trim(), ignoreCase = true) == true
                 }
 
                 // If not found by exact match, try partial match on name
@@ -3701,7 +3753,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 // If still not found, try fuzzy matching on name
                 if (selectedEmployee == null) {
                     selectedEmployee = karyawanList.firstOrNull {
-                        it.nama?.contains(selectedPemanen.split(" - ")[0], ignoreCase = true) == true
+                        it.nama?.contains(
+                            selectedPemanen.split(" - ")[0],
+                            ignoreCase = true
+                        ) == true
                     }
                 }
 
@@ -3768,7 +3823,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             R.id.layoutKemandoranLain -> {
                 selectedPemanenLainAdapter.clearAllWorkers()
                 selectedKemandoranLain = selectedItem.toString()
-
+                selectedKemandoranIdSpinner = position
 
                 val selectedIdKemandoranLain: Int? = try {
                     kemandoranLainList.find {
@@ -3910,25 +3965,26 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 // Improved NIK extraction - look for the last occurrence of " - " followed by numbers
                 val lastDashIndex = selectedPemanenLain.lastIndexOf(" - ")
-                val selectedNik = if (lastDashIndex != -1 && lastDashIndex < selectedPemanenLain.length - 3) {
-                    val potentialNik = selectedPemanenLain.substring(lastDashIndex + 3).trim()
-                    // Verify if it's a numeric NIK
-                    if (potentialNik.all { it.isDigit() }) {
-                        potentialNik
+                val selectedNik =
+                    if (lastDashIndex != -1 && lastDashIndex < selectedPemanenLain.length - 3) {
+                        val potentialNik = selectedPemanenLain.substring(lastDashIndex + 3).trim()
+                        // Verify if it's a numeric NIK
+                        if (potentialNik.all { it.isDigit() }) {
+                            potentialNik
+                        } else {
+                            // If not numeric, try to find the NIK in the karyawan list by name
+                            val matchingKaryawan = karyawanLainList.firstOrNull {
+                                it.nama?.trim() == selectedPemanenLain.trim()
+                            }
+                            matchingKaryawan?.nik ?: ""
+                        }
                     } else {
-                        // If not numeric, try to find the NIK in the karyawan list by name
+                        // If no dash, try to find the NIK in the karyawan list by name
                         val matchingKaryawan = karyawanLainList.firstOrNull {
                             it.nama?.trim() == selectedPemanenLain.trim()
                         }
                         matchingKaryawan?.nik ?: ""
                     }
-                } else {
-                    // If no dash, try to find the NIK in the karyawan list by name
-                    val matchingKaryawan = karyawanLainList.firstOrNull {
-                        it.nama?.trim() == selectedPemanenLain.trim()
-                    }
-                    matchingKaryawan?.nik ?: ""
-                }
 
                 AppLogger.d("Selected Pemanen Lain: $selectedPemanenLain")
                 AppLogger.d("Extracted NIK: $selectedNik")

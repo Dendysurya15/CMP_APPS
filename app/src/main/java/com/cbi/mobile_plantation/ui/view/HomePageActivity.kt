@@ -1891,7 +1891,7 @@ class HomePageActivity : AppCompatActivity() {
                         globalResponseJsonUploadList.add(
                             ResponseJsonUpload(
                                 response.uuid,
-                                response.tracking_id,
+                                response.trackingId,
                                 response.fileName,
                                 response.statusCode,
                                 response.tanggal_upload,
