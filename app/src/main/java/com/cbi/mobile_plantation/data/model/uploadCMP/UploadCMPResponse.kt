@@ -17,6 +17,16 @@ data class UploadCMPResponse(
     @SerializedName("tanggal_upload") val tanggal_upload: String
 )
 
+data class UploadWBCMPResponse(
+    val success: Boolean,
+    val message: String,
+    @SerializedName("trackingId") val trackingId: String,
+    @SerializedName("uploadedParts") val uploadedParts: Int,
+    val status: Int,
+    @SerializedName("tanggal_upload") val tanggal_upload: String,
+    @SerializedName("nama_file") val nama_file: String
+)
+
 
 data class CheckZipServerResponse(
     val success: Boolean,

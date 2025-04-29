@@ -4,6 +4,7 @@ import android.content.Context
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
+import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -111,12 +112,14 @@ class UploadCMPRepository(context: Context) {
                 onProgressUpdate(0, false, null)
 //
 //test failure sengaja
-//                if (partNumber == 5) {
-//                    val errorMsg = "Simulated failure for part 5"
+//                AppLogger.d("askljdlfkjasdf")
+//                if (partNumber == 7 || partNumber == 9) {
+//                    val errorMsg = "Simulated failure for part $partNumber"
 //                    AppLogger.d(errorMsg)
 //                    onProgressUpdate(100, false, errorMsg)
 //                    return@withContext Result.failure(Exception(errorMsg))
 //                }
+
                 // Check if file exists
                 if (!file.exists()) {
                     val errorMsg = "File does not exist: $fileZipPath"
@@ -188,6 +191,7 @@ class UploadCMPRepository(context: Context) {
                 AppLogger.d("Sending upload request with UUID: $batchUuid, Part: $partNumber, Total: $totalParts")
 
                 try {
+                    AppLogger.d("kasjdf")
                     val response = CMPApiClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
 
                     AppLogger.d("response $response")
@@ -242,7 +246,7 @@ class UploadCMPRepository(context: Context) {
         suspend fun uploadZipToServer(
             fileZipPath: String,
             onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
-        ): Result<UploadCMPResponse> {
+        ): Result<UploadWBCMPResponse> {
             return try {
                 withContext(Dispatchers.IO) {
                     val file = File(fileZipPath)

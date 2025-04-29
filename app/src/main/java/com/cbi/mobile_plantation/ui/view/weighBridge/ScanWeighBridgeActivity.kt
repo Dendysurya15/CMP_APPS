@@ -751,6 +751,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             try {
                 withContext(Dispatchers.IO) {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
+
+
+                    AppLogger.d(jsonStr.toString())
                     val parsedData = Gson().fromJson(jsonStr, wbQRData::class.java)
 
                     AppLogger.d("Parsed Data: $parsedData")
@@ -779,7 +782,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val pemuatNama = pemuatData?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
                         ?.joinToString(", ") ?: "-"
 
-
                     AppLogger.d(idBlokList.toString())
                     val blokData = try {
                         AppLogger.d(idBlokList.toString())
@@ -798,17 +800,16 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val deptAbbr = blokData.firstOrNull()?.dept_abbr ?: "-"
                     val divisiAbbr = blokData.firstOrNull()?.divisi_abbr ?: "-"
 
-                    AppLogger.d(blokData.toString())
                     try {
                         // Check if first item exists and has dept_ppro and divisi_ppro
                         val firstBlok = blokData.firstOrNull()
-                            ?: throw Exception("Blok tidak ditemukan, coba kembali pada user regional yang sesuai")
+                            ?: throw Exception("Terjadi kesalahan. Mohon ulangi pemindaian dengan fokus kamera yang tepat.")
 
                         val deptPpro = firstBlok.dept_ppro
-                            ?: throw Exception("Blok tidak ditemukan, coba kembali pada user regional yang sesuai")
+                            ?: throw Exception("Terjadi kesalahan. Mohon ulangi pemindaian dengan fokus kamera yang tepat.")
 
                         val divisiPpro = firstBlok.divisi_ppro
-                            ?: throw Exception("Blok tidak ditemukan, coba kembali pada user regional yang sesuai")
+                            ?: throw Exception("Terjadi kesalahan. Mohon ulangi pemindaian dengan fokus kamera yang tepat.")
 
                         // Assign only if we didn't throw any exceptions
                         globalDeptPPRO = deptPpro
@@ -864,7 +865,39 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     }
                     val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
 
-                    AppLogger.d(" parsedData?.espb?.blokJjg ${parsedData?.espb?.blokJjg}")
+                    // Get the string from pemuat_nik
+                    val pemuatNikString = parsedData?.espb?.pemuat_nik.toString()
+
+// Simple string extraction to get NIK values
+                    val nikList = mutableListOf<String>()
+                    var currentIndex = 0
+
+                    while (true) {
+                        // Find next occurrence of "nik="
+                        val nikIndex = pemuatNikString.indexOf("nik=", currentIndex)
+                        if (nikIndex == -1) break // No more NIKs found
+
+                        // Move position after "nik="
+                        currentIndex = nikIndex + 4
+
+                        // Find comma after the NIK value
+                        val commaIndex = pemuatNikString.indexOf(",", currentIndex)
+                        if (commaIndex == -1) break // Unexpected format
+
+                        // Extract the NIK value
+                        val nikValue = pemuatNikString.substring(currentIndex, commaIndex)
+                        nikList.add(nikValue)
+
+                        // Move position for next search
+                        currentIndex = commaIndex + 1
+                    }
+
+// Join all NIK values with commas
+                    val nikValues = nikList.joinToString(",")
+
+// Log and store the result
+                    AppLogger.d("Extracted NIK values: $nikValues")
+                    globalPemuatNik = nikValues
                     globalBlokId = concatenatedIds
                     globalTotalJjg = totalJjg.toString()
                     globalBlokPPROJjg = BlokPPROJjg
@@ -875,7 +908,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalTransporterId = transporterId
                     globalPemuatId = parsedData?.espb?.pemuat_id ?: "-"
                     globalKemandoranId = parsedData?.espb?.kemandoran_id ?: "-"
-                    globalPemuatNik = parsedData?.espb?.pemuat_nik ?: "-"
+                    globalPemuatNik = nikValues
                     globalMillId = millId
                     globalTph0 = parsedData?.tph0 ?: "-"
                     globalTph1 = parsedData?.tph1 ?: "-"

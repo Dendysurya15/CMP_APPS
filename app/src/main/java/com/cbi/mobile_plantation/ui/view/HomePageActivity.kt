@@ -2440,6 +2440,16 @@ class HomePageActivity : AppCompatActivity() {
                             )
                             btnSinkronisasiDataset.visibility = View.GONE
                             btnRetryDownload.visibility = View.GONE
+
+                            val indonesiaTimeZone = TimeZone.getTimeZone("Asia/Jakarta")
+                            val simpleDateFormat =
+                                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                            simpleDateFormat.timeZone = indonesiaTimeZone
+                            val currentDateTimeIndonesia = simpleDateFormat.format(Date())
+
+                            prefManager!!.lastSyncDate = currentDateTimeIndonesia
+
+                            _globalLastSync.value = currentDateTimeIndonesia
                         } else {
                             // Some or all failed
                             AppLogger.d("ada yg error update dataset")

@@ -466,19 +466,22 @@ class WeighBridgeRepository(context: Context) {
                                     progressRequestBody
                                 )
 
+                                AppLogger.d(filePart.toString())
+
                                 val response = CMPApiClient.instance.uploadZip(filePart)
 
                                 if (response.isSuccessful) {
                                     val responseBody = response.body()
 
 
+                                    AppLogger.d(responseBody.toString())
                                     responseBody?.let {
                                         val jsonResultTableIds = createJsonTableNameMapping(globalIdESPB) // Pass globalIdESPB
 
                                         val uploadData = UploadCMPModel(
-                                            tracking_id = it.uuid,
-                                            nama_file = it.fileName,
-                                            status = it.statusCode,
+                                            tracking_id = it.trackingId,
+                                            nama_file = it.nama_file,
+                                            status = it.status,
                                             tanggal_upload = it.tanggal_upload,
                                             table_ids = jsonResultTableIds
                                         )
