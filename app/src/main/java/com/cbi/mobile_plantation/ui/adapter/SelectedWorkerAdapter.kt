@@ -16,6 +16,7 @@ data class Worker(val id: String, val name: String)  // Define a Worker model
 class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHolder>() {
     private val selectedWorkers = mutableListOf<Worker>()
     private val allWorkers = mutableListOf<Worker>()  // Keep track of all workers
+    private var isEnabled = true  // Track if the adapter is enabled or disabled
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val workerName: TextView = view.findViewById(R.id.worker_name)
@@ -32,8 +33,15 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val worker = selectedWorkers[position]
         holder.workerName.text = worker.name.uppercase() // Display name
+
+        // Apply disabled state to the remove button if needed
+        holder.removeButton.isEnabled = isEnabled
+        holder.removeButton.alpha = if (isEnabled) 1.0f else 0.5f
+
         holder.removeButton.setOnClickListener {
-            removeWorker(position, holder.context)
+            if (isEnabled) {  // Only allow removal if enabled
+                removeWorker(position, holder.context)
+            }
         }
     }
 
@@ -67,6 +75,17 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
         selectedWorkers.clear()
         allWorkers.clear()
         notifyDataSetChanged()
+    }
+
+    /**
+     * Set the enabled state of the adapter.
+     * When disabled, remove buttons will be disabled and visually greyed out.
+     */
+    fun setEnabled(enabled: Boolean) {
+        if (this.isEnabled != enabled) {
+            this.isEnabled = enabled
+            notifyDataSetChanged() // Refresh all items to update their visual state
+        }
     }
 }
 

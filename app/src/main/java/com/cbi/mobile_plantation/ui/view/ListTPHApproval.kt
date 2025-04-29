@@ -38,6 +38,7 @@ import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -228,6 +229,7 @@ class ListTPHApproval : AppCompatActivity() {
                                             _saveDataPanenState.value = SaveDataPanenState.Success(saveResult.savedIds)
 
                                             playSound(R.raw.berhasil_simpan)
+                                            delay(300)
                                             Toasty.success(
                                                 this@ListTPHApproval,
                                                 "Data berhasil disimpan",

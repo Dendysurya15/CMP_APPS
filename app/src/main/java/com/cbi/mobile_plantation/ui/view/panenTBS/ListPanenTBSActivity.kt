@@ -946,6 +946,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
 
             if (featureName == "Buat eSPB") {
+                flCheckBoxTableHeaderLayout.visibility = View.GONE
                 panenViewModel.loadActivePanenESPB()
             } else if (featureName == "Rekap panen dan restan") {
                 loadingDialog.setMessage("Loading data tph...")
@@ -2408,6 +2409,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         panenViewModel.activePanenList.observe(this) { panenList ->
+
             if (currentState == 0 || currentState == 2 || currentState == 3) {
                 listAdapter.updateData(emptyList())
                 Handler(Looper.getMainLooper()).postDelayed({
@@ -3023,11 +3025,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 mappedData = allWorkerData
                             }
 
-
-
-
-                            AppLogger.d("mappedData $mappedData")
-
                             val processedData =
                                 AppUtils.getPanenProcessedData(originalMappedData, featureName)
                             if (featureName != "Detail eSPB") {
@@ -3113,7 +3110,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         } else {
                             btnGenerateQRTPH.visibility = View.GONE
                         }
+                    }else if(featureName == AppUtils.ListFeatureNames.BuatESPB){
+                        val headerCheckBoxPanen = findViewById<ConstraintLayout>(R.id.tableHeader)
+                            .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                        headerCheckBoxPanen.visibility = View.GONE
                     }
+
                 }, 500)
             }
         }
