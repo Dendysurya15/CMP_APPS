@@ -246,14 +246,20 @@ class ListTPHApproval : AppCompatActivity() {
                             }
 
                             // Create creator info JSON
-                            val creatorInfo = createCreatorInfo(appVersion, osVersion, phoneModel).toString()
+                            val creatorInfo =
+                                createCreatorInfo(appVersion, osVersion, phoneModel).toString()
                             val createdBy = prefManager!!.idUserLogin.toString()
 
-                            val result = if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
-                                repository.saveTPHDataList(saveData.map { (it as SaveDataType.TPHData).data })
-                            } else {
-                                repository.saveScanMPanen(saveDataMPanenList, createdBy, creatorInfo)
-                            }
+                            val result =
+                                if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
+                                    repository.saveTPHDataList(saveData.map { (it as SaveDataType.TPHData).data })
+                                } else {
+                                    repository.saveScanMPanen(
+                                        saveDataMPanenList,
+                                        createdBy,
+                                        creatorInfo
+                                    )
+                                }
 
                             result.fold(
                                 onSuccess = { saveResult ->
@@ -374,7 +380,11 @@ class ListTPHApproval : AppCompatActivity() {
         }
     }
 
-    private fun createCreatorInfo(appVersion: String, osVersion: String, phoneModel: String): JsonObject {
+    private fun createCreatorInfo(
+        appVersion: String,
+        osVersion: String,
+        phoneModel: String
+    ): JsonObject {
         return JsonObject().apply {
             addProperty("app_version", appVersion)
             addProperty("os_version", osVersion)
@@ -619,98 +629,97 @@ class ListTPHApproval : AppCompatActivity() {
                                 username = usernameString
                             )
                         } else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
-                                // Extract the values from parts first
-                                idtph = parts[2].toInt()         // TPH ID
-                                dateIndex = parts[0]             // Date index
-                                time = parts[1]                  // Time
-                                jjg = parts[4].toInt() + parts[5].toInt() + parts[6].toInt() + parts[7].toInt() + parts[8].toInt()
+                            // Extract the values from parts first
+                            idtph = parts[2].toInt()         // TPH ID
+                            dateIndex = parts[0]             // Date index
+                            time = parts[1]                  // Time
+                            jjg =
+                                parts[4].toInt() + parts[5].toInt() + parts[6].toInt() + parts[7].toInt() + parts[8].toInt()
 
-                                // Get the full date from the date map
-                                val fullDate = dateMap[dateIndex] ?: "Unknown Date"
-                                val fullDateTime = "$fullDate $time"
+                            // Get the full date from the date map
+                            val fullDate = dateMap[dateIndex] ?: "Unknown Date"
+                            val fullDateTime = "$fullDate $time"
 
-                                Log.d(TAG, "Processing idtph: $idtph, dateIndex: $dateIndex, time: $time, jjg: $jjg")
-                                Log.d(TAG, "Full datetime: $fullDateTime")
+                            Log.d(
+                                TAG,
+                                "Processing idtph: $idtph, dateIndex: $dateIndex, time: $time, jjg: $jjg"
+                            )
+                            Log.d(TAG, "Full datetime: $fullDateTime")
 
-                                // Now get the TPH info with the proper idtph value
-                                val tphInfo = try {
-                                    repository.getTPHAndBlokInfo(idtph)
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Error getting TPH info for idtph $idtph", e)
-                                    null
-                                }
-
-                                val displayName = tphInfo?.blokKode ?: "Unknown"
-
-                                val noTph = try {
-                                    tphInfo?.tphNomor?.toInt() ?: 0
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Error parsing tphNomor: ${tphInfo?.tphNomor}", e)
-                                    0
-                                }
-
-                                // Use the fourth value (index 3) as the NIK key
-                                val nikKey = parts[3]
-                                val nik = nikMap[nikKey] ?: "NULL"
-
-                                Log.d(TAG, "Using NIK key: $nikKey, got NIK: $nik")
-
-                                // Parse names for display
-                                val karyawan = try {
-                                    if (nik.contains(",")) {
-                                        // Multiple NIKs, split and retrieve name for each
-                                        val niks = nik.split(",").map { it.trim() }
-                                        val names = niks.map { singleNik ->
-                                            val name = repository.getNamaByNik(singleNik)
-                                            name ?: singleNik // Fallback to NIK if name can't be found
-                                        }
-                                        names.joinToString(", ")
-                                    } else {
-                                        // Single NIK
-                                        repository.getNamaByNik(nik) ?: nik
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Error getting karyawan info for NIK $nik", e)
-                                    nik // Fallback to NIK if name can't be found
-                                }
-
-                                displayData = TphRvData(
-                                    namaBlok = "$displayName-$noTph",
-                                    noTPH = karyawan, // Use karyawan name for display
-                                    time = time,
-                                    jjg = jjg.toString(),
-                                    username = usernameString
-                                )
-
-                                // 2. Create separate PanenEntity for each NIK
-                                val kPpA = parts[5].toInt() + parts[7].toInt() + parts[8].toInt()
-
-                                // Split NIKs if necessary
-                                val nikList = nik.split(",").map { it.trim() }
-
-                                for (singleNik in nikList) {
-                                    val panenEntity = PanenEntity(
-                                        tph_id = idtph.toString(),
-                                        date_created = fullDateTime,
-                                        karyawan_nik = singleNik, // Use individual NIK
-                                        jjg_json = "{\"TO\":$jjg,\"UN\":${parts[4]},\"OV\":${parts[5]},\"EM\":${parts[6]},\"AB\":${parts[7]},\"RI\":${parts[8]},\"KP\":$kPpA,\"PA\":$kPpA}",
-                                        foto = "NULL",
-                                        komentar = "NULL",
-                                        asistensi = 0,
-                                        lat = 0.0,
-                                        lon = 0.0,
-                                        jenis_panen = 0,
-                                        ancak = 0,
-                                        info = "NULL",
-                                        scan_status = 0,
-                                        dataIsZipped = 0,
-                                        created_by = 0,
-                                        karyawan_id = "NULL",
-                                        kemandoran_id = "NULL"
-                                    )
-                                    saveDataMPanenList.add(panenEntity)
-                                }
+                            // Now get the TPH info with the proper idtph value
+                            val tphInfo = try {
+                                repository.getTPHAndBlokInfo(idtph)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error getting TPH info for idtph $idtph", e)
+                                null
                             }
+
+                            val displayName = tphInfo?.blokKode ?: "Unknown"
+
+                            val noTph = try {
+                                tphInfo?.tphNomor?.toInt() ?: 0
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error parsing tphNomor: ${tphInfo?.tphNomor}", e)
+                                0
+                            }
+
+                            // Use the fourth value (index 3) as the NIK key
+                            val nikKey = parts[3]
+                            val nik = nikMap[nikKey] ?: "NULL"
+
+                            Log.d(TAG, "Using NIK key: $nikKey, got NIK: $nik")
+
+                            // Parse names for display
+                            val karyawan = try {
+                                if (nik.contains(",")) {
+                                    // Multiple NIKs, split and retrieve name for each
+                                    val niks = nik.split(",").map { it.trim() }
+                                    val names = niks.map { singleNik ->
+                                        val name = repository.getNamaByNik(singleNik)
+                                        name ?: singleNik // Fallback to NIK if name can't be found
+                                    }
+                                    names.joinToString(", ")
+                                } else {
+                                    // Single NIK
+                                    repository.getNamaByNik(nik) ?: nik
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error getting karyawan info for NIK $nik", e)
+                                nik // Fallback to NIK if name can't be found
+                            }
+
+                            displayData = TphRvData(
+                                namaBlok = "$displayName-$noTph",
+                                noTPH = karyawan, // Use karyawan name for display
+                                time = time,
+                                jjg = jjg.toString(),
+                                username = usernameString
+                            )
+
+                            // 2. Create separate PanenEntity for each NIK
+                            val kPpA = parts[5].toInt() + parts[7].toInt() + parts[8].toInt()
+                            val panenEntity = PanenEntity(
+                                tph_id = idtph.toString(),
+                                date_created = fullDateTime,
+                                karyawan_nik = nik,
+                                jjg_json = "{\"TO\":$jjg,\"UN\":${parts[4]},\"OV\":${parts[5]},\"EM\":${parts[6]},\"AB\":${parts[7]},\"RI\":${parts[8]},\"KP\":$kPpA,\"PA\":$kPpA}",
+                                foto = "NULL",
+                                komentar = "NULL",
+                                asistensi = 0,
+                                lat = 0.0,
+                                lon = 0.0,
+                                jenis_panen = 0,
+                                ancak = 0,
+                                info = "NULL",
+                                scan_status = 0,
+                                dataIsZipped = 0,
+                                created_by = 0,
+                                karyawan_id = "NULL",
+                                kemandoran_id = "NULL",
+                                jumlah_pemanen = if (nik.contains(",")) nik.split(",").size else 1
+                            )
+                            saveDataMPanenList.add(panenEntity)
+                        }
                         Pair(displayData, saveDataHasilPanen)
                     } catch (e: Exception) {
                         Log.e(TAG, "Error parsing entry: $entry", e)
@@ -730,7 +739,6 @@ class ListTPHApproval : AppCompatActivity() {
                 return@withContext emptyList()
             }
         }
-
 
 
     // 1. Create a sealed class to represent different types of save data
