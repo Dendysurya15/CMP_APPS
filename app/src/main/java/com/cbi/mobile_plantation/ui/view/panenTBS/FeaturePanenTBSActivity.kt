@@ -898,31 +898,26 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
 
-        //handle agar kemandoran dan pemanen tidak di reset
         val kemandoranNames = kemandoranList.mapNotNull { it.nama }
         setupSpinnerView(kemandoranLayout, kemandoranNames)
         val kemandoranSpinner = kemandoranLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+        // Find the position of the saved kemandoran in the list
         val kemandoranPosition = kemandoranNames.indexOf(selectedKemandoran)
         AppLogger.d("Found kemandoranPosition: $kemandoranPosition for name: $selectedKemandoran")
-        val safeKemandoranPosition = when {
-            kemandoranPosition < 0 -> 0 // Default to first item if not found
-            kemandoranNames.isEmpty() -> -1 // Don't select if empty
-            kemandoranPosition >= kemandoranNames.size -> 0 // Default to first if out of bounds
-            else -> kemandoranPosition
-        }
 
-        AppLogger.d("Using safeKemandoranPosition: $safeKemandoranPosition")
-        if (kemandoranNames.isNotEmpty() && safeKemandoranPosition >= 0) {
+        // Only proceed with selection if we have a valid position and non-empty selection
+        if (kemandoranPosition >= 0 && selectedKemandoran.isNotEmpty() && kemandoranNames.isNotEmpty()) {
             try {
                 // Force selection by posting to the main thread
                 kemandoranSpinner.post {
                     // Explicitly set the text first to override the hint
-                    val textToSet = kemandoranNames[safeKemandoranPosition]
+                    val textToSet = kemandoranNames[kemandoranPosition]
                     kemandoranSpinner.setText(textToSet)
 
                     // Then set the selected index
-                    kemandoranSpinner.setSelectedIndex(safeKemandoranPosition)
-                    AppLogger.d("Set selectedIndex to: $safeKemandoranPosition with text: $textToSet")
+                    kemandoranSpinner.setSelectedIndex(kemandoranPosition)
+                    AppLogger.d("Set selectedIndex to: $kemandoranPosition with text: $textToSet")
 
                     // Force UI update with a small delay to ensure rendering
                     Handler(Looper.getMainLooper()).postDelayed({
@@ -933,12 +928,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         // If the spinner still shows hint, try alternative approach
                         if (actualText != textToSet) {
-                            // Alternative approach - try setting directly through reflection
+                            // Alternative approach - try setting directly
                             try {
-                                // Force the selection to be visible
                                 kemandoranSpinner.performClick()
                                 Handler(Looper.getMainLooper()).postDelayed({
-                                    kemandoranSpinner.setSelectedIndex(safeKemandoranPosition)
+                                    kemandoranSpinner.setSelectedIndex(kemandoranPosition)
                                     kemandoranSpinner.setText(textToSet)
                                     kemandoranSpinner.performClick() // Close the dropdown
                                 }, 100)
@@ -948,119 +942,52 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
 
                         // Update tracking variables
-                        selectedKemandoranIdSpinner = safeKemandoranPosition
+                        selectedKemandoranIdSpinner = kemandoranPosition
                         selectedKemandoran = textToSet
                         AppLogger.d("Updated selectedKemandoran to: $textToSet")
 
-                        // Find the kemandoran ID
-                        val filteredKemandoranId: Int? = try {
-                            kemandoranList.find { it.nama == selectedKemandoran }?.id
-                        } catch (e: Exception) {
-                            AppLogger.e("Error finding Kemandoran ID: ${e.message}")
-                            null
-                        }
-                        AppLogger.d("Filtered Kemandoran ID: $filteredKemandoranId")
-
-                        // Continue with the selection handling, similar to your original code
-                        if (filteredKemandoranId != null) {
-                            AppLogger.d("Continuing with kemandoran selection handling for ID: $filteredKemandoranId")
-
-                            // Show the filter container
-                            val filterContainer =
-                                kemandoranLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
-                            val removeFilterButton =
-                                filterContainer.findViewById<ImageView>(R.id.remove_filter)
-                            filterContainer.visibility = View.VISIBLE
-
-                            // Set up the remove filter button click listener
-                            removeFilterButton.setOnClickListener {
-                                // Hide the filter container
-                                vibrate()
-                                filterContainer.visibility = View.GONE
-
-                                // Clear tracking variables
-                                selectedKemandoran = ""
-
-                                // Reset spinner to hint
-                                val kemandoranSpinner =
-                                    kemandoranLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-
-                                // Get current items
-                                val kemandoranItems = kemandoranList.mapNotNull { it.nama }
-
-                                // Recreate spinner with the same items (resets to hint)
-                                setupSpinnerView(kemandoranLayout, kemandoranItems)
-
-                                // Reload all karyawan
-                                lifecycleScope.launch {
-                                    try {
-                                        loadPemanenFullEstate(kemandoranLayout.rootView)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(
-                                            this@FeaturePanenTBSActivity,
-                                            "Error load full pemanen estate: ${e.message}",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
-                                }
-                            }
-
-                            // Use the original filtering approach without reloading everything
-                            lifecycleScope.launch(Dispatchers.IO) {
-                                withContext(Dispatchers.Main) {
-                                    animateLoadingDots(kemandoranLayout)
-                                    delay(1000) // 1 second delay
-                                }
-
-                                try {
-                                    val karyawanDeferred = async {
-                                        datasetViewModel.getKaryawanList(filteredKemandoranId)
-                                    }
-
-                                    karyawanList = karyawanDeferred.await()
-
-                                    val karyawanNames = karyawanList
-                                        .sortedBy { it.nama } // Sort by name alphabetically
-                                        .map { "${it.nama} - ${it.nik ?: "N/A"}" }
-
-                                    withContext(Dispatchers.Main) {
-                                        val layoutPemanen =
-                                            kemandoranLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
-                                        layoutPemanen.visibility = View.VISIBLE
-
-                                        if (karyawanNames.isNotEmpty()) {
-                                            setupSpinnerView(layoutPemanen, karyawanNames)
-                                        } else {
-                                            setupSpinnerView(layoutPemanen, emptyList())
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error fetching karyawan data: ${e.message}")
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(
-                                            this@FeaturePanenTBSActivity,
-                                            "Error loading worker data: ${e.message}",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
-                                } finally {
-                                    withContext(Dispatchers.Main) {
-                                        hideLoadingDots(kemandoranLayout)
-                                    }
-                                }
-                            }
-                        } else {
-                            AppLogger.e("Filtered Kemandoran ID is null, skipping data fetch.")
-                        }
+                        // Call handleItemSelection to trigger the regular selection handling logic
+                        handleItemSelection(kemandoranLayout, kemandoranPosition, textToSet)
                     }, 200) // Small delay to ensure UI updates
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error setting kemandoran selection: ${e.message}")
+                // Call the suspend function from a coroutine
+                lifecycleScope.launch {
+                    try {
+                        loadPemanenFullEstate(kemandoranLayout.rootView)
+                    } catch (e: Exception) {
+                        Toast.makeText(
+                            this@FeaturePanenTBSActivity,
+                            "Error loading full pemanen estate: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
             }
         } else {
+            // If no valid kemandoran is found or selection is empty, leave as hint
+            AppLogger.d("No valid kemandoran selection found, leaving as hint")
+
+            // Reset kemandoran selection variables
             selectedKemandoranIdSpinner = -1
             selectedKemandoran = ""
-            AppLogger.d("Reset kemandoran selection (empty list or invalid position)")
+
+            // Ensure spinner shows hint
+            kemandoranSpinner.setHint("Pilih Kategori Yang Sesuai")
+
+            // Call the suspend function from a coroutine
+            lifecycleScope.launch {
+                try {
+                    loadPemanenFullEstate(kemandoranLayout.rootView)
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Error loading full pemanen estate: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
         }
 
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
