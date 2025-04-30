@@ -1891,29 +1891,29 @@ class HomePageActivity : AppCompatActivity() {
                     response?.let {
                         globalResponseJsonUploadList.add(
                             ResponseJsonUpload(
-                                response.uuid,
-                                response.trackingId,
-                                response.fileName,
-                                response.statusCode,
+                                "",
+                                response.trackingId.toInt(),
+                                response.nama_file,
+                                response.status,
                                 response.tanggal_upload,
                                 response.uploadedParts
                             )
                         )
 
-                        val keyZipName = response.fileName
+                        val keyZipName = response.nama_file
 
                         if (allUploadZipFilesToday.isNotEmpty()) {
                             try {
                                 val extractionDeferred =
                                     CompletableDeferred<Pair<List<Int>, List<Int>>>()
 
-                                AppLogger.d("Starting ZIP extraction for ${response.fileName}, part $keyZipName")
+                                AppLogger.d("Starting ZIP extraction for ${response.nama_file}, part $keyZipName")
 
                                 launch(Dispatchers.IO) {
                                     try {
                                         val result = AppUtils.extractIdsFromZipFile(
                                             context = this@HomePageActivity,
-                                            fileName = response.fileName,
+                                            fileName = response.nama_file,
                                             zipPassword = AppUtils.ZIP_PASSWORD
                                         )
                                         extractionDeferred.complete(result)
@@ -1957,21 +1957,21 @@ class HomePageActivity : AppCompatActivity() {
         AppLogger.d("globalResponseJsonUploadList $globalResponseJsonUploadList")
 
         // Track processed UUID+filename pairs to avoid duplicates
-        val processedPairs = mutableSetOf<Pair<String, String>>()
+        val processedPairs = mutableSetOf<Pair<Int, String>>()
         var successfullyProcessedCount = 0
 
         // Filter for successful uploads and sort by part number
         val successfulUploads = globalResponseJsonUploadList
-            .filter { it.statusCode == 1 || it.statusCode == 3 }
+            .filter { it.statusCode == 1 || it.statusCode == 3 || it.statusCode == 2 || it.statusCode == 5 }
             .sortedByDescending { it.partNumber ?: 0 }
 
         // Process each successful upload
         for (responseInfo in successfulUploads) {
-            val uniqueKey = Pair(responseInfo.uuid, responseInfo.fileName)
+            val uniqueKey = Pair(responseInfo.tracking_id, responseInfo.fileName)
 
             // Skip if we've already processed this specific UUID + filename combination
             if (uniqueKey in processedPairs) {
-                AppLogger.d("Skipping duplicate processing for UUID: ${responseInfo.uuid}, filename: ${responseInfo.fileName}")
+                AppLogger.d("Skipping duplicate processing for UUID: ${responseInfo.tracking_id}, filename: ${responseInfo.fileName}")
                 continue
             }
 
@@ -1987,7 +1987,7 @@ class HomePageActivity : AppCompatActivity() {
             AppLogger.d("Original date: ${responseInfo.tanggal_upload}, Formatted date: $formattedDate")
 
             uploadCMPViewModel.UpdateOrInsertDataUpload(
-                responseInfo.uuid,
+                responseInfo.tracking_id.toString(),
                 responseInfo.fileName,
                 responseInfo.statusCode,
                 formattedDate,

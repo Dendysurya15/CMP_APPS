@@ -102,7 +102,7 @@ class UploadCMPRepository(context: Context) {
         partNumber: Int,
         totalParts: Int,
         onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
-    ): Result<UploadCMPResponse> {
+    ): Result<UploadWBCMPResponse> {
         return try {
             withContext(Dispatchers.IO) {
 
@@ -191,7 +191,8 @@ class UploadCMPRepository(context: Context) {
                 AppLogger.d("Sending upload request with UUID: $batchUuid, Part: $partNumber, Total: $totalParts")
 
                 try {
-                    val response = CMPApiClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
+//                    val response = CMPApiClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
+                    val response = CMPApiClient.instance.uploadZip(filePart)
 
                     AppLogger.d("response $response")
                     if (response.isSuccessful) {

@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
+import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.repository.UploadCMPRepository
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -177,8 +178,8 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
     val itemErrorMap: LiveData<Map<Int, String?>> get() = _itemErrorMap
 
     // Map to store responses for each upload item by ID
-    private val _itemResponseMap = MutableLiveData<Map<Int, UploadCMPResponse?>>(mutableMapOf())
-    val itemResponseMap: LiveData<Map<Int, UploadCMPResponse?>> get() = _itemResponseMap
+    private val _itemResponseMap = MutableLiveData<Map<Int, UploadWBCMPResponse?>>(mutableMapOf())
+    val itemResponseMap: LiveData<Map<Int, UploadWBCMPResponse?>> get() = _itemResponseMap
 
     // Track completed uploads count
     val _completedCount = MutableLiveData(0)
@@ -224,7 +225,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             }
             val errorMap = items.associate { it.id to null as String? }
-            val responseMap = items.associate { it.id to null as UploadCMPResponse? }
+            val responseMap = items.associate { it.id to null as UploadWBCMPResponse? }
 
             _itemProgressMap.value = progressMap
             _itemStatusMap.value = statusMap
@@ -317,7 +318,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
         _itemErrorMap.postValue(currentMap)  // Changed to postValue
     }
 
-    private fun updateItemResponse(id: Int, response: UploadCMPResponse?) {
+    private fun updateItemResponse(id: Int, response: UploadWBCMPResponse?) {
         val currentMap = _itemResponseMap.value?.toMutableMap() ?: mutableMapOf()
         currentMap[id] = response
         _itemResponseMap.postValue(currentMap)  // Changed to postValue
