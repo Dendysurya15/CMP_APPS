@@ -229,6 +229,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var selectedAfdeling: String = ""
     private var selectedAfdelingIdSpinner: Int = 0
     private var selectedKemandoranIdSpinner: Int = 0
+    private var selectedTahunTanamIdSpinner: Int = 0
+    private var selectedTPHIdSpinner: Int = 0
     private var selectedEstate: String = ""
     private var selectedEstateIdSpinner: Int = 0
     private var selectedBlok: String = ""
@@ -831,8 +833,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     private fun resetFormAfterSaveData() {
 
-        selectedPemanenAdapter.clearAllWorkers()
-        selectedPemanenLainAdapter.clearAllWorkers()
+//        selectedPemanenAdapter.clearAllWorkers()
+//        selectedPemanenLainAdapter.clearAllWorkers()
 
         if (blokBanjir == 0) {
             tphScannedResultRecyclerView.visibility = View.GONE
@@ -843,6 +845,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val kemandoranLayout = findViewById<LinearLayout>(R.id.layoutKemandoran)
         val kemandoranLainLayout = findViewById<LinearLayout>(R.id.layoutKemandoranLain)
+        val tahunTanamLayout = findViewById<LinearLayout>(R.id.layoutTahunTanam)
 
         // Reset main kemandoran filter container
         val kemandoranFilterContainer =
@@ -895,6 +898,148 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             selectedAfdeling = selectedItem
             handleItemSelection(afdelingLayout, safePosition, selectedItem)
 
+        }
+
+        // Handle tahun tanam selection similarly
+        val tahunTanamNames = if (blokList.isNotEmpty()) {
+            blokList.mapNotNull { it.tahun }.distinct().sortedBy { it.toIntOrNull() }
+        } else {
+            emptyList()
+        }
+
+        setupSpinnerView(tahunTanamLayout, tahunTanamNames)
+        val tahunTanamSpinner = tahunTanamLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+
+        val tahunTanamPosition = tahunTanamNames.indexOf(selectedTahunTanamValue)
+        AppLogger.d("Found tahunTanamPosition: $tahunTanamPosition for name: $selectedTahunTanamValue")
+
+        // Only proceed with selection if we have a valid position and non-empty selection
+        if (tahunTanamPosition >= 0 && selectedTahunTanamValue!!.isNotEmpty() && tahunTanamNames.isNotEmpty()) {
+            try {
+                // Force selection by posting to the main thread
+                tahunTanamSpinner.post {
+                    // Explicitly set the text first to override the hint
+                    val textToSet = tahunTanamNames[tahunTanamPosition]
+                    tahunTanamSpinner.setText(textToSet)
+
+                    // Then set the selected index
+                    tahunTanamSpinner.setSelectedIndex(tahunTanamPosition)
+                    AppLogger.d("Set tahun tanam selectedIndex to: $tahunTanamPosition with text: $textToSet")
+
+                    // Force UI update with a small delay to ensure rendering
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        // Update tracking variables
+                        selectedTahunTanamIdSpinner = tahunTanamPosition
+                        selectedTahunTanamValue = textToSet
+                        AppLogger.d("Updated selectedTahunTanamValue to: $textToSet")
+
+                        // Call handleItemSelection to trigger the regular selection handling logic
+                        handleItemSelection(tahunTanamLayout, tahunTanamPosition, textToSet)
+                    }, 200) // Small delay to ensure UI updates
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error setting tahun tanam selection: ${e.message}")
+            }
+        } else {
+            // If no valid tahun tanam is found or selection is empty, leave as hint
+            AppLogger.d("No valid tahun tanam selection found, leaving as hint")
+
+            // Reset tahun tanam selection variables
+            selectedTahunTanamIdSpinner = -1
+            selectedTahunTanamValue = ""
+
+            // Ensure spinner shows hint
+            tahunTanamSpinner.setHint("Pilih Kategori Yang Sesuai")
+        }
+
+        // Now handle the No TPH selection
+        val layoutNoTPH = findViewById<LinearLayout>(R.id.layoutNoTPH)
+
+// Format TPH names exactly like in the R.id.layoutBlok handler
+        AppLogger.d("tphList $tphList")
+        val tphNames = if (tphList.isNotEmpty()) {
+            tphList.map { tph ->
+                val selectionCount = panenStoredLocal[tph.id] ?: 0
+                when (selectionCount) {
+                    0 -> tph.nomor
+                    1 -> "${tph.nomor} (sudah terpilih 1 kali)"
+                    else -> "${tph.nomor} (sudah terpilih ${selectionCount} kali)"
+                }
+            }
+        } else {
+            emptyList()
+        }
+
+
+// Use the stored selectedTPHIdSpinner for position
+        val tphPosition = if (selectedTPHIdSpinner >= 0 && selectedTPHIdSpinner < tphNames.size) {
+            selectedTPHIdSpinner
+        } else {
+            // Fallback to finding by name if index is invalid
+            tphNames.indexOf(selectedTPH)
+        }
+        AppLogger.d("Using tphPosition: $tphPosition from selectedTPHIdSpinner: $selectedTPHIdSpinner")
+        val tphSpinner = layoutNoTPH.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+// Only proceed with selection if we have a valid position and non-empty selection
+        if (tphPosition >= 0 && selectedTPH.isNotEmpty() && tphNames.isNotEmpty()) {
+            try {
+                // Force selection by posting to the main thread
+                tphSpinner.post {
+                    // Explicitly set the text first to override the hint
+                    val textToSet = tphNames[tphPosition]
+                    tphSpinner.setText(textToSet)
+
+                    // Then set the selected index
+                    tphSpinner.setSelectedIndex(tphPosition)
+                    AppLogger.d("Set selectedIndex to: $tphPosition with text: $textToSet")
+
+                    // Force UI update with a small delay to ensure rendering
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        // Verify selection took effect
+                        val actualSelection = tphSpinner.selectedIndex
+                        val actualText = tphSpinner.text.toString()
+                        AppLogger.d("Actual selection after setting: $actualSelection with text: $actualText")
+
+                        // If the spinner still shows hint, try alternative approach
+                        if (actualText != textToSet) {
+                            // Alternative approach - try setting directly
+                            try {
+                                tphSpinner.performClick()
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    tphSpinner.setSelectedIndex(tphPosition)
+                                    tphSpinner.setText(textToSet)
+                                    tphSpinner.performClick() // Close the dropdown
+                                }, 100)
+                            } catch (e: Exception) {
+                                AppLogger.e("Error in alternative approach: ${e.message}")
+                            }
+                        }
+
+                        // Update tracking variables
+                        selectedTPHIdSpinner = tphPosition
+                        selectedTPH = textToSet.split(" (").firstOrNull()?.trim() ?: textToSet
+                        AppLogger.d("Updated selectedTPH to: $selectedTPH")
+
+                        // Call handleItemSelection to trigger the regular selection handling logic
+                        handleItemSelection(layoutNoTPH, tphPosition, textToSet)
+                    }, 200) // Small delay to ensure UI updates
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error setting TPH selection: ${e.message}")
+                // Add any fallback logic you need here
+            }
+        } else {
+            // If no valid TPH is found or selection is empty, leave as hint
+            AppLogger.d("No valid TPH selection found, leaving as hint")
+
+            // Reset TPH selection variables
+            selectedTPHIdSpinner = -1
+            selectedTPH = ""
+
+            // Ensure spinner shows hint
+            tphSpinner.setHint("Pilih TPH")
         }
 
 
@@ -1009,15 +1154,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         setupSpinnerView(findViewById(R.id.layoutNoTPH), emptyList())
         setupSpinnerView(findViewById(R.id.layoutKemandoranLain), emptyList())
 
-        val etHomeMarkerTPH = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
-        etHomeMarkerTPH.setText("")
-
 //        blokList = emptyList()
 //        kemandoranList = emptyList()
         kemandoranLainList = emptyList()
-        tphList = emptyList()
-        ancakInput = ""
-
+//        tphList = emptyList()
+//        ancakInput = ""
 
 
         resetAllCounters()
@@ -2453,13 +2594,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
         // Reset related data
-        blokList = emptyList()
+//        blokList = emptyList()
 //        kemandoranList = emptyList()
         kemandoranLainList = emptyList()
-        tphList = emptyList()
+//        tphList = emptyList()
 
-        val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
-        etAncak.setText("")
 
         if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
 
@@ -2476,18 +2615,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         }
 
-        ancakInput = ""
         // Reset selected values
-        selectedTahunTanamValue = null
-        selectedBlok = ""
-        selectedBlokValue = null
-        selectedTPH = ""
-        selectedTPHValue = null
+//        selectedTahunTanamValue = null
+//        selectedBlok = ""
+//        selectedBlokValue = null
+//        selectedTPH = ""
+//        selectedTPHValue = null
         selectedKemandoranLain = ""
 
         // Clear adapters if they exist
-        selectedPemanenAdapter.clearAllWorkers()
-        selectedPemanenLainAdapter.clearAllWorkers()
+//        selectedPemanenAdapter.clearAllWorkers()
+//        selectedPemanenLainAdapter.clearAllWorkers()
     }
 
     private suspend fun loadPemanenFullEstate(rootView: View) {
@@ -3451,7 +3589,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 resetTPHSpinner(linearLayout.rootView)
                 val selectedTahunTanam = selectedItem.toString()
                 selectedTahunTanamValue = selectedTahunTanam
-
+                selectedTahunTanamIdSpinner = position
 
                 AppLogger.d(estateId.toString())
                 AppLogger.d(selectedDivisiValue.toString())
@@ -3637,6 +3775,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             R.id.layoutNoTPH -> {
                 val selectedText = selectedItem.trim()
                 selectedTPH = selectedText.split(" (").firstOrNull()?.trim() ?: selectedText
+                selectedTPHIdSpinner = position
 
                 val selectionCountMatch = Regex("sudah terpilih (\\d+) kali").find(selectedText)
                 val selectionCount = selectionCountMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
