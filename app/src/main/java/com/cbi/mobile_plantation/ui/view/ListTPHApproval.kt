@@ -257,7 +257,8 @@ class ListTPHApproval : AppCompatActivity() {
                                     repository.saveScanMPanen(
                                         saveDataMPanenList,
                                         createdBy,
-                                        creatorInfo
+                                        creatorInfo,
+                                        this@ListTPHApproval
                                     )
                                 }
 

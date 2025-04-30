@@ -65,6 +65,6 @@ abstract class HektarPanenDao {
     @Update
     abstract fun update(hektarPanen: HektarPanenEntity)
 
-    @Query("SELECT * FROM hektar_panen WHERE nik = :nik AND blok = :blokId")
-    abstract fun getByNikAndBlok(nik: String, blokId: Int): HektarPanenEntity?
+    @Query("SELECT * FROM hektar_panen WHERE nik = :nik AND blok = :blokId AND date_created_panen LIKE '%' || :date || '%'")
+    abstract fun getByNikAndBlokDate(nik: String, blokId: Int, date: String): HektarPanenEntity?
 }

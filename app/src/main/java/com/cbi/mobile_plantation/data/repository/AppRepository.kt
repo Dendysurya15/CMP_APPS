@@ -17,6 +17,7 @@ import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.mobile_plantation.data.model.TphRvData
 import com.cbi.mobile_plantation.utils.AppLogger
+import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -63,7 +64,8 @@ class AppRepository(context: Context) {
     suspend fun saveScanMPanen(
         tphDataList: List<PanenEntity>,
         createdBy: String? = null,
-        creatorInfo: String? = null
+        creatorInfo: String? = null,
+        context: Context
     ): Result<SaveTPHResult> = withContext(Dispatchers.IO) {
         try {
             database.withTransaction {
@@ -94,7 +96,7 @@ class AppRepository(context: Context) {
                 // Step 2: Group by unique (NIK, Block) combination
                 // Use a map of Pair<NIK, Block> -> List of PanenEntity
                 val groupedByNikAndBlock =
-                    mutableMapOf<Pair<String, Int>, MutableList<PanenEntity>>()
+                    mutableMapOf<Pair<String, String>, MutableList<PanenEntity>>()
 
                 // Add debug logging for tphDataList
                 Log.d(
@@ -122,11 +124,11 @@ class AppRepository(context: Context) {
                         if (tphData.karyawan_nik.contains(",")) {
                             val nikArr = tphData.karyawan_nik.split(",")
                             for (nik in nikArr) {
-                                val key = Pair(nik, blokId)
+                                val key = Pair(nik, "${tphData.tph_id}$${tphData.date_created.split(" ")[0]}")
                                 // Add logging for grouping
                                 Log.d(
                                     "AppRepository",
-                                    "Grouping TPH: ${tphData.tph_id}, NIK: ${nik}, Block: $blokId"
+                                    "Grouping TPH: ${tphData.tph_id}$${tphData.date_created.split(" ")[0]}, NIK: ${nik}, Block: $blokId"
                                 )
                                 // Initialize list for this key if it doesn't exist
                                 if (!groupedByNikAndBlock.containsKey(key)) {
@@ -137,12 +139,13 @@ class AppRepository(context: Context) {
                             }
                         } else {
                             // Create a key with NIK and Block (Pair<String, Int>)
-                            val key = Pair(tphData.karyawan_nik, blokId)
+                            val key = Pair(tphData.karyawan_nik, "${tphData.tph_id}$${tphData.date_created.split(" ")[0]}")
+
 
                             // Add logging for grouping
                             Log.d(
                                 "AppRepository",
-                                "Grouping TPH: ${tphData.tph_id}, NIK: ${tphData.karyawan_nik}, Block: $blokId"
+                                "Grouping TPH: ${tphData.tph_id}$${tphData.date_created.split(" ")[0]}, NIK: ${tphData.karyawan_nik}, Block: $blokId"
                             )
 
                             // Initialize list for this key if it doesn't exist
@@ -165,17 +168,31 @@ class AppRepository(context: Context) {
                 )
 
                 // Log each unique combination
-                groupedByNikAndBlock.keys.forEach { (nik, blokId) ->
-                    Log.d("AppRepository", "Unique combination - NIK: $nik, Block: $blokId")
+                groupedByNikAndBlock.keys.forEach { (nik, blokIdDate) ->
+                    Log.d("AppRepository", "Unique combination - NIK: $nik, BlockDate: $blokIdDate")
                 }
 
                 // Step 3: Process each group to create/update HektarPanen records
                 for ((key, entities) in groupedByNikAndBlock) {
-                    val (nik, blokId) = key
+                    val (nik, blokIdDate) = key
 
                     try {
+                        val blokId = try {
+                            blokIdDate.split("$")[0].toInt()
+                        }catch (e: Exception){
+                            Toasty.error(context, "Error parsing blokId: ${e.message}").show()
+                            0
+                        }
+
+                        val date = try {
+                            blokIdDate.split("$")[1]
+                        }catch (e: Exception){
+                            Toasty.error(context, "Error parsing date: ${e.message}").show()
+                            ""
+                        }
+
                         // Check if a record already exists for this (NIK, Block) combination
-                        var hektarPanen = hektarPanenDao.getByNikAndBlok(nik, blokId)
+                        var hektarPanen = hektarPanenDao.getByNikAndBlokDate(nik, blokId, date)
 
                         // Prepare the arrays to store values
                         val totalJjg = mutableListOf<String>()
@@ -211,7 +228,7 @@ class AppRepository(context: Context) {
                         // Log the values for debugging
                         Log.d(
                             "AppRepository",
-                            "For NIK: $nik, Block: $blokId - TotalJJG: ${totalJjg.joinToString(";")}"
+                            "For NIK: $nik, Block: $blokIdDate - TotalJJG: ${totalJjg.joinToString(";")}"
                         )
 
                         if (hektarPanen == null) {
@@ -250,7 +267,7 @@ class AppRepository(context: Context) {
                             // Log the new entity
                             Log.d(
                                 "AppRepository",
-                                "Creating new HektarPanen: NIK=$nik, Block=$blokId"
+                                "Creating new HektarPanen: NIK=$nik, Block=$blokIdDate"
                             )
 
                             // Insert the new record
@@ -259,7 +276,7 @@ class AppRepository(context: Context) {
                             // Log the existing entity
                             Log.d(
                                 "AppRepository",
-                                "Updating existing HektarPanen: NIK=$nik, Block=$blokId"
+                                "Updating existing HektarPanen: NIK=$nik, Block=$blokIdDate"
                             )
 
                             // Handle null/empty arrays safely
@@ -347,7 +364,7 @@ class AppRepository(context: Context) {
                     } catch (e: Exception) {
                         Log.e(
                             "AppRepository",
-                            "Error processing group for NIK: $nik, Block: $blokId - ${e.message}"
+                            "Error processing group for NIK: $nik, Block: $blokIdDate - ${e.message}"
                         )
                     }
                 }
