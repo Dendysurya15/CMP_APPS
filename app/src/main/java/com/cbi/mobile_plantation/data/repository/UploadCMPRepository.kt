@@ -191,7 +191,7 @@ class UploadCMPRepository(context: Context) {
                 AppLogger.d("Sending upload request with UUID: $batchUuid, Part: $partNumber, Total: $totalParts")
 
                 try {
-                    val response = TestingAPIClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
+                    val response = CMPApiClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
 
                     AppLogger.d("response $response")
                     if (response.isSuccessful) {
@@ -268,6 +268,8 @@ class UploadCMPRepository(context: Context) {
                     val filePart = MultipartBody.Part.createFormData("zipFile", file.name, progressRequestBody)
 
                     AppLogger.d("Sending upload request...")
+
+                    AppLogger.d("lkasjdflkjasdklfasdf")
 
                     val response = CMPApiClient.instance.uploadZip(filePart)
 

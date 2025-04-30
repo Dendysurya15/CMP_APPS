@@ -390,6 +390,64 @@ object AppUtils {
         }
     }
 
+    fun createAndSaveZipUploadCMPSingle(
+        context: Context,
+        featureDataList: List<Pair<String, List<Map<String, Any>>>>,
+        userId: String,
+        onResult: (Boolean, String, String, File) -> Unit // Note: Changed to return a single File
+    ) {
+        try {
+            val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
+
+            val appFilesDir = File(context.getExternalFilesDir(null), "Upload").apply {
+                if (!exists()) mkdirs()
+            }
+
+            // Get the Pictures directories - try both locations
+            val picturesDirs = listOf(
+                context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                File(context.getExternalFilesDir(null)?.parent ?: "", "Pictures")
+            ).filterNotNull()
+
+            // Simple filename format without chunking
+            val zipFileName = "${userId}_${dateTime}.zip"
+            val zipFile = File(appFilesDir, zipFileName)
+
+            val zip = ZipFile(zipFile)
+            zip.setPassword(ZIP_PASSWORD.toCharArray())
+
+            val zipParams = ZipParameters().apply {
+                compressionMethod = CompressionMethod.DEFLATE
+                isEncryptFiles = true
+                encryptionMethod = EncryptionMethod.ZIP_STANDARD
+            }
+
+            // Process each feature and its data
+            featureDataList.forEach { (featureKey, dataList) ->
+                // Add JSON data for this feature
+                val jsonString = convertDataToJsonString(dataList)
+                val jsonBytes = jsonString.toByteArray()
+
+                val inputStream = ByteArrayInputStream(jsonBytes)
+                zip.addStream(
+                    inputStream,
+                    zipParams.apply { fileNameInZip = "$featureKey/data.json" }
+                )
+
+                // Add photos for this feature's data
+                addFeaturePhotosToZip(context, dataList, featureKey, picturesDirs, zip, zipParams)
+            }
+
+            // Return the result using the callback
+            onResult(true, zipFile.name, zipFile.absolutePath, zipFile)
+
+        } catch (e: Exception) {
+            val errorMessage = "❌ Error creating encrypted ZIP file: ${e.message}"
+            AppLogger.e(errorMessage)
+            onResult(false, errorMessage, "", File(""))
+        }
+    }
+
     // New implementation with expanded callback
     fun createAndSaveZipUploadCMPWithFiles(
         context: Context,

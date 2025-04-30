@@ -1035,16 +1035,17 @@ class HomePageActivity : AppCompatActivity() {
 
                                         AppLogger.d("upload List $uploadDataList")
                                         lifecycleScope.launch(Dispatchers.IO) {
-                                            AppUtils.createAndSaveZipUploadCMPWithFiles(
+                                            AppUtils.createAndSaveZipUploadCMPSingle(
                                                 this@HomePageActivity,
                                                 uploadDataList,
                                                 prefManager!!.idUserLogin.toString()
-                                            ) { success, fileName, fullPath, allCreatedZips ->  // Added parameter for all zips
+                                            ) { success, fileName, fullPath, zipFile ->
                                                 if (success) {
                                                     zipFilePath = fullPath
                                                     zipFileName = fileName
 
-                                                    allUploadZipFilesToday.addAll(allCreatedZips)
+                                                    // Add the created zip file to the collection
+                                                    allUploadZipFilesToday.add(zipFile)
 
                                                     lifecycleScope.launch(Dispatchers.IO) {
                                                         featuresToFetch.forEach { feature ->
