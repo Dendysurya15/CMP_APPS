@@ -230,6 +230,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var selectedAfdelingIdSpinner: Int = 0
     private var selectedKemandoranIdSpinner: Int = 0
     private var selectedTahunTanamIdSpinner: Int = 0
+    private var selectedKemandoranLainIdSpinner: Int = 0
+    private var selectedBlokIdSpinner: Int = 0
     private var selectedTPHIdSpinner: Int = 0
     private var selectedEstate: String = ""
     private var selectedEstateIdSpinner: Int = 0
@@ -897,7 +899,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             selectedAfdelingIdSpinner = safePosition
             selectedAfdeling = selectedItem
             handleItemSelection(afdelingLayout, safePosition, selectedItem)
-
         }
 
         // Handle tahun tanam selection similarly
@@ -953,10 +954,43 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             tahunTanamSpinner.setHint("Pilih Kategori Yang Sesuai")
         }
 
+        val blokLayout = findViewById<LinearLayout>(R.id.layoutBlok)
+        val blokNames = if (blokList.isNotEmpty()) {
+            blokList.mapNotNull { it.blok_kode }
+        } else {
+            emptyList()
+        }
+
+        setupSpinnerView(blokLayout, blokNames)
+
+        val blokSpinner = blokLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+        var newBlokPosition = blokNames.indexOf(selectedBlok)
+
+        if (newBlokPosition < 0) {
+            newBlokPosition = selectedBlokIdSpinner
+        }
+
+        val safeBlokPosition = when {
+            newBlokPosition < 0 -> 0  // Default to first item if negative
+            newBlokPosition >= blokNames.size -> 0  // Default to first if beyond list bounds
+            else -> newBlokPosition  // Use the calculated position if it's valid
+        }
+
+// Set the selection
+        blokSpinner.setSelectedIndex(safeBlokPosition)
+
+        if (safeBlokPosition >= 0 && safeBlokPosition < blokNames.size) {
+            val selectedItem = blokNames[safeBlokPosition]
+            selectedBlokIdSpinner = safeBlokPosition
+            selectedBlok = selectedItem
+            handleItemSelection(blokLayout, safeBlokPosition, selectedItem)
+        }
+
         // Now handle the No TPH selection
         val layoutNoTPH = findViewById<LinearLayout>(R.id.layoutNoTPH)
 
-// Format TPH names exactly like in the R.id.layoutBlok handler
+
         AppLogger.d("tphList $tphList")
         val tphNames = if (tphList.isNotEmpty()) {
             tphList.map { tph ->
@@ -971,64 +1005,87 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             emptyList()
         }
 
+        AppLogger.d("tphNames $tphNames")
 
-// Use the stored selectedTPHIdSpinner for position
-        val tphPosition = if (selectedTPHIdSpinner >= 0 && selectedTPHIdSpinner < tphNames.size) {
-            selectedTPHIdSpinner
-        } else {
-            // Fallback to finding by name if index is invalid
-            tphNames.indexOf(selectedTPH)
-        }
-        AppLogger.d("Using tphPosition: $tphPosition from selectedTPHIdSpinner: $selectedTPHIdSpinner")
+// Store selected TPH before setting up the spinner to prevent losing it
+        val tphNumberToSelect = selectedTPH
+        AppLogger.d("We need to select TPH: $tphNumberToSelect")
+
+// IMPORTANT: Only set up the spinner AFTER capturing the tphNames list
+        setupSpinnerView(layoutNoTPH, tphNames as List<String>)
         val tphSpinner = layoutNoTPH.findViewById<MaterialSpinner>(R.id.spPanenTBS)
 
-// Only proceed with selection if we have a valid position and non-empty selection
-        if (tphPosition >= 0 && selectedTPH.isNotEmpty() && tphNames.isNotEmpty()) {
+// IMPORTANT: Find the position of the selected TPH in the CURRENT list by matching the TPH number
+        var safeTPHPosition = -1
+        if (tphNumberToSelect.isNotEmpty()) {
+            // Look for the TPH in the current list that starts with our selected TPH number
+            safeTPHPosition = tphNames.indexOfFirst {
+                val tphNumber = it.split(" (").firstOrNull()?.trim() ?: it
+                tphNumber == tphNumberToSelect
+            }
+            AppLogger.d("Finding TPH '$tphNumberToSelect' in current list, found at position: $safeTPHPosition")
+        } else if (selectedTPHIdSpinner >= 0 && selectedTPHIdSpinner < tphNames.size) {
+            // Fallback to position-based selection if no TPH number is stored
+            safeTPHPosition = selectedTPHIdSpinner
+            AppLogger.d("Using position-based selection, position: $safeTPHPosition")
+        }
+
+        // Only proceed if we have a valid position
+        if (safeTPHPosition >= 0 && safeTPHPosition < tphNames.size) {
+            // Getting the item text at this position in our list
+            val itemText = tphNames[safeTPHPosition]
+            val tphNumberFromItem = itemText.split(" (").firstOrNull()?.trim() ?: itemText
+            AppLogger.d("Will select TPH item: $itemText with number: $tphNumberFromItem")
+
             try {
-                // Force selection by posting to the main thread
-                tphSpinner.post {
-                    // Explicitly set the text first to override the hint
-                    val textToSet = tphNames[tphPosition]
-                    tphSpinner.setText(textToSet)
+                // CRITICAL: We need to disable any existing click listeners or automatic selection handlers
+                // that might be overriding our selection
 
-                    // Then set the selected index
-                    tphSpinner.setSelectedIndex(tphPosition)
-                    AppLogger.d("Set selectedIndex to: $tphPosition with text: $textToSet")
+                try {
+                    // Set text first
+                    tphSpinner.setText(itemText)
+                    AppLogger.d("Set TPH text to: $itemText")
 
-                    // Force UI update with a small delay to ensure rendering
+                    // Update tracking variables immediately to prevent overrides
+                    selectedTPH = tphNumberFromItem
+                    selectedTPHIdSpinner = safeTPHPosition
+                    AppLogger.d("Updated selectedTPH to: $selectedTPH at position: $safeTPHPosition")
+
+                    // Only afterwards, call handleItemSelection
+                    // Use another delayed call to ensure the variables are set before any handlers run
                     Handler(Looper.getMainLooper()).postDelayed({
-                        // Verify selection took effect
-                        val actualSelection = tphSpinner.selectedIndex
-                        val actualText = tphSpinner.text.toString()
-                        AppLogger.d("Actual selection after setting: $actualSelection with text: $actualText")
+                        // Verify our selection is still intact
+                        val currentText = tphSpinner.text.toString()
+                        AppLogger.d("Before handleItemSelection, spinner text is: $currentText")
 
-                        // If the spinner still shows hint, try alternative approach
-                        if (actualText != textToSet) {
-                            // Alternative approach - try setting directly
-                            try {
-                                tphSpinner.performClick()
-                                Handler(Looper.getMainLooper()).postDelayed({
-                                    tphSpinner.setSelectedIndex(tphPosition)
-                                    tphSpinner.setText(textToSet)
-                                    tphSpinner.performClick() // Close the dropdown
-                                }, 100)
-                            } catch (e: Exception) {
-                                AppLogger.e("Error in alternative approach: ${e.message}")
-                            }
+                        // Only call handleItemSelection if our selection is still intact
+                        if (currentText == itemText) {
+                            handleItemSelection(layoutNoTPH, safeTPHPosition, selectedTPH)
+                        } else {
+                            // If the text changed, something is overriding our selection
+                            // Try once more to set it
+                            tphSpinner.setText(itemText)
+                            AppLogger.d("Had to reset TPH text to: $itemText")
+                            // Now call handleItemSelection
+                            handleItemSelection(layoutNoTPH, safeTPHPosition, selectedTPH)
                         }
-
-                        // Update tracking variables
-                        selectedTPHIdSpinner = tphPosition
-                        selectedTPH = textToSet.split(" (").firstOrNull()?.trim() ?: textToSet
-                        AppLogger.d("Updated selectedTPH to: $selectedTPH")
-
-                        // Call handleItemSelection to trigger the regular selection handling logic
-                        handleItemSelection(layoutNoTPH, tphPosition, textToSet)
-                    }, 200) // Small delay to ensure UI updates
+                    }, 2000)
+                } catch (e: Exception) {
+                    AppLogger.e("Error in TPH selection: ${e.message}")
+                    // Still ensure variables are set correctly
+                    selectedTPH = tphNumberFromItem
+                    selectedTPHIdSpinner = safeTPHPosition
+                    handleItemSelection(layoutNoTPH, safeTPHPosition, selectedTPH)
                 }
+
             } catch (e: Exception) {
-                AppLogger.e("Error setting TPH selection: ${e.message}")
-                // Add any fallback logic you need here
+                AppLogger.e("Error in main TPH selection block: ${e.message}")
+                e.printStackTrace()
+
+                // Fallback - just update the variables directly
+                selectedTPH = tphNumberFromItem
+                selectedTPHIdSpinner = safeTPHPosition
+                handleItemSelection(layoutNoTPH, safeTPHPosition, selectedTPH)
             }
         } else {
             // If no valid TPH is found or selection is empty, leave as hint
@@ -1039,7 +1096,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             selectedTPH = ""
 
             // Ensure spinner shows hint
-            tphSpinner.setHint("Pilih TPH")
+            tphSpinner.setHint("Pilih TPH Yang Sesuai")
         }
 
 
@@ -1135,6 +1192,98 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
+        val kemandoranLainNames = kemandoranLainList.mapNotNull { it.nama }
+        setupSpinnerView(kemandoranLainLayout, kemandoranLainNames)
+        val kemandoranLainSpinner = kemandoranLainLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+// Find the position of the saved kemandoranLain in the list
+        val kemandoranLainPosition = kemandoranLainNames.indexOf(selectedKemandoranLain)
+        AppLogger.d("Found kemandoranLainPosition: $kemandoranLainPosition for name: $selectedKemandoranLain")
+
+// Only proceed with selection if we have a valid position and non-empty selection
+        if (kemandoranLainPosition >= 0 && selectedKemandoranLain.isNotEmpty() && kemandoranLainNames.isNotEmpty()) {
+            try {
+                // Force selection by posting to the main thread
+                kemandoranLainSpinner.post {
+                    // Explicitly set the text first to override the hint
+                    val textToSet = kemandoranLainNames[kemandoranLainPosition]
+                    kemandoranLainSpinner.setText(textToSet)
+
+                    // Then set the selected index
+                    kemandoranLainSpinner.setSelectedIndex(kemandoranLainPosition)
+                    AppLogger.d("Set kemandoranLain selectedIndex to: $kemandoranLainPosition with text: $textToSet")
+
+                    // Force UI update with a small delay to ensure rendering
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        // Verify selection took effect
+                        val actualSelection = kemandoranLainSpinner.selectedIndex
+                        val actualText = kemandoranLainSpinner.text.toString()
+                        AppLogger.d("Actual kemandoranLain selection after setting: $actualSelection with text: $actualText")
+
+                        // If the spinner still shows hint, try alternative approach
+                        if (actualText != textToSet) {
+                            // Alternative approach - try setting directly
+                            try {
+                                kemandoranLainSpinner.performClick()
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    kemandoranLainSpinner.setSelectedIndex(kemandoranLainPosition)
+                                    kemandoranLainSpinner.setText(textToSet)
+                                    kemandoranLainSpinner.performClick() // Close the dropdown
+                                }, 100)
+                            } catch (e: Exception) {
+                                AppLogger.e("Error in alternative kemandoranLain approach: ${e.message}")
+                            }
+                        }
+
+                        // Update tracking variables
+                        selectedKemandoranLainIdSpinner = kemandoranLainPosition
+                        selectedKemandoranLain = textToSet
+                        AppLogger.d("Updated selectedKemandoranLain to: $textToSet")
+
+                        // Call handleItemSelection to trigger the regular selection handling logic
+                        handleItemSelection(kemandoranLainLayout, kemandoranLainPosition, textToSet)
+                    }, 200) // Small delay to ensure UI updates
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error setting kemandoranLain selection: ${e.message}")
+                // Call the suspend function from a coroutine if needed
+                lifecycleScope.launch {
+                    try {
+                        loadPemanenFullEstate(kemandoranLainLayout.rootView)
+                    } catch (e: Exception) {
+                        Toast.makeText(
+                            this@FeaturePanenTBSActivity,
+                            "Error loading full pemanen estate: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+        } else {
+            // If no valid kemandoranLain is found or selection is empty, leave as hint
+            AppLogger.d("No valid kemandoranLain selection found, leaving as hint")
+
+            // Reset kemandoranLain selection variables
+            selectedKemandoranLainIdSpinner = -1
+            selectedKemandoranLain = ""
+
+            // Ensure spinner shows hint
+            kemandoranLainSpinner.setHint("Pilih Kategori Yang Sesuai")
+
+            // Call the suspend function from a coroutine if needed
+            lifecycleScope.launch {
+                try {
+                    loadPemanenFullEstate(kemandoranLainLayout.rootView)
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Error loading full pemanen estate: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         setupSpinnerView(findViewById(R.id.layoutTipePanen), tipePanenOptions)
 
@@ -1151,12 +1300,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
-        setupSpinnerView(findViewById(R.id.layoutNoTPH), emptyList())
-        setupSpinnerView(findViewById(R.id.layoutKemandoranLain), emptyList())
+//        setupSpinnerView(findViewById(R.id.layoutNoTPH), emptyList())
+//        setupSpinnerView(findViewById(R.id.layoutKemandoranLain), emptyList())
 
 //        blokList = emptyList()
 //        kemandoranList = emptyList()
-        kemandoranLainList = emptyList()
+//        kemandoranLainList = emptyList()
 //        tphList = emptyList()
 //        ancakInput = ""
 
@@ -1168,7 +1317,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val layoutPemanenLain = findViewById<LinearLayout>(R.id.layoutPemanenLain)
             loadingDialog.show()
             loadingDialog.setMessage("Sedang memproses data...")
-            delay(300)
+            delay(1500)
             try {
                 // Reload all karyawan
                 withContext(Dispatchers.IO) {
@@ -2562,7 +2711,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private fun resetDependentSpinners(rootView: View) {
         val switchAsistensi = rootView.findViewById<SwitchMaterial>(R.id.selAsistensi)
         if (switchAsistensi.isChecked) {
-            switchAsistensi.isChecked = false
+            switchAsistensi.isChecked = true
         }
 
         if (blokBanjir == 0) {
@@ -2576,10 +2725,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val baseLayouts = listOf(
             R.id.layoutTahunTanam,
-            R.id.layoutBlok,
-            R.id.layoutNoTPH,
-            R.id.layoutKemandoran,
-            R.id.layoutKemandoranLain,
+//            R.id.layoutBlok,
+//            R.id.layoutNoTPH,
+//            R.id.layoutKemandoran,
+//            R.id.layoutKemandoranLain,
         )
 
         val dependentLayouts = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
@@ -2596,7 +2745,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         // Reset related data
 //        blokList = emptyList()
 //        kemandoranList = emptyList()
-        kemandoranLainList = emptyList()
+//        kemandoranLainList = emptyList()
 //        tphList = emptyList()
 
 
@@ -2621,7 +2770,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 //        selectedBlokValue = null
 //        selectedTPH = ""
 //        selectedTPHValue = null
-        selectedKemandoranLain = ""
+//        selectedKemandoranLain = ""
 
         // Clear adapters if they exist
 //        selectedPemanenAdapter.clearAllWorkers()
@@ -2669,9 +2818,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private fun resetTPHSpinner(rootView: View) {
         val layoutNoTPH = rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
         setupSpinnerView(layoutNoTPH, emptyList())
-        tphList = emptyList()
-        selectedTPH = ""
-        selectedTPHValue = null
+//        tphList = emptyList()
+//        selectedTPH = ""
+//        selectedTPHValue = null
     }
 
     private fun animateLoadingDots(linearLayout: LinearLayout) {
@@ -2753,6 +2902,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
     // The actual implementation that should run on the main thread
+    @SuppressLint("ClickableViewAccessibility")
     private fun setupSpinnerViewOnMainThread(
         linearLayout: LinearLayout,
         data: List<String>,
@@ -3671,9 +3821,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
 
             R.id.layoutBlok -> {
-                resetTPHSpinner(linearLayout.rootView)
+//                resetTPHSpinner(linearLayout.rootView)
                 selectedBlok = selectedItem.toString()
-
+                selectedBlokIdSpinner = position
 
                 val selectedFieldId = try {
                     // Determine which estate ID to use
@@ -3733,7 +3883,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         tphList = tphDeferred.await() ?: emptyList() // Avoid null crash
 
-
                         val noTPHList = tphList.map { tph ->
                             val selectionCount = panenStoredLocal[tph.id] ?: 0
                             when (selectionCount) {
@@ -3774,6 +3923,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 //
             R.id.layoutNoTPH -> {
                 val selectedText = selectedItem.trim()
+                AppLogger.d("selectedText $selectedText")
                 selectedTPH = selectedText.split(" (").firstOrNull()?.trim() ?: selectedText
                 selectedTPHIdSpinner = position
 
@@ -3797,6 +3947,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             estateId?.toIntOrNull()
                         }
 
+                    AppLogger.d(selectedDivisiValue.toString())
+                    AppLogger.d(selectedBlokValue.toString())
+                    AppLogger.d(selectedTPH)
+                    AppLogger.d(selectedTahunTanamValue.toString())
                     tphList?.find {
                         it.dept == estateIdToUse && // Using conditional estate ID
                                 it.divisi == selectedDivisiValue &&
@@ -3826,6 +3980,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 selectedKemandoranIdSpinner = position
                 AppLogger.d("selectedItem $selectedItem")
 
+
+                AppLogger.d("selectedKemandoran $selectedKemandoran")
                 val filteredKemandoranId: Int? = try {
                     kemandoranList.find {
                         it.nama == selectedKemandoran
@@ -4028,7 +4184,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             R.id.layoutKemandoranLain -> {
                 selectedPemanenLainAdapter.clearAllWorkers()
                 selectedKemandoranLain = selectedItem.toString()
-
+                selectedKemandoranLainIdSpinner = position
 
                 val selectedIdKemandoranLain: Int? = try {
                     kemandoranLainList.find {
