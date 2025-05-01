@@ -1315,50 +1315,68 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         lifecycleScope.launch {
             val layoutPemanen = findViewById<LinearLayout>(R.id.layoutPemanen)
             val layoutPemanenLain = findViewById<LinearLayout>(R.id.layoutPemanenLain)
+
+            val shouldLoadKemandoran = selectedKemandoran.isEmpty()
+            val shouldLoadKemandoranLain = selectedKemandoranLain.isEmpty()
+
+            // Always show loading dialog and process data
             loadingDialog.show()
             loadingDialog.setMessage("Sedang memproses data...")
             delay(1500)
+
             try {
-                // Reload all karyawan
+                // Always reload all karyawan
                 withContext(Dispatchers.IO) {
                     panenViewModel.getAllKaryawan()
                     delay(100)
                 }
 
                 val allKaryawan = panenViewModel.allKaryawanList.value ?: emptyList()
-
-                // Store in both lists to use for main workers and secondary workers
-                karyawanList = allKaryawan
-                karyawanLainList = allKaryawan
-
                 AppLogger.d("Reset: Reloaded ${allKaryawan.size} karyawan")
 
+                // Conditionally assign to lists based on what needs loading
+                if (shouldLoadKemandoran) {
+                    karyawanList = allKaryawan
+                    AppLogger.d("Assigned allKaryawan to karyawanList because selectedKemandoran is empty")
+                }
+
+                if (shouldLoadKemandoranLain) {
+                    karyawanLainList = allKaryawan
+                    AppLogger.d("Assigned allKaryawan to karyawanLainList because selectedKemandoranLain is empty")
+                }
+
                 withContext(Dispatchers.Main) {
-                    // Set up spinner views for both layouts
+                    // Set up spinner views for the layouts that need it
                     if (allKaryawan.isNotEmpty()) {
                         val karyawanNames = allKaryawan
                             .sortedBy { it.nama }
                             .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
-                        setupSpinnerView(layoutPemanen, karyawanNames)
-                        setupSpinnerView(layoutPemanenLain, karyawanNames)
-                        if (blokBanjir != 0) {
-                            layoutPemanen.visibility = View.VISIBLE
-                        } else {
-                            layoutKemandoran.visibility = View.GONE
-                            layoutPemanen.visibility = View.GONE
-                            layoutSelAsistensi.visibility = View.GONE
+                        // Only set up spinners for layouts that need it
+                        if (shouldLoadKemandoran) {
+                            setupSpinnerView(layoutPemanen, karyawanNames)
+                            AppLogger.d("Set up spinner for layoutPemanen")
 
+                            // Only handle visibility for this case
+                            if (blokBanjir != 0) {
+                                layoutPemanen.visibility = View.VISIBLE
+                            } else {
+                                layoutKemandoran.visibility = View.GONE
+                                layoutPemanen.visibility = View.GONE
+                                layoutSelAsistensi.visibility = View.GONE
+                            }
                         }
 
-
+                        if (shouldLoadKemandoranLain) {
+                            setupSpinnerView(layoutPemanenLain, karyawanNames)
+                            AppLogger.d("Set up spinner for layoutPemanenLain")
+                        }
                     }
                     delay(100)
 
                     // Now scroll to top AFTER all data loading and UI setup is complete
                     val scPanen = findViewById<ScrollView>(R.id.scPanen)
                     scPanen.fullScroll(ScrollView.FOCUS_UP)
-
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error reloading karyawan in reset: ${e.message}")
@@ -1377,7 +1395,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             loadingDialog.dismiss()
         }
 
-        //reset all image
+// Reset all image
         photoCount = 0
         photoFiles.clear()
         komentarFoto.clear()
@@ -4048,6 +4066,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             karyawanList = karyawanDeferred.await()
 
+
+                            AppLogger.d(karyawanList.size.toString())
+
                             val karyawanNames = karyawanList
                                 .sortedBy { it.nama } // Sort by name alphabetically
                                 .map { "${it.nama} - ${it.nik ?: "N/A"}" }
@@ -4182,7 +4203,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
             R.id.layoutKemandoranLain -> {
-                selectedPemanenLainAdapter.clearAllWorkers()
+//                selectedPemanenLainAdapter.clearAllWorkers()
                 selectedKemandoranLain = selectedItem.toString()
                 selectedKemandoranLainIdSpinner = position
 
