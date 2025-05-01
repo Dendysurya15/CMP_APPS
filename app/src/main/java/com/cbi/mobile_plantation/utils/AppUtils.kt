@@ -244,6 +244,11 @@ object AppUtils {
         _selectedDate = date
     }
 
+    // Add this new method to reset the date
+    fun resetSelectedDate() {
+        _selectedDate = null
+    }
+
     fun getAppVersion(context: Context): String {
         return context.getString(R.string.app_version)
     }
