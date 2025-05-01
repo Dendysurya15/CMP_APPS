@@ -116,6 +116,7 @@
     <string name="ganti_akun">Ganti Akun?</string>
     <string name="daftar_tph_sudah_terangkut">Informasi TPH Sudah Terangkut</string>
     <string name="al_must_checked_master_estate">Centang pilihan estate diatas!</string>
+    <string name="al_validation_qr_krani_scan">Data blok tidak tervalidasi dalam database. Pastikan QR Code yang dipindai merupakan QR Code dari Kerani panen estate yang sesuai.</string>
 
     <string-array name="tipe_panen_options">
         <item>Normal</item>

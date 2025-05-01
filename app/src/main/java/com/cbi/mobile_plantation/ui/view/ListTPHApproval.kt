@@ -58,7 +58,7 @@ sealed class SaveDataPanenState {
 }
 
 class ListTPHApproval : AppCompatActivity() {
-
+    private var isValidAllBlok = true
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: TPHRvAdapter
     private val repository by lazy { AppRepository(this) }
@@ -209,58 +209,34 @@ class ListTPHApproval : AppCompatActivity() {
 
 
         btnGenerateQRTPH.setOnClickListener {
-            AlertDialogUtility.withTwoActions(
-                this,
-                "Simpan",
-                "Apakah anda ingin menyimpan data ini?",
-                getString(R.string.confirmation_dialog_description),
-                "warning.json",
-                function = {
-                    lifecycleScope.launch {
-                        try {
-                            _saveDataPanenState.value = SaveDataPanenState.Loading
+            if (isValidAllBlok) {
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Simpan",
+                    "Apakah anda ingin menyimpan data ini?",
+                    getString(R.string.confirmation_dialog_description),
+                    "warning.json",
+                    function = {
+                        lifecycleScope.launch {
+                            try {
+                                _saveDataPanenState.value = SaveDataPanenState.Loading
 
-                            val result = repository.saveTPHDataList(saveData)
+                                val result = repository.saveTPHDataList(saveData)
 
-                            result.fold(
-                                onSuccess = { saveResult ->
-                                    when (saveResult) {
-                                        is SaveTPHResult.AllSuccess -> {
-                                            _saveDataPanenState.value = SaveDataPanenState.Success(saveResult.savedIds)
+                                result.fold(
+                                    onSuccess = { saveResult ->
+                                        when (saveResult) {
+                                            is SaveTPHResult.AllSuccess -> {
+                                                _saveDataPanenState.value = SaveDataPanenState.Success(saveResult.savedIds)
 
-                                            playSound(R.raw.berhasil_simpan)
-                                            delay(300)
-                                            Toasty.success(
-                                                this@ListTPHApproval,
-                                                "Data berhasil disimpan",
-                                                Toast.LENGTH_LONG,
-                                                true
-                                            ).show()
-                                            startActivity(
-                                                Intent(
+                                                playSound(R.raw.berhasil_simpan)
+                                                delay(300)
+                                                Toasty.success(
                                                     this@ListTPHApproval,
-                                                    HomePageActivity::class.java
-                                                )
-                                            )
-                                            finish()
-                                        }
-                                        is SaveTPHResult.PartialSuccess -> {
-                                            _saveDataPanenState.value = SaveDataPanenState.PartialSuccess(
-                                                savedIds = saveResult.savedIds,
-                                                duplicateCount = saveResult.duplicateCount,
-                                                duplicateInfo = saveResult.duplicateInfo
-                                            )
-
-                                            // Play success sound but show partial success message
-                                            playSound(R.raw.berhasil_simpan)
-
-                                            AlertDialogUtility.withSingleAction(
-                                                this@ListTPHApproval,
-                                                "OK",
-                                                "Sebagian data berhasil disimpan",
-                                                "${saveResult.savedIds.size} data disimpan, ${saveResult.duplicateCount} data duplikat dilewati.",
-                                                "warning.json"
-                                            ) {
+                                                    "Data berhasil disimpan",
+                                                    Toast.LENGTH_LONG,
+                                                    true
+                                                ).show()
                                                 startActivity(
                                                     Intent(
                                                         this@ListTPHApproval,
@@ -269,43 +245,79 @@ class ListTPHApproval : AppCompatActivity() {
                                                 )
                                                 finish()
                                             }
+                                            is SaveTPHResult.PartialSuccess -> {
+                                                _saveDataPanenState.value = SaveDataPanenState.PartialSuccess(
+                                                    savedIds = saveResult.savedIds,
+                                                    duplicateCount = saveResult.duplicateCount,
+                                                    duplicateInfo = saveResult.duplicateInfo
+                                                )
+
+                                                // Play success sound but show partial success message
+                                                playSound(R.raw.berhasil_simpan)
+
+                                                AlertDialogUtility.withSingleAction(
+                                                    this@ListTPHApproval,
+                                                    "OK",
+                                                    "Sebagian data berhasil disimpan",
+                                                    "${saveResult.savedIds.size} data disimpan, ${saveResult.duplicateCount} data duplikat dilewati.",
+                                                    "warning.json"
+                                                ) {
+                                                    startActivity(
+                                                        Intent(
+                                                            this@ListTPHApproval,
+                                                            HomePageActivity::class.java
+                                                        )
+                                                    )
+                                                    finish()
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onFailure = { exception ->
+                                        _saveDataPanenState.value = SaveDataPanenState.Error(
+                                            exception.message ?: "Unknown error occurred"
+                                        )
+                                        if (exception.message?.contains("All data is duplicate") == true) {
+                                            AlertDialogUtility.withSingleAction(
+                                                this@ListTPHApproval,
+                                                "OK",
+                                                "Data duplikat, anda telah melakukan scan untuk data panen ini!",
+                                                "Error: ${exception.message}",
+                                                "warning.json"
+                                            ) {
+                                                // Stay on the same screen
+                                            }
+                                        } else {
+                                            Toasty.error(
+                                                this@ListTPHApproval,
+                                                "Error: ${exception.message}",
+                                                Toast.LENGTH_LONG
+                                            ).show()
                                         }
                                     }
-                                },
-                                onFailure = { exception ->
-                                    _saveDataPanenState.value = SaveDataPanenState.Error(
-                                        exception.message ?: "Unknown error occurred"
-                                    )
-                                    if (exception.message?.contains("All data is duplicate") == true) {
-                                        AlertDialogUtility.withSingleAction(
-                                            this@ListTPHApproval,
-                                            "OK",
-                                            "Data duplikat, anda telah melakukan scan untuk data panen ini!",
-                                            "Error: ${exception.message}",
-                                            "warning.json"
-                                        ) {
-                                            // Stay on the same screen
-                                        }
-                                    } else {
-                                        Toasty.error(
-                                            this@ListTPHApproval,
-                                            "Error: ${exception.message}",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
-                                }
-                            )
-                        } catch (e: Exception) {
-                            _saveDataPanenState.value = SaveDataPanenState.Error(
-                                e.message ?: "Unknown error occurred"
-                            )
+                                )
+                            } catch (e: Exception) {
+                                _saveDataPanenState.value = SaveDataPanenState.Error(
+                                    e.message ?: "Unknown error occurred"
+                                )
+                            }
                         }
-                    }
-                },
-                cancelFunction = {
-                    // Do nothing on cancel
+                    },
+                    cancelFunction = {}
+
+                )
+            }else{
+                AlertDialogUtility.withSingleAction(
+                    this@ListTPHApproval,
+                    "Kembali",
+                    "Peringatan Blok Tidak Valid",
+                    getString(R.string.al_validation_qr_krani_scan),
+                    "warning.json"
+                ) {
+
                 }
-            )
+            }
+
         }
     }
 
@@ -441,7 +453,6 @@ class ListTPHApproval : AppCompatActivity() {
     }
 
     private suspend fun parseTphData(jsonString: String): List<TphRvData> =
-
         withContext(Dispatchers.IO) {
             try {
                 AppLogger.d(jsonString.toString())
@@ -472,6 +483,8 @@ class ListTPHApproval : AppCompatActivity() {
                     }
                 }
 
+                // Reset validation flag before processing new data
+                isValidAllBlok = true
 
                 val parsedEntries = tph0String.split(";").mapNotNull { entry ->
                     if (entry.isBlank()) return@mapNotNull null
@@ -509,7 +522,16 @@ class ListTPHApproval : AppCompatActivity() {
                             null
                         }
 
-                        val displayName = tphInfo?.blokKode ?: "Unknown"
+                        // Check if this TPH has valid blok data
+                        val isValidBlok = tphInfo != null && tphInfo.blokKode != "Tidak Diketahui"
+
+                        // If any TPH has invalid blok, set the global flag to false
+                        if (!isValidBlok) {
+                            isValidAllBlok = false
+                            AppLogger.d("Found invalid blok for TPH ID: $idtph")
+                        }
+
+                        val displayName = tphInfo?.blokKode ?: "Tidak Diketahui"
 
                         // Create display data
                         val displayData = TphRvData(
@@ -537,9 +559,14 @@ class ListTPHApproval : AppCompatActivity() {
                         Pair(displayData, saveData)
                     } catch (e: Exception) {
                         Log.e(TAG, "Error parsing entry: $entry", e)
+                        // Also mark as invalid if there's an exception parsing the entry
+                        isValidAllBlok = false
                         null
                     }
                 }
+
+                // Log the validation status
+                AppLogger.d("All bloks valid: $isValidAllBlok")
 
                 // Separate display and save data
                 data = parsedEntries.map { it.first }
@@ -550,6 +577,7 @@ class ListTPHApproval : AppCompatActivity() {
                 Log.e(TAG, "Error parsing JSON", e)
                 data = emptyList()
                 saveData = emptyList()
+                isValidAllBlok = false // Mark as invalid on overall parse error
                 return@withContext emptyList()
             }
         }
