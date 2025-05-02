@@ -49,7 +49,7 @@
 
 
     <string name="desc_informasi_blok">Keterangan Blok Panen TPH</string>
-    <string name="desc_lampiran_foto">Upload foto sebagai bukti pengisian form panen</string>
+    <string name="desc_lampiran_foto">Upload foto sebagai bukti pengisian form panen (Minimal 1 Foto untuk simpan)</string>
     <string name="desc_data_grading">Input Data Grading</string>
 
     <string name="alert_login_username_field_empty">Username Tidak Boleh Kosong!</string>

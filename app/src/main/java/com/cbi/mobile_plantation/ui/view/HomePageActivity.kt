@@ -13,6 +13,7 @@ import android.net.Uri
 import android.provider.Settings
 import kotlin.reflect.full.findAnnotation
 import android.os.Build
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -39,6 +40,7 @@ import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.database.KaryawanDao
 import com.cbi.mobile_plantation.data.model.ESPBEntity
+import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
@@ -907,6 +909,7 @@ class HomePageActivity : AppCompatActivity() {
                                 AppUtils.DatabaseTables.ESPB,
                                 AppUtils.DatabaseTables.PANEN
                             )
+                            val combinedUploadData = mutableMapOf<String, Any>()
                             lifecycleScope.launch {
                                 val panenDeferred =
                                     CompletableDeferred<List<PanenEntityWithRelations>>()
@@ -933,7 +936,9 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
 
-                                // Initialize outside try-catch to avoid uninitialized errors
+                                var unzippedPanenData: List<Map<String, Any>> = emptyList()
+                                var unzippedESPBData: List<Map<String, Any>> = emptyList()
+
                                 var mappedPanenData: List<Map<String, Any>> = emptyList()
                                 var mappedESPBData: List<Map<String, Any>> = emptyList()
 
@@ -942,36 +947,137 @@ class HomePageActivity : AppCompatActivity() {
                                     val espbList = espbDeferred.await()
 
 
+                                    val allPhotos = mutableListOf<Map<String, String>>()
+
+                                    // Prepare to search for photo files in CMP directories
+                                    val picturesDirs = listOf(
+                                        getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                                        File(getExternalFilesDir(null)?.parent ?: "", "Pictures")
+                                    ).filterNotNull()
+
+                                    // Find all CMP directories upfront
+                                    val cmpDirectories = mutableListOf<File>()
+                                    for (picturesDir in picturesDirs) {
+                                        if (!picturesDir.exists() || !picturesDir.isDirectory) {
+                                            AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
+                                            continue
+                                        }
+
+                                        val dirs = picturesDir.listFiles { file ->
+                                            file.isDirectory && file.name.startsWith("CMP")
+                                        } ?: emptyArray()
+
+                                        cmpDirectories.addAll(dirs)
+                                    }
 
                                     if (panenList.isNotEmpty()) {
+
+                                        val uniquePhotos = mutableMapOf<String, Map<String, String>>()
+
+                                        // Prepare to search for photo files in CMP directories
+                                        val picturesDirs = listOf(
+                                            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                                            File(getExternalFilesDir(null)?.parent ?: "", "Pictures")
+                                        ).filterNotNull()
+
+                                        // Find all CMP directories upfront
+                                        val cmpDirectories = mutableListOf<File>()
+                                        for (picturesDir in picturesDirs) {
+                                            if (!picturesDir.exists() || !picturesDir.isDirectory) {
+                                                AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
+                                                continue
+                                            }
+
+                                            // Look specifically for CMP-PANEN TPH directory
+                                            val cmpPanenDir = File(picturesDir, "CMP-PANEN TPH")
+                                            if (cmpPanenDir.exists() && cmpPanenDir.isDirectory) {
+                                                cmpDirectories.add(cmpPanenDir)
+                                            }
+
+                                            // Also check for any other CMP directories
+                                            val otherCmpDirs = picturesDir.listFiles { file ->
+                                                file.isDirectory && file.name.startsWith("CMP") && file.name != "CMP-PANEN TPH"
+                                            } ?: emptyArray()
+
+                                            cmpDirectories.addAll(otherCmpDirs)
+                                        }
+
+                                        AppLogger.d("Found ${cmpDirectories.size} CMP directories")
+
                                         mappedPanenData = panenList.map { panenWithRelations ->
 
+                                            val photoNames = panenWithRelations.panen.foto?.split(";") ?: listOf()
+
+                                            // Process each photo in the semicolon-separated list
+                                            for (photoName in photoNames) {
+                                                val trimmedName = photoName.trim()
+                                                if (trimmedName.isEmpty()) continue
+
+                                                // Skip if we've already processed this photo
+                                                if (trimmedName in uniquePhotos) continue
+
+                                                // Search for this photo in all CMP directories
+                                                var photoFound = false
+
+                                                for (cmpDir in cmpDirectories) {
+                                                    val photoFile = File(cmpDir, trimmedName)
+
+                                                    if (photoFile.exists() && photoFile.isFile) {
+                                                        // Found the photo - add it to our unique photos map
+                                                        uniquePhotos[trimmedName] = mapOf(
+                                                            "name" to trimmedName,
+                                                            "path" to photoFile.absolutePath,
+                                                            "size" to photoFile.length().toString()
+                                                        )
+                                                        photoFound = true
+                                                        AppLogger.d("Found photo: $trimmedName at ${photoFile.absolutePath}")
+                                                        break
+                                                    }
+                                                }
+
+                                                if (!photoFound) {
+                                                    AppLogger.w("Photo not found: $trimmedName")
+                                                }
+                                            }
+
                                             //handle kemandoran_field
-                                            val kemandoranId = prefManager!!.kemandoranUserLogin.toString()
-                                            val kemandoranKode = prefManager!!.kemandoranKodeUserLogin.toString()
-                                            val kemandoranNama = prefManager!!.kemandoranNamaUserLogin.toString()
+                                            val kemandoranId =
+                                                prefManager!!.kemandoranUserLogin.toString()
+                                            val kemandoranKode =
+                                                prefManager!!.kemandoranKodeUserLogin.toString()
+                                            val kemandoranNama =
+                                                prefManager!!.kemandoranNamaUserLogin.toString()
 
                                             val pemanen = mutableListOf<Map<String, String>>()
-                                            val nikList = panenWithRelations.panen.karyawan_nik?.split(",") ?: listOf()
-                                            val namaList = panenWithRelations.panen.karyawan_nama?.split(",") ?: listOf()
+                                            val nikList =
+                                                panenWithRelations.panen.karyawan_nik?.split(",")
+                                                    ?: listOf()
+                                            val namaList =
+                                                panenWithRelations.panen.karyawan_nama?.split(",")
+                                                    ?: listOf()
 
                                             for (i in nikList.indices) {
                                                 if (i < namaList.size) {
-                                                    pemanen.add(mapOf(
-                                                        "nik" to nikList[i].trim(),
-                                                        "nama" to namaList[i].trim()
-                                                    ))
+                                                    pemanen.add(
+                                                        mapOf(
+                                                            "nik" to nikList[i].trim(),
+                                                            "nama" to namaList[i].trim()
+                                                        )
+                                                    )
                                                 } else {
                                                     // In case there are more NIKs than names
-                                                    pemanen.add(mapOf(
-                                                        "nik" to nikList[i].trim(),
-                                                        "nama" to ""
-                                                    ))
+                                                    pemanen.add(
+                                                        mapOf(
+                                                            "nik" to nikList[i].trim(),
+                                                            "nama" to ""
+                                                        )
+                                                    )
                                                 }
                                             }
 
                                             val kemandoranJsonMap = mutableMapOf<String, Any>()
-                                            kemandoranJsonMap["id"] = kemandoranId.toIntOrNull() ?: 0
+                                            kemandoranJsonMap["id"] =
+                                                kemandoranId.toIntOrNull() ?: 0
                                             kemandoranJsonMap["kode"] = kemandoranKode
                                             kemandoranJsonMap["nama"] = kemandoranNama
                                             kemandoranJsonMap["pemanen"] = pemanen
@@ -997,6 +1103,7 @@ class HomePageActivity : AppCompatActivity() {
                                                 "company_nama" to panenWithRelations.tph?.company_nama.toString(),
                                                 "dept" to panenWithRelations.tph?.dept.toString(),
                                                 "dept_ppro" to panenWithRelations.tph?.dept_ppro.toString(),
+                                                "dept_abbr" to panenWithRelations.tph?.dept_abbr.toString(),
                                                 "dept_nama" to panenWithRelations.tph?.dept_nama.toString(),
                                                 "divisi" to panenWithRelations.tph?.divisi.toString(),
                                                 "divisi_abbr" to panenWithRelations.tph?.divisi_abbr.toString(),
@@ -1007,7 +1114,8 @@ class HomePageActivity : AppCompatActivity() {
                                                 "blok_kode" to panenWithRelations.tph?.blok_kode.toString(),
                                                 "blok_nama" to panenWithRelations.tph?.blok_nama.toString(),
                                                 "tph" to (panenWithRelations.tph?.id ?: 0) as Int,
-                                                "tph_nomor" to (panenWithRelations.tph?.nomor ?: ""),
+                                                "tph_nomor" to (panenWithRelations.tph?.nomor
+                                                    ?: ""),
                                                 "ancak" to panenWithRelations.panen.ancak,
                                                 "asistensi" to if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2,
                                                 "kemandoran_id" to panenWithRelations.panen.kemandoran_id,
@@ -1019,21 +1127,45 @@ class HomePageActivity : AppCompatActivity() {
                                                 "lon" to panenWithRelations.panen.lon,
                                                 "status_banjir" to panenWithRelations.panen.status_banjir,
                                                 "status_pengangkutan" to panenWithRelations.panen.status_pengangkutan,
-                                                "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
+                                                "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
+                                                    .toString(),
                                                 "kemandoran_user" to kemandoranNama,
                                                 "kemandoran_user_kode" to kemandoranKode,
                                                 "kemandoran_user_id" to kemandoranId,
                                                 "kemandoran" to kemandoranJsonString,
                                                 "jumlah_pemanen" to jumlahPemanen,
                                                 "restan" to 0,
-                                                "status_espb" to 0)
+                                                "status_espb" to 0
+                                            )
                                         }
 
                                         globalPanenIds = mappedPanenData.map { it["id"] as Int }
+
+                                        combinedUploadData[AppUtils.DatabaseTables.PANEN] = mappedPanenData
+
+                                        val allPhotos = uniquePhotos.values.toList()
+                                        if (allPhotos.isNotEmpty()) {
+                                            AppLogger.d("Adding ${allPhotos.size} unique photos to upload data")
+                                            combinedUploadData["foto_panen"] = allPhotos
+                                        } else {
+                                            AppLogger.w("No photos found to upload")
+                                        }
+
+                                        unzippedPanenData = mappedPanenData.filter { item ->
+                                            // Get the ID
+                                            val id = item["id"] as? Int ?: 0
+
+                                            // Check if this item has dataIsZipped = 0 in the original data
+                                            val original = panenList.find { it.panen.id == id }
+                                            val isZipped = original?.panen?.dataIsZipped ?: 0
+
+                                            // Only include items that are not yet zipped
+                                            isZipped == 0
+                                        }
                                     }
 
 
-                                    AppLogger.d(espbList.toString())
+
                                     if (espbList.isNotEmpty()) {
 
                                         mappedESPBData = espbList.map { data ->
@@ -1045,8 +1177,10 @@ class HomePageActivity : AppCompatActivity() {
                                                     }
                                             }
                                             val idBlokList = blokJjgList.map { it.first }
-                                            val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
-                                            val concatenatedIds = idBlokList.joinToString(",").trimEnd(',')
+                                            val totalJjg =
+                                                blokJjgList.mapNotNull { it.second }.sum()
+                                            val concatenatedIds =
+                                                idBlokList.joinToString(",").trimEnd(',')
                                             val firstBlockId = idBlokList.firstOrNull()
                                             // Create a CompletableDeferred to handle the async operation
                                             val tphDeferred = CompletableDeferred<TPHNewModel?>()
@@ -1059,13 +1193,43 @@ class HomePageActivity : AppCompatActivity() {
                                                 weightBridgeViewModel.tphData.observeOnce(this@HomePageActivity) { tphModel ->
                                                     tphDeferred.complete(tphModel)
                                                 }
-                                            } ?: tphDeferred.complete(null) // Complete with null if no block ID
+                                            }
+                                                ?: tphDeferred.complete(null) // Complete with null if no block ID
 
                                             // Wait for the TPH data
                                             val tphData = tphDeferred.await()
 
-                                            AppLogger.d(idBlokList.toString())
-                                            AppLogger.d(concatenatedIds.toString())
+                                            val pemuatNikString = data.pemuat_nik
+
+                                            val nikList = mutableListOf<String>()
+                                            var currentIndex = 0
+
+                                            while (true) {
+                                                // Find next occurrence of "nik="
+                                                val nikIndex =
+                                                    pemuatNikString.indexOf("nik=", currentIndex)
+                                                if (nikIndex == -1) break // No more NIKs found
+
+                                                // Move position after "nik="
+                                                currentIndex = nikIndex + 4
+
+                                                // Find comma after the NIK value
+                                                val commaIndex =
+                                                    pemuatNikString.indexOf(",", currentIndex)
+                                                if (commaIndex == -1) break // Unexpected format
+
+                                                // Extract the NIK value
+                                                val nikValue = pemuatNikString.substring(
+                                                    currentIndex,
+                                                    commaIndex
+                                                )
+                                                nikList.add(nikValue)
+
+                                                // Move position for next search
+                                                currentIndex = commaIndex + 1
+                                            }
+
+                                            val nikValues = nikList.joinToString(",")
 
                                             mapOf(
                                                 "id" to data.id,
@@ -1081,7 +1245,7 @@ class HomePageActivity : AppCompatActivity() {
                                                 "created_at" to data.created_at,
                                                 "pemuat_id" to data.pemuat_id,
                                                 "kemandoran_id" to data.kemandoran_id,
-                                                "pemuat_nik" to data.pemuat_nik,
+                                                "pemuat_nik" to nikValues,
                                                 "nopol" to data.nopol,
                                                 "driver" to data.driver,
                                                 "transporter_id" to data.transporter_id,
@@ -1091,94 +1255,122 @@ class HomePageActivity : AppCompatActivity() {
                                                 "tph0" to data.tph0,
                                                 "tph1" to data.tph1,
                                                 "update_info_sp" to data.update_info_sp,
-                                                "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
+                                                "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
+                                                    .toString(),
                                                 "jabatan" to prefManager!!.jabatanUserLogin.toString(),
                                             )
                                         }
 
+                                        globalESPBIds = mappedESPBData.map { it["id"] as Int }
 
                                         AppLogger.d(mappedESPBData.toString())
-                                        globalESPBIds = mappedESPBData.map { it["id"] as Int }
+                                        combinedUploadData[AppUtils.DatabaseTables.ESPB] = mappedESPBData
+
+                                        unzippedESPBData = mappedESPBData.filter { item ->
+                                            // Get the ID
+                                            val id = item["id"] as? Int ?: 0
+
+                                            // Check if this item has dataIsZipped = 0 in the original data
+                                            val original = espbList.find { it.id == id }
+                                            val isZipped = original?.dataIsZipped ?: 0
+
+                                            // Only include items that are not yet zipped
+                                            isZipped == 0
+                                        }
                                     }
+
+                                    // Update the global IDs to only include items that are not yet zipped
+                                    globalPanenIds = unzippedPanenData.map { it["id"] as Int }
+                                    globalESPBIds = unzippedESPBData.map { it["id"] as Int }
 
                                 } catch (e: Exception) {
                                     Log.e("UploadCheck", "❌ Error: ${e.message}")
                                 } finally {
-                                    val uploadDataList =
-                                        mutableListOf<Pair<String, List<Map<String, Any>>>>()
-                                    if (mappedPanenData.isNotEmpty()) uploadDataList.add(AppUtils.DatabaseTables.PANEN to mappedPanenData)
-                                    if (mappedESPBData.isNotEmpty()) uploadDataList.add(AppUtils.DatabaseTables.ESPB to mappedESPBData)
 
 
-                                    Log.d("UploadCheck", uploadDataList.toString())
 
-//                                    if (uploadDataList.isNotEmpty()) {
-//
-//                                        AppLogger.d("upload List $uploadDataList")
-//                                        lifecycleScope.launch(Dispatchers.IO) {
-//                                            AppUtils.createAndSaveZipUploadCMPSingle(
-//                                                this@HomePageActivity,
-//                                                uploadDataList,
-//                                                prefManager!!.idUserLogin.toString()
-//                                            ) { success, fileName, fullPath, zipFile ->
-//                                                if (success) {
-//                                                    zipFilePath = fullPath
-//                                                    zipFileName = fileName
-//
-//                                                    // Add the created zip file to the collection
-//                                                    allUploadZipFilesToday.add(zipFile)
-//
-//                                                    lifecycleScope.launch(Dispatchers.IO) {
-//                                                        featuresToFetch.forEach { feature ->
-//                                                            val ids = when (feature) {
-//                                                                AppUtils.DatabaseTables.ESPB -> globalESPBIds
-//                                                                AppUtils.DatabaseTables.PANEN -> globalPanenIds
-//                                                                else -> emptyList()
-//                                                            }
-//
-//                                                            if (ids.isNotEmpty()) {
-//                                                                archiveUpdateActions[feature]?.invoke(
-//                                                                    ids
-//                                                                )
-//                                                            }
-//                                                        }
-//                                                    }
-//                                                    zipDeferred.complete(true)
-//                                                } else {
-//                                                    Log.e("UploadCheck", "❌ ZIP creation failed")
-//                                                    zipDeferred.complete(false)
-//                                                }
-//                                            }
-//                                        }
-//                                    } else {
-//                                        zipDeferred.complete(false)
-//                                    }
+// Create the upload data list with only the unzipped items
+                                    val uploadDataList = mutableListOf<Pair<String, List<Map<String, Any>>>>()
+
+                                    // Use the filtered data for zip creation
+                                    if (unzippedPanenData.isNotEmpty()) {
+                                        uploadDataList.add(AppUtils.DatabaseTables.PANEN to unzippedPanenData)
+                                    }
+                                    if (unzippedESPBData.isNotEmpty()) {
+                                        uploadDataList.add(AppUtils.DatabaseTables.ESPB to unzippedESPBData)
+                                    }
+
+                                    Log.d("UploadCheck", "Filtered upload data list: $uploadDataList")
+
+                                    if (uploadDataList.isNotEmpty()) {
+
+                                        AppLogger.d(globalESPBIds.toString())
+                                        AppLogger.d(globalPanenIds.toString())
+                                        lifecycleScope.launch(Dispatchers.IO) {
+                                            AppUtils.createAndSaveZipUploadCMPSingle(
+                                                this@HomePageActivity,
+                                                uploadDataList,
+                                                prefManager!!.idUserLogin.toString()
+                                            ) { success, fileName, fullPath, zipFile ->
+                                                if (success) {
+                                                    zipFilePath = fullPath
+                                                    zipFileName = fileName
+
+                                                    lifecycleScope.launch(Dispatchers.IO) {
+                                                        featuresToFetch.forEach { feature ->
+                                                            val ids = when (feature) {
+                                                                AppUtils.DatabaseTables.ESPB -> globalESPBIds
+                                                                AppUtils.DatabaseTables.PANEN -> globalPanenIds
+                                                                else -> emptyList()
+                                                            }
+
+                                                            if (ids.isNotEmpty()) {
+                                                                archiveUpdateActions[feature]?.invoke(
+                                                                    ids
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                    zipDeferred.complete(true)
+                                                } else {
+                                                    Log.e("UploadCheck", "❌ ZIP creation failed")
+                                                    zipDeferred.complete(false)
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        zipDeferred.complete(false)
+                                    }
 
                                     loadingDialog.dismiss()
                                 }
 
-                                // Wait for ZIP to complete before calling the next function
-//                                val zipSuccess = zipDeferred.await()
-//                                if (zipSuccess || allUploadZipFilesToday.isNotEmpty()) {
-//                                    Log.d(
-//                                        "UploadCheck",
-//                                        "🎉 ZIP creation done! Proceeding to the next step."
-//                                    )
-//                                    setupDialogUpload()
-//                                } else {
-//                                    Log.e(
-//                                        "UploadCheck",
-//                                        "⛔ ZIP creation failed! Skipping next step."
-//                                    )
-//                                    AlertDialogUtility.withSingleAction(
-//                                        this@HomePageActivity,
-//                                        stringXML(R.string.al_back),
-//                                        stringXML(R.string.al_no_data_for_upload_cmp),
-//                                        stringXML(R.string.al_no_data_for_upload_cmp_description),
-//                                        "success.json",
-//                                        R.color.greendarkerbutton
-//                                    ) { }
-//                                }
+
+
+
+//                                 Wait for ZIP to complete before calling the next function
+                                val zipSuccess = zipDeferred.await()
+                                if (zipSuccess || allUploadZipFilesToday.isNotEmpty()) {
+                                    Log.d(
+                                        "UploadCheck",
+                                        "🎉 ZIP creation done! Proceeding to the next step."
+                                    )
+                                    val uploadDataJson = Gson().toJson(combinedUploadData)
+                                    setupDialogUpload(uploadDataJson)
+                                } else {
+                                    Log.e(
+                                        "UploadCheck",
+                                        "⛔ ZIP creation failed! Skipping next step."
+                                    )
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        stringXML(R.string.al_back),
+                                        stringXML(R.string.al_no_data_for_upload_cmp),
+                                        stringXML(R.string.al_no_data_for_upload_cmp_description),
+                                        "success.json",
+                                        R.color.greendarkerbutton
+                                    ) { }
+                                }
                             }
 
                         }
@@ -1256,290 +1448,11 @@ class HomePageActivity : AppCompatActivity() {
         return Gson().toJson(groupedData)
     }
 
-
-//    @SuppressLint("SetTextI18n")
-//    private fun setupDialogUpload() {
-//
-//        uploadCMPViewModel.resetState()
-//        loadingDialog.dismiss()
-//        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
-//        val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-//        titleTV.text = "Upload Data CMP"
-//
-//        val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
-//        val totalSizeProgressTV = dialogView.findViewById<TextView>(R.id.total_size_progress)
-//        val counterSizeFile = dialogView.findViewById<LinearLayout>(R.id.counterSizeFile)
-//        counterSizeFile.visibility = View.VISIBLE
-//        val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
-//        val btnUploadDataCMP = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
-//        val containerDownloadDataset =
-//            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
-//        containerDownloadDataset.visibility = View.VISIBLE
-//        closeDialogBtn.visibility = View.VISIBLE
-//        btnUploadDataCMP.visibility = View.VISIBLE
-//
-//        val uploadItems = mutableListOf<UploadCMPItem>()
-//
-//        AppLogger.d("allUploadZipFilesToday size: ${allUploadZipFilesToday.size}")
-//        if (allUploadZipFilesToday.isEmpty()) {
-//            AppLogger.d("Warning: No files found to upload!")
-//        } else {
-//            AppLogger.d("Files to upload:")
-//
-//            // Extract base filename (everything before the last underscore)
-//            val firstFile = allUploadZipFilesToday.firstOrNull()
-//            val baseFilename = firstFile?.name?.substringBeforeLast('_') ?: ""
-//
-//            // Sort files by part number to ensure they're processed in order
-//            val sortedFiles = allUploadZipFilesToday.sortedBy { file ->
-//                val partMatch = Regex("_(\\d+)\\.zip$").find(file.name)
-//                partMatch?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
-//            }
-//
-//            sortedFiles.forEachIndexed { index, file ->
-//                val partMatch = Regex("_(\\d+)\\.zip$").find(file.name)
-//                val partNumber = partMatch?.groupValues?.getOrNull(1)?.toIntOrNull() ?: (index + 1)
-//
-//                AppLogger.d("File $index: ${file.name} (${file.absolutePath}), Part: $partNumber of ${sortedFiles.size}")
-//                uploadItems.add(
-//                    UploadCMPItem(
-//                        id = index,
-//                        title = file.name,
-//                        fullPath = file.absolutePath,
-//                        partNumber = partNumber,
-//                        totalParts = sortedFiles.size,
-//                        baseFilename = baseFilename
-//                    )
-//                )
-//            }
-//        }
-//
-//        Handler(Looper.getMainLooper()).postDelayed({
-//            if (counterTV.text == "0/0" && uploadItems.size > 0) {
-//                counterTV.text = "0/${uploadItems.size}"
-//            }
-//        }, 100)
-//        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
-//        recyclerView.layoutManager = LinearLayoutManager(this)
-//        val adapter = UploadProgressCMPDataAdapter(uploadItems)
-//        recyclerView.adapter = adapter
-//
-//        val dialog = AlertDialog.Builder(this)
-//            .setView(dialogView)
-//            .setCancelable(false)
-//            .create()
-//        dialog.show()
-//
-//        btnUploadDataCMP.setOnClickListener {
-//            if (AppUtils.isNetworkAvailable(this)) {
-//                AlertDialogUtility.withTwoActions(
-//                    this,
-//                    "Upload",
-//                    getString(R.string.confirmation_dialog_title),
-//                    getString(R.string.al_confirm_upload),
-//                    "warning.json",
-//                    ContextCompat.getColor(this, R.color.bluedarklight),
-//                    function = {
-//                        btnUploadDataCMP.isEnabled = false
-//                        closeDialogBtn.isEnabled = false
-//                        btnUploadDataCMP.alpha = 0.7f
-//                        closeDialogBtn.alpha = 0.7f
-//                        btnUploadDataCMP.iconTint =
-//                            ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
-//                        closeDialogBtn.iconTint =
-//                            ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
-//
-//                        // Start uploading all files
-//                        uploadCMPViewModel.uploadMultipleZipsV2(uploadItems)
-//                    },
-//                    cancelFunction = {
-//                    }
-//                )
-//            } else {
-//                AlertDialogUtility.withSingleAction(
-//                    this@HomePageActivity,
-//                    stringXML(R.string.al_back),
-//                    stringXML(R.string.al_no_internet_connection),
-//                    stringXML(R.string.al_no_internet_connection_description_login),
-//                    "network_error.json",
-//                    R.color.colorRedDark
-//                ) {
-//                    // Do nothing
-//                }
-//            }
-//        }
-//
-//        closeDialogBtn.setOnClickListener {
-//            zipFileName = null
-//            zipFilePath = null
-//            uploadCMPViewModel.resetState() // Reset the ViewModel state when closing
-//            dialog.dismiss()
-//        }
-//
-//        uploadCMPViewModel.completedCount.observe(this) { completed ->
-//            val total = uploadCMPViewModel.totalCount.value ?: uploadItems.size
-//            counterTV.text = "$completed/$total"
-//        }
-//
-//        // Observe progress for each item
-//        uploadCMPViewModel.itemProgressMap.observe(this) { progressMap ->
-//            // Update progress for each item
-//            for ((id, progress) in progressMap) {
-//                adapter.updateProgress(id, progress)
-//            }
-//
-//            // Update title if any upload is in progress
-//            if (progressMap.values.any { it in 1..99 }) {
-//                titleTV.text = "Sedang Upload Data..."
-//            }
-//
-//            val uploadedBytes = adapter.getTotalUploadedBytes()
-//            val totalBytes = adapter.getTotalFileSize()
-//            val overallProgress = adapter.getOverallProgress()
-//
-//            totalSizeProgressTV.text =
-//                " ${AppUtils.formatFileSize(uploadedBytes)} / ${AppUtils.formatFileSize(totalBytes)} ($overallProgress%)"
-//        }
-//
-//        // Observe status for each item
-//        uploadCMPViewModel.itemStatusMap.observe(this) { statusMap ->
-//            // Update status for each item
-//            for ((id, status) in statusMap) {
-//                adapter.updateStatus(id, status)
-//            }
-//
-//            val allFinished = statusMap.values.none {
-//                it == AppUtils.UploadStatusUtils.WAITING || it == AppUtils.UploadStatusUtils.UPLOADING
-//            }
-//
-//            val allSuccess = statusMap.values.all { it == AppUtils.UploadStatusUtils.SUCCESS }
-//
-//            if (allFinished && statusMap.isNotEmpty()) {
-//                lifecycleScope.launch {
-//                    loadingDialog.show()
-////                    loadingDialog.setMessage("Sedang memproses pembaruan data", true)
-//                    loadingDialog.setMessage("Sedang proses data", true)
-//                    trackingIdsUpload = emptyList()
-//                    uploadCMPViewModel.getAllIds()
-//                    delay(500)
-//
-//                    withContext(Dispatchers.Main) {
-//                        // Update UI based on upload success
-//                        if (allSuccess) {
-//                            titleTV.text = "Upload Berhasil"
-//                        } else {
-//                            titleTV.text = "Upload Selesai Dengan Kesalahan"
-//                        }
-//
-//                        // Update button states
-//                        btnUploadDataCMP.visibility = View.GONE
-//                        closeDialogBtn.isEnabled = true
-//                        closeDialogBtn.alpha = 1f
-//                        closeDialogBtn.iconTint =
-//                            ColorStateList.valueOf(Color.WHITE)
-//
-//                        loadingDialog.dismiss()
-//                    }
-////
-//
-//                    datasetViewModel.updateResultStatusUploadCMP.observe(this@HomePageActivity) { result ->
-//                        if (result.success) {
-//                            AppLogger.d(result.message)
-//                        } else {
-//
-//                            val errorDetails = if (result.errorItems.isNotEmpty()) {
-//                                "\n\n" + result.errorItems.joinToString("\n") { "• ${it.fileName}: ${it.message}" }
-//                            } else {
-//                                ""
-//                            }
-//                            AppLogger.d(errorDetails)
-//                        }
-//                    }
-//
-//
-//                }
-//            }
-//        }
-//
-//        // Observe errors for each item
-//        uploadCMPViewModel.itemErrorMap.observe(this) { errorMap ->
-//            for ((id, error) in errorMap) {
-//                if (!error.isNullOrEmpty()) {
-//                    adapter.updateError(id, error)
-//                }
-//            }
-//
-//            if (errorMap.values.any { !it.isNullOrEmpty() }) {
-//                titleTV.text = "Terjadi Kesalahan Upload..."
-//                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
-//            }
-//        }
-//
-//        uploadCMPViewModel.itemResponseMap.observe(this) { responseMap ->
-//            lifecycleScope.launch {
-//                for ((_, response) in responseMap) {
-//                    AppLogger.d("response for update or insert table upload_cmp $response")
-//                    response?.let {
-//                        var jsonResultTableIds = ""
-//
-//                        if (allUploadZipFilesToday.isNotEmpty()) {
-//                            try {
-//                                val extractionDeferred =
-//                                    CompletableDeferred<Pair<List<Int>, List<Int>>>()
-//
-//                                AppLogger.d("Starting ZIP extraction for ${response.nama_file}")
-//
-//                                launch(Dispatchers.IO) {
-//                                    try {
-//                                        val result = AppUtils.extractIdsFromZipFile(
-//                                            context = this@HomePageActivity,
-//                                            fileName = response.nama_file,
-//                                            zipPassword = AppUtils.ZIP_PASSWORD
-//                                        )
-//                                        extractionDeferred.complete(result)
-//                                    } catch (e: Exception) {
-//                                        extractionDeferred.completeExceptionally(e)
-//                                    }
-//                                }
-//
-//                                val (panenIds, espbIds) = withTimeout(5000) { // 10 second timeout
-//                                    extractionDeferred.await()
-//                                }
-//
-//                                AppLogger.d("Extraction complete. PANEN IDs: ${panenIds.size}, ESPB IDs: ${espbIds.size}")
-//
-//                                globalPanenIds = panenIds
-//                                globalESPBIds = espbIds
-//
-//                                jsonResultTableIds = createJsonTableNameMapping()
-//                            } catch (e: Exception) {
-//                                AppLogger.e("Error during ZIP extraction: ${e.message}")
-//                                // Fallback to empty mapping
-//                                globalPanenIds = emptyList()
-//                                globalESPBIds = emptyList()
-//                                jsonResultTableIds = createJsonTableNameMapping()
-//                            }
-//                        } else {
-//                            jsonResultTableIds = createJsonTableNameMapping()
-//                        }
-//
-//                        uploadCMPViewModel.UpdateOrInsertDataUpload(
-//                            response.trackingId,
-//                            response.nama_file,
-//                            response.status,
-//                            response.tanggal_upload,
-//                            jsonResultTableIds
-//                        )
-//                        delay(100)
-//                    }
-//                }
-//            }
-//        }
-//
-//    }
-
     @SuppressLint("SetTextI18n")
-    private fun setupDialogUpload() {
+    private fun setupDialogUpload(uploadData: String? = null) {
+
+
+        AppLogger.d("uploadData $uploadData")
         // Reset state for a fresh upload dialog
         uploadCMPViewModel.resetState()
         loadingDialog.dismiss()
@@ -1571,49 +1484,136 @@ class HomePageActivity : AppCompatActivity() {
         var failedUploads: List<UploadCMPItem> = listOf()
         val uploadItems = mutableListOf<UploadCMPItem>()
 
-        AppLogger.d("allUploadZipFilesToday size: ${allUploadZipFilesToday.size}")
-        if (allUploadZipFilesToday.isEmpty()) {
-            AppLogger.d("Warning: No files found to upload!")
-        } else {
-            AppLogger.d("Files to upload:")
+        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        val adapter = UploadProgressCMPDataAdapter(uploadItems)
+        recyclerView.adapter = adapter
 
-            // Group files by their datetime identifier (everything before the last part number)
-            val groupedFiles = allUploadZipFilesToday.groupBy { file ->
-                // Extract the datetime part (like "2_20250420084723" from "2_20250420084723_1.zip")
-                val regex = Regex("(.+)_\\d+\\.zip$")
-                val match = regex.find(file.name)
-                match?.groupValues?.getOrNull(1) ?: file.name
-            }
+        if (uploadData != null) {
+            try {
+                val gson = Gson()
+                val dataMap = gson.fromJson(uploadData, Map::class.java)
+                AppLogger.d("Data map keys: ${dataMap.keys}")
 
-            var itemId = 0
+                // Extract the data for panen, espb, and photo files
+                val panenData = dataMap[AppUtils.DatabaseTables.PANEN] as? List<*>
+                val espbData = dataMap[AppUtils.DatabaseTables.ESPB] as? List<*>
+                val fotoPanen = dataMap["foto_panen"] as? List<*>
 
-            // Process each group separately
-            groupedFiles.forEach { (baseFilename, files) ->
-                // Sort files within each group by part number
-                val sortedGroupFiles = files.sortedBy { file ->
-                    val partMatch = Regex("_(\\d+)\\.zip$").find(file.name)
-                    partMatch?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
-                }
+                AppLogger.d("Panen data: ${panenData?.size ?: 0} items")
+                AppLogger.d("ESPB data: ${espbData?.size ?: 0} items")
+                AppLogger.d("Photo data: ${fotoPanen?.size ?: 0} items")
 
-                // Process files in the sorted order
-                sortedGroupFiles.forEach { file ->
-                    val partMatch = Regex("_(\\d+)\\.zip$").find(file.name)
-                    val partNumber = partMatch?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 1
+                var itemId = 0
 
-                    AppLogger.d("File ${itemId}: ${file.name} (${file.absolutePath}), Part: $partNumber of ${sortedGroupFiles.size}")
-                    uploadItems.add(
-                        UploadCMPItem(
-                            id = itemId++,
-                            title = file.name,
-                            fullPath = file.absolutePath,
-                            partNumber = partNumber,
-                            totalParts = sortedGroupFiles.size,
-                            baseFilename = baseFilename
-                        )
+                // For Panen data
+                if (panenData != null && panenData.isNotEmpty()) {
+                    val panenTitle = "Panen Data (${panenData.size} data)"
+                    val panenJson = gson.toJson(panenData)
+                    val panenSize = panenJson.length.toLong() // Size in bytes
+                    AppLogger.d("Panen JSON size: $panenSize bytes")
+
+                    val uploadItem = UploadCMPItem(
+                        id = itemId++,
+                        title = panenTitle,
+                        fullPath = "panen",
+                        partNumber = 1,
+                        totalParts = 1,
+                        baseFilename = "panen",
+                        data = panenJson
                     )
+
+                    uploadItems.add(uploadItem)
+                    adapter.setFileSize(uploadItem.id, panenSize)
+
+                    // Store IDs for later use when marking as uploaded
+                    val panenIds = dataMap["panenIds"] as? List<*>
+                    if (panenIds != null) {
+                        val panenIdsList = panenIds.mapNotNull { it.toString().toIntOrNull() }
+
+                    }
                 }
+
+                // For ESPB data
+                if (espbData != null && espbData.isNotEmpty()) {
+                    val espbTitle = "ESPB Data (${espbData.size} items)"
+                    val espbJson = gson.toJson(espbData)
+                    val espbSize = espbJson.length.toLong() // Size in bytes
+                    AppLogger.d("ESPB JSON size: $espbSize bytes")
+
+                    val uploadItem = UploadCMPItem(
+                        id = itemId++,
+                        title = espbTitle,
+                        fullPath = "espb",
+                        partNumber = 1,
+                        totalParts = 1,
+                        baseFilename = "espb",
+                        data = espbJson
+                    )
+
+                    uploadItems.add(uploadItem)
+                    adapter.setFileSize(uploadItem.id, espbSize)
+
+                    // Store IDs for later use when marking as uploaded
+                    val espbIds = dataMap["espbIds"] as? List<*>
+                    if (espbIds != null) {
+                        val espbIdsList = espbIds.mapNotNull { it.toString().toIntOrNull() }
+
+                    }
+                }
+
+                // For photo data
+                if (fotoPanen != null && fotoPanen.isNotEmpty()) {
+                    // Calculate total size
+                    AppLogger.d("Processing photo data: ${fotoPanen.size} photos")
+                    var totalPhotoSize = 0L
+                    val foundPhotoCount = fotoPanen.count { photoData ->
+                        try {
+                            (photoData as? Map<*, *>)?.let { photoMap ->
+                                val name = photoMap["name"] as? String ?: ""
+                                val sizeStr = photoMap["size"] as? String
+                                val size = sizeStr?.toLongOrNull() ?: 0L
+                                totalPhotoSize += size
+                                AppLogger.d("Photo: $name, size: $size")
+                                size > 0
+                            } ?: false
+                        } catch (e: Exception) {
+                            AppLogger.e("Error processing photo data: ${e.message}")
+                            false
+                        }
+                    }
+
+                    AppLogger.d("Found $foundPhotoCount photos with a total size of $totalPhotoSize bytes")
+                    if (foundPhotoCount > 0) {
+                        val photoTitle = "Foto Panen ($foundPhotoCount files)"
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = photoTitle,
+                            fullPath = "foto_panen",
+                            partNumber = 1,
+                            totalParts = 1,
+                            baseFilename = "foto_panen",
+                            data = gson.toJson(fotoPanen)  // Store the photo data with paths and sizes
+                        )
+
+                        uploadItems.add(uploadItem)
+                        AppLogger.d("Adding photo upload item with ID ${uploadItem.id}")
+                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                    } else {
+                        AppLogger.w("No photo files found for upload")
+                    }
+                }
+
+                // Update the adapter with all items
+                AppLogger.d("Setting ${uploadItems.size} items to adapter")
+                adapter.setItems(uploadItems)
+
+            } catch (e: Exception) {
+                AppLogger.e("Error parsing upload data: ${e.message}")
+                e.printStackTrace()
             }
         }
+
 
         Handler(Looper.getMainLooper()).postDelayed({
             if (counterTV.text == "0/0" && uploadItems.size > 0) {
@@ -1621,10 +1621,6 @@ class HomePageActivity : AppCompatActivity() {
             }
         }, 100)
 
-        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        val adapter = UploadProgressCMPDataAdapter(uploadItems)
-        recyclerView.adapter = adapter
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
@@ -1712,7 +1708,8 @@ class HomePageActivity : AppCompatActivity() {
                             fullPath = failedItem.fullPath,
                             partNumber = failedItem.partNumber,
                             totalParts = failedItem.totalParts,
-                            baseFilename = failedItem.baseFilename
+                            baseFilename = failedItem.baseFilename,
+                            data = failedItem.data
                         )
                     )
                 }
@@ -2305,7 +2302,8 @@ class HomePageActivity : AppCompatActivity() {
                     fullPath = "",
                     partNumber = 1,  // Single part for downloads
                     totalParts = 1,  // Single part for downloads
-                    baseFilename = request.estateAbbr ?: ""
+                    baseFilename = request.estateAbbr ?: "",
+                    data = ""
                 )
             )
         }
@@ -2405,7 +2403,8 @@ class HomePageActivity : AppCompatActivity() {
                             fullPath = "",
                             partNumber = 1,
                             totalParts = 1,
-                            baseFilename = request.estateAbbr ?: ""
+                            baseFilename = request.estateAbbr ?: "",
+                            data = ""
                         )
                     )
                 }

@@ -2128,7 +2128,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     fullPath = "",
                     partNumber = 1,  // Single part for downloads
                     totalParts = 1,  // Single part for downloads
-                    baseFilename = request.estateAbbr ?: ""
+                    baseFilename = request.estateAbbr ?: "",
+                    data = ""
                 )
             )
         }
@@ -2228,7 +2229,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             fullPath = "",
                             partNumber = 1,
                             totalParts = 1,
-                            baseFilename = request.estateAbbr ?: ""
+                            baseFilename = request.estateAbbr ?: "",
+                            data = ""
                         )
                     )
                 }

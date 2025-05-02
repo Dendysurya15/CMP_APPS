@@ -20,7 +20,8 @@ data class UploadCMPItem(
     val fullPath: String,
     val partNumber: Int,
     val totalParts: Int,
-    val baseFilename: String
+    val baseFilename: String,
+    val data :String,
 )
 
 class UploadProgressCMPDataAdapter(
@@ -72,11 +73,22 @@ class UploadProgressCMPDataAdapter(
         return UploadViewHolder(view)
     }
 
+
+    fun setFileSize(itemId: Int, size: Long) {
+        fileSizeMap[itemId] = size
+        notifyDataSetChanged()
+    }
+
+    fun setItems(items: List<UploadCMPItem>) {
+        dataList.clear()
+        dataList.addAll(items)
+        notifyDataSetChanged()
+    }
+
     override fun onBindViewHolder(holder: UploadViewHolder, position: Int) {
         val item = dataList[position]
         val fileSize = fileSizeMap[item.id] ?: 0L
-        val uploadedBytes = uploadedBytesMap[item.id] ?: 0L
-
+        // Your existing binding code
         if (item.title.contains("Master")) {
             holder.tvNameProgress.text = item.title
         } else {
