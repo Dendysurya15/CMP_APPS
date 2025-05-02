@@ -13,6 +13,7 @@ data class PanenEntity(
     val karyawan_id: String,
     val kemandoran_id: String,
     val karyawan_nik: String,
+    val karyawan_nama: String,
     val jjg_json: String,
     val foto: String,
     val komentar:  String,

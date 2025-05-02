@@ -72,6 +72,15 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
+    suspend fun getTPHByBlockId(blockId: Int): Result<TPHNewModel?> = withContext(Dispatchers.IO) {
+        try {
+            val tphData = tphDao.getTPHByBlockId(blockId)
+            Result.success(tphData)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun loadHistoryESPB(date: String? = null): List<ESPBEntity> {
         return try {
             espbDao.getAllESPBS(date)

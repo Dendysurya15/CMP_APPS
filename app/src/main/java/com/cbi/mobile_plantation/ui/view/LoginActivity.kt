@@ -287,6 +287,9 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.companyIdUserLogin = loginResponse.data?.user?.company
                         prefManager!!.companyAbbrUserLogin = loginResponse.data?.user?.company_abbr
                         prefManager!!.companyNamaUserLogin = loginResponse.data?.user?.company_nama
+                        prefManager!!.kemandoranUserLogin = loginResponse.data?.user?.kemandoran
+                        prefManager!!.kemandoranNamaUserLogin = loginResponse.data?.user?.kemandoran_nama
+                        prefManager!!.kemandoranKodeUserLogin = loginResponse.data?.user?.kemandoran_kode
 
                         Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()
                         navigateToHomePage()

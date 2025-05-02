@@ -76,6 +76,7 @@
             android:exported="false" />
         <activity
             android:name=".ui.view.panenTBS.FeaturePanenTBSActivity"
+            android:screenOrientation="portrait"
             android:exported="false" />
         <activity
             android:name=".ui.view.panenTBS.ListPanenTBSActivity"

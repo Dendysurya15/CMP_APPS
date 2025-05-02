@@ -35,6 +35,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.database.KaryawanDao
 import com.cbi.mobile_plantation.data.model.ESPBEntity
@@ -931,6 +932,7 @@ class HomePageActivity : AppCompatActivity() {
                                     ) // Ensure it's never null
                                 }
 
+
                                 // Initialize outside try-catch to avoid uninitialized errors
                                 var mappedPanenData: List<Map<String, Any>> = emptyList()
                                 var mappedESPBData: List<Map<String, Any>> = emptyList()
@@ -944,15 +946,68 @@ class HomePageActivity : AppCompatActivity() {
                                     if (panenList.isNotEmpty()) {
                                         mappedPanenData = panenList.map { panenWithRelations ->
 
+                                            //handle kemandoran_field
+                                            val kemandoranId = prefManager!!.kemandoranUserLogin.toString()
+                                            val kemandoranKode = prefManager!!.kemandoranKodeUserLogin.toString()
+                                            val kemandoranNama = prefManager!!.kemandoranNamaUserLogin.toString()
+
+                                            val pemanen = mutableListOf<Map<String, String>>()
+                                            val nikList = panenWithRelations.panen.karyawan_nik?.split(",") ?: listOf()
+                                            val namaList = panenWithRelations.panen.karyawan_nama?.split(",") ?: listOf()
+
+                                            for (i in nikList.indices) {
+                                                if (i < namaList.size) {
+                                                    pemanen.add(mapOf(
+                                                        "nik" to nikList[i].trim(),
+                                                        "nama" to namaList[i].trim()
+                                                    ))
+                                                } else {
+                                                    // In case there are more NIKs than names
+                                                    pemanen.add(mapOf(
+                                                        "nik" to nikList[i].trim(),
+                                                        "nama" to ""
+                                                    ))
+                                                }
+                                            }
+
+                                            val kemandoranJsonMap = mutableMapOf<String, Any>()
+                                            kemandoranJsonMap["id"] = kemandoranId.toIntOrNull() ?: 0
+                                            kemandoranJsonMap["kode"] = kemandoranKode
+                                            kemandoranJsonMap["nama"] = kemandoranNama
+                                            kemandoranJsonMap["pemanen"] = pemanen
+
+                                            val kemandoranJson = listOf(kemandoranJsonMap)
+                                            val kemandoranJsonString = Gson().toJson(kemandoranJson)
+                                            val jumlahPemanen = pemanen.size
+
                                             mapOf(
                                                 "id" to panenWithRelations.panen.id,
                                                 "tanggal" to panenWithRelations.panen.date_created,
                                                 "jjg_json" to panenWithRelations.panen.jjg_json,
                                                 "tipe" to panenWithRelations.panen.jenis_panen,
-                                                "tph" to (panenWithRelations.tph?.id
-                                                    ?: 0) as Int,
-                                                "tph_nomor" to (panenWithRelations.tph?.nomor
-                                                    ?: ""),
+                                                "created_by" to prefManager!!.idUserLogin.toString(),
+                                                "created_name" to prefManager!!.nameUserLogin.toString(),
+                                                "created_date" to panenWithRelations.panen.date_created,
+                                                "jabatan" to prefManager!!.jabatanUserLogin.toString(),
+                                                "status_pengangkutan" to panenWithRelations.panen.status_pengangkutan,
+                                                "regional" to panenWithRelations.tph?.regional.toString(),
+                                                "wilayah" to panenWithRelations.tph?.wilayah.toString(),
+                                                "company" to panenWithRelations.tph?.company.toString(),
+                                                "company_abbr" to panenWithRelations.tph?.company_abbr.toString(),
+                                                "company_nama" to panenWithRelations.tph?.company_nama.toString(),
+                                                "dept" to panenWithRelations.tph?.dept.toString(),
+                                                "dept_ppro" to panenWithRelations.tph?.dept_ppro.toString(),
+                                                "dept_nama" to panenWithRelations.tph?.dept_nama.toString(),
+                                                "divisi" to panenWithRelations.tph?.divisi.toString(),
+                                                "divisi_abbr" to panenWithRelations.tph?.divisi_abbr.toString(),
+                                                "divisi_ppro" to panenWithRelations.tph?.divisi_ppro.toString(),
+                                                "divisi_nama" to panenWithRelations.tph?.divisi_nama.toString(),
+                                                "blok" to panenWithRelations.tph?.blok.toString(),
+                                                "blok_ppro" to panenWithRelations.tph?.blok_ppro.toString(),
+                                                "blok_kode" to panenWithRelations.tph?.blok_kode.toString(),
+                                                "blok_nama" to panenWithRelations.tph?.blok_nama.toString(),
+                                                "tph" to (panenWithRelations.tph?.id ?: 0) as Int,
+                                                "tph_nomor" to (panenWithRelations.tph?.nomor ?: ""),
                                                 "ancak" to panenWithRelations.panen.ancak,
                                                 "asistensi" to if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2,
                                                 "kemandoran_id" to panenWithRelations.panen.kemandoran_id,
@@ -963,23 +1018,24 @@ class HomePageActivity : AppCompatActivity() {
                                                 "lat" to panenWithRelations.panen.lat,
                                                 "lon" to panenWithRelations.panen.lon,
                                                 "status_banjir" to panenWithRelations.panen.status_banjir,
-                                                "created_by" to prefManager!!.idUserLogin.toString(),
-                                                "created_name" to prefManager!!.nameUserLogin.toString(),
-                                                "created_date" to panenWithRelations.panen.date_created,
-                                                "jabatan" to prefManager!!.jabatanUserLogin.toString(),
                                                 "status_pengangkutan" to panenWithRelations.panen.status_pengangkutan,
-                                                "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
-                                                    .toString(),
-
-                                                )
+                                                "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
+                                                "kemandoran_user" to kemandoranNama,
+                                                "kemandoran_user_kode" to kemandoranKode,
+                                                "kemandoran_user_id" to kemandoranId,
+                                                "kemandoran" to kemandoranJsonString,
+                                                "jumlah_pemanen" to jumlahPemanen,
+                                                "restan" to 0,
+                                                "status_espb" to 0)
                                         }
 
-
-                                        AppLogger.d(mappedPanenData.toString())
                                         globalPanenIds = mappedPanenData.map { it["id"] as Int }
                                     }
 
+
+                                    AppLogger.d(espbList.toString())
                                     if (espbList.isNotEmpty()) {
+
                                         mappedESPBData = espbList.map { data ->
                                             val blokJjgList = data.blok_jjg.split(";").mapNotNull {
                                                 it.split(",").takeIf { it.size == 2 }
@@ -989,11 +1045,35 @@ class HomePageActivity : AppCompatActivity() {
                                                     }
                                             }
                                             val idBlokList = blokJjgList.map { it.first }
-                                            val concatenatedIds = idBlokList.joinToString(",")
-                                            val totalJjg =
-                                                blokJjgList.mapNotNull { it.second }.sum()
+                                            val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
+                                            val concatenatedIds = idBlokList.joinToString(",").trimEnd(',')
+                                            val firstBlockId = idBlokList.firstOrNull()
+                                            // Create a CompletableDeferred to handle the async operation
+                                            val tphDeferred = CompletableDeferred<TPHNewModel?>()
+
+                                            // Fetch the TPH data if we have a block ID
+                                            firstBlockId?.let { blockId ->
+                                                weightBridgeViewModel.fetchTPHByBlockId(blockId)
+
+                                                // Set up a one-time observer for the LiveData
+                                                weightBridgeViewModel.tphData.observeOnce(this@HomePageActivity) { tphModel ->
+                                                    tphDeferred.complete(tphModel)
+                                                }
+                                            } ?: tphDeferred.complete(null) // Complete with null if no block ID
+
+                                            // Wait for the TPH data
+                                            val tphData = tphDeferred.await()
+
+                                            AppLogger.d(idBlokList.toString())
+                                            AppLogger.d(concatenatedIds.toString())
+
                                             mapOf(
                                                 "id" to data.id,
+                                                "regional" to (tphData?.regional ?: ""),
+                                                "wilayah" to (tphData?.wilayah ?: ""),
+                                                "company" to (tphData?.company ?: ""),
+                                                "dept" to (tphData?.dept ?: ""),
+                                                "divisi" to (tphData?.divisi ?: ""),
                                                 "blok_id" to concatenatedIds,
                                                 "blok_jjg" to data.blok_jjg,
                                                 "jjg" to totalJjg,
@@ -1011,12 +1091,13 @@ class HomePageActivity : AppCompatActivity() {
                                                 "tph0" to data.tph0,
                                                 "tph1" to data.tph1,
                                                 "update_info_sp" to data.update_info_sp,
-                                                "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
-                                                    .toString(),
+                                                "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
                                                 "jabatan" to prefManager!!.jabatanUserLogin.toString(),
                                             )
                                         }
 
+
+                                        AppLogger.d(mappedESPBData.toString())
                                         globalESPBIds = mappedESPBData.map { it["id"] as Int }
                                     }
 
@@ -1031,73 +1112,73 @@ class HomePageActivity : AppCompatActivity() {
 
                                     Log.d("UploadCheck", uploadDataList.toString())
 
-                                    if (uploadDataList.isNotEmpty()) {
-
-                                        AppLogger.d("upload List $uploadDataList")
-                                        lifecycleScope.launch(Dispatchers.IO) {
-                                            AppUtils.createAndSaveZipUploadCMPSingle(
-                                                this@HomePageActivity,
-                                                uploadDataList,
-                                                prefManager!!.idUserLogin.toString()
-                                            ) { success, fileName, fullPath, zipFile ->
-                                                if (success) {
-                                                    zipFilePath = fullPath
-                                                    zipFileName = fileName
-
-                                                    // Add the created zip file to the collection
-                                                    allUploadZipFilesToday.add(zipFile)
-
-                                                    lifecycleScope.launch(Dispatchers.IO) {
-                                                        featuresToFetch.forEach { feature ->
-                                                            val ids = when (feature) {
-                                                                AppUtils.DatabaseTables.ESPB -> globalESPBIds
-                                                                AppUtils.DatabaseTables.PANEN -> globalPanenIds
-                                                                else -> emptyList()
-                                                            }
-
-                                                            if (ids.isNotEmpty()) {
-                                                                archiveUpdateActions[feature]?.invoke(
-                                                                    ids
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                    zipDeferred.complete(true)
-                                                } else {
-                                                    Log.e("UploadCheck", "❌ ZIP creation failed")
-                                                    zipDeferred.complete(false)
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        zipDeferred.complete(false)
-                                    }
+//                                    if (uploadDataList.isNotEmpty()) {
+//
+//                                        AppLogger.d("upload List $uploadDataList")
+//                                        lifecycleScope.launch(Dispatchers.IO) {
+//                                            AppUtils.createAndSaveZipUploadCMPSingle(
+//                                                this@HomePageActivity,
+//                                                uploadDataList,
+//                                                prefManager!!.idUserLogin.toString()
+//                                            ) { success, fileName, fullPath, zipFile ->
+//                                                if (success) {
+//                                                    zipFilePath = fullPath
+//                                                    zipFileName = fileName
+//
+//                                                    // Add the created zip file to the collection
+//                                                    allUploadZipFilesToday.add(zipFile)
+//
+//                                                    lifecycleScope.launch(Dispatchers.IO) {
+//                                                        featuresToFetch.forEach { feature ->
+//                                                            val ids = when (feature) {
+//                                                                AppUtils.DatabaseTables.ESPB -> globalESPBIds
+//                                                                AppUtils.DatabaseTables.PANEN -> globalPanenIds
+//                                                                else -> emptyList()
+//                                                            }
+//
+//                                                            if (ids.isNotEmpty()) {
+//                                                                archiveUpdateActions[feature]?.invoke(
+//                                                                    ids
+//                                                                )
+//                                                            }
+//                                                        }
+//                                                    }
+//                                                    zipDeferred.complete(true)
+//                                                } else {
+//                                                    Log.e("UploadCheck", "❌ ZIP creation failed")
+//                                                    zipDeferred.complete(false)
+//                                                }
+//                                            }
+//                                        }
+//                                    } else {
+//                                        zipDeferred.complete(false)
+//                                    }
 
                                     loadingDialog.dismiss()
                                 }
 
                                 // Wait for ZIP to complete before calling the next function
-                                val zipSuccess = zipDeferred.await()
-                                if (zipSuccess || allUploadZipFilesToday.isNotEmpty()) {
-                                    Log.d(
-                                        "UploadCheck",
-                                        "🎉 ZIP creation done! Proceeding to the next step."
-                                    )
-                                    setupDialogUpload()
-                                } else {
-                                    Log.e(
-                                        "UploadCheck",
-                                        "⛔ ZIP creation failed! Skipping next step."
-                                    )
-                                    AlertDialogUtility.withSingleAction(
-                                        this@HomePageActivity,
-                                        stringXML(R.string.al_back),
-                                        stringXML(R.string.al_no_data_for_upload_cmp),
-                                        stringXML(R.string.al_no_data_for_upload_cmp_description),
-                                        "success.json",
-                                        R.color.greendarkerbutton
-                                    ) { }
-                                }
+//                                val zipSuccess = zipDeferred.await()
+//                                if (zipSuccess || allUploadZipFilesToday.isNotEmpty()) {
+//                                    Log.d(
+//                                        "UploadCheck",
+//                                        "🎉 ZIP creation done! Proceeding to the next step."
+//                                    )
+//                                    setupDialogUpload()
+//                                } else {
+//                                    Log.e(
+//                                        "UploadCheck",
+//                                        "⛔ ZIP creation failed! Skipping next step."
+//                                    )
+//                                    AlertDialogUtility.withSingleAction(
+//                                        this@HomePageActivity,
+//                                        stringXML(R.string.al_back),
+//                                        stringXML(R.string.al_no_data_for_upload_cmp),
+//                                        stringXML(R.string.al_no_data_for_upload_cmp_description),
+//                                        "success.json",
+//                                        R.color.greendarkerbutton
+//                                    ) { }
+//                                }
                             }
 
                         }
@@ -2670,7 +2751,7 @@ class HomePageActivity : AppCompatActivity() {
         datasets.addAll(
             listOf(
                 DatasetRequest(
-                    regional = regionalUser,
+                    estate = estateId,
                     lastModified = lastModifiedDatasetPemanen,
                     dataset = AppUtils.DatasetNames.pemanen
                 ),

@@ -207,7 +207,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var afdelingList: List<AfdelingModel> = emptyList()
     private var kemandoranLainList: List<KemandoranModel> = emptyList()
-
+    private val karyawanNamaMap = mutableMapOf<String, String>()
+    private val karyawanNamaLainMap = mutableMapOf<String, String>()
     private var tphList: List<TPHNewModel> = emptyList()
 
     private lateinit var loadingDialog: LoadingDialog
@@ -591,6 +592,30 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                     id
                                 }
+                                val selectedNamaPemanenList = selectedPemanen.mapNotNull { worker ->
+                                    // First try to get name using the full worker name (with NIK if present)
+                                    var nama = karyawanNamaMap[worker.name]
+
+                                    // If that fails and the name contains a NIK separator, try with just the base name
+                                    if (nama == null && worker.name.contains(" - ")) {
+                                        val baseName = worker.name.substringBefore(" - ").trim()
+                                        nama = karyawanNamaMap[baseName]
+                                    }
+
+                                    // If that still fails and we don't have a NIK separator, try all possible matches
+                                    if (nama == null && !worker.name.contains(" - ")) {
+                                        // Find any key in the map that starts with this worker's name followed by " - "
+                                        val possibleKey = karyawanNamaMap.keys.find { it.startsWith("${worker.name} - ") }
+                                        if (possibleKey != null) {
+                                            nama = karyawanNamaMap[possibleKey]
+                                        } else {
+                                            // If all else fails, use the worker name itself
+                                            nama = worker.name
+                                        }
+                                    }
+
+                                    nama
+                                }
 
 
                                 val selectedPemanenLain =
@@ -628,6 +653,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         }
                                     }
 
+                                val selectedNamaPemanenLainList = selectedPemanenLain.mapNotNull { worker ->
+                                    val baseName = worker.name.substringBefore(" - ").trim()
+
+                                    if (workerLainNameCounts[baseName]!! > 1) {
+                                        // For duplicate names, use the full key with NIK
+                                        karyawanNamaLainMap[worker.name]
+                                    } else {
+                                        // For unique names, just use the base name
+                                        karyawanNamaLainMap[baseName] ?: baseName  // Fallback to baseName if not in map
+                                    }
+                                }
+
                                 val selectedNikPemanenIds = selectedPemanen.mapNotNull { worker ->
                                     if (worker.name.contains(" - ")) {
                                         // Find the last occurrence of " - " to extract only the NIK
@@ -657,6 +694,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         }
                                     }
 
+                                val uniqueNamaPemanen = (selectedNamaPemanenList + selectedNamaPemanenLainList)
+                                    .joinToString(",")
+
                                 val uniqueNikPemanen =
                                     (selectedNikPemanenIds + selectedNikPemanenLainIds)
                                         .joinToString(",")
@@ -683,6 +723,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         karyawan_id = uniqueIdKaryawan,
                                         kemandoran_id = uniqueKemandoranId,
                                         karyawan_nik = uniqueNikPemanen,
+                                        karyawan_nama = uniqueNamaPemanen,
                                         jjg_json = jjg_json,
                                         foto = photoFilesString,
                                         komentar = komentarFotoString,
@@ -4132,7 +4173,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
                 }
 
-                // If still not found, try fuzzy matching on name
                 if (selectedEmployee == null) {
                     selectedEmployee = karyawanList.firstOrNull {
                         it.nama?.contains(
@@ -4158,6 +4198,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
                         karyawanIdMap[key] = it.id!!
                         kemandoranIdMap[key] = it.kemandoran_id!!
+                        karyawanNamaMap[key] = nama  // Store the actual name without NIK
                     }
                 }
 
@@ -4391,6 +4432,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
                         karyawanLainIdMap[key] = it.id!!
                         kemandoranLainIdMap[key] = it.kemandoran_id!!
+                        karyawanNamaLainMap[key] = nama
                     }
                 }
 

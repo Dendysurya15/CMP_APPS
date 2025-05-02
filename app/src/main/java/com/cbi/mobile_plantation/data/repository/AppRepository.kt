@@ -95,6 +95,7 @@ class AppRepository(context: Context) {
                                 karyawan_id = "",
                                 kemandoran_id = "",
                                 karyawan_nik = "",
+                                karyawan_nama = "",
                                 jjg_json = "{\"KP\": ${tphData.jjg}}",
                                 foto = "",
                                 komentar = "",
@@ -108,7 +109,7 @@ class AppRepository(context: Context) {
                                 status_espb = 0,
                                 status_restan = 0,
                                 scan_status = 1,
-                                username = tphData.username
+//                                username = tphData.username
                             )
                         )
 

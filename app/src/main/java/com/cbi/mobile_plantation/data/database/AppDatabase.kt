@@ -73,7 +73,7 @@ import java.util.concurrent.Executors
         EstateModel::class,
         AfdelingModel::class,
     ],
-    version = 31
+    version = 34
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -92,6 +92,22 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun blokDao(): BlokDao
     abstract fun estateDao(): EstateDao
     abstract fun afdelingDao(): AfdelingDao
+
+
+    // Function to restore data from backup tables if needed
+//    fun restoreFromBackups() {
+//        // Should be called within a transaction and background thread
+//        runInTransaction {
+//            panenDao().deleteAllPanen()
+//            panenDao().restoreFromBackup()
+//
+//            espbDao().deleteAllESPB()
+//            espbDao().restoreFromBackup()
+//
+//            Log.d("Database Restoration", "Successfully restored data from backup tables")
+//        }
+//    }
+
 
     companion object {
         @Volatile
@@ -120,6 +136,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_27_28,
                         MIGRATION_28_29,
                         MIGRATION_29_30,
+                        MIGRATION_30_31,
+                        MIGRATION_31_32,
+                        MIGRATION_32_33
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -400,6 +419,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+
+        val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add dept_nama column to TPHNewModel table
+                database.execSQL("ALTER TABLE TPHNewModel ADD COLUMN dept_nama TEXT")
+            }
+        }
+
+        val MIGRATION_31_32 = object : Migration(31, 32) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add dept_nama column to TPHNewModel table
+                database.execSQL("ALTER TABLE TPHNewModel ADD COLUMN company_nama TEXT")
+            }
+        }
+
+        val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add dept_nama column to PanenEntity table
+                database.execSQL("ALTER TABLE PanenEntity ADD COLUMN karyawan_nama TEXT")
+            }
+        }
 
         fun closeDatabase() {
             INSTANCE?.close()

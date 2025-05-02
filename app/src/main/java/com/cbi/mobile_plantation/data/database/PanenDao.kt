@@ -134,4 +134,11 @@ abstract class PanenDao {
     @Transaction
     @Query("SELECT * FROM panen_table WHERE date(date_created) < date(:cutoffDate)")
     abstract suspend fun getPanenOlderThan(cutoffDate: String): List<PanenEntityWithRelations>
+
+
+//    @Query("DELETE FROM panen_table")
+//    fun deleteAllPanen()
+//
+//    @Query("INSERT INTO panen_table SELECT * FROM panen_table_backup")
+//    fun restoreFromBackup()
 }

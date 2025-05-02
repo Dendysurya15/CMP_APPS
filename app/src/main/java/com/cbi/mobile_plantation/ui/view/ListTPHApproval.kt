@@ -209,7 +209,6 @@ class ListTPHApproval : AppCompatActivity() {
 
 
         btnGenerateQRTPH.setOnClickListener {
-            if (isValidAllBlok) {
                 AlertDialogUtility.withTwoActions(
                     this,
                     "Simpan",
@@ -306,17 +305,7 @@ class ListTPHApproval : AppCompatActivity() {
                     cancelFunction = {}
 
                 )
-            }else{
-                AlertDialogUtility.withSingleAction(
-                    this@ListTPHApproval,
-                    "Kembali",
-                    "Peringatan Blok Tidak Valid",
-                    getString(R.string.al_validation_qr_krani_scan),
-                    "warning.json"
-                ) {
 
-                }
-            }
 
         }
     }

@@ -165,6 +165,24 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     }
 
 
+    private val _tphData = MutableLiveData<TPHNewModel?>()
+    val tphData: LiveData<TPHNewModel?> = _tphData
+
+
+    // Function to fetch TPH data by block ID
+    fun fetchTPHByBlockId(blockId: Int) {
+        viewModelScope.launch {
+            repository.getTPHByBlockId(blockId)
+                .onSuccess { tph ->
+                    _tphData.postValue(tph)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load TPH data")
+                }
+        }
+    }
+
+
     private val _activeESPBUploadCMP = MutableLiveData<List<ESPBEntity>>()
     val activeESPBUploadCMP: LiveData<List<ESPBEntity>> get() = _activeESPBUploadCMP
 
