@@ -63,6 +63,7 @@ import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
 
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
+import com.cbi.mobile_plantation.ui.viewModel.HektarPanenViewModel
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 import com.cbi.mobile_plantation.ui.viewModel.UploadCMPViewModel
@@ -107,6 +108,8 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var weightBridgeViewModel: WeighBridgeViewModel
     private lateinit var uploadCMPViewModel: UploadCMPViewModel
     private lateinit var inspectionViewModel: InspectionViewModel
+    private lateinit var hektarPanenViewModel: HektarPanenViewModel
+
     private var isTriggerButtonSinkronisasiData: Boolean = false
     private lateinit var dialog: Dialog
     private var countAbsensi: Int = 0  // Global variable for count
@@ -798,7 +801,7 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.DaftarHektarPanen -> {
                 if (feature.displayType == DisplayType.COUNT) {
-                    val intent = Intent(this, DaftarHektarMPanen::class.java)
+                    val intent = Intent(this, ListHistoryESPBActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }
@@ -849,8 +852,6 @@ class HomePageActivity : AppCompatActivity() {
                         ) {
 
                         }
-
-
                     }
 
                 }
@@ -2019,6 +2020,9 @@ class HomePageActivity : AppCompatActivity() {
         val appRepository = AppRepository(application)
         val factory5 = ESPBViewModel.ESPBViewModelFactory(appRepository)
         espbViewModel = ViewModelProvider(this, factory5)[ESPBViewModel::class.java]
+//
+//        val factory7 = HektarPanenViewModel.HektarPanenViewModelFactory(appRepository)
+//        hektarPanenViewModel = ViewModelProvider(this, factory7)[ESPBViewModel::class.java]
 
         val factory6 = AbsensiViewModel.AbsensiViewModelFactory(application)
         absensiViewModel = ViewModelProvider(this, factory6)[AbsensiViewModel::class.java]

@@ -67,4 +67,8 @@ abstract class HektarPanenDao {
 
     @Query("SELECT * FROM hektar_panen WHERE nik = :nik AND blok = :blokId AND date_created_panen LIKE '%' || :date || '%'")
     abstract fun getByNikAndBlokDate(nik: String, blokId: Int, date: String): HektarPanenEntity?
+
+    //count where luas_panen is 0 and date today
+    @Query("SELECT COUNT(*) FROM hektar_panen WHERE luas_panen = 0 AND strftime('%Y-%m-%d', date_created_panen) = strftime('%Y-%m-%d', 'now', 'localtime')")
+    abstract fun countWhereLuasPanenIsZeroAndDateToday(): Int
 }

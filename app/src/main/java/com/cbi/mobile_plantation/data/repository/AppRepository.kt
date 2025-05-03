@@ -51,6 +51,8 @@ class AppRepository(context: Context) {
     private val inspectionDao = database.inspectionDao()
     private val inspectionPathDao = database.inspectionPathDao()
     private val kendaraanDao = database.kendaraanDao()
+    private val hektarPanenDao = database.hektarPanenDao()
+
 
     sealed class SaveResultPanen {
         object Success : SaveResultPanen()
@@ -570,6 +572,10 @@ class AppRepository(context: Context) {
 
     suspend fun getPanenCount(): Int {
         return panenDao.getCount()
+    }
+
+    suspend fun countWhereLuasPanenIsZeroAndDateToday(): Int {
+        return hektarPanenDao.countWhereLuasPanenIsZeroAndDateToday()
     }
 
     suspend fun loadCountTPHESPB(

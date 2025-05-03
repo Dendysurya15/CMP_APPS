@@ -573,7 +573,6 @@ class ListTPHApproval : AppCompatActivity() {
                     }
 
                     try {
-
                         var idtph = 0
                         var dateIndex = "NULL"
                         var time = "NULL"
@@ -740,7 +739,6 @@ class ListTPHApproval : AppCompatActivity() {
                 return@withContext emptyList()
             }
         }
-
 
     // 1. Create a sealed class to represent different types of save data
     sealed class SaveDataType {

@@ -12,3 +12,11 @@ data class TPHBlokInfo(
     val tphNomor: String,
     val blokKode: String
 )
+
+data class filterHektarPanenTanggalBlok(
+    val namaBlok: String,
+    val date: String,
+    val pemanen: String,
+    val janjang_dibayar: String,
+    val id_hektar_panen: Int
+)
