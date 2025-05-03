@@ -96,6 +96,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.File
+import java.io.FileReader
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -1141,7 +1142,21 @@ class HomePageActivity : AppCompatActivity() {
 
                                         globalPanenIds = mappedPanenData.map { it["id"] as Int }
 
-                                        combinedUploadData[AppUtils.DatabaseTables.PANEN] = mappedPanenData
+                                        val firstItem = mappedPanenData.firstOrNull()
+                                        val dateCreated = firstItem?.get("created_date") as? String
+
+                                        val panenJson = Gson().toJson(mappedPanenData)
+                                        val (panenFilePath, panenFilename) = AppUtils.createTempJsonFile(
+                                            context = this@HomePageActivity,
+                                            baseFilename = AppUtils.DatabaseTables.PANEN,
+                                            jsonData = panenJson,
+                                            userId = prefManager!!.idUserLogin.toString(),
+                                            dataDate = dateCreated
+                                        )
+                                        combinedUploadData[AppUtils.DatabaseTables.PANEN] = mapOf(
+                                            "path" to panenFilePath,
+                                            "filename" to panenFilename
+                                        )
 
                                         val allPhotos = uniquePhotos.values.toList()
                                         if (allPhotos.isNotEmpty()) {
@@ -1262,9 +1277,22 @@ class HomePageActivity : AppCompatActivity() {
                                         }
 
                                         globalESPBIds = mappedESPBData.map { it["id"] as Int }
+                                        val firstItem = mappedESPBData.firstOrNull()
+                                        val dateCreated = firstItem?.get("created_at") as? String
+                                        val espbJson = Gson().toJson(mappedESPBData)
+                                        val (espbFilePath, espbFilename) = AppUtils.createTempJsonFile(
+                                            context = this@HomePageActivity,
+                                            baseFilename = AppUtils.DatabaseTables.ESPB,
+                                            jsonData = espbJson,
+                                            userId = prefManager!!.idUserLogin.toString(),
+                                            dataDate = dateCreated
+                                        )
 
-                                        AppLogger.d(mappedESPBData.toString())
-                                        combinedUploadData[AppUtils.DatabaseTables.ESPB] = mappedESPBData
+                                        // Store both the file path and filename
+                                        combinedUploadData[AppUtils.DatabaseTables.ESPB] = mapOf(
+                                            "path" to espbFilePath,
+                                            "filename" to espbFilename
+                                        )
 
                                         unzippedESPBData = mappedESPBData.filter { item ->
                                             // Get the ID
@@ -1289,7 +1317,7 @@ class HomePageActivity : AppCompatActivity() {
 
 
 
-// Create the upload data list with only the unzipped items
+                                    // Create the upload data list with only the unzipped items
                                     val uploadDataList = mutableListOf<Pair<String, List<Map<String, Any>>>>()
 
                                     // Use the filtered data for zip creation
@@ -1304,8 +1332,6 @@ class HomePageActivity : AppCompatActivity() {
 
                                     if (uploadDataList.isNotEmpty()) {
 
-                                        AppLogger.d(globalESPBIds.toString())
-                                        AppLogger.d(globalPanenIds.toString())
                                         lifecycleScope.launch(Dispatchers.IO) {
                                             AppUtils.createAndSaveZipUploadCMPSingle(
                                                 this@HomePageActivity,
@@ -1345,10 +1371,6 @@ class HomePageActivity : AppCompatActivity() {
                                     loadingDialog.dismiss()
                                 }
 
-
-
-
-//                                 Wait for ZIP to complete before calling the next function
                                 val zipSuccess = zipDeferred.await()
                                 if (zipSuccess || allUploadZipFilesToday.isNotEmpty()) {
                                     Log.d(
@@ -1496,69 +1518,74 @@ class HomePageActivity : AppCompatActivity() {
                 AppLogger.d("Data map keys: ${dataMap.keys}")
 
                 // Extract the data for panen, espb, and photo files
-                val panenData = dataMap[AppUtils.DatabaseTables.PANEN] as? List<*>
-                val espbData = dataMap[AppUtils.DatabaseTables.ESPB] as? List<*>
+                val panenFilePath = dataMap[AppUtils.DatabaseTables.PANEN] as? String
+                val espbFilePath = dataMap[AppUtils.DatabaseTables.ESPB] as? String
                 val fotoPanen = dataMap["foto_panen"] as? List<*>
 
-                AppLogger.d("Panen data: ${panenData?.size ?: 0} items")
-                AppLogger.d("ESPB data: ${espbData?.size ?: 0} items")
-                AppLogger.d("Photo data: ${fotoPanen?.size ?: 0} items")
+                AppLogger.d("Panen file path: $panenFilePath")
+                AppLogger.d("ESPB file path: $espbFilePath")
+                AppLogger.d("Photo file path: $fotoPanen")
 
                 var itemId = 0
 
-                // For Panen data
-                if (panenData != null && panenData.isNotEmpty()) {
-                    val panenTitle = "Panen Data (${panenData.size} data)"
-                    val panenJson = gson.toJson(panenData)
-                    val panenSize = panenJson.length.toLong() // Size in bytes
-                    AppLogger.d("Panen JSON size: $panenSize bytes")
+                val panenInfo = dataMap[AppUtils.DatabaseTables.PANEN] as? Map<*, *>
+                if (panenInfo != null) {
+                    val panenPath = panenInfo["path"] as? String
+                    val panenFilename = panenInfo["filename"] as? String
 
-                    val uploadItem = UploadCMPItem(
-                        id = itemId++,
-                        title = panenTitle,
-                        fullPath = "panen",
-                        partNumber = 1,
-                        totalParts = 1,
-                        baseFilename = "panen",
-                        data = panenJson
-                    )
+                    if (panenPath != null && panenFilename != null) {
+                        val file = File(panenPath)
+                        if (file.exists() && file.length() > 0) {
+                            val panenTitle = "Panen Data"
+                            val fileSize = file.length()
 
-                    uploadItems.add(uploadItem)
-                    adapter.setFileSize(uploadItem.id, panenSize)
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = panenFilename,
+                                fullPath = panenPath,  // Using the actual file path
+                                partNumber = 1,
+                                totalParts = 1,
+                                baseFilename = "",  // Using the filename
+                                data = ""  // No need to store data here now
+                            )
 
-                    // Store IDs for later use when marking as uploaded
-                    val panenIds = dataMap["panenIds"] as? List<*>
-                    if (panenIds != null) {
-                        val panenIdsList = panenIds.mapNotNull { it.toString().toIntOrNull() }
-
+                            uploadItems.add(uploadItem)
+                            adapter.setFileSize(uploadItem.id, fileSize)
+                            AppLogger.d("Added panen file to upload items: $panenPath (size: $fileSize bytes)")
+                        } else {
+                            AppLogger.e("Panen file not found or empty: $panenPath")
+                        }
                     }
                 }
 
-                // For ESPB data
-                if (espbData != null && espbData.isNotEmpty()) {
-                    val espbTitle = "ESPB Data (${espbData.size} items)"
-                    val espbJson = gson.toJson(espbData)
-                    val espbSize = espbJson.length.toLong() // Size in bytes
-                    AppLogger.d("ESPB JSON size: $espbSize bytes")
+                // Process ESPB data if available
+                val espbInfo = dataMap[AppUtils.DatabaseTables.ESPB] as? Map<*, *>
+                if (espbInfo != null) {
+                    val espbPath = espbInfo["path"] as? String
+                    val espbFilename = espbInfo["filename"] as? String
 
-                    val uploadItem = UploadCMPItem(
-                        id = itemId++,
-                        title = espbTitle,
-                        fullPath = "espb",
-                        partNumber = 1,
-                        totalParts = 1,
-                        baseFilename = "espb",
-                        data = espbJson
-                    )
+                    if (espbPath != null && espbFilename != null) {
+                        val file = File(espbPath)
+                        if (file.exists() && file.length() > 0) {
+                            val espbTitle = "ESPB Data"
+                            val fileSize = file.length()
 
-                    uploadItems.add(uploadItem)
-                    adapter.setFileSize(uploadItem.id, espbSize)
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = espbFilename,
+                                fullPath = espbPath,  // Using the actual file path
+                                partNumber = 1,
+                                totalParts = 1,
+                                baseFilename = "",  // Using the filename
+                                data = ""  // No need to store data here now
+                            )
 
-                    // Store IDs for later use when marking as uploaded
-                    val espbIds = dataMap["espbIds"] as? List<*>
-                    if (espbIds != null) {
-                        val espbIdsList = espbIds.mapNotNull { it.toString().toIntOrNull() }
-
+                            uploadItems.add(uploadItem)
+                            adapter.setFileSize(uploadItem.id, fileSize)
+                            AppLogger.d("Added espb file to upload items: $espbPath (size: $fileSize bytes)")
+                        } else {
+                            AppLogger.e("ESPB file not found or empty: $espbPath")
+                        }
                     }
                 }
 
@@ -1656,11 +1683,16 @@ class HomePageActivity : AppCompatActivity() {
             titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
             titleTV.text = "Upload Data CMP"
 
-            // Start uploading with the provided items
-            uploadCMPViewModel.uploadMultipleZipsV2(itemsToUpload)
+            val itemsToUpload = uploadItems.toList()
+
+            // Start the upload process
+            uploadCMPViewModel.uploadMultipleJsonsV3(itemsToUpload)
+
         }
 
         btnUploadDataCMP.setOnClickListener {
+
+            AppLogger.d(uploadItems.toString())
             AppLogger.d("globalESPBIds $globalESPBIds")
             AppLogger.d("globalPanenIds $globalPanenIds")
             if (AppUtils.isNetworkAvailable(this)) {
@@ -1967,16 +1999,16 @@ class HomePageActivity : AppCompatActivity() {
 
                 for ((_, response) in responseMap) {
                     response?.let {
-                        globalResponseJsonUploadList.add(
-                            ResponseJsonUpload(
-                                "",
-                                response.trackingId.toInt(),
-                                response.nama_file,
-                                response.status,
-                                response.tanggal_upload,
-                                response.uploadedParts
-                            )
-                        )
+//                        globalResponseJsonUploadList.add(
+//                            ResponseJsonUpload(
+//                                "",
+//                                response.trackingId.toInt(),
+//                                response.nama_file,
+//                                response.status,
+//                                response.tanggal_upload,
+//                                response.uploadedParts
+//                            )
+//                        )
 
                         val keyZipName = response.nama_file
 

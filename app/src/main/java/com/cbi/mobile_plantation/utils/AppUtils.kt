@@ -26,6 +26,7 @@ import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.google.gson.Gson
 import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
 import net.lingala.zip4j.model.enums.CompressionMethod
@@ -39,6 +40,7 @@ import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -251,6 +253,74 @@ object AppUtils {
 
     fun getAppVersion(context: Context): String {
         return context.getString(R.string.app_version)
+    }
+
+    private fun getCleanVersionNumber(version: String): String {
+        // Use regex to extract just the numeric parts with dots
+        val numericVersion = Regex("""(\d+(\.\d+)*)""").find(version)?.value ?: version
+
+        // Remove dots
+        return numericVersion.replace(".", "")
+    }
+
+
+    fun createTempJsonFile(
+        context: Context,
+        baseFilename: String,
+        jsonData: String,
+        userId: String,
+        dataDate: String? = null
+    ): Pair<String, String> {
+        try {
+            // Create a TEMP directory in external files storage
+            val tempDir = File(context.getExternalFilesDir(null), "TEMP").apply {
+                if (!exists()) mkdirs()
+            }
+
+            val appVersion = getCleanVersionNumber(getAppVersion(context))
+
+            // Use provided date as is, or use current date if not available
+            var dateForFilename = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
+
+            // Try to parse and use the provided date if available
+            if (!dataDate.isNullOrEmpty()) {
+                try {
+                    // Attempt to parse the data date - assuming format "yyyy-MM-dd HH:mm:ss"
+                    val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    val outputFormat = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+                    val date = inputFormat.parse(dataDate)
+                    if (date != null) {
+                        dateForFilename = outputFormat.format(date)
+                    }
+                } catch (e: Exception) {
+                    AppLogger.d("Could not parse data date: $dataDate, using current date instead")
+                }
+            }
+            val currentTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
+
+            val filename = "v${appVersion}_${userId}_${currentTime}.json"
+            val tempFile = File(tempDir, filename)
+
+            // Parse the JSON data
+            val gson = Gson()
+            val dataArray = gson.fromJson(jsonData, JsonArray::class.java)
+
+            // Create a wrapper object with the baseFilename as the key
+            val wrapper = JsonObject()
+            wrapper.add(baseFilename, dataArray)
+
+            // Write the properly structured JSON data to the file
+            FileOutputStream(tempFile).use { fos ->
+                fos.write(gson.toJson(wrapper).toByteArray())
+            }
+
+            AppLogger.d("Created temp JSON file: ${tempFile.absolutePath}")
+            return Pair(tempFile.absolutePath, filename)
+        } catch (e: Exception) {
+            AppLogger.e("Error creating temp JSON file: ${e.message}")
+            e.printStackTrace()
+            throw e
+        }
     }
 
     fun checkUploadZipReadyToday(idUser: String, context: Context): List<File> {

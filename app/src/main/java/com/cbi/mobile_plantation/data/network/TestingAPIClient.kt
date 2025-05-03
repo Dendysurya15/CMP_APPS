@@ -13,7 +13,8 @@ import java.util.concurrent.TimeUnit
 
 @SuppressLint("StaticFieldLeak")
 object TestingAPIClient {
-    private const val BASE_URL = "http://10.9.116.125:3005/"
+//    private const val BASE_URL = "http://10.9.116.125:3005/"
+    private const val BASE_URL = "http://192.168.1.34:4005/" // pc ho
 
     private lateinit var context: Context
 

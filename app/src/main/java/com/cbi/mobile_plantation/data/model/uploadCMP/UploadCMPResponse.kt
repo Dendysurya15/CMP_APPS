@@ -46,6 +46,24 @@ data class CheckZipServerResponse(
     val trackingInfo: List<TrackingInfo>? = null
 )
 
+data class UploadV3Response(
+    val success: Boolean,
+    val message: String,
+    @SerializedName("trackingId") val trackingId: Int,
+    val status: Int,
+    @SerializedName("tanggal_upload") val tanggal_upload: String,
+    @SerializedName("nama_file") val nama_file: String,
+    val results: UploadResults
+)
+
+data class UploadResults(
+    val processed: Int,
+    val created: Int,
+    val updated: Int,
+    val errors: Int,
+    val skipped: Int
+)
+
 data class PartInfo(
     val part: Int,
     val name: String,

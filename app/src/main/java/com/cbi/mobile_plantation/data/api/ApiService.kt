@@ -1,8 +1,10 @@
 package com.cbi.mobile_plantation.data.api
 
+import androidx.room.Query
 import com.cbi.mobile_plantation.data.model.LoginResponse
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
+import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.model.weighBridge.UploadStagingResponse
 import com.google.gson.annotations.SerializedName
@@ -129,6 +131,13 @@ interface ApiService {
         @Part("part") part: RequestBody,
         @Part("total") total: RequestBody
     ): Response<UploadCMPResponse>
+
+    @Multipart
+    @POST("cmpmain/uploadv3")
+    suspend fun uploadJsonV3(
+        @Part jsonFile: MultipartBody.Part,
+        @Part("filename") filename: RequestBody
+    ): Response<UploadV3Response>
 
     @POST("org/fetch-estate")
     @Headers(

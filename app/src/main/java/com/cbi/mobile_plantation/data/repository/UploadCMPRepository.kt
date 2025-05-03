@@ -1,14 +1,17 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
+import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
+import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType
@@ -16,6 +19,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okio.BufferedSink
+import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 
@@ -95,6 +99,93 @@ class UploadCMPRepository(context: Context) {
             private const val BUFFER_SIZE = 8192 // 8 KB buffer for efficiency
         }
     }
+
+
+//    suspend fun uploadDirectJsonToServerV3(
+//        jsonData: String,
+//        onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
+//    ): Result<UploadWBCMPResponse> {
+//        return try {
+//            withContext(Dispatchers.IO) {
+//                // Initial progress update
+//                onProgressUpdate(0, false, null)
+//
+//                // Basic validation of JSON data
+//                if (jsonData.isBlank()) {
+//                    val errorMsg = "JSON data is empty"
+//                    AppLogger.d(errorMsg)
+//                    onProgressUpdate(100, false, errorMsg)
+//                    return@withContext Result.failure(Exception(errorMsg))
+//                }
+//
+//                try {
+//                    // Convert JSON string to Map
+//                    val jsonMap = Gson().fromJson(jsonData, Map::class.java) as Map<String, Any>
+//
+//                    // Update to 50% progress to show we're sending the request
+//                    onProgressUpdate(50, false, null)
+//
+//                    // Send the request
+//                    val response = CMPApiClient.instance.uploadJsonV3(jsonMap)
+//
+//                    AppLogger.d("response $response")
+//                    if (response.isSuccessful) {
+//                        val responseBody = response.body()
+//                        if (responseBody != null) {
+//                            AppLogger.d("Upload successful")
+//                            AppLogger.d("Response Code: ${response.code()}")
+//                            AppLogger.d("Response Headers: ${response.headers()}")
+//                            AppLogger.d("Response Body: ${responseBody}")
+//
+//                            // Convert UploadV3Response to UploadWBCMPResponse for compatibility
+//                            val convertedResponse = UploadWBCMPResponse(
+//                                success = responseBody.success,
+//                                message = responseBody.message,
+//                                trackingId = responseBody.trackingId.toString(),
+//                                uploadedParts = responseBody.results.processed,
+//                                status = responseBody.status,
+//                                tanggal_upload = responseBody.tanggal_upload,
+//                                nama_file = responseBody.nama_file
+//                            )
+//
+//                            // Mark as success with 100% progress
+//                            onProgressUpdate(100, true, null)
+//                            Result.success(convertedResponse)
+//                        } else {
+//                            val errorMsg = "Upload successful but response body is null"
+//                            AppLogger.d(errorMsg)
+//                            onProgressUpdate(100, false, errorMsg)
+//                            Result.failure(Exception(errorMsg))
+//                        }
+//                    } else {
+//                        val errorBody = response.errorBody()?.string()
+//                        val errorMsg = "Upload failed - Code: ${response.code()}, Error: $errorBody"
+//
+//                        AppLogger.d("Upload failed: $errorMsg")
+//                        AppLogger.d("Response Code: ${response.code()}")
+//                        AppLogger.d("Response Message: ${response.message()}")
+//                        AppLogger.d("Response Headers: ${response.headers()}")
+//                        AppLogger.d("Response Body: $errorBody")
+//
+//                        onProgressUpdate(100, false, errorMsg)
+//                        Result.failure(Exception(errorMsg))
+//                    }
+//                } catch (e: Exception) {
+//                    // Handle network errors
+//                    val errorMsg = "Network error: ${e.message}"
+//                    AppLogger.d(errorMsg)
+//                    onProgressUpdate(100, false, errorMsg)
+//                    Result.failure(Exception(errorMsg))
+//                }
+//            }
+//        } catch (e: Exception) {
+//            // Catch any other exceptions
+//            val errorMsg = "Error preparing upload: ${e.message}"
+//            AppLogger.d(errorMsg)
+//            onProgressUpdate(100, false, errorMsg)
+//            Result.failure(Exception(errorMsg))
+//        }
+//    }
 
     suspend fun uploadZipToServerV2(
         fileZipPath: String,
@@ -239,6 +330,171 @@ class UploadCMPRepository(context: Context) {
             val errorMsg = "Error preparing upload: ${e.message}"
             AppLogger.d(errorMsg)
             onProgressUpdate(100, false, errorMsg)
+            Result.failure(Exception(errorMsg))
+        }
+    }
+
+    suspend fun uploadJsonToServerV3(
+        jsonFilePath: String,
+        filename: String,
+        onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
+    ): Result<UploadV3Response> {
+        return try {
+            withContext(Dispatchers.IO) {
+                withContext(Dispatchers.Main) {
+                    onProgressUpdate(0, false, null)
+                }
+
+                AppLogger.d("====== UPLOAD START ======")
+                AppLogger.d("Starting JSON file upload for file: $jsonFilePath")
+
+                try {
+                    // Check if file exists
+                    val file = File(jsonFilePath)
+                    if (!file.exists()) {
+                        val errorMsg = "JSON file not found: $jsonFilePath"
+                        AppLogger.e(errorMsg)
+                        withContext(Dispatchers.Main) {
+                            onProgressUpdate(100, false, errorMsg)
+                        }
+                        return@withContext Result.failure(Exception(errorMsg))
+                    }
+
+                    // Create the file part
+                    val fileRequestBody = RequestBody.create(
+                        "application/json".toMediaTypeOrNull(),
+                        file
+                    )
+                    val filePart = MultipartBody.Part.createFormData("jsonFile", filename, fileRequestBody)
+
+                    // Create the filename part
+                    val filenameRequestBody = RequestBody.create(
+                        "text/plain".toMediaTypeOrNull(),
+                        filename
+                    )
+
+                    AppLogger.d("====== REQUEST DATA ======")
+                    AppLogger.d("Filename: $filename")
+                    AppLogger.d("JSON File Path: $jsonFilePath")
+                    AppLogger.d("File size: ${file.length()} bytes")
+
+                    // Simulate progress
+                    withContext(Dispatchers.Main) {
+                        onProgressUpdate(25, false, null)
+                    }
+
+                    // Make the API call
+                    AppLogger.d("====== MAKING API CALL ======")
+                    AppLogger.d("Using MultipartBody.Part for jsonFile")
+
+                    val response = TestingAPIClient.instance.uploadJsonV3(
+                        jsonFile = filePart,
+                        filename = filenameRequestBody
+                    )
+
+                    AppLogger.d("====== RAW RESPONSE ======")
+                    AppLogger.d("Response successful: ${response.isSuccessful}")
+                    AppLogger.d("Response code: ${response.code()}")
+                    AppLogger.d("Response message: ${response.message()}")
+
+                    val rawBody = response.body()
+                    AppLogger.d("Raw response body: $rawBody")
+
+                    val rawErrorBody = response.errorBody()?.string()
+                    AppLogger.d("Raw error body: $rawErrorBody")
+
+                    // Log all headers
+                    AppLogger.d("====== RESPONSE HEADERS ======")
+                    for (header in response.headers()) {
+                        AppLogger.d("Header - ${header.first}: ${header.second}")
+                    }
+
+                    // Log network details
+                    AppLogger.d("====== NETWORK DETAILS ======")
+                    AppLogger.d("Request URL: ${response.raw().request.url}")
+                    AppLogger.d("Request Method: ${response.raw().request.method}")
+
+                    // Simulate more progress
+                    withContext(Dispatchers.Main) {
+                        onProgressUpdate(75, false, null)
+                    }
+
+                    if (response.isSuccessful) {
+                        val responseBody = response.body()
+                        if (responseBody != null) {
+                            AppLogger.d("====== SUCCESS DETAILS ======")
+                            AppLogger.d("Upload successful for: $filename")
+                            AppLogger.d("Tracking ID: ${responseBody.trackingId}")
+                            AppLogger.d("Message: ${responseBody.message}")
+                            AppLogger.d("Status: ${responseBody.status}")
+                            AppLogger.d("Upload Date: ${responseBody.tanggal_upload}")
+                            AppLogger.d("File Name: ${responseBody.nama_file}")
+
+                            // Log results details
+                            AppLogger.d("====== RESULTS DETAILS ======")
+                            AppLogger.d("Processed: ${responseBody.results.processed}")
+                            AppLogger.d("Created: ${responseBody.results.created}")
+                            AppLogger.d("Updated: ${responseBody.results.updated}")
+                            AppLogger.d("Errors: ${responseBody.results.errors}")
+                            AppLogger.d("Skipped: ${responseBody.results.skipped}")
+
+                            // Mark as success with 100% progress
+                            withContext(Dispatchers.Main) {
+                                onProgressUpdate(100, true, null)
+                            }
+                            Result.success(responseBody)
+                        } else {
+                            val errorMsg = "Upload successful but response body is null"
+                            AppLogger.d("====== ERROR ======")
+                            AppLogger.d(errorMsg)
+                            withContext(Dispatchers.Main) {
+                                onProgressUpdate(100, false, errorMsg)
+                            }
+                            Result.failure(Exception(errorMsg))
+                        }
+                    } else {
+                        val errorBody = response.errorBody()?.string()
+                        val errorMsg = "Upload failed - Code: ${response.code()}, Error: $errorBody"
+
+                        AppLogger.d("====== ERROR DETAILS ======")
+                        AppLogger.d("Upload failed for: $filename")
+                        AppLogger.d("Response Code: ${response.code()}")
+                        AppLogger.d("Response Message: ${response.message()}")
+                        AppLogger.d("Error Body: $errorBody")
+
+                        withContext(Dispatchers.Main) {
+                            onProgressUpdate(100, false, errorMsg)
+                        }
+                        Result.failure(Exception(errorMsg))
+                    }
+                } catch (e: Exception) {
+                    // Handle network errors
+                    val errorMsg = "Network error: ${e.message}"
+                    AppLogger.d("====== EXCEPTION ======")
+                    AppLogger.d(errorMsg)
+                    AppLogger.d("Exception type: ${e.javaClass.simpleName}")
+                    AppLogger.d("Stack trace: ${e.stackTraceToString()}")
+
+                    withContext(Dispatchers.Main) {
+                        onProgressUpdate(100, false, errorMsg)
+                    }
+                    Result.failure(Exception(errorMsg))
+                } finally {
+                    AppLogger.d("====== UPLOAD END ======")
+                }
+            }
+        } catch (e: Exception) {
+            // This outer catch should only be hit for errors in the withContext setup
+            val errorMsg = "Error preparing upload: ${e.message}"
+            AppLogger.d("====== FATAL EXCEPTION ======")
+            AppLogger.d(errorMsg)
+            AppLogger.d("Exception type: ${e.javaClass.simpleName}")
+            AppLogger.d("Stack trace: ${e.stackTraceToString()}")
+
+            // Make sure we're on the main thread for this callback too
+            withContext(Dispatchers.Main) {
+                onProgressUpdate(100, false, errorMsg)
+            }
             Result.failure(Exception(errorMsg))
         }
     }
