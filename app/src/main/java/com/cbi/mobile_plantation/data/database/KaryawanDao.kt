@@ -33,6 +33,10 @@ abstract class KaryawanDao {
     @Query("SELECT COUNT(*) FROM karyawan")
     abstract suspend fun getCount(): Int
 
+    //get nama from nik
+    @Query("SELECT nama FROM karyawan WHERE nik = :nik")
+    abstract suspend fun getNamaByNik(nik: String): String?
+
     @Query("SELECT * FROM karyawan WHERE kemandoran_id = :filteredId")
     abstract fun getKaryawanByCriteria(
         filteredId: Int
