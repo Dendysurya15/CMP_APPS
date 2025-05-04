@@ -125,6 +125,10 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
+    suspend fun updateStatusUploadEspb(ids: List<Int>, statusUpload: Int) {
+        espbDao.updateStatusUploadEspb(ids, statusUpload)
+    }
+
     // Function to check if noESPB exists
     suspend fun isNoESPBExists(noESPB: String): Boolean {
         return espbDao.isNoESPBExists(noESPB) > 0

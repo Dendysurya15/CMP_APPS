@@ -105,6 +105,9 @@ abstract class PanenDao {
     @Query("UPDATE panen_table SET archive = 1 WHERE id IN (:id)")
     abstract fun archiveByListID(id: List<Int>): Int
 
+    @Query("UPDATE panen_table SET status_upload = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadPanen(ids: List<Int>, status: Int)
+
     @Transaction
     @Query("SELECT * FROM panen_table WHERE archive = 0 AND status_espb = 0")
     abstract fun getAllActiveWithRelations(): List<PanenEntityWithRelations>

@@ -174,6 +174,18 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateStatusUploadPanen(ids: List<Int>, status: Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateStatusUploadPanen(ids, status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+                AppLogger.e("Error updating status_upload: ${e.message}")
+            }
+        }
+    }
+
     fun loadActivePanen() {
         viewModelScope.launch {
             repository.getActivePanen()

@@ -49,6 +49,9 @@ abstract class ESPBDao {
     @Query("SELECT COUNT(*) FROM espb_table WHERE status_draft = 1 AND scan_status = 0")
     abstract fun getCountDraft(): Int
 
+    @Query("UPDATE espb_table SET status_upload = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadEspb(ids: List<Int>, status: Int)
+
     @Transaction
     open fun updateOrInsert(espb: List<ESPBEntity>) {
 

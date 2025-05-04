@@ -70,6 +70,10 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun updateStatusUploadPanen(ids: List<Int>, statusUpload: Int) {
+        panenDao.updateStatusUploadPanen(ids, statusUpload)
+    }
+
     suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<SaveTPHResult> =
         withContext(Dispatchers.IO) {
             try {

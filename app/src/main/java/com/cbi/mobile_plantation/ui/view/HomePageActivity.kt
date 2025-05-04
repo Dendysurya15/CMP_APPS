@@ -153,12 +153,11 @@ class HomePageActivity : AppCompatActivity() {
     private var uploadTimedOut = false
 
     data class ResponseJsonUpload(
-        val uuid: String,
-        val tracking_id: Int,
-        val fileName: String,
-        val statusCode: Int,
+        val trackingId: Int,
+        val nama_file: String,
+        val status: Int,
         val tanggal_upload: String,
-        val partNumber: Int
+
     )
 
     private val globalResponseJsonUploadList = mutableListOf<ResponseJsonUpload>()
@@ -872,39 +871,6 @@ class HomePageActivity : AppCompatActivity() {
 
                             }
 
-                            // Now check for files only after update is complete
-                            allUploadZipFilesToday = AppUtils.checkAllUploadZipFiles(
-                                prefManager!!.idUserLogin.toString(),
-                                this@HomePageActivity
-                            ).toMutableList()
-
-
-                            if (allUploadZipFilesToday.isNotEmpty()) {
-                                uploadCMPViewModel.getUploadCMPTodayData()
-                                delay(100)
-                                val filteredFiles = withContext(Dispatchers.Main) {
-                                    suspendCoroutine<List<File>> { continuation ->
-                                        uploadCMPViewModel.fileData.observeOnce(this@HomePageActivity) { fileList ->
-                                            val filesToRemove =
-                                                fileList.filter { it.status == 3 || it.status == 1 }
-                                                    .map { it.nama_file }
-                                            // Filter files and update `allUploadZipFilesToday`
-                                            allUploadZipFilesToday =
-                                                allUploadZipFilesToday.filter { file ->
-                                                    !filesToRemove.contains(file.name)
-                                                }.toMutableList()
-
-                                            continuation.resume(allUploadZipFilesToday)
-                                        }
-                                    }
-                                }
-
-                                if (filteredFiles.isNotEmpty()) {
-                                    Log.d("VALID_FILES", "Filtered valid files: $filteredFiles")
-                                } else {
-                                    Log.d("VALID_FILES", "No valid files found.")
-                                }
-                            }
 
                             val featuresToFetch = listOf(
                                 AppUtils.DatabaseTables.ESPB,
@@ -936,6 +902,7 @@ class HomePageActivity : AppCompatActivity() {
                                     ) // Ensure it's never null
                                 }
 
+                                AppUtils.clearTempJsonFiles(this@HomePageActivity)
 
                                 var unzippedPanenData: List<Map<String, Any>> = emptyList()
                                 var unzippedESPBData: List<Map<String, Any>> = emptyList()
@@ -1315,8 +1282,6 @@ class HomePageActivity : AppCompatActivity() {
                                     Log.e("UploadCheck", "❌ Error: ${e.message}")
                                 } finally {
 
-
-
                                     // Create the upload data list with only the unzipped items
                                     val uploadDataList = mutableListOf<Pair<String, List<Map<String, Any>>>>()
 
@@ -1365,6 +1330,7 @@ class HomePageActivity : AppCompatActivity() {
                                             }
                                         }
                                     } else {
+
                                         zipDeferred.complete(false)
                                     }
 
@@ -1372,7 +1338,7 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 val zipSuccess = zipDeferred.await()
-                                if (zipSuccess || allUploadZipFilesToday.isNotEmpty()) {
+                                if (zipSuccess) {
                                     Log.d(
                                         "UploadCheck",
                                         "🎉 ZIP creation done! Proceeding to the next step."
@@ -1380,18 +1346,22 @@ class HomePageActivity : AppCompatActivity() {
                                     val uploadDataJson = Gson().toJson(combinedUploadData)
                                     setupDialogUpload(uploadDataJson)
                                 } else {
-                                    Log.e(
-                                        "UploadCheck",
-                                        "⛔ ZIP creation failed! Skipping next step."
-                                    )
-                                    AlertDialogUtility.withSingleAction(
-                                        this@HomePageActivity,
-                                        stringXML(R.string.al_back),
-                                        stringXML(R.string.al_no_data_for_upload_cmp),
-                                        stringXML(R.string.al_no_data_for_upload_cmp_description),
-                                        "success.json",
-                                        R.color.greendarkerbutton
-                                    ) { }
+
+                                    if(unzippedESPBData.isNotEmpty() || unzippedPanenData.isNotEmpty()){
+                                        val uploadDataJson = Gson().toJson(combinedUploadData)
+                                        setupDialogUpload(uploadDataJson)
+                                    }else{
+                                        AlertDialogUtility.withSingleAction(
+                                            this@HomePageActivity,
+                                            stringXML(R.string.al_back),
+                                            stringXML(R.string.al_no_data_for_upload_cmp),
+                                            stringXML(R.string.al_no_data_for_upload_cmp_description),
+                                            "success.json",
+                                            R.color.greendarkerbutton
+                                        ) { }
+                                    }
+
+
                                 }
                             }
 
@@ -1589,49 +1559,49 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
 
-                // For photo data
-                if (fotoPanen != null && fotoPanen.isNotEmpty()) {
-                    // Calculate total size
-                    AppLogger.d("Processing photo data: ${fotoPanen.size} photos")
-                    var totalPhotoSize = 0L
-                    val foundPhotoCount = fotoPanen.count { photoData ->
-                        try {
-                            (photoData as? Map<*, *>)?.let { photoMap ->
-                                val name = photoMap["name"] as? String ?: ""
-                                val sizeStr = photoMap["size"] as? String
-                                val size = sizeStr?.toLongOrNull() ?: 0L
-                                totalPhotoSize += size
-                                AppLogger.d("Photo: $name, size: $size")
-                                size > 0
-                            } ?: false
-                        } catch (e: Exception) {
-                            AppLogger.e("Error processing photo data: ${e.message}")
-                            false
-                        }
-                    }
-
-                    AppLogger.d("Found $foundPhotoCount photos with a total size of $totalPhotoSize bytes")
-                    if (foundPhotoCount > 0) {
-                        val photoTitle = "Foto Panen ($foundPhotoCount files)"
-                        val uploadItem = UploadCMPItem(
-                            id = itemId++,
-                            title = photoTitle,
-                            fullPath = "foto_panen",
-                            partNumber = 1,
-                            totalParts = 1,
-                            baseFilename = "foto_panen",
-                            data = gson.toJson(fotoPanen)  // Store the photo data with paths and sizes
-                        )
-
-                        uploadItems.add(uploadItem)
-                        AppLogger.d("Adding photo upload item with ID ${uploadItem.id}")
-                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
-                    } else {
-                        AppLogger.w("No photo files found for upload")
-                    }
-                }
-
-                // Update the adapter with all items
+//                // For photo data
+//                if (fotoPanen != null && fotoPanen.isNotEmpty()) {
+//                    // Calculate total size
+//                    AppLogger.d("Processing photo data: ${fotoPanen.size} photos")
+//                    var totalPhotoSize = 0L
+//                    val foundPhotoCount = fotoPanen.count { photoData ->
+//                        try {
+//                            (photoData as? Map<*, *>)?.let { photoMap ->
+//                                val name = photoMap["name"] as? String ?: ""
+//                                val sizeStr = photoMap["size"] as? String
+//                                val size = sizeStr?.toLongOrNull() ?: 0L
+//                                totalPhotoSize += size
+//                                AppLogger.d("Photo: $name, size: $size")
+//                                size > 0
+//                            } ?: false
+//                        } catch (e: Exception) {
+//                            AppLogger.e("Error processing photo data: ${e.message}")
+//                            false
+//                        }
+//                    }
+//
+//                    AppLogger.d("Found $foundPhotoCount photos with a total size of $totalPhotoSize bytes")
+//                    if (foundPhotoCount > 0) {
+//                        val photoTitle = "Foto Panen ($foundPhotoCount files)"
+//                        val uploadItem = UploadCMPItem(
+//                            id = itemId++,
+//                            title = photoTitle,
+//                            fullPath = "foto_panen",
+//                            partNumber = 1,
+//                            totalParts = 1,
+//                            baseFilename = "foto_panen",
+//                            data = gson.toJson(fotoPanen)  // Store the photo data with paths and sizes
+//                        )
+//
+//                        uploadItems.add(uploadItem)
+//                        AppLogger.d("Adding photo upload item with ID ${uploadItem.id}")
+//                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
+//                    } else {
+//                        AppLogger.w("No photo files found for upload")
+//                    }
+//                }
+//
+//                // Update the adapter with all items
                 AppLogger.d("Setting ${uploadItems.size} items to adapter")
                 adapter.setItems(uploadItems)
 
@@ -1691,10 +1661,6 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         btnUploadDataCMP.setOnClickListener {
-
-            AppLogger.d(uploadItems.toString())
-            AppLogger.d("globalESPBIds $globalESPBIds")
-            AppLogger.d("globalPanenIds $globalPanenIds")
             if (AppUtils.isNetworkAvailable(this)) {
                 AlertDialogUtility.withTwoActions(
                     this,
@@ -1999,32 +1965,29 @@ class HomePageActivity : AppCompatActivity() {
 
                 for ((_, response) in responseMap) {
                     response?.let {
-//                        globalResponseJsonUploadList.add(
-//                            ResponseJsonUpload(
-//                                "",
-//                                response.trackingId.toInt(),
-//                                response.nama_file,
-//                                response.status,
-//                                response.tanggal_upload,
-//                                response.uploadedParts
-//                            )
-//                        )
+                        globalResponseJsonUploadList.add(
+                            ResponseJsonUpload(
+                                response.trackingId,
+                                response.nama_file,
+                                response.status,
+                                response.tanggal_upload,
+                            )
+                        )
 
-                        val keyZipName = response.nama_file
+                        val keyJsonName = response.trackingId.toString()
 
-                        if (allUploadZipFilesToday.isNotEmpty()) {
+                        if (response.success) {
                             try {
                                 val extractionDeferred =
                                     CompletableDeferred<Pair<List<Int>, List<Int>>>()
 
-                                AppLogger.d("Starting ZIP extraction for ${response.nama_file}, part $keyZipName")
+                                AppLogger.d("Starting JSON extraction for ${response.nama_file}")
 
                                 launch(Dispatchers.IO) {
                                     try {
-                                        val result = AppUtils.extractIdsFromZipFile(
+                                        val result = AppUtils.extractIdsFromJsonFile(
                                             context = this@HomePageActivity,
-                                            fileName = response.nama_file,
-                                            zipPassword = AppUtils.ZIP_PASSWORD
+                                            fileName = response.nama_file
                                         )
                                         extractionDeferred.complete(result)
                                     } catch (e: Exception) {
@@ -2036,17 +1999,17 @@ class HomePageActivity : AppCompatActivity() {
                                     extractionDeferred.await()
                                 }
 
-                                AppLogger.d("Extraction complete for zip $keyZipName. PANEN IDs: ${panenIds.size}, ESPB IDs: ${espbIds.size}")
+                                AppLogger.d("Extraction complete for JSON $keyJsonName. PANEN IDs: ${panenIds.size}, ESPB IDs: ${espbIds.size}")
 
                                 // Store IDs by part number
-                                globalPanenIdsByPart[keyZipName] = panenIds
-                                globalEspbIdsByPart[keyZipName] = espbIds
+                                globalPanenIdsByPart[keyJsonName] = panenIds
+                                globalEspbIdsByPart[keyJsonName] = espbIds
 
                             } catch (e: Exception) {
-                                AppLogger.e("Error during ZIP extraction for part $keyZipName: ${e.message}")
+                                AppLogger.e("Error during JSON extraction for file $keyJsonName: ${e.message}")
 
-                                globalPanenIdsByPart[keyZipName] = emptyList()
-                                globalEspbIdsByPart[keyZipName] = emptyList()
+                                globalPanenIdsByPart[keyJsonName] = emptyList()
+                                globalEspbIdsByPart[keyJsonName] = emptyList()
                             }
                         }
                     }
@@ -2066,48 +2029,64 @@ class HomePageActivity : AppCompatActivity() {
 
         AppLogger.d("globalResponseJsonUploadList $globalResponseJsonUploadList")
 
-        // Track processed UUID+filename pairs to avoid duplicates
-        val processedPairs = mutableSetOf<Pair<Int, String>>()
         var successfullyProcessedCount = 0
 
-        // Filter for successful uploads and sort by part number
-        val successfulUploads = globalResponseJsonUploadList
-            .filter { it.statusCode == 1 || it.statusCode == 3 || it.statusCode == 2 || it.statusCode == 5 }
-            .sortedByDescending { it.partNumber ?: 0 }
+        // Process each successful upload (status codes 1, 2, 3)
+        for (responseInfo in globalResponseJsonUploadList) {
+            // Check if the status code indicates success
+            if (responseInfo.status == 1 || responseInfo.status == 2 || responseInfo.status == 3) {
+//                val fileName = responseInfo.nama_file
+                val trackingId = responseInfo.trackingId.toString()
 
-        // Process each successful upload
-        for (responseInfo in successfulUploads) {
-            val uniqueKey = Pair(responseInfo.tracking_id, responseInfo.fileName)
+                try {
+                    // Get the PANEN IDs for this file
+                    val panenIds = globalPanenIdsByPart[trackingId] ?: emptyList()
 
-            // Skip if we've already processed this specific UUID + filename combination
-            if (uniqueKey in processedPairs) {
-                AppLogger.d("Skipping duplicate processing for UUID: ${responseInfo.tracking_id}, filename: ${responseInfo.fileName}")
-                continue
+                    if (panenIds.isNotEmpty()) {
+                        AppLogger.d("Found ${panenIds.size} panen IDs for file $trackingId: $panenIds")
+
+                        // Update status_upload for PANEN IDs
+                        panenViewModel.updateStatusUploadPanen(panenIds, responseInfo.status)
+                        AppLogger.d("Updated status_upload to ${responseInfo.status} for panen IDs: $panenIds")
+                    } else {
+                        AppLogger.d("No panen IDs found for file $trackingId")
+                    }
+
+                    // Get the ESPB IDs for this file
+                    val espbIds = globalEspbIdsByPart[trackingId] ?: emptyList()
+
+                    if (espbIds.isNotEmpty()) {
+                        AppLogger.d("Found ${espbIds.size} ESPB IDs for file $trackingId: $espbIds")
+
+                        // Update status_upload for ESPB IDs
+                        weightBridgeViewModel.updateStatusUploadEspb(espbIds, responseInfo.status)
+                        AppLogger.d("Updated status_upload to ${responseInfo.status} for ESPB IDs: $espbIds")
+                    } else {
+                        AppLogger.d("No ESPB IDs found for file $trackingId")
+                    }
+
+                    val jsonResultTableIds = createJsonTableNameMapping(trackingId)
+                    AppLogger.d("Processing successful upload: $trackingId with tracking ID $trackingId, status code: ${responseInfo.status}")
+
+                    // Update or insert data using the original date
+                    uploadCMPViewModel.UpdateOrInsertDataUpload(
+                        trackingId,
+                        responseInfo.nama_file,
+                        responseInfo.status,
+                        responseInfo.tanggal_upload,
+                        jsonResultTableIds
+                    )
+
+                    successfullyProcessedCount++
+                } catch (e: Exception) {
+                    AppLogger.e("Error processing upload for file $trackingId: ${e.message}")
+                }
+            } else {
+                AppLogger.d("Skipping upload with unsuccessful status code: ${responseInfo.status} for file ${responseInfo.nama_file}")
             }
-
-            processedPairs.add(uniqueKey)
-
-            val jsonResultTableIds = createJsonTableNameMapping(responseInfo.fileName)
-
-            // Format the date string
-            val formattedDate = formatDateString(responseInfo.tanggal_upload)
-
-            AppLogger.d("Processing file ${responseInfo.fileName} with UUID ${responseInfo.uuid}, status code: ${responseInfo.statusCode}")
-            AppLogger.d("JSON mapping: $jsonResultTableIds")
-            AppLogger.d("Original date: ${responseInfo.tanggal_upload}, Formatted date: $formattedDate")
-
-            uploadCMPViewModel.UpdateOrInsertDataUpload(
-                responseInfo.tracking_id.toString(),
-                responseInfo.fileName,
-                responseInfo.statusCode,
-                formattedDate,
-                jsonResultTableIds
-            )
-
-            successfullyProcessedCount++
         }
 
-        AppLogger.d("Successfully processed $successfullyProcessedCount unique uploads")
+        AppLogger.d("Successfully processed $successfullyProcessedCount uploads")
         return successfullyProcessedCount > 0
     }
 

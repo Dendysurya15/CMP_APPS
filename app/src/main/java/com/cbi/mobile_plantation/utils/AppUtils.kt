@@ -263,6 +263,78 @@ object AppUtils {
         return numericVersion.replace(".", "")
     }
 
+    fun clearTempJsonFiles(context: Context) {
+        try {
+            val tempDir = File(context.getExternalFilesDir(null), "TEMP")
+
+            if (tempDir.exists() && tempDir.isDirectory) {
+                tempDir.listFiles()?.forEach { file ->
+                    if (file.isFile && file.extension == "json") {
+                        val deleted = file.delete()
+                        if (deleted) {
+                            AppLogger.d("Deleted JSON file: ${file.name}")
+                        } else {
+                            AppLogger.e("Failed to delete: ${file.name}")
+                        }
+                    }
+                }
+                AppLogger.d("Temp folder cleanup completed")
+            } else {
+                AppLogger.d("Temp directory doesn't exist")
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error cleaning temp folder: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    fun extractIdsFromJsonFile(context: Context, fileName: String): Pair<List<Int>, List<Int>> {
+        val tempDir = File(context.getExternalFilesDir(null), "TEMP")
+        val jsonFile = File(tempDir, fileName)
+
+        if (!jsonFile.exists()) {
+            AppLogger.e("JSON file not found: ${jsonFile.absolutePath}")
+            return Pair(emptyList(), emptyList())
+        }
+
+        try {
+            val jsonContent = jsonFile.readText()
+            val jsonObject = JSONObject(jsonContent)
+
+            val panenIds = mutableListOf<Int>()
+            val espbIds = mutableListOf<Int>() // If you have ESPB data in your JSON
+
+            // Extract PANEN IDs
+            if (jsonObject.has("panen_table")) {
+                val panenArray = jsonObject.getJSONArray("panen_table")
+                for (i in 0 until panenArray.length()) {
+                    val panenItem = panenArray.getJSONObject(i)
+                    panenItem.optInt("id", -1).let { id ->
+                        if (id != -1) panenIds.add(id)
+                    }
+                }
+            }
+
+            // Extract ESPB IDs if they exist
+            if (jsonObject.has("espb_table")) {
+                val espbArray = jsonObject.getJSONArray("espb_table")
+                for (i in 0 until espbArray.length()) {
+                    val espbItem = espbArray.getJSONObject(i)
+                    espbItem.optInt("id", -1).let { id ->
+                        if (id != -1) espbIds.add(id)
+                    }
+                }
+            }
+
+            AppLogger.d("Extracted from JSON: PANEN IDs: ${panenIds.size}, ESPB IDs: ${espbIds.size}")
+            return Pair(panenIds, espbIds)
+
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing JSON file ${fileName}: ${e.message}")
+            e.printStackTrace()
+            return Pair(emptyList(), emptyList())
+        }
+    }
 
     fun createTempJsonFile(
         context: Context,
