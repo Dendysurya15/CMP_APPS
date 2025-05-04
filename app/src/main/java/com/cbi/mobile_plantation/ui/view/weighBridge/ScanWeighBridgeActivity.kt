@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.weighBridge.wbQRData
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
@@ -62,6 +63,11 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     private lateinit var datasetViewModel: DatasetViewModel
     var globalBlokJjg: String = ""
     var globalBlokPPROJjg: String = ""
+    var globalRegional: String = ""
+    var globalWilayah: String = ""
+    var globalCompany: Int = 0
+    var globalDept: Int = 0
+    var globalDivisi: Int = 0
     var globalBlokId: String = ""
     var globalTotalJjg: String = ""
     var globalCreatedById: Int? = null
@@ -213,6 +219,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     // Check if network is available for upload attempt
                                     if (AppUtils.isNetworkAvailable(this@ScanWeighBridgeActivity)) {
                                         // Try to upload with network connection
+
+                                        AppUtils.clearTempJsonFiles(this@ScanWeighBridgeActivity)
+
                                         var number = 0
                                         // Data for PPRO Staging
                                         val itemToUpload = mapOf(
@@ -241,9 +250,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             "no_espb" to globalNoESPB
                                         )
 
-
-                                        AppLogger.d("itemToUpload $itemToUpload")
-
                                         lifecycleScope.launch {
                                             val zipDeferred =
                                                 CompletableDeferred<Pair<Boolean, String?>>()
@@ -254,11 +260,16 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             )
                                             // For CMP data
                                             var number = 0
-                                            AppLogger.d("globalBlokJjg $globalBlokJjg")
+
                                             val espbData = mapOf(
                                                 "num" to number++,
                                                 "ip" to globalIpMill,
                                                 "id" to savedItemId,
+                                                "regional" to globalRegional,
+                                                "wilayah" to globalWilayah,
+                                                "company" to globalCompany,
+                                                "dept" to globalDept,
+                                                "divisi" to globalDivisi,
                                                 "blok_id" to globalBlokId,
                                                 "blok_jjg" to globalBlokJjg,
                                                 "jjg" to globalTotalJjg,
@@ -281,6 +292,16 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 "jabatan" to prefManager!!.jabatanUserLogin
                                             )
 
+                                            val espbJson = Gson().toJson(espbData)
+                                            val (espbFilePath, espbFilename) = AppUtils.createTempJsonFile(
+                                                context = this@ScanWeighBridgeActivity,
+                                                baseFilename = AppUtils.DatabaseTables.ESPB,
+                                                jsonData = espbJson,
+                                                userId = prefManager!!.idUserLogin.toString(),
+                                                dataDate = ""
+                                            )
+
+
                                             val uploadDataList =
                                                 mutableListOf<Pair<String, List<Map<String, Any>>>>()
                                             val espbDataAsAny = espbData as Map<String, Any>
@@ -291,11 +312,11 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 )
                                             )
 
-                                            AppUtils.createAndSaveZipUploadCMP(
+                                            AppUtils.createAndSaveZipUploadCMPSingle(
                                                 this@ScanWeighBridgeActivity,
                                                 uploadDataList,
                                                 (globalCreatedById ?: 0).toString()
-                                            ) { success, fileName, fullPath ->
+                                            ) { success, fileName, fullPath, zipFile ->
                                                 if (success) {
                                                     zipFilePath = fullPath
                                                     AppLogger.d("sukses membuat zip $fileName")
@@ -329,7 +350,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                         Locale.getDefault()
                                                     ).format(Date()),
                                                     "uploaded_by_id" to (globalCreatedById ?: 0),
-                                                    "file" to (zipPath ?: "")
+                                                    "file" to (espbFilePath ?: ""),
+                                                    "fileName" to (espbFilename ?: ""),
                                                 )
                                             } else {
                                                 cmpItem = mapOf(
@@ -343,7 +365,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                         Locale.getDefault()
                                                     ).format(Date()),
                                                     "uploaded_by_id" to (globalCreatedById ?: 0),
-                                                    "file" to ""
+                                                    "file" to (espbFilePath ?: ""),
+                                                    "fileName" to (espbFilename ?: ""),
                                                 )
                                             }
 
@@ -380,7 +403,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                             "${info.endpoint} berhasil diupload",
                                                             LoadingDialog.StatusType.SUCCESS
                                                         )
-                                                    } else if (!processedEndpoints.contains(endpointKey) && info.status == "Failed") {
+                                                    } else if (!processedEndpoints.contains(
+                                                            endpointKey
+                                                        ) && info.status == "Failed"
+                                                    ) {
                                                         processedEndpoints.add(endpointKey)
                                                         loadingDialog.addStatusMessage(
                                                             "${info.endpoint} gagal diupload",
@@ -389,11 +415,13 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                     }
                                                 }
 
-                                                val allComplete = statusEndpointMap.values.all { it.status == "Success" || it.status == "Failed" }
+                                                val allComplete =
+                                                    statusEndpointMap.values.all { it.status == "Success" || it.status == "Failed" }
                                                 if (allComplete) {
                                                     loadingDialog.setMessage("Semua data telah diupload")
                                                     Handler(Looper.getMainLooper()).postDelayed({
-                                                        val allSuccessful = statusEndpointMap.values.all { it.status == "Success" }
+                                                        val allSuccessful =
+                                                            statusEndpointMap.values.all { it.status == "Success" }
                                                         if (allSuccessful) {
                                                             AlertDialogUtility.withSingleAction(
                                                                 this@ScanWeighBridgeActivity,
@@ -408,12 +436,14 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                                     this@ScanWeighBridgeActivity,
                                                                     HomePageActivity::class.java
                                                                 )
-                                                                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                                                intent.flags =
+                                                                    Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                                                                 startActivity(intent)
                                                                 finish()
                                                             }
                                                         } else {
-                                                            val failedCount = statusEndpointMap.values.count { it.status == "Failed" }
+                                                            val failedCount =
+                                                                statusEndpointMap.values.count { it.status == "Failed" }
 
                                                             AlertDialogUtility.withSingleAction(
                                                                 this@ScanWeighBridgeActivity,
@@ -428,7 +458,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                                     this@ScanWeighBridgeActivity,
                                                                     HomePageActivity::class.java
                                                                 )
-                                                                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                                                intent.flags =
+                                                                    Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                                                                 startActivity(intent)
                                                                 finish()
                                                             }
@@ -445,11 +476,17 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 if (errorMap.isNotEmpty()) {
                                                     errorMap.forEach { (id, errorMsg) ->
                                                         // Find the corresponding endpoint
-                                                        val endpoint = weightBridgeViewModel.uploadStatusEndpointMap.value?.get(id)?.endpoint ?: "Unknown"
+                                                        val endpoint =
+                                                            weightBridgeViewModel.uploadStatusEndpointMap.value?.get(
+                                                                id
+                                                            )?.endpoint ?: "Unknown"
 
                                                         // Add error message to loading dialog
                                                         val endpointErrorKey = "error_${endpoint}"
-                                                        if (!processedEndpoints.contains(endpointErrorKey)) {
+                                                        if (!processedEndpoints.contains(
+                                                                endpointErrorKey
+                                                            )
+                                                        ) {
                                                             processedEndpoints.add(endpointErrorKey)
                                                             loadingDialog.addStatusMessage(
                                                                 "$endpoint: ${errorMsg.take(1000)}${if (errorMsg.length > 1000) "..." else ""}",
@@ -713,6 +750,21 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     } ?: emptyList()
 
                     val idBlokList = blokJjgList.map { it.first }
+                    val tphDeferred = CompletableDeferred<TPHNewModel?>()
+                    val firstBlockId = idBlokList.firstOrNull()
+                    // Fetch the TPH data if we have a block ID
+                    firstBlockId?.let { blockId ->
+                        weightBridgeViewModel.fetchTPHByBlockId(blockId)
+
+                        // Set up a one-time observer for the LiveData
+                        weightBridgeViewModel.tphData.observe(this@ScanWeighBridgeActivity) { tphModel ->
+                            tphDeferred.complete(tphModel)
+                        }
+                    }
+                        ?: tphDeferred.complete(null) // Complete with null if no block ID
+
+                    // Wait for the TPH data
+                    val tphData = tphDeferred.await()
                     val concatenatedIds = idBlokList.joinToString(",")
                     val pemuatList = parsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
                         ?.filter { it.isNotEmpty() } ?: emptyList()
@@ -846,6 +898,11 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 // Log and store the result
                     AppLogger.d("Extracted NIK values: $nikValues")
                     globalPemuatNik = nikValues
+                    globalRegional = tphData?.regional ?: ""
+                    globalWilayah = tphData?.wilayah ?: ""
+                    globalCompany = tphData?.company ?: 0
+                    globalDept = tphData?.dept ?: 0
+                    globalDivisi = tphData?.divisi ?: 0
                     globalBlokId = concatenatedIds
                     globalTotalJjg = totalJjg.toString()
                     globalBlokPPROJjg = BlokPPROJjg

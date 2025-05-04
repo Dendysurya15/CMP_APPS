@@ -28,8 +28,6 @@ import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
-import com.cbi.mobile_plantation.data.model.uploadCMP.CheckZipServerResponse
-import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -601,65 +599,107 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
         viewModelScope.launch {
             try {
-                AppLogger.d("Processing upload data: $uploadData")
+                AppLogger.d("=== Starting updateLocalUploadCMP ===")
+                AppLogger.d("Processing ${uploadData.size} items")
+                uploadData.forEachIndexed { index, (id, file) ->
+                    AppLogger.d("Item $index: trackingId=$id, filename=$file")
+                }
+
                 val errorItems = mutableListOf<ErrorItem>()
 
                 // Process each item sequentially
-                for ((trackingId, filename) in uploadData) {
+                uploadData.forEachIndexed { index, (trackingId, filename) ->
+                    AppLogger.d("\n--- Processing item ${index + 1}/${uploadData.size} ---")
+                    AppLogger.d("TrackingId: $trackingId, Filename: $filename")
+
                     try {
-                        // Use the GET endpoint with the UUID
+                        // Get status for this tracking ID
+                        AppLogger.d("Requesting status for trackingId: $trackingId")
                         val response = repository.checkStatusUploadCMP(trackingId)
-                        val responseBodyString = response.body()?.string() ?: "Empty Response"
 
-                        AppLogger.d("Response for $trackingId, file $filename: $responseBodyString")
+                        AppLogger.d("Response received - isSuccessful: ${response.isSuccessful}")
+                        AppLogger.d("Response code: ${response.code()}")
 
-                        try {
-                            val statusResponse = Gson().fromJson(
-                                responseBodyString,
-                                CheckZipServerResponse::class.java
-                            )
+                        if (response.isSuccessful && response.body() != null) {
+                            val statusResponse = response.body()!!
 
-                            // Find matching tracking info entry for this file
-                            val baseFilename = filename.substringBeforeLast(".zip")
-                            val trackingInfoEntries = statusResponse.trackingInfo ?: emptyList()
-                            AppLogger.d("Tracking info for $filename: $trackingInfoEntries")
+                            AppLogger.d("Response body success: ${statusResponse.success}")
+                            AppLogger.d("Data count: ${statusResponse.data.size}")
+                            AppLogger.d("Full response: ${statusResponse}")
 
-                            // Try to find the matching tracking info by filename
-                            val trackingInfoEntry = trackingInfoEntries.find {
-                                it.fileName.contains(baseFilename)
+                            // Find matching status data for this file
+                            val baseFilename = filename.substringBeforeLast(".json")
+                            AppLogger.d("Base filename (without .json): $baseFilename")
+
+                            val matchingData = statusResponse.data.find {
+                                val match = it.nama_file.contains(baseFilename)
+                                AppLogger.d("Checking file: ${it.nama_file} against $baseFilename - Match: $match")
+                                match
                             }
 
-                            // Get the status code to update
-                            val finalStatusCode =
-                                trackingInfoEntry?.status ?: statusResponse.statusCode
-                            AppLogger.d("Final status code for $filename: $finalStatusCode")
+                            AppLogger.d("\nMatching data result:")
+                            AppLogger.d("Found: ${matchingData != null}")
+                            if (matchingData != null) {
+                                AppLogger.d("File: ${matchingData.nama_file}")
+                                AppLogger.d("Status: ${matchingData.status}")
+                                AppLogger.d("Message: ${matchingData.message}")
+                                AppLogger.d("StatusText: ${matchingData.statusText}")
+                            }
 
-                            // Update status in the database
-                            uploadCMPDao.updateStatus(trackingId, filename, finalStatusCode)
+                            if (matchingData != null) {
+                                // Get the status code for database update
+                                val statusCode = matchingData.status
+                                AppLogger.d("Updating database - trackingId=$trackingId, filename=$filename, statusCode=$statusCode")
 
-                            // Check if this was an error status
-                            if (finalStatusCode >= 4) {
-                                val errorMessage =
-                                    trackingInfoEntry?.message ?: statusResponse.message
+                                // Update status in the database
+                                uploadCMPDao.updateStatus(trackingId, filename, statusCode)
+                                AppLogger.d("Database update completed successfully")
+
+                                // Check if this was an error status
+                                AppLogger.d("Checking if status code ($statusCode) >= 4")
+                                if (statusCode >= 4) {
+                                    AppLogger.d("Error status detected - adding to error items")
+                                    errorItems.add(
+                                        ErrorItem(
+                                            fileName = filename,
+                                            message = matchingData.message
+                                        )
+                                    )
+                                    AppLogger.d("Error item added: fileName=$filename, message=${matchingData.message}")
+                                } else {
+                                    AppLogger.d("Status code is OK (< 4)")
+                                }
+                            } else {
+                                // No matching data found for this file
+                                AppLogger.e("ERROR: No matching data found for file: $filename")
+                                AppLogger.e("Available files in response:")
+                                statusResponse.data.forEach { data ->
+                                    AppLogger.e("  - ${data.nama_file}")
+                                }
                                 errorItems.add(
                                     ErrorItem(
                                         fileName = filename,
-                                        message = errorMessage
+                                        message = "No status data found for this file"
                                     )
                                 )
                             }
-
-                        } catch (e: Exception) {
-                            AppLogger.e("Error parsing JSON for $trackingId: ${e.localizedMessage}")
+                        } else {
+                            // Handle unsuccessful response
+                            AppLogger.e("ERROR: Failed response for $trackingId")
+                            AppLogger.e("Response code: ${response.code()}")
+                            AppLogger.e("Error body: ${response.errorBody()?.string()}")
                             errorItems.add(
                                 ErrorItem(
                                     fileName = filename,
-                                    message = "Error processing response: ${e.localizedMessage}"
+                                    message = "Server error: ${response.code()}"
                                 )
                             )
                         }
                     } catch (e: Exception) {
-                        AppLogger.e("Network error for $trackingId: ${e.localizedMessage}")
+                        AppLogger.e("EXCEPTION: Network error for $trackingId")
+                        AppLogger.e("Exception type: ${e.javaClass.simpleName}")
+                        AppLogger.e("Exception message: ${e.localizedMessage}")
+                        AppLogger.e("Stack trace: ${e.stackTrace.take(5).joinToString("\n")}")
                         errorItems.add(
                             ErrorItem(
                                 fileName = filename,
@@ -667,9 +707,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             )
                         )
                     }
+
+                    AppLogger.d("--- Completed item ${index + 1}/${uploadData.size} ---\n")
                 }
 
                 // All processing complete
+                AppLogger.d("\n=== All processing complete ===")
+                AppLogger.d("Total error items: ${errorItems.size}")
+                errorItems.forEachIndexed { index, error ->
+                    AppLogger.d("Error $index: fileName=${error.fileName}, message=${error.message}")
+                }
+
                 withContext(Dispatchers.Main) {
                     val message = if (errorItems.isNotEmpty()) {
                         "Terjadi kesalahan insert di server!"
@@ -677,14 +725,19 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         "Berhasil sinkronisasi data"
                     }
 
-                    AppLogger.d("Update completed with message: $message")
+                    AppLogger.d("Final message to display: $message")
+                    AppLogger.d("Completing with result: ${errorItems.isEmpty()}")
 
                     // Complete with success if no errors, or with false if there were errors
                     result.complete(errorItems.isEmpty())
                 }
 
             } catch (e: Exception) {
-                AppLogger.e("Error in updateLocalUploadCMP: ${e}")
+                AppLogger.e("=== FATAL ERROR in updateLocalUploadCMP ===")
+                AppLogger.e("Exception type: ${e.javaClass.simpleName}")
+                AppLogger.e("Exception message: ${e.localizedMessage}")
+                AppLogger.e("Full stack trace:")
+                e.printStackTrace()
                 result.complete(false)
             }
         }

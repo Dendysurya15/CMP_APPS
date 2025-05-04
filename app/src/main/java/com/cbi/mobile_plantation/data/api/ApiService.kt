@@ -6,6 +6,7 @@ import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
+import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
 import com.cbi.mobile_plantation.data.model.weighBridge.UploadStagingResponse
 import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
@@ -158,14 +159,22 @@ interface ApiService {
 //    ):  Response<ResponseBody>
 //
 //
+//    @GET("cmpmain/upload-status/{trackingId}")
+//    @Headers(
+//        "Accept: application/json"
+//    )
+//    suspend fun checkStatusUploadCMP(
+//        @Path("trackingId") trackingId: String
+//    ): Response<ResponseBody>
 
-    // API Service
-    @GET("cmpmain/upload-status/{trackingId}")
+    @FormUrlEncoded
+    @POST("api/statusv3")
     @Headers(
-        "Accept: application/json"
+        "Accept: application/json",
+        "Content-Type: application/x-www-form-urlencoded"
     )
     suspend fun checkStatusUploadCMP(
-        @Path("trackingId") trackingId: String
-    ): Response<ResponseBody>
+        @Field("idData") ids: String // Send list as a comma-separated string
+    ):  Response<checkStatusUploadedData>
 
 }

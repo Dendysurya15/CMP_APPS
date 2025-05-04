@@ -18,7 +18,9 @@ import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
+import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
@@ -185,7 +187,17 @@ class DatasetRepository(
     }
 
 
-    suspend fun checkStatusUploadCMP(trackingId: String): Response<ResponseBody> {
+    suspend fun checkStatusUploadCMP(trackingId: String): Response<checkStatusUploadedData> {
+        AppLogger.d("=== API REQUEST DETAILS ===")
+        AppLogger.d("Endpoint: api/statusv3")
+        AppLogger.d("Method: POST")
+        AppLogger.d("Headers:")
+        AppLogger.d("  Accept: application/json")
+        AppLogger.d("  Content-Type: application/x-www-form-urlencoded")
+        AppLogger.d("Parameters:")
+        AppLogger.d("  idData: $trackingId")
+        AppLogger.d("=== END REQUEST DETAILS ===")
+
         return apiService.checkStatusUploadCMP(trackingId)
     }
 

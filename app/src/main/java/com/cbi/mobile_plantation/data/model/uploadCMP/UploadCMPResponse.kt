@@ -28,22 +28,19 @@ data class UploadWBCMPResponse(
 )
 
 
-data class CheckZipServerResponse(
+data class checkStatusUploadedData(
     val success: Boolean,
-    val uuid: String,
-    val uploadStatus: String,
-    val statusCode: Int,
-    val message: String,
-    val uploadedParts: Int,
-    val totalParts: Int,
-    val parts: List<PartInfo>,
-    val missingParts: List<Int>?,
-    val totalSize: Long,
+    val data: List<StatusData>
+)
+
+data class StatusData(
+    val id: Int,
+    val nama_file: String,
     val tanggal_upload: String,
-    val processingTriggered: Boolean? = null,
-    val processingStartedAt: String? = null,
-    val processingCompletedAt: String? = null,
-    val trackingInfo: List<TrackingInfo>? = null
+    val status: Int,
+    val statusText: String,
+    val message: String,
+    val created_by: Int
 )
 
 data class UploadV3Response(
@@ -63,19 +60,3 @@ data class UploadResults(
     val errors: Int,
     val skipped: Int
 )
-
-data class PartInfo(
-    val part: Int,
-    val name: String,
-    val size: Long
-)
-
-data class TrackingInfo(
-    val trackingId: Int,
-    val part: Int,
-    val status: Int,
-    val statusText: String,
-    val message: String? = null,
-    val fileName: String
-)
-
