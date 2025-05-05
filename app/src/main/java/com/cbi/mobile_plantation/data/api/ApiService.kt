@@ -3,6 +3,7 @@ package com.cbi.mobile_plantation.data.api
 import androidx.room.Query
 import com.cbi.mobile_plantation.data.model.LoginResponse
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
+import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoUploadResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
@@ -176,5 +177,13 @@ interface ApiService {
     suspend fun checkStatusUploadCMP(
         @Field("idData") ids: String // Send list as a comma-separated string
     ):  Response<checkStatusUploadedData>
+
+
+    @Multipart
+    @POST("cmpmain/upload-photos")
+    suspend fun uploadPhotos(
+        @Part photos: List<MultipartBody.Part>,  // Multiple parts
+        @Part("datasetType") datasetType: RequestBody,
+    ): Response<PhotoUploadResponse>
 
 }

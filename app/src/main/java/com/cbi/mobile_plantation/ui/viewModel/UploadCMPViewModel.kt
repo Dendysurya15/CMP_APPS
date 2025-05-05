@@ -336,17 +336,16 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                 _uploadErrorCMP.value = null
                 _uploadResponseCMP.value = null
 
-                AppLogger.d("Uploading JSON file for ${item.title}")
-
-                // The fullPath now contains the path to the JSON file
                 val jsonFilePath = item.fullPath
-
-                // Use the baseFilename or generate a filename
-                val filename = item.title
+                val filename = item.baseFilename
+                val data = item.data
+                val type = item.type
 
                 val result = repository.uploadJsonToServerV3(
                     jsonFilePath = jsonFilePath,  // Use the file path directly
                     filename = filename,
+                    data = data,
+                    type = type,
                     onProgressUpdate = { progress, isSuccess, error ->
                         // This callback will be running on the main thread
                         // Update item's progress

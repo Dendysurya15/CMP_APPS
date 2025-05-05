@@ -292,7 +292,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 "jabatan" to prefManager!!.jabatanUserLogin
                                             )
 
-                                            val espbJson = Gson().toJson(espbData)
+
+                                            val espbDataList = listOf(espbData)
+                                            val espbJson = Gson().toJson(espbDataList)
+
                                             val (espbFilePath, espbFilename) = AppUtils.createTempJsonFile(
                                                 context = this@ScanWeighBridgeActivity,
                                                 baseFilename = AppUtils.DatabaseTables.ESPB,
@@ -750,24 +753,31 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     } ?: emptyList()
 
                     val idBlokList = blokJjgList.map { it.first }
-                    val tphDeferred = CompletableDeferred<TPHNewModel?>()
-                    val firstBlockId = idBlokList.firstOrNull()
-                    // Fetch the TPH data if we have a block ID
-                    firstBlockId?.let { blockId ->
-                        weightBridgeViewModel.fetchTPHByBlockId(blockId)
 
-                        // Set up a one-time observer for the LiveData
-                        weightBridgeViewModel.tphData.observe(this@ScanWeighBridgeActivity) { tphModel ->
-                            tphDeferred.complete(tphModel)
-                        }
+                    val tphData = withContext(Dispatchers.Main) {
+                        val tphDeferred = CompletableDeferred<TPHNewModel?>()
+                        val firstBlockId = idBlokList.firstOrNull()
+
+                        // Fetch the TPH data if we have a block ID
+                        firstBlockId?.let { blockId ->
+                            weightBridgeViewModel.fetchTPHByBlockId(blockId)
+
+                            // Set up a one-time observer for the LiveData (now on main thread)
+                            weightBridgeViewModel.tphData.observe(this@ScanWeighBridgeActivity) { tphModel ->
+                                // Remove the observer to prevent future callbacks
+                                weightBridgeViewModel.tphData.removeObservers(this@ScanWeighBridgeActivity)
+                                tphDeferred.complete(tphModel)
+                            }
+                        } ?: tphDeferred.complete(null) // Complete with null if no block ID
+
+                        // Wait for the TPH data and return it
+                        tphDeferred.await()
                     }
-                        ?: tphDeferred.complete(null) // Complete with null if no block ID
-
-                    // Wait for the TPH data
-                    val tphData = tphDeferred.await()
                     val concatenatedIds = idBlokList.joinToString(",")
                     val pemuatList = parsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
                         ?.filter { it.isNotEmpty() } ?: emptyList()
+
+                    AppLogger.d("pemuatList $pemuatList")
 
                     val pemuatDeferred = async {
                         try {
@@ -779,8 +789,13 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     }
 
                     val pemuatData = pemuatDeferred.await()
+
+                    AppLogger.d(pemuatData.toString())
                     val pemuatNama = pemuatData?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
                         ?.joinToString(", ") ?: "-"
+
+
+                    AppLogger.d("pemuatNama $pemuatNama")
 
                     AppLogger.d(idBlokList.toString())
                     val blokData = try {
@@ -892,10 +907,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         currentIndex = commaIndex + 1
                     }
 
-// Join all NIK values with commas
+                    // Join all NIK values with commas
                     val nikValues = nikList.joinToString(",")
 
-// Log and store the result
+                    // Log and store the result
                     AppLogger.d("Extracted NIK values: $nikValues")
                     globalPemuatNik = nikValues
                     globalRegional = tphData?.regional ?: ""

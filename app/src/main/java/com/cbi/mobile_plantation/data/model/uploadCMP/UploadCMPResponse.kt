@@ -27,6 +27,30 @@ data class UploadWBCMPResponse(
     @SerializedName("nama_file") val nama_file: String
 )
 
+data class PhotoUploadResponse(
+    val success: Boolean,
+    val message: String,
+    val data: PhotoUploadData
+)
+
+data class PhotoUploadData(
+    val success: Boolean,
+    val total: Int,
+    val successful: Int,
+    val failed: Int,
+    val results: List<PhotoResult>
+)
+
+data class PhotoResult(
+    val success: Boolean,
+    val fileName: String,
+    val originalName: String,
+    val size: Long,
+    val path: String,
+    val datasetType: String,
+    val uploadDate: String
+)
+
 
 data class checkStatusUploadedData(
     val success: Boolean,
@@ -50,7 +74,8 @@ data class UploadV3Response(
     val status: Int,
     @SerializedName("tanggal_upload") val tanggal_upload: String,
     @SerializedName("nama_file") val nama_file: String,
-    val results: UploadResults
+    val results: UploadResults?,
+    val type: String
 )
 
 data class UploadResults(

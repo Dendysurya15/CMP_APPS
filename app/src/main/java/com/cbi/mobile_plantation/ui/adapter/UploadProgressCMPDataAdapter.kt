@@ -18,10 +18,9 @@ data class UploadCMPItem(
     val id: Int,
     val title: String,
     val fullPath: String,
-    val partNumber: Int,
-    val totalParts: Int,
     val baseFilename: String,
     val data :String,
+    val type:String
 )
 
 class UploadProgressCMPDataAdapter(

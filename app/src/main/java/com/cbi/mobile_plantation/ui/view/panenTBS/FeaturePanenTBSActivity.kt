@@ -2126,10 +2126,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     id = itemId++,
                     title = "Master TPH ${request.estateAbbr}",
                     fullPath = "",
-                    partNumber = 1,  // Single part for downloads
-                    totalParts = 1,  // Single part for downloads
                     baseFilename = request.estateAbbr ?: "",
-                    data = ""
+                    data = "",
+                    type = ""
                 )
             )
         }
@@ -2227,10 +2226,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             id = itemId++,
                             title = "${request.estateAbbr} - ${request.dataset}",
                             fullPath = "",
-                            partNumber = 1,
-                            totalParts = 1,
                             baseFilename = request.estateAbbr ?: "",
-                            data = ""
+                            data = "",
+                            type = ""
                         )
                     )
                 }
