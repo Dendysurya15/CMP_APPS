@@ -165,8 +165,8 @@ class HomePageActivity : AppCompatActivity() {
         val nama_file: String,
         val status: Int,
         val tanggal_upload: String,
-
-        )
+        val type: String,
+    )
 
     private val globalResponseJsonUploadList = mutableListOf<ResponseJsonUpload>()
 
@@ -1904,7 +1904,10 @@ class HomePageActivity : AppCompatActivity() {
                                         val failedImagesJson = Gson().toJson(onlyFailedImages)
 
                                         // Extract the base title (without the count in parentheses)
-                                        val baseTitle = failedItem.title.replace(Regex("\\s*\\(\\d+\\s+file[s]?\\)\\s*$"), "").trim()
+                                        val baseTitle = failedItem.title.replace(
+                                            Regex("\\s*\\(\\d+\\s+file[s]?\\)\\s*$"),
+                                            ""
+                                        ).trim()
                                         val newTitle = "$baseTitle (${onlyFailedImages.size} file)"
 
                                         retryUploadItems.add(
@@ -1938,6 +1941,7 @@ class HomePageActivity : AppCompatActivity() {
                                 }
                             }
                         }
+
                         "json" -> {
                             // For JSON uploads (Panen or ESPB), add as is
                             retryUploadItems.add(
@@ -1951,6 +1955,7 @@ class HomePageActivity : AppCompatActivity() {
                                 )
                             )
                         }
+
                         else -> {
                             // Unknown type, add as is
                             retryUploadItems.add(
@@ -2232,6 +2237,7 @@ class HomePageActivity : AppCompatActivity() {
                                     response.nama_file,
                                     response.status,
                                     response.tanggal_upload,
+                                    response.type
                                 )
                             )
 
@@ -2275,18 +2281,26 @@ class HomePageActivity : AppCompatActivity() {
                             } else {
 
                             }
-                        }
-                        else if (response.type == "image") {
+                        } else if (response.type == "image") {
+                            globalResponseJsonUploadList.add(
+                                ResponseJsonUpload(
+                                    trackingId = 0,
+                                    nama_file = "",
+                                    status = 0,
+                                    tanggal_upload = "",
+                                    type = response.type
+                                )
+                            )
                             if (!response.success) {
                                 globalImageUploadError = response.imageFullPath ?: emptyList()
                                 globalImageNameError = response.imageName ?: emptyList()
                                 AppLogger.d("Failed images: ${globalImageNameError.size}")
                                 AppLogger.d("Failed image paths: $globalImageUploadError")
                                 AppLogger.d("Failed image names: $globalImageNameError")
-                            }else{
+                            } else {
 
                             }
-                        }else {
+                        } else {
                             AppLogger.d("Skipping non-JSON upload: type = ${response.type}")
                         }
                     }
@@ -2310,6 +2324,11 @@ class HomePageActivity : AppCompatActivity() {
 
         // Process each successful upload (status codes 1, 2, 3)
         for (responseInfo in globalResponseJsonUploadList) {
+
+            if (responseInfo.type == "image") {
+                AppLogger.d("Detected image type for response, returning true early")
+                return true
+            }
             // Check if the status code indicates success
             if (responseInfo.status == 1 || responseInfo.status == 2 || responseInfo.status == 3) {
 //                val fileName = responseInfo.nama_file

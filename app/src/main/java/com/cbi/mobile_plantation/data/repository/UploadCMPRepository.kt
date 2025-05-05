@@ -272,11 +272,6 @@ class UploadCMPRepository(context: Context) {
 
                 if (type == "image") {
                     try {
-                        // Initial progress
-                        withContext(Dispatchers.Main) {
-                            onProgressUpdate(0, false, "Starting image upload...")
-                        }
-
                         // Parse the data as JSON array of image objects
                         AppLogger.d("====== PARSING IMAGE DATA ======")
                         val imageList = Gson().fromJson(data, object : TypeToken<List<Map<String, Any>>>() {}.type) as List<Map<String, String>>
@@ -296,9 +291,9 @@ class UploadCMPRepository(context: Context) {
                         val progressPerImage = 90 / imageList.size // Reserve 10% for initial setup
                         var currentProgress = 10  // Start at 10%
 
-                        withContext(Dispatchers.Main) {
-                            onProgressUpdate(currentProgress, false, "Found ${imageList.size} images to process")
-                        }
+//                        withContext(Dispatchers.Main) {
+//                            onProgressUpdate(currentProgress, false, "Found ${imageList.size} images to process")
+//                        }
 
                         // Validate all files exist first
                         val validImageFiles = mutableListOf<Triple<File, String, String>>()
@@ -365,9 +360,9 @@ class UploadCMPRepository(context: Context) {
                             AppLogger.d("File size: ${file.length()} bytes")
                             AppLogger.d("Table ID: $tableId")
 
-                            withContext(Dispatchers.Main) {
-                                onProgressUpdate(currentProgress, false, "Uploading ${imageName} (${index + 1}/${validImageFiles.size})")
-                            }
+//                            withContext(Dispatchers.Main) {
+//                                onProgressUpdate(currentProgress, false, "Uploading ${imageName} (${index + 1}/${validImageFiles.size})")
+//                            }
 
                             try {
                                 // TEST: Force error for second image (PANEN TPH_2_2025505_143611.jpg)
@@ -421,9 +416,9 @@ class UploadCMPRepository(context: Context) {
                                         }
 
                                         currentProgress += progressPerImage
-                                        withContext(Dispatchers.Main) {
-                                            onProgressUpdate(currentProgress, false, "✓ ${imageName} uploaded successfully")
-                                        }
+//                                        withContext(Dispatchers.Main) {
+//                                            onProgressUpdate(currentProgress, false, "✓ ${imageName} uploaded successfully")
+//                                        }
                                     } else {
                                         AppLogger.e("Null response body for: $imageName")
                                         failureCount++
@@ -440,9 +435,9 @@ class UploadCMPRepository(context: Context) {
                                         }
 
                                         currentProgress += progressPerImage
-                                        withContext(Dispatchers.Main) {
-                                            onProgressUpdate(currentProgress, false, "✗ ${imageName} failed - null response")
-                                        }
+//                                        withContext(Dispatchers.Main) {
+//                                            onProgressUpdate(currentProgress, false, "✗ ${imageName} failed - null response")
+//                                        }
                                     }
                                 } else {
                                     val errorBody = response.errorBody()?.string()

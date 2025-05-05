@@ -49,6 +49,7 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.LoadingDialog
+import com.cbi.mobile_plantation.utils.PrefManager
 import com.daimajia.androidanimations.library.Techniques
 import com.daimajia.androidanimations.library.YoYo
 import com.google.android.material.card.MaterialCardView
@@ -81,7 +82,7 @@ class CameraRepository(
     }
 
     private var photoCallback: PhotoCallback? = null
-
+    private var prefManager: PrefManager? = null
 
     private var lastCameraId = 0
     private var rotatedCam = false
@@ -219,6 +220,7 @@ class CameraRepository(
 
     @SuppressLint("ClickableViewAccessibility")
     fun takeCameraPhotos(
+        context: Context,
         resultCode: String,
         imageView: ImageView,
         pageForm: Int,
@@ -229,6 +231,7 @@ class CameraRepository(
         latitude: Double?=null,
         longitude: Double?=null
     ) {
+        prefManager = PrefManager(context)
         setDefaultIconTorchButton(view)
         loadingDialog = LoadingDialog(context)
         val rootDCIM = File(
@@ -398,6 +401,7 @@ class CameraRepository(
                                             }
 
                                             takeCameraPhotos(
+                                                context,
                                                 resultCode,
                                                 imageView,
                                                 pageForm,
@@ -433,9 +437,9 @@ class CameraRepository(
                                             if (!dirDCIM.exists()) dirDCIM.mkdirs()
 
                                             val dateFormat =
-                                                SimpleDateFormat("yyyyMdd_HHmmss").format(Calendar.getInstance().time)
+                                                SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
                                             fileName =
-                                                "${featureName}_${kodeFoto}_${dateFormat}.jpg"
+                                                "${featureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateIdUserLogin}_${dateFormat}.jpg"
                                             file = File(dirApp, fileName)
 
                                             fileDCIM = File(dirDCIM, fileName)
