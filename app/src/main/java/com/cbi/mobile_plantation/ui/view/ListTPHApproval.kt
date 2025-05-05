@@ -253,7 +253,7 @@ class ListTPHApproval : AppCompatActivity() {
 
                             val result =
                                 if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
-                                    repository.saveTPHDataList(saveData.map { (it as SaveDataType.TPHData).data })
+                                    repository.saveTPHDataList(saveData)
                                 } else {
                                     repository.saveScanMPanen(
                                         saveDataMPanenList,
@@ -610,35 +610,36 @@ class ListTPHApproval : AppCompatActivity() {
                             "Processing idtph: $idtph, dateIndex: $dateIndex, time: $time, jjg: $jjg"
                         )
 
-                        // Get the full date from the date map
-                        val fullDate = dateMap[dateIndex] ?: "Unknown Date"
-                        val fullDateTime = "$fullDate $time"
-
-                        Log.d(TAG, "Full datetime: $fullDateTime")
-
-                        val tphInfo = try {
-                            repository.getTPHAndBlokInfo(idtph)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error getting TPH info for idtph $idtph", e)
-                            null
-                        }
-
-                        val displayName = tphInfo?.blokKode ?: "Tidak Diketahui"
-
                         var displayData = TphRvData("NULL", "NULL", "NULL", "NULL", "NULL")
                         var saveDataHasilPanen = TphRvData("NULL", "NULL", "NULL", "NULL", "NULL")
 
-                        val noTph = try {
-                            tphInfo!!.tphNomor.toInt()
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error parsing tphNomor: ${tphInfo?.tphNomor}", e)
-                            0
-                        }
                         if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
                             idtph = parts[0].toInt()
                             dateIndex = parts[1]
                             time = parts[2]
                             jjg = parts[3].toInt()
+                            // Get the full date from the date map
+                            val fullDate = dateMap[dateIndex] ?: "Unknown Date"
+                            val fullDateTime = "$fullDate $time"
+
+                            Log.d(TAG, "Full datetime: $fullDateTime")
+
+
+                            val tphInfo = try {
+                                repository.getTPHAndBlokInfo(idtph)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error getting TPH info for idtph $idtph", e)
+                                null
+                            }
+
+                            val noTph = try {
+                                tphInfo!!.tphNomor.toInt()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error parsing tphNomor: ${tphInfo?.tphNomor}", e)
+                                0
+                            }
+
+                            val displayName = tphInfo?.blokKode ?: "Tidak Diketahui"
                             // Create display data
                             displayData = TphRvData(
                                 namaBlok = displayName,
