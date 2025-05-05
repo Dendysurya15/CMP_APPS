@@ -74,6 +74,15 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
+    suspend fun getActiveESPBAll(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val data = espbDao.getAllActiveESPB()
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getTPHByBlockId(blockId: Int): Result<TPHNewModel?> = withContext(Dispatchers.IO) {
         try {
             val tphData = tphDao.getTPHByBlockId(blockId)

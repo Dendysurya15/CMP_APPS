@@ -117,6 +117,10 @@ abstract class PanenDao {
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
+    @Query("SELECT * FROM panen_table WHERE status_espb = 0")
+    abstract fun getAllActivePanenESPBAll(): List<PanenEntityWithRelations>
+
+    @Transaction
     @Query("SELECT * FROM panen_table WHERE archive != 1")
     abstract fun getAllTPHHasBeenSelected(): List<PanenEntityWithRelations>
 

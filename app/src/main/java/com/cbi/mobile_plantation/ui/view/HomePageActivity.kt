@@ -976,7 +976,7 @@ class HomePageActivity : AppCompatActivity() {
                                 val espbDeferred = CompletableDeferred<List<ESPBEntity>>()
                                 val zipDeferred = CompletableDeferred<Boolean>()
 
-                                panenViewModel.loadActivePanenESPB()
+                                panenViewModel.loadActivePanenESPBAll()
                                 delay(100)
                                 panenViewModel.activePanenList.observeOnce(this@HomePageActivity) { list ->
                                     Log.d("UploadCheck", "Panen Data Size: ${list.size}")
@@ -986,7 +986,7 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 // Load ESPB Data
-                                weightBridgeViewModel.fetchActiveESPB()
+                                weightBridgeViewModel.fetchActiveESPBAll()
                                 delay(100)
                                 weightBridgeViewModel.activeESPBUploadCMP.observeOnce(this@HomePageActivity) { list ->
                                     Log.d("UploadCheck", "ESPB Data Received: ${list.size}")
@@ -1003,12 +1003,12 @@ class HomePageActivity : AppCompatActivity() {
                                 var mappedPanenData: List<Map<String, Any>> = emptyList()
                                 var mappedESPBData: List<Map<String, Any>> = emptyList()
 
+                                var allPhotos = mutableListOf<Map<String, String>>()
+
                                 try {
                                     val panenList = panenDeferred.await()
                                     val espbList = espbDeferred.await()
 
-
-                                    val allPhotos = mutableListOf<Map<String, String>>()
 
                                     // Prepare to search for photo files in CMP directories
                                     val picturesDirs = listOf(
@@ -1252,20 +1252,38 @@ class HomePageActivity : AppCompatActivity() {
                                         val firstItem = mappedPanenData.firstOrNull()
                                         val dateCreated = firstItem?.get("created_date") as? String
 
-                                        val panenJson = Gson().toJson(mappedPanenData)
-                                        val (panenFilePath, panenFilename) = AppUtils.createTempJsonFile(
-                                            context = this@HomePageActivity,
-                                            baseFilename = AppUtils.DatabaseTables.PANEN,
-                                            jsonData = panenJson,
-                                            userId = prefManager!!.idUserLogin.toString(),
-                                            dataDate = dateCreated
-                                        )
-                                        combinedUploadData[AppUtils.DatabaseTables.PANEN] = mapOf(
-                                            "path" to panenFilePath,
-                                            "filename" to panenFilename
-                                        )
+                                        // First, filter the mapped panen data to only include items with status_upload == 0
+                                        val panenDataToUpload = mappedPanenData.filter { panenMap ->
+                                            val id = panenMap["id"] as? Int ?: 0
+                                            val original = panenList.find { it.panen.id == id }
 
-                                        val allPhotos = uniquePhotos.values.toList()
+                                            // Only include if status_upload == 0
+                                            original?.panen?.status_upload == 0
+                                        }
+
+                                        // Only create the panen JSON file if there's data to upload
+                                        if (panenDataToUpload.isNotEmpty()) {
+                                            val firstItem = panenDataToUpload.firstOrNull()
+                                            val dateCreated = firstItem?.get("created_date") as? String
+
+                                            val panenJson = Gson().toJson(panenDataToUpload)
+                                            val (panenFilePath, panenFilename) = AppUtils.createTempJsonFile(
+                                                context = this@HomePageActivity,
+                                                baseFilename = AppUtils.DatabaseTables.PANEN,
+                                                jsonData = panenJson,
+                                                userId = prefManager!!.idUserLogin.toString(),
+                                                dataDate = dateCreated
+                                            )
+
+                                            combinedUploadData[AppUtils.DatabaseTables.PANEN] = mapOf(
+                                                "path" to panenFilePath,
+                                                "filename" to panenFilename
+                                            )
+                                        } else {
+                                            AppLogger.d("No panen data with status_upload == 0 to upload")
+                                        }
+
+                                        allPhotos = uniquePhotos.values.toMutableList()
                                         if (allPhotos.isNotEmpty()) {
                                             AppLogger.d("Adding ${allPhotos.size} unique photos to upload data")
                                             combinedUploadData["foto_panen"] = allPhotos
@@ -1289,128 +1307,131 @@ class HomePageActivity : AppCompatActivity() {
 
 
                                     if (espbList.isNotEmpty()) {
-
-                                        mappedESPBData = espbList.map { data ->
-                                            val blokJjgList = data.blok_jjg.split(";").mapNotNull {
-                                                it.split(",").takeIf { it.size == 2 }
-                                                    ?.let { (id, jjg) ->
-                                                        id.toIntOrNull()
-                                                            ?.let { it to jjg.toIntOrNull() }
-                                                    }
-                                            }
-                                            val idBlokList = blokJjgList.map { it.first }
-                                            val totalJjg =
-                                                blokJjgList.mapNotNull { it.second }.sum()
-                                            val concatenatedIds =
-                                                idBlokList.joinToString(",").trimEnd(',')
-                                            val firstBlockId = idBlokList.firstOrNull()
-                                            // Create a CompletableDeferred to handle the async operation
-                                            val tphDeferred = CompletableDeferred<TPHNewModel?>()
-
-                                            // Fetch the TPH data if we have a block ID
-                                            firstBlockId?.let { blockId ->
-                                                weightBridgeViewModel.fetchTPHByBlockId(blockId)
-
-                                                // Set up a one-time observer for the LiveData
-                                                weightBridgeViewModel.tphData.observeOnce(this@HomePageActivity) { tphModel ->
-                                                    tphDeferred.complete(tphModel)
-                                                }
-                                            }
-                                                ?: tphDeferred.complete(null) // Complete with null if no block ID
-
-                                            // Wait for the TPH data
-                                            val tphData = tphDeferred.await()
-
-                                            val pemuatNikString = data.pemuat_nik
-
-                                            val nikList = mutableListOf<String>()
-                                            var currentIndex = 0
-
-                                            while (true) {
-                                                // Find next occurrence of "nik="
-                                                val nikIndex =
-                                                    pemuatNikString.indexOf("nik=", currentIndex)
-                                                if (nikIndex == -1) break // No more NIKs found
-
-                                                // Move position after "nik="
-                                                currentIndex = nikIndex + 4
-
-                                                // Find comma after the NIK value
-                                                val commaIndex =
-                                                    pemuatNikString.indexOf(",", currentIndex)
-                                                if (commaIndex == -1) break // Unexpected format
-
-                                                // Extract the NIK value
-                                                val nikValue = pemuatNikString.substring(
-                                                    currentIndex,
-                                                    commaIndex
-                                                )
-                                                nikList.add(nikValue)
-
-                                                // Move position for next search
-                                                currentIndex = commaIndex + 1
-                                            }
-
-                                            val nikValues = nikList.joinToString(",")
-
-                                            mapOf(
-                                                "id" to data.id,
-                                                "regional" to (tphData?.regional ?: ""),
-                                                "wilayah" to (tphData?.wilayah ?: ""),
-                                                "company" to (tphData?.company ?: ""),
-                                                "dept" to (tphData?.dept ?: ""),
-                                                "divisi" to (tphData?.divisi ?: ""),
-                                                "blok_id" to concatenatedIds,
-                                                "blok_jjg" to data.blok_jjg,
-                                                "jjg" to totalJjg,
-                                                "created_by_id" to data.created_by_id,
-                                                "created_at" to data.created_at,
-                                                "pemuat_id" to data.pemuat_id,
-                                                "kemandoran_id" to data.kemandoran_id,
-                                                "pemuat_nik" to nikValues,
-                                                "nopol" to data.nopol,
-                                                "driver" to data.driver,
-                                                "transporter_id" to data.transporter_id,
-                                                "mill_id" to data.mill_id,
-                                                "creator_info" to data.creator_info,
-                                                "no_espb" to data.noESPB,
-                                                "tph0" to data.tph0,
-                                                "tph1" to data.tph1,
-                                                "update_info_sp" to data.update_info_sp,
-                                                "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
-                                                    .toString(),
-                                                "jabatan" to prefManager!!.jabatanUserLogin.toString(),
-                                            )
+                                        val espbDataToUpload = espbList.filter { data ->
+                                            data.status_upload == 0
                                         }
 
-                                        globalESPBIds = mappedESPBData.map { it["id"] as Int }
-                                        val firstItem = mappedESPBData.firstOrNull()
-                                        val dateCreated = firstItem?.get("created_at") as? String
-                                        val espbJson = Gson().toJson(mappedESPBData)
-                                        val (espbFilePath, espbFilename) = AppUtils.createTempJsonFile(
-                                            context = this@HomePageActivity,
-                                            baseFilename = AppUtils.DatabaseTables.ESPB,
-                                            jsonData = espbJson,
-                                            userId = prefManager!!.idUserLogin.toString(),
-                                            dataDate = dateCreated
-                                        )
+                                        if (espbDataToUpload.isNotEmpty()) {
+                                            mappedESPBData = espbDataToUpload.map { data ->
+                                                val blokJjgList = data.blok_jjg.split(";").mapNotNull {
+                                                    it.split(",").takeIf { it.size == 2 }
+                                                        ?.let { (id, jjg) ->
+                                                            id.toIntOrNull()
+                                                                ?.let { it to jjg.toIntOrNull() }
+                                                        }
+                                                }
+                                                val idBlokList = blokJjgList.map { it.first }
+                                                val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
+                                                val concatenatedIds = idBlokList.joinToString(",").trimEnd(',')
+                                                val firstBlockId = idBlokList.firstOrNull()
 
-                                        // Store both the file path and filename
-                                        combinedUploadData[AppUtils.DatabaseTables.ESPB] = mapOf(
-                                            "path" to espbFilePath,
-                                            "filename" to espbFilename
-                                        )
+                                                // Create a CompletableDeferred to handle the async operation
+                                                val tphDeferred = CompletableDeferred<TPHNewModel?>()
 
-                                        unzippedESPBData = mappedESPBData.filter { item ->
-                                            // Get the ID
-                                            val id = item["id"] as? Int ?: 0
+                                                // Fetch the TPH data if we have a block ID
+                                                firstBlockId?.let { blockId ->
+                                                    weightBridgeViewModel.fetchTPHByBlockId(blockId)
 
-                                            // Check if this item has dataIsZipped = 0 in the original data
-                                            val original = espbList.find { it.id == id }
-                                            val isZipped = original?.dataIsZipped ?: 0
+                                                    // Set up a one-time observer for the LiveData
+                                                    weightBridgeViewModel.tphData.observeOnce(this@HomePageActivity) { tphModel ->
+                                                        tphDeferred.complete(tphModel)
+                                                    }
+                                                } ?: tphDeferred.complete(null) // Complete with null if no block ID
 
-                                            // Only include items that are not yet zipped
-                                            isZipped == 0
+                                                // Wait for the TPH data
+                                                val tphData = tphDeferred.await()
+
+                                                val pemuatNikString = data.pemuat_nik
+
+                                                val nikList = mutableListOf<String>()
+                                                var currentIndex = 0
+
+                                                while (true) {
+                                                    // Find next occurrence of "nik="
+                                                    val nikIndex = pemuatNikString.indexOf("nik=", currentIndex)
+                                                    if (nikIndex == -1) break // No more NIKs found
+
+                                                    // Move position after "nik="
+                                                    currentIndex = nikIndex + 4
+
+                                                    // Find comma after the NIK value
+                                                    val commaIndex = pemuatNikString.indexOf(",", currentIndex)
+                                                    if (commaIndex == -1) break // Unexpected format
+
+                                                    // Extract the NIK value
+                                                    val nikValue = pemuatNikString.substring(currentIndex, commaIndex)
+                                                    nikList.add(nikValue)
+
+                                                    // Move position for next search
+                                                    currentIndex = commaIndex + 1
+                                                }
+
+                                                val nikValues = nikList.joinToString(",")
+
+                                                mapOf(
+                                                    "id" to data.id,
+                                                    "regional" to (tphData?.regional ?: ""),
+                                                    "wilayah" to (tphData?.wilayah ?: ""),
+                                                    "company" to (tphData?.company ?: ""),
+                                                    "dept" to (tphData?.dept ?: ""),
+                                                    "divisi" to (tphData?.divisi ?: ""),
+                                                    "blok_id" to concatenatedIds,
+                                                    "blok_jjg" to data.blok_jjg,
+                                                    "jjg" to totalJjg,
+                                                    "created_by_id" to data.created_by_id,
+                                                    "created_at" to data.created_at,
+                                                    "pemuat_id" to data.pemuat_id,
+                                                    "kemandoran_id" to data.kemandoran_id,
+                                                    "pemuat_nik" to nikValues,
+                                                    "nopol" to data.nopol,
+                                                    "driver" to data.driver,
+                                                    "transporter_id" to data.transporter_id,
+                                                    "mill_id" to data.mill_id,
+                                                    "creator_info" to data.creator_info,
+                                                    "no_espb" to data.noESPB,
+                                                    "tph0" to data.tph0,
+                                                    "tph1" to data.tph1,
+                                                    "update_info_sp" to data.update_info_sp,
+                                                    "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
+                                                    "jabatan" to prefManager!!.jabatanUserLogin.toString(),
+                                                )
+                                            }
+
+                                            globalESPBIds = mappedESPBData.map { it["id"] as Int }
+                                            val firstItem = mappedESPBData.firstOrNull()
+                                            val dateCreated = firstItem?.get("created_at") as? String
+                                            val espbJson = Gson().toJson(mappedESPBData)
+                                            val (espbFilePath, espbFilename) = AppUtils.createTempJsonFile(
+                                                context = this@HomePageActivity,
+                                                baseFilename = AppUtils.DatabaseTables.ESPB,
+                                                jsonData = espbJson,
+                                                userId = prefManager!!.idUserLogin.toString(),
+                                                dataDate = dateCreated
+                                            )
+
+                                            // Store both the file path and filename only if there's data
+                                            combinedUploadData[AppUtils.DatabaseTables.ESPB] = mapOf(
+                                                "path" to espbFilePath,
+                                                "filename" to espbFilename
+                                            )
+
+                                            unzippedESPBData = mappedESPBData.filter { item ->
+                                                // Get the ID
+                                                val id = item["id"] as? Int ?: 0
+
+                                                // Check if this item has dataIsZipped = 0 in the original data
+                                                val original = espbList.find { it.id == id }
+                                                val isZipped = original?.dataIsZipped ?: 0
+
+                                                // Only include items that are not yet zipped
+                                                isZipped == 0
+                                            }
+                                        } else {
+                                            AppLogger.d("No ESPB data with status_upload == 0 to upload")
+                                            // Initialize empty arrays if no data to upload
+                                            mappedESPBData = emptyList()
+                                            globalESPBIds = emptyList()
+                                            unzippedESPBData = emptyList()
                                         }
                                     }
 
@@ -1492,21 +1513,23 @@ class HomePageActivity : AppCompatActivity() {
                                     it.status_upload == 0
                                 }
 
-                                val hasItemsToUpload = panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty()
+                                AppLogger.d(panenToUpload.toString())
+                                val hasPhotosToUpload = allPhotos.isNotEmpty()
+                                val hasItemsToUpload = panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosToUpload
 
-//                                if (hasItemsToUpload) {
+                                if (hasItemsToUpload) {
                                     val uploadDataJson = Gson().toJson(combinedUploadData)
                                     setupDialogUpload(uploadDataJson)
-//                                } else {
-//                                    AlertDialogUtility.withSingleAction(
-//                                        this@HomePageActivity,
-//                                        stringXML(R.string.al_back),
-//                                        stringXML(R.string.al_no_data_for_upload_cmp),
-//                                        stringXML(R.string.al_no_data_for_upload_cmp_description),
-//                                        "success.json",
-//                                        R.color.greendarkerbutton
-//                                    ) { }
-//                                }
+                                } else {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        stringXML(R.string.al_back),
+                                        stringXML(R.string.al_no_data_for_upload_cmp),
+                                        stringXML(R.string.al_no_data_for_upload_cmp_description),
+                                        "success.json",
+                                        R.color.greendarkerbutton
+                                    ) { }
+                                }
                             }
 
                         }
@@ -1642,63 +1665,63 @@ class HomePageActivity : AppCompatActivity() {
 
                 var itemId = 0
 
-//                val panenInfo = dataMap[AppUtils.DatabaseTables.PANEN] as? Map<*, *>
-//                if (panenInfo != null) {
-//                    val panenPath = panenInfo["path"] as? String
-//                    val panenFilename = panenInfo["filename"] as? String
-//
-//                    if (panenPath != null && panenFilename != null) {
-//                        val file = File(panenPath)
-//                        if (file.exists() && file.length() > 0) {
-//                            val panenTitle = "Panen Data"
-//                            val fileSize = file.length()
-//
-//                            val uploadItem = UploadCMPItem(
-//                                id = itemId++,
-//                                title = panenTitle,
-//                                fullPath = panenPath,  // Using the actual file path
-//                                baseFilename = panenFilename,  // Using the filename
-//                                data = "",
-//                                type = "json"
-//                            )
-//
-//                            uploadItems.add(uploadItem)
-//                            adapter.setFileSize(uploadItem.id, fileSize)
-//                            AppLogger.d("Added panen file to upload items: $panenPath (size: $fileSize bytes)")
-//                        } else {
-//                            AppLogger.e("Panen file not found or empty: $panenPath")
-//                        }
-//                    }
-//                }
-//
-//                val espbInfo = dataMap[AppUtils.DatabaseTables.ESPB] as? Map<*, *>
-//                if (espbInfo != null) {
-//                    val espbPath = espbInfo["path"] as? String
-//                    val espbFilename = espbInfo["filename"] as? String
-//
-//                    if (espbPath != null && espbFilename != null) {
-//                        val file = File(espbPath)
-//                        if (file.exists() && file.length() > 0) {
-//                            val espbTitle = "ESPB Data"
-//                            val fileSize = file.length()
-//
-//                            val uploadItem = UploadCMPItem(
-//                                id = itemId++,
-//                                title = espbTitle,
-//                                fullPath = espbPath,  // Using the actual file path
-//                                baseFilename = espbFilename,  // Using the filename
-//                                data = "",
-//                                type = "json"
-//                            )
-//
-//                            uploadItems.add(uploadItem)
-//                            adapter.setFileSize(uploadItem.id, fileSize)
-//                            AppLogger.d("Added espb file to upload items: $espbPath (size: $fileSize bytes)")
-//                        } else {
-//                            AppLogger.e("ESPB file not found or empty: $espbPath")
-//                        }
-//                    }
-//                }
+                val panenInfo = dataMap[AppUtils.DatabaseTables.PANEN] as? Map<*, *>
+                if (panenInfo != null) {
+                    val panenPath = panenInfo["path"] as? String
+                    val panenFilename = panenInfo["filename"] as? String
+
+                    if (panenPath != null && panenFilename != null) {
+                        val file = File(panenPath)
+                        if (file.exists() && file.length() > 0) {
+                            val panenTitle = "Panen Data"
+                            val fileSize = file.length()
+
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = panenTitle,
+                                fullPath = panenPath,  // Using the actual file path
+                                baseFilename = panenFilename,  // Using the filename
+                                data = "",
+                                type = "json"
+                            )
+
+                            uploadItems.add(uploadItem)
+                            adapter.setFileSize(uploadItem.id, fileSize)
+                            AppLogger.d("Added panen file to upload items: $panenPath (size: $fileSize bytes)")
+                        } else {
+                            AppLogger.e("Panen file not found or empty: $panenPath")
+                        }
+                    }
+                }
+
+                val espbInfo = dataMap[AppUtils.DatabaseTables.ESPB] as? Map<*, *>
+                if (espbInfo != null) {
+                    val espbPath = espbInfo["path"] as? String
+                    val espbFilename = espbInfo["filename"] as? String
+
+                    if (espbPath != null && espbFilename != null) {
+                        val file = File(espbPath)
+                        if (file.exists() && file.length() > 0) {
+                            val espbTitle = "ESPB Data"
+                            val fileSize = file.length()
+
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = espbTitle,
+                                fullPath = espbPath,  // Using the actual file path
+                                baseFilename = espbFilename,  // Using the filename
+                                data = "",
+                                type = "json"
+                            )
+
+                            uploadItems.add(uploadItem)
+                            adapter.setFileSize(uploadItem.id, fileSize)
+                            AppLogger.d("Added espb file to upload items: $espbPath (size: $fileSize bytes)")
+                        } else {
+                            AppLogger.e("ESPB file not found or empty: $espbPath")
+                        }
+                    }
+                }
 
                 if (fotoPanen != null && fotoPanen.isNotEmpty()) {
                     AppLogger.d("Processing photo data: ${fotoPanen.size} photos")
@@ -1919,7 +1942,7 @@ class HomePageActivity : AppCompatActivity() {
         uploadCMPViewModel.itemStatusMap.observe(this) { statusMap ->
             // Update status for each item
             for ((id, status) in statusMap) {
-                AppLogger.d("Status for item $id: $status%")
+                AppLogger.d("Status for item $id: $status")
                 adapter.updateStatus(id, status)
             }
 
@@ -1940,7 +1963,8 @@ class HomePageActivity : AppCompatActivity() {
                     delay(500)
 
                     withContext(Dispatchers.Main) {
-                        // Update UI based on upload results
+
+                        AppLogger.d("allSuccess $allSuccess")
                         if (allSuccess) {
                             // Reset retry flag since we succeeded
                             isRetryOperation = false

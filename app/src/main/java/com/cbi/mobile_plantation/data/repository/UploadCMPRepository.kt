@@ -486,7 +486,7 @@ class UploadCMPRepository(context: Context) {
                             }
                         }
 
-                        // Final update with complete status
+                        // Final update with complete status - THIS SHOULD BE CALLED ONCE AFTER THE LOOP
                         val isSuccess = failureCount == 0
                         val finalMessage = if (isSuccess) {
                             "All $successCount images uploaded successfully"
@@ -497,7 +497,9 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== COMPLETE UPLOAD RESULTS ======")
                         AppLogger.d("Summary: $finalMessage")
                         AppLogger.d("Uploaded files: ${uploadResults.size}")
+                        AppLogger.d("isSuccess: $isSuccess")
 
+// This should be called only once
                         withContext(Dispatchers.Main) {
                             onProgressUpdate(100, isSuccess, if (isSuccess) null else finalMessage)
                         }
