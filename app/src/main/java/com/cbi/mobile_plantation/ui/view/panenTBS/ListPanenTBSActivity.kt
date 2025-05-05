@@ -2293,7 +2293,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
     // Helper function to stop the loading animation and hide UI
-    private fun stopLoadingAnimation(
+    fun stopLoadingAnimation(
         loadingLogo: ImageView,
         loadingContainer: LinearLayout
     ) {

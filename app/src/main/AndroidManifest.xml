@@ -51,6 +51,14 @@
         <!-- android:name=".ui.view.espb.DetailESPBActivity" -->
         <!-- android:exported="false" /> -->
         <activity
+            android:name=".ui.view.HektarPanen.TransferHektarPanenActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.view.HektarPanen.DaftarHektarMPanen"
+            android:exported="false" /> <!-- <activity -->
+        <!-- android:name=".ui.view.espb.DetailESPBActivity" -->
+        <!-- android:exported="false" /> -->
+        <activity
             android:name=".ui.view.Inspection.FormInspectionActivity"
             android:exported="false" />
         <activity

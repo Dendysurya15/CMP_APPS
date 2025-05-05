@@ -8,6 +8,7 @@ import com.cbi.mobile_plantation.data.model.InspectionPathModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.ESPBEntity
+import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
@@ -16,8 +17,15 @@ import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.mobile_plantation.data.model.TphRvData
 import com.cbi.mobile_plantation.utils.AppLogger
+import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // Add this class to represent the different outcomes
 sealed class SaveTPHResult {
@@ -43,6 +51,8 @@ class AppRepository(context: Context) {
     private val inspectionDao = database.inspectionDao()
     private val inspectionPathDao = database.inspectionPathDao()
     private val kendaraanDao = database.kendaraanDao()
+    private val hektarPanenDao = database.hektarPanenDao()
+
 
     sealed class SaveResultPanen {
         object Success : SaveResultPanen()
@@ -51,6 +61,347 @@ class AppRepository(context: Context) {
 
     suspend fun saveDataPanen(data: PanenEntity) {
         panenDao.insert(data)
+    }
+
+    suspend fun saveScanMPanen(
+        tphDataList: List<PanenEntity>,
+        createdBy: String? = null,
+        creatorInfo: String? = null,
+        context: Context
+    ): Result<SaveTPHResult> = withContext(Dispatchers.IO) {
+        try {
+            database.withTransaction {
+                // Keep track of successes and failures
+                val savedIds = mutableListOf<Long>()
+                val duplicates = mutableListOf<PanenEntity>()
+                val hektarPanenDao = database.hektarPanenDao()
+
+                // Step 1: First, save all PanenEntity records to the panen table
+                for (tphData in tphDataList) {
+                    // Check if this specific item is a duplicate
+                    val isDuplicate = panenDao.exists(tphData.tph_id, tphData.date_created)
+
+                    if (isDuplicate) {
+                        // Add to duplicates list
+                        duplicates.add(tphData)
+                    } else {
+                        // Save non-duplicate
+                        val result = panenDao.insertWithTransaction(tphData)
+
+                        result.fold(
+                            onSuccess = { id -> savedIds.add(id) },
+                            onFailure = { throw it }
+                        )
+                    }
+                }
+
+                // Step 2: Group by unique (NIK, Block) combination
+                // Use a map of Pair<NIK, Block> -> List of PanenEntity
+                val groupedByNikAndBlock =
+                    mutableMapOf<Pair<String, String>, MutableList<PanenEntity>>()
+
+                // Add debug logging for tphDataList
+                Log.d(
+                    "AppRepository",
+                    "Processing ${tphDataList.size} TPH entries, with ${duplicates.size} duplicates"
+                )
+
+                for (tphData in tphDataList) {
+                    if (duplicates.contains(tphData)) continue
+                    try {
+                        val tphId = tphData.tph_id.toIntOrNull()
+                        if (tphId == null) {
+                            Log.e("AppRepository", "Invalid TPH ID: ${tphData.tph_id}")
+                            continue
+                        }
+
+                        val blokId = tphDao.getBlokIdbyIhTph(tphId)
+                        if (blokId == null) {
+                            Log.e(
+                                "AppRepository",
+                                "Could not find block ID for TPH ID: ${tphData.tph_id}"
+                            )
+                            continue
+                        }
+                        if (tphData.karyawan_nik.contains(",")) {
+                            val nikArr = tphData.karyawan_nik.split(",")
+                            for (nik in nikArr) {
+                                val key = Pair(nik, "${tphData.tph_id}$${tphData.date_created.split(" ")[0]}")
+                                // Add logging for grouping
+                                Log.d(
+                                    "AppRepository",
+                                    "Grouping TPH: ${tphData.tph_id}$${tphData.date_created.split(" ")[0]}, NIK: ${nik}, Block: $blokId"
+                                )
+                                // Initialize list for this key if it doesn't exist
+                                if (!groupedByNikAndBlock.containsKey(key)) {
+                                    groupedByNikAndBlock[key] = mutableListOf()
+                                }
+                                // Add this entity to the group
+                                groupedByNikAndBlock[key]!!.add(tphData)
+                            }
+                        } else {
+                            // Create a key with NIK and Block (Pair<String, Int>)
+                            val key = Pair(tphData.karyawan_nik, "${tphData.tph_id}$${tphData.date_created.split(" ")[0]}")
+
+
+                            // Add logging for grouping
+                            Log.d(
+                                "AppRepository",
+                                "Grouping TPH: ${tphData.tph_id}$${tphData.date_created.split(" ")[0]}, NIK: ${tphData.karyawan_nik}, Block: $blokId"
+                            )
+
+                            // Initialize list for this key if it doesn't exist
+                            if (!groupedByNikAndBlock.containsKey(key)) {
+                                groupedByNikAndBlock[key] = mutableListOf()
+                            }
+
+                            // Add this entity to the group
+                            groupedByNikAndBlock[key]!!.add(tphData)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("AppRepository", "Error processing TPH data: ${e.message}")
+                    }
+                }
+
+                // Log the number of unique (NIK, Block) combinations
+                Log.d(
+                    "AppRepository",
+                    "Found ${groupedByNikAndBlock.size} unique (NIK, Block) combinations"
+                )
+
+                // Log each unique combination
+                groupedByNikAndBlock.keys.forEach { (nik, blokIdDate) ->
+                    Log.d("AppRepository", "Unique combination - NIK: $nik, BlockDate: $blokIdDate")
+                }
+
+                // Step 3: Process each group to create/update HektarPanen records
+                for ((key, entities) in groupedByNikAndBlock) {
+                    val (nik, blokIdDate) = key
+
+                    try {
+                        val blokId = try {
+                            blokIdDate.split("$")[0].toInt()
+                        }catch (e: Exception){
+                            Toasty.error(context, "Error parsing blokId: ${e.message}").show()
+                            0
+                        }
+
+                        val date = try {
+                            blokIdDate.split("$")[1]
+                        }catch (e: Exception){
+                            Toasty.error(context, "Error parsing date: ${e.message}").show()
+                            ""
+                        }
+
+                        // Check if a record already exists for this (NIK, Block) combination
+                        var hektarPanen = hektarPanenDao.getByNikAndBlokDate(nik, blokId, date)
+
+                        // Prepare the arrays to store values
+                        val totalJjg = mutableListOf<String>()
+                        val unripe = mutableListOf<String>()
+                        val overripe = mutableListOf<String>()
+                        val emptyBunch = mutableListOf<String>()
+                        val abnormal = mutableListOf<String>()
+                        val ripe = mutableListOf<String>()
+                        val kirimPabrik = mutableListOf<String>()
+                        val dibayar = mutableListOf<String>()
+                        val tphIds = mutableListOf<String>()
+                        val dateCreatedPanen = mutableListOf<String>()
+
+                        // Process all entities in this group
+                        for (entity in entities) {
+                            try {
+                                val jjgJson = JSONObject(entity.jjg_json)
+                                totalJjg.add(roundToOneDecimal(jjgJson.optInt("TO", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
+                                unripe.add(roundToOneDecimal(jjgJson.optInt("UN", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
+                                overripe.add(roundToOneDecimal(jjgJson.optInt("OV", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
+                                emptyBunch.add(roundToOneDecimal(jjgJson.optInt("EM", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
+                                abnormal.add(roundToOneDecimal(jjgJson.optInt("AB", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
+                                ripe.add(roundToOneDecimal(jjgJson.optInt("RI", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
+                                kirimPabrik.add(roundToOneDecimal(jjgJson.optInt("KP", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
+                                dibayar.add(roundToOneDecimal(jjgJson.optInt("PA", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
+                                tphIds.add(entity.tph_id)
+                                dateCreatedPanen.add(entity.date_created)
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error parsing jjg_json: ${e.message}")
+                            }
+                        }
+
+                        // Log the values for debugging
+                        Log.d(
+                            "AppRepository",
+                            "For NIK: $nik, Block: $blokIdDate - TotalJJG: ${totalJjg.joinToString(";")}"
+                        )
+
+                        if (hektarPanen == null) {
+                            // Create new entry
+                            val sampleTphId =
+                                entities.firstOrNull()?.tph_id?.toIntOrNull() ?: continue
+                            val luasArea = try {
+                                val rawValue =
+                                    tphDao.getLuasAreaByTphId(sampleTphId)?.toFloat() ?: 0f
+                                BigDecimal(rawValue.toDouble()).setScale(2, RoundingMode.HALF_UP)
+                                    .toFloat()
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting luas area: ${e.message}")
+                                0f
+                            }
+                            hektarPanen = HektarPanenEntity(
+                                id = null,
+                                nik = nik,
+                                blok = blokId,
+                                luas_panen = 0f,
+                                date_created = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),                                created_by = createdBy ?: "Unknown",
+                                creator_info = creatorInfo ?: "{}",
+                                total_jjg_arr = totalJjg.joinToString(";"),
+                                unripe_arr = unripe.joinToString(";"),
+                                overripe_arr = overripe.joinToString(";"),
+                                empty_bunch_arr = emptyBunch.joinToString(";"),
+                                abnormal_arr = abnormal.joinToString(";"),
+                                ripe_arr = ripe.joinToString(";"),
+                                kirim_pabrik_arr = kirimPabrik.joinToString(";"),
+                                dibayar_arr = dibayar.joinToString(";"),
+                                tph_ids = tphIds.joinToString(";"),
+                                date_created_panen = dateCreatedPanen.joinToString(";"),
+                                luas_blok = luasArea
+                            )
+
+                            // Log the new entity
+                            Log.d(
+                                "AppRepository",
+                                "Creating new HektarPanen: NIK=$nik, Block=$blokIdDate"
+                            )
+
+                            // Insert the new record
+                            hektarPanenDao.insert(hektarPanen)
+                        } else {
+                            // Log the existing entity
+                            Log.d(
+                                "AppRepository",
+                                "Updating existing HektarPanen: NIK=$nik, Block=$blokIdDate"
+                            )
+
+                            // Handle null/empty arrays safely
+                            val existingTotalJjg =
+                                hektarPanen.total_jjg_arr.takeUnless { it.isNullOrEmpty() } ?: ""
+                            val existingUnripe =
+                                hektarPanen.unripe_arr.takeUnless { it.isNullOrEmpty() } ?: ""
+                            val existingOverripe =
+                                hektarPanen.overripe_arr.takeUnless { it.isNullOrEmpty() } ?: ""
+                            val existingEmptyBunch =
+                                hektarPanen.empty_bunch_arr.takeUnless { it.isNullOrEmpty() } ?: ""
+                            val existingAbnormal =
+                                hektarPanen.abnormal_arr.takeUnless { it.isNullOrEmpty() } ?: ""
+                            val existingRipe =
+                                hektarPanen.ripe_arr.takeUnless { it.isNullOrEmpty() } ?: ""
+                            val existingKirimPabrik =
+                                hektarPanen.kirim_pabrik_arr.takeUnless { it.isNullOrEmpty() } ?: ""
+                            val existingDibayar =
+                                hektarPanen.dibayar_arr.takeUnless { it.isNullOrEmpty() } ?: ""
+                            val existingTphIds =
+                                hektarPanen.tph_ids.takeUnless { it.isNullOrEmpty() } ?: ""
+                            val existingDateCreated =
+                                hektarPanen.date_created_panen.takeUnless { it.isNullOrEmpty() }
+                                    ?: ""
+
+                            // Append new values to existing ones
+                            val updatedTotalJjg =
+                                if (existingTotalJjg.isEmpty()) totalJjg.joinToString(";") else existingTotalJjg + ";" + totalJjg.joinToString(
+                                    ";"
+                                )
+                            val updatedUnripe =
+                                if (existingUnripe.isEmpty()) unripe.joinToString(";") else existingUnripe + ";" + unripe.joinToString(
+                                    ";"
+                                )
+                            val updatedOverripe =
+                                if (existingOverripe.isEmpty()) overripe.joinToString(";") else existingOverripe + ";" + overripe.joinToString(
+                                    ";"
+                                )
+                            val updatedEmptyBunch =
+                                if (existingEmptyBunch.isEmpty()) emptyBunch.joinToString(";") else existingEmptyBunch + ";" + emptyBunch.joinToString(
+                                    ";"
+                                )
+                            val updatedAbnormal =
+                                if (existingAbnormal.isEmpty()) abnormal.joinToString(";") else existingAbnormal + ";" + abnormal.joinToString(
+                                    ";"
+                                )
+                            val updatedRipe =
+                                if (existingRipe.isEmpty()) ripe.joinToString(";") else existingRipe + ";" + ripe.joinToString(
+                                    ";"
+                                )
+                            val updatedKirimPabrik =
+                                if (existingKirimPabrik.isEmpty()) kirimPabrik.joinToString(";") else existingKirimPabrik + ";" + kirimPabrik.joinToString(
+                                    ";"
+                                )
+                            val updatedDibayar =
+                                if (existingDibayar.isEmpty()) dibayar.joinToString(";") else existingDibayar + ";" + dibayar.joinToString(
+                                    ";"
+                                )
+                            val updatedTphIds =
+                                if (existingTphIds.isEmpty()) tphIds.joinToString(";") else existingTphIds + ";" + tphIds.joinToString(
+                                    ";"
+                                )
+                            val updatedDateCreated =
+                                if (existingDateCreated.isEmpty()) dateCreatedPanen.joinToString(";") else existingDateCreated + ";" + dateCreatedPanen.joinToString(
+                                    ";"
+                                )
+
+                            // Create updated entity
+                            val updatedHektarPanen = hektarPanen.copy(
+                                total_jjg_arr = updatedTotalJjg,
+                                unripe_arr = updatedUnripe,
+                                overripe_arr = updatedOverripe,
+                                empty_bunch_arr = updatedEmptyBunch,
+                                abnormal_arr = updatedAbnormal,
+                                ripe_arr = updatedRipe,
+                                kirim_pabrik_arr = updatedKirimPabrik,
+                                dibayar_arr = updatedDibayar,
+                                tph_ids = updatedTphIds,
+                                date_created_panen = updatedDateCreated
+                            )
+
+                            // Update the record
+                            hektarPanenDao.update(updatedHektarPanen)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(
+                            "AppRepository",
+                            "Error processing group for NIK: $nik, Block: $blokIdDate - ${e.message}"
+                        )
+                    }
+                }
+
+                // Return appropriate result based on success/failure
+                when {
+                    duplicates.isEmpty() -> {
+                        Result.success(SaveTPHResult.AllSuccess(savedIds))
+                    }
+
+                    savedIds.isEmpty() -> {
+                        val duplicateInfo = duplicates.joinToString("\n") {
+                            "TPH ID: ${it.tph_id}, Date: ${it.date_created}"
+                        }
+                        Result.failure(Exception("All data is duplicate:\n$duplicateInfo"))
+                    }
+
+                    else -> {
+                        val duplicateInfo = duplicates.joinToString("\n") {
+                            "TPH ID: ${it.tph_id}, Date: ${it.date_created}"
+                        }
+                        Result.success(
+                            SaveTPHResult.PartialSuccess(
+                                savedIds = savedIds,
+                                duplicateCount = duplicates.size,
+                                duplicateInfo = duplicateInfo
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error in saveScanMPanen: ${e.message}", e)
+            Result.failure(e)
+        }
     }
 
     suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
@@ -130,6 +481,7 @@ class AppRepository(context: Context) {
                         // All items were saved successfully
                         Result.success(SaveTPHResult.AllSuccess(savedIds))
                     }
+
                     savedIds.isEmpty() -> {
                         // Everything was a duplicate
                         val duplicateInfo = duplicates.joinToString("\n") {
@@ -139,6 +491,7 @@ class AppRepository(context: Context) {
                             Exception("All data is duplicate:\n$duplicateInfo")
                         )
                     }
+
                     else -> {
                         // We had partial success
                         val duplicateInfo = duplicates.joinToString("\n") {
@@ -157,6 +510,7 @@ class AppRepository(context: Context) {
                 Result.failure(e)
             }
         }
+
     suspend fun updatePanen(panen: List<PanenEntity>) = withContext(Dispatchers.IO) {
         panenDao.update(panen)
     }
@@ -173,7 +527,12 @@ class AppRepository(context: Context) {
         tphDao.getDivisiAbbrByTphId(id)
     }
 
-    suspend fun loadESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null): List<PanenEntityWithRelations> {
+    suspend fun loadESPB(
+        archive: Int,
+        statusEspb: Int,
+        scanStatus: Int,
+        date: String? = null
+    ): List<PanenEntityWithRelations> {
         return try {
             panenDao.loadESPB(archive, statusEspb, scanStatus, date)
         } catch (e: Exception) {
@@ -182,7 +541,12 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun countESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null): Int {
+    suspend fun countESPB(
+        archive: Int,
+        statusEspb: Int,
+        scanStatus: Int,
+        date: String? = null
+    ): Int {
         return try {
             panenDao.countESPB(archive, statusEspb, scanStatus, date)
         } catch (e: Exception) {
@@ -191,7 +555,7 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun updateDataIsZippedPanen(ids: List<Int>,status:Int) {
+    suspend fun updateDataIsZippedPanen(ids: List<Int>, status: Int) {
         panenDao.updateDataIsZippedPanen(ids, status)
     }
 
@@ -199,11 +563,32 @@ class AppRepository(context: Context) {
         tphDao.geCompanyAbbrByTphId(id)
     }
 
+    suspend fun getBlokKodeByTphId(tphId: Int): String? = withContext(Dispatchers.IO) {
+        tphDao.getBlokKodeByTphId(tphId)
+    }
+
+    suspend fun getNamaByNik(nik: String): String? = withContext(Dispatchers.IO) {
+        karyawanDao.getNamaByNik(nik)
+    }
+
+    suspend fun getNomorTPHbyId(tphId: Int): String? = withContext(Dispatchers.IO) {
+        tphDao.getNomorTPHbyId(tphId)
+    }
+
     suspend fun getPanenCount(): Int {
         return panenDao.getCount()
     }
 
-    suspend fun loadCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): Int {
+    suspend fun countWhereLuasPanenIsZeroAndDateToday(): Int {
+        return hektarPanenDao.countWhereLuasPanenIsZeroAndDateToday()
+    }
+
+    suspend fun loadCountTPHESPB(
+        archive: Int,
+        statusEspb: Int,
+        scanStatus: Int,
+        date: String?
+    ): Int {
         return try {
             panenDao.getCountTPHESPB(archive, statusEspb, scanStatus, date)
         } catch (e: Exception) {
@@ -237,62 +622,67 @@ class AppRepository(context: Context) {
         panenDao.getAll()
     }
 
-    suspend fun getAllPanenWhereESPB(no_esp: String): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
-        try {
-            val data = panenDao.getAllPanenWhereESPB(no_esp)
-            Result.success(data)
-        } catch (e: Exception) {
-            Result.failure(e)
+    suspend fun getAllPanenWhereESPB(no_esp: String): Result<List<PanenEntityWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = panenDao.getAllPanenWhereESPB(no_esp)
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
-    }
 
-    suspend fun getActivePanen(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
-        try {
-            val data = panenDao.getAllActiveWithRelations()
-            Result.success(data)
-        } catch (e: Exception) {
-            Result.failure(e)
+    suspend fun getActivePanen(): Result<List<PanenEntityWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = panenDao.getAllActiveWithRelations()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
-    }
 
-    suspend fun getActivePanenESPB(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
-        try {
-            val data = panenDao.getAllActivePanenESPBWithRelations()
-            Result.success(data)
-        } catch (e: Exception) {
-            Result.failure(e)
+    suspend fun getActivePanenESPB(): Result<List<PanenEntityWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = panenDao.getAllActivePanenESPBWithRelations()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
-    }
 
-    suspend fun getAllTPHHasBeenSelected(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
-        try {
-            val data = panenDao.getAllTPHHasBeenSelected()
-            Result.success(data)
-        } catch (e: Exception) {
-            Result.failure(e)
+    suspend fun getAllTPHHasBeenSelected(): Result<List<PanenEntityWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = panenDao.getAllTPHHasBeenSelected()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
-    }
 
 
-    suspend fun getActivePanenRestan(status: Int = 0): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
-        try {
-            val data = panenDao.getAllAPanenRestan(status)
-            Result.success(data)
-        } catch (e: Exception) {
-            Result.failure(e)
+    suspend fun getActivePanenRestan(status: Int = 0): Result<List<PanenEntityWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = panenDao.getAllAPanenRestan(status)
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
-    }
 
 
-
-    suspend fun getArchivedPanen(): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
-        try {
-            val data = panenDao.getAllArchivedWithRelations()
-            Result.success(data)
-        } catch (e: Exception) {
-            Result.failure(e)
+    suspend fun getArchivedPanen(): Result<List<PanenEntityWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = panenDao.getAllArchivedWithRelations()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
-    }
 
     suspend fun deletePanenById(id: Int) = withContext(Dispatchers.IO) {
         panenDao.deleteByID(id)
@@ -419,6 +809,7 @@ class AppRepository(context: Context) {
         }
     }
 
+
     suspend fun getJanjangSumByBlockString(tphData: String): String = withContext(Dispatchers.IO) {
         try {
             val janjangByBlockMap = getJanjangSumByBlock(tphData)
@@ -436,7 +827,11 @@ class AppRepository(context: Context) {
             }
     }
 
-    suspend fun updateESPBStatusForMultipleIds(idsList: List<Int>, status: Int, noESPB: String): Int {
+    suspend fun updateESPBStatusForMultipleIds(
+        idsList: List<Int>,
+        status: Int,
+        noESPB: String
+    ): Int {
         return database.withTransaction {
             panenDao.updateESPBStatusByIds(idsList, status, noESPB)
         }
@@ -448,14 +843,35 @@ class AppRepository(context: Context) {
         }
     }
 
-//    suspend fun loadHistoryESPB(): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
+//    suspend fun getAllScanMPanenByDate(status_scan_mpanen: Int, date: String): Result<List<PanenEntityWithRelations>> = withContext(Dispatchers.IO) {
 //        try {
-//            val data = espbDao.getAllESPBS()
+//            val data = panenDao.getAllScanMPanenByDate(status_scan_mpanen, date)
 //            Result.success(data)
 //        } catch (e: Exception) {
 //            Result.failure(e)
 //        }
 //    }
+
+    suspend fun getAllScanMPanenByDate(
+        status_scan_mpanen: Int,
+        date: String? = null
+    ): List<PanenEntityWithRelations> = withContext(Dispatchers.IO) {
+        try {
+            panenDao.getAllScanMPanenByDate(status_scan_mpanen, date)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB: ${e.message}")
+            emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    suspend fun getCountScanMPanen(status_scan_mpanen: Int = 0): Int {
+        return try {
+            panenDao.getCountScanMPanen(status_scan_mpanen)
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB created today: ${e.message}")
+            0
+        }
+    }
 
     suspend fun loadHistoryESPB(date: String? = null): List<ESPBEntity> {
         return try {
@@ -475,7 +891,7 @@ class AppRepository(context: Context) {
         }
     }
 
-    fun getBlokById( listBlokId: List<Int>): List<TPHNewModel> {
+    fun getBlokById(listBlokId: List<Int>): List<TPHNewModel> {
         return tphDao.getBlokById(listBlokId)
     }
 
@@ -537,6 +953,13 @@ class AppRepository(context: Context) {
 
     suspend fun getInspectionPathWithTphAndCount(pathId: String): PathWithInspectionTphRelations {
         return inspectionPathDao.getInspectionPathWithTphAndCount(pathId)
+    }
+
+    // Add this helper function at the top of your AppRepository class
+    private fun roundToOneDecimal(value: Float): String {
+        return BigDecimal(value.toDouble())
+            .setScale(2, RoundingMode.HALF_EVEN)
+            .toString()
     }
 
 }

@@ -25,6 +25,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.data.model.TphRvData
 import com.cbi.mobile_plantation.data.repository.SaveTPHResult
@@ -36,6 +37,7 @@ import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.gson.JsonObject
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -54,11 +56,12 @@ sealed class SaveDataPanenState {
         val duplicateCount: Int,
         val duplicateInfo: String
     ) : SaveDataPanenState()
+
     data class Error(val message: String) : SaveDataPanenState()
 }
 
 class ListTPHApproval : AppCompatActivity() {
-    private var isValidAllBlok = true
+
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: TPHRvAdapter
     private val repository by lazy { AppRepository(this) }
@@ -82,6 +85,8 @@ class ListTPHApproval : AppCompatActivity() {
 
     private lateinit var data: List<TphRvData>
     private lateinit var saveData: List<TphRvData>
+    private lateinit var saveDataMpanen: List<PanenEntity>
+
     val _saveDataPanenState = MutableStateFlow<SaveDataPanenState>(SaveDataPanenState.Loading)
 
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
@@ -92,6 +97,7 @@ class ListTPHApproval : AppCompatActivity() {
         }
     }
     private var activityInitialized = false
+    private val saveDataMPanenList = mutableListOf<PanenEntity>()
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -99,8 +105,6 @@ class ListTPHApproval : AppCompatActivity() {
         setContentView(R.layout.activity_list_panen_tbs)
         //cek tanggal otomatis
         checkDateTimeSettings()
-
-
     }
 
     private fun checkDateTimeSettings() {
@@ -113,12 +117,10 @@ class ListTPHApproval : AppCompatActivity() {
         }
     }
 
-
     private fun startPeriodicDateTimeChecking() {
         dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
 
     }
-
 
     private fun initializeActivity() {
         if (!activityInitialized) {
@@ -220,14 +222,77 @@ class ListTPHApproval : AppCompatActivity() {
                             try {
                                 _saveDataPanenState.value = SaveDataPanenState.Loading
 
-                                val result = repository.saveTPHDataList(saveData)
+                            // Get device info
+                            val appVersion: String = try {
+                                this@ListTPHApproval.packageManager.getPackageInfo(
+                                    this@ListTPHApproval.packageName, 0
+                                ).versionName
+                            } catch (e: Exception) {
+                                Log.e("DeviceInfo", "Failed to get app version", e)
+                                "Unknown"
+                            }
 
-                                result.fold(
-                                    onSuccess = { saveResult ->
-                                        when (saveResult) {
-                                            is SaveTPHResult.AllSuccess -> {
-                                                _saveDataPanenState.value = SaveDataPanenState.Success(saveResult.savedIds)
+                            val osVersion: String = try {
+                                Build.VERSION.RELEASE
+                            } catch (e: Exception) {
+                                Log.e("DeviceInfo", "Failed to get OS version", e)
+                                "Unknown"
+                            }
 
+                            val phoneModel: String = try {
+                                "${Build.MANUFACTURER} ${Build.MODEL}"
+                            } catch (e: Exception) {
+                                Log.e("DeviceInfo", "Failed to get phone model", e)
+                                "Unknown"
+                            }
+
+                            // Create creator info JSON
+                            val creatorInfo =
+                                createCreatorInfo(appVersion, osVersion, phoneModel).toString()
+                            val createdBy = prefManager!!.idUserLogin.toString()
+
+                            val result =
+                                if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
+                                    repository.saveTPHDataList(saveData.map { (it as SaveDataType.TPHData).data })
+                                } else {
+                                    repository.saveScanMPanen(
+                                        saveDataMPanenList,
+                                        createdBy,
+                                        creatorInfo,
+                                        this@ListTPHApproval
+                                    )
+                                }
+
+                            result.fold(
+                                onSuccess = { saveResult ->
+                                    when (saveResult) {
+                                        is SaveTPHResult.AllSuccess -> {
+                                            _saveDataPanenState.value =
+                                                SaveDataPanenState.Success(saveResult.savedIds)
+
+                                            playSound(R.raw.berhasil_simpan)
+                                            Toasty.success(
+                                                this@ListTPHApproval,
+                                                "Data berhasil disimpan",
+                                                Toast.LENGTH_LONG,
+                                                true
+                                            ).show()
+                                            startActivity(
+                                                Intent(
+                                                    this@ListTPHApproval,
+                                                    HomePageActivity::class.java
+                                                )
+                                            )
+                                            finish()
+                                        }
+
+                                        is SaveTPHResult.PartialSuccess -> {
+                                            _saveDataPanenState.value =
+                                                SaveDataPanenState.PartialSuccess(
+                                                    savedIds = saveResult.savedIds,
+                                                    duplicateCount = saveResult.duplicateCount,
+                                                    duplicateInfo = saveResult.duplicateInfo
+                                                )
                                                 playSound(R.raw.berhasil_simpan)
                                                 delay(300)
                                                 Toasty.success(
@@ -311,12 +376,18 @@ class ListTPHApproval : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        val headers = listOf("BLOK", "TPH/JJG", "JAM", "KP")
+        // Set headers based on featureName
+        val headers = if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
+            listOf("BLOK-TPH", "PEMANEN", "JAM", "JJG")
+        } else {
+            listOf("BLOK", "TPH/JJG", "JAM", "KP")
+        }
+
         updateTableHeaders(headers)
 
         recyclerView = findViewById(R.id.rvTableData)
         recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = TPHRvAdapter(emptyList())
+        adapter = TPHRvAdapter(emptyList(), featureName) // Pass featureName here
         recyclerView.adapter = adapter
     }
 
@@ -331,6 +402,18 @@ class ListTPHApproval : AppCompatActivity() {
                 visibility = View.VISIBLE  // Make all headers visible
                 text = headerNames[i]
             }
+        }
+    }
+
+    private fun createCreatorInfo(
+        appVersion: String,
+        osVersion: String,
+        phoneModel: String
+    ): JsonObject {
+        return JsonObject().apply {
+            addProperty("app_version", appVersion)
+            addProperty("os_version", osVersion)
+            addProperty("device_model", phoneModel)
         }
     }
 
@@ -358,6 +441,7 @@ class ListTPHApproval : AppCompatActivity() {
 
     private fun processQRResult() {
         val qrResult = intent.getStringExtra(EXTRA_QR_RESULT).orEmpty()
+
         lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) {
@@ -369,14 +453,16 @@ class ListTPHApproval : AppCompatActivity() {
                             if (data.isNotEmpty()) {
                                 playSound(R.raw.berhasil_scan)
 
-                                val totalSection: LinearLayout = findViewById(R.id.total_section)
-                                val blokSection: LinearLayout = findViewById(R.id.blok_section)
+                                val totalSection: LinearLayout =
+                                    findViewById(R.id.total_section)
+                                val blokSection: LinearLayout =
+                                    findViewById(R.id.blok_section)
                                 val totalJjgTextView: TextView = findViewById(R.id.totalJjg)
                                 val titleTotalJjg: TextView = findViewById(R.id.titleTotalJjg)
                                 val totalTphTextView: TextView = findViewById(R.id.totalTPH)
                                 val listBlokTextView: TextView = findViewById(R.id.listBlok)
 
-                                val totalJjg = data.sumOf { it.jjg }
+                                val totalJjg = data.sumOf { it.jjg.toInt() }
                                 val totalTphCount = data.size
 
                                 val blokSummary = calculateBlokSummary(data)
@@ -390,7 +476,6 @@ class ListTPHApproval : AppCompatActivity() {
                                 listBlokTextView.text = blokSummary
                             }
 
-
                             adapter.updateList(data)
                         }
                     }
@@ -398,19 +483,24 @@ class ListTPHApproval : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing QR result", e)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@ListTPHApproval, "Error processing QR: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        this@ListTPHApproval,
+                        "Error processing QR: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
+
         }
     }
 
     private fun calculateBlokSummary(data: List<TphRvData>): String {
-        // Group by blok name
-        val blokGroups = data.groupBy { it.namaBlok }
+        // Group by normalized blok name (without trailing -xx)
+        val blokGroups = data.groupBy { it.namaBlok.substringBeforeLast("-") }
 
         // For each blok, calculate total jjg and count of unique TPH numbers
         val blokSummaries = blokGroups.map { (blokName, entries) ->
-            val totalJjg = entries.sumOf { it.jjg }
+            val totalJjg = entries.sumOf { it.jjg.toInt() }
             val uniqueTphCount = entries.distinctBy { it.noTPH }.size
             "$blokName($totalJjg/$uniqueTphCount)"
         }
@@ -472,26 +562,48 @@ class ListTPHApproval : AppCompatActivity() {
                     }
                 }
 
-                // Reset validation flag before processing new data
-                isValidAllBlok = true
+                val nikMap = mutableMapOf<String, String>()
+                if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
+                    // Parse the date mapping object
+                    val nikObject = try {
+                        jsonObject.getJSONObject("nik")
+                    } catch (e: Exception) {
+                        AppLogger.d("nik object tidak ditemukan: $e")
+                        null
+                    }
+                    // Create a map of date indices to actual dates
+                    if (nikObject != null) {
+                        val keys = nikObject.keys()
+                        while (keys.hasNext()) {
+                            val key = keys.next()
+                            nikMap[key] = nikObject.getString(key)
+                        }
+                    }
+                }
 
                 val parsedEntries = tph0String.split(";").mapNotNull { entry ->
                     if (entry.isBlank()) return@mapNotNull null
 
                     val parts = entry.split(",")
-                    if (parts.size != 4) {
+                    if (parts.size != 4 && featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
                         Log.e(
                             TAG,
                             "Invalid entry format, expected 4 parts but got ${parts.size}: $entry"
                         )
                         return@mapNotNull null
+                    } else if (parts.size != 9 && featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
+                        Log.e(
+                            TAG,
+                            "Invalid entry format, expected 9 parts but got ${parts.size}: $entry"
+                        )
+                        return@mapNotNull null
                     }
 
                     try {
-                        val idtph = parts[0].toInt()
-                        val dateIndex = parts[1]
-                        val time = parts[2]
-                        val jjg = parts[3].toInt()
+                        var idtph = 0
+                        var dateIndex = "NULL"
+                        var time = "NULL"
+                        var jjg = 0
 
                         Log.d(
                             TAG,
@@ -511,51 +623,137 @@ class ListTPHApproval : AppCompatActivity() {
                             null
                         }
 
-                        // Check if this TPH has valid blok data
-                        val isValidBlok = tphInfo != null && tphInfo.blokKode != "Tidak Diketahui"
-
-                        // If any TPH has invalid blok, set the global flag to false
-                        if (!isValidBlok) {
-                            isValidAllBlok = false
-                            AppLogger.d("Found invalid blok for TPH ID: $idtph")
-                        }
-
                         val displayName = tphInfo?.blokKode ?: "Tidak Diketahui"
 
-                        // Create display data
-                        val displayData = TphRvData(
-                            namaBlok = displayName,
-                            noTPH = try {
-                                tphInfo!!.tphNomor.toInt()
+                        var displayData = TphRvData("NULL", "NULL", "NULL", "NULL", "NULL")
+                        var saveDataHasilPanen = TphRvData("NULL", "NULL", "NULL", "NULL", "NULL")
+
+                        val noTph = try {
+                            tphInfo!!.tphNomor.toInt()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error parsing tphNomor: ${tphInfo?.tphNomor}", e)
+                            0
+                        }
+                        if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
+                            idtph = parts[0].toInt()
+                            dateIndex = parts[1]
+                            time = parts[2]
+                            jjg = parts[3].toInt()
+                            // Create display data
+                            displayData = TphRvData(
+                                namaBlok = displayName,
+                                noTPH = noTph.toString(),
+                                time = time,  // Just show the time part for display
+                                jjg = jjg.toString(),
+                                username = usernameString
+                            )
+                            // Create save data with original values
+                            saveDataHasilPanen = TphRvData(
+                                namaBlok = parts[0], // Original ID as namaBlok
+                                noTPH = idtph.toString(),
+                                time = fullDateTime, // Reconstructed full datetime
+                                jjg = jjg.toString(),
+                                username = usernameString
+                            )
+                        } else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
+                            // Extract the values from parts first
+                            idtph = parts[2].toInt()         // TPH ID
+                            dateIndex = parts[0]             // Date index
+                            time = parts[1]                  // Time
+                            jjg =
+                                parts[4].toInt() + parts[5].toInt() + parts[6].toInt() + parts[7].toInt() + parts[8].toInt()
+
+                            // Get the full date from the date map
+                            val fullDate = dateMap[dateIndex] ?: "Unknown Date"
+                            val fullDateTime = "$fullDate $time"
+
+                            Log.d(
+                                TAG,
+                                "Processing idtph: $idtph, dateIndex: $dateIndex, time: $time, jjg: $jjg"
+                            )
+                            Log.d(TAG, "Full datetime: $fullDateTime")
+
+                            // Now get the TPH info with the proper idtph value
+                            val tphInfo = try {
+                                repository.getTPHAndBlokInfo(idtph)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error getting TPH info for idtph $idtph", e)
+                                null
+                            }
+
+                            val displayName = tphInfo?.blokKode ?: "Unknown"
+
+                            val noTph = try {
+                                tphInfo?.tphNomor?.toInt() ?: 0
                             } catch (e: Exception) {
                                 Log.e(TAG, "Error parsing tphNomor: ${tphInfo?.tphNomor}", e)
                                 0
-                            },
-                            time = time,  // Just show the time part for display
-                            jjg = jjg,
-                            username = usernameString
-                        )
+                            }
 
-                        // Create save data with original values
-                        val saveData = TphRvData(
-                            namaBlok = parts[0], // Original ID as namaBlok
-                            noTPH = idtph,
-                            time = fullDateTime, // Reconstructed full datetime
-                            jjg = jjg,
-                            username = usernameString
-                        )
+                            // Use the fourth value (index 3) as the NIK key
+                            val nikKey = parts[3]
+                            val nik = nikMap[nikKey] ?: "NULL"
 
-                        Pair(displayData, saveData)
+                            Log.d(TAG, "Using NIK key: $nikKey, got NIK: $nik")
+
+                            // Parse names for display
+                            val karyawan = try {
+                                if (nik.contains(",")) {
+                                    // Multiple NIKs, split and retrieve name for each
+                                    val niks = nik.split(",").map { it.trim() }
+                                    val names = niks.map { singleNik ->
+                                        val name = repository.getNamaByNik(singleNik)
+                                        name ?: singleNik // Fallback to NIK if name can't be found
+                                    }
+                                    names.joinToString(", ")
+                                } else {
+                                    // Single NIK
+                                    repository.getNamaByNik(nik) ?: nik
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error getting karyawan info for NIK $nik", e)
+                                nik // Fallback to NIK if name can't be found
+                            }
+
+                            displayData = TphRvData(
+                                namaBlok = "$displayName-$noTph",
+                                noTPH = karyawan, // Use karyawan name for display
+                                time = time,
+                                jjg = jjg.toString(),
+                                username = usernameString
+                            )
+
+                            // 2. Create separate PanenEntity for each NIK
+                            val kPpA = parts[5].toInt() + parts[7].toInt() + parts[8].toInt()
+                            val panenEntity = PanenEntity(
+                                tph_id = idtph.toString(),
+                                date_created = fullDateTime,
+                                karyawan_nik = nik,
+                                jjg_json = "{\"TO\":$jjg,\"UN\":${parts[4]},\"OV\":${parts[5]},\"EM\":${parts[6]},\"AB\":${parts[7]},\"RI\":${parts[8]},\"KP\":$kPpA,\"PA\":$kPpA}",
+                                foto = "NULL",
+                                komentar = "NULL",
+                                asistensi = 0,
+                                lat = 0.0,
+                                lon = 0.0,
+                                jenis_panen = 0,
+                                ancak = 0,
+                                info = "NULL",
+                                scan_status = 0,
+                                dataIsZipped = 0,
+                                created_by = 0,
+                                karyawan_id = "NULL",
+                                kemandoran_id = "NULL",
+                                karyawan_nama = "NULL",
+                                jumlah_pemanen = if (nik.contains(",")) nik.split(",").size else 1
+                            )
+                            saveDataMPanenList.add(panenEntity)
+                        }
+                        Pair(displayData, saveDataHasilPanen)
                     } catch (e: Exception) {
                         Log.e(TAG, "Error parsing entry: $entry", e)
-                        // Also mark as invalid if there's an exception parsing the entry
-                        isValidAllBlok = false
                         null
                     }
                 }
-
-                // Log the validation status
-                AppLogger.d("All bloks valid: $isValidAllBlok")
 
                 // Separate display and save data
                 data = parsedEntries.map { it.first }
@@ -566,8 +764,14 @@ class ListTPHApproval : AppCompatActivity() {
                 Log.e(TAG, "Error parsing JSON", e)
                 data = emptyList()
                 saveData = emptyList()
-                isValidAllBlok = false // Mark as invalid on overall parse error
                 return@withContext emptyList()
             }
         }
+
+    // 1. Create a sealed class to represent different types of save data
+    sealed class SaveDataType {
+        data class TPHData(val data: TphRvData) : SaveDataType()
+        data class PanenData(val data: PanenEntity) : SaveDataType()
+    }
+
 }

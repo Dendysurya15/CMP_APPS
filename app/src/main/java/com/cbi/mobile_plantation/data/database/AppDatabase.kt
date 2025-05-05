@@ -22,6 +22,7 @@ import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.utils.AppUtils
@@ -70,10 +71,11 @@ import java.util.concurrent.Executors
         InspectionPathModel::class,
         KendaraanModel::class,
         BlokModel::class,
+        HektarPanenEntity::class,
         EstateModel::class,
         AfdelingModel::class,
     ],
-    version = 35
+    version = 36
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -92,7 +94,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun blokDao(): BlokDao
     abstract fun estateDao(): EstateDao
     abstract fun afdelingDao(): AfdelingDao
-
+    abstract fun hektarPanenDao(): HektarPanenDao
 
     // Function to restore data from backup tables if needed
 //    fun restoreFromBackups() {
@@ -107,6 +109,7 @@ abstract class AppDatabase : RoomDatabase() {
 //            Log.d("Database Restoration", "Successfully restored data from backup tables")
 //        }
 //    }
+
 
 
     companion object {
@@ -139,7 +142,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_30_31,
                         MIGRATION_31_32,
                         MIGRATION_32_33,
-                        MIGRATION_33_34
+                        MIGRATION_33_34,
+                        MIGRATION_34_35
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -448,6 +452,16 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE panen ADD COLUMN status_upload INTEGER NOT NULL DEFAULT 0")
 
                 database.execSQL("ALTER TABLE espb_table ADD COLUMN status_upload INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_34_35 = object : Migration(34, 35) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add new columns to PanenEntity table
+                database.execSQL("ALTER TABLE panen ADD COLUMN status_pengangkutan INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE panen ADD COLUMN status_insert_mpanen INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE panen ADD COLUMN status_scan_mpanen INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE panen ADD COLUMN jumlah_pemanen INTEGER NOT NULL DEFAULT 1")
             }
         }
 

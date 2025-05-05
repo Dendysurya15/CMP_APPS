@@ -40,10 +40,10 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     val panenList: LiveData<List<PanenEntity>> get() = _panenList
 
     private val _archivedPanenList = MutableLiveData<List<PanenEntityWithRelations>>()
-    val archivedPanenList: LiveData<List<PanenEntityWithRelations>> = _archivedPanenList
+    val archivedPanenList: LiveData<List<PanenEntityWithRelations>>  = _archivedPanenList
 
     private val _activePanenList = MutableLiveData<List<PanenEntityWithRelations>>()
-    val activePanenList: LiveData<List<PanenEntityWithRelations>> = _activePanenList
+    val activePanenList: LiveData<List<PanenEntityWithRelations>> get() = _activePanenList
 
     private val _deleteItemsResult = MutableLiveData<Boolean>()
     val deleteItemsResult: LiveData<Boolean> = _deleteItemsResult
@@ -146,6 +146,12 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         return count
     }
 
+    suspend fun getCountScanMPanen(status_scan_mpanen: Int = 0): Int{
+        val count = repository.getCountScanMPanen(status_scan_mpanen)
+        _panenCount.value = count
+        return count
+    }
+
     fun loadCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
             val formattedDate = date?.take(10) // Ensures only YYYY-MM-DD is passed
@@ -222,6 +228,29 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+
+//    fun getAllScanMPanenByDate(status_mpanen: Int, date: String) {
+//        viewModelScope.launch {
+//            repository.getAllScanMPanenByDate(status_mpanen, date)
+//                .onSuccess { panenList ->
+//                    _activePanenList.value = panenList
+//                }
+//                .onFailure { exception ->
+//                    _error.postValue(exception.message ?: "Failed to load data")
+//                }
+//        }
+//    }
+
+    fun getAllScanMPanenByDate(status_mpanen: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.getAllScanMPanenByDate(status_mpanen, date)
+            _activePanenList.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading getAllScanMPanenByDate: ${e.message}")
+            _activePanenList.value = emptyList()  // Return empty list if there's an error
+        }
+    }
+
     fun updateDataIsZippedPanen(ids: List<Int>, status:Int) {
         viewModelScope.launch {
             try {
@@ -281,6 +310,8 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+
+
     fun deleteMultipleItems(items: List<Map<String, Any>>) {
         viewModelScope.launch {
             try {
@@ -312,12 +343,38 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-
     fun archivePanenById(id: Int) {
         viewModelScope.launch {
             repository.archivePanenById(id)
             loadAllPanen() // Refresh the data
         }
+    }
+
+    suspend fun getBlokKodeByTphId(tphId: Int): String {
+        return try {
+            repository.getBlokKodeByTphId(tphId)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading blok kode: ${e.message}")
+            ""
+        }.toString()
+    }
+
+    suspend fun getNamaByNik(nik: String): String {
+        return try {
+            repository.getNamaByNik(nik)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading blok kode: ${e.message}")
+            ""
+        }.toString()
+    }
+
+    suspend fun getNomorTPHbyId(tphId: Int): String {
+        return try {
+            repository.getNomorTPHbyId(tphId)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading nomor TPH: ${e.message}")
+            ""
+        }.toString()
     }
 
     suspend fun saveDataPanen(

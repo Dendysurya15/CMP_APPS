@@ -138,10 +138,27 @@ abstract class PanenDao {
     @Query("SELECT * FROM panen_table WHERE date(date_created) < date(:cutoffDate)")
     abstract suspend fun getPanenOlderThan(cutoffDate: String): List<PanenEntityWithRelations>
 
+    //getall where status_scan_mpanen = 0
+    @Query("SELECT * FROM panen_table WHERE status_scan_mpanen = :status_scan_mpanen")
+    abstract fun getAllScanMPanen(status_scan_mpanen: Int = 0): List<PanenEntity>
 
-//    @Query("DELETE FROM panen_table")
-//    fun deleteAllPanen()
-//
-//    @Query("INSERT INTO panen_table SELECT * FROM panen_table_backup")
-//    fun restoreFromBackup()
+    @Query("SELECT * FROM panen_table WHERE status_scan_mpanen = :status_scan_mpanen AND strftime('%Y-%m-%d', date_created) = :date")
+    abstract fun getAllScanMPanenByDateWithFilter(status_scan_mpanen: Int, date: String): List<PanenEntityWithRelations>
+
+    @Query("SELECT * FROM panen_table WHERE status_scan_mpanen = :status_scan_mpanen")
+    abstract fun getAllScanMPanenWithoutDateFilter(status_scan_mpanen: Int): List<PanenEntityWithRelations>
+
+    // Then create a wrapper function to handle the logic
+    fun getAllScanMPanenByDate(status_scan_mpanen: Int, date: String? = null): List<PanenEntityWithRelations> {
+        return if (date == null) {
+            getAllScanMPanenWithoutDateFilter(status_scan_mpanen)
+        } else {
+            getAllScanMPanenByDateWithFilter(status_scan_mpanen, date)
+        }
+    }
+
+    //count where status_scan_mpanen = 0 date now
+    @Query("SELECT COUNT(*) FROM panen_table WHERE status_scan_mpanen = :status_scan_mpanen AND date(date_created) = date('now', 'localtime')")
+    abstract suspend fun getCountScanMPanen(status_scan_mpanen: Int): Int
+
 }
