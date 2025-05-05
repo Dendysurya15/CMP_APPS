@@ -355,6 +355,8 @@ class UploadCMPRepository(context: Context) {
                         var successCount = 0
                         var failureCount = failedFiles.size // Count files that weren't found
                         val uploadResults = mutableListOf<PhotoResult>()
+                        val failedImagePaths = mutableListOf<String>()
+                        val failedImageNames = mutableListOf<String>()
 
                         validImageFiles.forEachIndexed { index, (file, imageName, tableId) ->
                             AppLogger.d("====== UPLOADING IMAGE ${index + 1}/${validImageFiles.size} ======")
@@ -462,6 +464,9 @@ class UploadCMPRepository(context: Context) {
                                     withContext(Dispatchers.Main) {
                                         onProgressUpdate(currentProgress, false, "✗ ${imageName} failed - ${response.code()}")
                                     }
+
+                                    failedImagePaths.add(file.absolutePath)
+                                    failedImageNames.add(imageName)
                                 }
                             } catch (e: Exception) {
                                 AppLogger.e("Exception uploading $imageName: ${e.message}")
@@ -483,6 +488,8 @@ class UploadCMPRepository(context: Context) {
                                 withContext(Dispatchers.Main) {
                                     onProgressUpdate(currentProgress, false, "✗ ${imageName} error - ${e.message}")
                                 }
+                                failedImagePaths.add(file.absolutePath)
+                                failedImageNames.add(imageName)
                             }
                         }
 
@@ -512,10 +519,14 @@ class UploadCMPRepository(context: Context) {
                             tanggal_upload = "",
                             nama_file = "",
                             results = null,
-                            type = "image"
+                            type = "image",
+                            imageFullPath = failedImagePaths,
+                            imageName = failedImageNames
                         )
 
                         Result.success(uploadV3Response)
+
+
                     } catch (e: Exception) {
                         val errorMsg = "Error processing images: ${e.message}"
                         AppLogger.e(errorMsg)

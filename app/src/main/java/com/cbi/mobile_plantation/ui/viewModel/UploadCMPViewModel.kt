@@ -330,6 +330,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                     updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
                 }
 
+                AppLogger.d("aksjdfkljaslkdfj")
                 // For current item, also update the original LiveData
                 _uploadProgressCMP.value = 0
                 _uploadStatusCMP.value = AppUtils.UploadStatusUtils.UPLOADING
@@ -374,8 +375,6 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                     onSuccess = { response ->
                         // Update item's response
                         updateItemResponse(item.id, response)
-                        // Also update the original LiveData for current item
-                        _uploadResponseCMP.value = response
                     },
                     onFailure = { error ->
                         // Error handling is already done in the onProgressUpdate callback

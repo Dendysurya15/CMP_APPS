@@ -88,6 +88,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -155,9 +156,9 @@ class HomePageActivity : AppCompatActivity() {
     private var zipFilePath: String? = null
     private var zipFileName: String? = null
     private var trackingIdsUpload: List<String> = emptyList()
-    private lateinit var allUploadZipFilesToday: MutableList<File>
-    private var uploadTimeoutJob: Job? = null
-    private var uploadTimedOut = false
+    private var globalImageUploadError: List<String> = emptyList()
+    private var globalImageNameError: List<String> = emptyList()
+
 
     data class ResponseJsonUpload(
         val trackingId: Int,
@@ -647,8 +648,6 @@ class HomePageActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
-        uploadTimeoutJob?.cancel()
-        uploadTimeoutJob = null
         // Ensure handler callbacks are removed
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
@@ -1082,7 +1081,8 @@ class HomePageActivity : AppCompatActivity() {
 
                                                 if (trimmedName in uniquePhotos) continue
 
-                                                val uploadStatusImage = panenWithRelations.panen.status_uploaded_image
+                                                val uploadStatusImage =
+                                                    panenWithRelations.panen.status_uploaded_image
 
                                                 // Skip only if status is 200 (fully uploaded)
                                                 if (uploadStatusImage == "200") {
@@ -1112,7 +1112,8 @@ class HomePageActivity : AppCompatActivity() {
                                                                     uploadStatusImage,
                                                                     JsonObject::class.java
                                                                 )
-                                                                val errorArray = errorJson?.get("error")?.asJsonArray
+                                                                val errorArray =
+                                                                    errorJson?.get("error")?.asJsonArray
 
                                                                 errorArray?.forEach { errorItem ->
                                                                     if (errorItem.asString == trimmedName) {
@@ -1130,7 +1131,8 @@ class HomePageActivity : AppCompatActivity() {
                                                             uniquePhotos[trimmedName] = mapOf(
                                                                 "name" to trimmedName,
                                                                 "path" to photoFile.absolutePath,
-                                                                "size" to photoFile.length().toString(),
+                                                                "size" to photoFile.length()
+                                                                    .toString(),
                                                                 "table_ids" to panenWithRelations.panen.id.toString()
                                                             )
                                                             AppLogger.d("Added photo for upload: $trimmedName at ${photoFile.absolutePath}")
@@ -1264,7 +1266,8 @@ class HomePageActivity : AppCompatActivity() {
                                         // Only create the panen JSON file if there's data to upload
                                         if (panenDataToUpload.isNotEmpty()) {
                                             val firstItem = panenDataToUpload.firstOrNull()
-                                            val dateCreated = firstItem?.get("created_date") as? String
+                                            val dateCreated =
+                                                firstItem?.get("created_date") as? String
 
                                             val panenJson = Gson().toJson(panenDataToUpload)
                                             val (panenFilePath, panenFilename) = AppUtils.createTempJsonFile(
@@ -1275,10 +1278,11 @@ class HomePageActivity : AppCompatActivity() {
                                                 dataDate = dateCreated
                                             )
 
-                                            combinedUploadData[AppUtils.DatabaseTables.PANEN] = mapOf(
-                                                "path" to panenFilePath,
-                                                "filename" to panenFilename
-                                            )
+                                            combinedUploadData[AppUtils.DatabaseTables.PANEN] =
+                                                mapOf(
+                                                    "path" to panenFilePath,
+                                                    "filename" to panenFilename
+                                                )
                                         } else {
                                             AppLogger.d("No panen data with status_upload == 0 to upload")
                                         }
@@ -1313,20 +1317,24 @@ class HomePageActivity : AppCompatActivity() {
 
                                         if (espbDataToUpload.isNotEmpty()) {
                                             mappedESPBData = espbDataToUpload.map { data ->
-                                                val blokJjgList = data.blok_jjg.split(";").mapNotNull {
-                                                    it.split(",").takeIf { it.size == 2 }
-                                                        ?.let { (id, jjg) ->
-                                                            id.toIntOrNull()
-                                                                ?.let { it to jjg.toIntOrNull() }
-                                                        }
-                                                }
+                                                val blokJjgList =
+                                                    data.blok_jjg.split(";").mapNotNull {
+                                                        it.split(",").takeIf { it.size == 2 }
+                                                            ?.let { (id, jjg) ->
+                                                                id.toIntOrNull()
+                                                                    ?.let { it to jjg.toIntOrNull() }
+                                                            }
+                                                    }
                                                 val idBlokList = blokJjgList.map { it.first }
-                                                val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
-                                                val concatenatedIds = idBlokList.joinToString(",").trimEnd(',')
+                                                val totalJjg =
+                                                    blokJjgList.mapNotNull { it.second }.sum()
+                                                val concatenatedIds =
+                                                    idBlokList.joinToString(",").trimEnd(',')
                                                 val firstBlockId = idBlokList.firstOrNull()
 
                                                 // Create a CompletableDeferred to handle the async operation
-                                                val tphDeferred = CompletableDeferred<TPHNewModel?>()
+                                                val tphDeferred =
+                                                    CompletableDeferred<TPHNewModel?>()
 
                                                 // Fetch the TPH data if we have a block ID
                                                 firstBlockId?.let { blockId ->
@@ -1336,7 +1344,8 @@ class HomePageActivity : AppCompatActivity() {
                                                     weightBridgeViewModel.tphData.observeOnce(this@HomePageActivity) { tphModel ->
                                                         tphDeferred.complete(tphModel)
                                                     }
-                                                } ?: tphDeferred.complete(null) // Complete with null if no block ID
+                                                }
+                                                    ?: tphDeferred.complete(null) // Complete with null if no block ID
 
                                                 // Wait for the TPH data
                                                 val tphData = tphDeferred.await()
@@ -1348,18 +1357,25 @@ class HomePageActivity : AppCompatActivity() {
 
                                                 while (true) {
                                                     // Find next occurrence of "nik="
-                                                    val nikIndex = pemuatNikString.indexOf("nik=", currentIndex)
+                                                    val nikIndex = pemuatNikString.indexOf(
+                                                        "nik=",
+                                                        currentIndex
+                                                    )
                                                     if (nikIndex == -1) break // No more NIKs found
 
                                                     // Move position after "nik="
                                                     currentIndex = nikIndex + 4
 
                                                     // Find comma after the NIK value
-                                                    val commaIndex = pemuatNikString.indexOf(",", currentIndex)
+                                                    val commaIndex =
+                                                        pemuatNikString.indexOf(",", currentIndex)
                                                     if (commaIndex == -1) break // Unexpected format
 
                                                     // Extract the NIK value
-                                                    val nikValue = pemuatNikString.substring(currentIndex, commaIndex)
+                                                    val nikValue = pemuatNikString.substring(
+                                                        currentIndex,
+                                                        commaIndex
+                                                    )
                                                     nikList.add(nikValue)
 
                                                     // Move position for next search
@@ -1392,14 +1408,16 @@ class HomePageActivity : AppCompatActivity() {
                                                     "tph0" to data.tph0,
                                                     "tph1" to data.tph1,
                                                     "update_info_sp" to data.update_info_sp,
-                                                    "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
+                                                    "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
+                                                        .toString(),
                                                     "jabatan" to prefManager!!.jabatanUserLogin.toString(),
                                                 )
                                             }
 
                                             globalESPBIds = mappedESPBData.map { it["id"] as Int }
                                             val firstItem = mappedESPBData.firstOrNull()
-                                            val dateCreated = firstItem?.get("created_at") as? String
+                                            val dateCreated =
+                                                firstItem?.get("created_at") as? String
                                             val espbJson = Gson().toJson(mappedESPBData)
                                             val (espbFilePath, espbFilename) = AppUtils.createTempJsonFile(
                                                 context = this@HomePageActivity,
@@ -1410,10 +1428,11 @@ class HomePageActivity : AppCompatActivity() {
                                             )
 
                                             // Store both the file path and filename only if there's data
-                                            combinedUploadData[AppUtils.DatabaseTables.ESPB] = mapOf(
-                                                "path" to espbFilePath,
-                                                "filename" to espbFilename
-                                            )
+                                            combinedUploadData[AppUtils.DatabaseTables.ESPB] =
+                                                mapOf(
+                                                    "path" to espbFilePath,
+                                                    "filename" to espbFilename
+                                                )
 
                                             unzippedESPBData = mappedESPBData.filter { item ->
                                                 // Get the ID
@@ -1515,7 +1534,8 @@ class HomePageActivity : AppCompatActivity() {
 
                                 AppLogger.d(panenToUpload.toString())
                                 val hasPhotosToUpload = allPhotos.isNotEmpty()
-                                val hasItemsToUpload = panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosToUpload
+                                val hasItemsToUpload =
+                                    panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosToUpload
 
                                 if (hasItemsToUpload) {
                                     val uploadDataJson = Gson().toJson(combinedUploadData)
@@ -1856,18 +1876,95 @@ class HomePageActivity : AppCompatActivity() {
                 var itemId = 0
 
                 AppLogger.d("failedUploads $failedUploads")
+                AppLogger.d("globalImageNameError $globalImageNameError")
 
                 failedUploads.forEach { failedItem ->
-                    retryUploadItems.add(
-                        UploadCMPItem(
-                            id = itemId++,
-                            title = failedItem.title,
-                            fullPath = failedItem.fullPath,
-                            baseFilename = failedItem.baseFilename,
-                            data = failedItem.data,
-                            type = failedItem.type
-                        )
-                    )
+                    when (failedItem.type) {
+                        "image" -> {
+                            // For image uploads, filter only the failed images
+                            if (globalImageNameError.isNotEmpty()) {
+                                try {
+                                    // Parse the original data
+                                    val imageList = Gson().fromJson(
+                                        failedItem.data,
+                                        object : TypeToken<List<Map<String, Any>>>() {}.type
+                                    ) as List<Map<String, String>>
+
+                                    // Filter to only include images that are in the global error list
+                                    val onlyFailedImages = imageList.filter { image ->
+                                        val imageName = image["name"] ?: ""
+                                        globalImageNameError.contains(imageName)
+                                    }
+
+                                    AppLogger.d("Original images: ${imageList.size}, Filtered failed images: ${onlyFailedImages.size}")
+
+                                    // Only add to retry if there are failed images that match
+                                    if (onlyFailedImages.isNotEmpty()) {
+                                        // Convert back to JSON for retry
+                                        val failedImagesJson = Gson().toJson(onlyFailedImages)
+
+                                        // Extract the base title (without the count in parentheses)
+                                        val baseTitle = failedItem.title.replace(Regex("\\s*\\(\\d+\\s+file[s]?\\)\\s*$"), "").trim()
+                                        val newTitle = "$baseTitle (${onlyFailedImages.size} file)"
+
+                                        retryUploadItems.add(
+                                            UploadCMPItem(
+                                                id = itemId++,
+                                                title = newTitle,
+                                                fullPath = failedItem.fullPath,
+                                                baseFilename = failedItem.baseFilename,
+                                                data = failedImagesJson,
+                                                type = failedItem.type
+                                            )
+                                        )
+
+                                        AppLogger.d("Filtered images for retry: ${onlyFailedImages.map { it["name"] }}")
+                                    } else {
+                                        AppLogger.d("No matching failed images found - skipping this item")
+                                    }
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error parsing image data for retry: ${e.message}")
+                                    // If parsing fails, add the whole item for retry
+                                    retryUploadItems.add(
+                                        UploadCMPItem(
+                                            id = itemId++,
+                                            title = failedItem.title,
+                                            fullPath = failedItem.fullPath,
+                                            baseFilename = failedItem.baseFilename,
+                                            data = failedItem.data,
+                                            type = failedItem.type
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                        "json" -> {
+                            // For JSON uploads (Panen or ESPB), add as is
+                            retryUploadItems.add(
+                                UploadCMPItem(
+                                    id = itemId++,
+                                    title = failedItem.title,
+                                    fullPath = failedItem.fullPath,
+                                    baseFilename = failedItem.baseFilename,
+                                    data = failedItem.data,
+                                    type = failedItem.type
+                                )
+                            )
+                        }
+                        else -> {
+                            // Unknown type, add as is
+                            retryUploadItems.add(
+                                UploadCMPItem(
+                                    id = itemId++,
+                                    title = failedItem.title,
+                                    fullPath = failedItem.fullPath,
+                                    baseFilename = failedItem.baseFilename,
+                                    data = failedItem.data,
+                                    type = failedItem.type
+                                )
+                            )
+                        }
+                    }
                 }
 
                 // Flag that we're in a retry operation
@@ -1881,6 +1978,10 @@ class HomePageActivity : AppCompatActivity() {
 
                 // Reset view model state
                 uploadCMPViewModel.resetState()
+
+                // Clear global error variables to prepare for next upload
+                globalImageUploadError = emptyList()
+                globalImageNameError = emptyList()
 
                 // Update UI elements
                 counterTV.text = "0/${retryUploadItems.size}"
@@ -2017,6 +2118,7 @@ class HomePageActivity : AppCompatActivity() {
                             if (isRetryOperation) {
                                 // If we're already in a retry operation, use the current adapter's items
                                 val currentItems = adapter.getItems()
+
                                 failedUploads = currentItems.filter { item ->
                                     val status = statusMap[item.id]
                                     status != AppUtils.UploadStatusUtils.SUCCESS
@@ -2048,8 +2150,6 @@ class HomePageActivity : AppCompatActivity() {
                                         btnUploadDataCMP.visibility = View.GONE
                                         btnRetryUpload.visibility = View.VISIBLE
 
-                                        // For error case, dismiss the dialog immediately
-                                        AppLogger.d("gas brroooo")
                                         // Re-enable buttons
                                         closeDialogBtn.isEnabled = true
                                         closeDialogBtn.alpha = 1f
@@ -2172,10 +2272,21 @@ class HomePageActivity : AppCompatActivity() {
                                     globalPanenIdsByPart[keyJsonName] = emptyList()
                                     globalEspbIdsByPart[keyJsonName] = emptyList()
                                 }
+                            } else {
+
+                            }
+                        }
+                        else if (response.type == "image") {
+                            if (!response.success) {
+                                globalImageUploadError = response.imageFullPath ?: emptyList()
+                                globalImageNameError = response.imageName ?: emptyList()
+                                AppLogger.d("Failed images: ${globalImageNameError.size}")
+                                AppLogger.d("Failed image paths: $globalImageUploadError")
+                                AppLogger.d("Failed image names: $globalImageNameError")
                             }else{
 
                             }
-                        } else {
+                        }else {
                             AppLogger.d("Skipping non-JSON upload: type = ${response.type}")
                         }
                     }
@@ -2479,7 +2590,7 @@ class HomePageActivity : AppCompatActivity() {
                     fullPath = "",
                     baseFilename = request.estateAbbr ?: "",
                     data = "",
-                    type=""
+                    type = ""
                 )
             )
         }
@@ -2579,7 +2690,7 @@ class HomePageActivity : AppCompatActivity() {
                             fullPath = "",
                             baseFilename = request.estateAbbr ?: "",
                             data = "",
-                            type= ""
+                            type = ""
                         )
                     )
                 }

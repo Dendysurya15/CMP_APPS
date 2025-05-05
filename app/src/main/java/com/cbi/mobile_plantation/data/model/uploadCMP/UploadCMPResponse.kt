@@ -75,9 +75,10 @@ data class UploadV3Response(
     @SerializedName("tanggal_upload") val tanggal_upload: String,
     @SerializedName("nama_file") val nama_file: String,
     val results: UploadResults?,
-    val type: String
+    val type: String,
+    val imageFullPath: List<String>? = emptyList(),
+    val imageName: List<String>? = emptyList()
 )
-
 data class UploadResults(
     val processed: Int,
     val created: Int,

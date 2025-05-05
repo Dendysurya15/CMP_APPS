@@ -169,7 +169,7 @@ interface ApiService {
 //    ): Response<ResponseBody>
 
     @FormUrlEncoded
-    @POST("api/statusv3")
+    @POST("cmpmain/statusv3")
     @Headers(
         "Accept: application/json",
         "Content-Type: application/x-www-form-urlencoded"
