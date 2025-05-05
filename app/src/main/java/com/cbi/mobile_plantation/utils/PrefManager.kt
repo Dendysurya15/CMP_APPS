@@ -73,6 +73,42 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var lastModifiedDatasetEstate: String?
+        get() = pref.getString("lastModifiedDatasetEstate", "")
+        set(lastModifiedDatasetEstate) {
+            editor.putString("lastModifiedDatasetEstate", lastModifiedDatasetEstate)
+            editor.commit()
+        }
+
+    private val PREF_ESTATE_LAST_MODIFIED_PREFIX = "estate_last_modified_"
+
+    // Set last modified timestamp for a specific estate
+    fun setEstateLastModified(estateAbbr: String, timestamp: String) {
+        val editor = pref.edit()
+        editor.putString("$PREF_ESTATE_LAST_MODIFIED_PREFIX$estateAbbr", timestamp)
+        editor.apply()
+    }
+
+
+    fun getMasterTPHEstateLastModifiedMap(): Map<String, String> {
+        val allEntries = pref.all
+        val estateMap = mutableMapOf<String, String>()
+
+        for ((key, value) in allEntries) {
+            if (key.startsWith(PREF_ESTATE_LAST_MODIFIED_PREFIX) && value is String) {
+                val estateAbbr = key.removePrefix(PREF_ESTATE_LAST_MODIFIED_PREFIX)
+                estateMap[estateAbbr] = value
+            }
+        }
+
+        return estateMap
+    }
+
+    // Get last modified timestamp for a specific estate
+    fun getEstateLastModified(estateAbbr: String): String? {
+        return pref.getString("$PREF_ESTATE_LAST_MODIFIED_PREFIX$estateAbbr", null)
+    }
+
     var regionalIdUserLogin: String?
         get() = pref.getString("regionalIdUserLogin", "")
         set(regionalIdUserLogin) {
@@ -100,6 +136,28 @@ class PrefManager(_context: Context) {
             editor.putString("companyNamaUserLogin", companyNamaUserLogin)
             editor.commit()
         }
+
+    var kemandoranUserLogin: String?
+        get() = pref.getString("kemandoranUserLogin", "")
+        set(kemandoranUserLogin) {
+            editor.putString("kemandoranUserLogin", kemandoranUserLogin)
+            editor.commit()
+        }
+
+    var kemandoranNamaUserLogin: String?
+        get() = pref.getString("kemandoranNamaUserLogin", "")
+        set(kemandoranNamaUserLogin) {
+            editor.putString("kemandoranNamaUserLogin", kemandoranNamaUserLogin)
+            editor.commit()
+        }
+
+    var kemandoranKodeUserLogin: String?
+        get() = pref.getString("kemandoranKodeUserLogin", "")
+        set(kemandoranKodeUserLogin) {
+            editor.putString("kemandoranKodeUserLogin", kemandoranKodeUserLogin)
+            editor.commit()
+        }
+
 
     var password: String?
         get() = pref.getString(PASSWORD, "")

@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
@@ -36,6 +37,9 @@ import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class LoginActivity : AppCompatActivity() {
     private var username = ""
@@ -78,18 +82,81 @@ class LoginActivity : AppCompatActivity() {
     }
 
 
+    @SuppressLint("SuspiciousIndentation")
     private fun initializeActivity() {
         if (!activityInitialized) {
             activityInitialized = true
-            setupUI()
+            prefManager = PrefManager(this)
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val todayDate = dateFormat.format(Date())
+            val today = dateFormat.parse(todayDate) ?: Date()
+
+            val lastSyncRaw = prefManager!!.lastSyncDate ?: ""
+            val lastSyncDateOnly = try {
+                // Parse the full datetime and format it to just date
+                val fullDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                val parsedDate = fullDateFormat.parse(lastSyncRaw)
+                if (parsedDate != null) {
+                    dateFormat.format(parsedDate)
+                } else {
+                    ""
+                }
+            } catch (e: Exception) {
+                "" // If parsing fails
+            }
+
+            val lastSyncDate = try {
+                if (lastSyncDateOnly.isNotEmpty()) {
+                    dateFormat.parse(lastSyncDateOnly)
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                null
+            }
+
+            // Check if same day - only if lastSyncDateOnly is not empty
+            val isSameDay = lastSyncDateOnly.isNotEmpty() && todayDate == lastSyncDateOnly
+
+            // Check if within 90 days - only if lastSyncDate is not null
+            val isWithin90Days = if (lastSyncDate != null) {
+                val diffInMillis = today.time - lastSyncDate.time
+                val diffInDays = diffInMillis / (1000 * 60 * 60 * 24)
+                diffInDays <= 90
+            } else {
+                false
+            }
+
+            AppLogger.d("Today: $todayDate")
+            AppLogger.d("Last Sync: $lastSyncDateOnly")
+            AppLogger.d("Within 90 days: $isWithin90Days")
+
+            val isFirstTimeLogin = lastSyncRaw.isNullOrEmpty()
+
+            if (isFirstTimeLogin || isSameDay || isWithin90Days) {
+                setupUI()
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@LoginActivity,
+                    stringXML(R.string.al_back),
+                    "Sinkronisasi Tanggal",
+                    "Sistem mendeteksi tanggal berbeda dengan tanggal terakhir sinkronisasi data.\nSilakan sambungkan perangkat ke Internet untuk sinkronisasi data!.",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {
+                    finish()
+                }
+            }
         }
     }
 
     private fun setupUI() {
         val btn_finger = findViewById<MaterialButton>(R.id.btn_finger)
         loadingDialog = LoadingDialog(this)
-        prefManager = PrefManager(this)
-        if (!prefManager!!.username.toString().isEmpty() && !prefManager!!.password.toString().isEmpty()) {
+
+        if (!prefManager!!.username.toString().isEmpty() && !prefManager!!.password.toString()
+                .isEmpty()
+        ) {
             if (AppUtils.checkBiometricSupport(this)) {
                 btn_finger.visibility = View.VISIBLE
                 biometricPrompt()
@@ -185,7 +252,9 @@ class LoginActivity : AppCompatActivity() {
                     if (token != null) {
                         if (prefManager!!.registeredDeviceUsername != null &&
                             prefManager!!.registeredDeviceUsername!!.isNotEmpty() &&
-                            prefManager!!.registeredDeviceUsername != usernameField.text.toString().trim()) {
+                            prefManager!!.registeredDeviceUsername != usernameField.text.toString()
+                                .trim()
+                        ) {
 
                             AlertDialogUtility.withSingleAction(
                                 this@LoginActivity,
@@ -200,7 +269,8 @@ class LoginActivity : AppCompatActivity() {
 
                         if (prefManager!!.registeredDeviceUsername.isNullOrEmpty()) {
                             AppLogger.d("test registeredDeviceUsername is null or empty")
-                            prefManager!!.registeredDeviceUsername = usernameField.text.toString().trim()
+                            prefManager!!.registeredDeviceUsername =
+                                usernameField.text.toString().trim()
                         }
 
                         prefManager!!.isFirstTimeLaunch = true
@@ -217,6 +287,9 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.companyIdUserLogin = loginResponse.data?.user?.company
                         prefManager!!.companyAbbrUserLogin = loginResponse.data?.user?.company_abbr
                         prefManager!!.companyNamaUserLogin = loginResponse.data?.user?.company_nama
+                        prefManager!!.kemandoranUserLogin = loginResponse.data?.user?.kemandoran
+                        prefManager!!.kemandoranNamaUserLogin = loginResponse.data?.user?.kemandoran_nama
+                        prefManager!!.kemandoranKodeUserLogin = loginResponse.data?.user?.kemandoran_kode
 
                         Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()
                         navigateToHomePage()
@@ -314,7 +387,8 @@ class LoginActivity : AppCompatActivity() {
 
             if (prefManager!!.registeredDeviceUsername != null &&
                 prefManager!!.registeredDeviceUsername!!.isNotEmpty() &&
-                prefManager!!.registeredDeviceUsername != username) {
+                prefManager!!.registeredDeviceUsername != username
+            ) {
                 AlertDialogUtility.withSingleAction(
                     this@LoginActivity,
                     stringXML(R.string.al_back),
@@ -335,7 +409,8 @@ class LoginActivity : AppCompatActivity() {
                 delay(1000)
 
                 if (prefManager!!.username!!.isNotEmpty() && prefManager!!.password!!.isNotEmpty() &&
-                    prefManager?.username == username && prefManager?.password == password) {
+                    prefManager?.username == username && prefManager?.password == password
+                ) {
                     navigateToHomePage()
                 } else {
                     if (AppUtils.isNetworkAvailable(this@LoginActivity)) {

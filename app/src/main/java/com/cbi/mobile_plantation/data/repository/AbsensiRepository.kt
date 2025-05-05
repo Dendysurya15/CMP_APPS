@@ -28,6 +28,15 @@ class AbsensiRepository(context: Context) {
         absensiDao.insertAbsensiData(absensiData)
     }
 
+//    suspend fun insertAbsensiDataLokal(absensiDataLokal: AbsensiModelScan) {
+//        absensiDao.insertAbsensiDataLokal(absensiDataLokal)
+//    }
+
+
+    suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
+        return karyawanDao.getPemuatByIdList(idPemuat)
+    }
+
     suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {
         return kemandoranDao.getKemandoranById(idKemandoran)
     }
@@ -36,8 +45,8 @@ class AbsensiRepository(context: Context) {
         return absensiDao.getCountAbsensi()
     }
 
-    suspend fun getAbsensiCountArhive(): Int {
-        return absensiDao.getCountArchiveAbsensi()
+    suspend fun getAbsensiCountArhive(load_status_scan: Int): Int {
+        return absensiDao.getCountArchiveAbsensi(load_status_scan)
     }
 
     fun isAbsensiExist(dateAbsen: String, karyawanMskIds: List<String>): Boolean {
@@ -68,13 +77,19 @@ class AbsensiRepository(context: Context) {
         }
     }
 
-    suspend fun getAllDataAbsensi(): Result<List<AbsensiKemandoranRelations>> = withContext(Dispatchers.IO) {
+    suspend fun getAllDataAbsensi(status_scan:Int): Result<List<AbsensiKemandoranRelations>> = withContext(Dispatchers.IO) {
         try {
-            val data = absensiDao.getAllDataAbsensi()
+            val data = absensiDao.getAllDataAbsensi(status_scan)
             Result.success(data)
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    sealed class SaveResultAbsensi {
+        object Success : SaveResultAbsensi()
+        object AlreadyExists : SaveResultAbsensi()
+        data class Error(val exception: Exception) : SaveResultAbsensi()
     }
 
     suspend fun saveDataAbsensi(

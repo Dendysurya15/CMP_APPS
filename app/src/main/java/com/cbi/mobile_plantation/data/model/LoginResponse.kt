@@ -25,5 +25,8 @@ data class User(
     val dept_abbr : String,
     val dept_nama : String,
     val create_date: String,
-    val update_date: String
+    val update_date: String,
+    val kemandoran: String,
+    val kemandoran_nama: String,
+    val kemandoran_kode: String,
 )

@@ -39,7 +39,7 @@ class MainActivity : AppCompatActivity() {
 
         val layoutInflater = LayoutInflater.from(this)
         val rootView: View = if (!prefManager!!.isFirstTimeLaunch) {
-            layoutInflater.inflate(R.layout.activity_splash_screen, null)
+            layoutInflater.inflate(R.layout.activity_welcome_screen, null)
         } else {
             layoutInflater.inflate(R.layout.activity_welcome_screen, null)
         }

@@ -60,6 +60,7 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import java.util.zip.Deflater
 import java.util.zip.ZipEntry
@@ -120,8 +121,16 @@ class ListAbsensiActivity : AppCompatActivity() {
         setupRecyclerView()
         initializeViews()
         setupObserveData()
-        absensiViewModel.getAllDataAbsensi()
-        absensiViewModel.loadAbsensiCountArchive()
+        if(prefManager!!.jabatanUserLogin == "Kerani Panen"){
+            absensiViewModel.getAllDataAbsensi(1)
+        }else{
+            absensiViewModel.getAllDataAbsensi(0)
+        }
+        if(prefManager!!.jabatanUserLogin == "Kerani Panen"){
+            absensiViewModel.loadAbsensiCountArchive(1)
+        }else{
+            absensiViewModel.loadAbsensiCountArchive(0)
+        }
         setupQRAbsensi()
         setupCardListeners()
         setActiveCard(cardTersimpan)
@@ -220,394 +229,463 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
     }
 
+    fun getGeneratedDate(): String {
+        val sharedPreferences = getSharedPreferences("QR_PREFS", MODE_PRIVATE)
+        val savedDate = sharedPreferences.getString("generated_date", "")
+
+        AppLogger.d("📥 Fetched Generated Date: '$savedDate'")
+
+        if (savedDate.isNullOrEmpty()) {
+            val todayDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            saveGeneratedDate(todayDate) // Simpan langsung
+            return todayDate
+        }
+        return savedDate
+    }
+
+
+    fun saveGeneratedDate(date: String) {
+        val sharedPreferences = getSharedPreferences("QR_PREFS", MODE_PRIVATE)
+        val success = sharedPreferences.edit().putString("generated_date", date).commit()
+        AppLogger.d("✅ Date Saved: '$date', Success: $success")
+    }
+
+
+    fun isSameDate(): Boolean {
+        val sharedPreferences = getSharedPreferences("QR_PREFS", MODE_PRIVATE)
+        val savedDate = sharedPreferences.getString("generated_date", "") ?: ""
+        val todayDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+        AppLogger.d("🔍 Debug: savedDate = '$savedDate', todayDate = '$todayDate'")
+
+        return savedDate == todayDate
+    }
+
+
+    fun generateData() {
+        if (isSameDate()) {
+            // Proses generate bisa dilakukan
+            AppLogger.d("✅ Data generated for today")
+            // Lakukan proses generate di sini...
+        } else {
+            AppLogger.d("❌ Data cannot be generated, different date")
+            // Tampilkan pesan ke pengguna bahwa tidak bisa generate data
+            Toast.makeText(this, "Generate hanya bisa dilakukan untuk tanggal yang sama!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+
     private fun setupQRAbsensi() {
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
         btnGenerateQRAbsensi.setOnClickListener {
-//            btnGenerateQRAbsensi.isEnabled = false
-            val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_generate_qr_panen, null)
-            view.background = ContextCompat.getDrawable(
-                this@ListAbsensiActivity,
-                R.drawable.rounded_top_right_left
-            )
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
+            val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
 
-            val dialog = BottomSheetDialog(this@ListAbsensiActivity)
-            dialog.setContentView(view)
+            // Log tanggal
+            AppLogger.d("Generated Date: '$generatedDate'")
+            AppLogger.d("Today Date: '$todayDate'")
 
-            // Get references to views
-            val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
-            val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-            val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
-            tvTitleQRGenerate.text = "Generate QR Absensi"
-            val dashedLine: View = view.findViewById(R.id.dashedLine)
-            val loadingContainer: LinearLayout =
-                view.findViewById(R.id.loadingDotsContainerBottomSheet)
-
-            // Initially hide QR code and dashed line, show loading
-            qrCodeImageView.visibility = View.GONE
-
-            loadingLogo.visibility = View.VISIBLE
-            loadingContainer.visibility = View.VISIBLE
-
-            // Load and start bounce animation
-            val bounceAnimation = AnimationUtils.loadAnimation(this, R.anim.bounce)
-            loadingLogo.startAnimation(bounceAnimation)
-
-            // Setup dots animation
-            val dots = listOf(
-                loadingContainer.findViewById<View>(R.id.dot1),
-                loadingContainer.findViewById<View>(R.id.dot2),
-                loadingContainer.findViewById<View>(R.id.dot3),
-                loadingContainer.findViewById<View>(R.id.dot4)
-            )
-
-            dots.forEachIndexed { index, dot ->
-                val translateAnimation =
-                    ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
-                val scaleXAnimation = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 0.8f, 1f)
-                val scaleYAnimation = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 0.8f, 1f)
-
-                listOf(
-                    translateAnimation,
-                    scaleXAnimation,
-                    scaleYAnimation
-                ).forEach { animation ->
-                    animation.duration = 500
-                    animation.repeatCount = ObjectAnimator.INFINITE
-                    animation.repeatMode = ObjectAnimator.REVERSE
-                    animation.startDelay = (index * 100).toLong()
-                    animation.start()
-                }
+            if (generatedDate.isEmpty()) {
+                saveGeneratedDate(todayDate)
+                generateData() // Tambahkan ini agar langsung bisa dijalankan
+//                showBottomSheetQR()
+            } else if (generatedDate == todayDate) {
+                // Jika tanggal sama, tampilkan QR
+                showBottomSheetQR()
+            } else {
+                // Jika tanggal berbeda, tampilkan pesan error
+                Toast.makeText(this, "QR hanya bisa digenerate jika tanggal sama!", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
 
-            dialog.setOnShowListener {
-                val bottomSheet =
-                    dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                val behavior = BottomSheetBehavior.from(bottomSheet!!)
-                behavior.state = BottomSheetBehavior.STATE_EXPANDED
+
+    private fun showBottomSheetQR() {
+        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_generate_qr_absen, null)
+        view.background = ContextCompat.getDrawable(
+            this@ListAbsensiActivity,
+            R.drawable.rounded_top_right_left
+        )
+
+        val dialog = BottomSheetDialog(this@ListAbsensiActivity)
+        dialog.setContentView(view)
+
+        // Get references to views
+        val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
+        val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
+        val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
+        tvTitleQRGenerate.text = "Generate QR Absensi"
+        val dashedLine: View = view.findViewById(R.id.dashedLine)
+        val loadingContainer: LinearLayout =
+            view.findViewById(R.id.loadingDotsContainerBottomSheet)
+
+        // Initially hide QR code and dashed line, show loading
+        qrCodeImageView.visibility = View.GONE
+
+        loadingLogo.visibility = View.VISIBLE
+        loadingContainer.visibility = View.VISIBLE
+
+        // Load and start bounce animation
+        val bounceAnimation = AnimationUtils.loadAnimation(this, R.anim.bounce)
+        loadingLogo.startAnimation(bounceAnimation)
+
+        // Setup dots animation
+        val dots = listOf(
+            loadingContainer.findViewById<View>(R.id.dot1),
+            loadingContainer.findViewById<View>(R.id.dot2),
+            loadingContainer.findViewById<View>(R.id.dot3),
+            loadingContainer.findViewById<View>(R.id.dot4)
+        )
+
+        dots.forEachIndexed { index, dot ->
+            val translateAnimation =
+                ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
+            val scaleXAnimation = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 0.8f, 1f)
+            val scaleYAnimation = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 0.8f, 1f)
+
+            listOf(
+                translateAnimation,
+                scaleXAnimation,
+                scaleYAnimation
+            ).forEach { animation ->
+                animation.duration = 500
+                animation.repeatCount = ObjectAnimator.INFINITE
+                animation.repeatMode = ObjectAnimator.REVERSE
+                animation.startDelay = (index * 100).toLong()
+                animation.start()
             }
+        }
 
-            dialog.show()
+        dialog.setOnShowListener {
+            val bottomSheet =
+                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            val behavior = BottomSheetBehavior.from(bottomSheet!!)
+            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        }
 
-            lifecycleScope.launch(Dispatchers.Default) {
-                delay(1000)
-                try {
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        delay(1000)
-                        try {
+        dialog.show()
 
-                            val titleQRConfirm: TextView =
-                                view.findViewById(R.id.titleAfterScanQR)
-                            val descQRConfirm: TextView =
-                                view.findViewById(R.id.descAfterScanQR)
-                            val btnConfirmScanAbsensi: MaterialButton =
-                                view.findViewById(R.id.btnConfirmScanPanenTPH)
+        lifecycleScope.launch(Dispatchers.Default) {
+            delay(1000)
+            try {
+                lifecycleScope.launch(Dispatchers.Default) {
+                    delay(1000)
+                    try {
+                        val dataQR: TextView? = view.findViewById(R.id.dataQR)
+                        val titleQRConfirm: TextView =
+                            view.findViewById(R.id.titleAfterScanQR)
+                        val descQRConfirm: TextView =
+                            view.findViewById(R.id.descAfterScanQR)
+                        val btnConfirmScanAbsensi: MaterialButton =
+                            view.findViewById(R.id.btnConfirmScanPanenTPH)
 
-                            btnConfirmScanAbsensi.setOnClickListener {
-                                AlertDialogUtility.withTwoActions(
+                        btnConfirmScanAbsensi.setOnClickListener {
+                            AlertDialogUtility.withTwoActions(
+                                this@ListAbsensiActivity,
+                                getString(R.string.al_yes),
+                                getString(R.string.confirmation_dialog_title),
+                                getString(R.string.al_make_sure_scanned_qr),
+                                "warning.json",
+                                ContextCompat.getColor(
                                     this@ListAbsensiActivity,
-                                    getString(R.string.al_yes),
-                                    getString(R.string.confirmation_dialog_title),
-                                    getString(R.string.al_make_sure_scanned_qr),
-                                    "warning.json",
-                                    ContextCompat.getColor(
-                                        this@ListAbsensiActivity,
-                                        R.color.greendarkerbutton
-                                    ),
-                                    function={
-                                        lifecycleScope.launch(Dispatchers.IO) {
-                                            try {
-                                                withContext(Dispatchers.Main) {
-                                                    loadingDialog.show()
-                                                }
+                                    R.color.greendarkerbutton
+                                ),
+                                function = {
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        try {
+                                            withContext(Dispatchers.Main) {
+                                                loadingDialog.show()
+                                            }
 
-                                                // Validate data first
-                                                if (mappedData.isEmpty()) {
-                                                    throw Exception("No data to archive")
-                                                }
+                                            // Validate data first
+                                            if (mappedData.isEmpty()) {
+                                                throw Exception("No data to archive")
+                                            }
 
-                                                var hasError = false
-                                                var successCount = 0
-                                                val errorMessages = mutableListOf<String>()
+                                            var hasError = false
+                                            var successCount = 0
+                                            val errorMessages = mutableListOf<String>()
 
-                                                mappedData.forEach { item ->
+                                            mappedData.forEach { item ->
+                                                try {
+                                                    // Null check for item
+                                                    if (item == null) {
+                                                        errorMessages.add("Found null item in data")
+                                                        hasError = true
+                                                        return@forEach
+                                                    }
+
+                                                    // ID validation
+                                                    val id = when (val idValue = item["id"]) {
+                                                        null -> {
+                                                            errorMessages.add("ID is null")
+                                                            hasError = true
+                                                            return@forEach
+                                                        }
+
+                                                        !is Number -> {
+                                                            errorMessages.add("Invalid ID format: $idValue")
+                                                            hasError = true
+                                                            return@forEach
+                                                        }
+
+                                                        else -> idValue.toInt()
+                                                    }
+
+                                                    AppLogger.d(id.toString())
+                                                    if (id <= 0) {
+                                                        errorMessages.add("Invalid ID value: $id")
+                                                        hasError = true
+                                                        return@forEach
+                                                    }
+
                                                     try {
-                                                        // Null check for item
-                                                        if (item == null) {
-                                                            errorMessages.add("Found null item in data")
-                                                            hasError = true
-                                                            return@forEach
-                                                        }
-
-                                                        // ID validation
-                                                        val id = when (val idValue = item["id"]) {
-                                                            null -> {
-                                                                errorMessages.add("ID is null")
-                                                                hasError = true
-                                                                return@forEach
-                                                            }
-
-                                                            !is Number -> {
-                                                                errorMessages.add("Invalid ID format: $idValue")
-                                                                hasError = true
-                                                                return@forEach
-                                                            }
-
-                                                            else -> idValue.toInt()
-                                                        }
-
-                                                        AppLogger.d(id.toString())
-                                                        if (id <= 0) {
-                                                            errorMessages.add("Invalid ID value: $id")
-                                                            hasError = true
-                                                            return@forEach
-                                                        }
-
-                                                        try {
-                                                            absensiViewModel.archiveAbsensiById(id)
-                                                            successCount++
-                                                        } catch (e: SQLiteException) {
-                                                            errorMessages.add("Database error for ID $id: ${e.message}")
-                                                            hasError = true
-                                                        } catch (e: Exception) {
-                                                            errorMessages.add("Error archiving ID $id: ${e.message}")
-                                                            hasError = true
-                                                        }
-
+                                                        absensiViewModel.archiveAbsensiById(id)
+                                                        successCount++
+                                                    } catch (e: SQLiteException) {
+                                                        errorMessages.add("Database error for ID $id: ${e.message}")
+                                                        hasError = true
                                                     } catch (e: Exception) {
-                                                        errorMessages.add("Unexpected error processing item: ${e.message}")
+                                                        errorMessages.add("Error archiving ID $id: ${e.message}")
                                                         hasError = true
                                                     }
+
+                                                } catch (e: Exception) {
+                                                    errorMessages.add("Unexpected error processing item: ${e.message}")
+                                                    hasError = true
                                                 }
+                                            }
 
-                                                // Show results
-                                                withContext(Dispatchers.Main) {
-                                                    try {
-                                                        loadingDialog.dismiss()
+                                            // Show results
+                                            withContext(Dispatchers.Main) {
+                                                try {
+                                                    loadingDialog.dismiss()
 
-                                                        when {
-                                                            successCount == 0 -> {
-                                                                val errorDetail =
-                                                                    errorMessages.joinToString("\n")
-                                                                AppLogger.e("Archive failed. Errors:\n$errorDetail")
-                                                                Toast.makeText(
-                                                                    this@ListAbsensiActivity,
-                                                                    "Gagal mengarsipkan data",
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
-                                                            }
-
-                                                            hasError -> {
-                                                                val errorDetail =
-                                                                    errorMessages.joinToString("\n")
-                                                                AppLogger.e("Partial success. Errors:\n$errorDetail")
-                                                                Toast.makeText(
-                                                                    this@ListAbsensiActivity,
-                                                                    "Beberapa data berhasil diarsipkan ($successCount/${mappedData.size})",
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
-                                                            }
-
-                                                            else -> {
-                                                                AppLogger.d("All items archived successfully")
-                                                                Toast.makeText(
-                                                                    this@ListAbsensiActivity,
-                                                                    "Semua data berhasil diarsipkan",
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
-                                                            }
+                                                    when {
+                                                        successCount == 0 -> {
+                                                            val errorDetail =
+                                                                errorMessages.joinToString("\n")
+                                                            AppLogger.e("Archive failed. Errors:\n$errorDetail")
+                                                            Toast.makeText(
+                                                                this@ListAbsensiActivity,
+                                                                "Gagal mengarsipkan data",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
                                                         }
-                                                        dialog.dismiss()
-                                                    } catch (e: Exception) {
-                                                        AppLogger.e("Error in UI update: ${e.message}")
-                                                        Toast.makeText(
-                                                            this@ListAbsensiActivity,
-                                                            "Terjadi kesalahan pada UI",
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
-                                                }
 
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Fatal error in archiving process: ${e.message}")
-                                                withContext(Dispatchers.Main) {
-                                                    try {
-                                                        loadingDialog.dismiss()
-                                                        Toast.makeText(
-                                                            this@ListAbsensiActivity,
-                                                            "Terjadi kesalahan saat mengarsipkan data: ${e.message}",
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                        dialog.dismiss()
-                                                    } catch (dialogException: Exception) {
-                                                        AppLogger.e("Error dismissing dialogs: ${dialogException.message}")
+                                                        hasError -> {
+                                                            val errorDetail =
+                                                                errorMessages.joinToString("\n")
+                                                            AppLogger.e("Partial success. Errors:\n$errorDetail")
+                                                            Toast.makeText(
+                                                                this@ListAbsensiActivity,
+                                                                "Beberapa data berhasil diarsipkan ($successCount/${mappedData.size})",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+
+                                                        else -> {
+                                                            AppLogger.d("All items archived successfully")
+                                                            Toast.makeText(
+                                                                this@ListAbsensiActivity,
+                                                                "Semua data berhasil diarsipkan",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
                                                     }
+                                                    dialog.dismiss()
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error in UI update: ${e.message}")
+                                                    Toast.makeText(
+                                                        this@ListAbsensiActivity,
+                                                        "Terjadi kesalahan pada UI",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
                                                 }
                                             }
 
-                                            absensiViewModel.loadActiveAbsensi()
-                                            absensiViewModel.loadAbsensiCountArchive()
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Fatal error in archiving process: ${e.message}")
+                                            withContext(Dispatchers.Main) {
+                                                try {
+                                                    loadingDialog.dismiss()
+                                                    Toast.makeText(
+                                                        this@ListAbsensiActivity,
+                                                        "Terjadi kesalahan saat mengarsipkan data: ${e.message}",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                    dialog.dismiss()
+                                                } catch (dialogException: Exception) {
+                                                    AppLogger.e("Error dismissing dialogs: ${dialogException.message}")
+                                                }
+                                            }
                                         }
-//                                        btnGenerateQRAbsensi.isEnabled = true
-                                    },
-                                    cancelFunction = {
-//                                        btnGenerateQRAbsensi.isEnabled = true
+
+                                        absensiViewModel.loadActiveAbsensi()
+                                        absensiViewModel.loadAbsensiCountArchive(1)
                                     }
-                                )
-                            }
-                            AppLogger.d(mappedData.toString())
-                            val jsonData = formatPanenDataForQR(mappedData)
-                            AppLogger.d("data json $jsonData")
-                            val encodedData =
-                                encodeJsonToBase64ZipQR(jsonData)
-                                    ?: throw Exception("Encoding failed")
+                                },
+                                cancelFunction = {}
+                            )
+                        }
+                        AppLogger.d("test $mappedData")
+                        val jsonData = formatPanenDataForQR(mappedData)
+                        AppLogger.d("data json $jsonData")
+                        val encodedData =
+                            encodeJsonToBase64ZipQR(jsonData)
+                                ?: throw Exception("Encoding failed")
+                        AppLogger
+                        withContext(Dispatchers.Main) {
+                            try {
 
-                            withContext(Dispatchers.Main) {
-                                try {
-
-                                    generateHighQualityQRCode(encodedData, qrCodeImageView)
-                                    // Fade-out the loading elements
-                                    val fadeOut =
-                                        ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
-                                            .apply {
-                                                duration = 250
-                                            }
-                                    val fadeOutDots =
-                                        ObjectAnimator.ofFloat(
-                                            loadingContainer,
-                                            "alpha",
-                                            1f,
-                                            0f
-                                        )
-                                            .apply {
-                                                duration = 250
-                                            }
-
-                                    // Ensure QR code, text, and button start fully invisible
-                                    qrCodeImageView.alpha = 0f
-                                    dashedLine.alpha = 0f
-                                    tvTitleQRGenerate.alpha = 0f
-                                    titleQRConfirm.alpha = 0f
-                                    descQRConfirm.alpha = 0f
-                                    btnConfirmScanAbsensi.alpha = 0f
-
-                                    // Fade-in animations
-                                    val fadeInQR =
-                                        ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
-                                            .apply {
-                                                duration = 250
-                                                startDelay = 150
-                                            }
-                                    val fadeInDashedLine =
-                                        ObjectAnimator.ofFloat(dashedLine, "alpha", 0f, 1f)
-                                            .apply {
-                                                duration = 250
-                                                startDelay = 150
-                                            }
-                                    val fadeInTitle =
-                                        ObjectAnimator.ofFloat(
-                                            tvTitleQRGenerate,
-                                            "alpha",
-                                            0f,
-                                            1f
-                                        )
-                                            .apply {
-                                                duration = 250
-                                                startDelay = 150
-                                            }
-                                    // Create fade-in animation for QR code and dashed line
-                                    val fadeIn =
-                                        ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
-                                            .apply {
-                                                duration = 250
-                                                startDelay = 150
-                                            }
-
-                                    tvTitleQRGenerate.alpha =
-                                        0f  // Ensure title starts invisible
-
-                                    // Create fade-in for the dataQR text as well
-
-                                    val fadeInTitleConfirm =
-                                        ObjectAnimator.ofFloat(titleQRConfirm, "alpha", 0f, 1f)
-                                            .apply {
-                                                duration = 250
-                                                startDelay = 150
-                                            }
-                                    val fadeInDescConfirm =
-                                        ObjectAnimator.ofFloat(descQRConfirm, "alpha", 0f, 1f)
-                                            .apply {
-                                                duration = 250
-                                                startDelay = 150
-                                            }
-                                    val fadeInButton =
-                                        ObjectAnimator.ofFloat(
-                                            btnConfirmScanAbsensi,
-                                            "alpha",
-                                            0f,
-                                            1f
-                                        )
-                                            .apply {
-                                                duration = 250
-                                                startDelay = 150
-                                            }
-
-                                    // Run animations together
-                                    AnimatorSet().apply {
-                                        playTogether(fadeOut, fadeOutDots)
-                                        addListener(object : AnimatorListenerAdapter() {
-                                            override fun onAnimationEnd(animation: Animator) {
-                                                // Hide loading elements
-                                                loadingLogo.visibility = View.GONE
-                                                loadingContainer.visibility = View.GONE
-
-                                                // Show elements and start fade-in
-                                                tvTitleQRGenerate.visibility = View.VISIBLE
-                                                qrCodeImageView.visibility = View.VISIBLE
-                                                dashedLine.visibility = View.VISIBLE
-                                                titleQRConfirm.visibility = View.VISIBLE
-                                                descQRConfirm.visibility = View.VISIBLE
-                                                btnConfirmScanAbsensi.visibility = View.VISIBLE
-
-                                                fadeInQR.start()
-                                                fadeInDashedLine.start()
-                                                fadeInTitle.start()
-
-                                                fadeInTitleConfirm.start()
-                                                fadeInDescConfirm.start()
-                                                fadeInButton.start()
-                                            }
-                                        })
-                                        start()
-                                    }
-
-                                } catch (e: Exception) {
-                                    loadingLogo.animation?.cancel()
-                                    loadingLogo.clearAnimation()
-                                    loadingLogo.visibility = View.GONE
-                                    loadingContainer.visibility = View.GONE
-                                    AppLogger.e("QR Generation Error: ${e.message}")
-                                    showErrorMessageGenerateQR(
-                                        view,
-                                        "Error Generating QR code: ${e.message}"
+                                generateHighQualityQRCode(encodedData, qrCodeImageView)
+                                // Fade-out the loading elements
+                                val fadeOut =
+                                    ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
+                                        .apply {
+                                            duration = 250
+                                        }
+                                val fadeOutDots =
+                                    ObjectAnimator.ofFloat(
+                                        loadingContainer,
+                                        "alpha",
+                                        1f,
+                                        0f
                                     )
+                                        .apply {
+                                            duration = 250
+                                        }
+
+                                // Ensure QR code, text, and button start fully invisible
+                                qrCodeImageView.alpha = 0f
+                                dashedLine.alpha = 0f
+                                tvTitleQRGenerate.alpha = 0f
+                                titleQRConfirm.alpha = 0f
+                                descQRConfirm.alpha = 0f
+                                btnConfirmScanAbsensi.alpha = 0f
+
+                                // Fade-in animations
+                                val fadeInQR =
+                                    ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+                                val fadeInDashedLine =
+                                    ObjectAnimator.ofFloat(dashedLine, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+                                val fadeInTitle =
+                                    ObjectAnimator.ofFloat(
+                                        tvTitleQRGenerate,
+                                        "alpha",
+                                        0f,
+                                        1f
+                                    )
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+                                // Create fade-in animation for QR code and dashed line
+                                val fadeIn =
+                                    ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
+                                tvTitleQRGenerate.alpha =
+                                    0f  // Ensure title starts invisible
+
+                                // Create fade-in for the dataQR text as well
+                                val fadeInText =
+                                    ObjectAnimator.ofFloat(dataQR, "alpha", 0f, 1f).apply {
+                                        duration = 250
+                                        startDelay = 150
+                                    }
+                                val fadeInTitleConfirm =
+                                    ObjectAnimator.ofFloat(titleQRConfirm, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+                                val fadeInDescConfirm =
+                                    ObjectAnimator.ofFloat(descQRConfirm, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+                                val fadeInButton =
+                                    ObjectAnimator.ofFloat(
+                                        btnConfirmScanAbsensi,
+                                        "alpha",
+                                        0f,
+                                        1f
+                                    )
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
+                                // Run animations together
+                                AnimatorSet().apply {
+                                    playTogether(fadeOut, fadeOutDots)
+                                    addListener(object : AnimatorListenerAdapter() {
+                                        override fun onAnimationEnd(animation: Animator) {
+                                            // Hide loading elements
+                                            loadingLogo.visibility = View.GONE
+                                            loadingContainer.visibility = View.GONE
+
+                                            // Show elements and start fade-in
+                                            tvTitleQRGenerate.visibility = View.VISIBLE
+                                            qrCodeImageView.visibility = View.VISIBLE
+                                            dashedLine.visibility = View.VISIBLE
+                                            titleQRConfirm.visibility = View.VISIBLE
+                                            descQRConfirm.visibility = View.VISIBLE
+                                            btnConfirmScanAbsensi.visibility = View.VISIBLE
+
+                                            fadeInQR.start()
+                                            fadeInDashedLine.start()
+                                            fadeInTitle.start()
+                                            fadeInText.start()
+                                            fadeInTitleConfirm.start()
+                                            fadeInDescConfirm.start()
+                                            fadeInButton.start()
+                                        }
+                                    })
+                                    start()
                                 }
-                            }
 
-
-                        } catch (e: Exception) {
-                            AppLogger.e("Error in QR process: ${e.message}")
-                            withContext(Dispatchers.Main) {
-                                stopLoadingAnimation(loadingLogo, loadingContainer)
+                            } catch (e: Exception) {
+                                loadingLogo.animation?.cancel()
+                                loadingLogo.clearAnimation()
+                                loadingLogo.visibility = View.GONE
+                                loadingContainer.visibility = View.GONE
+                                AppLogger.e("QR Generation Error: ${e.message}")
                                 showErrorMessageGenerateQR(
                                     view,
-                                    "Error Processing QR code: ${e.message}"
+                                    "Error Generating QR code: ${e.message}"
                                 )
                             }
                         }
+
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error in QR process: ${e.message}")
+                        withContext(Dispatchers.Main) {
+                            stopLoadingAnimation(loadingLogo, loadingContainer)
+                            showErrorMessageGenerateQR(
+                                view,
+                                "Error Processing QR code: ${e.message}"
+                            )
+                        }
                     }
-                } catch (e: Exception) {
-                    AppLogger.e("Error in QR process: ${e.message}")
                 }
+            } catch (e: Exception) {
+                AppLogger.e("Error in QR process: ${e.message}")
             }
         }
     }
@@ -675,47 +753,95 @@ class ListAbsensiActivity : AppCompatActivity() {
                 throw IllegalArgumentException("Data Absensi is empty.")
             }
 
-            AppLogger.d("mappedData $mappedData")
-
-            // Group data by id_kemandoran
-            val groupedByKemandoran = mutableMapOf<String, MutableList<String>>()
+            val allKemandoran = mutableSetOf<String>()
+            val estateSet = mutableSetOf<String>()
+            val afdelingSet = mutableSetOf<String>()
+            val createdBySet = mutableSetOf<String>()
+            val datetimeSet = mutableSetOf<String>()
+            val allKaryawan = mutableSetOf<String>()
+            val fotoSet = mutableSetOf<String>()
+            val komentarSet = mutableSetOf<String>()
+            val asistensiSet = mutableSetOf<String>()
+            val latSet = mutableSetOf<String>()
+            val lonSet = mutableSetOf<String>()
+            val infoSet = mutableSetOf<String>()
 
             mappedData.forEach { data ->
-                val idKemandoran = data["id_kemandoran"]?.toString() ?:
-                throw IllegalArgumentException("Missing idKemandoran.")
-
+                val idKemandoran = data["id_kemandoran"]?.toString() ?: throw IllegalArgumentException("Missing idKemandoran.")
+                val estate = data["estate"]?.toString()?.trim() ?: ""
+                val afdeling = data["afdeling"]?.toString()?.trim() ?: ""
+                val createdBy = data["created_by"]?.toString() ?: ""
+                val dateAbsen = data["datetime"]?.toString() ?: ""
                 val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
+                val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
+                val foto = data["foto"]?.toString() ?: ""
+                val komentar = data["komentar"]?.toString() ?: ""
+                val asistensi = data["asistensi"]?.toString() ?: ""
+                val lat = data["lat"]?.toString() ?: ""
+                val lon = data["lon"]?.toString() ?: ""
+                val info = data["info"]?.toString() ?: ""
 
-                // Split the comma-separated employee IDs
-                val employeeIds = karyawanMskId.split(",").filter { it.isNotEmpty() }
+                // Extract idKemandoran values
+                idKemandoran.removeSurrounding("[", "]").split(", ").forEach { allKemandoran.add(it.trim()) }
 
-                // Get or create the list for this kemandoran
-                val employeeList = groupedByKemandoran.getOrPut(idKemandoran) { mutableListOf() }
+                // Extract karyawan_msk_id values
+                karyawanMskId.split(",").filter { it.isNotEmpty() }.forEach { allKaryawan.add(it.trim()) }
 
-                // Add employee IDs to the list
-                employeeList.addAll(employeeIds)
+                // Extract karyawan_tdk_msk_id values
+                karyawanTdkMskId.split(",").filter { it.isNotEmpty() }.forEach { allKaryawan.add(it.trim()) }
+
+                if (estate.isNotEmpty()) estateSet.add(estate)
+                // Collect unique datetime and afdeling
+                if (dateAbsen.isNotEmpty()) datetimeSet.add(dateAbsen)
+                if (afdeling.isNotEmpty()) {
+                    afdeling.split("\n").forEach { afdelingSet.add(it.trim()) } // Fix multiline issues
+                }
+
+                // Collect createdBy values
+                if (createdBy.isNotEmpty()) createdBySet.add(createdBy)
+
+                // Collect foto values
+                if (foto.isNotEmpty()) fotoSet.add(foto)
+
+                // Collect komentar values
+                if (komentar.isNotEmpty()) komentarSet.add(komentar)
+
+                // Collect asistensi values
+                if (asistensi.isNotEmpty()) asistensiSet.add(asistensi)
+
+                // Collect lat and lon values
+                if (lat.isNotEmpty()) latSet.add(lat)
+                if (lon.isNotEmpty()) lonSet.add(lon)
+
+                // Collect info values
+                if (info.isNotEmpty()) infoSet.add(info)
             }
 
-            // Create the JSON array with the requested format
-            val resultArray = JSONArray()
-
-            groupedByKemandoran.forEach { (kemandoranId, employeeIds) ->
-                val jsonObject = JSONObject()
-                jsonObject.put("idKemandoran", kemandoranId)
-
-                val employeeArray = JSONArray()
-                employeeIds.distinct().forEach { employeeArray.put(it) }
-
-                jsonObject.put("idKaryawan", employeeArray)
-                resultArray.put(jsonObject)
+            // Create the final JSON object
+            val jsonObject = JSONObject().apply {
+                put("idKemandoran", JSONArray(allKemandoran))
+                put("idKaryawan", JSONArray(allKaryawan))
+                put("datetime", JSONArray(datetimeSet))
+                put("estate", JSONArray(estateSet))
+                put("afdeling", JSONArray(afdelingSet))
+                put("createdBy", JSONArray(createdBySet))
+                put("foto", JSONArray(fotoSet))
+                put("komentar", JSONArray(komentarSet))
+                put("asistensi", JSONArray(asistensiSet))
+                put("lat", JSONArray(latSet))
+                put("lon", JSONArray(lonSet))
+                put("info", JSONArray(infoSet))
             }
 
-            resultArray.toString()
+            AppLogger.d("cek json object: $jsonObject")
+            jsonObject.toString()
 
         } catch (e: Exception) {
             throw IllegalArgumentException("formatPanenDataForQR Error: ${e.message}")
         }
     }
+
+
 
     private fun setupCardListeners() {
         cardTersimpan.setOnClickListener {
@@ -727,7 +853,12 @@ class ListAbsensiActivity : AppCompatActivity() {
             tvEmptyStateAbsensi.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
             absensiAdapter.updateArchiveState(0)
-            absensiViewModel.getAllDataAbsensi()
+            if(prefManager!!.jabatanUserLogin == "Kerani Panen"){
+                absensiViewModel.getAllDataAbsensi(1)
+            }else{
+                absensiViewModel.getAllDataAbsensi(0)
+            }
+
         }
 
         cardTerscan.setOnClickListener {
@@ -964,7 +1095,15 @@ class ListAbsensiActivity : AppCompatActivity() {
                                         null
                                     }
                                     AppLogger.d(kemandoranData.toString())
-                                    val afdeling = kemandoranData?.mapNotNull { it.divisi_abbr }?.takeIf { it.isNotEmpty() }
+
+                                    val afdeling = kemandoranData
+                                        ?.mapNotNull { it.divisi_abbr }
+                                        ?.distinct() // Hapus duplikat
+                                        ?.takeIf { it.isNotEmpty() }
+                                        ?.joinToString("\n") ?: "-"
+
+                                    val estate = kemandoranData?.firstNotNullOfOrNull { it.dept_abbr } ?: "-"
+                                    val kemandoranRow = kemandoranData?.mapNotNull { it.kode }?.takeIf { it.isNotEmpty() }
                                         ?.joinToString("\n") ?: "-"
 
                                     val kemandoranRaw = kemandoranData?.mapNotNull { it.kode }?.takeIf { it.isNotEmpty() }
@@ -973,10 +1112,18 @@ class ListAbsensiActivity : AppCompatActivity() {
                                         mappedData = mappedData + mapOf(
                                             "id_kemandoran" to rawKemandoran,
                                             "id" to absensiWithRelations.absensi.id,
+                                            "estate" to estate,
                                             "afdeling" to afdeling,
+                                            "created_by" to absensiWithRelations.absensi.created_by,
                                             "datetime" to absensiWithRelations.absensi.date_absen,
                                             "karyawan_msk_id" to absensiWithRelations.absensi.karyawan_msk_id,
-                                            "karyawan_tdk_msk_id" to absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                            "karyawan_tdk_msk_id" to absensiWithRelations.absensi.karyawan_tdk_msk_id,
+                                            "foto" to absensiWithRelations.absensi.foto,
+                                            "komentar" to absensiWithRelations.absensi.komentar,
+                                            "asistensi" to absensiWithRelations.absensi.asistensi,
+                                            "lat" to absensiWithRelations.absensi.lat,
+                                            "lon" to absensiWithRelations.absensi.lat,
+                                            "info" to absensiWithRelations.absensi.info
                                         )
 
                                         AbsensiDataRekap(
@@ -997,7 +1144,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             //untuk table
                                             afdeling = afdeling,
                                             datetime = absensiWithRelations.absensi.date_absen,
-                                            kemandoran = kemandoranRaw,
+                                            kemandoran = kemandoranRow,
                                             karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id,
                                             karyawan_tdk_msk_id = absensiWithRelations.absensi.karyawan_tdk_msk_id
                                         )
@@ -1078,7 +1225,7 @@ class ListAbsensiActivity : AppCompatActivity() {
 
                                     async {
                                         mappedData = mappedData + mapOf(
-                                            "id_kemandoran" to (rawKemandoran.firstOrNull()?.toIntOrNull() ?: -1),
+                                            "id_kemandoran" to rawKemandoran,
                                             "id" to absensiWithRelations.absensi.id,
                                             "afdeling" to kemandoranNama,
                                             "datetime" to absensiWithRelations.absensi.date_absen,

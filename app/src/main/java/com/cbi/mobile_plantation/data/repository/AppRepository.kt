@@ -421,6 +421,10 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun updateStatusUploadPanen(ids: List<Int>, statusUpload: Int) {
+        panenDao.updateStatusUploadPanen(ids, statusUpload)
+    }
+
     suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<SaveTPHResult> =
         withContext(Dispatchers.IO) {
             try {
@@ -446,6 +450,7 @@ class AppRepository(context: Context) {
                                 karyawan_id = "",
                                 kemandoran_id = "",
                                 karyawan_nik = "",
+                                karyawan_nama = "",
                                 jjg_json = "{\"KP\": ${tphData.jjg}}",
                                 foto = "",
                                 komentar = "",
@@ -459,7 +464,7 @@ class AppRepository(context: Context) {
                                 status_espb = 0,
                                 status_restan = 0,
                                 scan_status = 1,
-                                username = tphData.username
+//                                username = tphData.username
                             )
                         )
 

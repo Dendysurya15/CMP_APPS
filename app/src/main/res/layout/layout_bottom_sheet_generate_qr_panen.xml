@@ -384,7 +384,24 @@
             android:visibility="gone"
             app:cornerRadius="8dp" />
 
-        <!-- Confirm scan button -->
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnPreviewFullQR"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/bluedarklight"
+            android:text="Preview QR"
+            android:textColor="#FFFFFF"
+            android:textSize="@dimen/m"
+            android:visibility="gone"
+            app:cornerRadius="8dp"
+            app:icon="@drawable/baseline_fullscreen_24"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:iconSize="24dp" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnConfirmScanPanenTPH"
             android:layout_width="0dp"
@@ -394,7 +411,7 @@
             android:backgroundTint="@color/greenDarker"
             android:text="Sudah Scan"
             android:textAllCaps="false"
-            android:textSize="@dimen/l"
+            android:textSize="@dimen/m"
             android:visibility="gone"
             app:cornerRadius="8dp"
             app:icon="@drawable/baseline_qr_code_scanner_24"

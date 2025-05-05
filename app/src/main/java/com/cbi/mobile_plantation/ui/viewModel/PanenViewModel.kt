@@ -66,6 +66,8 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _panenCountActive = MutableLiveData<Int>()
     val panenCountActive: LiveData<Int> = _panenCountActive
 
+    private val _panenCountHasBeenESPB = MutableLiveData<Int>()
+    val panenCountHasBeenESPB: LiveData<Int> = _panenCountHasBeenESPB
 
     private val _panenCountArchived = MutableLiveData<Int>()
     val panenCountArchived: LiveData<Int> = _panenCountArchived
@@ -104,6 +106,16 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
             _panenCountActive.value = 0
+        }
+    }
+
+    fun countHasBeenESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val count = repository.countESPB(archive, statusEspb, scanStatus, date)
+            _panenCountHasBeenESPB.value = count
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB: ${e.message}")
+            _panenCountHasBeenESPB.value = 0
         }
     }
 
@@ -165,6 +177,18 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {
         return withContext(Dispatchers.IO) {  // Run on background thread
             repository.getKemandoranById(idKemandoran)
+        }
+    }
+
+    fun updateStatusUploadPanen(ids: List<Int>, status: Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateStatusUploadPanen(ids, status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+                AppLogger.e("Error updating status_upload: ${e.message}")
+            }
         }
     }
 
@@ -360,6 +384,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         karyawan_id: String,
         kemandoran_id: String,
         karyawan_nik: String,
+        karyawan_nama: String,
         jjg_json: String,
         foto: String,
         komentar: String,
@@ -380,6 +405,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 karyawan_id = karyawan_id,
                 kemandoran_id = kemandoran_id,
                 karyawan_nik = karyawan_nik,
+                karyawan_nama = karyawan_nama,
                 jjg_json = jjg_json,
                 foto = foto,
                 komentar = komentar,

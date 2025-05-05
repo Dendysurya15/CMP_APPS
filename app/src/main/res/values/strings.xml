@@ -1,7 +1,7 @@
 <resources>
     <string name="welcome_splash">Selamat Datang, </string>
     <string name="name_app">CBI Mobile Plantation</string>
-    <string name="description_short">Aplikasi Input Panen TBS dan Inspeksi Panen Para Pemanen Kebun Regional I</string>
+    <string name="description_short">Aplikasi Input Panen TBS dan Inspeksi Panen Para Pemanen Kebun CBI Group</string>
     <string name="login_title">Masuk untuk mulai bekerja.</string>
     <string name="login_slogan">Ciptakan alur kerja yang lebih cepat dan terorganisir dengan teknologi modern!</string>
     <string name="title_activity_home_page">HomePageActivity</string>
@@ -11,15 +11,19 @@
     <string name="confirmation_dialog_cancel">Batal</string>
     <string name="confirmation_dialog_accept">Ya</string>
     <string name="confirmation_dialog_title">Konfirmasi Pilihan Anda!</string>
+    <string name="confirmation_asistensi_estate">Asistensi Panen Estate Lain!</string>
     <string name="confirmation_dialog_description">Pastikan Anda telah memeriksa dengan teliti sebelum melanjutkan.</string>
     <string name="al_yes">Ya</string>
+    <string name="al_confirm_out">Apakah Anda yakin untuk keluar dari aplikasi ini?</string>
+    <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah Anda yakin untuk simpan data e-SPB ini?</string>
+    <string name="al_submit_upload_data_absensi">Apakah Anda yakin untuk simpan data Absensi ini?</string>
+    <string name="al_confirm_feature">Apakah Anda yakin untuk keluar dari Menu ini?</string>
+    <string name="al_confirm_delete_photo">Apakah Anda yakin untuk menghapus foto ini?</string>
+    <string name="al_confirm_asistensi">Menu ini digunakan untuk input panen asistensi ke estate lain, Pastikan pilihan anda benar!</string>
     <string name="al_confirm_upload">Apakah anda yakin untuk upload data CMP?</string>
-    <string name="al_confirm_out">Apakah anda yakin untuk keluar dari aplikasi ini?</string>
-    <string name="al_submit_upload_data_espb_by_krani_timbang">Apakah anda yakin untuk simpan &amp; upload data e-SPB ini?</string>
+    <string name="al_confirm_sinkronisasi_master_dataset">Apakah anda yakin untuk melakukan sinkronisasi master dataset?</string>
     <string name="al_confirm_generate_qr">Apakah anda yakin untuk Generate data menjadi QR?</string>
-    <string name="al_confirm_feature">Apakah anda yakin untuk keluar dari Menu ini?</string>
     <string name="al_confirm_logout">Apakah Anda yakin ingin logout? Semua data akan dihapus secara permanen.</string>
-    <string name="al_confirm_delete_photo">Apakah anda yakin untuk menghapus foto ini?</string>
     <string name="al_location_not_ready">GPS Tidak terdeteksi!</string>
     <string name="al_location_description_failed"> Perangkat tidak dapat mendeteksi lokasi Anda saat ini. Pastikan layanan lokasi di perangkat Anda aktif!</string>
     <string name="al_data_not_completed">Data Belum Lengkap!</string>
@@ -45,7 +49,7 @@
 
 
     <string name="desc_informasi_blok">Keterangan Blok Panen TPH</string>
-    <string name="desc_lampiran_foto">Upload foto sebagai bukti pengisian form panen</string>
+    <string name="desc_lampiran_foto">Upload foto sebagai bukti pengisian form panen (Minimal 1 Foto untuk simpan)</string>
     <string name="desc_data_grading">Input Data Grading</string>
 
     <string name="alert_login_username_field_empty">Username Tidak Boleh Kosong!</string>
@@ -69,6 +73,7 @@
     <string name="field_wilayah">Wilayah</string>
     <string name="field_estate">Estate</string>
     <string name="field_afdeling">Afdeling</string>
+    <string name="field_master_tph_estate">Download Data Estate Asistensi</string>
     <string name="field_tahun_tanam">Tahun Tanam</string>
     <string name="field_blok">Blok</string>
     <string name="field_ancak">Ancak</string>
@@ -110,6 +115,8 @@
     <string name="fetching_dataset">Sedang mengambil dataset</string>
     <string name="ganti_akun">Ganti Akun?</string>
     <string name="daftar_tph_sudah_terangkut">Informasi TPH Sudah Terangkut</string>
+    <string name="al_must_checked_master_estate">Centang pilihan estate diatas!</string>
+    <string name="al_validation_qr_krani_scan">Data blok tidak tervalidasi dalam database. Pastikan QR Code yang dipindai merupakan QR Code dari Kerani panen estate yang sesuai.</string>
 
     <string-array name="tipe_panen_options">
         <item>Normal</item>

@@ -64,22 +64,15 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     private val _activeESPBByIds = MutableLiveData<List<ESPBEntity>>()
     val activeESPBByIds: LiveData<List<ESPBEntity>> = _activeESPBByIds
 
-
-    fun updateUploadStatus(itemId: Int, status: String, endpoint: String, errorMsg: String? = null) {
+    fun updateStatusUploadEspb(ids: List<Int>, status: Int) {
         viewModelScope.launch {
-            val statusEndpointMap = _uploadStatusEndpointMap.value?.toMutableMap() ?: mutableMapOf()
-            val errorMap = _uploadErrorMap.value?.toMutableMap() ?: mutableMapOf()
-
-            // Update status
-            statusEndpointMap[itemId] = UploadItemInfo(status, endpoint)
-
-            // Add error message if provided
-            if (!errorMsg.isNullOrEmpty()) {
-                errorMap[itemId] = errorMsg
+            try {
+                repository.updateStatusUploadEspb(ids, status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+                AppLogger.e("Error updating ESPB status_upload: ${e.message}")
             }
-
-            _uploadStatusEndpointMap.postValue(statusEndpointMap)
-            _uploadErrorMap.postValue(errorMap)
         }
     }
 
@@ -159,9 +152,22 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         return repository.getPemuatByIdList(idPemuat)
     }
 
-    suspend fun coundESPBUploaded(): Int {
-        val count = repository.coundESPBUploaded()
-        return count
+
+    private val _tphData = MutableLiveData<TPHNewModel?>()
+    val tphData: LiveData<TPHNewModel?> = _tphData
+
+
+    // Function to fetch TPH data by block ID
+    fun fetchTPHByBlockId(blockId: Int) {
+        viewModelScope.launch {
+            repository.getTPHByBlockId(blockId)
+                .onSuccess { tph ->
+                    _tphData.postValue(tph)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load TPH data")
+                }
+        }
     }
 
 

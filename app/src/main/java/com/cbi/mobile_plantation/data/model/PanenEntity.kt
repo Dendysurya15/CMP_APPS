@@ -13,6 +13,7 @@ data class PanenEntity(
     val karyawan_id: String,
     val kemandoran_id: String,
     val karyawan_nik: String,
+    val karyawan_nama: String,
     val jjg_json: String,
     val foto: String,
     val komentar:  String,
@@ -25,12 +26,13 @@ data class PanenEntity(
     val archive: Int=0,
     val status_banjir: Int=0,
     val status_espb: Int=0, // 0 = belum jadi espb , 1 = sudah jadi espb , 2 = espb sudah sampai pabrik
-//    val status_scan_mpanen: Int=0, //0 = belum scan , 1 = sudah scan //
+    //    val status_scan_mpanen: Int=0, //0 = belum scan , 1 = sudah scan //
     val status_restan: Int=0,
     val scan_status: Int=0,
     val dataIsZipped: Int = 0,
     val no_espb: String = "NULL",
     val username: String = "NULL",
+    val status_upload: Int = 0,
     val status_pengangkutan: Int = 0, //1 diangkut unit, 0 belum diangkut, 2 status angkut manual
     val status_insert_mpanen: Int = 0,
     val status_scan_mpanen: Int = 0,

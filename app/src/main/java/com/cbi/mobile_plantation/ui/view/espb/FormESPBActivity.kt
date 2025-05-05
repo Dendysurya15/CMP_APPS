@@ -2,8 +2,10 @@ package com.cbi.mobile_plantation.ui.view.espb
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -11,6 +13,7 @@ import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -18,15 +21,18 @@ import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.view.Window
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -36,6 +42,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -69,9 +76,12 @@ import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.ScreenshotUtil
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
+import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.gson.Gson
@@ -136,6 +146,8 @@ class FormESPBActivity : AppCompatActivity() {
     private var kemandoran_id = "NULL"
     private var pemuat_nik = "NULL"
     private var tph1NoIdPanen = ""
+    private lateinit var warningText: TextView
+    private lateinit var warningCard: CardView
 
 
     private var prefManager: PrefManager? = null
@@ -156,7 +168,23 @@ class FormESPBActivity : AppCompatActivity() {
         checkDateTimeSettings()
     }
 
+    private fun setupWarningCard() {
+        warningCard = findViewById(R.id.warning_card)
+        warningText = warningCard.findViewById(R.id.warningText)
+        updateWarningText()
+        warningCard.findViewById<ImageButton>(R.id.btnCloseWarning).setOnClickListener {
+            warningCard.visibility = View.GONE
+        }
+    }
+
+    private fun updateWarningText() {
+        warningText.text = "Peringatan, pastikan semua form sudah terisi dengan benar!\n" +
+                "Jika QR Code sudah tampil, maka anda harus melakukan Scan QR Code dan konfirmasi scan dengan menekan tombol!"
+        warningText.setTextColor(ContextCompat.getColor(this, R.color.black))
+    }
+
     private fun setupUI() {
+        setupWarningCard()
         findViewById<ConstraintLayout>(R.id.headerFormESPB).findViewById<ImageView>(R.id.statusLocation)
             .apply {
                 visibility = View.GONE
@@ -167,7 +195,7 @@ class FormESPBActivity : AppCompatActivity() {
                     this@FormESPBActivity,
                     "KEMBALI",
                     "Kembali ke Menu utama?",
-                    "Data scan sebelumnya akan terhapus",
+                    "Data scan sebelumnya akan terhapus dan dapat diisi ulang kembali",
                     "warning.json",
                     function = {
                         startActivity(
@@ -208,9 +236,10 @@ class FormESPBActivity : AppCompatActivity() {
         }
 
 
-        AppLogger.d(tph1.toString())
+        AppLogger.d("tph1 $tph1")
         try {
             ///tph1IdPanen is sometin like 1,23,4,5,2,3
+            AppLogger.d("tph_1_id_panen ${intent.getStringExtra("tph_1_id_panen")}")
             tph1IdPanen = intent.getStringExtra("tph_1_id_panen").toString()
             // Split the string by comma to get individual IDs
             val idStrings = tph1IdPanen.split(",")
@@ -231,6 +260,8 @@ class FormESPBActivity : AppCompatActivity() {
         }
         try {
             ///tph1IdPanen is sometin like 1,23,4,5,2,3
+
+            AppLogger.d("tph_normal ${intent.getStringExtra("tph_normal")}")
             tph1NoIdPanen = intent.getStringExtra("tph_normal").toString()
             // Split the string by comma to get individual IDs
             val idStrings = tph1NoIdPanen.split(",")
@@ -527,8 +558,13 @@ class FormESPBActivity : AppCompatActivity() {
             }
         }
 
+
         val btnGenerateQRESPB = findViewById<FloatingActionButton>(R.id.btnGenerateQRESPB)
         btnGenerateQRESPB.setOnClickListener {
+            btnGenerateQRESPB.isEnabled = false
+            btnGenerateQRESPB.backgroundTintList =
+                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.graytextdark))
+
 
             Log.d("FormESPBActivity", "Generate QR clicked, selectedNopol = $selectedNopol")
 
@@ -544,6 +580,7 @@ class FormESPBActivity : AppCompatActivity() {
                 Log.e("FormESPBActivity", "Nopol validation failed: '$selectedNopol'")
                 Log.e("FormESPBActivity", "Available nopols: ${nopolList.map { it.no_kendaraan }}")
 
+                enableButtonAndSpinners()
                 return@setOnClickListener
             }
 
@@ -552,7 +589,8 @@ class FormESPBActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Toasty.error(this, "Terjadi Kesalahan saat mengambil Driver $e", Toasty.LENGTH_LONG)
                     .show()
-                "NULL"
+                enableButtonAndSpinners()  // Re-enable if there's an error
+                return@setOnClickListener
             }
 
             val espbDate: String = try {
@@ -563,7 +601,8 @@ class FormESPBActivity : AppCompatActivity() {
                     "Terjadi Kesalahan saat mengambil Tanggal ESPB $e",
                     Toasty.LENGTH_LONG
                 ).show()
-                "NULL"
+                enableButtonAndSpinners()
+                return@setOnClickListener
             }
 
             val appVersion: String = try {
@@ -606,21 +645,22 @@ class FormESPBActivity : AppCompatActivity() {
                     "Terjadi Kesalahan saat mengambil Janjang Blok $e",
                     Toasty.LENGTH_LONG
                 ).show()
-                "NULL"
+                enableButtonAndSpinners()  // Re-enable if there's an error
+                return@setOnClickListener
             }
 
             AppLogger.d("blok jjg $blok_jjg")
             val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
             AppLogger.d(selectedPemanen.toString())
 
-// Get a map of names to counts to determine which names have duplicates
+            // Get a map of names to counts to determine which names have duplicates
             val workerNameCounts = mutableMapOf<String, Int>()
             selectedPemanen.forEach { worker ->
                 val baseName = worker.name.substringBefore(" - ").trim()
                 workerNameCounts[baseName] = (workerNameCounts[baseName] ?: 0) + 1
             }
 
-// For worker ID lookup, handle both duplicate and non-duplicate cases
+            // For worker ID lookup, handle both duplicate and non-duplicate cases
             val idKaryawanList = selectedPemanen.mapNotNull { worker ->
                 val baseName = worker.name.substringBefore(" - ").trim()
 
@@ -670,8 +710,10 @@ class FormESPBActivity : AppCompatActivity() {
 
                     val job = lifecycleScope.async(Dispatchers.IO) {
                         try {
-                            val result = weightBridgeViewModel.getPemuatByIdList(idKaryawanStringList)
-                            result?.mapNotNull { "${it.nama} - ${it.nik}" }?.takeIf { it.isNotEmpty() }
+                            val result =
+                                weightBridgeViewModel.getPemuatByIdList(idKaryawanStringList)
+                            result?.mapNotNull { "${it.nama} - ${it.nik}" }
+                                ?.takeIf { it.isNotEmpty() }
                                 ?.joinToString(", ") ?: "-"
                         } catch (e: Exception) {
                             AppLogger.e("Gagal mendapatkan data pemuat: ${e.message}")
@@ -696,10 +738,7 @@ class FormESPBActivity : AppCompatActivity() {
                 }
             }
 
-
-            AppLogger.d(tph1)
             val blokDisplay = getFormattedBlokDisplay(tph1)
-
             AppLogger.d(blokDisplay)
 
             if (selectedNopol == "NULL" || selectedNopol == "") {
@@ -708,11 +747,13 @@ class FormESPBActivity : AppCompatActivity() {
                     "Mohon lengkapi data No Polisi terlebih dahulu",
                     Toasty.LENGTH_LONG
                 ).show()
+                enableButtonAndSpinners()  // Re-enable if validation fails
                 return@setOnClickListener
             }
             if (driver == "NULL" || driver == "") {
                 Toasty.error(this, "Mohon lengkapi data Driver terlebih dahulu", Toasty.LENGTH_LONG)
                     .show()
+                enableButtonAndSpinners()  // Re-enable if validation fails
                 return@setOnClickListener
             }
             if (selectedTransporterId == 0 && !cbFormEspbTransporter.isChecked) {
@@ -721,14 +762,20 @@ class FormESPBActivity : AppCompatActivity() {
                     "Mohon lengkapi data Transporter terlebih dahulu",
                     Toasty.LENGTH_LONG
                 ).show()
+                enableButtonAndSpinners()  // Re-enable if validation fails
                 return@setOnClickListener
             }
             if (selectedMillId == 0) {
                 Toasty.error(this, "Mohon lengkapi data Mill terlebih dahulu", Toasty.LENGTH_LONG)
                     .show()
+                enableButtonAndSpinners()  // Re-enable if validation fails
                 return@setOnClickListener
             }
+
             val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
+
+            val btnPreviewFullQR: MaterialButton = findViewById(R.id.btnPreviewFullQR)
+
             AlertDialogUtility.Companion.withTwoActions(
                 this,
                 "SIMPAN",
@@ -736,7 +783,40 @@ class FormESPBActivity : AppCompatActivity() {
                 "Pastikan seluruh data sudah valid!",
                 "warning.json",
                 function = {
-
+                    btnPreviewFullQR.visibility = View.VISIBLE
+                    btnPreviewFullQR.setOnClickListener {
+                        showQrCodeFullScreen(qrCodeImageView.drawable)
+                    }
+                    disableAllSpinners()
+                    val statusDraft = if (mekanisasi == 0) {
+                        1
+                    } else {
+                        0
+                    }
+                    takeQRCodeScreenshot(
+                        qrCodeImageView,
+                        pemuatNama,
+                        driver,
+                        blokDisplay
+                    )
+                    saveESPB(
+                        blok_jjg = blok_jjg,
+                        nopol = selectedNopol,
+                        driver = driver,
+                        pemuat_id = uniqueIdKaryawan,
+                        transporter_id = transporter_id,
+                        mill_id = selectedMillId!!,
+                        created_by_id = idPetugas!!,
+                        creator_info = creatorInfo.toString(),
+                        noESPB = noESPBStr,
+                        created_at = getCurrentDateTime(),
+                        tph0 = "",
+                        tph1 = tph1,
+                        status_draft = statusDraft,
+                        status_mekanisasi = mekanisasi,
+                        pemuat_nik = uniqueNikPemanen,
+                        kemandoran_id = uniqueKemandoranId
+                    )
                     val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
                     btKonfirmScanESPB.visibility = View.VISIBLE
                     btKonfirmScanESPB.setOnClickListener {
@@ -751,36 +831,16 @@ class FormESPBActivity : AppCompatActivity() {
                                 R.color.bluedarklight
                             ),
                             function = {
-                                val statusDraft = if (mekanisasi == 0) {
-                                    1
-                                } else {
-                                    0
-                                }
-                                takeQRCodeScreenshot(qrCodeImageView, pemuatNama, driver, blokDisplay)
-                                saveESPB(
-                                    blok_jjg = blok_jjg,
-                                    nopol = selectedNopol,
-                                    driver = driver,
-                                    pemuat_id = uniqueIdKaryawan,
-                                    transporter_id = transporter_id,
-                                    mill_id = selectedMillId!!,
-                                    created_by_id = idPetugas!!,
-                                    creator_info = creatorInfo.toString(),
-                                    noESPB = noESPBStr,
-                                    created_at = getCurrentDateTime(),
-                                    tph0 = "",
-                                    tph1 = tph1,
-                                    status_draft = statusDraft,
-                                    status_mekanisasi = mekanisasi,
-                                    pemuat_nik = uniqueNikPemanen,
-                                    kemandoran_id = uniqueKemandoranId
-                                )
+                                playSound(R.raw.berhasil_konfirmasi)
+                                showSuccessAndNavigate()
+
                             },
                             cancelFunction = {
+                                // Don't re-enable since we're still in the outer dialog
                             }
                         )
-
                     }
+
                     if (mekanisasi == 0) {
                         val json = constructESPBJson(
                             blok_jjg = blok_jjg,
@@ -808,14 +868,12 @@ class FormESPBActivity : AppCompatActivity() {
                         )
                         setMaxBrightness(this, true)
                         playSound(R.raw.berhasil_generate_qr)
-//                        btKonfirmScanESPB.isEnabled = true
-
-
+                        // Button remains disabled after QR generation
                     }
-//                    btnGenerateQRESPB.isEnabled = true
                 },
                 cancelFunction = {
-//                    btnGenerateQRESPB.isEnabled = true
+                    // Re-enable the button if the user cancels the operation
+                    enableButtonAndSpinners()
                 }
             )
         }
@@ -853,6 +911,119 @@ class FormESPBActivity : AppCompatActivity() {
 //        }
     }
 
+    private fun disableAllSpinners() {
+        // Disable all spinners
+        disableSpinner(R.id.formEspbNopol)
+        disableSpinner(R.id.formEspbMill)
+        disableSpinner(R.id.formEspbKemandoran)
+        disableSpinner(R.id.formEspbAfdeling)
+        disableSpinner(R.id.formEspbTransporter)
+        disableSpinner(R.id.formEspbPemuat)
+
+        // Also disable the driver input field
+        val formEspbDriver = findViewById<LinearLayout>(R.id.formEspbDriver)
+        val etEspbDriver = formEspbDriver.findViewById<EditText>(R.id.etPaneEt)
+        etEspbDriver.isEnabled = false
+        etEspbDriver.alpha = 0.5f
+
+        val cbFormEspbTransporter = findViewById<MaterialCheckBox>(R.id.cbFormEspbTransporter)
+        cbFormEspbTransporter.isEnabled = false
+        cbFormEspbTransporter.alpha = 0.5f
+
+        disableRecyclerViewItems(rvSelectedPemanen)
+    }
+
+
+    private fun disableRecyclerViewItems(recyclerView: RecyclerView) {
+        // First, make the RecyclerView non-interactive
+        recyclerView.alpha = 0.8f
+
+        // Loop through all visible child views to disable remove buttons
+        for (i in 0 until recyclerView.childCount) {
+            val itemView = recyclerView.getChildAt(i)
+
+            // Find and disable the remove button in each item
+            val removeButton = itemView.findViewById<ImageView>(R.id.remove_worker)
+            removeButton?.let {
+                it.isEnabled = false
+                it.alpha = 0.5f
+
+                // Prevent click events by setting a dummy listener that does nothing
+                it.setOnClickListener(null)
+            }
+        }
+
+        // Store original OnItemTouchListener(s) and replace with one that blocks interactions
+        // We'll re-enable interactions in enableRecyclerViewItems
+        recyclerView.addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
+            override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
+                // Intercept all touch events to prevent interactions
+                return true
+            }
+
+            override fun onTouchEvent(rv: RecyclerView, e: MotionEvent) {
+                // Do nothing with the touch events
+            }
+
+            override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
+                // No implementation needed
+            }
+        })
+    }
+
+    /**
+     * Enables the button and all spinners
+     */
+    private fun enableButtonAndSpinners() {
+        // Re-enable the button with original color
+        val btnGenerateQRESPB = findViewById<FloatingActionButton>(R.id.btnGenerateQRESPB)
+        btnGenerateQRESPB.isEnabled = true
+        btnGenerateQRESPB.backgroundTintList =
+            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.greendarkerbutton))
+
+        // Re-enable all spinners
+        enableSpinner(R.id.formEspbNopol)
+        enableSpinner(R.id.formEspbMill)
+        enableSpinner(R.id.formEspbKemandoran)
+        enableSpinner(R.id.formEspbAfdeling)
+        enableSpinner(R.id.formEspbTransporter)
+        enableSpinner(R.id.formEspbPemuat)
+
+        // Re-enable the driver input field
+        val formEspbDriver = findViewById<LinearLayout>(R.id.formEspbDriver)
+        val etEspbDriver = formEspbDriver.findViewById<EditText>(R.id.etPaneEt)
+        etEspbDriver.isEnabled = true
+        etEspbDriver.alpha = 1.0f
+    }
+
+    /**
+     * Disables a specific spinner
+     */
+    private fun disableSpinner(spinnerId: Int) {
+        val spinnerLayout = findViewById<LinearLayout>(spinnerId)
+        val spinner = spinnerLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+        spinner.isEnabled = false
+        spinner.alpha = 0.5f // Reduce opacity to visually indicate disabled state
+
+        // Also disable the TextView title for a consistent look
+        val tvTitle = spinnerLayout.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
+        tvTitle.alpha = 0.5f
+    }
+
+    /**
+     * Enables a specific spinner
+     */
+    private fun enableSpinner(spinnerId: Int) {
+        val spinnerLayout = findViewById<LinearLayout>(spinnerId)
+        val spinner = spinnerLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+        spinner.isEnabled = true
+        spinner.alpha = 1.0f // Restore full opacity
+
+        // Also restore the TextView title
+        val tvTitle = spinnerLayout.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
+        tvTitle.alpha = 1.0f
+    }
+
     private fun setupViewModel() {
         val repository = AppRepository(this) // Get millDao from your database
         viewModelFactory = ESPBViewModelFactory(repository)
@@ -870,12 +1041,18 @@ class FormESPBActivity : AppCompatActivity() {
         weightBridgeViewModel = ViewModelProvider(this, factory2)[WeighBridgeViewModel::class.java]
     }
 
-    private fun takeQRCodeScreenshot(sourceQrImageView: ImageView, pemuatNama :String, driver:String, blokDisplay:String) {
+    private fun takeQRCodeScreenshot(
+        sourceQrImageView: ImageView,
+        pemuatNama: String,
+        driver: String,
+        blokDisplay: String
+    ) {
 
         lifecycleScope.launch {
             try {
                 // Inflate custom screenshot layout
-                val screenshotLayout = layoutInflater.inflate(R.layout.layout_screenshot_qr_mandor, null)
+                val screenshotLayout =
+                    layoutInflater.inflate(R.layout.layout_screenshot_qr_mandor, null)
 
                 // Get references to views in the custom layout
                 val tvUserName = screenshotLayout.findViewById<TextView>(R.id.tvUserName)
@@ -885,7 +1062,8 @@ class FormESPBActivity : AppCompatActivity() {
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
-                val infoTotalTransaksi = screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+                val infoTotalTransaksi =
+                    screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
                 val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
                 val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
                 val infoNopol = screenshotLayout.findViewById<View>(R.id.infoNopol)
@@ -960,7 +1138,7 @@ class FormESPBActivity : AppCompatActivity() {
                 val formattedTime = timeFormat.format(currentDate)
 
                 // Set data for eSPB
-                tvUserName.text = "Hasil QR dari ${prefManager!!.nameUserLogin}"
+                tvUserName.text = "Hasil QR dari ${prefManager!!.jabatanUserLogin}"
                 setInfoData(infoBlokList, "Blok", ": $blokDisplay")
                 setInfoData(infoTotalJjg, "Total Janjang", ": $totalJjg")
                 setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": $tphCount")
@@ -970,7 +1148,8 @@ class FormESPBActivity : AppCompatActivity() {
                 setInfoData(infoPemuat, "Pemuat", ": $pemuatNama")
 
 
-                tvFooter.text = "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
+                tvFooter.text =
+                    "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
 
                 // Measure and layout the screenshot view
                 val displayMetrics = resources.displayMetrics
@@ -997,7 +1176,12 @@ class FormESPBActivity : AppCompatActivity() {
                 )
 
                 if (screenshotFile != null) {
-                    Toasty.success(this@FormESPBActivity, "QR sudah tersimpan digaleri", Toast.LENGTH_LONG, true).show()
+                    Toasty.success(
+                        this@FormESPBActivity,
+                        "QR sudah tersimpan digaleri",
+                        Toast.LENGTH_LONG,
+                        true
+                    ).show()
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error taking QR screenshot: ${e.message}")
@@ -1009,6 +1193,85 @@ class FormESPBActivity : AppCompatActivity() {
                     ).show()
                 }
             }
+        }
+    }
+
+    /**
+     * Shows the QR code in fullscreen mode without relying on a bottom sheet
+     */
+    private fun showQrCodeFullScreen(qrDrawable: Drawable?) {
+        if (qrDrawable == null) return
+
+        // Create a dialog to display the QR code
+        val dialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+
+        // Make dialog dismissible with back button
+        dialog.setCancelable(true)
+
+        // Inflate the camera_edit layout
+        val fullscreenView = layoutInflater.inflate(R.layout.camera_edit, null)
+        dialog.setContentView(fullscreenView)
+
+        // Find views within the dialog layout
+        val fotoLayout = fullscreenView.findViewById<ConstraintLayout>(R.id.clZoomLayout)
+        val photoView = fullscreenView.findViewById<PhotoView>(R.id.fotoZoom)
+        val closeZoomCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardCloseZoom)
+        val changePhotoCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardChangePhoto)
+        val deletePhotoCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
+
+        // Find the TextView and ImageView for color changes
+        val tvCardCloseButton = fullscreenView.findViewById<TextView>(R.id.tvCardCloseButton)
+        val closeZoomIcon = fullscreenView.findViewById<ImageView>(R.id.closeZoom)
+
+        // Set the image to the PhotoView
+        photoView.setImageDrawable(qrDrawable)
+
+        // Hide edit options
+        changePhotoCard.visibility = View.GONE
+        deletePhotoCard.visibility = View.GONE
+
+        // Set background color of the layout to white
+        fotoLayout.setBackgroundColor(ContextCompat.getColor(this, R.color.white))
+
+        // Set close button background color to green
+        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(this, R.color.greenDarker))
+
+        // Change the text color to white
+        tvCardCloseButton.setTextColor(ContextCompat.getColor(this, R.color.white))
+
+        // Change the close icon tint to white
+        closeZoomIcon.setColorFilter(ContextCompat.getColor(this, R.color.white))
+
+        // Set up close button
+        closeZoomCard.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        // Make dialog display properly
+        dialog.window?.apply {
+            // Set window background to white
+            setBackgroundDrawable(ColorDrawable(ContextCompat.getColor(this@FormESPBActivity, R.color.white)))
+            setDimAmount(0f) // Remove dimming since we have a white background
+
+            // Set fullscreen and proper layout
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+
+            // This helps ensure it appears on top
+            setGravity(Gravity.CENTER)
+
+            // Set maximum brightness for better QR code scanning
+            attributes.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
+        }
+
+        dialog.show()
+
+        // Set phone to maximum brightness for better QR visibility
+        setMaxBrightness(this, true)
+
+        // When dialog is dismissed, restore original brightness
+        dialog.setOnDismissListener {
+            setMaxBrightness(this, false)
         }
     }
 
@@ -1605,6 +1868,7 @@ class FormESPBActivity : AppCompatActivity() {
 
         return formattedBlokDisplay
     }
+
     class ESPBViewModelFactory(private val repository: AppRepository) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(ESPBViewModel::class.java)) {
@@ -1713,11 +1977,10 @@ class FormESPBActivity : AppCompatActivity() {
                     // Log successful operation
                     AppLogger.i("ESPB saved successfully with ID: $espbId")
 
-                    // Update UI on main thread
-                    withContext(Dispatchers.Main) {
-                        playSound(R.raw.berhasil_konfirmasi)
-                        showSuccessAndNavigate()
-                    }
+//                    // Update UI on main thread
+//                    withContext(Dispatchers.Main) {
+//
+//                    }
                 } else {
                     withContext(Dispatchers.Main) {
                         Toasty.error(

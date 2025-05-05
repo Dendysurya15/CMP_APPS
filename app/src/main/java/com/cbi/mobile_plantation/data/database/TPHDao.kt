@@ -7,6 +7,14 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.repository.DatasetRepository
+import com.cbi.mobile_plantation.utils.AppLogger
+
+
+data class DepartmentInfo(
+    val dept: String,
+    val dept_abbr: String
+)
 
 
 data class TPHBlokInfo(
@@ -27,14 +35,53 @@ abstract class TPHDao {
     @Query("DELETE FROM tph")
     abstract fun deleteAll()
 
+    // New method to delete TPH records by department ID
+    @Query("DELETE FROM tph WHERE dept = :deptId")
+    abstract suspend fun deleteByDept(deptId: Int)
+
+    // New method to check if records for a specific department exist
+    @Query("SELECT COUNT(*) FROM tph WHERE dept = :deptId")
+    abstract suspend fun getCountByDept(deptId: Int): Int
+
+    // The update transaction now checks for department ID
     @Transaction
     open suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) {
-        val count = getCount()
-        if (count > 0) {
-            deleteAll()
+        AppLogger.d("TPH Transaction - Starting update with ${tph.size} records")
+
+        if (tph.isNotEmpty()) {
+            val deptId = tph.firstOrNull()?.dept
+            val deptAbbr = tph.firstOrNull()?.dept_abbr
+
+
+            if (deptId != null) {
+                val count = getCountByDept(deptId)
+                if (count > 0) {
+                    val deletedCount = deleteByDept(deptId)
+                }
+            } else {
+                AppLogger.d("TPH Transaction - WARNING: Department ID is null, cannot perform targeted delete")
+            }
+
+
+            insertAll(tph)
+
+
+            if (deptId != null) {
+                val newCount = getCountByDept(deptId)
+                AppLogger.d("TPH Transaction - After insertion: $newCount records for Dept ID: $deptId")
+            }
+
+
+        } else {
+            AppLogger.d("TPH Transaction - Empty TPH list, nothing to update")
         }
-        insertAll(tph)
     }
+
+    @Query("SELECT * FROM tph WHERE blok = :blockId LIMIT 1")
+    abstract suspend fun getTPHByBlockId(blockId: Int): TPHNewModel?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertTPHAsistensi(tph: List<TPHNewModel>)
 
     @Query("SELECT * FROM tph WHERE dept = :idEstate GROUP BY divisi")
     abstract fun getDivisiByCriteria(idEstate: Int): List<TPHNewModel>
@@ -59,6 +106,9 @@ abstract class TPHDao {
     WHERE id = :id
 """)
     abstract suspend fun getTPHAndBlokInfo(id: Int): TPHBlokInfo?
+
+    @Query("SELECT DISTINCT dept, dept_abbr FROM tph WHERE dept IS NOT NULL AND dept_abbr IS NOT NULL")
+    abstract suspend fun getDistinctDeptInfo(): List<DepartmentInfo>
 
     @Query(
         """

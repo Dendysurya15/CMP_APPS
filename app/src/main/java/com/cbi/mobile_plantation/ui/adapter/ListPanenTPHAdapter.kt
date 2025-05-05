@@ -52,6 +52,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         TIME,
         CHECKED
     }
+    private val manuallyDeselectedItems = mutableSetOf<Int>()
     private val checkedBlocksDetails = mutableMapOf<String, Pair<Int, Int>>() // Map of blokName to (totalJJG, count)
     private var currentSortField: SortField = SortField.TPH
     private var tphList = mutableListOf<Map<String, Any>>()
@@ -700,6 +701,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
 
             if (archiveState == 1 || featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") {
+                if(binding.flCheckBoxItemTph.visibility  == View.GONE){
+                    binding.flCheckBoxItemTph.visibility = View.VISIBLE
+                }
                 binding.checkBoxPanen.visibility = View.GONE
                 binding.numListTerupload.visibility = View.VISIBLE
                 binding.numListTerupload.text = "${adapterPosition + 1}."
@@ -730,6 +734,23 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 // Add listener AFTER setting state
                 binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
                     onCheckedChange(isChecked)
+                }
+
+                if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState ==3 ){
+                    if (binding.checkBoxPanen.visibility == View.VISIBLE){
+                        binding.flCheckBoxItemTph.visibility = View.GONE
+                    }
+                }
+                else if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState ==0){
+                    if (binding.flCheckBoxItemTph.visibility == View.GONE){
+                        binding.flCheckBoxItemTph.visibility = View.VISIBLE
+                    }
+                }
+                else if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState ==1){
+                    AppLogger.d("masuk sini gesss")
+                    if (binding.flCheckBoxItemTph.visibility == View.GONE){
+                        binding.flCheckBoxItemTph.visibility = View.VISIBLE
+                    }
                 }
             }
         }
@@ -839,7 +860,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         return result.distinct()
     }
 
-    // Finally update getSelectedItems to include both manually selected AND scanned items
     fun getSelectedItems(): List<Map<String, Any>> {
         val result = mutableListOf<Map<String, Any>>()
 
@@ -848,15 +868,22 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             tphList.getOrNull(position)?.let { result.add(it) }
         }
 
-        // Add all scanned items
-        for (item in tphList) {
-            val tphId = extractData(item).tphId.toString()
-            if (tphListScan.contains(tphId)) {
-                result.add(item)
+
+        AppLogger.d("manuallyDeselectedItems $manuallyDeselectedItems")
+        // Add scanned items ONLY if they haven't been manually deselected
+        for (i in tphList.indices) {
+            if (!manuallyDeselectedItems.contains(i)) {
+                val item = tphList[i]
+                val tphId = extractData(item).tphId.toString()
+                if (tphListScan.contains(tphId) && !selectedItems.contains(i)) {
+                    result.add(item)
+                }
             }
         }
 
-        // Return distinct items to avoid duplicates
+
+        AppLogger.d("tphList: $tphList")
+        AppLogger.d("result: $result")
         return result.distinct()
     }
 
@@ -889,18 +916,16 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     fun clearSelections() {
         selectedItems.clear()
         notifyDataSetChanged()
+        manuallyDeselectedItems.clear()
         calculateTotals() // Add this line
     }
 
-    @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: ListPanenTPHViewHolder, position: Int) {
         val item = filteredList[position]
-
         val tphId = extractData(item).tphId.toString()
         val isScannedItem = tphListScan.contains(tphId)
         val originalPosition = tphList.indexOf(item)
 
-        // Save scanned TPH IDs in our set for quick lookup
         if (isScannedItem) {
             scannedTphIdsSet.add(tphId)
         }
@@ -908,22 +933,23 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         holder.bind(
             data = item,
             context = holder.itemView.context,
-            isSelected = selectedItems.contains(originalPosition) || isScannedItem,
+            isSelected = selectedItems.contains(originalPosition) || (isScannedItem && !manuallyDeselectedItems.contains(originalPosition)),
             archiveState = currentArchiveState,
             onCheckedChange = { isChecked ->
                 val origPos = tphList.indexOf(item)
-                if (!isScannedItem) { // Only modify selection for non-scanned items
-                    if (isChecked) {
-                        selectedItems.add(origPos)
-                    } else {
-                        selectedItems.remove(origPos)
-                        selectAllState = false
+                if (isChecked) {
+                    selectedItems.add(origPos)
+                    manuallyDeselectedItems.remove(origPos) // Remove from deselected if checked
+                } else {
+                    selectedItems.remove(origPos)
+                    if (isScannedItem) {
+                        // Track manually deselected scanned items
+                        manuallyDeselectedItems.add(origPos)
                     }
-                    onSelectionChangeListener?.invoke(selectedItems.size)
-
-                    // Recalculate totals when selection changes
-                    calculateTotals()
+                    selectAllState = false
                 }
+                onSelectionChangeListener?.invoke(selectedItems.size)
+                calculateTotals()
             },
             extractData = ::extractData,
             featureName = featureName,
@@ -998,6 +1024,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         selectAllState = false
         isSortAscending = null
         tphList.addAll(newData)
+        manuallyDeselectedItems.clear() // Add this line
         filteredList = tphList.toMutableList()
 
         // Pre-select items that match the scanned TPH IDs

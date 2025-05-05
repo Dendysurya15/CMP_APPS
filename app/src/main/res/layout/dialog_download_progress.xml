@@ -30,7 +30,7 @@
             android:textStyle="bold"
             android:fontFamily="@font/manrope_bold"
             android:layout_gravity="center_vertical"
-            android:textSize="@dimen/l" />
+            android:textSize="@dimen/xl" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/close_progress_bar"
@@ -197,7 +197,7 @@
                 android:visibility="gone"
                 android:layout_marginStart="10dp"
                 android:fontFamily="@font/montserrat_mediumitalic"
-                android:text="Coba kembali"
+                android:text="Coba Kembali"
                 android:textSize="@dimen/m"
                 app:backgroundTint="@color/colorRedDark"
                 app:cornerRadius="10dp"

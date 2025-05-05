@@ -1,11 +1,16 @@
 package com.cbi.mobile_plantation.data.api
 
+import androidx.room.Query
 import com.cbi.mobile_plantation.data.model.LoginResponse
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
+import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
+import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
+import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
 import com.cbi.mobile_plantation.data.model.weighBridge.UploadStagingResponse
 import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -16,6 +21,7 @@ import retrofit2.http.Headers
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.Path
 import retrofit2.http.Streaming
 
 interface ApiService {
@@ -115,16 +121,60 @@ interface ApiService {
     @POST("cmpmain/upload")
     suspend fun uploadZip(
         @Part zipFile: MultipartBody.Part
+    ): Response<UploadWBCMPResponse>
+
+    //for testing
+    @Multipart
+    @POST("cmpmain/uploadv2")
+    suspend fun uploadZipV2(
+        @Part zipFile: MultipartBody.Part,
+        @Part("uuid") uuid: RequestBody,
+        @Part("part") part: RequestBody,
+        @Part("total") total: RequestBody
     ): Response<UploadCMPResponse>
 
+    @Multipart
+    @POST("cmpmain/uploadv3")
+    suspend fun uploadJsonV3(
+        @Part jsonFile: MultipartBody.Part,
+        @Part("filename") filename: RequestBody
+    ): Response<UploadV3Response>
+
+    @POST("org/fetch-estate")
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json"
+    )
+    suspend fun downloadListEstate(@Body body: Map<String, Int>): Response<ResponseBody>
+
+
+//    @FormUrlEncoded
+//    @POST("cmpmain/status")
+//    @Headers(
+//        "Accept: application/json",
+//        "Content-Type: application/x-www-form-urlencoded"
+//    )
+//    suspend fun checkStatusUploadCMP(
+//        @Field("idData") ids: String // Send list as a comma-separated string
+//    ):  Response<ResponseBody>
+//
+//
+//    @GET("cmpmain/upload-status/{trackingId}")
+//    @Headers(
+//        "Accept: application/json"
+//    )
+//    suspend fun checkStatusUploadCMP(
+//        @Path("trackingId") trackingId: String
+//    ): Response<ResponseBody>
+
     @FormUrlEncoded
-    @POST("cmpmain/status")
+    @POST("api/statusv3")
     @Headers(
         "Accept: application/json",
         "Content-Type: application/x-www-form-urlencoded"
     )
     suspend fun checkStatusUploadCMP(
         @Field("idData") ids: String // Send list as a comma-separated string
-    ):  Response<ResponseBody>
+    ):  Response<checkStatusUploadedData>
 
 }

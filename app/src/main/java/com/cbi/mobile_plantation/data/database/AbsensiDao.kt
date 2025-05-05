@@ -19,11 +19,11 @@ abstract class AbsensiDao {
 
 
     @Insert
-    abstract fun insert(espb: AbsensiModel): Long
+    abstract fun insert(absensi: AbsensiModel): Long
 
     //    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
-    @Query("SELECT * FROM absensi WHERE archive = 0 AND date(date_absen) = date('now', 'localtime')")
-    abstract fun getAllDataAbsensi(): List<AbsensiKemandoranRelations>
+    @Query("SELECT * FROM absensi WHERE archive = 0 AND status_scan == :status_scan AND date(date_absen) = date('now', 'localtime')")
+    abstract fun getAllDataAbsensi(status_scan:Int): List<AbsensiKemandoranRelations>
 
     @Delete
     abstract fun deleteAll(espb: List<AbsensiModel>)
@@ -34,8 +34,11 @@ abstract class AbsensiDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertAbsensiData(absensiData: AbsensiModel)
 
-    @Query("SELECT COUNT(*) FROM absensi WHERE archive = 1 AND date(date_absen) = date('now', 'localtime')")
-    abstract suspend fun getCountArchiveAbsensi(): Int
+//    @Insert(onConflict = OnConflictStrategy.REPLACE)
+//    abstract suspend fun insertAbsensiDataLokal(absensiDataLokal: AbsensiModelScan)
+
+    @Query("SELECT COUNT(*) FROM absensi WHERE archive = 1 AND status_scan == :load_status_scan AND date(date_absen) = date('now', 'localtime')")
+    abstract suspend fun getCountArchiveAbsensi(load_status_scan: Int): Int
 
     @Query("SELECT COUNT(*) FROM absensi WHERE archive = 0 AND date(date_absen) = date('now', 'localtime')")
     abstract suspend fun getCountAbsensi(): Int
@@ -67,9 +70,9 @@ abstract class AbsensiDao {
     abstract fun checkIfExists(dateAbsen: String, karyawanMskId: String): Int
 
     @Transaction
-    open suspend fun insertWithTransaction(espb: AbsensiModel): Result<Long> {
+    open suspend fun insertWithTransaction(absensi: AbsensiModel): Result<Long> {
         return try {
-            val id = insert(espb)  // Uses the single entity insert
+            val id = insert(absensi)  // Uses the single entity insert
             Result.success(id)
         } catch (e: Exception) {
             e.printStackTrace()

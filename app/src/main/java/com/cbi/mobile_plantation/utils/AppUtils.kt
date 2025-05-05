@@ -26,6 +26,7 @@ import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.google.gson.Gson
 import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
 import net.lingala.zip4j.model.enums.CompressionMethod
@@ -39,6 +40,7 @@ import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -59,11 +61,16 @@ object AppUtils {
     const val REQUEST_CHECK_SETTINGS = 0x1
     const val MAX_SELECTIONS_PER_TPH = 3
     const val MAX_ALERT_FOR_GENERATE_QR = 60
+    const val max_data_in_zip = 12
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"
-        const val UPLOADING = "Sedang Upload..."
+        const val UPLOADING = "Sedang Upload"
         const val SUCCESS = "Berhasil Upload!"
+        const val DOWNLOADING = "Sedang Mengunduh"
+        const val DOWNLOADED = "Berhasil Mengunduh!"
+        const val UPTODATE = "tidak ada pembaruan yang diperlukan!"
+        const val UPDATED = "berhasil diperbarui"
         const val FAILED = "Gagal Upload!"
     }
 
@@ -156,8 +163,10 @@ object AppUtils {
         const val INSPEKSI_PATH = "inspeksi_path"
         const val ESPB = "espb_table"
         const val ABSENSI = "absensi"
+        const val AFDELING = "afdeling"
         const val MILL = "mill"
         const val TPH = "tph"
+        const val ESTATE = "estate"
         const val KEMANDORAN = "kemandoran"
         const val KARYAWAN = "karyawan"
         const val TRANSPORTER = "transporter"
@@ -181,6 +190,7 @@ object AppUtils {
     object ListFeatureNames {
         const val PanenTBS = "Panen TBS"
         const val RekapHasilPanen = "Rekap Hasil Panen"
+        const val AsistensiEstateLain = "Asistensi Estate Lain"
         const val ScanHasilPanen = "Scan Hasil Panen"
         const val RekapPanenDanRestan = "Rekap panen dan restan"
         const val BuatESPB = "Buat eSPB"
@@ -222,6 +232,7 @@ object AppUtils {
         const val mill = "mill"
         const val tph = "tph"
         const val blok = "blok"
+        const val estate = "estate"
         const val pemanen = "pemanen"
         const val kemandoran = "kemandoran"
         const val transporter = "transporter"
@@ -242,8 +253,153 @@ object AppUtils {
         _selectedDate = date
     }
 
+    // Add this new method to reset the date
+    fun resetSelectedDate() {
+        _selectedDate = null
+    }
+
     fun getAppVersion(context: Context): String {
         return context.getString(R.string.app_version)
+    }
+
+    private fun getCleanVersionNumber(version: String): String {
+        // Use regex to extract just the numeric parts with dots
+        val numericVersion = Regex("""(\d+(\.\d+)*)""").find(version)?.value ?: version
+
+        // Remove dots
+        return numericVersion.replace(".", "")
+    }
+
+    fun clearTempJsonFiles(context: Context) {
+        try {
+            val tempDir = File(context.getExternalFilesDir(null), "TEMP")
+
+            if (tempDir.exists() && tempDir.isDirectory) {
+                tempDir.listFiles()?.forEach { file ->
+                    if (file.isFile && file.extension == "json") {
+                        val deleted = file.delete()
+                        if (deleted) {
+                            AppLogger.d("Deleted JSON file: ${file.name}")
+                        } else {
+                            AppLogger.e("Failed to delete: ${file.name}")
+                        }
+                    }
+                }
+                AppLogger.d("Temp folder cleanup completed")
+            } else {
+                AppLogger.d("Temp directory doesn't exist")
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error cleaning temp folder: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    fun extractIdsFromJsonFile(context: Context, fileName: String): Pair<List<Int>, List<Int>> {
+        val tempDir = File(context.getExternalFilesDir(null), "TEMP")
+        val jsonFile = File(tempDir, fileName)
+
+        if (!jsonFile.exists()) {
+            AppLogger.e("JSON file not found: ${jsonFile.absolutePath}")
+            return Pair(emptyList(), emptyList())
+        }
+
+        try {
+            val jsonContent = jsonFile.readText()
+            val jsonObject = JSONObject(jsonContent)
+
+            val panenIds = mutableListOf<Int>()
+            val espbIds = mutableListOf<Int>() // If you have ESPB data in your JSON
+
+            // Extract PANEN IDs
+            if (jsonObject.has("panen_table")) {
+                val panenArray = jsonObject.getJSONArray("panen_table")
+                for (i in 0 until panenArray.length()) {
+                    val panenItem = panenArray.getJSONObject(i)
+                    panenItem.optInt("id", -1).let { id ->
+                        if (id != -1) panenIds.add(id)
+                    }
+                }
+            }
+
+            // Extract ESPB IDs if they exist
+            if (jsonObject.has("espb_table")) {
+                val espbArray = jsonObject.getJSONArray("espb_table")
+                for (i in 0 until espbArray.length()) {
+                    val espbItem = espbArray.getJSONObject(i)
+                    espbItem.optInt("id", -1).let { id ->
+                        if (id != -1) espbIds.add(id)
+                    }
+                }
+            }
+
+            AppLogger.d("Extracted from JSON: PANEN IDs: ${panenIds.size}, ESPB IDs: ${espbIds.size}")
+            return Pair(panenIds, espbIds)
+
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing JSON file ${fileName}: ${e.message}")
+            e.printStackTrace()
+            return Pair(emptyList(), emptyList())
+        }
+    }
+
+    fun createTempJsonFile(
+        context: Context,
+        baseFilename: String,
+        jsonData: String,
+        userId: String,
+        dataDate: String? = null
+    ): Pair<String, String> {
+        try {
+            // Create a TEMP directory in external files storage
+            val tempDir = File(context.getExternalFilesDir(null), "TEMP").apply {
+                if (!exists()) mkdirs()
+            }
+
+            val appVersion = getCleanVersionNumber(getAppVersion(context))
+
+            // Use provided date as is, or use current date if not available
+            var dateForFilename = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
+
+            // Try to parse and use the provided date if available
+            if (!dataDate.isNullOrEmpty()) {
+                try {
+                    // Attempt to parse the data date - assuming format "yyyy-MM-dd HH:mm:ss"
+                    val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    val outputFormat = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+                    val date = inputFormat.parse(dataDate)
+                    if (date != null) {
+                        dateForFilename = outputFormat.format(date)
+                    }
+                } catch (e: Exception) {
+                    AppLogger.d("Could not parse data date: $dataDate, using current date instead")
+                }
+            }
+            val currentTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
+
+            val filename = "v${appVersion}_${userId}_${currentTime}.json"
+            val tempFile = File(tempDir, filename)
+
+            // Parse the JSON data
+            val gson = Gson()
+            val dataArray = gson.fromJson(jsonData, JsonArray::class.java)
+
+            // Create a wrapper object with the baseFilename as the key
+            val wrapper = JsonObject()
+            wrapper.add(baseFilename, dataArray)
+
+            // Write the properly structured JSON data to the file
+            FileOutputStream(tempFile).use { fos ->
+                fos.write(gson.toJson(wrapper).toByteArray())
+            }
+
+            AppLogger.d("Created temp JSON file: ${tempFile.absolutePath}")
+            return Pair(tempFile.absolutePath, filename)
+        } catch (e: Exception) {
+            AppLogger.e("Error creating temp JSON file: ${e.message}")
+            e.printStackTrace()
+            throw e
+        }
     }
 
     fun checkUploadZipReadyToday(idUser: String, context: Context): List<File> {
@@ -379,7 +535,20 @@ object AppUtils {
         context: Context,
         featureDataList: List<Pair<String, List<Map<String, Any>>>>,
         userId: String,
-        onResult: (Boolean, String, String) -> Unit // Callback returns full path
+        onResult: (Boolean, String, String) -> Unit // Original callback
+    ) {
+        // Call the new implementation with a wrapper that ignores the List<File> parameter
+        createAndSaveZipUploadCMPImpl(context, featureDataList, userId) { success, fileName, fullPath, _ ->
+            // Only pass the first three parameters to the original callback
+            onResult(success, fileName, fullPath)
+        }
+    }
+
+    fun createAndSaveZipUploadCMPSingle(
+        context: Context,
+        featureDataList: List<Pair<String, List<Map<String, Any>>>>,
+        userId: String,
+        onResult: (Boolean, String, String, File) -> Unit // Note: Changed to return a single File
     ) {
         try {
             val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
@@ -394,7 +563,8 @@ object AppUtils {
                 File(context.getExternalFilesDir(null)?.parent ?: "", "Pictures")
             ).filterNotNull()
 
-            val zipFileName = "${userId}_$dateTime.zip"
+            // Simple filename format without chunking
+            val zipFileName = "${userId}_${dateTime}.zip"
             val zipFile = File(appFilesDir, zipFileName)
 
             val zip = ZipFile(zipFile)
@@ -406,64 +576,157 @@ object AppUtils {
                 encryptionMethod = EncryptionMethod.ZIP_STANDARD
             }
 
+            // Process each feature and its data
             featureDataList.forEach { (featureKey, dataList) ->
-                // Add JSON data
+                // Add JSON data for this feature
                 val jsonString = convertDataToJsonString(dataList)
                 val jsonBytes = jsonString.toByteArray()
 
                 val inputStream = ByteArrayInputStream(jsonBytes)
                 zip.addStream(
                     inputStream,
-                    zipParams.apply { fileNameInZip = "$featureKey/data.json" })
+                    zipParams.apply { fileNameInZip = "$featureKey/data.json" }
+                )
 
-                // Add photos for this feature
+                // Add photos for this feature's data
                 addFeaturePhotosToZip(context, dataList, featureKey, picturesDirs, zip, zipParams)
             }
 
-            onResult(true, zipFileName, zipFile.absolutePath) // Return full path
+            // Return the result using the callback
+            onResult(true, zipFile.name, zipFile.absolutePath, zipFile)
 
         } catch (e: Exception) {
             val errorMessage = "❌ Error creating encrypted ZIP file: ${e.message}"
             AppLogger.e(errorMessage)
-            onResult(false, errorMessage, "") // Return empty path on failure
+            onResult(false, errorMessage, "", File(""))
         }
     }
 
-    fun extractIdsAsIntegers(inputString: String): List<Int> {
-        return inputString.split(";").map { entry ->
-            entry.split(",")[0].toInt()
-        }
+    // New implementation with expanded callback
+    fun createAndSaveZipUploadCMPWithFiles(
+        context: Context,
+        featureDataList: List<Pair<String, List<Map<String, Any>>>>,
+        userId: String,
+        onResult: (Boolean, String, String, List<File>) -> Unit // New callback with List<File>
+    ) {
+        // Directly call the implementation
+        createAndSaveZipUploadCMPImpl(context, featureDataList, userId, onResult)
     }
 
-    // Format TPH data as requested
-    fun formatTPHDataList(tphString: String, tphDataList: List<TPHNewModel>?): String {
-        if (tphDataList.isNullOrEmpty()) return "-"
+    private fun createAndSaveZipUploadCMPImpl(
+        context: Context,
+        featureDataList: List<Pair<String, List<Map<String, Any>>>>,
+        userId: String,
+        onResult: (Boolean, String, String, List<File>) -> Unit
+    ) {
+        try {
+            val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
 
-        // Create a map of ID to TPH model for quick lookup
-        val tphMap = tphDataList.associateBy { it.id }
+            val appFilesDir = File(context.getExternalFilesDir(null), "Upload").apply {
+                if (!exists()) mkdirs()
+            }
 
-        // Process each entry from the string individually to preserve duplicates
-        val formattedEntries = mutableListOf<String>()
+            // Get the Pictures directories - try both locations
+            val picturesDirs = listOf(
+                context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                File(context.getExternalFilesDir(null)?.parent ?: "", "Pictures")
+            ).filterNotNull()
 
-        tphString.split(";").forEach { entry ->
-            if (entry.isNotBlank()) {
-                try {
-                    val parts = entry.split(",")
-                    val id = parts[0].toInt()
-                    val jjg = parts[2].toInt()
+            // Check for existing zip files to determine the next sequence number
+            val existingFiles = appFilesDir.listFiles()?.filter {
+                // Update regex to account for the new format with total parts
+                it.name.matches(Regex("${userId}_\\d{14}_\\d+_\\d+\\.zip"))
+            } ?: emptyList()
 
-                    // Look up the TPH details
-                    val tph = tphMap[id]
-                    if (tph != null) {
-                        formattedEntries.add("• TPH nomor ${tph.nomor} (${tph.blok_kode}) $jjg jjg")
+            // Use the FULL datetime as prefix to reset sequence for each new batch
+            val currentPrefix = "${userId}_$dateTime"
+            var nextSequenceNumber = 1
+
+            existingFiles.forEach { file ->
+                if (file.name.startsWith(currentPrefix)) {
+                    // Extract the sequence number from filename with EXACT datetime match
+                    // Updated regex to match new format (userId_datetime_totalparts_sequencenumber.zip)
+                    val sequenceMatch = Regex("${userId}_${dateTime}_(\\d+)_(\\d+)\\.zip").find(file.name)
+                    sequenceMatch?.groupValues?.getOrNull(2)?.toIntOrNull()?.let { seq ->
+                        if (seq >= nextSequenceNumber) {
+                            nextSequenceNumber = seq + 1
+                        }
                     }
-                } catch (e: Exception) {
-                    // Skip invalid entries
                 }
             }
-        }
 
-        return formattedEntries.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
+            val allZipFiles = mutableListOf<File>() // List of all created zip files
+
+            // Flatten all data into a single list
+            val allData = mutableListOf<Triple<String, Map<String, Any>, String>>() // (feature, data, photo path)
+
+            featureDataList.forEach { (featureKey, dataList) ->
+                dataList.forEach { data ->
+                    // Add the data with its feature key
+                    allData.add(Triple(featureKey, data, ""))
+                }
+            }
+
+            // chunk data di dalam zip dengan batas di max_data_in_zip
+            val chunkedAllData = allData.chunked(max_data_in_zip)
+
+            // Calculate total parts in advance
+            val totalParts = chunkedAllData.size
+
+            // Create a zip file for each chunk
+            chunkedAllData.forEachIndexed { index, chunk ->
+                // Update the zip filename format to include total parts
+                val zipFileName = "${userId}_${dateTime}_${totalParts}_${index + 1}.zip"
+                val zipFile = File(appFilesDir, zipFileName)
+
+                val zip = ZipFile(zipFile)
+                zip.setPassword(ZIP_PASSWORD.toCharArray())
+
+                val zipParams = ZipParameters().apply {
+                    compressionMethod = CompressionMethod.DEFLATE
+                    isEncryptFiles = true
+                    encryptionMethod = EncryptionMethod.ZIP_STANDARD
+                }
+
+                // Group the data by feature key
+                val groupedByFeature = chunk.groupBy { it.first }
+
+                // Add each feature's data to the zip
+                groupedByFeature.forEach { (featureKey, featureData) ->
+                    // Extract just the data maps
+                    val dataMapList = featureData.map { it.second }
+
+                    // Add JSON data for this feature
+                    val jsonString = convertDataToJsonString(dataMapList)
+                    val jsonBytes = jsonString.toByteArray()
+
+                    val inputStream = ByteArrayInputStream(jsonBytes)
+                    zip.addStream(
+                        inputStream,
+                        zipParams.apply { fileNameInZip = "$featureKey/data.json" }
+                    )
+
+                    // Add photos for this chunk's data
+                    addFeaturePhotosToZip(context, dataMapList, featureKey, picturesDirs, zip, zipParams)
+                }
+
+                // Add to our results list
+                allZipFiles.add(zipFile)
+            }
+
+            // Return the result using the callback
+            if (allZipFiles.isNotEmpty()) {
+                // For backward compatibility, still return the first zip's info in the original parameters
+                val firstZip = allZipFiles.first()
+                onResult(true, firstZip.name, firstZip.absolutePath, allZipFiles)
+            } else {
+                onResult(false, "No zip files created", "", emptyList())
+            }
+        } catch (e: Exception) {
+            val errorMessage = "❌ Error creating encrypted ZIP file: ${e.message}"
+            AppLogger.e(errorMessage)
+            onResult(false, errorMessage, "", emptyList())
+        }
     }
 
     class ProgressRequestBody(
@@ -773,11 +1036,10 @@ object AppUtils {
     fun showDateTimeNetworkWarning(activity: Activity) {
         val isOnline = isNetworkAvailable(activity)
         val message = if (isOnline) {
-            "Please enable automatic date and time for better app experience."
+            "Silakan aktifkan tanggal dan waktu otomatis untuk pengalaman aplikasi yang lebih baik."
         } else {
-            "Please enable automatic date and time and connect to the internet to ensure correct time synchronization."
+            "Silakan aktifkan tanggal dan waktu otomatis serta sambungkan ke internet untuk memastikan sinkronisasi waktu yang benar."
         }
-
         AlertDialogUtility.withTwoActions(
             activity,
             "Pengaturan",
@@ -909,6 +1171,10 @@ object AppUtils {
     ) {
         val userInfo = buildString {
             userName?.takeIf { it.isNotEmpty() }?.let { append(formatToCamelCase(it)) }
+            prefManager!!.jabatanUserLogin?.takeIf { it.isNotEmpty() }?.let {
+                if (length > 0) append(" - ")
+                append(it)
+            }
         }
 
         userSection.text = userInfo

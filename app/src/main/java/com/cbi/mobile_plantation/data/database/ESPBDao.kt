@@ -28,7 +28,7 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table WHERE archive = 1")
     abstract fun getAllArchived(): List<ESPBEntity>
 
-    @Query("SELECT * FROM espb_table WHERE dataIsZipped = 0")
+    @Query("SELECT * FROM espb_table WHERE status_upload = 0")
     abstract fun getAllActive(): List<ESPBEntity>
 
     @Query("SELECT * FROM espb_table WHERE dataIsZipped = 0 AND id IN (:ids)")
@@ -48,6 +48,9 @@ abstract class ESPBDao {
 
     @Query("SELECT COUNT(*) FROM espb_table WHERE status_draft = 1 AND scan_status = 0")
     abstract fun getCountDraft(): Int
+
+    @Query("UPDATE espb_table SET status_upload = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadEspb(ids: List<Int>, status: Int)
 
     @Transaction
     open fun updateOrInsert(espb: List<ESPBEntity>) {

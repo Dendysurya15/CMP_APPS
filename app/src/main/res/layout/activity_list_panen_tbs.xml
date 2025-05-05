@@ -295,6 +295,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:id="@+id/titleTotalJjg"
                         android:fontFamily="@font/manrope_bold"
                         android:text="Total Jjg: "
                         android:textColor="@color/black"
@@ -381,7 +382,7 @@
                                 android:paddingHorizontal="10dp">
 
                                 <TextView
-                                    android:id="@+id/list_item_tersimpan"
+                                    android:id="@+id/tv_card_tersimpan"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center"
@@ -425,7 +426,7 @@
                                 android:paddingHorizontal="10dp">
 
                                 <TextView
-                                    android:id="@+id/list_item_terscan"
+                                    android:id="@+id/tv_card_terscan"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center"
@@ -456,7 +457,7 @@
                             android:layout_height="match_parent"
                             android:layout_marginLeft="5dp"
                             android:foreground="?attr/selectableItemBackground"
-                            android:visibility="gone"
+                            android:visibility="visible"
                             app:cardBackgroundColor="@color/graylight"
                             app:cardCornerRadius="20dp"
                             app:cardElevation="0dp"
@@ -469,16 +470,37 @@
                                 android:orientation="horizontal"
                                 android:paddingHorizontal="10dp">
 
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_gravity="center"
-                                    android:fontFamily="@font/manrope_semibold"
-                                    android:text="Rekap Per Pemanen"
-                                    android:textColor="@color/black"
-                                    android:textSize="@dimen/m"
-                                    android:textStyle="bold" />
 
+
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="match_parent"
+                                    android:orientation="horizontal"
+                                    android:paddingHorizontal="10dp">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_gravity="center"
+                                        android:id="@+id/tv_card_pemanen"
+                                        android:fontFamily="@font/manrope_semibold"
+                                        android:text="Rekap Per Pemanen"
+                                        android:textColor="@color/black"
+                                        android:textSize="@dimen/m"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:id="@+id/counter_item_perpemanen"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_gravity="center"
+                                        android:fontFamily="@font/manrope_semibold"
+                                        android:paddingHorizontal="10dp"
+                                        android:text="0"
+                                        android:textColor="@color/black"
+                                        android:textSize="@dimen/m"
+                                        android:textStyle="bold" />
+                                </LinearLayout>
                             </LinearLayout>
 
                         </com.google.android.material.card.MaterialCardView>
@@ -506,6 +528,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center"
+                                    android:id="@+id/tv_card_blok"
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text="Rekap Per Blok"
                                     android:textColor="@color/black"
@@ -695,6 +718,7 @@
         android:layout_height="wrap_content"
         android:text="Gen QR 60"
         android:visibility="gone"
+        android:textColor="@color/black"
         android:outlineSpotShadowColor="@color/white"
         android:outlineAmbientShadowColor="@color/white"
         android:shadowColor="@color/white"
@@ -725,6 +749,7 @@
         android:layout_height="wrap_content"
         android:fontFamily="@font/manrope_bold"
         android:text="Gen QR Full"
+        android:textColor="@color/black"
         android:shadowColor="@color/white"
         android:outlineSpotShadowColor="@color/white"
         android:outlineAmbientShadowColor="@color/white"

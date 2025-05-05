@@ -209,7 +209,7 @@
             android:paddingBottom="4dp"
             android:text="Jawaban harus diisi!"
             android:textColor="@color/colorRedDark"
-            android:textSize="17sp"
+            android:textSize="@dimen/m"
             android:fontFamily="@font/manrope_bold"
             android:visibility="gone"
             tools:ignore="HardcodedText,RtlSymmetry" />

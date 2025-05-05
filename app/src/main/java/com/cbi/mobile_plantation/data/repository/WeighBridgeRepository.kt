@@ -22,7 +22,9 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import java.io.File
 import java.io.IOException
 
@@ -72,6 +74,15 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
+    suspend fun getTPHByBlockId(blockId: Int): Result<TPHNewModel?> = withContext(Dispatchers.IO) {
+        try {
+            val tphData = tphDao.getTPHByBlockId(blockId)
+            Result.success(tphData)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun loadHistoryESPB(date: String? = null): List<ESPBEntity> {
         return try {
             espbDao.getAllESPBS(date)
@@ -91,16 +102,15 @@ class WeighBridgeRepository(context: Context) {
     }
 
 
-
-    suspend fun getActiveESPBByIds(ids: List<Int>): Result<List<ESPBEntity>> = withContext(Dispatchers.IO) {
-        try {
-            val data = espbDao.getActiveESPBByIds(ids)
-            Result.success(data)
-        } catch (e: Exception) {
-            Result.failure(e)
+    suspend fun getActiveESPBByIds(ids: List<Int>): Result<List<ESPBEntity>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = espbDao.getActiveESPBByIds(ids)
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
-    }
-
 
 
     suspend fun deleteESPBByIds(ids: List<Int>) = withContext(Dispatchers.IO) {
@@ -114,6 +124,10 @@ class WeighBridgeRepository(context: Context) {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun updateStatusUploadEspb(ids: List<Int>, statusUpload: Int) {
+        espbDao.updateStatusUploadEspb(ids, statusUpload)
     }
 
     // Function to check if noESPB exists
@@ -140,7 +154,14 @@ class WeighBridgeRepository(context: Context) {
         uploadedById: Int,
         message: String? = null
     ) {
-        espbDao.updateUploadStatusPPRO(id, statusUploadPpro, uploaderInfo, uploaderAt, uploadedById, message)
+        espbDao.updateUploadStatusPPRO(
+            id,
+            statusUploadPpro,
+            uploaderInfo,
+            uploaderAt,
+            uploadedById,
+            message
+        )
     }
 
     private suspend fun updateUploadStatusCMP(
@@ -151,7 +172,14 @@ class WeighBridgeRepository(context: Context) {
         uploadedById: Int,
         message: String? = null
     ) {
-        espbDao.updateUploadStatusCMP(id, statusUploadCMP, uploaderInfo, uploaderAt, uploadedById, message)
+        espbDao.updateUploadStatusCMP(
+            id,
+            statusUploadCMP,
+            uploaderInfo,
+            uploaderAt,
+            uploadedById,
+            message
+        )
     }
 
     suspend fun updateDataIsZippedESPB(ids: List<Int>, statusArchive: Int) {
@@ -167,7 +195,7 @@ class WeighBridgeRepository(context: Context) {
 
     suspend fun uploadESPBKraniTimbang(
         dataList: List<Map<String, Any>>,
-        globalIdESPB : List<Int>,
+        globalIdESPB: List<Int>,
         onProgressUpdate: (Int, Int, Boolean, String?) -> Unit // itemId, progress, isSuccess, errorMsg
     ): Result<String>? {
         return try {
@@ -208,7 +236,8 @@ class WeighBridgeRepository(context: Context) {
                                     val result = ApiService.dataUploadEspbKraniTimbangPPRO(
                                         dept_ppro = (item["dept_ppro"] ?: "0").toString(),
                                         divisi_ppro = (item["divisi_ppro"] ?: "0").toString(),
-                                        commodity = (item["commodity"] ?: "2").toString(), // Added null check
+                                        commodity = (item["commodity"]
+                                            ?: "2").toString(), // Added null check
                                         blok_jjg = (item["blok_jjg"] ?: "").toString(),
                                         nopol = (item["nopol"] ?: "").toString(),
                                         driver = (item["driver"] ?: "").toString(),
@@ -237,7 +266,8 @@ class WeighBridgeRepository(context: Context) {
                                     AppLogger.d("PPRO: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
                                     StagingApiClient.updateBaseUrl("http://$ipMill:3000")
 
-                                    val response = StagingApiClient.instance.insertESPBKraniTimbangPPRO(data)
+                                    val response =
+                                        StagingApiClient.instance.insertESPBKraniTimbangPPRO(data)
                                     AppLogger.d("PPRO: API call completed, isSuccessful=${response.isSuccessful}, code=${response.code()}")
 
                                     if (response.isSuccessful) {
@@ -264,23 +294,34 @@ class WeighBridgeRepository(context: Context) {
                                                 AppLogger.e("PPRO: Failed to update espb table for Item ID: $itemId - ${e.message}")
                                             }
                                         } else {
-                                            val rawErrorMessage = responseBody?.message?.toString() ?: "No message provided"
-                                            val extractedMessage = if (rawErrorMessage.contains("message=")) {
-                                                try {
-                                                    // Extract the actual error message between "message=" and the next comma or period
-                                                    val startIndex = rawErrorMessage.indexOf("message=") + "message=".length
-                                                    val endIndex = rawErrorMessage.indexOf(",", startIndex).takeIf { it > 0 }
-                                                        ?: rawErrorMessage.indexOf(".", startIndex).takeIf { it > 0 }
-                                                        ?: rawErrorMessage.length
+                                            val rawErrorMessage = responseBody?.message?.toString()
+                                                ?: "No message provided"
+                                            val extractedMessage =
+                                                if (rawErrorMessage.contains("message=")) {
+                                                    try {
+                                                        // Extract the actual error message between "message=" and the next comma or period
+                                                        val startIndex =
+                                                            rawErrorMessage.indexOf("message=") + "message=".length
+                                                        val endIndex =
+                                                            rawErrorMessage.indexOf(",", startIndex)
+                                                                .takeIf { it > 0 }
+                                                                ?: rawErrorMessage.indexOf(
+                                                                    ".",
+                                                                    startIndex
+                                                                ).takeIf { it > 0 }
+                                                                ?: rawErrorMessage.length
 
-                                                    rawErrorMessage.substring(startIndex, endIndex).trim()
-                                                } catch (e: Exception) {
-                                                    // If parsing fails, use the original error
+                                                        rawErrorMessage.substring(
+                                                            startIndex,
+                                                            endIndex
+                                                        ).trim()
+                                                    } catch (e: Exception) {
+                                                        // If parsing fails, use the original error
+                                                        "API Error: ${rawErrorMessage.take(100)}"
+                                                    }
+                                                } else {
                                                     "API Error: ${rawErrorMessage.take(100)}"
                                                 }
-                                            } else {
-                                                "API Error: ${rawErrorMessage.take(100)}"
-                                            }
 
                                             try {
                                                 AppLogger.d("PPRO: Updating local database status")
@@ -298,12 +339,19 @@ class WeighBridgeRepository(context: Context) {
                                             }
 
                                             AppLogger.e("PPRO: APIError Item ID: $itemId - $rawErrorMessage")
-                                            errors.add(UploadError(num, extractedMessage, "API_ERROR"))
+                                            errors.add(
+                                                UploadError(
+                                                    num,
+                                                    extractedMessage,
+                                                    "API_ERROR"
+                                                )
+                                            )
                                             results[num] = false
                                             onProgressUpdate(num, 100, false, extractedMessage)
                                         }
                                     } else {
-                                        errorMessage = response.errorBody()?.string() ?: "Server error: ${response.code()}"
+                                        errorMessage = response.errorBody()?.string()
+                                            ?: "Server error: ${response.code()}"
 
                                         try {
                                             AppLogger.d("PPRO: Updating local database status")
@@ -398,6 +446,7 @@ class WeighBridgeRepository(context: Context) {
                             idsESPB.add(itemId)
                             onProgressUpdate(num, 10, false, null)
                             val filePath = item["file"] as? String
+                            val fileName = item["fileName"] as? String
                             if (filePath.isNullOrEmpty()) {
                                 errorMessage = "File .zip is missing or error when generating .zip"
                                 AppLogger.e(errorMessage!!)
@@ -453,30 +502,47 @@ class WeighBridgeRepository(context: Context) {
 
                             try {
 
+                                val fileRequestBody = RequestBody.create(
+                                    "application/json".toMediaTypeOrNull(),
+                                    file.readBytes()  // Read file as bytes
+                                )
+
+                                // Create the file part with progress tracking
                                 val progressRequestBody = AppUtils.ProgressRequestBody(
                                     file,
-                                    "application/zip"
+                                    "application/json"
                                 ) { progress ->
                                     AppLogger.d("Upload progress: $progress%")
-                                    onProgressUpdate(num, progress, false, null)  // Use itemId as first param, progress as second
+                                    onProgressUpdate(num, progress, false, null)
                                 }
+
                                 val filePart = MultipartBody.Part.createFormData(
-                                    "zipFile",
-                                    file.name,
+                                    "jsonFile",
+                                    fileName,
                                     progressRequestBody
                                 )
 
-                                val response = CMPApiClient.instance.uploadZip(filePart)
+                                // Create the filename part
+                                val filenameRequestBody = RequestBody.create(
+                                    "text/plain".toMediaTypeOrNull(),
+                                    fileName!!
+                                )
+
+                                val response = TestingAPIClient.instance.uploadJsonV3(
+                                    jsonFile = filePart,
+                                    filename = filenameRequestBody
+                                )
 
                                 if (response.isSuccessful) {
                                     val responseBody = response.body()
 
-
+                                    AppLogger.d(responseBody.toString())
                                     responseBody?.let {
-                                        val jsonResultTableIds = createJsonTableNameMapping(globalIdESPB) // Pass globalIdESPB
+                                        val jsonResultTableIds =
+                                            createJsonTableNameMapping(globalIdESPB) // Pass globalIdESPB
 
                                         val uploadData = UploadCMPModel(
-                                            tracking_id = it.trackingId,
+                                            tracking_id = it.trackingId.toString(), // Convert Int to String if needed
                                             nama_file = it.nama_file,
                                             status = it.status,
                                             tanggal_upload = it.tanggal_upload,
@@ -484,16 +550,24 @@ class WeighBridgeRepository(context: Context) {
                                         )
 
                                         withContext(Dispatchers.IO) {
-                                            val existingCount = uploadCMPDao.getTrackingIdCount(uploadData.tracking_id!!)
+                                            val existingCount = uploadCMPDao.getTrackingIdCount(
+                                                uploadData.tracking_id!!,
+                                                uploadData.nama_file!!
+                                            )
 
                                             if (existingCount > 0) {
-                                                uploadCMPDao.updateStatus(uploadData.tracking_id, uploadData.status!!)
+                                                uploadCMPDao.updateStatus(
+                                                    uploadData.tracking_id,
+                                                    uploadData.nama_file,
+                                                    uploadData.status!!
+                                                )
                                             } else {
                                                 uploadCMPDao.insertNewData(uploadData)
                                             }
                                         }
 
                                         delay(100) // Small delay before the next operation
+
                                     }
 
                                     // update espb id untuk status_cmp_upload = 1
@@ -515,12 +589,9 @@ class WeighBridgeRepository(context: Context) {
                                         }
                                     }
 
-
                                     results[num] = true
                                     onProgressUpdate(num, 100, true, null)
-                                }
-
-                                else {
+                                } else {
                                     errorMessage = "ZIP upload failed: ${response.message()}"
                                     AppLogger.e("ZipUploadError Item ID: $num - $errorMessage")
                                     errors.add(
