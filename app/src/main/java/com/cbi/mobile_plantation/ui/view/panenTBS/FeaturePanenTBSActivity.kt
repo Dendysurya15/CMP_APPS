@@ -876,8 +876,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     private fun resetFormAfterSaveData() {
 
-//        selectedPemanenAdapter.clearAllWorkers()
-//        selectedPemanenLainAdapter.clearAllWorkers()
+        selectedPemanenAdapter.clearAllWorkers()
+        selectedPemanenLainAdapter.clearAllWorkers()
 
         if (blokBanjir == 0) {
             tphScannedResultRecyclerView.visibility = View.GONE

@@ -439,7 +439,7 @@ class CameraRepository(
                                             val dateFormat =
                                                 SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
                                             fileName =
-                                                "${featureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateIdUserLogin}_${dateFormat}.jpg"
+                                                "${featureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_${dateFormat}.jpg"
                                             file = File(dirApp, fileName)
 
                                             fileDCIM = File(dirDCIM, fileName)
@@ -483,16 +483,16 @@ class CameraRepository(
                                         val watermarkText = when {
                                             resultCode == "0" || commentWm.isEmpty() -> {
                                                 if (locationText.isNotEmpty()) {
-                                                    "CMP-$featureName\n$locationText\n${dateWM}"
+                                                    "CMP-$featureName ${prefManager!!.estateUserLogin}\n$locationText\n${dateWM}"
                                                 } else {
-                                                    "CMP-$featureName\n${dateWM}"
+                                                    "CMP-$featureName ${prefManager!!.estateUserLogin}\n${dateWM}"
                                                 }
                                             }
                                             else -> {
                                                 if (locationText.isNotEmpty()) {
-                                                    "CMP-$featureName\n$locationText\n${commentWm}\n${dateWM}"
+                                                    "CMP-$featureName ${prefManager!!.estateUserLogin}\n$locationText\n${commentWm}\n${dateWM}"
                                                 } else {
-                                                    "CMP-$featureName\n${commentWm}\n${dateWM}"
+                                                    "CMP-$featureName ${prefManager!!.estateUserLogin}\n${commentWm}\n${dateWM}"
                                                 }
                                             }
                                         }

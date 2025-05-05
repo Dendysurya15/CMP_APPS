@@ -384,7 +384,7 @@ class UploadCMPRepository(context: Context) {
                                 )
 
                                 // Make the API call for single image
-                                val response = TestingAPIClient.instance.uploadPhotos(
+                                val response = CMPApiClient.instance.uploadPhotos(
                                     photos = listOf(photoPart),  // Send as single-item list
                                     datasetType = datasetTypeRequestBody
                                 )
@@ -573,7 +573,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using MultipartBody.Part for jsonFile")
 
-                        val response = TestingAPIClient.instance.uploadJsonV3(
+                        val response = CMPApiClient.instance.uploadJsonV3(
                             jsonFile = filePart,
                             filename = filenameRequestBody
                         )
