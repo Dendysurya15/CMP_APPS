@@ -122,7 +122,7 @@ class LoginActivity : AppCompatActivity() {
             val isWithin90Days = if (lastSyncDate != null) {
                 val diffInMillis = today.time - lastSyncDate.time
                 val diffInDays = diffInMillis / (1000 * 60 * 60 * 24)
-                diffInDays <= 90
+                diffInDays <= 180
             } else {
                 false
             }
