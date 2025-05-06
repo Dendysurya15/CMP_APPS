@@ -330,7 +330,6 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                     updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
                 }
 
-                AppLogger.d("aksjdfkljaslkdfj")
                 // For current item, also update the original LiveData
                 _uploadProgressCMP.value = 0
                 _uploadStatusCMP.value = AppUtils.UploadStatusUtils.UPLOADING

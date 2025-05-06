@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -28,11 +30,14 @@ import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
+import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.cbi.mobile_plantation.ui.adapter.UploadItem
 import com.cbi.mobile_plantation.ui.adapter.UploadProgressAdapter
+import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.mobile_plantation.ui.adapter.WBData
 import com.cbi.mobile_plantation.ui.adapter.WeighBridgeAdapter
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.view.HomePageActivity.ResponseJsonUpload
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.UploadCMPViewModel
 import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
@@ -47,6 +52,7 @@ import com.cbi.mobile_plantation.utils.PrefManager
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.leinardi.android.speeddial.SpeedDialActionItem
 import com.leinardi.android.speeddial.SpeedDialView
 import kotlinx.coroutines.CompletableDeferred
@@ -88,10 +94,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private lateinit var loadingDialog: LoadingDialog
     private lateinit var uploadCMPViewModel: UploadCMPViewModel
     private lateinit var speedDial: SpeedDialView
-    private lateinit var allUploadZipFilesToday: MutableList<File>
     private var globalIdESPBKraniTimbang: List<Int> = emptyList()
-    private var jsonFilePath: String? = null
-    private var jsonFileName: String? = null
     private lateinit var tvEmptyState: TextView // Add this
     private lateinit var headerCheckBoxWB: CheckBox // Add this
     private lateinit var dateButton: Button
@@ -186,106 +189,152 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         speedDial = findViewById(R.id.dial_tph_list_krani_timbang_espb)
     }
 
+    @SuppressLint("SetTextI18n")
     private fun handleUpload(selectedItems: List<Map<String, Any>>) {
+
         var number = 0
 
-        val uploadItems = selectedItems.map { item ->
-            UploadItem(
+        val pproItems = selectedItems.map { item ->
+            UploadCMPItem(
                 id = item["id"] as Int,
-                ip = item["ip"].toString(),
-                num = number++,
-                deptPpro = (item["dept_ppro"] as Number).toInt(),
-                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
-                commodity = (item["commodity"] as Number).toInt(),
-                blokJjg = item["blok_jjg"] as String,
-                nopol = item["nopol"] as String,
-                driver = item["driver"] as String,
-                pemuatId = item["pemuat_id"].toString(),
-                transporterId = (item["transporter_id"] as Number).toInt(),
-                millId = (item["mill_id"] as Number).toInt(),
-                createdById = (item["created_by_id"] as Number).toInt(),
-                createdAt = item["created_at"] as String,
-                no_espb = item["no_espb"] as String,
-                uploader_info = infoApp,
-                uploaded_at = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
-                    Date()
+                title = item["no_espb"] as String,
+                fullPath = "",
+                baseFilename = "",
+                data = Gson().toJson(
+                    mapOf(
+                        "id" to item["id"] as Int,
+                        "ip" to item["ip"].toString(),
+                        "num" to number++,
+                        "dept_ppro" to (item["dept_ppro"] as Number).toInt(),
+                        "divisi_ppro" to (item["divisi_ppro"] as Number).toInt(),
+                        "commodity" to (item["commodity"] as Number).toInt(),
+                        "blok_jjg" to item["blok_jjg"] as String,
+                        "nopol" to item["nopol"] as String,
+                        "driver" to item["driver"] as String,
+                        "pemuat_id" to item["pemuat_id"].toString(),
+                        "transporter_id" to (item["transporter_id"] as Number).toInt(),
+                        "mill_id" to (item["mill_id"] as Number).toInt(),
+                        "created_by_id" to (item["created_by_id"] as Number).toInt(),
+                        "created_at" to item["created_at"] as String,
+                        "no_espb" to item["no_espb"] as String,
+                        "uploader_info" to infoApp,
+                        "uploaded_at" to SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm:ss",
+                            Locale.getDefault()
+                        ).format(Date()),
+                        "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt()
+                    )
                 ),
-                uploaded_by_id = prefManager!!.idUserLogin!!.toInt(),
-                file = "",
-                endpoint = AppUtils.DatabaseServer.PPRO
+                type = AppUtils.DatabaseServer.PPRO
             )
         }
 
-        var nextId = (uploadItems.maxByOrNull { it.id }?.id ?: 0) + 1
+        val cmpItems = allJsonFiles.mapIndexed { index, jsonFile ->
+            val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-        val allItems = mutableListOf<UploadItem>().apply { addAll(uploadItems) }
-
-        if (allJsonFiles.isNotEmpty()) {
-            allJsonFiles.forEach { jsonFile ->
-                allItems.add(
-                    UploadItem(
-                        id = nextId++,
-                        ip = "",
-                        num = number++,
-                        deptPpro = 0,
-                        divisiPpro = 0,
-                        commodity = 0,
-                        blokJjg = "",
-                        nopol = "",
-                        driver = "",
-                        pemuatId = "",
-                        transporterId = 0,
-                        millId = 0,
-                        createdById = 0,
-                        createdAt = "",
-                        no_espb = jsonFile.fileName,
-                        uploader_info = "",
-                        uploaded_at = "",
-                        uploaded_by_id = 0,
-                        file = jsonFile.filePath,
-                        endpoint = AppUtils.DatabaseServer.CMP
-                    )
-                )
-            }
+            UploadCMPItem(
+                id = pproItems.maxByOrNull { it.id }?.id?.plus(index + 1) ?: (index + 1),
+                title = jsonFile.fileName,
+                fullPath = jsonFile.filePath,
+                baseFilename = jsonFile.fileName,
+                data = Gson().toJson(mapOf(
+                    "espb_ids" to globalESPBIds,
+                    "uploader_info" to infoApp,
+                    "uploaded_at" to currentDate,
+                    "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt()
+                )),
+                type = AppUtils.DatabaseServer.CMP
+            )
         }
 
-        val allUploadItems = allItems
+        val allUploadItems = pproItems + cmpItems
+        uploadCMPViewModel.resetState()
+        loadingDialog.dismiss()
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
-
         val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-        titleTV.text = "Progress Upload..."
+        titleTV.text = "Upload Data CMP"
+
         val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
-        counterTV.text = "0/${allUploadItems.size}"
-        val cancelDownloadDataset =
-            dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+        val totalSizeProgressTV = dialogView.findViewById<TextView>(R.id.total_size_progress)
+        val counterSizeFile = dialogView.findViewById<LinearLayout>(R.id.counterSizeFile)
+        counterSizeFile.visibility = View.VISIBLE
+
+        // Get all buttons
+        val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+        val btnUploadDataCMP = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
+        val btnRetryUpload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
+
         val containerDownloadDataset =
             dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
+        containerDownloadDataset.visibility = View.VISIBLE
+
+        // Initially show only close and upload buttons
+        closeDialogBtn.visibility = View.VISIBLE
+        btnUploadDataCMP.visibility = View.VISIBLE
+        btnRetryUpload.visibility = View.GONE
+
+        var isRetryOperation = false
+        var failedUploads: List<UploadCMPItem> = listOf()
 
         val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = UploadProgressAdapter(allUploadItems, weightBridgeViewModel)
+        val adapter = UploadProgressCMPDataAdapter(allUploadItems)
+        recyclerView.adapter = adapter
+
+        adapter.updateItems(allUploadItems)
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (counterTV.text == "0/0" && allUploadItems.size > 0) {
+                counterTV.text = "0/${allUploadItems.size}"
+            }
+        }, 100)
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .setCancelable(false)
             .create()
         dialog.show()
-        val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
-        closeDialogBtn.visibility = View.VISIBLE
 
-        cancelDownloadDataset.setOnClickListener {
-            speedDial.close()
+        closeDialogBtn.setOnClickListener {
+            allJsonFiles.clear()
+            uploadCMPViewModel.resetState()
             weightBridgeViewModel.loadHistoryESPB()
-            jsonFileName = null
-            jsonFilePath = null
             dialog.dismiss()
         }
-        val btnUploadDataCMP = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
 
-        containerDownloadDataset.visibility = View.VISIBLE
-        closeDialogBtn.visibility = View.VISIBLE
-        btnUploadDataCMP.visibility = View.VISIBLE
+        fun startUpload(itemsToUpload: List<UploadCMPItem> = allUploadItems) {
+            if (!AppUtils.isNetworkAvailable(this)) {
+                AlertDialogUtility.withSingleAction(
+                    this@ListHistoryWeighBridgeActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
+                return
+            }
+
+            // Disable all buttons during upload
+            btnUploadDataCMP.isEnabled = false
+            closeDialogBtn.isEnabled = false
+            btnRetryUpload.isEnabled = false
+            btnUploadDataCMP.alpha = 0.7f
+            closeDialogBtn.alpha = 0.7f
+            btnRetryUpload.alpha = 0.7f
+            btnUploadDataCMP.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+            btnRetryUpload.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+
+            // Reset title color
+            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
+            titleTV.text = "Upload Data CMP"
+
+            uploadCMPViewModel.uploadMultipleJsonsV3(itemsToUpload)
+
+        }
+
         btnUploadDataCMP.setOnClickListener {
             if (AppUtils.isNetworkAvailable(this)) {
                 AlertDialogUtility.withTwoActions(
@@ -296,47 +345,11 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                     "warning.json",
                     ContextCompat.getColor(this, R.color.bluedarklight),
                     function = {
-                        btnUploadDataCMP.isEnabled = false
-                        closeDialogBtn.isEnabled = false
-                        btnUploadDataCMP.alpha = 0.7f
-                        closeDialogBtn.alpha = 0.7f
-                        btnUploadDataCMP.iconTint =
-                            ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
-                        closeDialogBtn.iconTint =
-                            ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
-
-                        weightBridgeViewModel.uploadESPBKraniTimbang(
-                            allUploadItems.map { uploadItem ->
-                                mapOf(
-                                    "id" to uploadItem.id,
-                                    "ip" to uploadItem.ip,
-                                    "num" to uploadItem.num,
-                                    "dept_ppro" to uploadItem.deptPpro,
-                                    "divisi_ppro" to uploadItem.divisiPpro,
-                                    "commodity" to uploadItem.commodity,
-                                    "blok_jjg" to uploadItem.blokJjg,
-                                    "nopol" to uploadItem.nopol,
-                                    "driver" to uploadItem.driver,
-                                    "pemuat_id" to uploadItem.pemuatId,
-                                    "transporter_id" to uploadItem.transporterId,
-                                    "mill_id" to uploadItem.millId,
-                                    "created_by_id" to uploadItem.createdById,
-                                    "created_at" to uploadItem.createdAt,
-                                    "no_espb" to uploadItem.no_espb,
-                                    "uploader_info" to uploadItem.uploader_info,
-                                    "uploaded_at" to uploadItem.uploaded_at,
-                                    "uploaded_by_id" to uploadItem.uploaded_by_id,
-                                    "file" to uploadItem.file,
-                                    "endpoint" to uploadItem.endpoint
-                                )
-                            },
-                            globalESPBIds
-                        )
+                        isRetryOperation = false  // Reset retry flag for fresh upload
+                        startUpload()
                     },
-                    cancelFunction = {
-                    }
+                    cancelFunction = { }
                 )
-
             } else {
                 AlertDialogUtility.withSingleAction(
                     this@ListHistoryWeighBridgeActivity,
@@ -351,45 +364,597 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             }
         }
 
-        weightBridgeViewModel.uploadStatusMap.observe(this) { statusMap ->
-            val completedCount = statusMap.count { it.value == "Success" || it.value == "Failed" }
-            AppLogger.d(completedCount.toString())
-            counterTV.text = "$completedCount/${allUploadItems.size}"
-            if (completedCount == allUploadItems.size) {
+        btnRetryUpload.setOnClickListener {
+            if (AppUtils.isNetworkAvailable(this)) {
+                // Create new upload items only for failed uploads
+                val retryUploadItems = mutableListOf<UploadCMPItem>()
+                var itemId = 0
 
-                lifecycleScope.launch {
-                    loadingDialog.show()
-                    loadingDialog.setMessage("Sedang memproses data", true)
+                AppLogger.d("failedUploads $failedUploads")
 
-                    delay(500)
+                failedUploads.forEach { failedItem ->
+                    when (failedItem.type) {
+                        AppUtils.DatabaseServer.PPRO -> {
+                            // For PPRO uploads, we need to preserve the data field
+                            retryUploadItems.add(
+                                UploadCMPItem(
+                                    id = itemId++,
+                                    title = failedItem.title,
+                                    fullPath = failedItem.fullPath,
+                                    baseFilename = failedItem.baseFilename,
+                                    data = failedItem.data,
+                                    type = AppUtils.DatabaseServer.PPRO
+                                )
+                            )
+                        }
 
+                        AppUtils.DatabaseServer.CMP -> {
+                            // For CMP uploads, we focus on the file path
+                            retryUploadItems.add(
+                                UploadCMPItem(
+                                    id = itemId++,
+                                    title = failedItem.title,
+                                    fullPath = failedItem.fullPath,
+                                    baseFilename = failedItem.baseFilename,
+                                    data = "",
+                                    type = AppUtils.DatabaseServer.CMP
+                                )
+                            )
+                        }
 
-                    withContext(Dispatchers.Main) {
-                        containerDownloadDataset.visibility = View.VISIBLE
-                        cancelDownloadDataset.visibility = View.VISIBLE
-                        btnUploadDataCMP.visibility = View.GONE
-                        closeDialogBtn.isEnabled = true
-                        closeDialogBtn.alpha = 1f
-                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
-                        loadingDialog.dismiss()
+                        "json" -> {
+                            // For JSON uploads (could be Panen or ESPB from setupDialogUpload)
+                            retryUploadItems.add(
+                                UploadCMPItem(
+                                    id = itemId++,
+                                    title = failedItem.title,
+                                    fullPath = failedItem.fullPath,
+                                    baseFilename = failedItem.baseFilename,
+                                    data = "", // For JSON files, path is what matters
+                                    type = "json"
+                                )
+                            )
+                        }
+
+                        else -> {
+                            // Unknown type, add as is
+                            retryUploadItems.add(
+                                UploadCMPItem(
+                                    id = itemId++,
+                                    title = failedItem.title,
+                                    fullPath = failedItem.fullPath,
+                                    baseFilename = failedItem.baseFilename,
+                                    data = failedItem.data,
+                                    type = failedItem.type
+                                )
+                            )
+                        }
                     }
-
                 }
 
+                isRetryOperation = true
+
+                // Clear and update the RecyclerView with only failed items
+                adapter.updateItems(retryUploadItems)
+
+                // Reset adapter state (progress bars, status icons, etc.)
+                adapter.resetState()
+
+                // Reset view model state
+                uploadCMPViewModel.resetState()
+
+                AppLogger.d("retryUploadItems $retryUploadItems")
+                // Update UI elements
+                counterTV.text = "0/${retryUploadItems.size}"
+                titleTV.text = "Retrying Failed Uploads"
+                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
+
+                // Hide retry button, show upload button
+                btnRetryUpload.visibility = View.GONE
+                btnUploadDataCMP.visibility = View.VISIBLE
+
+                startUpload(retryUploadItems)
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@ListHistoryWeighBridgeActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
             }
         }
 
+        uploadCMPViewModel.completedCount.observe(this) { completed ->
+            val total = uploadCMPViewModel.totalCount.value ?: allUploadItems.size
+            counterTV.text = "$completed/$total"
+        }
 
-//        weightBridgeViewModel.uploadResult.observe(this) { result ->
-//            result.onSuccess {
-//                Toast.makeText(this, "Upload Successful!", Toast.LENGTH_SHORT).show()
-//            }.onFailure {
-//                Toast.makeText(this, "Upload Failed: ${it.message}", Toast.LENGTH_LONG).show()
+        // Observe progress for each item
+        uploadCMPViewModel.itemProgressMap.observe(this) { progressMap ->
+            // Update progress for each item
+            for ((id, progress) in progressMap) {
+                AppLogger.d("Progress update for item $id: $progress%")
+                adapter.updateProgress(id, progress)
+            }
+
+            // Update title if any upload is in progress
+            if (progressMap.values.any { it in 1..99 }) {
+                titleTV.text = "Sedang Upload Data..."
+            }
+
+            val uploadedBytes = adapter.getTotalUploadedBytes()
+            val totalBytes = adapter.getTotalFileSize()
+            val overallProgress = adapter.getOverallProgress()
+
+            totalSizeProgressTV.text =
+                " ${AppUtils.formatFileSize(uploadedBytes)} / ${AppUtils.formatFileSize(totalBytes)} ($overallProgress%)"
+        }
+
+        // Observe status for each item
+        uploadCMPViewModel.itemStatusMap.observe(this) { statusMap ->
+            // Update status for each item
+            for ((id, status) in statusMap) {
+                AppLogger.d("Status for item $id: $status")
+                adapter.updateStatus(id, status)
+            }
+
+            val allFinished = statusMap.values.none {
+                it == AppUtils.UploadStatusUtils.WAITING || it == AppUtils.UploadStatusUtils.UPLOADING
+            }
+
+            val allSuccess = statusMap.values.all { it == AppUtils.UploadStatusUtils.SUCCESS }
+
+            AppLogger.d("statusMap $statusMap")
+
+            if (allFinished && statusMap.isNotEmpty()) {
+                lifecycleScope.launch {
+                    loadingDialog.show()
+                    loadingDialog.setMessage("Sedang proses data", true)
+                    uploadCMPViewModel.getAllIds()
+                    delay(500)
+
+                    withContext(Dispatchers.Main) {
+
+                        AppLogger.d("allSuccess $allSuccess")
+                        if (allSuccess) {
+                            // Reset retry flag since we succeeded
+                            isRetryOperation = false
+
+                            launch {
+//                                val processingComplete = processUploadResponses()
+                                val processingComplete = true
+
+                                withContext(Dispatchers.Main) {
+                                    if (processingComplete) {
+                                        // Processing was successful
+                                        titleTV.text = "Upload Berhasil"
+                                        titleTV.setTextColor(
+                                            ContextCompat.getColor(
+                                                titleTV.context,
+                                                R.color.greenDarker
+                                            )
+                                        )
+
+                                        btnUploadDataCMP.visibility = View.GONE
+                                        btnRetryUpload.visibility = View.GONE
+                                    } else {
+                                        // Upload completed but processing not finished (status code not 3)
+                                        titleTV.text = "Upload Gagal"
+                                        titleTV.setTextColor(
+                                            ContextCompat.getColor(
+                                                titleTV.context,
+                                                R.color.colorRedDark
+                                            )
+                                        )
+
+                                        // Show retry button to let user retry processing
+                                        btnUploadDataCMP.visibility = View.GONE
+                                        btnRetryUpload.visibility = View.VISIBLE
+                                    }
+
+                                    // Re-enable buttons
+                                    closeDialogBtn.isEnabled = true
+                                    closeDialogBtn.alpha = 1f
+                                    closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+
+                                    btnRetryUpload.isEnabled = true
+                                    btnRetryUpload.alpha = 1f
+                                    btnRetryUpload.iconTint = ColorStateList.valueOf(Color.WHITE)
+
+                                    loadingDialog.dismiss()
+                                }
+                            }
+                        } else {
+
+                            if (isRetryOperation) {
+                                // If we're already in a retry operation, use the current adapter's items
+                                val currentItems = adapter.getItems()
+
+                                failedUploads = currentItems.filter { item ->
+                                    val status = statusMap[item.id]
+                                    status != AppUtils.UploadStatusUtils.SUCCESS
+                                }
+                            } else {
+                                // First failure, use the original upload items
+                                failedUploads = allUploadItems.filter { item ->
+                                    val status = statusMap[item.id]
+                                    status != AppUtils.UploadStatusUtils.SUCCESS
+                                }
+                            }
+
+                            AppLogger.d("Collected ${failedUploads.size} failed uploads for retry")
+
+                            launch {
+//                                val processingComplete = processUploadResponses()
+                                val processingComplete = true
+                                withContext(Dispatchers.Main) {
+                                    if (processingComplete) {
+                                        titleTV.text = "Terjadi Kesalahan Upload"
+                                        titleTV.setTextColor(
+                                            ContextCompat.getColor(
+                                                titleTV.context,
+                                                R.color.colorRedDark
+                                            )
+                                        )
+
+                                        // Show retry button and hide upload button
+                                        btnUploadDataCMP.visibility = View.GONE
+                                        btnRetryUpload.visibility = View.VISIBLE
+
+                                        // Re-enable buttons
+                                        closeDialogBtn.isEnabled = true
+                                        closeDialogBtn.alpha = 1f
+                                        closeDialogBtn.iconTint =
+                                            ColorStateList.valueOf(Color.WHITE)
+
+                                        btnRetryUpload.isEnabled = true
+                                        btnRetryUpload.alpha = 1f
+                                        btnRetryUpload.iconTint =
+                                            ColorStateList.valueOf(Color.WHITE)
+
+                                        loadingDialog.dismiss()
+
+                                    } else {
+                                        titleTV.text = "Terjadi Kesalahan Upload"
+                                        titleTV.setTextColor(
+                                            ContextCompat.getColor(
+                                                titleTV.context,
+                                                R.color.colorRedDark
+                                            )
+                                        )
+
+                                        // Show retry button and hide upload button
+                                        btnUploadDataCMP.visibility = View.GONE
+                                        btnRetryUpload.visibility = View.VISIBLE
+
+                                        // For error case, dismiss the dialog immediately
+                                        AppLogger.d("gas brroooo")
+                                        // Re-enable buttons
+                                        closeDialogBtn.isEnabled = true
+                                        closeDialogBtn.alpha = 1f
+                                        closeDialogBtn.iconTint =
+                                            ColorStateList.valueOf(Color.WHITE)
+
+                                        btnRetryUpload.isEnabled = true
+                                        btnRetryUpload.alpha = 1f
+                                        btnRetryUpload.iconTint =
+                                            ColorStateList.valueOf(Color.WHITE)
+
+                                        loadingDialog.dismiss()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+//
+        // Observe errors for each item
+        uploadCMPViewModel.itemErrorMap.observe(this) { errorMap ->
+            for ((id, error) in errorMap) {
+                if (!error.isNullOrEmpty()) {
+                    adapter.updateError(id, error)
+                }
+            }
+
+            if (errorMap.values.any { !it.isNullOrEmpty() }) {
+                titleTV.text = "Terjadi Kesalahan Upload"
+                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
+            }
+        }
+
+        uploadCMPViewModel.itemResponseMap.observe(this) { responseMap ->
+            lifecycleScope.launch {
+                AppLogger.d("responseMap $responseMap")
+
+//                for ((_, response) in responseMap) {
+//                    response?.let {
+//                        // Check if response type is JSON
+//                        if (response.type == "json") {
+//                            globalResponseJsonUploadList.add(
+//                                ResponseJsonUpload(
+//                                    response.trackingId,
+//                                    response.nama_file,
+//                                    response.status,
+//                                    response.tanggal_upload,
+//                                    response.type
+//                                )
+//                            )
+//
+//                            val keyJsonName = response.trackingId.toString()
+//
+//                            if (response.success) {
+//                                try {
+//                                    val extractionDeferred =
+//                                        CompletableDeferred<Pair<List<Int>, List<Int>>>()
+//
+//                                    AppLogger.d("Starting JSON extraction for ${response.nama_file}")
+//
+//                                    launch(Dispatchers.IO) {
+//                                        try {
+//                                            val result = AppUtils.extractIdsFromJsonFile(
+//                                                context = this@ListHistoryWeighBridgeActivity,
+//                                                fileName = response.nama_file
+//                                            )
+//                                            extractionDeferred.complete(result)
+//                                        } catch (e: Exception) {
+//                                            extractionDeferred.completeExceptionally(e)
+//                                        }
+//                                    }
+//
+//                                    val (panenIds, espbIds) = withTimeout(5000) {
+//                                        extractionDeferred.await()
+//                                    }
+//
+//                                    AppLogger.d("Extraction complete for JSON $keyJsonName. PANEN IDs: ${panenIds.size}, ESPB IDs: ${espbIds.size}")
+//
+//                                    // Store IDs by part number
+//                                    globalPanenIdsByPart[keyJsonName] = panenIds
+//                                    globalEspbIdsByPart[keyJsonName] = espbIds
+//
+//                                } catch (e: Exception) {
+//                                    AppLogger.e("Error during JSON extraction for file $keyJsonName: ${e.message}")
+//
+//                                    globalPanenIdsByPart[keyJsonName] = emptyList()
+//                                    globalEspbIdsByPart[keyJsonName] = emptyList()
+//                                }
+//                            } else {
+//
+//                            }
+//                        } else if (response.type == "image") {
+//                            globalResponseJsonUploadList.add(
+//                                ResponseJsonUpload(
+//                                    trackingId = 0,
+//                                    nama_file = "",
+//                                    status = 0,
+//                                    tanggal_upload = "",
+//                                    type = response.type
+//                                )
+//                            )
+//                            if (!response.success) {
+//
+//                            } else {
+//
+//                            }
+//                        } else {
+//                            AppLogger.d("Skipping non-JSON upload: type = ${response.type}")
+//                        }
+//                    }
+//                }
+
+//                AppLogger.d("Stored IDs by part: ${globalPanenIdsByPart.keys}")
+//                AppLogger.d("Total IDs - PANEN: ${globalPanenIds.size}, ESPB: ${globalESPBIds.size}")
+            }
+        }
+    }
+
+//    private fun handleUpload(selectedItems: List<Map<String, Any>>) {
+//        var number = 0
+//
+//        val uploadItems = selectedItems.map { item ->
+//            UploadItem(
+//                id = item["id"] as Int,
+//                ip = item["ip"].toString(),
+//                num = number++,
+//                deptPpro = (item["dept_ppro"] as Number).toInt(),
+//                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
+//                commodity = (item["commodity"] as Number).toInt(),
+//                blokJjg = item["blok_jjg"] as String,
+//                nopol = item["nopol"] as String,
+//                driver = item["driver"] as String,
+//                pemuatId = item["pemuat_id"].toString(),
+//                transporterId = (item["transporter_id"] as Number).toInt(),
+//                millId = (item["mill_id"] as Number).toInt(),
+//                createdById = (item["created_by_id"] as Number).toInt(),
+//                createdAt = item["created_at"] as String,
+//                no_espb = item["no_espb"] as String,
+//                uploader_info = infoApp,
+//                uploaded_at = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
+//                    Date()
+//                ),
+//                uploaded_by_id = prefManager!!.idUserLogin!!.toInt(),
+//                file = "",
+//                endpoint = AppUtils.DatabaseServer.PPRO
+//            )
+//        }
+//
+//        var nextId = (uploadItems.maxByOrNull { it.id }?.id ?: 0) + 1
+//
+//        val allItems = mutableListOf<UploadItem>().apply { addAll(uploadItems) }
+//
+//        if (allJsonFiles.isNotEmpty()) {
+//            allJsonFiles.forEach { jsonFile ->
+//                allItems.add(
+//                    UploadItem(
+//                        id = nextId++,
+//                        ip = "",
+//                        num = number++,
+//                        deptPpro = 0,
+//                        divisiPpro = 0,
+//                        commodity = 0,
+//                        blokJjg = "",
+//                        nopol = "",
+//                        driver = "",
+//                        pemuatId = "",
+//                        transporterId = 0,
+//                        millId = 0,
+//                        createdById = 0,
+//                        createdAt = "",
+//                        no_espb = jsonFile.fileName,
+//                        uploader_info = "",
+//                        uploaded_at = "",
+//                        uploaded_by_id = 0,
+//                        file = jsonFile.filePath,
+//                        endpoint = AppUtils.DatabaseServer.CMP
+//                    )
+//                )
 //            }
 //        }
-
-
-    }
+//
+//        val allUploadItems = allItems
+//
+//        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
+//
+//        val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
+//        titleTV.text = "Progress Upload..."
+//        val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
+//        counterTV.text = "0/${allUploadItems.size}"
+//        val cancelDownloadDataset =
+//            dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+//        val containerDownloadDataset =
+//            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
+//
+//        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
+//        recyclerView.layoutManager = LinearLayoutManager(this)
+//        recyclerView.adapter = UploadProgressAdapter(allUploadItems, weightBridgeViewModel)
+//
+//        val dialog = AlertDialog.Builder(this)
+//            .setView(dialogView)
+//            .setCancelable(false)
+//            .create()
+//        dialog.show()
+//        val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+//        closeDialogBtn.visibility = View.VISIBLE
+//
+//        cancelDownloadDataset.setOnClickListener {
+//            speedDial.close()
+//            weightBridgeViewModel.loadHistoryESPB()
+//            jsonFileName = null
+//            jsonFilePath = null
+//            dialog.dismiss()
+//        }
+//        val btnUploadDataCMP = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
+//
+//        containerDownloadDataset.visibility = View.VISIBLE
+//        closeDialogBtn.visibility = View.VISIBLE
+//        btnUploadDataCMP.visibility = View.VISIBLE
+//        btnUploadDataCMP.setOnClickListener {
+//            if (AppUtils.isNetworkAvailable(this)) {
+//                AlertDialogUtility.withTwoActions(
+//                    this,
+//                    "Upload",
+//                    getString(R.string.confirmation_dialog_title),
+//                    getString(R.string.al_confirm_upload),
+//                    "warning.json",
+//                    ContextCompat.getColor(this, R.color.bluedarklight),
+//                    function = {
+//                        btnUploadDataCMP.isEnabled = false
+//                        closeDialogBtn.isEnabled = false
+//                        btnUploadDataCMP.alpha = 0.7f
+//                        closeDialogBtn.alpha = 0.7f
+//                        btnUploadDataCMP.iconTint =
+//                            ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
+//                        closeDialogBtn.iconTint =
+//                            ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+//
+//                        weightBridgeViewModel.uploadESPBKraniTimbang(
+//                            allUploadItems.map { uploadItem ->
+//                                mapOf(
+//                                    "id" to uploadItem.id,
+//                                    "ip" to uploadItem.ip,
+//                                    "num" to uploadItem.num,
+//                                    "dept_ppro" to uploadItem.deptPpro,
+//                                    "divisi_ppro" to uploadItem.divisiPpro,
+//                                    "commodity" to uploadItem.commodity,
+//                                    "blok_jjg" to uploadItem.blokJjg,
+//                                    "nopol" to uploadItem.nopol,
+//                                    "driver" to uploadItem.driver,
+//                                    "pemuat_id" to uploadItem.pemuatId,
+//                                    "transporter_id" to uploadItem.transporterId,
+//                                    "mill_id" to uploadItem.millId,
+//                                    "created_by_id" to uploadItem.createdById,
+//                                    "created_at" to uploadItem.createdAt,
+//                                    "no_espb" to uploadItem.no_espb,
+//                                    "uploader_info" to uploadItem.uploader_info,
+//                                    "uploaded_at" to uploadItem.uploaded_at,
+//                                    "uploaded_by_id" to uploadItem.uploaded_by_id,
+//                                    "file" to uploadItem.file,
+//                                    "endpoint" to uploadItem.endpoint
+//                                )
+//                            },
+//                            globalESPBIds
+//                        )
+//                    },
+//                    cancelFunction = {
+//                    }
+//                )
+//
+//            } else {
+//                AlertDialogUtility.withSingleAction(
+//                    this@ListHistoryWeighBridgeActivity,
+//                    stringXML(R.string.al_back),
+//                    stringXML(R.string.al_no_internet_connection),
+//                    stringXML(R.string.al_no_internet_connection_description_login),
+//                    "network_error.json",
+//                    R.color.colorRedDark
+//                ) {
+//                    // Do nothing
+//                }
+//            }
+//        }
+//
+//        weightBridgeViewModel.uploadStatusMap.observe(this) { statusMap ->
+//            val completedCount = statusMap.count { it.value == "Success" || it.value == "Failed" }
+//            AppLogger.d(completedCount.toString())
+//            counterTV.text = "$completedCount/${allUploadItems.size}"
+//            if (completedCount == allUploadItems.size) {
+//
+//                lifecycleScope.launch {
+//                    loadingDialog.show()
+//                    loadingDialog.setMessage("Sedang memproses data", true)
+//
+//                    delay(500)
+//
+//
+//                    withContext(Dispatchers.Main) {
+//                        containerDownloadDataset.visibility = View.VISIBLE
+//                        cancelDownloadDataset.visibility = View.VISIBLE
+//                        btnUploadDataCMP.visibility = View.GONE
+//                        closeDialogBtn.isEnabled = true
+//                        closeDialogBtn.alpha = 1f
+//                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+//                        loadingDialog.dismiss()
+//                    }
+//
+//                }
+//
+//            }
+//        }
+//
+//
+////        weightBridgeViewModel.uploadResult.observe(this) { result ->
+////            result.onSuccess {
+////                Toast.makeText(this, "Upload Successful!", Toast.LENGTH_SHORT).show()
+////            }.onFailure {
+////                Toast.makeText(this, "Upload Failed: ${it.message}", Toast.LENGTH_LONG).show()
+////            }
+////        }
+//
+//
+//    }
 
 
     private fun handleDelete(selectedItems: List<Map<String, Any>>) {
@@ -554,12 +1119,18 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                             val allZipped = espbList.all { it.dataIsZipped == 1 }
 
                                             // Find only the items that need uploading (status is not 200)
-                                            val itemsNeedingUpload = espbList.filter { it.status_upload_cmp_wb != 200 }
+                                            val itemsNeedingUpload =
+                                                espbList.filter { it.status_upload_cmp_wb != 200 }
+
+
+                                            AppLogger.d("itemsNeedingUpload $itemsNeedingUpload")
 
                                             if (itemsNeedingUpload.isEmpty()) {
                                                 // If no items need upload, log and skip JSON creation
                                                 AppLogger.d("All items already have successful upload status (200), skipping JSON creation")
                                                 globalESPBIds = espbList.map { it.id }
+
+                                                allJsonFiles
 
                                                 if (allZipped) {
                                                     zipDeferred.complete(true)
@@ -578,7 +1149,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                                 }
                                                         }
                                                     val idBlokList = blokJjgList.map { it.first }
-                                                    val concatenatedIds = idBlokList.joinToString(",")
+                                                    val concatenatedIds =
+                                                        idBlokList.joinToString(",")
                                                     val totalJjg =
                                                         blokJjgList.mapNotNull { it.second }.sum()
 
@@ -590,10 +1162,14 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
                                                     // Fetch the TPH data if we have a block ID
                                                     firstBlockId?.let { blockId ->
-                                                        weightBridgeViewModel.fetchTPHByBlockId(blockId)
+                                                        weightBridgeViewModel.fetchTPHByBlockId(
+                                                            blockId
+                                                        )
 
                                                         // Set up a one-time observer for the LiveData
-                                                        weightBridgeViewModel.tphData.observeOnce(this@ListHistoryWeighBridgeActivity) { tphModel ->
+                                                        weightBridgeViewModel.tphData.observeOnce(
+                                                            this@ListHistoryWeighBridgeActivity
+                                                        ) { tphModel ->
                                                             tphDeferred.complete(tphModel)
                                                         }
                                                     }
@@ -632,7 +1208,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                         "jabatan" to prefManager!!.jabatanUserLogin.toString(),
                                                     )
                                                 }
-                                                globalESPBIds = mappedESPBData.map { it["id"] as Int }
+                                                globalESPBIds =
+                                                    mappedESPBData.map { it["id"] as Int }
 
                                                 // Only create JSON if we have items to upload
                                                 if (mappedESPBData.isNotEmpty()) {
@@ -646,16 +1223,21 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                     )
 
                                                     // Add the file info to our global variable
-                                                    allJsonFiles.add(JsonFileInfo(
-                                                        filePath = espbFilePath,
-                                                        fileName = espbFilename
-                                                    ))
+                                                    allJsonFiles.add(
+                                                        JsonFileInfo(
+                                                            filePath = espbFilePath,
+                                                            fileName = espbFilename
+                                                        )
+                                                    )
                                                     AppLogger.d("Created JSON file for upload: $espbFilename with ${itemsNeedingUpload.size} items")
                                                 }
 
                                                 // Only skip the zipping process if all items are already zipped
                                                 if (allZipped) {
-                                                    Log.d("UploadCheck", "✅ All ESPB data is already zipped, skipping zipping process")
+                                                    Log.d(
+                                                        "UploadCheck",
+                                                        "✅ All ESPB data is already zipped, skipping zipping process"
+                                                    )
                                                     zipDeferred.complete(true)
                                                 }
                                             }
@@ -664,11 +1246,15 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         Log.e("UploadCheck", "❌ Error: ${e.message}")
                                     } finally {
                                         // Only do zipping if not all items were already zipped
-                                        val allZipped = espbList?.all { it.dataIsZipped == 1 } ?: false
+                                        val allZipped =
+                                            espbList?.all { it.dataIsZipped == 1 } ?: false
 
                                         if (!allZipped) {
-                                            val uploadDataList = mutableListOf<Pair<String, List<Map<String, Any>>>>()
-                                            if (mappedESPBData.isNotEmpty()) uploadDataList.add(AppUtils.DatabaseTables.ESPB to mappedESPBData)
+                                            val uploadDataList =
+                                                mutableListOf<Pair<String, List<Map<String, Any>>>>()
+                                            if (mappedESPBData.isNotEmpty()) uploadDataList.add(
+                                                AppUtils.DatabaseTables.ESPB to mappedESPBData
+                                            )
 
                                             if (uploadDataList.isNotEmpty()) {
                                                 lifecycleScope.launch(Dispatchers.IO) {
@@ -793,7 +1379,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                     val formattedBlokList =
                                         blokJjgList.mapNotNull { (idBlok, totalJjg) ->
                                             val blokKode =
-                                                blokData?.find { it.id == idBlok }?.kode
+                                                blokData?.find { it.id == idBlok }?.nama
                                             if (blokKode != null && totalJjg != null) {
                                                 "• $blokKode ($totalJjg jjg)"
                                             } else null
