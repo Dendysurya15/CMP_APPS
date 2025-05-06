@@ -135,7 +135,7 @@ interface ApiService {
     ): Response<UploadCMPResponse>
 
     @Multipart
-    @POST("api/cmpmain/uploadv3")
+    @POST("cmpmain/uploadv3")
     suspend fun uploadJsonV3(
         @Part jsonFile: MultipartBody.Part,
         @Part("filename") filename: RequestBody
@@ -169,7 +169,7 @@ interface ApiService {
 //    ): Response<ResponseBody>
 
     @FormUrlEncoded
-    @POST("api/cmpmain/statusv3")
+    @POST("cmpmain/statusv3")
     @Headers(
         "Accept: application/json",
         "Content-Type: application/x-www-form-urlencoded"
@@ -180,7 +180,7 @@ interface ApiService {
 
 
     @Multipart
-    @POST("api/cmpmain/upload-photos")
+    @POST("cmpmain/upload-photos")
     suspend fun uploadPhotos(
         @Part photos: List<MultipartBody.Part>,  // Multiple parts
         @Part("datasetType") datasetType: RequestBody,
