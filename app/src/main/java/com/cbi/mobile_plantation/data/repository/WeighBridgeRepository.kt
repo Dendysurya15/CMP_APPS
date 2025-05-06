@@ -450,14 +450,14 @@ class WeighBridgeRepository(context: Context) {
                                 onProgressUpdate(num, 100, false, errorMessage)
                             }
                         }
-                        // Handle CMP (ZIP file) upload
+                        // Handle CMP (JSON file) upload
                         else if (endpoint == "CMP") {
                             idsESPB.add(itemId)
                             onProgressUpdate(num, 10, false, null)
                             val filePath = item["file"] as? String
                             val fileName = item["fileName"] as? String
                             if (filePath.isNullOrEmpty()) {
-                                errorMessage = "File .zip is missing or error when generating .zip"
+                                errorMessage = "File .json is missing or error when generating .json"
                                 AppLogger.e(errorMessage!!)
                                 for (id in idsESPB) {
                                     try {
@@ -542,8 +542,10 @@ class WeighBridgeRepository(context: Context) {
                                     filename = filenameRequestBody
                                 )
 
+                                val responseBody = response.body()
+                                val httpStatusCode = response.code()
                                 if (response.isSuccessful) {
-                                    val responseBody = response.body()
+
 
                                     AppLogger.d(responseBody.toString())
                                     responseBody?.let {
@@ -585,7 +587,7 @@ class WeighBridgeRepository(context: Context) {
                                             withContext(Dispatchers.IO) { // Ensures it runs in background & waits
                                                 updateUploadStatusCMP(
                                                     id, // ✅ Replace itemId with id from idsESPB
-                                                    1,
+                                                    httpStatusCode,
                                                     uploaderInfo,
                                                     uploadedAt,
                                                     uploadedById,
@@ -601,13 +603,13 @@ class WeighBridgeRepository(context: Context) {
                                     results[num] = true
                                     onProgressUpdate(num, 100, true, null)
                                 } else {
-                                    errorMessage = "ZIP upload failed: ${response.message()}"
-                                    AppLogger.e("ZipUploadError Item ID: $num - $errorMessage")
+                                    errorMessage = "JSON upload failed: ${response.message()}"
+                                    AppLogger.e("JSON UploadError Item ID: $num - $errorMessage")
                                     errors.add(
                                         UploadError(
                                             num,
                                             errorMessage!!,
-                                            "ZIP_UPLOAD_ERROR"
+                                            "JSON_UPLOAD_ERROR"
                                         )
                                     )
 
@@ -616,7 +618,7 @@ class WeighBridgeRepository(context: Context) {
                                             withContext(Dispatchers.IO) { // Ensures it runs in background & waits
                                                 updateUploadStatusCMP(
                                                     id, // ✅ Replace itemId with id from idsESPB
-                                                    0,
+                                                    httpStatusCode,
                                                     uploaderInfo,
                                                     uploadedAt,
                                                     uploadedById,
@@ -632,8 +634,8 @@ class WeighBridgeRepository(context: Context) {
                                     onProgressUpdate(num, 100, false, errorMessage)
                                 }
                             } catch (e: Exception) {
-                                errorMessage = "ZIP upload error: ${e.message}"
-                                AppLogger.e("ZipUploadError Item ID: $num - $errorMessage")
+                                errorMessage = "Json upload error: ${e.message}"
+                                AppLogger.e("JsonUploadError Item ID: $num - $errorMessage")
                                 for (id in idsESPB) {
                                     try {
                                         withContext(Dispatchers.IO) { // Ensures it runs in background & waits
@@ -651,7 +653,7 @@ class WeighBridgeRepository(context: Context) {
                                         AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
                                     }
                                 }
-                                errors.add(UploadError(num, errorMessage!!, "ZIP_UPLOAD_ERROR"))
+                                errors.add(UploadError(num, errorMessage!!, "Json_UPLOAD_ERROR"))
                                 results[num] = false
                                 onProgressUpdate(num, 100, false, errorMessage)
                                 continue

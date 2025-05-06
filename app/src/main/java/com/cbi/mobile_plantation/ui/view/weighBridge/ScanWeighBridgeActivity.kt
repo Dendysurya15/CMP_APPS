@@ -280,6 +280,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 "pemuat_nik" to globalPemuatNik,
                                                 "nopol" to globalNopol,
                                                 "driver" to globalDriver,
+                                                "updated_nama" to prefManager!!.nameUserLogin.toString(),
                                                 "transporter_id" to (globalTransporterId ?: 0),
                                                 "mill_id" to globalMillId,
                                                 "creator_info" to globalCreatorInfo,
@@ -341,7 +342,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                     listOf(savedItemId),
                                                     1
                                                 )
-                                                // Create the CMP upload item with the ZIP file path
                                                 cmpItem = mapOf(
                                                     "num" to number++,
                                                     "ip" to globalIpMill,
@@ -373,7 +373,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 )
                                             }
 
-                                            val itemsToUpload = listOf(itemToUpload, cmpItem)
+                                            val itemsToUpload = listOf(cmpItem)
                                             val globalIdEspb = listOf(savedItemId)
 
                                             loadingDialog.setMessage(
@@ -474,7 +474,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 }
                                             }
 
-// Observe errors to add detailed messages
+                                            // Observe errors to add detailed messages
                                             weightBridgeViewModel.uploadErrorMap.observe(this@ScanWeighBridgeActivity) { errorMap ->
                                                 if (errorMap.isNotEmpty()) {
                                                     errorMap.forEach { (id, errorMsg) ->
@@ -791,8 +791,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val pemuatData = pemuatDeferred.await()
 
                     AppLogger.d(pemuatData.toString())
-                    val pemuatNama = pemuatData?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
-                        ?.joinToString(", ") ?: "-"
+                    val pemuatNama = pemuatData?.mapNotNull {"${it.nik} (${it.nama})"}?.takeIf { it.isNotEmpty() }
+                        ?.joinToString("\n  ") ?: "-"
 
 
                     AppLogger.d("pemuatNama $pemuatNama")
@@ -836,7 +836,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     }
 
                     val formattedBlokList = blokJjgList.mapNotNull { (idBlok, totalJjg) ->
-                        val blokKode = blokData.find { it.id == idBlok }?.nama
+                        val blokKode = blokData.find { it.id == idBlok }?.kode
                         if (blokKode != null && totalJjg != null) {
                             "• $blokKode ($totalJjg jjg)"
                         } else null

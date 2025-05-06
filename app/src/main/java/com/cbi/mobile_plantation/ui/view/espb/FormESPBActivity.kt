@@ -793,12 +793,6 @@ class FormESPBActivity : AppCompatActivity() {
                     } else {
                         0
                     }
-                    takeQRCodeScreenshot(
-                        qrCodeImageView,
-                        pemuatNama,
-                        driver,
-                        blokDisplay
-                    )
                     saveESPB(
                         blok_jjg = blok_jjg,
                         nopol = selectedNopol,
@@ -868,7 +862,13 @@ class FormESPBActivity : AppCompatActivity() {
                         )
                         setMaxBrightness(this, true)
                         playSound(R.raw.berhasil_generate_qr)
-                        // Button remains disabled after QR generation
+
+                        takeQRCodeScreenshot(
+                            qrCodeImageView,
+                            pemuatNama,
+                            driver,
+                            blokDisplay
+                        )
                     }
                 },
                 cancelFunction = {
