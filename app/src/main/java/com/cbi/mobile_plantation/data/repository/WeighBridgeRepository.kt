@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.ESPBEntity
@@ -27,6 +28,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import java.io.File
 import java.io.IOException
+import java.net.SocketTimeoutException
 
 @Suppress("UNREACHABLE_CODE")
 class WeighBridgeRepository(context: Context) {
@@ -273,7 +275,8 @@ class WeighBridgeRepository(context: Context) {
 
                                 try {
                                     AppLogger.d("PPRO: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
-                                    StagingApiClient.updateBaseUrl("http://$ipMill:3000")
+//                                    StagingApiClient.updateBaseUrl("http://$ipMill:3000")
+                                    StagingApiClient.updateBaseUrl("http://:3000")
 
                                     val response =
                                         StagingApiClient.instance.insertESPBKraniTimbangPPRO(data)
@@ -455,10 +458,10 @@ class WeighBridgeRepository(context: Context) {
                             idsESPB.add(itemId)
                             onProgressUpdate(num, 10, false, null)
                             val filePath = item["file"] as? String
-                            val fileName = item["fileName"] as? String
+                            val fileName = item["no_espb"] as? String
                             if (filePath.isNullOrEmpty()) {
                                 errorMessage = "File .json is missing or error when generating .json"
-                                AppLogger.e(errorMessage!!)
+                                AppLogger.e(errorMessage)
                                 for (id in idsESPB) {
                                     try {
                                         withContext(Dispatchers.IO) { // Ensures it runs in background & waits
@@ -510,12 +513,6 @@ class WeighBridgeRepository(context: Context) {
                             }
 
                             try {
-
-                                val fileRequestBody = RequestBody.create(
-                                    "application/json".toMediaTypeOrNull(),
-                                    file.readBytes()  // Read file as bytes
-                                )
-
                                 // Create the file part with progress tracking
                                 val progressRequestBody = AppUtils.ProgressRequestBody(
                                     file,
@@ -537,88 +534,134 @@ class WeighBridgeRepository(context: Context) {
                                     fileName!!
                                 )
 
-                                val response = TestingAPIClient.instance.uploadJsonV3(
-                                    jsonFile = filePart,
-                                    filename = filenameRequestBody
-                                )
+                                // Log before API call
+                                AppLogger.d("CMP Upload - Starting upload for file: $fileName, path: ${file.absolutePath}, size: ${file.length()} bytes")
 
-                                val responseBody = response.body()
-                                val httpStatusCode = response.code()
-                                if (response.isSuccessful) {
-
-
-                                    AppLogger.d(responseBody.toString())
-                                    responseBody?.let {
-                                        val jsonResultTableIds =
-                                            createJsonTableNameMapping(globalIdESPB) // Pass globalIdESPB
-
-                                        val uploadData = UploadCMPModel(
-                                            tracking_id = it.trackingId.toString(), // Convert Int to String if needed
-                                            nama_file = it.nama_file,
-                                            status = it.status,
-                                            tanggal_upload = it.tanggal_upload,
-                                            table_ids = jsonResultTableIds
-                                        )
-
-                                        withContext(Dispatchers.IO) {
-                                            val existingCount = uploadCMPDao.getTrackingIdCount(
-                                                uploadData.tracking_id!!,
-                                                uploadData.nama_file!!
-                                            )
-
-                                            if (existingCount > 0) {
-                                                uploadCMPDao.updateStatus(
-                                                    uploadData.tracking_id,
-                                                    uploadData.nama_file,
-                                                    uploadData.status!!
-                                                )
-                                            } else {
-                                                uploadCMPDao.insertNewData(uploadData)
-                                            }
-                                        }
-
-                                        delay(100) // Small delay before the next operation
-
-                                    }
-
-                                    // update espb id untuk status_cmp_upload = 1
-                                    for (id in idsESPB) {
-                                        try {
-                                            withContext(Dispatchers.IO) { // Ensures it runs in background & waits
-                                                updateUploadStatusCMP(
-                                                    id, // ✅ Replace itemId with id from idsESPB
-                                                    httpStatusCode,
-                                                    uploaderInfo,
-                                                    uploadedAt,
-                                                    uploadedById,
-                                                    "Success Uploading to CMP"
-                                                )
-                                            }
-                                            AppLogger.d("ESPB table dengan id $id has been updated")
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
-                                        }
-                                    }
-
-                                    results[num] = true
-                                    onProgressUpdate(num, 100, true, null)
-                                } else {
-                                    errorMessage = "JSON upload failed: ${response.message()}"
-                                    AppLogger.e("JSON UploadError Item ID: $num - $errorMessage")
-                                    errors.add(
-                                        UploadError(
-                                            num,
-                                            errorMessage!!,
-                                            "JSON_UPLOAD_ERROR"
-                                        )
+                                try {
+                                    val response = TestingAPIClient.instance.uploadJsonV3(
+                                        jsonFile = filePart,
+                                        filename = filenameRequestBody
                                     )
 
+                                    val responseBody = response.body()
+                                    val httpStatusCode = response.code()
+
+                                    AppLogger.d("CMP Upload - Response received: HTTP $httpStatusCode")
+                                    AppLogger.d("CMP Upload - Response body: $responseBody")
+
+                                    if (response.isSuccessful) {
+                                        AppLogger.d(responseBody.toString())
+                                        responseBody?.let {
+                                            val jsonResultTableIds =
+                                                createJsonTableNameMapping(globalIdESPB) // Pass globalIdESPB
+
+                                            val uploadData = UploadCMPModel(
+                                                tracking_id = it.trackingId.toString(), // Convert Int to String if needed
+                                                nama_file = it.nama_file,
+                                                status = it.status,
+                                                tanggal_upload = it.tanggal_upload,
+                                                table_ids = jsonResultTableIds
+                                            )
+
+                                            withContext(Dispatchers.IO) {
+                                                val existingCount = uploadCMPDao.getTrackingIdCount(
+                                                    uploadData.tracking_id!!,
+                                                    uploadData.nama_file!!
+                                                )
+
+                                                if (existingCount > 0) {
+                                                    uploadCMPDao.updateStatus(
+                                                        uploadData.tracking_id,
+                                                        uploadData.nama_file,
+                                                        uploadData.status!!
+                                                    )
+                                                } else {
+                                                    uploadCMPDao.insertNewData(uploadData)
+                                                }
+                                            }
+
+                                            delay(100) // Small delay before the next operation
+                                        }
+
+                                        // update espb id untuk status_cmp_upload = 1
+                                        for (id in idsESPB) {
+                                            try {
+                                                withContext(Dispatchers.IO) { // Ensures it runs in background & waits
+                                                    updateUploadStatusCMP(
+                                                        id, // ✅ Replace itemId with id from idsESPB
+                                                        httpStatusCode,
+                                                        uploaderInfo,
+                                                        uploadedAt,
+                                                        uploadedById,
+                                                        "Success Uploading to CMP"
+                                                    )
+                                                }
+                                                AppLogger.d("ESPB table dengan id $id has been updated")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                                            }
+                                        }
+
+                                        results[num] = true
+                                        onProgressUpdate(num, 100, true, null)
+                                    } else {
+                                        // Get more detailed error information
+                                        val errorBodyString = response.errorBody()?.string() ?: "No error body"
+                                        errorMessage = "JSON upload failed: HTTP $httpStatusCode - ${response.message()}"
+                                        AppLogger.e("JSON UploadError Item ID: $num - $errorMessage")
+                                        AppLogger.e("JSON Error Response Body: $errorBodyString")
+
+                                        errors.add(
+                                            UploadError(
+                                                num,
+                                                errorMessage!!,
+                                                "JSON_UPLOAD_ERROR"
+                                            )
+                                        )
+
+                                        for (id in idsESPB) {
+                                            try {
+                                                withContext(Dispatchers.IO) { // Ensures it runs in background & waits
+                                                    updateUploadStatusCMP(
+                                                        id, // ✅ Replace itemId with id from idsESPB
+                                                        httpStatusCode,
+                                                        uploaderInfo,
+                                                        uploadedAt,
+                                                        uploadedById,
+                                                        "${errorMessage!!.take(1000)}..."
+                                                    )
+                                                }
+                                                AppLogger.d("ESPB table dengan id $id has been updated")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                                            }
+                                        }
+                                        results[num] = false
+                                        onProgressUpdate(num, 100, false, errorMessage)
+                                    }
+                                } catch (e: Exception) {
+                                    // Get detailed exception info
+                                    val exceptionType = e.javaClass.simpleName
+                                    val exceptionStackTrace = Log.getStackTraceString(e)
+
+                                    errorMessage = "JSON upload error: [$exceptionType] ${e.message ?: "Unknown error"}"
+                                    AppLogger.e("JSON UploadError Item ID: $num - $errorMessage")
+                                    AppLogger.e("Exception stack trace: $exceptionStackTrace")
+
+                                    // Check for specific error types
+                                    when (e) {
+                                        is IOException -> AppLogger.e("JSON Upload - Network error: Possible connectivity issue")
+                                        is SocketTimeoutException -> AppLogger.e("JSON Upload - Timeout error: Server took too long to respond")
+                                        is IllegalStateException -> AppLogger.e("JSON Upload - State error: Retrofit/OkHttp issue")
+                                        is NullPointerException -> AppLogger.e("JSON Upload - Null error: A null value was unexpectedly encountered")
+                                    }
+
                                     for (id in idsESPB) {
                                         try {
-                                            withContext(Dispatchers.IO) { // Ensures it runs in background & waits
+                                            withContext(Dispatchers.IO) {
                                                 updateUploadStatusCMP(
-                                                    id, // ✅ Replace itemId with id from idsESPB
-                                                    httpStatusCode,
+                                                    id,
+                                                    0,
                                                     uploaderInfo,
                                                     uploadedAt,
                                                     uploadedById,
@@ -630,17 +673,36 @@ class WeighBridgeRepository(context: Context) {
                                             AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
                                         }
                                     }
+                                    errors.add(UploadError(num, errorMessage!!, "JSON_UPLOAD_ERROR"))
                                     results[num] = false
                                     onProgressUpdate(num, 100, false, errorMessage)
+                                    continue
                                 }
                             } catch (e: Exception) {
-                                errorMessage = "Json upload error: ${e.message}"
-                                AppLogger.e("JsonUploadError Item ID: $num - $errorMessage")
+                                // This is the outer try-catch for file handling errors
+                                val exceptionType = e.javaClass.simpleName
+                                val exceptionStackTrace = Log.getStackTraceString(e)
+
+                                errorMessage = "File preparation error: [$exceptionType] ${e.message ?: "Unknown error"}"
+                                AppLogger.e("JSON File Error Item ID: $num - $errorMessage")
+                                AppLogger.e("File exception stack trace: $exceptionStackTrace")
+
+                                // If we can, check the file properties
+                                try {
+                                    if (file.exists()) {
+                                        AppLogger.e("File exists but may have issues - Size: ${file.length()} bytes, Readable: ${file.canRead()}, Writable: ${file.canWrite()}")
+                                    } else {
+                                        AppLogger.e("File does not exist at reported path: ${file.absolutePath}")
+                                    }
+                                } catch (fileCheckEx: Exception) {
+                                    AppLogger.e("Error checking file properties: ${fileCheckEx.message}")
+                                }
+
                                 for (id in idsESPB) {
                                     try {
-                                        withContext(Dispatchers.IO) { // Ensures it runs in background & waits
+                                        withContext(Dispatchers.IO) {
                                             updateUploadStatusCMP(
-                                                id, // ✅ Replace itemId with id from idsESPB
+                                                id,
                                                 0,
                                                 uploaderInfo,
                                                 uploadedAt,
@@ -653,7 +715,7 @@ class WeighBridgeRepository(context: Context) {
                                         AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
                                     }
                                 }
-                                errors.add(UploadError(num, errorMessage!!, "Json_UPLOAD_ERROR"))
+                                errors.add(UploadError(num, errorMessage!!, "JSON_FILE_PREPARATION_ERROR"))
                                 results[num] = false
                                 onProgressUpdate(num, 100, false, errorMessage)
                                 continue

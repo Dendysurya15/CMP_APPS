@@ -551,96 +551,113 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
 
                                         if (espbList.isNotEmpty()) {
-                                            // Check if all items are already zipped (dataIsZipped = 1)
                                             val allZipped = espbList.all { it.dataIsZipped == 1 }
 
-                                            // Always process the data and create JSON files
-                                            mappedESPBData = espbList.map { data ->
-                                                val blokJjgList =
-                                                    data.blok_jjg.split(";").mapNotNull {
-                                                        it.split(",").takeIf { it.size == 2 }
-                                                            ?.let { (id, jjg) ->
-                                                                id.toIntOrNull()
-                                                                    ?.let { it to jjg.toIntOrNull() }
-                                                            }
-                                                    }
-                                                val idBlokList = blokJjgList.map { it.first }
-                                                val concatenatedIds = idBlokList.joinToString(",")
-                                                val totalJjg =
-                                                    blokJjgList.mapNotNull { it.second }.sum()
+                                            // Find only the items that need uploading (status is not 200)
+                                            val itemsNeedingUpload = espbList.filter { it.status_upload_cmp_wb != 200 }
 
-                                                val firstBlockId = idBlokList.firstOrNull()
+                                            if (itemsNeedingUpload.isEmpty()) {
+                                                // If no items need upload, log and skip JSON creation
+                                                AppLogger.d("All items already have successful upload status (200), skipping JSON creation")
+                                                globalESPBIds = espbList.map { it.id }
 
-                                                // Create a CompletableDeferred to handle the async operation
-                                                val tphDeferred =
-                                                    CompletableDeferred<TPHNewModel?>()
-
-                                                // Fetch the TPH data if we have a block ID
-                                                firstBlockId?.let { blockId ->
-                                                    weightBridgeViewModel.fetchTPHByBlockId(blockId)
-
-                                                    // Set up a one-time observer for the LiveData
-                                                    weightBridgeViewModel.tphData.observeOnce(this@ListHistoryWeighBridgeActivity) { tphModel ->
-                                                        tphDeferred.complete(tphModel)
-                                                    }
+                                                if (allZipped) {
+                                                    zipDeferred.complete(true)
                                                 }
-                                                    ?: tphDeferred.complete(null) // Complete with null if no block ID
+                                            } else {
 
-                                                // Wait for the TPH data
-                                                val tphData = tphDeferred.await()
 
-                                                mapOf(
-                                                    "id" to data.id,
-                                                    "regional" to (tphData?.regional ?: ""),
-                                                    "wilayah" to (tphData?.wilayah ?: ""),
-                                                    "company" to (tphData?.company ?: ""),
-                                                    "dept" to (tphData?.dept ?: ""),
-                                                    "divisi" to (tphData?.divisi ?: ""),
-                                                    "blok_id" to concatenatedIds,
-                                                    "blok_jjg" to data.blok_jjg,
-                                                    "jjg" to totalJjg,
-                                                    "created_by_id" to data.created_by_id,
-                                                    "created_at" to data.created_at,
-                                                    "pemuat_id" to data.pemuat_id,
-                                                    "kemandoran_id" to data.kemandoran_id,
-                                                    "pemuat_nik" to data.pemuat_nik,
-                                                    "nopol" to data.nopol,
-                                                    "driver" to data.driver,
-                                                    "updated_nama" to prefManager!!.nameUserLogin.toString(),
-                                                    "transporter_id" to data.transporter_id,
-                                                    "mill_id" to data.mill_id,
-                                                    "creator_info" to data.creator_info,
-                                                    "no_espb" to data.noESPB,
-                                                    "tph0" to data.tph0,
-                                                    "tph1" to data.tph1,
-                                                    "update_info_sp" to data.update_info_sp,
-                                                    "app_version" to AppUtils.getDeviceInfo(this@ListHistoryWeighBridgeActivity)
-                                                        .toString(),
-                                                    "jabatan" to prefManager!!.jabatanUserLogin.toString(),
-                                                )
-                                            }
-                                            globalESPBIds = mappedESPBData.map { it["id"] as Int }
+                                                // Map and process only the items that need upload
+                                                mappedESPBData = itemsNeedingUpload.map { data ->
+                                                    val blokJjgList =
+                                                        data.blok_jjg.split(";").mapNotNull {
+                                                            it.split(",").takeIf { it.size == 2 }
+                                                                ?.let { (id, jjg) ->
+                                                                    id.toIntOrNull()
+                                                                        ?.let { it to jjg.toIntOrNull() }
+                                                                }
+                                                        }
+                                                    val idBlokList = blokJjgList.map { it.first }
+                                                    val concatenatedIds = idBlokList.joinToString(",")
+                                                    val totalJjg =
+                                                        blokJjgList.mapNotNull { it.second }.sum()
 
-                                            // Always create the JSON file
-                                            val espbJson = Gson().toJson(mappedESPBData)
-                                            val (espbFilePath, espbFilename) = AppUtils.createTempJsonFile(
-                                                context = this@ListHistoryWeighBridgeActivity,
-                                                baseFilename = AppUtils.DatabaseTables.ESPB,
-                                                jsonData = espbJson,
-                                                userId = prefManager!!.idUserLogin.toString(),
-                                                dataDate = ""
-                                            )
+                                                    val firstBlockId = idBlokList.firstOrNull()
 
-                                            // Add the file info to our global variable
-                                            allJsonFiles.add(JsonFileInfo(
-                                                filePath = espbFilePath,
-                                                fileName = espbFilename
-                                            ))
+                                                    // Create a CompletableDeferred to handle the async operation
+                                                    val tphDeferred =
+                                                        CompletableDeferred<TPHNewModel?>()
 
-                                            // Only skip the zipping process if all items are already zipped
-                                            if (allZipped) {
-                                                Log.d("UploadCheck", "✅ All ESPB data is already zipped, skipping zipping process")
-                                                zipDeferred.complete(true)
+                                                    // Fetch the TPH data if we have a block ID
+                                                    firstBlockId?.let { blockId ->
+                                                        weightBridgeViewModel.fetchTPHByBlockId(blockId)
+
+                                                        // Set up a one-time observer for the LiveData
+                                                        weightBridgeViewModel.tphData.observeOnce(this@ListHistoryWeighBridgeActivity) { tphModel ->
+                                                            tphDeferred.complete(tphModel)
+                                                        }
+                                                    }
+                                                        ?: tphDeferred.complete(null) // Complete with null if no block ID
+
+                                                    // Wait for the TPH data
+                                                    val tphData = tphDeferred.await()
+
+                                                    mapOf(
+                                                        "id" to data.id,
+                                                        "regional" to (tphData?.regional ?: ""),
+                                                        "wilayah" to (tphData?.wilayah ?: ""),
+                                                        "company" to (tphData?.company ?: ""),
+                                                        "dept" to (tphData?.dept ?: ""),
+                                                        "divisi" to (tphData?.divisi ?: ""),
+                                                        "blok_id" to concatenatedIds,
+                                                        "blok_jjg" to data.blok_jjg,
+                                                        "jjg" to totalJjg,
+                                                        "created_by_id" to data.created_by_id,
+                                                        "created_at" to data.created_at,
+                                                        "pemuat_id" to data.pemuat_id,
+                                                        "kemandoran_id" to data.kemandoran_id,
+                                                        "pemuat_nik" to data.pemuat_nik,
+                                                        "nopol" to data.nopol,
+                                                        "driver" to data.driver,
+                                                        "updated_nama" to prefManager!!.nameUserLogin.toString(),
+                                                        "transporter_id" to data.transporter_id,
+                                                        "mill_id" to data.mill_id,
+                                                        "creator_info" to data.creator_info,
+                                                        "no_espb" to data.noESPB,
+                                                        "tph0" to data.tph0,
+                                                        "tph1" to data.tph1,
+                                                        "update_info_sp" to data.update_info_sp,
+                                                        "app_version" to AppUtils.getDeviceInfo(this@ListHistoryWeighBridgeActivity)
+                                                            .toString(),
+                                                        "jabatan" to prefManager!!.jabatanUserLogin.toString(),
+                                                    )
+                                                }
+                                                globalESPBIds = mappedESPBData.map { it["id"] as Int }
+
+                                                // Only create JSON if we have items to upload
+                                                if (mappedESPBData.isNotEmpty()) {
+                                                    val espbJson = Gson().toJson(mappedESPBData)
+                                                    val (espbFilePath, espbFilename) = AppUtils.createTempJsonFile(
+                                                        context = this@ListHistoryWeighBridgeActivity,
+                                                        baseFilename = AppUtils.DatabaseTables.ESPB,
+                                                        jsonData = espbJson,
+                                                        userId = prefManager!!.idUserLogin.toString(),
+                                                        dataDate = ""
+                                                    )
+
+                                                    // Add the file info to our global variable
+                                                    allJsonFiles.add(JsonFileInfo(
+                                                        filePath = espbFilePath,
+                                                        fileName = espbFilename
+                                                    ))
+                                                    AppLogger.d("Created JSON file for upload: $espbFilename with ${itemsNeedingUpload.size} items")
+                                                }
+
+                                                // Only skip the zipping process if all items are already zipped
+                                                if (allZipped) {
+                                                    Log.d("UploadCheck", "✅ All ESPB data is already zipped, skipping zipping process")
+                                                    zipDeferred.complete(true)
+                                                }
                                             }
                                         }
                                     } catch (e: Exception) {
