@@ -970,7 +970,9 @@ class HomePageActivity : AppCompatActivity() {
                             if (uploadCMPData.isNotEmpty()) {
                                 AppLogger.d("Starting update for ${uploadCMPData.size} items")
                                 val updateSuccessful =
-                                    datasetViewModel.updateLocalUploadCMP(uploadCMPData).await()
+                                    datasetViewModel.updateLocalUploadCMP(uploadCMPData,
+                                        prefManager!!.jabatanUserLogin!!
+                                    ).await()
                                 AppLogger.d("Update status: $updateSuccessful, now proceeding to file check")
                             } else {
                                 AppLogger.d("No data to update")
@@ -2370,7 +2372,7 @@ class HomePageActivity : AppCompatActivity() {
                         AppLogger.d("Found ${espbIds.size} ESPB IDs for file $trackingId: $espbIds")
 
                         // Update status_upload for ESPB IDs
-                        weightBridgeViewModel.updateStatusUploadEspb(espbIds, responseInfo.status)
+                        weightBridgeViewModel.updateStatusUploadEspbCmpSp(espbIds, responseInfo.status)
                         AppLogger.d("Updated status_upload to ${responseInfo.status} for ESPB IDs: $espbIds")
                     } else {
                         AppLogger.d("No ESPB IDs found for file $trackingId")

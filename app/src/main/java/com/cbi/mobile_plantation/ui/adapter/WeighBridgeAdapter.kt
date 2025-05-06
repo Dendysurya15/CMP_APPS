@@ -158,9 +158,9 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
             }
         }
 
-        if (item.status_upload_cmp_wb == 200 && item.status_upload_ppro_wb == 1) {
+        if ((item.status_upload_cmp_wb in 1..3) && (item.status_upload_ppro_wb in 1..3)) {
             holder.checkbox.apply {
-//                isChecked = true
+//      isChecked = true
                 isEnabled = false
                 alpha = 0.5f
             }
@@ -203,15 +203,17 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
 
                 // CMP Icon
                 addView(ImageView(context).apply {
+                    val isSuccess = item.status_upload_cmp_wb in 1..3
+
                     setImageResource(
-                        if (item.status_upload_cmp_wb == 200) R.drawable.baseline_check_box_24
+                        if (isSuccess) R.drawable.baseline_check_box_24
                         else R.drawable.baseline_close_24
                     )
                     layoutParams = LinearLayout.LayoutParams(
                         24.dpToPx(context),
                         24.dpToPx(context)
                     )
-                    val color = if (item.status_upload_cmp_wb == 200) {
+                    val color = if (isSuccess) {
                         ContextCompat.getColor(context, R.color.greendarkerbutton)
                     } else {
                         ContextCompat.getColor(context, R.color.colorRedDark)
@@ -297,7 +299,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         uploadDate.text = formattedDate
 
         // Use HTTP status codes for proper status display
-        val isSuccess = status == 200
+        val isSuccess = status in 1..3
 
         if (isSuccess) {
             statusAlertMessage.text = "SUCCESS"
@@ -332,7 +334,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         }
 
         // Make sure TextView can display multiple lines for error messages
-        messageResponseUpload.maxLines = if (!isSuccess) 3 else 1
+        messageResponseUpload.maxLines = if (!isSuccess) 4 else 2
         messageResponseUpload.ellipsize = TextUtils.TruncateAt.END
 
         parentView.addView(cardView)

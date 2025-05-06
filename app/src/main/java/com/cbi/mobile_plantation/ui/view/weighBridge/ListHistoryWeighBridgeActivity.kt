@@ -1087,7 +1087,9 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                 if (uploadCMPData.isNotEmpty()) {
                                     AppLogger.d("Starting update for ${uploadCMPData.size} items")
                                     val updateSuccessful =
-                                        datasetViewModel.updateLocalUploadCMP(uploadCMPData).await()
+                                        datasetViewModel.updateLocalUploadCMP(uploadCMPData,
+                                            prefManager!!.jabatanUserLogin!!
+                                        ).await()
                                     AppLogger.d("Update status: $updateSuccessful, now proceeding to file check")
                                 } else {
                                     AppLogger.d("No data to update")
@@ -1114,23 +1116,20 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                     val espbList = espbDeferred.await()
                                     try {
 
-
                                         if (espbList.isNotEmpty()) {
                                             val allZipped = espbList.all { it.dataIsZipped == 1 }
 
-                                            // Find only the items that need uploading (status is not 200)
+                                            // Find only the items that need uploading (status is between 1 and 3)
                                             val itemsNeedingUpload =
-                                                espbList.filter { it.status_upload_cmp_wb != 200 }
+                                                espbList.filter { it.status_upload_cmp_wb !in 1..3 }
 
 
                                             AppLogger.d("itemsNeedingUpload $itemsNeedingUpload")
 
                                             if (itemsNeedingUpload.isEmpty()) {
                                                 // If no items need upload, log and skip JSON creation
-                                                AppLogger.d("All items already have successful upload status (200), skipping JSON creation")
-                                                globalESPBIds = espbList.map { it.id }
 
-                                                allJsonFiles
+                                                globalESPBIds = espbList.map { it.id }
 
                                                 if (allZipped) {
                                                     zipDeferred.complete(true)

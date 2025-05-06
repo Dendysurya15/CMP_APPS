@@ -651,7 +651,7 @@ class UploadCMPRepository(context: Context) {
                                         withContext(Dispatchers.IO) {
                                             updateUploadStatusCMP(
                                                 id,
-                                                httpStatusCode,
+                                                responseBody?.status ?: 0,
                                                 uploaderInfo,
                                                 uploadedAt,
                                                 uploadedById,
@@ -684,7 +684,7 @@ class UploadCMPRepository(context: Context) {
                                     withContext(Dispatchers.IO) {
                                         updateUploadStatusCMP(
                                             id,
-                                            httpStatusCode,
+                                            responseBody?.status ?: 0,
                                             uploaderInfo,
                                             uploadedAt,
                                             uploadedById,
@@ -707,7 +707,7 @@ class UploadCMPRepository(context: Context) {
                                 success = false,
                                 trackingId = 0,
                                 message = errorMsg,
-                                status = httpStatusCode,
+                                status = responseBody?.status ?: 0,
                                 tanggal_upload = "",
                                 nama_file = filename,
                                 results = null,

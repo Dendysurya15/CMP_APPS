@@ -594,7 +594,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val message: String
     )
 
-    fun updateLocalUploadCMP(uploadData: List<Pair<String, String>>): Deferred<Boolean> {
+    fun updateLocalUploadCMP(uploadData: List<Pair<String, String>>, jabatan :String): Deferred<Boolean> {
         val result = CompletableDeferred<Boolean>()
 
         viewModelScope.launch {
@@ -682,8 +682,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     AppLogger.d("Updated panen_table successfully")
                                                 }
                                                 AppUtils.DatabaseTables.ESPB -> {
-                                                    espbDao.updateStatusUploadEspb(idList, statusCode)
-                                                    AppLogger.d("Updated espb_table successfully")
+                                                    // Conditional update based on jabatan/role
+                                                    when (jabatan) {
+                                                        AppUtils.ListFeatureByRoleUser.Mandor1,
+                                                        AppUtils.ListFeatureByRoleUser.Asisten -> {
+                                                            espbDao.updateStatusUploadEspbCmpSp(idList, statusCode)
+                                                            AppLogger.d("Updated espb_table status_upload_cmp_sp successfully")
+                                                        }
+                                                        AppUtils.ListFeatureByRoleUser.KeraniTimbang -> {
+                                                            espbDao.updateStatusUploadEspbCmpWb(idList, statusCode)
+                                                            AppLogger.d("Updated espb_table status_upload_cmp_wb successfully")
+                                                        }
+                                                    }
                                                 }
                                                 else -> {
                                                     AppLogger.w("Unknown table name: $tableName")

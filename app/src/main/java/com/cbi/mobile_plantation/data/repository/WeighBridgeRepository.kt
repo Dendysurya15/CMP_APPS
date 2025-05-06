@@ -137,8 +137,8 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
-    suspend fun updateStatusUploadEspb(ids: List<Int>, statusUpload: Int) {
-        espbDao.updateStatusUploadEspb(ids, statusUpload)
+    suspend fun updateStatusUploadEspbCmpSp(ids: List<Int>, statusUpload: Int) {
+        espbDao.updateStatusUploadEspbCmpSp(ids, statusUpload)
     }
 
     // Function to check if noESPB exists
