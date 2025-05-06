@@ -14,9 +14,19 @@ data class TPHBlokInfo(
 )
 
 data class filterHektarPanenTanggalBlok(
-    val namaBlok: String,
-    val date: String,
-    val pemanen: String,
-    val janjang_dibayar: String,
-    val id_hektar_panen: Int
+    val nik: String,
+    val luas_panen: Float,
+    val blok: String,
+    val luas_blok: String,
+    val dibayar_arr: String
+)
+
+data class displayHektarPanenTanggalBlok(
+    val nama: String,
+    val luas_panen: Float,
+    val blok: String,
+    val luas_blok: String,
+    val dibayar_arr: String,
+    val nik: String,
+    val id: String
 )

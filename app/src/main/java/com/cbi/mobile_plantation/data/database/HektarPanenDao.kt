@@ -5,9 +5,11 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.cbi.markertph.data.model.TPHNewModel
-import com.cbi.mobile_plantation.data.model.AbsensiModel
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
+import com.cbi.mobile_plantation.data.model.filterHektarPanenTanggalBlok
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Dao
 abstract class HektarPanenDao {
@@ -53,7 +55,7 @@ abstract class HektarPanenDao {
 
 
     //get all where luas_panen is 0 by date
-    @Query("SELECT * FROM hektar_panen WHERE luas_panen = 0 AND strftime('%Y-%m-%d', date_created_panen) = :date")
+    @Query("SELECT * FROM hektar_panen WHERE luas_panen = 0.0 AND strftime('%Y-%m-%d', date_created_panen) = :date")
     abstract fun getAllWhereLuasPanenIsZeroByDate(date: String): List<HektarPanenEntity>
 
     @Insert
@@ -69,6 +71,14 @@ abstract class HektarPanenDao {
     abstract fun getByNikAndBlokDate(nik: String, blokId: Int, date: String): HektarPanenEntity?
 
     //count where luas_panen is 0 and date today
-    @Query("SELECT COUNT(*) FROM hektar_panen WHERE luas_panen = 0 AND strftime('%Y-%m-%d', date_created_panen) = strftime('%Y-%m-%d', 'now', 'localtime')")
-    abstract fun countWhereLuasPanenIsZeroAndDateToday(): Int
+    @Query("SELECT COUNT(*) FROM hektar_panen WHERE luas_panen = 0.0 AND date_created_panen LIKE '%' || :date || '%'")
+    abstract fun countWhereLuasPanenIsZeroAndDate(date: String= SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())): Int
+
+    //select blok distinct from hektar_panen where date_created_panen like '%' || :date || '%'
+    @Query("SELECT DISTINCT blok FROM hektar_panen WHERE date_created_panen LIKE '%' || :date || '%'")
+    abstract fun getDistinctBlokByDate(date: String): List<Int>
+
+    //select nik, luas_panen, luas_blok, dibayar from hektar_panen where date_created_panen like '%' || :date || '%' and blok = :blok
+    @Query("SELECT nik, luas_panen, blok, luas_blok, dibayar_arr FROM hektar_panen WHERE date_created_panen LIKE '%' || :date || '%' AND blok = :blok")
+    abstract fun getNikLuasPanenLuasBlokDibayarByDateAndBlok(date: String, blok: Int): List<filterHektarPanenTanggalBlok>
 }

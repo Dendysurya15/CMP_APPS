@@ -40,6 +40,7 @@ import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.database.KaryawanDao
 import com.cbi.mobile_plantation.data.model.ESPBEntity
+import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
@@ -237,6 +238,19 @@ class HomePageActivity : AppCompatActivity() {
                     AppLogger.e("Error fetching data: ${e.message}")
                     withContext(Dispatchers.Main) {
                         featureAdapter.hideLoadingForFeature("Rekap eSPB")
+                    }
+                }
+                try {
+                    val countDeferred = async { hektarPanenViewModel.countWhereLuasPanenIsZeroAndDateToday() }
+                    countHektarZero = countDeferred.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount(AppUtils.ListFeatureNames.DaftarHektarPanen, countHektarZero.toString())
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.DaftarHektarPanen)
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.DaftarHektarPanen)
                     }
                 }
                 try {
@@ -3021,6 +3035,9 @@ class HomePageActivity : AppCompatActivity() {
         val appRepository = AppRepository(application)
         val factory5 = ESPBViewModel.ESPBViewModelFactory(appRepository)
         espbViewModel = ViewModelProvider(this, factory5)[ESPBViewModel::class.java]
+
+        val factoryHektarVM = HektarPanenViewModel.HektarPanenViewModelFactory(appRepository)
+        hektarPanenViewModel = ViewModelProvider(this, factoryHektarVM)[HektarPanenViewModel::class.java]
 
         val factory6 = AbsensiViewModel.AbsensiViewModelFactory(application)
         absensiViewModel = ViewModelProvider(this, factory6)[AbsensiViewModel::class.java]

@@ -115,8 +115,8 @@ class AppRepository(context: Context) {
                             continue
                         }
 
-                        val blokId = tphDao.getBlokIdbyIhTph(tphId)
-                        if (blokId == null) {
+                        val blokIdFromTPHid = tphDao.getBlokIdbyIhTph(tphId)
+                        if (blokIdFromTPHid == null) {
                             Log.e(
                                 "AppRepository",
                                 "Could not find block ID for TPH ID: ${tphData.tph_id}"
@@ -126,11 +126,11 @@ class AppRepository(context: Context) {
                         if (tphData.karyawan_nik.contains(",")) {
                             val nikArr = tphData.karyawan_nik.split(",")
                             for (nik in nikArr) {
-                                val key = Pair(nik, "${tphData.tph_id}$${tphData.date_created.split(" ")[0]}")
+                                val key = Pair(nik, "${blokIdFromTPHid}$${tphData.date_created.split(" ")[0]}")
                                 // Add logging for grouping
                                 Log.d(
                                     "AppRepository",
-                                    "Grouping TPH: ${tphData.tph_id}$${tphData.date_created.split(" ")[0]}, NIK: ${nik}, Block: $blokId"
+                                    "Grouping TPH: ${blokIdFromTPHid}$${tphData.date_created.split(" ")[0]}, NIK: ${nik}, Block: $blokIdFromTPHid"
                                 )
                                 // Initialize list for this key if it doesn't exist
                                 if (!groupedByNikAndBlock.containsKey(key)) {
@@ -141,13 +141,13 @@ class AppRepository(context: Context) {
                             }
                         } else {
                             // Create a key with NIK and Block (Pair<String, Int>)
-                            val key = Pair(tphData.karyawan_nik, "${tphData.tph_id}$${tphData.date_created.split(" ")[0]}")
+                            val key = Pair(tphData.karyawan_nik, "${blokIdFromTPHid}$${tphData.date_created.split(" ")[0]}")
 
 
                             // Add logging for grouping
                             Log.d(
                                 "AppRepository",
-                                "Grouping TPH: ${tphData.tph_id}$${tphData.date_created.split(" ")[0]}, NIK: ${tphData.karyawan_nik}, Block: $blokId"
+                                "Grouping TPH: ${blokIdFromTPHid}$${tphData.date_created.split(" ")[0]}, NIK: ${tphData.karyawan_nik}, Block: $blokIdFromTPHid"
                             )
 
                             // Initialize list for this key if it doesn't exist
@@ -580,7 +580,11 @@ class AppRepository(context: Context) {
     }
 
     suspend fun countWhereLuasPanenIsZeroAndDateToday(): Int {
-        return hektarPanenDao.countWhereLuasPanenIsZeroAndDateToday()
+        return hektarPanenDao.countWhereLuasPanenIsZeroAndDate()
+    }
+
+    suspend fun getDistinctBlokByDate(date: String): List<Int> {
+        return hektarPanenDao.getDistinctBlokByDate(date)
     }
 
     suspend fun loadCountTPHESPB(
