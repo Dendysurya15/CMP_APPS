@@ -1415,6 +1415,7 @@ class HomePageActivity : AppCompatActivity() {
                                                     "pemuat_nik" to nikValues,
                                                     "nopol" to data.nopol,
                                                     "driver" to data.driver,
+                                                    "updated_nama" to prefManager!!.nameUserLogin.toString(),
                                                     "transporter_id" to data.transporter_id,
                                                     "mill_id" to data.mill_id,
                                                     "creator_info" to data.creator_info,

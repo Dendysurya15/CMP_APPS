@@ -1988,6 +1988,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
                         }
 
+
+                        AppLogger.d(jsonData.toString())
                         val encodedData = withContext(Dispatchers.IO) {
                             try {
                                 encodeJsonToBase64ZipQR(jsonData)
