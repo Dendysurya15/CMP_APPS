@@ -117,6 +117,10 @@ abstract class PanenDao {
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
+    @Query("SELECT * FROM panen_table WHERE status_espb = 0")
+    abstract fun getAllActivePanenESPBAll(): List<PanenEntityWithRelations>
+
+    @Transaction
     @Query("SELECT * FROM panen_table WHERE archive != 1")
     abstract fun getAllTPHHasBeenSelected(): List<PanenEntityWithRelations>
 
@@ -133,6 +137,9 @@ abstract class PanenDao {
 
     @Query("UPDATE panen_table SET status_pengangkutan = :status WHERE id IN (:ids)")
     abstract suspend fun panenUpdateStatusAngkut(ids: List<Int>, status: Int): Int
+
+    @Query("UPDATE panen_table SET status_uploaded_image = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadedImage(ids: List<Int>, status: String): Int
 
     @Transaction
     @Query("SELECT * FROM panen_table WHERE date(date_created) < date(:cutoffDate)")

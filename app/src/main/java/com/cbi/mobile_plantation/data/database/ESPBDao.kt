@@ -31,6 +31,9 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table WHERE status_upload = 0")
     abstract fun getAllActive(): List<ESPBEntity>
 
+    @Query("SELECT * FROM espb_table WHERE status_upload = 0")
+    abstract fun getAllActiveESPB(): List<ESPBEntity>
+
     @Query("SELECT * FROM espb_table WHERE dataIsZipped = 0 AND id IN (:ids)")
     abstract fun getActiveESPBByIds(ids: List<Int>): List<ESPBEntity>
 

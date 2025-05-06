@@ -216,6 +216,18 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadActivePanenESPBAll() {
+        viewModelScope.launch {
+            repository.getActivePanenESPBAll()
+                .onSuccess { panenList ->
+                    _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
     fun getAllTPHHasBeenSelected() {
         viewModelScope.launch {
             repository.getAllTPHHasBeenSelected()

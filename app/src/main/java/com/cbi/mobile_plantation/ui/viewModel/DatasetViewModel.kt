@@ -655,6 +655,54 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 uploadCMPDao.updateStatus(trackingId, filename, statusCode)
                                 AppLogger.d("Database update completed successfully")
 
+                                // Get table_ids from database
+                                val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(trackingId, filename)
+                                AppLogger.d("Retrieved table_ids JSON: $tableIdsJson")
+
+                                if (tableIdsJson != null) {
+                                    try {
+                                        // Parse JSON using Gson or JSONObject
+                                        val json = JSONObject(tableIdsJson)
+                                        val keys = json.keys()
+
+                                        while (keys.hasNext()) {
+                                            val tableName = keys.next()
+                                            val ids = json.getJSONArray(tableName)
+                                            val idList = mutableListOf<Int>()
+
+                                            for (i in 0 until ids.length()) {
+                                                idList.add(ids.getInt(i))
+                                            }
+
+                                            AppLogger.d("Updating $tableName with ids: $idList, status: $statusCode")
+
+                                            when (tableName) {
+                                                AppUtils.DatabaseTables.PANEN -> {
+                                                    panenDao.updateStatusUploadPanen(idList, statusCode)
+                                                    AppLogger.d("Updated panen_table successfully")
+                                                }
+                                                AppUtils.DatabaseTables.ESPB -> {
+                                                    espbDao.updateStatusUploadEspb(idList, statusCode)
+                                                    AppLogger.d("Updated espb_table successfully")
+                                                }
+                                                else -> {
+                                                    AppLogger.w("Unknown table name: $tableName")
+                                                }
+                                            }
+                                        }
+                                    } catch (jsonException: Exception) {
+                                        AppLogger.e("Error parsing table_ids JSON: ${jsonException.message}")
+                                        errorItems.add(
+                                            ErrorItem(
+                                                fileName = filename,
+                                                message = "Failed to parse table_ids JSON"
+                                            )
+                                        )
+                                    }
+                                } else {
+                                    AppLogger.w("No table_ids found for trackingId: $trackingId, filename: $filename")
+                                }
+
                                 // Check if this was an error status
                                 AppLogger.d("Checking if status code ($statusCode) >= 4")
                                 if (statusCode >= 4) {

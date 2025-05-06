@@ -1064,6 +1064,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                                     shouldReopenBottomSheet = true
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         cameraViewModel.takeCameraPhotos(
+                                            this,
                                             currentPage.toString(),
                                             ivAddPhoto,
                                             currentPage,
@@ -1096,6 +1097,7 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                         shouldReopenBottomSheet = true
                         Handler(Looper.getMainLooper()).postDelayed({
                             cameraViewModel.takeCameraPhotos(
+                                this,
                                 currentPage.toString(),
                                 ivAddPhoto,
                                 currentPage,

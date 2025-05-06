@@ -75,7 +75,7 @@ import java.util.concurrent.Executors
         EstateModel::class,
         AfdelingModel::class,
     ],
-    version = 36
+    version = 37
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -143,7 +143,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_31_32,
                         MIGRATION_32_33,
                         MIGRATION_33_34,
-                        MIGRATION_34_35
+                        MIGRATION_34_35,
+                        MIGRATION_35_36
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -464,6 +465,14 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE panen ADD COLUMN jumlah_pemanen INTEGER NOT NULL DEFAULT 1")
             }
         }
+
+        val MIGRATION_35_36 = object : Migration(35, 36) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add new column to PanenEntity table
+                database.execSQL("ALTER TABLE panen ADD COLUMN status_uploaded_image STRING NOT NULL DEFAULT 0")
+            }
+        }
+
 
         fun closeDatabase() {
             INSTANCE?.close()

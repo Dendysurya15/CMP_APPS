@@ -186,6 +186,18 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun fetchActiveESPBAll() {
+        viewModelScope.launch {
+            repository.getActiveESPBAll()
+                .onSuccess { espbList ->
+                    _activeESPBUploadCMP.postValue(espbList)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load ESPB data")
+                }
+        }
+    }
+
 
     fun fetchActiveESPBByIds(ids: List<Int>) {
         viewModelScope.launch {

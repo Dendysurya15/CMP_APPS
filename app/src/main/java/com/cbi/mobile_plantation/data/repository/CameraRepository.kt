@@ -49,6 +49,7 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.LoadingDialog
+import com.cbi.mobile_plantation.utils.PrefManager
 import com.daimajia.androidanimations.library.Techniques
 import com.daimajia.androidanimations.library.YoYo
 import com.google.android.material.card.MaterialCardView
@@ -81,7 +82,7 @@ class CameraRepository(
     }
 
     private var photoCallback: PhotoCallback? = null
-
+    private var prefManager: PrefManager? = null
 
     private var lastCameraId = 0
     private var rotatedCam = false
@@ -219,6 +220,7 @@ class CameraRepository(
 
     @SuppressLint("ClickableViewAccessibility")
     fun takeCameraPhotos(
+        context: Context,
         resultCode: String,
         imageView: ImageView,
         pageForm: Int,
@@ -229,6 +231,7 @@ class CameraRepository(
         latitude: Double?=null,
         longitude: Double?=null
     ) {
+        prefManager = PrefManager(context)
         setDefaultIconTorchButton(view)
         loadingDialog = LoadingDialog(context)
         val rootDCIM = File(
@@ -398,6 +401,7 @@ class CameraRepository(
                                             }
 
                                             takeCameraPhotos(
+                                                context,
                                                 resultCode,
                                                 imageView,
                                                 pageForm,
@@ -433,9 +437,9 @@ class CameraRepository(
                                             if (!dirDCIM.exists()) dirDCIM.mkdirs()
 
                                             val dateFormat =
-                                                SimpleDateFormat("yyyyMdd_HHmmss").format(Calendar.getInstance().time)
+                                                SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
                                             fileName =
-                                                "${featureName}_${kodeFoto}_${dateFormat}.jpg"
+                                                "${featureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_${dateFormat}.jpg"
                                             file = File(dirApp, fileName)
 
                                             fileDCIM = File(dirDCIM, fileName)
@@ -479,16 +483,16 @@ class CameraRepository(
                                         val watermarkText = when {
                                             resultCode == "0" || commentWm.isEmpty() -> {
                                                 if (locationText.isNotEmpty()) {
-                                                    "CMP-$featureName\n$locationText\n${dateWM}"
+                                                    "CMP-$featureName ${prefManager!!.estateUserLogin}\n$locationText\n${dateWM}"
                                                 } else {
-                                                    "CMP-$featureName\n${dateWM}"
+                                                    "CMP-$featureName ${prefManager!!.estateUserLogin}\n${dateWM}"
                                                 }
                                             }
                                             else -> {
                                                 if (locationText.isNotEmpty()) {
-                                                    "CMP-$featureName\n$locationText\n${commentWm}\n${dateWM}"
+                                                    "CMP-$featureName ${prefManager!!.estateUserLogin}\n$locationText\n${commentWm}\n${dateWM}"
                                                 } else {
-                                                    "CMP-$featureName\n${commentWm}\n${dateWM}"
+                                                    "CMP-$featureName ${prefManager!!.estateUserLogin}\n${commentWm}\n${dateWM}"
                                                 }
                                             }
                                         }

@@ -876,8 +876,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
     private fun resetFormAfterSaveData() {
 
-//        selectedPemanenAdapter.clearAllWorkers()
-//        selectedPemanenLainAdapter.clearAllWorkers()
+        selectedPemanenAdapter.clearAllWorkers()
+        selectedPemanenLainAdapter.clearAllWorkers()
 
         if (blokBanjir == 0) {
             tphScannedResultRecyclerView.visibility = View.GONE
@@ -1028,118 +1028,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             handleItemSelection(blokLayout, safeBlokPosition, selectedItem)
         }
 
-        // Now handle the No TPH selection
-        val layoutNoTPH = findViewById<LinearLayout>(R.id.layoutNoTPH)
 
-
-        AppLogger.d("tphList $tphList")
-        val tphNames = if (tphList.isNotEmpty()) {
-            tphList.map { tph ->
-                val selectionCount = panenStoredLocal[tph.id] ?: 0
-                when (selectionCount) {
-                    0 -> tph.nomor
-                    1 -> "${tph.nomor} (sudah terpilih 1 kali)"
-                    else -> "${tph.nomor} (sudah terpilih ${selectionCount} kali)"
-                }
-            }
-        } else {
-            emptyList()
-        }
-
-        AppLogger.d("tphNames $tphNames")
-
-// Store selected TPH before setting up the spinner to prevent losing it
-        val tphNumberToSelect = selectedTPH
-        AppLogger.d("We need to select TPH: $tphNumberToSelect")
-
-// IMPORTANT: Only set up the spinner AFTER capturing the tphNames list
-        setupSpinnerView(layoutNoTPH, tphNames as List<String>)
-        val tphSpinner = layoutNoTPH.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-
-// IMPORTANT: Find the position of the selected TPH in the CURRENT list by matching the TPH number
-        var safeTPHPosition = -1
-        if (tphNumberToSelect.isNotEmpty()) {
-            // Look for the TPH in the current list that starts with our selected TPH number
-            safeTPHPosition = tphNames.indexOfFirst {
-                val tphNumber = it.split(" (").firstOrNull()?.trim() ?: it
-                tphNumber == tphNumberToSelect
-            }
-            AppLogger.d("Finding TPH '$tphNumberToSelect' in current list, found at position: $safeTPHPosition")
-        } else if (selectedTPHIdSpinner >= 0 && selectedTPHIdSpinner < tphNames.size) {
-            // Fallback to position-based selection if no TPH number is stored
-            safeTPHPosition = selectedTPHIdSpinner
-            AppLogger.d("Using position-based selection, position: $safeTPHPosition")
-        }
-
-        // Only proceed if we have a valid position
-        if (safeTPHPosition >= 0 && safeTPHPosition < tphNames.size) {
-            // Getting the item text at this position in our list
-            val itemText = tphNames[safeTPHPosition]
-            val tphNumberFromItem = itemText.split(" (").firstOrNull()?.trim() ?: itemText
-            AppLogger.d("Will select TPH item: $itemText with number: $tphNumberFromItem")
-
-            try {
-                // CRITICAL: We need to disable any existing click listeners or automatic selection handlers
-                // that might be overriding our selection
-
-                try {
-                    // Set text first
-                    tphSpinner.setText(itemText)
-                    AppLogger.d("Set TPH text to: $itemText")
-
-                    // Update tracking variables immediately to prevent overrides
-                    selectedTPH = tphNumberFromItem
-                    selectedTPHIdSpinner = safeTPHPosition
-                    AppLogger.d("Updated selectedTPH to: $selectedTPH at position: $safeTPHPosition")
-
-                    // Only afterwards, call handleItemSelection
-                    // Use another delayed call to ensure the variables are set before any handlers run
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        // Verify our selection is still intact
-                        val currentText = tphSpinner.text.toString()
-                        AppLogger.d("Before handleItemSelection, spinner text is: $currentText")
-
-                        // Only call handleItemSelection if our selection is still intact
-                        if (currentText == itemText) {
-                            handleItemSelection(layoutNoTPH, safeTPHPosition, selectedTPH)
-                        } else {
-                            // If the text changed, something is overriding our selection
-                            // Try once more to set it
-                            tphSpinner.setText(itemText)
-                            AppLogger.d("Had to reset TPH text to: $itemText")
-                            // Now call handleItemSelection
-                            handleItemSelection(layoutNoTPH, safeTPHPosition, selectedTPH)
-                        }
-                    }, 2000)
-                } catch (e: Exception) {
-                    AppLogger.e("Error in TPH selection: ${e.message}")
-                    // Still ensure variables are set correctly
-                    selectedTPH = tphNumberFromItem
-                    selectedTPHIdSpinner = safeTPHPosition
-                    handleItemSelection(layoutNoTPH, safeTPHPosition, selectedTPH)
-                }
-
-            } catch (e: Exception) {
-                AppLogger.e("Error in main TPH selection block: ${e.message}")
-                e.printStackTrace()
-
-                // Fallback - just update the variables directly
-                selectedTPH = tphNumberFromItem
-                selectedTPHIdSpinner = safeTPHPosition
-                handleItemSelection(layoutNoTPH, safeTPHPosition, selectedTPH)
-            }
-        } else {
-            // If no valid TPH is found or selection is empty, leave as hint
-            AppLogger.d("No valid TPH selection found, leaving as hint")
-
-            // Reset TPH selection variables
-            selectedTPHIdSpinner = -1
-            selectedTPH = ""
-
-            // Ensure spinner shows hint
-            tphSpinner.setHint("Pilih TPH Yang Sesuai")
-        }
-
+        selectedTPH = ""
+        selectedTPHValue = null
 
         val kemandoranNames = kemandoranList.mapNotNull { it.nama }
         setupSpinnerView(kemandoranLayout, kemandoranNames)
@@ -1348,7 +1239,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 //        kemandoranList = emptyList()
 //        kemandoranLainList = emptyList()
 //        tphList = emptyList()
-//        ancakInput = ""
+
+        val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
+        etAncak.setText("")
+        ancakInput = ""
 
 
         resetAllCounters()
@@ -2126,10 +2020,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     id = itemId++,
                     title = "Master TPH ${request.estateAbbr}",
                     fullPath = "",
-                    partNumber = 1,  // Single part for downloads
-                    totalParts = 1,  // Single part for downloads
                     baseFilename = request.estateAbbr ?: "",
-                    data = ""
+                    data = "",
+                    type = ""
                 )
             )
         }
@@ -2227,10 +2120,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             id = itemId++,
                             title = "${request.estateAbbr} - ${request.dataset}",
                             fullPath = "",
-                            partNumber = 1,
-                            totalParts = 1,
                             baseFilename = request.estateAbbr ?: "",
-                            data = ""
+                            data = "",
+                            type = ""
                         )
                     )
                 }

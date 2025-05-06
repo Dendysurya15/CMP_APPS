@@ -656,6 +656,16 @@ class AppRepository(context: Context) {
             }
         }
 
+    suspend fun getActivePanenESPBAll(): Result<List<PanenEntityWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = panenDao.getAllActivePanenESPBAll()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
     suspend fun getAllTPHHasBeenSelected(): Result<List<PanenEntityWithRelations>> =
         withContext(Dispatchers.IO) {
             try {
