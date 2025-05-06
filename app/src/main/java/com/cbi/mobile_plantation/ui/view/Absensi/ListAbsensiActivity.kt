@@ -13,12 +13,17 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
+import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.AnimationUtils
+import android.widget.Button
+import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
@@ -28,8 +33,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.adapter.AbsensiDataRekap
 import com.cbi.mobile_plantation.ui.adapter.ListAbsensiAdapter
+import com.cbi.mobile_plantation.ui.adapter.UploadItem
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
+import com.cbi.mobile_plantation.ui.viewModel.UploadCMPViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
@@ -41,25 +49,30 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.leinardi.android.speeddial.SpeedDialView
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.zip.Deflater
@@ -97,12 +110,19 @@ class ListAbsensiActivity : AppCompatActivity() {
     private lateinit var speedDial: SpeedDialView
     private lateinit var tvEmptyStateAbsensi: TextView // Add this
     private var activityInitialized = false
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_list_absensi)
 
-    }
+    private var uploadCMPData: List<Pair<String, String>> = emptyList()
+    private var globalESPBIds: List<Int> = emptyList()
+    private lateinit var uploadCMPViewModel: UploadCMPViewModel
+    private lateinit var allUploadZipFilesToday: MutableList<File>
+    private var trackingIdsUpload: List<String> = emptyList()
 
+    private var globalFormattedDate: String = ""
+    private lateinit var filterAllData: CheckBox
+    private var idsToUpdate = "NULL"
+    private val todayDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))
+    private lateinit var ll_detail_espb: LinearLayout
+    private lateinit var dateButton: Button
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
     private val dateTimeCheckRunnable = object : Runnable {
         override fun run() {
@@ -110,8 +130,164 @@ class ListAbsensiActivity : AppCompatActivity() {
             dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
         }
     }
+    private val dateIndexMap = mutableMapOf<String, Int>()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_list_absensi)
+        checkDateTimeSettings()
+
+    }
+
+    fun openDatePicker(view: View) {
+        initMaterialDatePicker()
+    }
+
+    private fun initMaterialDatePicker() {
+        val builder = MaterialDatePicker.Builder.datePicker()
+        builder.setTitleText("Pilih Tanggal")
+        builder.setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+
+        val datePicker = builder.build()
+
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = selection
+            val year = calendar.get(Calendar.YEAR)
+            val month = calendar.get(Calendar.MONTH) + 1
+            val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+            val displayDate = AppUtils.makeDateString(day, month, year)
+            dateButton.text = displayDate
+
+            val formattedDate = AppUtils.formatDateForBackend(day, month, year)
+            globalFormattedDate = formattedDate
+            AppUtils.setSelectedDate(formattedDate)
+            processSelectedDate(formattedDate)
+        }
+        datePicker.show(supportFragmentManager, "MATERIAL_DATE_PICKER")
+    }
+
+    private fun processSelectedDate(selectedDate: String) {
+//        loadingDialog.show()
+//        loadingDialog.setMessage("Sedang mengambil data...", true)
+
+        val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainerAbsensi)
+        val nameFilterDate = findViewById<TextView>(R.id.name_filter_dateAbsensi)
+        val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_dateAbsensi)
+
+        val displayDate = AppUtils.formatSelectedDateForDisplay(selectedDate)
+        nameFilterDate.text = displayDate
+
+
+//        if (featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen) {
+//            if (currentState == 0) {
+//                panenViewModel.loadTPHNonESPB(0, 0, 0, selectedDate)
+//                panenViewModel.countTPHNonESPB(0, 0, 0, selectedDate)
+//                panenViewModel.countTPHESPB(1, 0, 0, selectedDate)
+//            } else if (currentState == 1) {
+//                panenViewModel.loadTPHESPB(1, 0, 0, selectedDate)
+//                panenViewModel.countTPHNonESPB(0, 0, 0, selectedDate)
+//                panenViewModel.countTPHESPB(1, 0, 0, selectedDate)
+//            } else if (currentState == 2) {
+//                panenViewModel.loadTPHNonESPB(1, 0, 0, selectedDate)
+//                panenViewModel.countTPHNonESPB(0, 0, 0, selectedDate)
+//                panenViewModel.countTPHESPB(1, 0, 0, selectedDate)
+//            }
+//        }
+
+        removeFilterDate.setOnClickListener {
+            filterDateContainer.visibility = View.GONE
+//            loadingDialog.show()
+//            loadingDialog.setMessage("Sedang mengambil data...", true)
+            // Get today's date in backend format
+            val todayBackendDate = AppUtils.formatDateForBackend(
+                Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                Calendar.getInstance().get(Calendar.MONTH) + 1,
+                Calendar.getInstance().get(Calendar.YEAR)
+            )
+
+            // Reset the selected date in your utils
+            AppUtils.setSelectedDate(todayBackendDate)
+
+            // Update the dateButton to show today's date
+            val todayDisplayDate = AppUtils.getTodaysDate()
+            dateButton.text = todayDisplayDate
+
+//            if (featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen) {
+//                if (currentState == 0) {
+//                    panenViewModel.loadTPHNonESPB(0, 0, 0, todayBackendDate)
+//                    panenViewModel.countTPHNonESPB(0, 0, 0, todayBackendDate)
+//                    panenViewModel.countTPHESPB(1, 0, 0, todayBackendDate)
+//                } else if (currentState == 1) {
+//                    panenViewModel.loadTPHESPB(1, 0, 0, todayBackendDate)
+//                    panenViewModel.countTPHNonESPB(0, 0, 0, todayBackendDate)
+//                    panenViewModel.countTPHESPB(1, 0, 0, todayBackendDate)
+//                } else if (currentState == 2) {
+//                    panenViewModel.loadTPHNonESPB(1, 0, 0, todayBackendDate)
+//                    panenViewModel.countTPHNonESPB(0, 0, 0, todayBackendDate)
+//                    panenViewModel.countTPHESPB(1, 0, 0, todayBackendDate)
+//                }
+//            }
+        }
+
+        filterDateContainer.visibility = View.VISIBLE
+    }
 
     private fun setupUI(){
+        val backButton = findViewById<ImageView>(R.id.btn_back)
+        backButton.setOnClickListener { onBackPressed() }
+
+        globalFormattedDate = AppUtils.currentDate
+        dateButton = findViewById(R.id.calendarPickerAbsensi)
+        dateButton.text = AppUtils.getTodaysDate()
+
+        filterAllData = findViewById(R.id.calendarCheckboxAbsensi)
+
+        filterAllData.setOnCheckedChangeListener { _, isChecked ->
+            val selectedDate = globalFormattedDate // Get the selected date
+            val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainerAbsensi)
+            val nameFilterDate = findViewById<TextView>(R.id.name_filter_dateAbsensi)
+            if (isChecked) {
+                filterDateContainer.visibility = View.VISIBLE
+                nameFilterDate.text = "Semua Data"
+
+                dateButton.isEnabled = false
+                dateButton.alpha = 0.5f
+            } else {
+                val displayDate = formatGlobalDate(globalFormattedDate)
+                dateButton.text = displayDate
+
+                nameFilterDate.text = displayDate
+                dateButton.isEnabled = true
+                dateButton.alpha = 1f // Make the button appear darker
+                Log.d("FilterAllData", "Checkbox is UNCHECKED. Button enabled.")
+            }
+
+            val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_dateAbsensi)
+
+            removeFilterDate.setOnClickListener {
+                if (filterAllData.isChecked) {
+                    filterAllData.isChecked = false
+                }
+                filterDateContainer.visibility = View.GONE
+
+                // Get today's date in backend format
+                val todayBackendDate = AppUtils.formatDateForBackend(
+                    Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                    Calendar.getInstance().get(Calendar.MONTH) + 1,
+                    Calendar.getInstance().get(Calendar.YEAR)
+                )
+
+                // Reset the selected date in your utils
+                AppUtils.setSelectedDate(todayBackendDate)
+
+                // Update the dateButton to show today's date
+                val todayDisplayDate = AppUtils.getTodaysDate()
+                dateButton.text = todayDisplayDate
+            }
+        }
+
         prefManager = PrefManager(this)
         loadingDialog = LoadingDialog(this)
 
@@ -134,6 +310,19 @@ class ListAbsensiActivity : AppCompatActivity() {
         setupQRAbsensi()
         setupCardListeners()
         setActiveCard(cardTersimpan)
+    }
+
+    fun formatGlobalDate(dateString: String): String {
+        // Parse the date string in format "YYYY-MM-DD"
+        val parts = dateString.split("-")
+        if (parts.size != 3) return dateString // Return original if format doesn't match
+
+        val year = parts[0].toInt()
+        val month = parts[1].toInt()
+        val day = parts[2].toInt()
+
+        // Return formatted date string using getMonthFormat
+        return "${AppUtils.getMonthFormat(month)} $day $year"
     }
 
     private fun checkDateTimeSettings() {
@@ -895,50 +1084,92 @@ class ListAbsensiActivity : AppCompatActivity() {
     }
 
 //    private fun handleUpload(selectedItems: List<Map<String, Any>>) {
+//        var number =
+//            0
 //
-//        val uploadItems = selectedItems.map { item ->
-//            UploadItem(
-//                id = item["id"] as Int,
-//                deptPpro = (item["dept_ppro"] as Number).toInt(),
-//                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
-//                commodity = (item["commodity"] as Number).toInt(),
-//                blokJjg = item["blok_jjg"] as String,
-//                nopol = item["nopol"] as String,
-//                driver = item["driver"] as String,
-//                pemuatId = item["pemuat_id"].toString(),
-//                transporterId = (item["transporter_id"] as Number).toInt(),
-//                millId = (item["mill_id"] as Number).toInt(),
-//                createdById = (item["created_by_id"] as Number).toInt(),
-//                createdAt = item["created_at"] as String,
-//                no_espb = item["no_espb"] as String,
-//                uploader_info = infoApp,
-//                uploaded_at = SimpleDateFormat(
-//                    "yyyy-MM-dd HH:mm:ss",
-//                    Locale.getDefault()
-//                ).format(Date()),
-//                uploaded_by_id = prefManager!!.idUserLogin!!.toInt()
-//            )
+////        val uploadItems = selectedItems.map { item ->
+////            UploadItem(
+////                id = item["id"] as Int,
+////                deptPpro = (item["dept_ppro"] as Number).toInt(),
+////                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
+////                commodity = (item["commodity"] as Number).toInt(),
+////                blokJjg = item["blok_jjg"] as String,
+////                nopol = item["nopol"] as String,
+////                driver = item["driver"] as String,
+////                pemuatId = item["pemuat_id"].toString(),
+////                transporterId = (item["transporter_id"] as Number).toInt(),
+////                millId = (item["mill_id"] as Number).toInt(),
+////                createdById = (item["created_by_id"] as Number).toInt(),
+////                createdAt = item["created_at"] as String,
+////                no_espb = item["no_espb"] as String,
+////                uploader_info = infoApp,
+////                uploaded_at = SimpleDateFormat(
+////                    "yyyy-MM-dd HH:mm:ss",
+////                    Locale.getDefault()
+////                ).format(Date()),
+////                uploaded_by_id = prefManager!!.idUserLogin!!.toInt()
+////            )
+////        }
+//
+//        val uploadItems = emptyList<UploadItem>()
+//        var nextId = (uploadItems.maxByOrNull { it.id }?.id ?: 0) + 1
+//        val allItems = mutableListOf<UploadItem>().apply { addAll(uploadItems) }
+//
+//        if (allUploadZipFilesToday.isNotEmpty()) {
+//            allUploadZipFilesToday.forEach { file ->
+//                lifecycleScope.launch {
+//                    try {
+//                        val extractionDeferred = CompletableDeferred<Pair<List<Int>, List<Int>>>()
+//                        launch(Dispatchers.IO) {
+//                            try {
+//                                val result = AppUtils.extractIdsFromZipFile(
+//                                    context = this@ListAbsensiActivity,
+//                                    fileName = file.name,
+//                                    zipPassword = AppUtils.ZIP_PASSWORD
+//                                )
+//                                // Complete the deferred with the result
+//                                extractionDeferred.complete(result)
+//                            } catch (e: Exception) {
+//                                // Complete exceptionally if there's an error
+//                                extractionDeferred.completeExceptionally(e)
+//                            }
+//                        }
+//                        val (panenIds, espbIds) = withTimeout(5000) { // 10 second timeout
+//                            extractionDeferred.await()
+//                        }
+//                        globalESPBIds = espbIds
+//                    } catch (e: Exception) {
+//                        AppLogger.e("Error during ZIP extraction: ${e.message}")
+//                        globalESPBIds = emptyList()
+//                    }
+//                }
+//
+//                allItems.add(
+//                    UploadItem(
+//                        id = nextId++,
+//                        ip = "",
+//                        num = number++,
+//                        deptPpro = 0,
+//                        divisiPpro = 0,
+//                        commodity = 0,
+//                        blokJjg = "",
+//                        nopol = "",
+//                        driver = "",
+//                        pemuatId = "",
+//                        transporterId = 0,
+//                        millId = 0,
+//                        createdById = 0,
+//                        createdAt = "",
+//                        no_espb = file.name,
+//                        uploader_info = "",
+//                        uploaded_at = "",
+//                        uploaded_by_id = 0,
+//                        file = file.absolutePath,
+//                        endpoint = AppUtils.DatabaseServer.CMP
+//                    )
+//                )
+//            }
 //        }
-//
-//        // Merge all items into one combined UploadItem
-////        val mergedItem = UploadItem(
-////            id = -1, // Indicating merged data
-////            deptPpro = 0, // Use logic if needed
-////            divisiPpro = 0,
-////            commodity = 0,
-////            blokJjg = uploadItems.joinToString("; ") { it.blokJjg },
-////            nopol = uploadItems.joinToString(", ") { it.nopol }.trim(),
-////            driver = uploadItems.joinToString(", ") { it.driver }.trim(),
-////            pemuatId = uploadItems.joinToString(", ") { it.pemuatId }.trim(),
-////            transporterId = 0, // Use logic if necessary
-////            millId = 0,
-////            createdById = 0,
-////            createdAt = uploadItems.maxByOrNull { it.createdAt }?.createdAt ?: "",
-////            noEspb = uploadItems.joinToString(" | ") { it.noEspb }
-////        )
-//
-//        // Add merged item to the list
-////        val allUploadItems = uploadItems + mergedItem
 //
 //        val allUploadItems = uploadItems
 //

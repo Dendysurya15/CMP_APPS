@@ -442,6 +442,9 @@ class HomePageActivity : AppCompatActivity() {
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.KeraniPanen, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.KeraniPanen
 
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.MandorPanen, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.MandorPanen
+
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.KeraniTimbang
 
@@ -466,6 +469,13 @@ class HomePageActivity : AppCompatActivity() {
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen }
+                ).filterNotNull()
+
+                AppUtils.ListFeatureByRoleUser.MandorPanen -> listOf(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                 ).filterNotNull()
 
                 AppUtils.ListFeatureByRoleUser.KeraniTimbang -> listOf(

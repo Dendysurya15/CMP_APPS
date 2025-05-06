@@ -855,9 +855,9 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
 
                         val kemandoranDeferred = async {
                             try {
-                                datasetViewModel.getKemandoranList(
+                                datasetViewModel.getKemandoranEstateExcept(
                                     estateId!!.toInt(),
-                                    selectedDivisiIdList
+                                    nonSelectedIdAfdeling as List<Int>
                                 )
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching kemandoranList: ${e.message}")
@@ -867,9 +867,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(), CameraRepository.PhotoC
 
                         val kemandoranLainDeferred = async {
                             try {
-                                datasetViewModel.getKemandoranList(
-                                    estateId!!.toInt(),
-                                    nonSelectedIdAfdeling as List<Int>
+                                datasetViewModel.getKemandoranEstate(
+                                    estateId!!.toInt()
                                 )
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching kemandoranLainList: ${e.message}")
