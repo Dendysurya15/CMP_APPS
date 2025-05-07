@@ -46,6 +46,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -739,14 +740,59 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             try {
                 withContext(Dispatchers.IO) {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
+                    AppLogger.d("Raw JSON: $jsonStr")
 
+                    // Try with manual JSONObject for debugging
+                    val jsonObject = JSONObject(jsonStr)
+                    AppLogger.d("JSON keys: ${jsonObject.keys().asSequence().toList()}")
 
-                    AppLogger.d(jsonStr.toString())
+                    // Then proceed with your Gson parsing
                     val parsedData = Gson().fromJson(jsonStr, wbQRData::class.java)
-
                     AppLogger.d("Parsed Data: $parsedData")
 
-                    val blokJjgList = parsedData?.espb?.blokJjg?.split(";")?.mapNotNull {
+                    // Create modified parsed data with reconstructed dates if needed
+                    var modifiedParsedData = parsedData
+
+                    // Check if we have the new format with tgl field
+                    if (parsedData?.tgl != null && !parsedData.tph1.isNullOrEmpty()) {
+                        try {
+                            // Get the date from tgl field
+                            val date = parsedData.tgl["0"] ?: ""
+
+                            if (date.isNotEmpty()) {
+                                // Split tph1 entries
+                                val tph1Entries = parsedData.tph1.split(";")
+                                val reconstructedTph1 = tph1Entries.joinToString(";") { entry ->
+                                    val parts = entry.split(",")
+                                    if (parts.size >= 3) {
+                                        // Original format: ID,0,TIME,VALUE1,VALUE2
+                                        // New format: ID,DATE TIME,VALUE1,VALUE2
+                                        val id = parts[0]
+                                        val time = parts[2]
+                                        val restValues = parts.subList(3, parts.size).joinToString(",")
+                                        "$id,$date $time,$restValues"
+                                    } else {
+                                        entry
+                                    }
+                                }
+
+                                // Create a "patched" version of the parsed data with the reconstructed tph1
+                                modifiedParsedData =  wbQRData(
+                                    espb = parsedData.espb,
+                                    tph0 = parsedData.tph0,
+                                    tph1 = reconstructedTph1,
+                                    tgl = parsedData.tgl
+                                )
+
+                                AppLogger.d("Reconstructed tph1: $reconstructedTph1")
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.e("Error reconstructing tph1 dates: ${e.message}")
+                            // Continue with original parsedData if reconstruction fails
+                        }
+                    }
+
+                    val blokJjgList = modifiedParsedData?.espb?.blokJjg?.split(";")?.mapNotNull {
                         it.split(",").takeIf { it.size == 2 }?.let { (id, jjg) ->
                             id.toIntOrNull()?.let { it to jjg.toIntOrNull() }
                         }
@@ -774,7 +820,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         tphDeferred.await()
                     }
                     val concatenatedIds = idBlokList.joinToString(",")
-                    val pemuatList = parsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
+                    val pemuatList = modifiedParsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
                         ?.filter { it.isNotEmpty() } ?: emptyList()
 
                     AppLogger.d("pemuatList $pemuatList")
@@ -842,10 +888,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         } else null
                     }.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
 
-                    val millId = parsedData?.espb?.millId ?: 0
+                    val millId = modifiedParsedData?.espb?.millId ?: 0
 
-                    val transporterId = parsedData?.espb?.transporter ?: 0
-                    val createdAt = parsedData?.espb?.createdAt ?: "-"
+                    val transporterId = modifiedParsedData?.espb?.transporter ?: 0
+                    val createdAt = modifiedParsedData?.espb?.createdAt ?: "-"
                     val createAtFormatted = formatToIndonesianDate(createdAt)
 
                     val millDataDeferred = async {
@@ -881,7 +927,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
 
                     // Get the string from pemuat_nik
-                    val pemuatNikString = parsedData?.espb?.pemuat_nik.toString()
+                    val pemuatNikString = modifiedParsedData?.espb?.pemuat_nik.toString()
 
 // Simple string extraction to get NIK values
                     val nikList = mutableListOf<String>()
@@ -921,26 +967,26 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalBlokId = concatenatedIds
                     globalTotalJjg = totalJjg.toString()
                     globalBlokPPROJjg = BlokPPROJjg
-                    globalBlokJjg = parsedData?.espb?.blokJjg ?: "-"
+                    globalBlokJjg = modifiedParsedData?.espb?.blokJjg ?: "-"
                     globalCreatedById = prefManager!!.idUserLogin
-                    globalNopol = parsedData?.espb?.nopol ?: "-"
-                    globalDriver = parsedData?.espb?.driver ?: "-"
+                    globalNopol = modifiedParsedData?.espb?.nopol ?: "-"
+                    globalDriver = modifiedParsedData?.espb?.driver ?: "-"
                     globalTransporterId = transporterId
-                    globalPemuatId = parsedData?.espb?.pemuat_id ?: "-"
-                    globalKemandoranId = parsedData?.espb?.kemandoran_id ?: "-"
+                    globalPemuatId = modifiedParsedData?.espb?.pemuat_id ?: "-"
+                    globalKemandoranId = modifiedParsedData?.espb?.kemandoran_id ?: "-"
                     globalPemuatNik = nikValues
                     globalMillId = millId
-                    globalTph0 = parsedData?.tph0 ?: "-"
-                    globalTph1 = parsedData?.tph1 ?: "-"
-                    globalCreatedAt = parsedData?.espb?.createdAt.toString() ?: "-"
-                    globalCreatorInfo = parsedData?.espb?.creatorInfo?.toString() ?: "-"
-                    globalNoESPB = parsedData?.espb?.noEspb ?: "-"
-                    globalUpdateInfoSP = parsedData?.espb?.update_info_sp ?: "-"
+                    globalTph0 = modifiedParsedData?.tph0 ?: "-"
+                    globalTph1 = modifiedParsedData?.tph1 ?: "-"
+                    globalCreatedAt = modifiedParsedData?.espb?.createdAt.toString() ?: "-"
+                    globalCreatorInfo = modifiedParsedData?.espb?.creatorInfo?.toString() ?: "-"
+                    globalNoESPB = modifiedParsedData?.espb?.noEspb ?: "-"
+                    globalUpdateInfoSP = modifiedParsedData?.espb?.update_info_sp ?: "-"
                     globalIpMill = millIP
 
                     withContext(Dispatchers.Main) {
                         showBottomSheetWithData(
-                            parsedData = parsedData,
+                            parsedData = modifiedParsedData,
                             distinctDeptAbbr = deptAbbr,
                             distinctDivisiAbbr = divisiAbbr,
                             formattedBlokList = formattedBlokList,
