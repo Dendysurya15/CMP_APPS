@@ -836,6 +836,8 @@ class FormESPBActivity : AppCompatActivity() {
                     }
 
                     if (mekanisasi == 0) {
+
+                        AppLogger.d("uniqueNikPemanen $uniqueNikPemanen")
                         val json = constructESPBJson(
                             blok_jjg = blok_jjg,
                             nopol = selectedNopol,
@@ -854,6 +856,7 @@ class FormESPBActivity : AppCompatActivity() {
                             kemandoran_id = uniqueKemandoranId
                         )
 
+                        AppLogger.d("json $json")
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
 
                         ListPanenTBSActivity().generateHighQualityQRCode(
@@ -1750,6 +1753,64 @@ class FormESPBActivity : AppCompatActivity() {
     ): String {
         val gson = Gson()
 
+        // Extract NIKs from pemuat_nik models
+        val nikList = StringBuilder()
+        val pemuat_nik_parts = pemuat_nik.split("),")
+
+        pemuat_nik_parts.forEachIndexed { index, part ->
+            // Extract the NIK using regex
+            val nikMatch = Regex("nik=(\\d+)").find(part)
+            if (nikMatch != null) {
+                val nik = nikMatch.groupValues[1]
+                if (index > 0) {
+                    nikList.append(",")
+                }
+                nikList.append(nik)
+            }
+        }
+
+        // Extract unique dates from tph1 and prepare optimized string
+        val dateMap = JsonObject()
+        val optimizedTph1 = StringBuilder()
+
+        // Process tph1 if not empty
+        if (tph1.isNotEmpty()) {
+            val entries = tph1.split(";")
+            entries.forEachIndexed { index, entry ->
+                if (entry.isNotEmpty()) {
+                    val parts = entry.split(",")
+                    if (parts.size >= 2) {
+                        // Extract date and time
+                        val dateTime = parts[1]
+                        val dateParts = dateTime.split(" ")
+                        if (dateParts.size >= 2) {
+                            val date = dateParts[0]
+                            val time = dateParts[1]
+
+                            // Add date to dateMap with index 0 (instead of 1)
+                            if (!dateMap.has("0")) {
+                                dateMap.addProperty("0", date)
+                            }
+
+                            // Create optimized entry: ID,0,TIME,VALUE1,VALUE2...
+                            // Note: using 0 instead of 1 for the index
+                            val newEntry = StringBuilder("${parts[0]},0,${time}")
+
+                            // Add remaining values (starting from index 2)
+                            for (i in 2 until parts.size) {
+                                newEntry.append(",${parts[i]}")
+                            }
+
+                            if (index > 0) {
+                                optimizedTph1.append(";")
+                            }
+                            optimizedTph1.append(newEntry)
+                        }
+                    }
+                }
+            }
+        }
+
         // Create the nested ESPB object
         val espbObject = JsonObject().apply {
             addProperty("blok_jjg", blok_jjg)
@@ -1759,7 +1820,7 @@ class FormESPBActivity : AppCompatActivity() {
             addProperty("transporter_id", transporter_id)
             addProperty("mill_id", mill_id)
             addProperty("kemandoran_id", kemandoran_id)
-            addProperty("pemuat_nik", pemuat_nik)
+            addProperty("pemuat_nik", nikList.toString()) // Use the extracted NIKs only
             addProperty("created_by_id", created_by_id)
             add("creator_info", createCreatorInfo(appVersion, osVersion, phoneModel))
             addProperty("no_espb", no_espb)
@@ -1770,7 +1831,8 @@ class FormESPBActivity : AppCompatActivity() {
         val rootObject = JsonObject().apply {
             add("espb", espbObject)
             addProperty("tph_0", tph0)
-            addProperty("tph_1", tph1)
+            addProperty("tph_1", optimizedTph1.toString())
+            add("tgl", dateMap)
         }
 
         return gson.toJson(rootObject)
