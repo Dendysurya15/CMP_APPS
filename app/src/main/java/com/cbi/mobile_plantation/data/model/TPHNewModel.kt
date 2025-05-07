@@ -67,5 +67,6 @@ data class TPHNewModel (
     val lat:String?,
     val lon:String?,
     val update_date:String?,
-    val status:String?
+    val status:String?,
+    val jenis_tph_id:String?,
 )

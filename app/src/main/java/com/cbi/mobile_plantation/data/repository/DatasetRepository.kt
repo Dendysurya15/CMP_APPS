@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
+import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.database.KaryawanDao
@@ -42,6 +43,7 @@ class DatasetRepository(
     private val kendaraanDao = database.kendaraanDao()
     private val blokDao = database.blokDao()
     private val afdelingDao = database.afdelingDao()
+    private val jenisTPHDao = database.jenisTPHDao()
 
 
     suspend fun updateOrInsertKaryawan(karyawans: List<KaryawanModel>) =
@@ -50,6 +52,9 @@ class DatasetRepository(
     suspend fun updateOrInsertMill(mills: List<MillModel>) = millDao.updateOrInsertMill(mills)
     suspend fun InsertKendaraan(kendaraan: List<KendaraanModel>) =
         kendaraanDao.InsertKendaraan(kendaraan)
+
+    suspend fun updateOrInsertJenisTPH(jenisTPH: List<JenisTPHModel>) =
+        jenisTPHDao.updateOrInsertJenisTPH(jenisTPH)
 
     suspend fun InsertTransporter(transporter: List<TransporterModel>) =
         transporterDao.InsertTransporter(transporter)
@@ -77,6 +82,7 @@ class DatasetRepository(
             }
             AppUtils.DatasetNames.transporter -> transporterDao.getCount()
             AppUtils.DatasetNames.kendaraan -> kendaraanDao.getCount()
+            AppUtils.DatasetNames.jenisTPH -> jenisTPHDao.getCount()
             else -> 0
         }
     }

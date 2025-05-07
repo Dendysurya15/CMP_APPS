@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.database.KaryawanDao
 
@@ -77,6 +78,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _karyawanStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val karyawanStatus: StateFlow<Result<Boolean>> = _karyawanStatus.asStateFlow()
+
+    private val _jenisTPHStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
+    val jenisTPHStatus: StateFlow<Result<Boolean>> = _jenisTPHStatus.asStateFlow()
 
     private val _blokStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val blokStatus: StateFlow<Result<Boolean>> = _blokStatus.asStateFlow()
@@ -235,6 +239,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
+    fun updateOrInsertJenisTPH(jenisTPH: List<JenisTPHModel>) =
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.updateOrInsertJenisTPH(jenisTPH)
+                _jenisTPHStatus.value = Result.success(true)
+            } catch (e: Exception) {
+                _jenisTPHStatus.value = Result.failure(e)
+            }
+        }
+
     fun InsertTransporter(transporter: List<TransporterModel>) =
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -254,6 +268,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 _kendaraanStatus.value = Result.failure(e)
             }
         }
+
+
 
     fun updateOrInsertTPH(tph: List<TPHNewModel>, isAsistensi: Boolean = false) =
         viewModelScope.launch(Dispatchers.IO) {
@@ -426,7 +442,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         lat = safeGetString("lat"),
                         lon = safeGetString("lon"),
                         update_date = safeGetString("update_date"),
-                        status = safeGetString("status")
+                        status = safeGetString("status"),
+                        jenis_tph_id = safeGetString("jenis_tph_id"),
                     )
 
                     // Log the first few items to check conversion
@@ -559,6 +576,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         lastModifiedTimestamp
 
                     AppUtils.DatasetNames.blok -> prefManager.lastModifiedDatasetBlok =
+                        lastModifiedTimestamp
+
+                    AppUtils.DatasetNames.jenisTPH -> prefManager.lastModifiedDatasetJenisTPH =
                         lastModifiedTimestamp
                 }
                 prefManager!!.addDataset(dataset)
@@ -1601,7 +1621,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     AppUtils.DatasetNames.pemanen,
                     AppUtils.DatasetNames.kemandoran,
                     AppUtils.DatasetNames.tph,
-                    AppUtils.DatasetNames.transporter
+                    AppUtils.DatasetNames.transporter,
+                    AppUtils.DatasetNames.jenisTPH
                 )
                 val datasetName = request.dataset
                 var modifiedRequest = request  // Create a mutable copy of the request
@@ -1620,6 +1641,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         }
                     }
                 }
+
+                AppLogger.d(modifiedRequest.toString())
 
                 try {
                     var response: Response<ResponseBody>? = null
@@ -1808,6 +1831,20 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             response = response,
                                                             updateOperation = ::InsertKendaraan,
                                                             statusFlow = kendaraanStatus,
+                                                            hasShownError = hasShownError,
+                                                            lastModifiedTimestamp = lastModified
+                                                                ?: ""
+                                                        )
+
+                                                    AppUtils.DatasetNames.jenisTPH -> hasShownError =
+                                                        processDataset(
+                                                            jsonContent = jsonContent,
+                                                            dataset = request.dataset,
+                                                            modelClass = JenisTPHModel::class.java,
+                                                            results = results,
+                                                            response = response,
+                                                            updateOperation = ::updateOrInsertJenisTPH,
+                                                            statusFlow = jenisTPHStatus,
                                                             hasShownError = hasShownError,
                                                             lastModifiedTimestamp = lastModified
                                                                 ?: ""

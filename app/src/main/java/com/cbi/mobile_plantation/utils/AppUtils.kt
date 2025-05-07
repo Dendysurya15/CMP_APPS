@@ -159,6 +159,7 @@ object AppUtils {
 
     object DatabaseTables {
         const val PANEN = "panen_table"
+        const val JENIS_TPH = "jenis_tph"
         const val INSPEKSI = "inspeksi"
         const val INSPEKSI_PATH = "inspeksi_path"
         const val ESPB = "espb_table"
@@ -233,6 +234,7 @@ object AppUtils {
         const val tph = "tph"
         const val blok = "blok"
         const val estate = "estate"
+        const val jenisTPH = "jenis_tph"
         const val pemanen = "pemanen"
         const val kemandoran = "kemandoran"
         const val transporter = "transporter"

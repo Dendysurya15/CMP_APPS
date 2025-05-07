@@ -2909,6 +2909,7 @@ class HomePageActivity : AppCompatActivity() {
         val estateIdString = prefManager!!.estateIdUserLogin
         val lastModifiedDatasetEstate = prefManager!!.lastModifiedDatasetEstate
         val lastModifiedDatasetTPH = prefManager!!.lastModifiedDatasetTPH
+        val lastModifiedDatasetJenisTPH = prefManager!!.lastModifiedDatasetJenisTPH
         val lastModifiedDatasetBlok = prefManager!!.lastModifiedDatasetBlok
         val lastModifiedDatasetKemandoran = prefManager!!.lastModifiedDatasetKemandoran
         val lastModifiedDatasetPemanen = prefManager!!.lastModifiedDatasetPemanen
@@ -2938,6 +2939,7 @@ class HomePageActivity : AppCompatActivity() {
                     estateId,
                     lastModifiedDatasetEstate,
                     lastModifiedDatasetTPH,
+                    lastModifiedDatasetJenisTPH,
                     lastModifiedDatasetBlok,
                     lastModifiedDatasetPemanen,
                     lastModifiedDatasetKemandoran,
@@ -2951,6 +2953,7 @@ class HomePageActivity : AppCompatActivity() {
                     estateId,
                     lastModifiedDatasetEstate,
                     lastModifiedDatasetTPH,
+                    lastModifiedDatasetJenisTPH,
                     lastModifiedDatasetBlok,
                     lastModifiedDatasetPemanen,
                     lastModifiedDatasetKemandoran,
@@ -2987,6 +2990,7 @@ class HomePageActivity : AppCompatActivity() {
         estateId: Int,
         lastModifiedDatasetEstate: String?,
         lastModifiedDatasetTPH: String?,
+        lastModifiedDatasetJenisTPH: String?,
         lastModifiedDatasetBlok: String?,
         lastModifiedDatasetPemanen: String?,
         lastModifiedDatasetKemandoran: String?,
@@ -3090,6 +3094,10 @@ class HomePageActivity : AppCompatActivity() {
                     regional = regionalId,
                     lastModified = null,
                     dataset = AppUtils.DatasetNames.mill
+                ),
+                DatasetRequest(
+                    lastModified = lastModifiedDatasetJenisTPH,
+                    dataset = AppUtils.DatasetNames.jenisTPH
                 ),
                 DatasetRequest(
                     regional = regionalId,

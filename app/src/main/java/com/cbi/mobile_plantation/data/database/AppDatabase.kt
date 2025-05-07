@@ -7,6 +7,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.database.InspectionDao
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionPathModel
@@ -74,8 +75,9 @@ import java.util.concurrent.Executors
         HektarPanenEntity::class,
         EstateModel::class,
         AfdelingModel::class,
+        JenisTPHModel::class
     ],
-    version = 37
+    version = 38
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -95,6 +97,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun estateDao(): EstateDao
     abstract fun afdelingDao(): AfdelingDao
     abstract fun hektarPanenDao(): HektarPanenDao
+    abstract fun jenisTPHDao(): JenisTPHDao
 
     // Function to restore data from backup tables if needed
 //    fun restoreFromBackups() {
@@ -109,7 +112,6 @@ abstract class AppDatabase : RoomDatabase() {
 //            Log.d("Database Restoration", "Successfully restored data from backup tables")
 //        }
 //    }
-
 
 
     companion object {
@@ -144,7 +146,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_32_33,
                         MIGRATION_33_34,
                         MIGRATION_34_35,
-                        MIGRATION_35_36
+                        MIGRATION_35_36,
+                        MIGRATION_36_37
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -473,6 +476,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_36_37 = object : Migration(36, 37) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add new column to tph table
+                database.execSQL("ALTER TABLE tph ADD COLUMN jenis_tph_id STRING NOT NULL DEFAULT 1")
+
+                // Create the JenisTPH table
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS " + AppUtils.DatabaseTables.JENIS_TPH + " (" +
+                            "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                            "jenis_tph TEXT, " +
+                            "limit INTEGER, " +
+                            "keterangan TEXT)"
+                )
+            }
+        }
 
         fun closeDatabase() {
             INSTANCE?.close()
