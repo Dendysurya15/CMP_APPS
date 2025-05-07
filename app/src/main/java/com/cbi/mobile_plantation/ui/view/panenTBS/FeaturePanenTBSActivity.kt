@@ -256,8 +256,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     var persenAbnormal = 0f
     var persenJjgKosong = 0f
     var persenMasak = 0f
-    private var hasShownErrorDialog = false  // Add this property
-    private lateinit var adapter: DownloadProgressDatasetAdapter
     private lateinit var jjg_json: String
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private lateinit var datasetViewModel: DatasetViewModel
@@ -3853,7 +3851,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         tphList = tphDeferred.await() ?: emptyList() // Avoid null crash
 
-                        val noTPHList = tphList.map { tph ->
+                        val normalTphList = tphList.filter { tph ->
+                            // Convert jenis_tph_id to Int, defaulting to 0 if null or not a valid integer
+                            val jenisId = tph.jenis_tph_id?.toIntOrNull() ?: 0
+
+                            // Only include TPH with jenis_tph_id = 1 (normal)
+                            jenisId == 1
+                        }
+
+                        val noTPHList = normalTphList.map { tph ->
                             val selectionCount = panenStoredLocal[tph.id] ?: 0
                             when (selectionCount) {
                                 0 -> tph.nomor

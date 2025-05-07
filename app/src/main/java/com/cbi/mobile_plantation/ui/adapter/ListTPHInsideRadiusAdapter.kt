@@ -70,209 +70,94 @@ class ListTPHInsideRadiusAdapter(
 
     @SuppressLint("SetTextI18s", "NotifyDataSetChanged")
     override fun onBindViewHolder(holder: ViewHolder, @SuppressLint("RecyclerView") position: Int) {
+        // Get the TPH item for this position
         val tphItem = tphList[position]
 
+// Get the jenisTPHId (defaulting to 1 for normal if null or invalid)
         val jenisTPHId = tphItem.jenisTPHId.toIntOrNull() ?: 1
 
-
-        // Create a drawable for the background with rounded corners and border
+// Create background drawable
         val itemBackground = GradientDrawable()
-        itemBackground.cornerRadius = 8f // Adjust the corner radius as needed
+        itemBackground.cornerRadius = 8f
 
-        // Set background and border colors based on jenis_tph_id value
-        when (jenisTPHId) {
-            1 -> {
-                // Green for normal
-                itemBackground.setColor(
-                    ContextCompat.getColor(
-                        holder.itemView.context,
-                        R.color.greenlight
-                    )
-                )
-                itemBackground.setStroke(
-                    4,
-                    ContextCompat.getColor(holder.itemView.context, R.color.strokeSelectWorkerGreen)
-                )
-                holder.jenisTPHNameTextView.setTextColor(
-                    ContextCompat.getColor(
-                        holder.itemView.context,
-                        R.color.greenDarker
-                    )
-                )
-            }
-
-            2 -> {
-                // blue for induk
-                itemBackground.setColor(
-                    ContextCompat.getColor(
-                        holder.itemView.context,
-                        R.color.bluelight
-                    )
-                )
-                itemBackground.setStroke(
-                    4,
-                    ContextCompat.getColor(holder.itemView.context, R.color.blueLightBorder)
-                )
-                holder.jenisTPHNameTextView.setTextColor(
-                    ContextCompat.getColor(
-                        holder.itemView.context,
-                        R.color.bluedarklight
-                    )
-                )
-            }
-
-            3 -> {
-                // Red for banjir
-                itemBackground.setColor(
-                    ContextCompat.getColor(
-                        holder.itemView.context,
-                        R.color.redlight
-                    )
-                )
-                itemBackground.setStroke(
-                    4,
-                    ContextCompat.getColor(holder.itemView.context, R.color.colorRedDark)
-                )
-                holder.jenisTPHNameTextView.setTextColor(
-                    ContextCompat.getColor(
-                        holder.itemView.context,
-                        R.color.colorRedDark
-                    )
-                )
-            }
-
-            else -> {
-                // Default white with gray border
-                itemBackground.setColor(
-                    ContextCompat.getColor(
-                        holder.itemView.context,
-                        R.color.white
-                    )
-                )
-                itemBackground.setStroke(
-                    2,
-                    ContextCompat.getColor(holder.itemView.context, R.color.graytextdark)
-                )
-                holder.jenisTPHNameTextView.setTextColor(
-                    ContextCompat.getColor(
-                        holder.itemView.context,
-                        R.color.black
-                    )
-                )
-            }
+// Set the appropriate color based on jenisTPHId
+        val textColor = when (jenisTPHId) {
+            1 -> ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton)
+            2 -> ContextCompat.getColor(holder.itemView.context, R.color.bluedarklight)
+            3 -> ContextCompat.getColor(holder.itemView.context, R.color.colorRedDark)
+            else -> ContextCompat.getColor(holder.itemView.context, R.color.black)
         }
 
-        // Apply the background drawable to the entire item view
+// Set up the background
         holder.itemView.background = itemBackground
-
-        // Add some padding to make it look better
         holder.itemView.setPadding(16, 8, 16, 8)
 
-        // Add a small margin between items
+// Setup margins
         val layoutParams = holder.itemView.layoutParams as RecyclerView.LayoutParams
         layoutParams.setMargins(8, 4, 8, 4)
         holder.itemView.layoutParams = layoutParams
 
-        // Find the corresponding JenisTPHModel to display its name
+// Get the jenisTPH name
         val jenisTPHName = jenisTPHList.find { it.id == jenisTPHId }?.jenis_tph ?: "normal"
 
-
-        // Format distance text to always show actual distance with special case for >100m
+// Format distance text
         val distanceValue = when {
             tphItem.distance > 100 -> ">100 m"
             else -> "${tphItem.distance.toInt()} m"
         }
 
-        // Base TPH info text without distance
+// Base TPH info text
         val baseText = "TPH ${tphItem.number} - ${tphItem.blockCode}"
 
-// Format text differently based on whether TPH is within range
-        val plainText: String
-
-        if (!tphItem.isWithinRange) {
-            plainText = "$baseText ($distanceValue)\ndiluar jangkauan"
+// Create the full text
+        val plainText = if (!tphItem.isWithinRange) {
+            "$baseText ($distanceValue)\ndiluar jangkauan"
         } else {
-            plainText = "$baseText ($distanceValue)"
+            "$baseText ($distanceValue)"
         }
 
-// Create a spannable string to apply different colors
-
+// Create spannable for coloring
         val spannable = SpannableString(plainText)
 
-// 1. First determine main text color based on whether the TPH is already selected
-        val mainTextColor = if (tphItem.isAlreadySelected) {
-            ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton)
-        } else {
-            ContextCompat.getColor(holder.itemView.context, R.color.black)
-        }
-
-// Apply the main color to the whole text
+// Color the baseText part with the appropriate color
         spannable.setSpan(
-            ForegroundColorSpan(mainTextColor),
+            ForegroundColorSpan(textColor),
             0,
-            plainText.length,
+            baseText.length,
             Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
         )
 
-// 2. If out of range, apply yellow color to both distance and "diluar jangkauan" text
+// Color the distance part yellow if out of range
         if (!tphItem.isWithinRange) {
             val yellowColor = ContextCompat.getColor(holder.itemView.context, R.color.yellowbutton)
-
-            // Find the exact positions of elements
             val openParenIndex = plainText.indexOf('(')
-            val closeParenIndex = plainText.indexOf(')')
-            val newlineIndex = plainText.indexOf('\n')
-            val secondNewlineIndex = plainText.lastIndexOf('\n')
 
-            // Color both the parenthesized distance and the "diluar jangkauan" text yellow
-            if (openParenIndex >= 0 && closeParenIndex > openParenIndex && newlineIndex > closeParenIndex) {
+            if (openParenIndex >= 0) {
                 spannable.setSpan(
                     ForegroundColorSpan(yellowColor),
-                    openParenIndex,  // Start from the opening parenthesis
-                    secondNewlineIndex, // Go up to the second newline (before jenisTPHName)
+                    openParenIndex,
+                    plainText.length,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
             }
         }
 
-// 3. Apply jenisTph color to the jenisTph name text
-// Find the start position for jenisTph name text (after the last newline)
-        val lastNewlineIndex = plainText.lastIndexOf('\n')
-        if (lastNewlineIndex >= 0 && lastNewlineIndex < plainText.length - 1) {
-            val jenisTphColor = when (jenisTPHId) {
-                1 -> ContextCompat.getColor(
-                    holder.itemView.context,
-                    R.color.strokeSelectWorkerGreen
-                )
-
-                2 -> ContextCompat.getColor(holder.itemView.context, R.color.blueLightBorder)
-                3 -> ContextCompat.getColor(holder.itemView.context, R.color.colorRedDark)
-                else -> mainTextColor // Use the main text color as default
-            }
-
-            spannable.setSpan(
-                ForegroundColorSpan(jenisTphColor),
-                lastNewlineIndex + 1,  // Start right after the last newline
-                plainText.length,      // Go to the end
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-        }
-
+// Set the text
         holder.tphInfoTextView.text = spannable
 
-        // Only show jenisTPHName TextView if it's not "Normal" (jenisTPHId != 1)
+// Handle jenisTPHName TextView visibility
         if (jenisTPHId == 1) {
-            // Hide the TextView completely for "Normal" type
+            // Hide for Normal type
             holder.jenisTPHNameTextView.visibility = View.GONE
         } else {
-            // For other types, show the TextView and set formatted text
+            // Show for other types
             holder.jenisTPHNameTextView.visibility = View.VISIBLE
 
-            // Capitalize first letter
+            // Format the text
             val capitalizedJenisTPHName = jenisTPHName.replaceFirstChar { it.uppercase() }
             val formattedJenisTPHName = "TPH $capitalizedJenisTPHName"
 
-            // Create a SpannableString to apply italic style
+            // Create italic style
             val spannableJenisTPH = SpannableString(formattedJenisTPHName)
             spannableJenisTPH.setSpan(
                 StyleSpan(Typeface.ITALIC),
@@ -281,9 +166,10 @@ class ListTPHInsideRadiusAdapter(
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
 
+            // Set text and color
             holder.jenisTPHNameTextView.text = spannableJenisTPH
+            holder.jenisTPHNameTextView.setTextColor(textColor)
         }
-
         val isCurrentlySelected = tphItem.id == selectedTPHId
         holder.radioButton.isChecked = isCurrentlySelected
 
