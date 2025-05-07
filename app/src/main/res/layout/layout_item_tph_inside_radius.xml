@@ -39,6 +39,7 @@
                 android:id="@+id/jenisTPHName"
                 android:layout_width="match_parent"
                 android:textColor="@color/black"
+                android:text="askdjfkads"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/manrope_bold"
                 android:textSize="@dimen/m" />

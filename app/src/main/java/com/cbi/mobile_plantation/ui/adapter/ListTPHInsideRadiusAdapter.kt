@@ -1,10 +1,12 @@
 package com.cbi.mobile_plantation.ui.adapter
 
 import android.annotation.SuppressLint
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.ScannedTPHSelectionItem
 import com.google.android.material.radiobutton.MaterialRadioButton
@@ -93,7 +96,7 @@ class ListTPHInsideRadiusAdapter(
                 holder.jenisTPHNameTextView.setTextColor(
                     ContextCompat.getColor(
                         holder.itemView.context,
-                        R.color.strokeSelectWorkerGreen
+                        R.color.greenDarker
                     )
                 )
             }
@@ -113,7 +116,7 @@ class ListTPHInsideRadiusAdapter(
                 holder.jenisTPHNameTextView.setTextColor(
                     ContextCompat.getColor(
                         holder.itemView.context,
-                        R.color.blueLightBorder
+                        R.color.bluedarklight
                     )
                 )
             }
@@ -187,12 +190,13 @@ class ListTPHInsideRadiusAdapter(
         val plainText: String
 
         if (!tphItem.isWithinRange) {
-            plainText = "$baseText ($distanceValue)\ndiluar jangkauan\n$jenisTPHName"
+            plainText = "$baseText ($distanceValue)\ndiluar jangkauan"
         } else {
-            plainText = "$baseText ($distanceValue)\n$jenisTPHName"
+            plainText = "$baseText ($distanceValue)"
         }
 
 // Create a spannable string to apply different colors
+
         val spannable = SpannableString(plainText)
 
 // 1. First determine main text color based on whether the TPH is already selected
@@ -255,6 +259,30 @@ class ListTPHInsideRadiusAdapter(
         }
 
         holder.tphInfoTextView.text = spannable
+
+        // Only show jenisTPHName TextView if it's not "Normal" (jenisTPHId != 1)
+        if (jenisTPHId == 1) {
+            // Hide the TextView completely for "Normal" type
+            holder.jenisTPHNameTextView.visibility = View.GONE
+        } else {
+            // For other types, show the TextView and set formatted text
+            holder.jenisTPHNameTextView.visibility = View.VISIBLE
+
+            // Capitalize first letter
+            val capitalizedJenisTPHName = jenisTPHName.replaceFirstChar { it.uppercase() }
+            val formattedJenisTPHName = "TPH $capitalizedJenisTPHName"
+
+            // Create a SpannableString to apply italic style
+            val spannableJenisTPH = SpannableString(formattedJenisTPHName)
+            spannableJenisTPH.setSpan(
+                StyleSpan(Typeface.ITALIC),
+                0,
+                formattedJenisTPHName.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+
+            holder.jenisTPHNameTextView.text = spannableJenisTPH
+        }
 
         val isCurrentlySelected = tphItem.id == selectedTPHId
         holder.radioButton.isChecked = isCurrentlySelected
