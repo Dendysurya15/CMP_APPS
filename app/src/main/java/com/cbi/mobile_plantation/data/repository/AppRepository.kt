@@ -3,6 +3,7 @@ package com.cbi.mobile_plantation.data.repository
 import android.content.Context
 import android.util.Log
 import androidx.room.withTransaction
+import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionPathModel
 import com.cbi.markertph.data.model.TPHNewModel
@@ -52,6 +53,7 @@ class AppRepository(context: Context) {
     private val inspectionPathDao = database.inspectionPathDao()
     private val kendaraanDao = database.kendaraanDao()
     private val hektarPanenDao = database.hektarPanenDao()
+    private val jenisTPHDao = database.jenisTPHDao()
 
 
     sealed class SaveResultPanen {
@@ -403,6 +405,17 @@ class AppRepository(context: Context) {
             Result.failure(e)
         }
     }
+
+    // Repository.kt
+    suspend fun getAllJenisTPH(): Result<List<JenisTPHModel>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = jenisTPHDao.getAllJenisTPH()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 
     suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
         return karyawanDao.getPemuatByIdList(idPemuat)

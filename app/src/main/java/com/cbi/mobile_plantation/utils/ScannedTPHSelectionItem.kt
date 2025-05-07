@@ -9,5 +9,6 @@ data class ScannedTPHSelectionItem(
     val isAlreadySelected: Boolean,
     val selectionCount: Int,
     val canBeSelectedAgain: Boolean,
-    val isWithinRange: Boolean = true
+    val isWithinRange: Boolean = true,
+    val jenisTPHId: String = "1" // Added jenisTPHId with default value
 )

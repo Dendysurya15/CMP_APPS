@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.MillModel
+import com.cbi.mobile_plantation.utils.AppUtils
 
 @Dao
 abstract class JenisTPHDao {
@@ -32,4 +33,6 @@ abstract class JenisTPHDao {
     @Query("SELECT COUNT(*) FROM jenis_tph")
     abstract suspend fun getCount(): Int
 
+    @Query("SELECT * FROM " + AppUtils.DatabaseTables.JENIS_TPH)
+    abstract suspend fun getAllJenisTPH(): List<JenisTPHModel>
 }

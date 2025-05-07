@@ -106,6 +106,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.transition.Visibility
+import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.EstateModel
@@ -267,7 +268,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var userName: String? = null
     private var userId: Int? = null
     private var jabatanUser: String? = null
-    private var afdelingUser: String? = null
     private var panenStoredLocal: MutableMap<Int, Int> = mutableMapOf()
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
@@ -293,7 +293,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private val autoScanInterval = 5000L // 5 seconds
     private lateinit var switchAutoScan: SwitchMaterial
     private lateinit var layoutAutoScan: LinearLayout
-
+    private var jenisTPHListGlobal: List<JenisTPHModel> = emptyList()
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -384,6 +384,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             panenStoredLocal.putAll(tphCounts)
 
                             panenDeferred.complete(list ?: emptyList())
+                        }
+                    }
+
+
+                    val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
+
+                    panenViewModel.getAllJenisTPH()
+                    delay(100)
+
+                    withContext(Dispatchers.Main) {
+                        panenViewModel.jenisTPHList.observe(this@FeaturePanenTBSActivity) { list ->
+                            jenisTPHListGlobal = list ?: emptyList()
+                            jenisTPHDeferred.complete(list ?: emptyList())
                         }
                     }
 
@@ -2378,13 +2391,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private fun checkScannedTPHInsideRadius() {
         if (lat != null && lon != null) {
             val tphList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
+
+            AppLogger.d("jenisTPHListGlobal $jenisTPHListGlobal")
             if (tphList.isNotEmpty() || selectedTPHIdByScan != null) {
                 isEmptyScannedTPH = false
                 tphScannedResultRecyclerView.visibility = View.VISIBLE
                 titleScannedTPHInsideRadius.visibility = View.VISIBLE
                 descScannedTPHInsideRadius.visibility = View.VISIBLE
                 emptyScannedTPHInsideRadius.visibility = View.GONE
-                tphScannedResultRecyclerView.adapter = ListTPHInsideRadiusAdapter(tphList, this)
+                tphScannedResultRecyclerView.adapter = ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal)
+
 
                 val itemHeight = 50
                 val maxHeight = 250
@@ -2628,6 +2644,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Location.distanceBetween(userLat, userLon, location.lat, location.lon, results)
             val distance = results[0]
 
+            val jenisTPHId = location.jenisTPHId
+
             // Get selection data from panenStoredLocal
             val selectedCount = panenStoredLocal[id] ?: 0
             val isSelected = selectedCount > 0
@@ -2645,6 +2663,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         selectionCount = selectedCount,
                         canBeSelectedAgain = selectedCount < AppUtils.MAX_SELECTIONS_PER_TPH,
                         isWithinRange = distance <= radiusMinimum,
+                        jenisTPHId = jenisTPHId
                     )
                 )
 
@@ -2653,9 +2672,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 }
             }
         }
-
-        // If we have a currently selected TPH (selectedTPHIdByScan) but it wasn't found in coordinates,
-        // we don't add a placeholder - just let the empty state handle it
 
         return resultsList.sortedBy { it.distance }
     }
@@ -3615,9 +3631,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             val lon = it.lon?.toDoubleOrNull()
                                             val nomor = it.nomor ?: ""
                                             val blokKode = it.blok_kode ?: ""
+                                            val jenisTPHId = it.jenis_tph_id ?: "1" // Get jenis_tph_id with default "1"
 
                                             if (id != null && lat != null && lon != null) {
-                                                id to ScannedTPHLocation(lat, lon, nomor, blokKode)
+                                                id to ScannedTPHLocation(lat, lon, nomor, blokKode, jenisTPHId)
                                             } else {
                                                 null
                                             }
