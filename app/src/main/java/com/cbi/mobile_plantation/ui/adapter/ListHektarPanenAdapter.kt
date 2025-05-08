@@ -3,6 +3,7 @@ package com.cbi.mobile_plantation.ui.adapter
 import android.app.Activity
 import android.content.Context
 import android.text.Editable
+import android.text.InputFilter
 import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
@@ -90,12 +91,25 @@ class ListHektarPanenAdapter(
             holder.et4.removeTextChangedListener(oldTextWatcher)
         }
 
-        // Create and set a new TextWatcher
         val textWatcher = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
             override fun afterTextChanged(s: Editable?) {
+                // Check if the input contains more than 2 digits after decimal point
+                val input = s.toString()
+                if (input.isNotEmpty()) {
+                    val decimalIndex = input.indexOf('.')
+                    if (decimalIndex != -1 && input.length > decimalIndex + 3) {
+                        // More than 2 digits after decimal point, truncate the input
+                        val truncated = input.substring(0, decimalIndex + 3)
+                        holder.et4.removeTextChangedListener(this)
+                        holder.et4.setText(truncated)
+                        holder.et4.setSelection(truncated.length)
+                        holder.et4.addTextChangedListener(this)
+                    }
+                }
+
                 val newValue = s.toString().toFloatOrNull() ?: 0f
                 val itemId = holder.et4.getTag(R.id.item_id_tag) as Int
 
@@ -103,6 +117,31 @@ class ListHektarPanenAdapter(
                 listener?.onLuasPanenChanged(itemId, newValue)
             }
         }
+
+        val decimalDigitsInputFilter = InputFilter { source, start, end, dest, dstart, dend ->
+            val builder = StringBuilder(dest)
+            builder.replace(dstart, dend, source.subSequence(start, end).toString())
+            val resultString = builder.toString()
+
+            if (resultString.isEmpty()) {
+                return@InputFilter null
+            }
+
+            // Allow negative sign at the beginning
+            if (resultString == "-") {
+                return@InputFilter null
+            }
+
+            // Check if it matches the pattern: optional negative sign, digits, optional decimal point and up to 2 digits
+            val regex = "^-?\\d*(\\.\\d{0,2})?$".toRegex()
+            if (!regex.matches(resultString)) {
+                return@InputFilter ""
+            }
+
+            null
+        }
+
+        holder.et4.filters = arrayOf(decimalDigitsInputFilter)
 
         // Store the TextWatcher as a tag to be able to remove it later
         holder.et4.setTag(R.id.text_watcher_tag, textWatcher)

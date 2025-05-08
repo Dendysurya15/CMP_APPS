@@ -583,8 +583,8 @@ class AppRepository(context: Context) {
         return hektarPanenDao.countWhereLuasPanenIsZeroAndDate()
     }
 
-    suspend fun countWhereLuasPanenIsZeroAndDateAndBlok(blok: Int): Int {
-        return hektarPanenDao.countWhereLuasPanenIsZeroAndDateAndBlok(blok)
+    suspend fun countWhereLuasPanenIsZeroAndDateAndBlok(blok: Int, date: String?): Int {
+        return hektarPanenDao.countWhereLuasPanenIsZeroAndDateAndBlok(blok, date)
     }
 
     suspend fun getSumLuasPanen(blok: Int, date: String): Float {

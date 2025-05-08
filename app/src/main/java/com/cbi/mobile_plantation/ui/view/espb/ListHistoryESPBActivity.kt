@@ -152,6 +152,7 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
             AppUtils.setSelectedDate(formattedDate)
 
             processSelectedDate(formattedDate)
+            setupBlokFilter()
         }
         datePicker.show(supportFragmentManager, "MATERIAL_DATE_PICKER")
     }
@@ -256,7 +257,7 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
                     // Prepare the data including counts before switching to Main thread
                     val blokDataWithCounts = blokData.map { blok ->
                         val count0 = try {
-                            hektarPanenViewModel.countWhereLuasPanenIsZeroAndDateAndBlok(blok.blok!!)
+                            hektarPanenViewModel.countWhereLuasPanenIsZeroAndDateAndBlok(blok.blok!!,globalFormattedDate)
                         } catch (e: Exception) {
                             Log.d("BlokIds", "Error getting count: ${e.message}")
                             -1 // Use a sentinel value to indicate error
@@ -604,6 +605,12 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
         val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)
         val nameFilterDate = findViewById<TextView>(R.id.name_filter_date)
 
+        if(featureName == AppUtils.ListFeatureNames.DaftarHektarPanen){
+            filterAllData.visibility = View.GONE
+            val calendarCheckboxCaption = findViewById<TextView>(R.id.calendarCheckboxCaption)
+            calendarCheckboxCaption.visibility = View.GONE
+        }
+
         filterAllData.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 // User wants to see all data
@@ -645,8 +652,10 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
             // Setup remove filter button
             val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_date)
             removeFilterDate.setOnClickListener {
-                if (filterAllData.isChecked) {
-                    filterAllData.isChecked = false
+                if (featureName == AppUtils.ListFeatureNames.RekapESPB) {
+                    if (filterAllData.isChecked) {
+                        filterAllData.isChecked = false
+                    }
                 }
 
                 filterDateContainer.visibility = View.GONE

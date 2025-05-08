@@ -100,7 +100,7 @@ abstract class HektarPanenDao {
     abstract fun getLuasBlokByBlok(blok: Int): Float
 
     @Query("SELECT COUNT(*) FROM hektar_panen WHERE luas_panen = 0.0 AND date_created_panen LIKE '%' || :date || '%' AND blok = :blok")
-    abstract fun countWhereLuasPanenIsZeroAndDateAndBlok(blok: Int, date: String= SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())): Int
+    abstract fun countWhereLuasPanenIsZeroAndDateAndBlok(blok: Int, date: String?= SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())): Int
 
     //luas_blok - sum luas panen where date_created_panen like '%' || :date || '%' and blok = :blok
     @Query("SELECT SUM(luas_panen) FROM hektar_panen WHERE date_created_panen LIKE '%' || :date || '%' AND blok = :blok")

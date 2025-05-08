@@ -18,8 +18,8 @@ class HektarPanenViewModel(private val repository: AppRepository) : ViewModel() 
         return count
     }
 
-    suspend fun countWhereLuasPanenIsZeroAndDateAndBlok(blok: Int): Int {
-        val count = repository.countWhereLuasPanenIsZeroAndDateAndBlok(blok)
+    suspend fun countWhereLuasPanenIsZeroAndDateAndBlok(blok: Int, date: String?): Int {
+        val count = repository.countWhereLuasPanenIsZeroAndDateAndBlok(blok, date)
         return count
     }
 
