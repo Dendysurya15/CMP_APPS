@@ -50,7 +50,7 @@ class UploadCMPRepository(context: Context) {
         val existingCount = uploadCMPDao.getTrackingIdCount(data.tracking_id!!,data.nama_file!!)
 
         if (existingCount > 0) {
-            uploadCMPDao.updateStatus(data.tracking_id,data.nama_file!!,  data.status!!)
+            uploadCMPDao.updateStatus(data.tracking_id,  data.status!!)
         } else {
             uploadCMPDao.insertNewData(data)
         }
@@ -258,11 +258,14 @@ class UploadCMPRepository(context: Context) {
         }
     }
 
+    data class ImageFileInfo(val file: File, val imageName: String, val tableId: String, val basePath: String)
+
     suspend fun uploadJsonToServerV3(
         jsonFilePath: String,
         filename: String,
         data: String,
         type: String,
+        tableIds: String? = null,
         onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
     ): Result<UploadV3Response> {
         return try {
@@ -300,7 +303,7 @@ class UploadCMPRepository(context: Context) {
 //                        }
 
                         // Validate all files exist first
-                        val validImageFiles = mutableListOf<Triple<File, String, String>>()
+                        val validImageFiles = mutableListOf<ImageFileInfo>()
                         val failedFiles = mutableListOf<String>()
 
                         AppLogger.d("====== CHECKING FILE EXISTENCE ======")
@@ -309,12 +312,14 @@ class UploadCMPRepository(context: Context) {
                             val imagePath = imageData["path"] ?: ""
                             val imageName = imageData["name"] ?: ""
                             val tableId = imageData["table_ids"]?.toIntOrNull() ?: -1
-
+                            val basePathImage = imageData["base_path"]
                             AppLogger.d("Checking file ${index + 1}/${imageList.size}: $imageName - Table ID: $tableId")
 
                             val file = File(imagePath)
                             if (file.exists()) {
-                                validImageFiles.add(Triple(file, imageName, tableId.toString()))
+                                validImageFiles.add(ImageFileInfo(file, imageName, tableId.toString(),
+                                    basePathImage!!
+                                ))
                                 AppLogger.d("✓ File exists: $imageName")
                             } else {
                                 failedFiles.add(imageName)
@@ -357,52 +362,54 @@ class UploadCMPRepository(context: Context) {
                         val failedImagePaths = mutableListOf<String>()
                         val failedImageNames = mutableListOf<String>()
 
-                        validImageFiles.forEachIndexed { index, (file, imageName, tableId) ->
+                        validImageFiles.forEachIndexed { index, fileInfo  ->
                             AppLogger.d("====== UPLOADING IMAGE ${index + 1}/${validImageFiles.size} ======")
-                            AppLogger.d("Image name: $imageName")
-                            AppLogger.d("Image path: ${file.absolutePath}")
-                            AppLogger.d("File size: ${file.length()} bytes")
-                            AppLogger.d("Table ID: $tableId")
+                            AppLogger.d("Image name: ${fileInfo.imageName}")
+                            AppLogger.d("Image path: ${fileInfo.file.absolutePath}")
+                            AppLogger.d("File size: ${fileInfo.file.length()} bytes")
+                            AppLogger.d("Table ID: ${fileInfo.tableId}")
 
 //                            withContext(Dispatchers.Main) {
 //                                onProgressUpdate(currentProgress, false, "Uploading ${imageName} (${index + 1}/${validImageFiles.size})")
 //                            }
 
                             try {
-                                // TEST: Force error for second image (PANEN TPH_2_2025505_143611.jpg)
-                                if (imageName.contains("_2_") && imageName.contains("143611")) {
-                                    AppLogger.d("TEST ERROR: Forcing error for second image...")
-                                    throw Exception("Simulated error for testing - second image failed to upload")
-                                }
+
 
                                 // Create the multipart data for single image
                                 val photoRequestBody = RequestBody.create(
                                     "image/*".toMediaTypeOrNull(),
-                                    file
+                                    fileInfo.file
                                 )
-                                val photoPart = MultipartBody.Part.createFormData("photos", imageName, photoRequestBody)
+                                val photoPart = MultipartBody.Part.createFormData("photos", fileInfo.imageName, photoRequestBody)
 
                                 val datasetTypeRequestBody = RequestBody.create(
                                     "text/plain".toMediaTypeOrNull(),
-                                    "panen_table"
+                                    AppUtils.DatabaseTables.PANEN,
+                                )
+
+                                val basePathRequestBody = RequestBody.create(
+                                    "text/plain".toMediaTypeOrNull(),
+                                    fileInfo.basePath,
                                 )
 
                                 // Make the API call for single image
-                                val response = CMPApiClient.instance.uploadPhotos(
+                                val response = TestingAPIClient.instance.uploadPhotos(
                                     photos = listOf(photoPart),  // Send as single-item list
-                                    datasetType = datasetTypeRequestBody
+                                    datasetType = datasetTypeRequestBody,
+                                    path = basePathRequestBody
                                 )
 
                                 AppLogger.d("====== RESPONSE FOR IMAGE ${index + 1} ======")
                                 AppLogger.d("Response successful: ${response.isSuccessful}")
                                 AppLogger.d("Response code: ${response.code()}")
 
-                                val tableIdInt = tableId.toIntOrNull() ?: -1
+                                val tableIdInt = fileInfo.tableId.toIntOrNull() ?: -1
 
                                 if (response.isSuccessful) {
                                     val responseBody = response.body()
                                     if (responseBody != null) {
-                                        AppLogger.d("Success uploading: $imageName")
+                                        AppLogger.d("Success uploading: ${fileInfo.imageName}")
                                         AppLogger.d("Response: ${responseBody.message}")
 
                                         // Add result to our list
@@ -424,14 +431,14 @@ class UploadCMPRepository(context: Context) {
 //                                            onProgressUpdate(currentProgress, false, "✓ ${imageName} uploaded successfully")
 //                                        }
                                     } else {
-                                        AppLogger.e("Null response body for: $imageName")
+                                        AppLogger.e("Null response body for: ${fileInfo.imageName}")
                                         failureCount++
 
                                         // Update status with error
                                         if (tableIdInt != -1) {
                                             val errorJson = JsonObject().apply {
                                                 add("error", JsonArray().apply {
-                                                    add(imageName)
+                                                    add(fileInfo.imageName)
                                                 })
                                             }.toString()
                                             panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
@@ -445,14 +452,14 @@ class UploadCMPRepository(context: Context) {
                                     }
                                 } else {
                                     val errorBody = response.errorBody()?.string()
-                                    AppLogger.e("Failed to upload: $imageName - Code: ${response.code()}, Error: $errorBody")
+                                    AppLogger.e("Failed to upload: ${fileInfo.imageName} - Code: ${response.code()}, Error: $errorBody")
                                     failureCount++
 
                                     // Update status with error code
                                     if (tableIdInt != -1) {
                                         val errorJson = JsonObject().apply {
                                             add("error", JsonArray().apply {
-                                                add(imageName)
+                                                add(fileInfo.imageName)
                                             })
                                         }.toString()
                                         panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
@@ -461,22 +468,22 @@ class UploadCMPRepository(context: Context) {
 
                                     currentProgress += progressPerImage
                                     withContext(Dispatchers.Main) {
-                                        onProgressUpdate(currentProgress, false, "✗ ${imageName} failed - ${response.code()}")
+                                        onProgressUpdate(currentProgress, false, "✗ ${fileInfo.imageName} failed - ${response.code()}")
                                     }
 
-                                    failedImagePaths.add(file.absolutePath)
-                                    failedImageNames.add(imageName)
+                                    failedImagePaths.add(fileInfo.file.absolutePath)
+                                    failedImageNames.add(fileInfo.imageName)
                                 }
                             } catch (e: Exception) {
-                                AppLogger.e("Exception uploading $imageName: ${e.message}")
+                                AppLogger.e("Exception uploading${fileInfo.imageName}: ${e.message}")
                                 failureCount++
 
                                 // Update status with exception
-                                val tableIdInt = tableId.toIntOrNull() ?: -1
+                                val tableIdInt = fileInfo.tableId.toIntOrNull() ?: -1
                                 if (tableIdInt != -1) {
                                     val errorJson = JsonObject().apply {
                                         add("error", JsonArray().apply {
-                                            add(imageName)
+                                            add(fileInfo.imageName)
                                         })
                                     }.toString()
                                     panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
@@ -485,10 +492,10 @@ class UploadCMPRepository(context: Context) {
 
                                 currentProgress += progressPerImage
                                 withContext(Dispatchers.Main) {
-                                    onProgressUpdate(currentProgress, false, "✗ ${imageName} error - ${e.message}")
+                                    onProgressUpdate(currentProgress, false, "✗ ${fileInfo.imageName} error - ${e.message}")
                                 }
-                                failedImagePaths.add(file.absolutePath)
-                                failedImageNames.add(imageName)
+                                failedImagePaths.add(fileInfo.file.absolutePath)
+                                failedImageNames.add(fileInfo.imageName)
                             }
                         }
 
@@ -635,7 +642,6 @@ class UploadCMPRepository(context: Context) {
                                     if (existingCount > 0) {
                                         uploadCMPDao.updateStatus(
                                             uploadData.tracking_id,
-                                            uploadData.nama_file,
                                             uploadData.status!!
                                         )
                                     } else {
@@ -1121,14 +1127,12 @@ class UploadCMPRepository(context: Context) {
                     }
                 }
                 else {
-                    // Original JSON upload logic for non-image types
-                    AppLogger.d("Starting JSON file upload for file: $jsonFilePath")
+                    AppLogger.d("Starting JSON data upload for: $filename")
 
                     try {
-                        // Check if file exists
-                        val file = File(jsonFilePath)
-                        if (!file.exists()) {
-                            val errorMsg = "JSON file not found: $jsonFilePath"
+                        // Validate that we have data
+                        if (data.isBlank()) {
+                            val errorMsg = "JSON data is empty for $filename"
                             AppLogger.e(errorMsg)
                             withContext(Dispatchers.Main) {
                                 onProgressUpdate(100, false, errorMsg)
@@ -1136,36 +1140,27 @@ class UploadCMPRepository(context: Context) {
                             return@withContext Result.failure(Exception(errorMsg))
                         }
 
-                        // Create the file part
-                        val fileRequestBody = RequestBody.create(
+                        // Create the request body from the JSON string
+                        val jsonRequestBody = RequestBody.create(
                             "application/json".toMediaTypeOrNull(),
-                            file
-                        )
-                        val filePart = MultipartBody.Part.createFormData("jsonFile", filename, fileRequestBody)
-
-                        // Create the filename part
-                        val filenameRequestBody = RequestBody.create(
-                            "text/plain".toMediaTypeOrNull(),
-                            filename
+                            data
                         )
 
                         AppLogger.d("====== REQUEST DATA ======")
-                        AppLogger.d("Filename: $filename")
-                        AppLogger.d("JSON File Path: $jsonFilePath")
-                        AppLogger.d("File size: ${file.length()} bytes")
+                        AppLogger.d("Filename: $filename (for reference only)")
+                        AppLogger.d("JSON Data length: ${data.length} characters")
 
                         // Simulate progress
                         withContext(Dispatchers.Main) {
                             onProgressUpdate(25, false, null)
                         }
 
-                        // Make the API call
+                        // Make the API call with raw JSON
                         AppLogger.d("====== MAKING API CALL ======")
-                        AppLogger.d("Using MultipartBody.Part for jsonFile")
+                        AppLogger.d("Using raw JSON body")
 
-                        val response = CMPApiClient.instance.uploadJsonV3(
-                            jsonFile = filePart,
-                            filename = filenameRequestBody
+                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                            jsonData = jsonRequestBody
                         )
 
                         AppLogger.d("====== RAW RESPONSE ======")
@@ -1227,7 +1222,8 @@ class UploadCMPRepository(context: Context) {
                                     tanggal_upload = responseBody.tanggal_upload,
                                     nama_file = responseBody.nama_file,
                                     results = responseBody.results,
-                                    type = "json"
+                                    type = "json",
+                                    table_ids = tableIds
                                 )
 
                                 Result.success(jsonResponse)

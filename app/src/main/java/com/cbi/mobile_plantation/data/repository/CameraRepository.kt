@@ -436,10 +436,12 @@ class CameraRepository(
                                             val dirDCIM = File(rootDCIM)
                                             if (!dirDCIM.exists()) dirDCIM.mkdirs()
 
-                                            val dateFormat =
-                                                SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
-                                            fileName =
-                                                "${featureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_${dateFormat}.jpg"
+                                            val dateTimeFormat = SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
+
+                                            val cleanFeatureName = featureName!!.replace(" ", "_")
+
+                                            // Create filename
+                                            fileName = "${cleanFeatureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_${dateTimeFormat}.jpg"
                                             file = File(dirApp, fileName)
 
                                             fileDCIM = File(dirDCIM, fileName)

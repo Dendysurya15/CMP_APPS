@@ -181,15 +181,15 @@ class DatasetRepository(
 
 
     suspend fun downloadDataset(request: DatasetRequest): Response<ResponseBody> {
-        return apiService.downloadDataset(request)
+        return TestingApiService.downloadDataset(request)
     }
 
     suspend fun downloadSmallDataset(regional: Int): Response<ResponseBody> {
-        return apiService.downloadSmallDataset(mapOf("regional" to regional))
+        return TestingApiService.downloadSmallDataset(mapOf("regional" to regional))
     }
 
     suspend fun downloadListEstate(regional: Int): Response<ResponseBody> {
-        return apiService.downloadListEstate(mapOf("regional" to regional))
+        return TestingApiService.downloadListEstate(mapOf("regional" to regional))
     }
 
 
@@ -199,7 +199,7 @@ class DatasetRepository(
 
     suspend fun downloadSettingJson(lastModified: String): Response<ResponseBody> {
         val requestBody = mapOf("last_modified" to lastModified)
-        return apiService.downloadSettingJson(requestBody)
+        return TestingApiService.downloadSettingJson(requestBody)
     }
 
     suspend fun getTPHsByIds(tphIds: List<Int>): List<TPHNewModel> {

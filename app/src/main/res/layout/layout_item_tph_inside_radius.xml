@@ -31,7 +31,7 @@
                 android:layout_height="wrap_content"
                 android:text="TPH 13 - 39483"
                 android:fontFamily="@font/manrope_bold"
-                android:layout_marginBottom="2dp"
+
                 android:textSize="@dimen/m" />
 
             <TextView

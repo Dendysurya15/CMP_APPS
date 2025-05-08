@@ -100,6 +100,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.io.FileReader
 import java.text.SimpleDateFormat
@@ -1010,7 +1012,6 @@ class HomePageActivity : AppCompatActivity() {
                                     ) // Ensure it's never null
                                 }
 
-                                AppUtils.clearTempJsonFiles(this@HomePageActivity)
 
                                 var unzippedPanenData: List<Map<String, Any>> = emptyList()
                                 var unzippedESPBData: List<Map<String, Any>> = emptyList()
@@ -1142,14 +1143,30 @@ class HomePageActivity : AppCompatActivity() {
                                                             }
                                                         }
 
-                                                        // Add to uniquePhotos if it needs to be uploaded
+                                                        val createdDate = panenWithRelations.panen.date_created ?: ""
+                                                        val formattedDate = try {
+                                                            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                                            val date = dateFormat.parse(createdDate)
+                                                            val outputFormat = SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault())
+                                                            outputFormat.format(date ?: Date())
+                                                        } catch (e: Exception) {
+                                                            AppLogger.e("Error formatting date: ${e.message}")
+                                                            // Default to current date if parsing fails
+                                                            val outputFormat = SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault())
+                                                            outputFormat.format(Date())
+                                                        }
+
+                                                        // Create the base path by appending the estate code
+                                                        val basePathImage = formattedDate + prefManager!!.estateUserLogin
+
                                                         if (shouldAdd) {
                                                             uniquePhotos[trimmedName] = mapOf(
                                                                 "name" to trimmedName,
                                                                 "path" to photoFile.absolutePath,
                                                                 "size" to photoFile.length()
                                                                     .toString(),
-                                                                "table_ids" to panenWithRelations.panen.id.toString()
+                                                                "table_ids" to panenWithRelations.panen.id.toString(),
+                                                                "base_path" to basePathImage
                                                             )
                                                             AppLogger.d("Added photo for upload: $trimmedName at ${photoFile.absolutePath}")
                                                         } else {
@@ -1265,11 +1282,6 @@ class HomePageActivity : AppCompatActivity() {
                                             )
                                         }
 
-                                        globalPanenIds = mappedPanenData.map { it["id"] as Int }
-
-                                        val firstItem = mappedPanenData.firstOrNull()
-                                        val dateCreated = firstItem?.get("created_date") as? String
-
                                         // First, filter the mapped panen data to only include items with status_upload == 0
                                         val panenDataToUpload = mappedPanenData.filter { panenMap ->
                                             val id = panenMap["id"] as? Int ?: 0
@@ -1281,32 +1293,40 @@ class HomePageActivity : AppCompatActivity() {
 
                                         // Only create the panen JSON file if there's data to upload
                                         if (panenDataToUpload.isNotEmpty()) {
-                                            val firstItem = panenDataToUpload.firstOrNull()
-                                            val dateCreated =
-                                                firstItem?.get("created_date") as? String
+                                            // Split into batches of 50
+                                            val panenBatches = panenDataToUpload.chunked(50)
+                                            val panenBatchMap = mutableMapOf<String, Any>()
 
-                                            val panenJson = Gson().toJson(panenDataToUpload)
-                                            val (panenFilePath, panenFilename) = AppUtils.createTempJsonFile(
-                                                context = this@HomePageActivity,
-                                                baseFilename = AppUtils.DatabaseTables.PANEN,
-                                                jsonData = panenJson,
-                                                userId = prefManager!!.idUserLogin.toString(),
-                                                dataDate = dateCreated
-                                            )
-
-                                            combinedUploadData[AppUtils.DatabaseTables.PANEN] =
-                                                mapOf(
-                                                    "path" to panenFilePath,
-                                                    "filename" to panenFilename
+                                            panenBatches.forEachIndexed { batchIndex, batch ->
+                                                // Create a wrapper with the table name for this batch
+                                                val wrappedBatch = mapOf(
+                                                    AppUtils.DatabaseTables.PANEN to batch
                                                 )
-                                        } else {
-                                            AppLogger.d("No panen data with status_upload == 0 to upload")
+
+                                                // Convert the wrapped batch to JSON
+                                                val batchJson = Gson().toJson(wrappedBatch)
+                                                val batchKey = "batch_${batchIndex + 1}"
+
+                                                // Store the IDs for this batch
+                                                val batchIds = batch.mapNotNull { it["id"] as? Int }
+
+                                                panenBatchMap[batchKey] = mapOf(
+                                                    "data" to batchJson,
+                                                    "filename" to "PANEN ${prefManager!!.estateUserLogin} ${batchIndex + 1}",
+                                                    "ids" to batchIds
+                                                )
+                                            }
+
+                                            if (panenBatchMap.isNotEmpty()) {
+                                                combinedUploadData[AppUtils.DatabaseTables.PANEN] = panenBatchMap
+                                            }
                                         }
 
                                         allPhotos = uniquePhotos.values.toMutableList()
                                         if (allPhotos.isNotEmpty()) {
                                             AppLogger.d("Adding ${allPhotos.size} unique photos to upload data")
                                             combinedUploadData["foto_panen"] = allPhotos
+
                                         } else {
                                             AppLogger.w("No photos found to upload")
                                         }
@@ -1431,25 +1451,38 @@ class HomePageActivity : AppCompatActivity() {
                                                 )
                                             }
 
-                                            globalESPBIds = mappedESPBData.map { it["id"] as Int }
-                                            val firstItem = mappedESPBData.firstOrNull()
-                                            val dateCreated =
-                                                firstItem?.get("created_at") as? String
-                                            val espbJson = Gson().toJson(mappedESPBData)
-                                            val (espbFilePath, espbFilename) = AppUtils.createTempJsonFile(
-                                                context = this@HomePageActivity,
-                                                baseFilename = AppUtils.DatabaseTables.ESPB,
-                                                jsonData = espbJson,
-                                                userId = prefManager!!.idUserLogin.toString(),
-                                                dataDate = dateCreated
-                                            )
 
-                                            // Store both the file path and filename only if there's data
-                                            combinedUploadData[AppUtils.DatabaseTables.ESPB] =
-                                                mapOf(
-                                                    "path" to espbFilePath,
-                                                    "filename" to espbFilename
+                                            if (espbDataToUpload.isNotEmpty()) {
+                                                // Create a wrapper with the table name
+                                                val wrappedData = mapOf(
+                                                    AppUtils.DatabaseTables.ESPB to espbDataToUpload
                                                 )
+
+                                                // Convert to JSON
+                                                val espbJson = Gson().toJson(wrappedData)
+
+                                                // Extract all IDs
+                                                val espbIds = ArrayList<Int>()
+                                                for (item in espbDataToUpload) {
+                                                    try {
+                                                        val jsonObj = JSONObject(Gson().toJson(item))
+                                                        val id = jsonObj.optInt("id", 0)
+                                                        if (id > 0) {
+                                                            espbIds.add(id)
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        AppLogger.e("Error extracting ESPB ID: ${e.message}")
+                                                    }
+                                                }
+
+                                                // Store as a single entry
+                                                combinedUploadData[AppUtils.DatabaseTables.ESPB] = mapOf(
+                                                    "data" to espbJson,
+                                                    "filename" to "espb_data.json",
+                                                    "ids" to espbIds
+                                                )
+                                            }
+
 
                                             unzippedESPBData = mappedESPBData.filter { item ->
                                                 // Get the ID
@@ -1549,10 +1582,13 @@ class HomePageActivity : AppCompatActivity() {
                                     it.status_upload == 0
                                 }
 
-                                AppLogger.d(panenToUpload.toString())
                                 val hasPhotosToUpload = allPhotos.isNotEmpty()
                                 val hasItemsToUpload =
                                     panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosToUpload
+
+                                AppLogger.d("panenToUpload $panenToUpload")
+                                AppLogger.d("espbToUpload $espbToUpload")
+                                AppLogger.d("hasPhotosToUpload $hasPhotosToUpload")
 
                                 if (hasItemsToUpload) {
                                     val uploadDataJson = Gson().toJson(combinedUploadData)
@@ -1702,60 +1738,74 @@ class HomePageActivity : AppCompatActivity() {
 
                 var itemId = 0
 
-                val panenInfo = dataMap[AppUtils.DatabaseTables.PANEN] as? Map<*, *>
-                if (panenInfo != null) {
-                    val panenPath = panenInfo["path"] as? String
-                    val panenFilename = panenInfo["filename"] as? String
+                val panenBatches = dataMap[AppUtils.DatabaseTables.PANEN] as? Map<*, *>
+                if (panenBatches != null) {
+                    panenBatches.entries.forEachIndexed { index, entry ->
+                        val batchKey = entry.key as? String ?: ""
+                        val batchInfo = entry.value as? Map<*, *> ?: mapOf<String, Any>()
 
-                    if (panenPath != null && panenFilename != null) {
-                        val file = File(panenPath)
-                        if (file.exists() && file.length() > 0) {
-                            val panenTitle = "Panen Data"
-                            val fileSize = file.length()
+                        val panenData = batchInfo["data"] as? String
+                        val panenFilename = batchInfo["filename"] as? String
+                        val panenIds = batchInfo["ids"] as? List<Int> ?: emptyList()
+
+                        if (panenData != null && panenData.isNotEmpty() && panenFilename != null) {
+                            val batchNumber = batchKey.replace("batch_", "")
+                            val dataSize = panenData.length.toLong()
+
+                            val tableIdsJson = JSONObject().apply {
+                                put(AppUtils.DatabaseTables.PANEN, JSONArray(panenIds))
+                            }.toString()
 
                             val uploadItem = UploadCMPItem(
                                 id = itemId++,
-                                title = panenTitle,
-                                fullPath = panenPath,  // Using the actual file path
-                                baseFilename = panenFilename,  // Using the filename
-                                data = "",
-                                type = "json"
+                                title = panenFilename,
+                                fullPath = "",
+                                baseFilename = panenFilename,
+                                data = panenData,
+                                type = "json",
+                                tableIds = tableIdsJson
                             )
 
                             uploadItems.add(uploadItem)
-                            adapter.setFileSize(uploadItem.id, fileSize)
-                            AppLogger.d("Added panen file to upload items: $panenPath (size: $fileSize bytes)")
-                        } else {
-                            AppLogger.e("Panen file not found or empty: $panenPath")
+                            adapter.setFileSize(uploadItem.id, dataSize)
+                            AppLogger.d("Added panen batch $batchNumber to upload items (size: $dataSize bytes)")
                         }
                     }
                 }
 
-                val espbInfo = dataMap[AppUtils.DatabaseTables.ESPB] as? Map<*, *>
-                if (espbInfo != null) {
-                    val espbPath = espbInfo["path"] as? String
-                    val espbFilename = espbInfo["filename"] as? String
+                // Process ESPB batches
+                val espbBatches = dataMap[AppUtils.DatabaseTables.ESPB] as? Map<*, *>
+                if (espbBatches != null) {
+                    espbBatches.entries.forEachIndexed { index, entry ->
+                        val batchKey = entry.key as? String ?: ""
+                        val batchInfo = entry.value as? Map<*, *> ?: mapOf<String, Any>()
 
-                    if (espbPath != null && espbFilename != null) {
-                        val file = File(espbPath)
-                        if (file.exists() && file.length() > 0) {
-                            val espbTitle = "ESPB Data"
-                            val fileSize = file.length()
+                        val espbData = batchInfo["data"] as? String
+                        val espbFilename = batchInfo["filename"] as? String
+                        val espbIds = batchInfo["ids"] as? List<Int> ?: emptyList()
+
+                        if (espbData != null && espbData.isNotEmpty() && espbFilename != null) {
+                            val batchNumber = batchKey.replace("batch_", "")
+                            val espbTitle = "ESPB Data (Batch $batchNumber)"
+                            val dataSize = espbData.length.toLong()
+
+                            val tableIdsJson = JSONObject().apply {
+                                put(AppUtils.DatabaseTables.ESPB, JSONArray(espbIds))
+                            }.toString()
 
                             val uploadItem = UploadCMPItem(
                                 id = itemId++,
                                 title = espbTitle,
-                                fullPath = espbPath,  // Using the actual file path
-                                baseFilename = espbFilename,  // Using the filename
-                                data = "",
-                                type = "json"
+                                fullPath = "",
+                                baseFilename = espbFilename,
+                                data = espbData,
+                                type = "json",
+                                tableIds = tableIdsJson  // Store the IDs as JSON
                             )
 
                             uploadItems.add(uploadItem)
-                            adapter.setFileSize(uploadItem.id, fileSize)
-                            AppLogger.d("Added espb file to upload items: $espbPath (size: $fileSize bytes)")
-                        } else {
-                            AppLogger.e("ESPB file not found or empty: $espbPath")
+                            adapter.setFileSize(uploadItem.id, dataSize)
+                            AppLogger.d("Added espb batch $batchNumber to upload items (size: $dataSize bytes)")
                         }
                     }
                 }
@@ -2262,41 +2312,38 @@ class HomePageActivity : AppCompatActivity() {
 
                             if (response.success) {
                                 try {
-                                    val extractionDeferred =
-                                        CompletableDeferred<Pair<List<Int>, List<Int>>>()
+                                    // Extract table_ids from the response
+                                    val tableIds = response.table_ids
+                                    if (tableIds != null) {
+                                        // Parse the table_ids to determine if it's PANEN or ESPB
+                                        val tableIdsJson = JSONObject(tableIds)
 
-                                    AppLogger.d("Starting JSON extraction for ${response.nama_file}")
+                                        if (tableIdsJson.has(AppUtils.DatabaseTables.PANEN)) {
+                                            val panenIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.PANEN)
+                                            val panenIds = (0 until panenIdsArray.length()).map { panenIdsArray.getInt(it) }
+                                            globalPanenIdsByPart[keyJsonName] = panenIds
+                                            AppLogger.d("Extracted PANEN IDs from response: $panenIds")
+                                        }else if (tableIdsJson.has(AppUtils.DatabaseTables.ESPB)) {
+                                            val espbIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ESPB)
+                                            val espbIds = (0 until espbIdsArray.length()).map { espbIdsArray.getInt(it) }
+                                            globalEspbIdsByPart[keyJsonName] = espbIds
+                                            AppLogger.d("Extracted ESPB IDs from response: $espbIds")
+                                        }else{
 
-                                    launch(Dispatchers.IO) {
-                                        try {
-                                            val result = AppUtils.extractIdsFromJsonFile(
-                                                context = this@HomePageActivity,
-                                                fileName = response.nama_file
-                                            )
-                                            extractionDeferred.complete(result)
-                                        } catch (e: Exception) {
-                                            extractionDeferred.completeExceptionally(e)
                                         }
+                                    } else {
+                                        AppLogger.w("No table_ids found in response for $keyJsonName")
+                                        globalPanenIdsByPart[keyJsonName] = emptyList()
+                                        globalEspbIdsByPart[keyJsonName] = emptyList()
                                     }
-
-                                    val (panenIds, espbIds) = withTimeout(5000) {
-                                        extractionDeferred.await()
-                                    }
-
-                                    AppLogger.d("Extraction complete for JSON $keyJsonName. PANEN IDs: ${panenIds.size}, ESPB IDs: ${espbIds.size}")
-
-                                    // Store IDs by part number
-                                    globalPanenIdsByPart[keyJsonName] = panenIds
-                                    globalEspbIdsByPart[keyJsonName] = espbIds
-
                                 } catch (e: Exception) {
-                                    AppLogger.e("Error during JSON extraction for file $keyJsonName: ${e.message}")
-
+                                    AppLogger.e("Error parsing table_ids for file $keyJsonName: ${e.message}")
                                     globalPanenIdsByPart[keyJsonName] = emptyList()
                                     globalEspbIdsByPart[keyJsonName] = emptyList()
                                 }
                             } else {
-
+                                globalPanenIdsByPart[keyJsonName] = emptyList()
+                                globalEspbIdsByPart[keyJsonName] = emptyList()
                             }
                         } else if (response.type == "image") {
                             globalResponseJsonUploadList.add(
@@ -2314,7 +2361,7 @@ class HomePageActivity : AppCompatActivity() {
                                 AppLogger.d("Failed images: ${globalImageNameError.size}")
                                 AppLogger.d("Failed image paths: $globalImageUploadError")
                                 AppLogger.d("Failed image names: $globalImageNameError")
-                            } else {
+                            }else{
 
                             }
                         } else {
@@ -2329,7 +2376,7 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun processUploadResponses(): Boolean {
+    private fun processUploadResponses(): Boolean {
         if (globalResponseJsonUploadList.isEmpty()) {
             AppLogger.d("No responses found in globalResponseJsonUploadList")
             return false

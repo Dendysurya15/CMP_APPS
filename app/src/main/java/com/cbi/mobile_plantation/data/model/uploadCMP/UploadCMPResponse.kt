@@ -77,7 +77,8 @@ data class UploadV3Response(
     val results: UploadResults?,
     val type: String,
     val imageFullPath: List<String>? = emptyList(),
-    val imageName: List<String>? = emptyList()
+    val imageName: List<String>? = emptyList(),
+    val table_ids: String? = null
 )
 data class UploadResults(
     val processed: Int,

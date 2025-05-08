@@ -572,7 +572,6 @@ class WeighBridgeRepository(context: Context) {
                                                 if (existingCount > 0) {
                                                     uploadCMPDao.updateStatus(
                                                         uploadData.tracking_id,
-                                                        uploadData.nama_file,
                                                         uploadData.status!!
                                                     )
                                                 } else {

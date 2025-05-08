@@ -630,7 +630,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 // Process each item sequentially
                 uploadData.forEachIndexed { index, (trackingId, filename) ->
                     AppLogger.d("\n--- Processing item ${index + 1}/${uploadData.size} ---")
-                    AppLogger.d("TrackingId: $trackingId, Filename: $filename")
+                    AppLogger.d("TrackingId: $trackingId")
 
                     try {
                         // Get status for this tracking ID
@@ -647,36 +647,29 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             AppLogger.d("Data count: ${statusResponse.data.size}")
                             AppLogger.d("Full response: ${statusResponse}")
 
-                            // Find matching status data for this file
-                            val baseFilename = filename.substringBeforeLast(".json")
-                            AppLogger.d("Base filename (without .json): $baseFilename")
+                            // Since we're not checking filenames anymore, just use the first data item
+                            // Or implement a different logic to choose the right status data
+                            val statusData = statusResponse.data.firstOrNull()
 
-                            val matchingData = statusResponse.data.find {
-                                val match = it.nama_file.contains(baseFilename)
-                                AppLogger.d("Checking file: ${it.nama_file} against $baseFilename - Match: $match")
-                                match
+                            AppLogger.d("\nStatus data result:")
+                            AppLogger.d("Found: ${statusData != null}")
+                            if (statusData != null) {
+                                AppLogger.d("Status: ${statusData.status}")
+                                AppLogger.d("Message: ${statusData.message}")
+                                AppLogger.d("StatusText: ${statusData.statusText}")
                             }
 
-                            AppLogger.d("\nMatching data result:")
-                            AppLogger.d("Found: ${matchingData != null}")
-                            if (matchingData != null) {
-                                AppLogger.d("File: ${matchingData.nama_file}")
-                                AppLogger.d("Status: ${matchingData.status}")
-                                AppLogger.d("Message: ${matchingData.message}")
-                                AppLogger.d("StatusText: ${matchingData.statusText}")
-                            }
-
-                            if (matchingData != null) {
+                            if (statusData != null) {
                                 // Get the status code for database update
-                                val statusCode = matchingData.status
-                                AppLogger.d("Updating database - trackingId=$trackingId, filename=$filename, statusCode=$statusCode")
+                                val statusCode = statusData.status
+                                AppLogger.d("Updating database - trackingId=$trackingId, statusCode=$statusCode")
 
                                 // Update status in the database
-                                uploadCMPDao.updateStatus(trackingId, filename, statusCode)
+                                uploadCMPDao.updateStatus(trackingId, statusCode)
                                 AppLogger.d("Database update completed successfully")
 
                                 // Get table_ids from database
-                                val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(trackingId, filename)
+                                val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(trackingId)
                                 AppLogger.d("Retrieved table_ids JSON: $tableIdsJson")
 
                                 if (tableIdsJson != null) {
@@ -724,13 +717,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         AppLogger.e("Error parsing table_ids JSON: ${jsonException.message}")
                                         errorItems.add(
                                             ErrorItem(
-                                                fileName = filename,
+                                                fileName = "",  // No filename needed
                                                 message = "Failed to parse table_ids JSON"
                                             )
                                         )
                                     }
                                 } else {
-                                    AppLogger.w("No table_ids found for trackingId: $trackingId, filename: $filename")
+                                    AppLogger.w("No table_ids found for trackingId: $trackingId")
                                 }
 
                                 // Check if this was an error status
@@ -739,25 +732,21 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     AppLogger.d("Error status detected - adding to error items")
                                     errorItems.add(
                                         ErrorItem(
-                                            fileName = filename,
-                                            message = matchingData.message
+                                            fileName = "",  // No filename needed
+                                            message = statusData.message
                                         )
                                     )
-                                    AppLogger.d("Error item added: fileName=$filename, message=${matchingData.message}")
+                                    AppLogger.d("Error item added: message=${statusData.message}")
                                 } else {
                                     AppLogger.d("Status code is OK (< 4)")
                                 }
                             } else {
-                                // No matching data found for this file
-                                AppLogger.e("ERROR: No matching data found for file: $filename")
-                                AppLogger.e("Available files in response:")
-                                statusResponse.data.forEach { data ->
-                                    AppLogger.e("  - ${data.nama_file}")
-                                }
+                                // No status data found
+                                AppLogger.e("ERROR: No status data found for trackingId: $trackingId")
                                 errorItems.add(
                                     ErrorItem(
-                                        fileName = filename,
-                                        message = "No status data found for this file"
+                                        fileName = "",  // No filename needed
+                                        message = "No status data found for this tracking ID"
                                     )
                                 )
                             }
@@ -768,7 +757,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             AppLogger.e("Error body: ${response.errorBody()?.string()}")
                             errorItems.add(
                                 ErrorItem(
-                                    fileName = filename,
+                                    fileName = "",  // No filename needed
                                     message = "Server error: ${response.code()}"
                                 )
                             )
@@ -780,7 +769,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         AppLogger.e("Stack trace: ${e.stackTrace.take(5).joinToString("\n")}")
                         errorItems.add(
                             ErrorItem(
-                                fileName = filename,
+                                fileName = "",  // No filename needed
                                 message = "Network error: ${e.localizedMessage}"
                             )
                         )
