@@ -1209,9 +1209,22 @@ class UploadCMPRepository(context: Context) {
                                 AppLogger.d("Errors: ${responseBody.results!!.errors}")
                                 AppLogger.d("Skipped: ${responseBody.results!!.skipped}")
 
-                                // Mark as success with 100% progress
+                                // Check if status is between 1 and 3
+                                val statusInt = responseBody.status.toInt()
+                                val isSuccess = statusInt in 1..3
+
+                                // Update progress based on status
                                 withContext(Dispatchers.Main) {
-                                    onProgressUpdate(100, true, null)
+                                    if (isSuccess) {
+                                        // Status is valid, mark as success
+                                        onProgressUpdate(100, true, null)
+                                        AppLogger.d("Upload marked as SUCCESS with status: $statusInt")
+                                    } else {
+                                        // Status is outside valid range, mark as failure
+                                        val errorMessage = responseBody.message ?: "Upload failed with status: $statusInt"
+                                        onProgressUpdate(100, false, errorMessage)
+                                        AppLogger.d("Upload marked as FAILURE: $errorMessage")
+                                    }
                                 }
 
                                 val jsonResponse = UploadV3Response(

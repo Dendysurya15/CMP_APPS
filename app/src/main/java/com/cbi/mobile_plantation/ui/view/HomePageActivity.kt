@@ -1229,6 +1229,38 @@ class HomePageActivity : AppCompatActivity() {
                                             val kemandoranJsonString = Gson().toJson(kemandoranJson)
                                             val jumlahPemanen = pemanen.size
 
+
+                                            val createdDate = panenWithRelations.panen.date_created ?: ""
+                                            val formattedDate = try {
+                                                val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                                val date = dateFormat.parse(createdDate)
+                                                val outputFormat = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
+                                                outputFormat.format(date ?: Date())
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error formatting date: ${e.message}")
+                                                // Default to current date if parsing fails
+                                                val outputFormat = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
+                                                outputFormat.format(Date())
+                                            }
+
+                                            // handle foto dengan path tanggal
+                                            val basePath = "$formattedDate/${prefManager!!.estateUserLogin}/"
+
+                                            // Process the photo filenames to prepend the base path
+                                            val originalFotoString = panenWithRelations.panen.foto ?: ""
+                                            val modifiedFotoString = if (originalFotoString.contains(";")) {
+                                                // Multiple photos - split, modify each one, and rejoin
+                                                originalFotoString.split(";")
+                                                    .map { photoName -> "$basePath${photoName.trim()}" }
+                                                    .joinToString(";")
+                                            } else if (originalFotoString.isNotEmpty()) {
+                                                // Single photo - just prepend the base path
+                                                "$basePath$originalFotoString"
+                                            } else {
+                                                // No photos
+                                                ""
+                                            }
+
                                             mapOf(
                                                 "id" to panenWithRelations.panen.id,
                                                 "tanggal" to panenWithRelations.panen.date_created,
@@ -1264,7 +1296,7 @@ class HomePageActivity : AppCompatActivity() {
                                                 "kemandoran_id" to panenWithRelations.panen.kemandoran_id,
                                                 "karyawan_id" to panenWithRelations.panen.karyawan_id,
                                                 "karyawan_nik" to panenWithRelations.panen.karyawan_nik,
-                                                "foto" to panenWithRelations.panen.foto,
+                                                "foto" to modifiedFotoString,
                                                 "komentar" to panenWithRelations.panen.komentar,
                                                 "lat" to panenWithRelations.panen.lat,
                                                 "lon" to panenWithRelations.panen.lon,
@@ -1322,6 +1354,9 @@ class HomePageActivity : AppCompatActivity() {
                                             }
                                         }
 
+
+
+
                                         allPhotos = uniquePhotos.values.toMutableList()
                                         if (allPhotos.isNotEmpty()) {
                                             AppLogger.d("Adding ${allPhotos.size} unique photos to upload data")
@@ -1372,6 +1407,8 @@ class HomePageActivity : AppCompatActivity() {
                                                 val tphDeferred =
                                                     CompletableDeferred<TPHNewModel?>()
 
+
+                                                AppLogger.d("firstBlockId $firstBlockId")
                                                 // Fetch the TPH data if we have a block ID
                                                 firstBlockId?.let { blockId ->
                                                     weightBridgeViewModel.fetchTPHByBlockId(blockId)
@@ -1385,6 +1422,9 @@ class HomePageActivity : AppCompatActivity() {
 
                                                 // Wait for the TPH data
                                                 val tphData = tphDeferred.await()
+
+
+                                                AppLogger.d("tphData $tphData")
 
                                                 val pemuatNikString = data.pemuat_nik
 
@@ -1452,18 +1492,24 @@ class HomePageActivity : AppCompatActivity() {
                                             }
 
 
+
+
                                             if (espbDataToUpload.isNotEmpty()) {
                                                 // Create a wrapper with the table name
                                                 val wrappedData = mapOf(
-                                                    AppUtils.DatabaseTables.ESPB to espbDataToUpload
+                                                    AppUtils.DatabaseTables.ESPB to mappedESPBData
                                                 )
+
+
 
                                                 // Convert to JSON
                                                 val espbJson = Gson().toJson(wrappedData)
+                                                AppLogger.d("espbJson $espbJson")
 
+                                                AppLogger.d(espbJson.toString())
                                                 // Extract all IDs
                                                 val espbIds = ArrayList<Int>()
-                                                for (item in espbDataToUpload) {
+                                                for (item in mappedESPBData  ) {
                                                     try {
                                                         val jsonObj = JSONObject(Gson().toJson(item))
                                                         val id = jsonObj.optInt("id", 0)
@@ -1774,39 +1820,38 @@ class HomePageActivity : AppCompatActivity() {
                 }
 
                 // Process ESPB batches
-                val espbBatches = dataMap[AppUtils.DatabaseTables.ESPB] as? Map<*, *>
-                if (espbBatches != null) {
-                    espbBatches.entries.forEachIndexed { index, entry ->
-                        val batchKey = entry.key as? String ?: ""
-                        val batchInfo = entry.value as? Map<*, *> ?: mapOf<String, Any>()
+                val espbInfo = dataMap[AppUtils.DatabaseTables.ESPB] as? Map<*, *>
+                if (espbInfo != null) {
+                    AppLogger.d("Found espb_table data: $espbInfo")
 
-                        val espbData = batchInfo["data"] as? String
-                        val espbFilename = batchInfo["filename"] as? String
-                        val espbIds = batchInfo["ids"] as? List<Int> ?: emptyList()
+                    val espbData = espbInfo["data"] as? String
+                    val espbFilename = espbInfo["filename"] as? String
+                    val espbIds = espbInfo["ids"] as? List<Int> ?: emptyList()
 
-                        if (espbData != null && espbData.isNotEmpty() && espbFilename != null) {
-                            val batchNumber = batchKey.replace("batch_", "")
-                            val espbTitle = "ESPB Data (Batch $batchNumber)"
-                            val dataSize = espbData.length.toLong()
+                    if (espbData != null && espbData.isNotEmpty()) {
+                        val dataSize = espbData.length.toLong()
+                        AppLogger.d("ESPB data size: $dataSize")
 
-                            val tableIdsJson = JSONObject().apply {
-                                put(AppUtils.DatabaseTables.ESPB, JSONArray(espbIds))
-                            }.toString()
+                        val tableIdsJson = JSONObject().apply {
+                            put(AppUtils.DatabaseTables.ESPB, JSONArray(espbIds))
+                        }.toString()
 
-                            val uploadItem = UploadCMPItem(
-                                id = itemId++,
-                                title = espbTitle,
-                                fullPath = "",
-                                baseFilename = espbFilename,
-                                data = espbData,
-                                type = "json",
-                                tableIds = tableIdsJson  // Store the IDs as JSON
-                            )
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = "ESPB Data",
+                            fullPath = "",
+                            baseFilename = espbFilename!!,
+                            data = espbData,
+                            type = "json",
+                            tableIds = tableIdsJson
+                        )
 
-                            uploadItems.add(uploadItem)
-                            adapter.setFileSize(uploadItem.id, dataSize)
-                            AppLogger.d("Added espb batch $batchNumber to upload items (size: $dataSize bytes)")
-                        }
+                        uploadItems.add(uploadItem)
+                        adapter.setFileSize(uploadItem.id, dataSize)
+                        adapter.notifyDataSetChanged() // Make sure adapter updates
+                        AppLogger.d("Added ESPB to upload items (size: $dataSize bytes)")
+                    } else {
+                        AppLogger.d("ESPB data is missing required fields: data=$espbData, filename=$espbFilename")
                     }
                 }
 
