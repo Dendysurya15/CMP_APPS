@@ -75,7 +75,7 @@ import java.util.concurrent.Executors
         EstateModel::class,
         AfdelingModel::class,
     ],
-    version = 37
+    version = 38
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao

@@ -253,9 +253,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 //        }
 //    }
 
-    fun getAllScanMPanenByDate(status_mpanen: Int, date: String? = null) = viewModelScope.launch {
+    fun getAllScanMPanenByDate(archiveMpanen: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val list = repository.getAllScanMPanenByDate(status_mpanen, date)
+            val list = repository.getAllScanMPanenByDate(archiveMpanen, date)
             _activePanenList.value = list
         } catch (e: Exception) {
             AppLogger.e("Error loading getAllScanMPanenByDate: ${e.message}")
@@ -358,6 +358,13 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     fun archivePanenById(id: Int) {
         viewModelScope.launch {
             repository.archivePanenById(id)
+            loadAllPanen() // Refresh the data
+        }
+    }
+
+    fun archiveMpanenByID(id: Int) {
+        viewModelScope.launch {
+            repository.archiveMpanenByID(id)
             loadAllPanen() // Refresh the data
         }
     }

@@ -126,7 +126,10 @@ class AppRepository(context: Context) {
                         if (tphData.karyawan_nik.contains(",")) {
                             val nikArr = tphData.karyawan_nik.split(",")
                             for (nik in nikArr) {
-                                val key = Pair(nik, "${blokIdFromTPHid}$${tphData.date_created.split(" ")[0]}")
+                                val key = Pair(
+                                    nik,
+                                    "${blokIdFromTPHid}$${tphData.date_created.split(" ")[0]}"
+                                )
                                 // Add logging for grouping
                                 Log.d(
                                     "AppRepository",
@@ -141,7 +144,10 @@ class AppRepository(context: Context) {
                             }
                         } else {
                             // Create a key with NIK and Block (Pair<String, Int>)
-                            val key = Pair(tphData.karyawan_nik, "${blokIdFromTPHid}$${tphData.date_created.split(" ")[0]}")
+                            val key = Pair(
+                                tphData.karyawan_nik,
+                                "${blokIdFromTPHid}$${tphData.date_created.split(" ")[0]}"
+                            )
 
 
                             // Add logging for grouping
@@ -181,14 +187,14 @@ class AppRepository(context: Context) {
                     try {
                         val blokId = try {
                             blokIdDate.split("$")[0].toInt()
-                        }catch (e: Exception){
+                        } catch (e: Exception) {
                             Toasty.error(context, "Error parsing blokId: ${e.message}").show()
                             0
                         }
 
                         val date = try {
                             blokIdDate.split("$")[1]
-                        }catch (e: Exception){
+                        } catch (e: Exception) {
                             Toasty.error(context, "Error parsing date: ${e.message}").show()
                             ""
                         }
@@ -212,14 +218,54 @@ class AppRepository(context: Context) {
                         for (entity in entities) {
                             try {
                                 val jjgJson = JSONObject(entity.jjg_json)
-                                totalJjg.add(roundToOneDecimal(jjgJson.optInt("TO", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
-                                unripe.add(roundToOneDecimal(jjgJson.optInt("UN", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
-                                overripe.add(roundToOneDecimal(jjgJson.optInt("OV", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
-                                emptyBunch.add(roundToOneDecimal(jjgJson.optInt("EM", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
-                                abnormal.add(roundToOneDecimal(jjgJson.optInt("AB", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
-                                ripe.add(roundToOneDecimal(jjgJson.optInt("RI", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
-                                kirimPabrik.add(roundToOneDecimal(jjgJson.optInt("KP", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
-                                dibayar.add(roundToOneDecimal(jjgJson.optInt("PA", 0).toFloat() / entity.jumlah_pemanen.toFloat()))
+                                totalJjg.add(
+                                    roundToOneDecimal(
+                                        jjgJson.optInt("TO", 0)
+                                            .toFloat() / entity.jumlah_pemanen.toFloat()
+                                    )
+                                )
+                                unripe.add(
+                                    roundToOneDecimal(
+                                        jjgJson.optInt("UN", 0)
+                                            .toFloat() / entity.jumlah_pemanen.toFloat()
+                                    )
+                                )
+                                overripe.add(
+                                    roundToOneDecimal(
+                                        jjgJson.optInt("OV", 0)
+                                            .toFloat() / entity.jumlah_pemanen.toFloat()
+                                    )
+                                )
+                                emptyBunch.add(
+                                    roundToOneDecimal(
+                                        jjgJson.optInt("EM", 0)
+                                            .toFloat() / entity.jumlah_pemanen.toFloat()
+                                    )
+                                )
+                                abnormal.add(
+                                    roundToOneDecimal(
+                                        jjgJson.optInt("AB", 0)
+                                            .toFloat() / entity.jumlah_pemanen.toFloat()
+                                    )
+                                )
+                                ripe.add(
+                                    roundToOneDecimal(
+                                        jjgJson.optInt("RI", 0)
+                                            .toFloat() / entity.jumlah_pemanen.toFloat()
+                                    )
+                                )
+                                kirimPabrik.add(
+                                    roundToOneDecimal(
+                                        jjgJson.optInt("KP", 0)
+                                            .toFloat() / entity.jumlah_pemanen.toFloat()
+                                    )
+                                )
+                                dibayar.add(
+                                    roundToOneDecimal(
+                                        jjgJson.optInt("PA", 0)
+                                            .toFloat() / entity.jumlah_pemanen.toFloat()
+                                    )
+                                )
                                 tphIds.add(entity.tph_id)
                                 dateCreatedPanen.add(entity.date_created)
                             } catch (e: Exception) {
@@ -234,24 +280,230 @@ class AppRepository(context: Context) {
                         )
 
                         if (hektarPanen == null) {
-                            // Create new entry
-                            val sampleTphId =
-                                entities.firstOrNull()?.tph_id?.toIntOrNull() ?: continue
+
+// Get the TPH model
+                            val tphModel = tphDao.getTPHByBlockId(blokId)
+
+// Extract luas_area with error handling
                             val luasArea = try {
-                                val rawValue =
-                                    tphDao.getLuasAreaByTphId(sampleTphId)?.toFloat() ?: 0f
+                                val rawValue = tphModel!!.luas_area!!.toFloat()
                                 BigDecimal(rawValue.toDouble()).setScale(2, RoundingMode.HALF_UP)
                                     .toFloat()
                             } catch (e: Exception) {
                                 Log.e("AppRepository", "Error getting luas area: ${e.message}")
                                 0f
                             }
+
+// Extract regional with error handling
+                            val regional = try {
+                                tphModel!!.regional
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting regional: ${e.message}")
+                                "NULL"
+                            }
+
+// Extract company with error handling
+                            val company = try {
+                                tphModel!!.company
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting company: ${e.message}")
+                                0
+                            }
+
+// Extract company_abbr with error handling
+                            val companyAbbr = try {
+                                tphModel!!.company_abbr
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting company_abbr: ${e.message}")
+                                "NULL"
+                            }
+
+// Extract company_nama with error handling
+                            val companyNama = try {
+                                tphModel!!.company_nama
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting company_nama: ${e.message}")
+                                "NULL"
+                            }
+
+// Extract wilayah with error handling
+                            val wilayah = try {
+                                tphModel!!.wilayah
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting wilayah: ${e.message}")
+                                "NULL"
+                            }
+
+// Extract dept with error handling
+                            val dept = try {
+                                tphModel!!.dept
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting dept: ${e.message}")
+                                0
+                            }
+
+// Extract dept_ppro with error handling
+                            val deptPpro = try {
+                                tphModel!!.dept_ppro
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting dept_ppro: ${e.message}")
+                                0
+                            }
+
+// Extract dept_abbr with error handling
+                            val deptAbbr = try {
+                                tphModel!!.dept_abbr
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting dept_abbr: ${e.message}")
+                                "NULL"
+                            }
+
+// Extract dept_nama with error handling
+                            val deptNama = try {
+                                tphModel!!.dept_nama
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting dept_nama: ${e.message}")
+                                "NULL"
+                            }
+
+// Extract divisi with error handling
+                            val divisi = try {
+                                tphModel!!.divisi
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting divisi: ${e.message}")
+                                0
+                            }
+
+// Extract divisi_ppro with error handling
+                            val divisiPpro = try {
+                                tphModel!!.divisi_ppro
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting divisi_ppro: ${e.message}")
+                                0
+                            }
+
+// Extract divisi_abbr with error handling
+                            val divisiAbbr = try {
+                                tphModel!!.divisi_abbr
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting divisi_abbr: ${e.message}")
+                                "NULL"
+                            }
+
+// Extract divisi_nama with error handling
+                            val divisiNama = try {
+                                tphModel!!.divisi_nama
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting divisi_nama: ${e.message}")
+                                "NULL"
+                            }
+
+// Extract blok with error handling
+                            val blok = try {
+                                tphModel!!.blok
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting blok: ${e.message}")
+                                0
+                            }
+
+// Extract blok_ppro with error handling
+                            val blokPpro = try {
+                                tphModel!!.blok_ppro
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting blok_ppro: ${e.message}")
+                                0
+                            }
+
+// Extract blok_kode with error handling
+                            val blokKode = try {
+                                tphModel!!.blok_kode
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting blok_kode: ${e.message}")
+                                "NULL"
+                            }
+
+                            // Extract blok_nama with error handling
+                            val blokNama = try {
+                                tphModel!!.blok_nama
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting blok_nama: ${e.message}")
+                                "NULL"
+                            }
+
+
+                            // Get employee details from KaryawanDao
+                            val pemanen = try {
+                                karyawanDao.getNamaByNik(nik)
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting pemanen_nama: ${e.message}")
+                                "NULL"
+                            }
+
+                            // Get karyawan model to extract kemandoran details
+                            val karyawanModel = try {
+                                karyawanDao.getAllKaryawan().find { it.nik == nik }
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting karyawan model: ${e.message}")
+                                null
+                            }
+
+                            // Extract kemandoran details
+                            val kemandoranId = try {
+                                karyawanModel?.kemandoran_id?.toString() ?: "0"
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting kemandoran_id: ${e.message}")
+                                "0"
+                            }
+
+                            // Get karyawan model to extract kemandoran details
+                            val kemandoranData = try {
+                                kemandoranDao.getKemandoranByTheId(kemandoranId.toInt())
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting karyawan model: ${e.message}")
+                                null
+                            }
+
+                            // Extract blok_nama with error handling
+                            val kemandoranNama = try {
+                                kemandoranData!!.nama
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting blok_nama: ${e.message}")
+                                "NULL"
+                            }
+
+//                            // Extract blok_nama with error handling
+//                            val kemandoranPpro = try {
+//                                kemandoranData!!.nama
+//                            } catch (e: Exception) {
+//                                Log.e("AppRepository", "Error getting blok_nama: ${e.message}")
+//                                "NULL"
+//                            }
+
+                            // Extract blok_nama with error handling
+                            val kemandoranKode = try {
+                                kemandoranData!!.kode
+                            } catch (e: Exception) {
+                                Log.e("AppRepository", "Error getting blok_nama: ${e.message}")
+                                "NULL"
+                            }
+
+                            // Create the HektarPanenEntity
                             hektarPanen = HektarPanenEntity(
                                 id = null,
                                 nik = nik,
+                                pemanen_nama = pemanen!!,
+                                kemandoran_id = kemandoranId,
+                                kemandoran_nama = kemandoranNama!!,
+//                                kemandoran_ppro = kemandoranPpro!!,
+                                kemandoran_kode = kemandoranKode!!,
                                 blok = blokId,
+                                luas_blok = luasArea,
                                 luas_panen = 0f,
-                                date_created = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),                                created_by = createdBy ?: "Unknown",
+                                date_created = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                ).format(Date()),
+                                created_by = createdBy ?: "Unknown",
                                 creator_info = creatorInfo ?: "{}",
                                 total_jjg_arr = totalJjg.joinToString(";"),
                                 unripe_arr = unripe.joinToString(";"),
@@ -263,7 +515,22 @@ class AppRepository(context: Context) {
                                 dibayar_arr = dibayar.joinToString(";"),
                                 tph_ids = tphIds.joinToString(";"),
                                 date_created_panen = dateCreatedPanen.joinToString(";"),
-                                luas_blok = luasArea
+                                regional = regional!!,
+                                wilayah = wilayah!!,
+                                company = company,
+                                company_abbr = companyAbbr,
+                                company_nama = companyNama,
+                                dept = dept,
+                                dept_ppro = deptPpro,
+                                dept_abbr = deptAbbr,
+                                dept_nama = deptNama,
+                                divisi = divisi,
+                                divisi_ppro = divisiPpro,
+                                divisi_abbr = divisiAbbr,
+                                divisi_nama = divisiNama,
+                                blok_ppro = blokPpro,
+                                blok_kode = blokKode,
+                                blok_nama = blokNama
                             )
 
                             // Log the new entity
@@ -591,8 +858,8 @@ class AppRepository(context: Context) {
         return hektarPanenDao.getSumLuasPanen(blok, date)
     }
 
-    suspend fun updateLuasPanen(id:Int, luasPanen: Float):Int {
-        return hektarPanenDao.updateLuasPanen(id,luasPanen)
+    suspend fun updateLuasPanen(id: Int, luasPanen: Float): Int {
+        return hektarPanenDao.updateLuasPanen(id, luasPanen)
     }
 
     suspend fun getLuasBlokByBlok(blok: Int): Float {
@@ -603,14 +870,17 @@ class AppRepository(context: Context) {
         return hektarPanenDao.getDistinctBlokByDate(date)
     }
 
-    suspend fun getNikLuasPanenLuasBlokDibayarByDateAndBlok(date: String?, blok: Int?): List<HektarPanenEntity> {
+    suspend fun getNikLuasPanenLuasBlokDibayarByDateAndBlok(
+        date: String?,
+        blok: Int?
+    ): List<HektarPanenEntity> {
         return if (blok == null && date != null) {
             hektarPanenDao.getNikLuasPanenLuasBlokDibayarByDateAndBlok(date)
-        }else if(date == null && blok != null){
+        } else if (date == null && blok != null) {
             hektarPanenDao.getNikLuasPanenLuasBlokDibayarByDateAndBlok(blok)
-        }else if(date != null && blok != null){
+        } else if (date != null && blok != null) {
             hektarPanenDao.getNikLuasPanenLuasBlokDibayarByDateAndBlok(date, blok)
-        }else{
+        } else {
             hektarPanenDao.getNikLuasPanenLuasBlokDibayarByDateAndBlok()
         }
     }
@@ -736,6 +1006,10 @@ class AppRepository(context: Context) {
 
     suspend fun archivePanenById(id: Int) = withContext(Dispatchers.IO) {
         panenDao.archiveByID(id)
+    }
+
+    suspend fun archiveMpanenByID(id: Int) = withContext(Dispatchers.IO) {
+        panenDao.archiveMpanenByID(id)
     }
 
     suspend fun archivePanenByIds(ids: List<Int>) = withContext(Dispatchers.IO) {
@@ -895,11 +1169,11 @@ class AppRepository(context: Context) {
 //    }
 
     suspend fun getAllScanMPanenByDate(
-        status_scan_mpanen: Int,
+        archiveMpanen: Int,
         date: String? = null
     ): List<PanenEntityWithRelations> = withContext(Dispatchers.IO) {
         try {
-            panenDao.getAllScanMPanenByDate(status_scan_mpanen, date)
+            panenDao.getAllScanMPanenByDate(archiveMpanen, date)
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
             emptyList()  // Return empty list if there's an error
