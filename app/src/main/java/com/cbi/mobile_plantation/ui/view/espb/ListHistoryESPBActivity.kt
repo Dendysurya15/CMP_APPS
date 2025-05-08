@@ -21,10 +21,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.displayHektarPanenTanggalBlok
-import com.cbi.mobile_plantation.data.model.filterHektarPanenTanggalBlok
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.ui.adapter.ESPBAdapter
 import com.cbi.mobile_plantation.ui.adapter.ESPBData
+import com.cbi.mobile_plantation.ui.adapter.ListHektarPanenAdapter
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
 import com.cbi.mobile_plantation.ui.viewModel.HektarPanenViewModel
@@ -46,11 +46,12 @@ import java.util.Calendar
 
 
 @Suppress("UNREACHABLE_CODE")
-class ListHistoryESPBActivity : AppCompatActivity() {
+class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLuasPanenChangeListener {
     private lateinit var recyclerView: RecyclerView
     private lateinit var espbViewModel: ESPBViewModel
     private lateinit var hektarPanenViewModel: HektarPanenViewModel
-    private lateinit var adapter: ESPBAdapter
+    private lateinit var adapterHektarPanen: ListHektarPanenAdapter
+    private lateinit var adapterESPB: ESPBAdapter
     private var prefManager: PrefManager? = null
     private var featureName: String? = null
     private var regionalId: String? = null
@@ -67,7 +68,10 @@ class ListHistoryESPBActivity : AppCompatActivity() {
     private lateinit var blokIdList: List<Int>
 
     // Define a variable to store clicked chips
-    private var selectedBlokId: Int = 0
+    private var selectedBlokId: Int? = null
+
+    private val updateRunnables = HashMap<Int, Runnable>()
+    private val handler = Handler(Looper.getMainLooper())
 
     private lateinit var tvEmptyState: TextView // Add this
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
@@ -87,40 +91,42 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         checkDateTimeSettings()
     }
 
-
     private fun setupUI() {
         initViewModel()
+        initializeApp()
         setupHeader()
         setupRecyclerView()
         initializeViews()
-        if (featureName == AppUtils.ListFeatureNames.RekapESPB){
-            setupObserveDataRekapESPB()
-        }else if(featureName == AppUtils.ListFeatureNames.DaftarHektarPanen){
-            setupObserveDataDaftarHektarPanen()
-        }
-
         findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.VISIBLE
         dateButton = findViewById(R.id.calendarPicker)
         dateButton.text = AppUtils.getTodaysDate()
         setupFilterAllData()
-
-        espbViewModel.loadHistoryESPBNonScan(AppUtils.currentDate)
+        if (featureName == AppUtils.ListFeatureNames.RekapESPB){
+            setupObserveDataRekapESPB()
+            espbViewModel.loadHistoryESPBNonScan(AppUtils.currentDate)
+        }else if(featureName == AppUtils.ListFeatureNames.DaftarHektarPanen){
+            Log.d("testListHektarPanen", "cek")
+            setupObserveDataDaftarHektarPanen()
+//            hektarPanenViewModel.loadHektarPanenData(AppUtils.currentDate)
+        }
     }
-
 
     fun openDatePicker(view: View) {
         initMaterialDatePicker()
     }
 
-
     override fun onDestroy() {
         super.onDestroy()
+        // Clean up all pending runnables
+        updateRunnables.forEach { (_, runnable) ->
+            handler.removeCallbacks(runnable)
+        }
+        updateRunnables.clear()
         AppUtils.resetSelectedDate()
         SoundPlayer.releaseMediaPlayer()
         // Ensure handler callbacks are removed
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
-
 
     private fun initMaterialDatePicker() {
         val builder = MaterialDatePicker.Builder.datePicker()
@@ -150,6 +156,8 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         datePicker.show(supportFragmentManager, "MATERIAL_DATE_PICKER")
     }
 
+
+    // Modify the processSelectedDate method to clear blok filters when date changes
     private fun processSelectedDate(selectedDate: String) {
         val filterAllData = findViewById<CheckBox>(R.id.calendarCheckbox)
         val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)
@@ -164,7 +172,12 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         val displayDate = AppUtils.formatSelectedDateForDisplay(selectedDate)
         nameFilterDate.text = displayDate
 
-        espbViewModel.loadHistoryESPBNonScan(selectedDate)
+        if (featureName == AppUtils.ListFeatureNames.RekapESPB) {
+            espbViewModel.loadHistoryESPBNonScan(selectedDate)
+        } else if (featureName == AppUtils.ListFeatureNames.DaftarHektarPanen) {
+            hektarPanenViewModel.loadHektarPanenData(selectedDate)
+            setupBlokFilter()
+        }
 
         removeFilterDate.setOnClickListener {
             filterDateContainer.visibility = View.GONE
@@ -178,10 +191,18 @@ class ListHistoryESPBActivity : AppCompatActivity() {
 
             val todayDisplayDate = AppUtils.getTodaysDate()
             dateButton.text = todayDisplayDate
-            espbViewModel.loadHistoryESPBNonScan(todayBackendDate)
+
+            if (featureName == AppUtils.ListFeatureNames.RekapESPB) {
+                espbViewModel.loadHistoryESPBNonScan(todayBackendDate)
+            } else if (featureName == AppUtils.ListFeatureNames.DaftarHektarPanen) {
+                hektarPanenViewModel.loadHektarPanenData(todayBackendDate)
+                setupBlokFilter()
+            }
         }
         filterDateContainer.visibility = View.VISIBLE
     }
+
+
 
     private fun checkDateTimeSettings() {
         if (!AppUtils.isDateTimeValid(this)) {
@@ -212,6 +233,138 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
+
+    // Modify the ChipGroup setup to be much simpler
+    @SuppressLint("SetTextI18n")
+    private fun setupBlokFilter() {
+        if (featureName == AppUtils.ListFeatureNames.DaftarHektarPanen){
+            hektarPanenViewModel.loadHektarPanenData(globalFormattedDate, selectedBlokId)
+            val cgBlok = findViewById<ChipGroup>(R.id.cgBlok)
+
+            // Set single selection mode
+            cgBlok.isSingleSelection = true // Only one chip can be selected at a time
+
+            // Launch coroutine in lifecycleScope
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    blokIdList = hektarPanenViewModel.getDistinctBlokByDate(globalFormattedDate!!)
+                    Log.d("BlokIds", "Blok IDs: $blokIdList")
+
+                    // Get Blok data to display names instead of just IDs
+                    val blokData = espbViewModel.getBlokById(blokIdList)
+
+                    // Prepare the data including counts before switching to Main thread
+                    val blokDataWithCounts = blokData.map { blok ->
+                        val count0 = try {
+                            hektarPanenViewModel.countWhereLuasPanenIsZeroAndDateAndBlok(blok.blok!!)
+                        } catch (e: Exception) {
+                            Log.d("BlokIds", "Error getting count: ${e.message}")
+                            -1 // Use a sentinel value to indicate error
+                        }
+
+                        Pair(blok, count0)
+                    }
+
+                    // Switch back to main thread for UI operations
+                    withContext(Dispatchers.Main) {
+                        // Clear any existing chips
+                        cgBlok.removeAllViews()
+
+                        var firstChipId = -1 // Variable to store first chip ID
+
+                        // Add chips for each blok
+                        blokDataWithCounts.forEach { (blok, count0) ->
+                            val chip = Chip(this@ListHistoryESPBActivity).apply {
+                                id = View.generateViewId() // Generate unique ID for each chip
+                                val blokText = "${blok.blok_kode}($count0)"
+
+                                text = blokText
+                                isClickable = true
+                                isCheckable = true
+                                isCheckedIconVisible = true
+
+                                // Store the blok ID as tag
+                                tag = blok.blok // Store the actual blok ID
+
+                                // Store first chip ID if not set yet
+                                if (firstChipId == -1) {
+                                    firstChipId = id
+                                }
+
+                                // Add listener to detect when chip is checked/unchecked
+                                setOnCheckedChangeListener { _, isChecked ->
+                                    if (isChecked) {
+                                        selectedBlokId = blok.blok!!
+                                        Log.d("SelectedChip", "Selected ID: $selectedBlokId")
+                                    } else {
+                                        selectedBlokId = null
+                                        Log.d("SelectedChip", "No chip selected")
+                                    }
+                                }
+                            }
+                            cgBlok.addView(chip)
+                        }
+
+                        // Set ChipGroup listener for additional control
+                        cgBlok.setOnCheckedChangeListener { group, checkedId ->
+                            val selectedBlokId = getSelectedBlokId()
+                            Log.d("ChipSelection", "Selected Blok ID: $selectedBlokId")
+
+                            val ll_HektarPanenSum = findViewById<LinearLayout>(R.id.ll_HektarPanenSum)
+                            if (selectedBlokId != null && selectedBlokId > 0) {
+                                ll_HektarPanenSum.visibility = View.VISIBLE
+                                // Filter by both date and blok
+                                hektarPanenViewModel.loadHektarPanenData(globalFormattedDate, selectedBlokId)
+
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    val sisaLuasPanen = try {
+                                        hektarPanenViewModel.getSumLuasPanen(selectedBlokId, globalFormattedDate!!)
+                                    } catch (e: Exception) {
+                                        Log.d("BlokIds", "Error getting sumLuasPanen: ${e.message}")
+                                        0f
+                                    }
+                                    Log.d("BlokIds", "Sisa Luas Panen: $sisaLuasPanen")
+                                    withContext(Dispatchers.Main) {
+                                        val tvSisaLuasPanen = findViewById<TextView>(R.id.tvLuasPanen)
+                                        tvSisaLuasPanen.text = "${sisaLuasPanen}ha"
+                                    }
+                                }
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    val luasBlok = try {
+                                        hektarPanenViewModel.getLuasBlokByBlok(selectedBlokId)
+                                    } catch (e: Exception) {
+                                        Log.d("BlokIds", "Error getting luasBlok: ${e.message}")
+                                        0f
+                                    }
+                                    Log.d("BlokIds", "Luas Blok: $luasBlok")
+                                    withContext(Dispatchers.Main) {
+                                        val tvLuasBlok = findViewById<TextView>(R.id.tvLuasBlok)
+                                        tvLuasBlok.text = "${luasBlok}ha"
+                                    }
+                                }
+                            } else {
+                                ll_HektarPanenSum.visibility = View.GONE
+                                // Just filter by date (all bloks)
+                                hektarPanenViewModel.loadHektarPanenData(globalFormattedDate, selectedBlokId)
+                            }
+                        }
+
+//                        // Auto-select the first chip if any chips were created
+//                        if (firstChipId != -1) {
+//                            cgBlok.check(firstChipId)
+//                        }
+                    }
+
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toasty.error(this@ListHistoryESPBActivity, "Error fetching Blok Data: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
+
     private fun initializeActivity() {
         if (!activityInitialized) {
             activityInitialized = true
@@ -223,72 +376,102 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         tvEmptyState = findViewById(R.id.tvEmptyState)
     }
 
-    private fun setupObserveDataDaftarHektarPanen() {
-        hektarPanenViewModel.historyHektarPanen.observe(this) { data ->
-            if (data.isNotEmpty()) {
-                tvEmptyState.visibility = View.GONE
-                recyclerView.visibility = View.VISIBLE
+    // Implement the listener method to handle changes from the adapter
+    override fun onLuasPanenChanged(id: Int, newValue: Float) {
+        // Remove any pending updates for this id
+        updateRunnables[id]?.let { runnable ->
+            handler.removeCallbacks(runnable)
+        }
 
-                // Launch coroutine in lifecycleScope
-                lifecycleScope.launch {
-                    try {
-                        val filteredData = coroutineScope {
-                            data.map { item ->
-                                async {
-                                    // Get user details based on NIK
-                                    val nama = withContext(Dispatchers.IO) {
-                                        hektarPanenViewModel.getKaryawanByNik(item.nik.toString())
-                                    }
-                                    // Process blok data
-                                    val blokData = withContext(Dispatchers.IO) {
-                                        // Get blok details if item has blok information
-                                        item.blok.let { blokId ->
-                                            espbViewModel.getBlokById(listOf(blokId))
-                                        }
-                                    }
+        // Create a new runnable for this update
+        val updateRunnable = Runnable {
+            // Execute database update in a coroutine
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val result = hektarPanenViewModel.updateLuasPanen(id, newValue)
 
-                                    // Get blok information
-                                    val blokInfo = if (blokData.isNotEmpty()) {
-                                        blokData.first().blok_kode ?: item.blok.toString()
-                                    } else {
-                                        item.blok?.toString() ?: "-"
-                                    }
-
-                                    // Get blok area
-                                    val luasBlok = blokData.firstOrNull()?.luas_area?.toString() ?: "-"
-
-                                    // Format dibayar array (if exists in your data)
-                                    val dibayarArr = item.dibayar_arr ?: "-"
-
-                                    displayHektarPanenTanggalBlok(
-                                        nama = nama,
-                                        luas_panen = item.luas_panen,
-                                        blok = blokInfo,
-                                        luas_blok = luasBlok,
-                                        dibayar_arr = dibayarArr,
-                                        nik = item.nik.toString(),
-                                        id = item.id.toString()
-                                    )
-                                }
-                            }.map { it.await() } // Wait for all async tasks to complete
-                        }
-
-//                        adapter.updateListHP(filteredData)
-                    } catch (e: Exception) {
-                        AppLogger.e("Data processing error: ${e.message}")
-                        withContext(Dispatchers.Main) {
-                            Toasty.error(this@ListHistoryESPBActivity, "Error loading data: ${e.message}", Toast.LENGTH_SHORT).show()
+                    // Update UI on main thread
+                    withContext(Dispatchers.Main) {
+                        if (result > 0) {
+                            Log.d("ListHistoryESPBActivity", "Database updated successfully for id: $id")
+                            // Update adapter's data structure
+                            adapterHektarPanen.updateItemLuasPanen(id, newValue)
+                        } else {
+                            Log.d("ListHistoryESPBActivity", "Database update failed for id: $id")
                         }
                     }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Log.e("ListHistoryESPBActivity", "Error updating database: ${e.message}")
                 }
-            } else {
-                tvEmptyState.text = "Belum ada data hektar panen"
-                tvEmptyState.visibility = View.VISIBLE
-                recyclerView.visibility = View.GONE
             }
         }
+
+        // Store the runnable for future reference
+        updateRunnables[id] = updateRunnable
+
+        // Schedule the update with a delay
+        handler.postDelayed(updateRunnable, 2000) // 500ms debounce delay
     }
 
+    private fun setupObserveDataDaftarHektarPanen() {
+
+        hektarPanenViewModel.historyHektarPanen.observe(this) { data ->
+            Log.d("HektarPanen", "Received data: ${data.size} items")
+
+            if (data.isEmpty()) {
+                tvEmptyState.visibility = View.VISIBLE
+                recyclerView.visibility = View.GONE
+                return@observe
+            }
+
+            // If we have data, show it immediately with minimal processing
+            tvEmptyState.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+
+            // Display with basic information first
+            lifecycleScope.launch {
+            val displayItems = data.map { item ->
+                // Get user details based on NIK
+                val nama = withContext(Dispatchers.IO) {
+                    hektarPanenViewModel.getKaryawanByNik(item.nik.toString())
+                }
+
+                // Process blok data
+                val blokData = withContext(Dispatchers.IO) {
+                    // Get blok details if item has blok information
+                    item.blok.let { blokId ->
+                        espbViewModel.getBlokById(listOf(blokId))
+                    }
+                }
+
+                // Get blok information
+                val blokInfo = if (blokData.isNotEmpty()) {
+                    blokData.first().blok_kode ?: item.blok.toString()
+                } else {
+                    item.blok?.toString() ?: "-"
+                }
+
+                // Get blok area
+                val luasBlok = blokData.firstOrNull()?.luas_area?.toString() ?: "-"
+
+                // Format dibayar array (if exists in your data)
+                val dibayarArr = item.dibayar_arr ?: "-"
+
+                displayHektarPanenTanggalBlok(
+                    nama = nama,
+                    luas_panen = item.luas_panen,
+                    blok = blokInfo,
+                    luas_blok = luasBlok,
+                    dibayar_arr = dibayarArr,
+                    nik = item.nik.toString(),
+                    id = item.id!!
+                )
+            }
+            adapterHektarPanen.updateList(displayItems)
+                }
+        }
+    }
     private fun setupObserveDataRekapESPB() {
         espbViewModel.historyESPBNonScan.observe(this) { data ->
             if (data.isNotEmpty()) {
@@ -352,7 +535,7 @@ class ListHistoryESPBActivity : AppCompatActivity() {
                             }.map { it.await() } // Wait for all async tasks to complete
                         }
 
-                        adapter.updateList(filteredData)
+                        adapterESPB.updateList(filteredData)
                     } catch (e: Exception) {
                         AppLogger.e("Data processing error: ${e.message}")
                     }
@@ -367,20 +550,22 @@ class ListHistoryESPBActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
+        recyclerView = findViewById(R.id.wbTableData)
+        recyclerView.layoutManager = LinearLayoutManager(this)
         if (featureName == AppUtils.ListFeatureNames.RekapESPB){
             val headers = listOf("WAKTU", "BLOK", "JANJANG", "TPH", "SCAN")
             updateTableHeaders(headers)
+            adapterESPB = ESPBAdapter(emptyList(), this@ListHistoryESPBActivity)
+            recyclerView.adapter = adapterESPB
         }else if(featureName == AppUtils.ListFeatureNames.DaftarHektarPanen){
-            val headers = listOf("NAMA", "BLOK", "DIBAYAR", "HEKTAR","")
+            val headers = listOf("NAMA", "BLOK", "DIBAYAR", "HEKTAR", "")
             updateTableHeaders(headers)
+
+            // Create adapter without passing in ViewModel
+            adapterHektarPanen = ListHektarPanenAdapter(emptyList(), this@ListHistoryESPBActivity)
+            adapterHektarPanen.setOnLuasPanenChangeListener(this) // Set the listener
+            recyclerView.adapter = adapterHektarPanen
         }
-
-        recyclerView = findViewById(R.id.wbTableData)
-        recyclerView.layoutManager = LinearLayoutManager(this)
-
-        adapter = ESPBAdapter(emptyList(), this@ListHistoryESPBActivity)
-
-        recyclerView.adapter = adapter
     }
 
     private fun updateTableHeaders(headerNames: List<String>) {
@@ -428,12 +613,18 @@ class ListHistoryESPBActivity : AppCompatActivity() {
                 // Disable date picker button when viewing all data
                 dateButton.isEnabled = false
                 dateButton.alpha = 0.5f
+                globalFormattedDate = AppUtils.currentDate
 
                 // Load all data without date filter
-                espbViewModel.loadHistoryESPBNonScan(null)  // Pass null to load all data
+                if (featureName == AppUtils.ListFeatureNames.RekapESPB){
+                    espbViewModel.loadHistoryESPBNonScan(null)  // Pass null to load all data
+                }else if(featureName == AppUtils.ListFeatureNames.DaftarHektarPanen){
+                    hektarPanenViewModel.loadHektarPanenData(null, selectedBlokId)  // Pass null to load all data
+                }
             } else {
                 // User wants to filter by date
-                val displayDate = AppUtils.formatSelectedDateForDisplay(globalFormattedDate)
+                val displayDate = AppUtils.formatSelectedDateForDisplay(globalFormattedDate!!)
+
 
                 // Update UI
                 dateButton.text = displayDate
@@ -444,7 +635,11 @@ class ListHistoryESPBActivity : AppCompatActivity() {
                 dateButton.alpha = 1f
 
                 // Load data for the selected date
-                espbViewModel.loadHistoryESPBNonScan(globalFormattedDate)
+                if (featureName == AppUtils.ListFeatureNames.RekapESPB){
+                    espbViewModel.loadHistoryESPBNonScan(globalFormattedDate)
+                }else if(featureName == AppUtils.ListFeatureNames.DaftarHektarPanen){
+                    hektarPanenViewModel.loadHektarPanenData(globalFormattedDate, selectedBlokId)  // Pass null to load all data
+                }
             }
 
             // Setup remove filter button
@@ -470,11 +665,17 @@ class ListHistoryESPBActivity : AppCompatActivity() {
                 dateButton.text = todayDisplayDate
 
                 // Load today's data
-                espbViewModel.loadHistoryESPBNonScan(todayBackendDate)
+                if (featureName == AppUtils.ListFeatureNames.RekapESPB){
+                    espbViewModel.loadHistoryESPBNonScan(todayBackendDate)
+
+                }else if(featureName == AppUtils.ListFeatureNames.DaftarHektarPanen){
+                    hektarPanenViewModel.loadHektarPanenData(todayBackendDate, selectedBlokId)
+                }
             }
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun setupHeader() {
         regionalId = prefManager!!.regionalIdUserLogin
         estateId = prefManager!!.estateIdUserLogin
@@ -503,68 +704,9 @@ class ListHistoryESPBActivity : AppCompatActivity() {
             context = this
         )
 
-        if (featureName == AppUtils.ListFeatureNames.DaftarHektarPanen){
-            val cgBlok = findViewById<ChipGroup>(R.id.cgBlok)
+        setupBlokFilter()
 
-            // Set single selection mode
-            cgBlok.isSingleSelection = true // Only one chip can be selected at a time
 
-            // Launch coroutine in lifecycleScope
-            lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                    blokIdList = hektarPanenViewModel.getDistinctBlokByDate(globalFormattedDate)
-                    Log.d("BlokIds", "Blok IDs: $blokIdList")
-
-                    // Get Blok data to display names instead of just IDs
-                    val blokData = withContext(Dispatchers.IO) {
-                        espbViewModel.getBlokById(blokIdList)
-                    }
-
-                    // Switch back to main thread for UI operations
-                    withContext(Dispatchers.Main) {
-                        // Clear any existing chips
-                        cgBlok.removeAllViews()
-
-                        // Add chips for each blok
-                        blokData.forEach { blok ->
-                            val chip = Chip(this@ListHistoryESPBActivity).apply {
-                                id = View.generateViewId() // Generate unique ID for each chip
-                                text = blok.blok_kode ?: blok.blok.toString()
-                                isClickable = true
-                                isCheckable = true
-                                isCheckedIconVisible = true
-
-                                // Store the blok ID as tag
-                                tag = blok.blok // Store the actual blok ID
-
-                                // Add listener to detect when chip is checked/unchecked
-                                setOnCheckedChangeListener { _, isChecked ->
-                                    if (isChecked) {
-                                        selectedBlokId = blok.blok!!
-                                        Log.d("SelectedChip", "Selected ID: $selectedBlokId")
-                                    } else {
-                                        selectedBlokId = 0
-                                        Log.d("SelectedChip", "No chip selected")
-                                    }
-                                }
-                            }
-                            cgBlok.addView(chip)
-                        }
-
-                        // Set ChipGroup listener for additional control (optional)
-                        cgBlok.setOnCheckedChangeListener { group, checkedId ->
-                            // This listener is called when selection changes
-                            getSelectedBlokId()
-                        }
-                    }
-
-                } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        Toasty.error(this@ListHistoryESPBActivity, "Error fetching Blok Data: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        }
     }
 
     // Function to get currently selected blok ID (single selection)
@@ -583,28 +725,6 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         return null
     }
 
-    // Alternative method using built-in checked chip id
-    private fun getCheckedBlokId(): Int? {
-        val cgBlok = findViewById<ChipGroup>(R.id.cgBlok)
-        val checkedChipId = cgBlok.checkedChipId
-
-        if (checkedChipId != View.NO_ID) {
-            return cgBlok.findViewById<Chip>(checkedChipId)?.tag as? Int
-        }
-
-        return null
-    }
-
-    // Example usage - You can call this wherever you need the selected ID
-    private fun getSelectedItem() {
-        val selectedId = getSelectedBlokId()
-        if (selectedId != null) {
-            Log.d("Debug", "Selected Blok ID: $selectedId")
-            // Use the ID for whatever operation you need
-        } else {
-            Log.d("Debug", "No blok selected")
-        }
-    }
 
     @SuppressLint("MissingSuperCall")
     override fun onBackPressed() {
@@ -612,6 +732,18 @@ class ListHistoryESPBActivity : AppCompatActivity() {
         val intent = Intent(this, HomePageActivity::class.java)
         startActivity(intent)
         finishAffinity()
+    }
+
+    // Add this in setupUI() or initializing section
+    private fun initializeApp() {
+        // In your setupUI or similar initialization method
+        if (featureName == AppUtils.ListFeatureNames.DaftarHektarPanen) {
+            setupBlokFilter()
+//            hektarPanenViewModel.loadHektarPanenData(null, null)
+//
+//            // Load initial data without blok filter
+//            hektarPanenViewModel.loadHektarPanenData(globalFormattedDate)
+        }
     }
 
 }

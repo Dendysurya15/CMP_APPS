@@ -28,5 +28,5 @@ data class displayHektarPanenTanggalBlok(
     val luas_blok: String,
     val dibayar_arr: String,
     val nik: String,
-    val id: String
+    val id: Int
 )

@@ -583,8 +583,36 @@ class AppRepository(context: Context) {
         return hektarPanenDao.countWhereLuasPanenIsZeroAndDate()
     }
 
+    suspend fun countWhereLuasPanenIsZeroAndDateAndBlok(blok: Int): Int {
+        return hektarPanenDao.countWhereLuasPanenIsZeroAndDateAndBlok(blok)
+    }
+
+    suspend fun getSumLuasPanen(blok: Int, date: String): Float {
+        return hektarPanenDao.getSumLuasPanen(blok, date)
+    }
+
+    suspend fun updateLuasPanen(id:Int, luasPanen: Float):Int {
+        return hektarPanenDao.updateLuasPanen(id,luasPanen)
+    }
+
+    suspend fun getLuasBlokByBlok(blok: Int): Float {
+        return hektarPanenDao.getLuasBlokByBlok(blok)
+    }
+
     suspend fun getDistinctBlokByDate(date: String): List<Int> {
         return hektarPanenDao.getDistinctBlokByDate(date)
+    }
+
+    suspend fun getNikLuasPanenLuasBlokDibayarByDateAndBlok(date: String?, blok: Int?): List<HektarPanenEntity> {
+        return if (blok == null && date != null) {
+            hektarPanenDao.getNikLuasPanenLuasBlokDibayarByDateAndBlok(date)
+        }else if(date == null && blok != null){
+            hektarPanenDao.getNikLuasPanenLuasBlokDibayarByDateAndBlok(blok)
+        }else if(date != null && blok != null){
+            hektarPanenDao.getNikLuasPanenLuasBlokDibayarByDateAndBlok(date, blok)
+        }else{
+            hektarPanenDao.getNikLuasPanenLuasBlokDibayarByDateAndBlok()
+        }
     }
 
     suspend fun loadCountTPHESPB(

@@ -69,10 +69,11 @@
                 android:id="@+id/calendarCheckboxCaption"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
-                android:fontFamily="@font/manrope_semibold"
+
                 android:gravity="center_vertical"
                 android:text="Filter Semua Tanggal"
                 android:textColor="@color/black"
+                android:fontFamily="@font/manrope_semibold"
                 android:textSize="@dimen/m" />
         </LinearLayout>
 
@@ -86,6 +87,48 @@
                 android:layout_height="wrap_content"/>
 
         </HorizontalScrollView>
+
+        <LinearLayout
+            android:layout_marginHorizontal="10dp"
+            android:id="@+id/ll_HektarPanenSum"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Luas Blok: "
+                android:textColor="@color/black"
+                android:fontFamily="@font/manrope_semibold"
+                android:textSize="@dimen/m" />
+            <TextView
+                android:id="@+id/tvLuasBlok"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="30.00(ha)"
+                android:textColor="@color/black"
+                android:fontFamily="@font/manrope_semibold"
+                android:textSize="@dimen/m" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="   Luas Panen: "
+                android:textColor="@color/black"
+                android:fontFamily="@font/manrope_semibold"
+                android:textSize="@dimen/m" />
+            <TextView
+                android:id="@+id/tvLuasPanen"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="30.00(ha)"
+                android:textColor="@color/black"
+                android:fontFamily="@font/manrope_semibold"
+                android:textSize="@dimen/m" />
+
+        </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
@@ -160,6 +203,9 @@
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
+        <!-- Add this layout to activity_list_history_weigh_bridge.xml after the filterDateContainer -->
+
     </LinearLayout>
 
     <LinearLayout

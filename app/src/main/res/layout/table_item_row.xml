@@ -45,7 +45,6 @@
 
         </FrameLayout>
 
-
         <TextView
             android:id="@+id/td1"
             android:layout_width="0dp"
@@ -98,19 +97,19 @@
             android:textColor="@color/black"
             android:textStyle="bold" />
 
-
-<!--        <TextView-->
-<!--            android:layout_width="0dp"-->
-<!--            android:id="@+id/td5"-->
-<!--            android:layout_weight="1"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:gravity="center"-->
-<!--            android:fontFamily="@font/manrope_semibold"-->
-<!--            android:padding="5dp"-->
-<!--            android:visibility="gone"-->
-<!--            android:textSize="14dp"-->
-<!--            android:textColor="@color/black"-->
-<!--            android:textStyle="bold" />-->
+        <EditText
+            android:layout_width="0dp"
+            android:id="@+id/et4"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:inputType="numberDecimal"
+            android:fontFamily="@font/manrope_semibold"
+            android:padding="5dp"
+            android:visibility="gone"
+            android:textSize="@dimen/s"
+            android:textColor="@color/black"
+            android:textStyle="bold" />
 
         <LinearLayout
             android:id="@+id/td5"

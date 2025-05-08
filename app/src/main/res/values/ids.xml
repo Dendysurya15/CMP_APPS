@@ -4,4 +4,6 @@
     <item name="uploadSelected" type="id" />
     <item name="cancelSelection" type="id" />
     <item name="scan_qr" type="id" />
+    <item name="item_id_tag" type="id" />
+    <item name="text_watcher_tag" type="id" />
 </resources>
