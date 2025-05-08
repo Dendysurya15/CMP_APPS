@@ -5,15 +5,22 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
 import android.util.Log
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
+import android.view.Window
+import android.view.WindowManager
 import android.view.animation.AnimationUtils
 import android.widget.Button
 import android.widget.CheckBox
@@ -23,6 +30,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.ViewModelProvider
@@ -45,6 +53,7 @@ import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.playSound
 import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
+import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
@@ -699,6 +708,12 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
                 val btnConfirmScanPanenTPH: MaterialButton =
                     view.findViewById(R.id.btnConfirmScanPanenTPH)
+                val btnPreviewFullQR: MaterialButton =
+                    view.findViewById(R.id.btnPreviewFullQR)
+
+                btnPreviewFullQR.setOnClickListener {
+                    showQrCodeFullScreen(qrCodeImageView.drawable, view)
+                }
 
                 // Initially hide QR code and dashed line, show loading
                 qrCodeImageView.visibility = View.GONE
@@ -797,6 +812,20 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                             }
                         }
 
+                        val effectiveLimit =
+                            if (limit == 0) mappedData.size else limit
+                        val limitedData = mappedData.take(effectiveLimit)
+                        val processedData =
+                            AppUtils.getPanenProcessedData(limitedData, featureName)
+                        val listBlok = view.findViewById<TextView>(R.id.listBlok)
+                        val totalJjg = view.findViewById<TextView>(R.id.totalJjg)
+                        val totalTPH = view.findViewById<TextView>(R.id.totalTPH)
+                        val blokSection = view.findViewById<LinearLayout>(R.id.blok_section)
+                        val totalSection = view.findViewById<LinearLayout>(R.id.total_section)
+                        listBlok.text = processedData["blokDisplay"].toString()
+                        totalJjg.text = processedData["totalJjgCount"].toString()
+                        totalTPH.text = processedData["tphCount"].toString()
+
                         // Switch to the main thread for UI updates
                         withContext(Dispatchers.Main) {
                             try {
@@ -818,6 +847,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                         }
 
                                 // Ensure QR code and other elements start invisible
+                                blokSection.alpha = 0f
+                                totalSection.alpha = 0f
                                 qrCodeImageView.alpha = 0f
                                 dashedLine.alpha = 0f
                                 tvTitleQRGenerate.alpha = 0f
@@ -825,8 +856,22 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                 confimationContainer.alpha = 0f
                                 descQRConfirm.alpha = 0f
                                 btnConfirmScanPanenTPH.alpha = 0f
+                                btnPreviewFullQR.alpha = 0f
 
                                 // Create fade-in animations
+                                val fadeInBlokSection =
+                                    ObjectAnimator.ofFloat(blokSection, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
+                                val fadeInTotalSection =
+                                    ObjectAnimator.ofFloat(totalSection, "alpha", 0f, 1f)
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
                                 val fadeInQR =
                                     ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
                                         .apply {
@@ -885,6 +930,18 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                             startDelay = 150
                                         }
 
+                                val fadeInButtonPreviewBtn =
+                                    ObjectAnimator.ofFloat(
+                                        btnPreviewFullQR,
+                                        "alpha",
+                                        0f,
+                                        1f
+                                    )
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
 
                                 // Run animations sequentially
                                 AnimatorSet().apply {
@@ -900,18 +957,20 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                             tvTitleQRGenerate.visibility = View.VISIBLE
                                             qrCodeImageView.visibility = View.VISIBLE
                                             dashedLine.visibility = View.VISIBLE
-
+                                            blokSection.visibility = View.VISIBLE
+                                            totalSection.visibility = View.VISIBLE
                                             btnConfirmScanPanenTPH.visibility = View.VISIBLE
+                                            btnPreviewFullQR.visibility = View.VISIBLE
 
                                             lifecycleScope.launch {
                                                 delay(200)
                                                 playSound(R.raw.berhasil_generate_qr)
                                                 delay(300)
-
-
                                             }
 
                                             // Start fade-in animations
+                                            fadeInBlokSection.start()
+                                            fadeInTotalSection.start()
                                             fadeInQR.start()
                                             fadeInDashedLine.start()
                                             fadeInTitle.start()
@@ -919,6 +978,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                             fadeInConfirmationContainer.start()
                                             fadeInDescConfirm.start()
                                             fadeInButton.start()
+                                            fadeInButtonPreviewBtn.start()
 
                                         }
                                     })
@@ -1184,6 +1244,93 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun showQrCodeFullScreen(qrDrawable: Drawable?, bottomSheetView: View) {
+        if (qrDrawable == null) return
+
+        // Get the bottom sheet behavior to control it
+        val bottomSheetBehavior = BottomSheetBehavior.from(bottomSheetView.parent as View)
+
+        // Save current state to restore later
+        val previousState = bottomSheetBehavior.state
+
+        // Expand bottom sheet fully first
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+
+        // Create a dialog to display the QR code
+        val context = bottomSheetView.context
+        val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+
+        // Make dialog dismissible with back button
+        dialog.setCancelable(true)
+        dialog.setOnCancelListener {
+            // Restore previous bottom sheet state when dismissed with back button
+            bottomSheetBehavior.state = previousState
+        }
+
+        // Inflate the camera_edit layout
+        val fullscreenView = layoutInflater.inflate(R.layout.camera_edit, null)
+        dialog.setContentView(fullscreenView)
+
+        // Find views within the dialog layout
+        val fotoLayout = fullscreenView.findViewById<ConstraintLayout>(R.id.clZoomLayout)
+        val photoView = fullscreenView.findViewById<PhotoView>(R.id.fotoZoom)
+        val closeZoomCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardCloseZoom)
+        val changePhotoCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardChangePhoto)
+        val deletePhotoCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
+
+        // Find the TextView and ImageView for color changes
+        val tvCardCloseButton = fullscreenView.findViewById<TextView>(R.id.tvCardCloseButton)
+        val closeZoomIcon = fullscreenView.findViewById<ImageView>(R.id.closeZoom)
+
+        // Set the image to the PhotoView
+        photoView.setImageDrawable(qrDrawable)
+
+        // Hide edit options
+        changePhotoCard.visibility = View.GONE
+        deletePhotoCard.visibility = View.GONE
+
+        // Set background color of the layout to white using your color resource
+        fotoLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.white))
+
+        // Set close button background color to green using your color resource
+        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
+
+        // Change the text color to white
+        tvCardCloseButton.setTextColor(ContextCompat.getColor(context, R.color.white))
+
+        // Change the close icon tint to white
+        closeZoomIcon.setColorFilter(ContextCompat.getColor(context, R.color.white))
+
+        // Set up close button to restore previous bottom sheet state
+        closeZoomCard.setOnClickListener {
+            dialog.dismiss()
+            // Restore previous bottom sheet state
+            bottomSheetBehavior.state = previousState
+        }
+
+        // Make dialog display properly
+        dialog.window?.apply {
+            // Set window background to white using your color resource
+            setBackgroundDrawable(ColorDrawable(ContextCompat.getColor(context, R.color.white)))
+            setDimAmount(0f) // Remove dimming since we have a white background
+
+            // This is important - use TYPE_APPLICATION to ensure it appears above the bottom sheet
+            attributes.type = WindowManager.LayoutParams.TYPE_APPLICATION
+
+            // Make sure to set the layout flags properly
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+
+            // Add FLAG_NOT_TOUCH_MODAL to make sure it gets all touch events
+            addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+
+            // This helps ensure it appears on top
+            setGravity(Gravity.CENTER)
+        }
+
+        dialog.show()
     }
 
 

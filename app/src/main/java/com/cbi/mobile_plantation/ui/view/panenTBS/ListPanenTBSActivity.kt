@@ -2044,7 +2044,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 btnConfirmScanPanenTPH.alpha = 0f
                                 btnPreviewFullQR.alpha = 0f
 
-
                                 // Create fade-in animations
 
                                 val fadeInBlokSection =

@@ -69,8 +69,12 @@ class ListHektarPanenAdapter(
         holder.td5.visibility = View.VISIBLE
         holder.td6.visibility = View.GONE
 
-        // Calculate sum of dibayar values
-        val dibayar = item.dibayar_arr.split(";").sumOf { it.replace(" ","").toIntOrNull() ?: 0 }
+// Calculate sum of dibayar values
+        val dibayar = item.dibayar_arr.split(";").sumOf {
+            it.replace(" ","").toDoubleOrNull() ?: 0.0
+        }
+        Log.d("ListHektarPanenAdapter", "dibayar_arr: ${item.dibayar_arr}")
+        Log.d("ListHektarPanenAdapter", "dibayar: $dibayar")
 
         // Set text data
         holder.td1.text = item.nama
