@@ -1014,29 +1014,42 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
         setupSpinnerView(blokLayout, blokNames)
-
         val blokSpinner = blokLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
 
-        var newBlokPosition = blokNames.indexOf(selectedBlok)
+// Log current state for debugging
+        AppLogger.d("Current selectedBlokIdSpinner: $selectedBlokIdSpinner, selectedBlok: $selectedBlok")
+        AppLogger.d("Available blokNames size: ${blokNames.size}")
 
-        if (newBlokPosition < 0) {
-            newBlokPosition = selectedBlokIdSpinner
+// CHANGED: Prioritize using the position directly if it's valid
+        var targetPosition = if (selectedBlokIdSpinner >= 0 && selectedBlokIdSpinner < blokNames.size) {
+            selectedBlokIdSpinner
+        } else {
+            // Fall back to finding by value if position is invalid
+            blokNames.indexOf(selectedBlok)
         }
 
-        val safeBlokPosition = when {
-            newBlokPosition < 0 -> 0  // Default to first item if negative
-            newBlokPosition >= blokNames.size -> 0  // Default to first if beyond list bounds
-            else -> newBlokPosition  // Use the calculated position if it's valid
+// If we still don't have a valid position, default to 0 if we have items
+        if (targetPosition < 0) {
+            targetPosition = if (blokNames.isNotEmpty()) 0 else -1
+            AppLogger.d("Defaulting to position: $targetPosition")
         }
 
-// Set the selection
-        blokSpinner.setSelectedIndex(safeBlokPosition)
+// Only proceed if we have a valid position
+        if (targetPosition >= 0 && blokNames.isNotEmpty()) {
+            // Set the spinner selection
+            blokSpinner.setSelectedIndex(targetPosition)
 
-        if (safeBlokPosition >= 0 && safeBlokPosition < blokNames.size) {
-            val selectedItem = blokNames[safeBlokPosition]
-            selectedBlokIdSpinner = safeBlokPosition
+            // Update tracking variables
+            val selectedItem = blokNames[targetPosition]
+            selectedBlokIdSpinner = targetPosition
             selectedBlok = selectedItem
-            handleItemSelection(blokLayout, safeBlokPosition, selectedItem)
+
+            AppLogger.d("Setting blok selection to position: $targetPosition, value: $selectedItem")
+
+            // Handle the selection
+            handleItemSelection(blokLayout, targetPosition, selectedItem)
+        } else {
+            AppLogger.d("No valid selection could be made for blok spinner")
         }
 
 
