@@ -221,7 +221,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     if (AppUtils.isNetworkAvailable(this@ScanWeighBridgeActivity)) {
                                         // Try to upload with network connection
 
-                                        AppUtils.clearTempJsonFiles(this@ScanWeighBridgeActivity)
+
 
                                         var number = 0
                                         // Data for PPRO Staging
@@ -252,14 +252,13 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         )
 
                                         lifecycleScope.launch {
-                                            val zipDeferred =
-                                                CompletableDeferred<Pair<Boolean, String?>>()
+                                            val zipDeferred = CompletableDeferred<Pair<Boolean, String?>>()
                                             var zipFilePath: String? = null
                                             loadingDialog.setMessage(
                                                 "Sedang membuat file .zip untuk upload",
                                                 true
                                             )
-                                            // For CMP data
+// For CMP data
                                             var number = 0
 
                                             val espbData = mapOf(
@@ -294,21 +293,17 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 "jabatan" to prefManager!!.jabatanUserLogin
                                             )
 
-
                                             val espbDataList = listOf(espbData)
-                                            val espbJson = Gson().toJson(espbDataList)
 
-                                            val (espbFilePath, espbFilename) = AppUtils.createTempJsonFile(
-                                                context = this@ScanWeighBridgeActivity,
-                                                baseFilename = AppUtils.DatabaseTables.ESPB,
-                                                jsonData = espbJson,
-                                                userId = prefManager!!.idUserLogin.toString(),
-                                                dataDate = ""
+                                            // Wrap the data in a structure as requested
+                                            val wrappedEspbData = mapOf(
+                                                AppUtils.DatabaseTables.ESPB to espbDataList
                                             )
 
+                                            // Convert the wrapped data to JSON
+                                            val espbJson = Gson().toJson(wrappedEspbData)
 
-                                            val uploadDataList =
-                                                mutableListOf<Pair<String, List<Map<String, Any>>>>()
+                                            val uploadDataList = mutableListOf<Pair<String, List<Map<String, Any>>>>()
                                             val espbDataAsAny = espbData as Map<String, Any>
                                             uploadDataList.add(
                                                 Pair(
@@ -354,8 +349,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                         Locale.getDefault()
                                                     ).format(Date()),
                                                     "uploaded_by_id" to (globalCreatedById ?: 0),
-                                                    "file" to (espbFilePath ?: ""),
-                                                    "fileName" to (espbFilename ?: ""),
+                                                    "data" to espbJson  // Changed from "file" to "data" and using the JSON string directly
                                                 )
                                             } else {
                                                 cmpItem = mapOf(
@@ -369,8 +363,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                         Locale.getDefault()
                                                     ).format(Date()),
                                                     "uploaded_by_id" to (globalCreatedById ?: 0),
-                                                    "file" to (espbFilePath ?: ""),
-                                                    "fileName" to (espbFilename ?: ""),
+                                                    "data" to espbJson  // Changed from "file" to "data" and using the JSON string directly
                                                 )
                                             }
 

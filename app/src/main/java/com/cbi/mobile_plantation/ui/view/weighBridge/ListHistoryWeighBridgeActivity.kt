@@ -85,7 +85,6 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private var userName: String? = null
     private var userId: Int? = null
     private var jabatanUser: String? = null
-    private var afdelingUser: String? = null
     private var infoApp: String = ""
     private lateinit var datasetViewModel: DatasetViewModel
     private var globalFormattedDate: String = ""
@@ -99,11 +98,10 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private lateinit var headerCheckBoxWB: CheckBox // Add this
     private lateinit var dateButton: Button
 
-    private var allJsonFiles = mutableListOf<JsonFileInfo>()
+    private var allJsonFiles = mutableListOf<JsonData>()
 
-    data class JsonFileInfo(
-        val filePath: String,
-        val fileName: String
+    data class JsonData(
+        val data: String            // The JSON string data
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -229,23 +227,26 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             )
         }
 
-        val cmpItems = allJsonFiles.mapIndexed { index, jsonFile ->
+        val cmpItems = allJsonFiles.mapIndexed { index, jsonData ->
             val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
             UploadCMPItem(
                 id = pproItems.maxByOrNull { it.id }?.id?.plus(index + 1) ?: (index + 1),
-                title = jsonFile.fileName,
-                fullPath = jsonFile.filePath,
-                baseFilename = jsonFile.fileName,
+                title = "ESPB Data (${allJsonFiles.size})",
+                fullPath = "", // Empty since we don't have filePath
+                baseFilename = "", // Empty since we don't have fileName
                 data = Gson().toJson(mapOf(
+                    "espb_json" to jsonData.data,
                     "espb_ids" to globalESPBIds,
                     "uploader_info" to infoApp,
                     "uploaded_at" to currentDate,
-                    "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt()
+                    "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt(),
                 )),
                 type = AppUtils.DatabaseServer.CMP
             )
         }
+
+
 
         val allUploadItems = pproItems + cmpItems
         uploadCMPViewModel.resetState()
@@ -751,212 +752,6 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         }
     }
 
-//    private fun handleUpload(selectedItems: List<Map<String, Any>>) {
-//        var number = 0
-//
-//        val uploadItems = selectedItems.map { item ->
-//            UploadItem(
-//                id = item["id"] as Int,
-//                ip = item["ip"].toString(),
-//                num = number++,
-//                deptPpro = (item["dept_ppro"] as Number).toInt(),
-//                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
-//                commodity = (item["commodity"] as Number).toInt(),
-//                blokJjg = item["blok_jjg"] as String,
-//                nopol = item["nopol"] as String,
-//                driver = item["driver"] as String,
-//                pemuatId = item["pemuat_id"].toString(),
-//                transporterId = (item["transporter_id"] as Number).toInt(),
-//                millId = (item["mill_id"] as Number).toInt(),
-//                createdById = (item["created_by_id"] as Number).toInt(),
-//                createdAt = item["created_at"] as String,
-//                no_espb = item["no_espb"] as String,
-//                uploader_info = infoApp,
-//                uploaded_at = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
-//                    Date()
-//                ),
-//                uploaded_by_id = prefManager!!.idUserLogin!!.toInt(),
-//                file = "",
-//                endpoint = AppUtils.DatabaseServer.PPRO
-//            )
-//        }
-//
-//        var nextId = (uploadItems.maxByOrNull { it.id }?.id ?: 0) + 1
-//
-//        val allItems = mutableListOf<UploadItem>().apply { addAll(uploadItems) }
-//
-//        if (allJsonFiles.isNotEmpty()) {
-//            allJsonFiles.forEach { jsonFile ->
-//                allItems.add(
-//                    UploadItem(
-//                        id = nextId++,
-//                        ip = "",
-//                        num = number++,
-//                        deptPpro = 0,
-//                        divisiPpro = 0,
-//                        commodity = 0,
-//                        blokJjg = "",
-//                        nopol = "",
-//                        driver = "",
-//                        pemuatId = "",
-//                        transporterId = 0,
-//                        millId = 0,
-//                        createdById = 0,
-//                        createdAt = "",
-//                        no_espb = jsonFile.fileName,
-//                        uploader_info = "",
-//                        uploaded_at = "",
-//                        uploaded_by_id = 0,
-//                        file = jsonFile.filePath,
-//                        endpoint = AppUtils.DatabaseServer.CMP
-//                    )
-//                )
-//            }
-//        }
-//
-//        val allUploadItems = allItems
-//
-//        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
-//
-//        val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-//        titleTV.text = "Progress Upload..."
-//        val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
-//        counterTV.text = "0/${allUploadItems.size}"
-//        val cancelDownloadDataset =
-//            dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
-//        val containerDownloadDataset =
-//            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
-//
-//        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
-//        recyclerView.layoutManager = LinearLayoutManager(this)
-//        recyclerView.adapter = UploadProgressAdapter(allUploadItems, weightBridgeViewModel)
-//
-//        val dialog = AlertDialog.Builder(this)
-//            .setView(dialogView)
-//            .setCancelable(false)
-//            .create()
-//        dialog.show()
-//        val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
-//        closeDialogBtn.visibility = View.VISIBLE
-//
-//        cancelDownloadDataset.setOnClickListener {
-//            speedDial.close()
-//            weightBridgeViewModel.loadHistoryESPB()
-//            jsonFileName = null
-//            jsonFilePath = null
-//            dialog.dismiss()
-//        }
-//        val btnUploadDataCMP = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
-//
-//        containerDownloadDataset.visibility = View.VISIBLE
-//        closeDialogBtn.visibility = View.VISIBLE
-//        btnUploadDataCMP.visibility = View.VISIBLE
-//        btnUploadDataCMP.setOnClickListener {
-//            if (AppUtils.isNetworkAvailable(this)) {
-//                AlertDialogUtility.withTwoActions(
-//                    this,
-//                    "Upload",
-//                    getString(R.string.confirmation_dialog_title),
-//                    getString(R.string.al_confirm_upload),
-//                    "warning.json",
-//                    ContextCompat.getColor(this, R.color.bluedarklight),
-//                    function = {
-//                        btnUploadDataCMP.isEnabled = false
-//                        closeDialogBtn.isEnabled = false
-//                        btnUploadDataCMP.alpha = 0.7f
-//                        closeDialogBtn.alpha = 0.7f
-//                        btnUploadDataCMP.iconTint =
-//                            ColorStateList.valueOf(Color.parseColor("#80FFFFFF")) // 50% transparent white
-//                        closeDialogBtn.iconTint =
-//                            ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
-//
-//                        weightBridgeViewModel.uploadESPBKraniTimbang(
-//                            allUploadItems.map { uploadItem ->
-//                                mapOf(
-//                                    "id" to uploadItem.id,
-//                                    "ip" to uploadItem.ip,
-//                                    "num" to uploadItem.num,
-//                                    "dept_ppro" to uploadItem.deptPpro,
-//                                    "divisi_ppro" to uploadItem.divisiPpro,
-//                                    "commodity" to uploadItem.commodity,
-//                                    "blok_jjg" to uploadItem.blokJjg,
-//                                    "nopol" to uploadItem.nopol,
-//                                    "driver" to uploadItem.driver,
-//                                    "pemuat_id" to uploadItem.pemuatId,
-//                                    "transporter_id" to uploadItem.transporterId,
-//                                    "mill_id" to uploadItem.millId,
-//                                    "created_by_id" to uploadItem.createdById,
-//                                    "created_at" to uploadItem.createdAt,
-//                                    "no_espb" to uploadItem.no_espb,
-//                                    "uploader_info" to uploadItem.uploader_info,
-//                                    "uploaded_at" to uploadItem.uploaded_at,
-//                                    "uploaded_by_id" to uploadItem.uploaded_by_id,
-//                                    "file" to uploadItem.file,
-//                                    "endpoint" to uploadItem.endpoint
-//                                )
-//                            },
-//                            globalESPBIds
-//                        )
-//                    },
-//                    cancelFunction = {
-//                    }
-//                )
-//
-//            } else {
-//                AlertDialogUtility.withSingleAction(
-//                    this@ListHistoryWeighBridgeActivity,
-//                    stringXML(R.string.al_back),
-//                    stringXML(R.string.al_no_internet_connection),
-//                    stringXML(R.string.al_no_internet_connection_description_login),
-//                    "network_error.json",
-//                    R.color.colorRedDark
-//                ) {
-//                    // Do nothing
-//                }
-//            }
-//        }
-//
-//        weightBridgeViewModel.uploadStatusMap.observe(this) { statusMap ->
-//            val completedCount = statusMap.count { it.value == "Success" || it.value == "Failed" }
-//            AppLogger.d(completedCount.toString())
-//            counterTV.text = "$completedCount/${allUploadItems.size}"
-//            if (completedCount == allUploadItems.size) {
-//
-//                lifecycleScope.launch {
-//                    loadingDialog.show()
-//                    loadingDialog.setMessage("Sedang memproses data", true)
-//
-//                    delay(500)
-//
-//
-//                    withContext(Dispatchers.Main) {
-//                        containerDownloadDataset.visibility = View.VISIBLE
-//                        cancelDownloadDataset.visibility = View.VISIBLE
-//                        btnUploadDataCMP.visibility = View.GONE
-//                        closeDialogBtn.isEnabled = true
-//                        closeDialogBtn.alpha = 1f
-//                        closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
-//                        loadingDialog.dismiss()
-//                    }
-//
-//                }
-//
-//            }
-//        }
-//
-//
-////        weightBridgeViewModel.uploadResult.observe(this) { result ->
-////            result.onSuccess {
-////                Toast.makeText(this, "Upload Successful!", Toast.LENGTH_SHORT).show()
-////            }.onFailure {
-////                Toast.makeText(this, "Upload Failed: ${it.message}", Toast.LENGTH_LONG).show()
-////            }
-////        }
-//
-//
-//    }
-
-
     private fun handleDelete(selectedItems: List<Map<String, Any>>) {
         this.vibrate()
         AlertDialogUtility.withTwoActions(
@@ -1114,8 +909,9 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
                                     var mappedESPBData: List<Map<String, Any>> = emptyList()
                                     val espbList = espbDeferred.await()
-                                    try {
+                                    var espbJsonString: String? = null // Store the JSON string instead of filepath
 
+                                    try {
                                         if (espbList.isNotEmpty()) {
                                             val allZipped = espbList.all { it.dataIsZipped == 1 }
 
@@ -1123,20 +919,16 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                             val itemsNeedingUpload =
                                                 espbList.filter { it.status_upload_cmp_wb !in 1..3 }
 
-
                                             AppLogger.d("itemsNeedingUpload $itemsNeedingUpload")
 
                                             if (itemsNeedingUpload.isEmpty()) {
                                                 // If no items need upload, log and skip JSON creation
-
                                                 globalESPBIds = espbList.map { it.id }
 
                                                 if (allZipped) {
                                                     zipDeferred.complete(true)
                                                 }
                                             } else {
-
-
                                                 // Map and process only the items that need upload
                                                 mappedESPBData = itemsNeedingUpload.map { data ->
                                                     val blokJjgList =
@@ -1207,28 +999,26 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                         "jabatan" to prefManager!!.jabatanUserLogin.toString(),
                                                     )
                                                 }
-                                                globalESPBIds =
-                                                    mappedESPBData.map { it["id"] as Int }
+                                                globalESPBIds = mappedESPBData.map { it["id"] as Int }
 
                                                 // Only create JSON if we have items to upload
                                                 if (mappedESPBData.isNotEmpty()) {
-                                                    val espbJson = Gson().toJson(mappedESPBData)
-                                                    val (espbFilePath, espbFilename) = AppUtils.createTempJsonFile(
-                                                        context = this@ListHistoryWeighBridgeActivity,
-                                                        baseFilename = AppUtils.DatabaseTables.ESPB,
-                                                        jsonData = espbJson,
-                                                        userId = prefManager!!.idUserLogin.toString(),
-                                                        dataDate = ""
+                                                    // Wrap the ESPB data as requested
+                                                    val wrappedEspbData = mapOf(
+                                                        AppUtils.DatabaseTables.ESPB to mappedESPBData
                                                     )
 
-                                                    // Add the file info to our global variable
+                                                    // Convert the wrapped data to JSON
+                                                    espbJsonString = Gson().toJson(wrappedEspbData)
+
+                                                    // Add the JSON string to our data structure instead of file info
                                                     allJsonFiles.add(
-                                                        JsonFileInfo(
-                                                            filePath = espbFilePath,
-                                                            fileName = espbFilename
+                                                        JsonData(
+                                                            data = espbJsonString
                                                         )
                                                     )
-                                                    AppLogger.d("Created JSON file for upload: $espbFilename with ${itemsNeedingUpload.size} items")
+
+                                                    AppLogger.d("Created JSON string for upload with ${itemsNeedingUpload.size} items")
                                                 }
 
                                                 // Only skip the zipping process if all items are already zipped
@@ -1245,12 +1035,10 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         Log.e("UploadCheck", "❌ Error: ${e.message}")
                                     } finally {
                                         // Only do zipping if not all items were already zipped
-                                        val allZipped =
-                                            espbList?.all { it.dataIsZipped == 1 } ?: false
+                                        val allZipped = espbList?.all { it.dataIsZipped == 1 } ?: false
 
                                         if (!allZipped) {
-                                            val uploadDataList =
-                                                mutableListOf<Pair<String, List<Map<String, Any>>>>()
+                                            val uploadDataList = mutableListOf<Pair<String, List<Map<String, Any>>>>()
                                             if (mappedESPBData.isNotEmpty()) uploadDataList.add(
                                                 AppUtils.DatabaseTables.ESPB to mappedESPBData
                                             )
@@ -1292,8 +1080,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
                                     val zipSuccess = zipDeferred.await()
 
+                                    // Pass the JSON strings to the upload handler instead of files
                                     handleUpload(selectedItems)
-
                                 }
 
 
