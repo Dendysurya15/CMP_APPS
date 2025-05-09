@@ -3151,13 +3151,13 @@ class HomePageActivity : AppCompatActivity() {
                     dataset = AppUtils.DatasetNames.blok
                 ),
             )
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalId,
-                    lastModified = lastModifiedDatasetPemanen,
-                    dataset = AppUtils.DatasetNames.pemanen
-                )
-            )
+//            datasets.add(
+//                DatasetRequest(
+//                    regional = regionalId,
+//                    lastModified = lastModifiedDatasetPemanen,
+//                    dataset = AppUtils.DatasetNames.pemanen
+//                )
+//            )
         } else {
             datasets.add(
                 DatasetRequest(

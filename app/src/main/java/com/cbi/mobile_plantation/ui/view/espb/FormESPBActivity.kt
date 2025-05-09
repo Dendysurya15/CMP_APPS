@@ -140,6 +140,7 @@ class FormESPBActivity : AppCompatActivity() {
     private var afdelingUser: String? = null
     private val karyawanIdMap: MutableMap<String, Int> = mutableMapOf()
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
+    private val karyawanNamaMap = mutableMapOf<String, String>()
     private var activityInitialized = false
     private var noESPBStr = "NULL"
     private var pemuat_id = "NULL"
@@ -409,7 +410,7 @@ class FormESPBActivity : AppCompatActivity() {
                 divisiList = divisiDeferred.await()
 
                 // You can add more code here to handle the divisiList
-                val nameDivisi: List<String> = divisiList.map { it.divisi_abbr.toString() }
+                val nameDivisi: List<String> = divisiList.sortedBy { it.divisi_abbr }.map { it.divisi_abbr.toString() }
                 Log.d("FormESPBActivityDivisi", "nameDivisi: $nameDivisi")
                 withContext(Dispatchers.Main) {
                     setupSpinner(R.id.formEspbAfdeling, nameDivisi)
@@ -649,52 +650,100 @@ class FormESPBActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            AppLogger.d("blok jjg $blok_jjg")
-            val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
-            AppLogger.d(selectedPemanen.toString())
+            val selectedPemuat = selectedPemuatAdapter.getSelectedWorkers()
+            AppLogger.d("selectedPemuat: $selectedPemuat")
 
-            // Get a map of names to counts to determine which names have duplicates
-            val workerNameCounts = mutableMapOf<String, Int>()
-            selectedPemanen.forEach { worker ->
-                val baseName = worker.name.substringBefore(" - ").trim()
-                workerNameCounts[baseName] = (workerNameCounts[baseName] ?: 0) + 1
+            AppLogger.d("karyawanIdMap $karyawanIdMap")
+
+            val idKaryawanList = selectedPemuat.mapNotNull { worker ->
+                // First try to get ID using the full name (with NIK if present)
+                var id = karyawanIdMap[worker.name]
+
+                // If that fails and the name contains a NIK separator, try with just the base name
+                if (id == null && worker.name.contains(" - ")) {
+                    val baseName = worker.name.substringBefore(" - ").trim()
+                    id = karyawanIdMap[baseName]
+                }
+
+                // If that still fails and we don't have a NIK separator, try all possible matches
+                // that start with this name (handles case where map has "NAME - NIK" but worker just has "NAME")
+                if (id == null && !worker.name.contains(" - ")) {
+                    // Find any key in the map that starts with this worker's name followed by " - "
+                    val possibleKey =
+                        karyawanIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                    if (possibleKey != null) {
+                        id = karyawanIdMap[possibleKey]
+                    }
+                }
+
+                id
             }
 
-            // For worker ID lookup, handle both duplicate and non-duplicate cases
-            val idKaryawanList = selectedPemanen.mapNotNull { worker ->
-                val baseName = worker.name.substringBefore(" - ").trim()
+            val kemandoranIdList = selectedPemuat.mapNotNull { worker ->
+                var id = kemandoranIdMap[worker.name]
 
+                // If that fails and the name contains a NIK separator, try with just the base name
+                if (id == null && worker.name.contains(" - ")) {
+                    val baseName = worker.name.substringBefore(" - ").trim()
+                    id = kemandoranIdMap[baseName]
+                }
+
+                // If that still fails and we don't have a NIK separator, try all possible matches
+                if (id == null && !worker.name.contains(" - ")) {
+                    val possibleKey =
+                        kemandoranIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                    if (possibleKey != null) {
+                        id = kemandoranIdMap[possibleKey]
+                    }
+                }
+
+                id
+            }
+
+// If you need to maintain karyawanNamaMap logic like in original code
+            val selectedNamaPemuatList = selectedPemuat.mapNotNull { worker ->
+                // First try to get name using the full worker name (with NIK if present)
+                var nama = karyawanNamaMap[worker.name]
+
+                // If that fails and the name contains a NIK separator, try with just the base name
+                if (nama == null && worker.name.contains(" - ")) {
+                    val baseName = worker.name.substringBefore(" - ").trim()
+                    nama = karyawanNamaMap[baseName]
+                }
+
+                // If that still fails and we don't have a NIK separator, try all possible matches
+                if (nama == null && !worker.name.contains(" - ")) {
+                    // Find any key in the map that starts with this worker's name followed by " - "
+                    val possibleKey = karyawanNamaMap.keys.find { it.startsWith("${worker.name} - ") }
+                    if (possibleKey != null) {
+                        nama = karyawanNamaMap[possibleKey]
+                    } else {
+                        // If all else fails, use the worker name itself
+                        nama = worker.name
+                    }
+                }
+
+                nama
+            }
+
+            val selectedNikPemuatIds = selectedPemuat.mapNotNull { worker ->
                 if (worker.name.contains(" - ")) {
-                    // If name contains NIK, try with the full name first
-                    karyawanIdMap[worker.name] ?: karyawanIdMap[baseName]
+                    // Find the last occurrence of " - " to extract only the NIK
+                    val lastDashIndex = worker.name.lastIndexOf(" - ")
+                    if (lastDashIndex != -1) {
+                        worker.name.substring(lastDashIndex + 3).trim()
+                    } else {
+                        null
+                    }
                 } else {
-                    // For names without NIK, just use the base name
-                    karyawanIdMap[baseName]
+                    null
                 }
             }
 
-            val kemandoranIdList = selectedPemanen.mapNotNull { worker ->
-                val baseName = worker.name.substringBefore(" - ").trim()
+// Final joining of all collected data
+            val uniqueNamaPemuat = selectedNamaPemuatList.joinToString(",")
 
-                if (worker.name.contains(" - ")) {
-                    // If name contains NIK, try with the full name first
-                    kemandoranIdMap[worker.name] ?: kemandoranIdMap[baseName]
-                } else {
-                    // For names without NIK, just use the base name
-                    kemandoranIdMap[baseName]
-                }
-            }
-
-            val selectedNikPemanenIds = selectedPemanen.mapNotNull { worker ->
-                if (worker.name.contains(" - ")) {
-                    worker.name.substringAfter(" - ").trim()
-                } else {
-                    worker.id // Fallback to worker.id if NIK not in the name
-                }
-            }
-
-            val uniqueNikPemanen = selectedNikPemanenIds
-                .joinToString(",")
+            val uniqueNikPemanen = selectedNikPemuatIds.joinToString(",")
 
             val uniqueIdKaryawan = idKaryawanList
                 .map { it.toString() }
@@ -1616,7 +1665,7 @@ class FormESPBActivity : AppCompatActivity() {
                         }
                         pemuatList = karyawanDeferred.await()
                         Log.d("FormESPBActivityKemandoran", "pemuatList: $pemuatList")
-                        val pemuatNames = pemuatList.map { it.nama.toString() }
+                        val pemuatNames = pemuatList.map { "${it.nama} - ${it.nik ?: "N/A"}" }
                         Log.d("FormESPBActivityKemandoran", "pemuatNames: $pemuatNames")
                         withContext(Dispatchers.Main) {
                             setupSpinner(R.id.formEspbPemuat, pemuatNames)
@@ -1652,26 +1701,49 @@ class FormESPBActivity : AppCompatActivity() {
             }
 
             R.id.formEspbPemuat -> {
-                val selectedItem = selectedItem.toString()
+                val selectedPemuat = selectedItem.toString()
+                AppLogger.d("Selected Pemuat: $selectedPemuat")
 
-                // Check if selectedItem contains a NIK (for duplicate names)
-                val hasNik = selectedItem.contains(" - ")
-                val selectedName = selectedItem.substringBefore(" - ").trim()
-                val selectedNik = if (hasNik) selectedItem.substringAfter(" - ").trim() else null
+                // Extract NIK from the selection
+                val lastDashIndex = selectedPemuat.lastIndexOf(" - ")
+                val selectedNik =
+                    if (lastDashIndex != -1 && lastDashIndex < selectedPemuat.length - 3) {
+                        val potentialNik = selectedPemuat.substring(lastDashIndex + 3).trim()
+                        if (potentialNik.all { it.isDigit() }) potentialNik else ""
+                    } else ""
 
-                // Create a NIK to Employee map for lookup by NIK
-                val nikToEmployeeMap = pemuatList.filter { it.nik != null }
-                    .associateBy { it.nik!! }
+                AppLogger.d("Extracted NIK: $selectedNik")
 
-                // Create a map to count occurrences of each name
-                val nameCounts = mutableMapOf<String, Int>()
-                pemuatList.forEach {
-                    it.nama?.trim()?.let { nama ->
-                        nameCounts[nama] = (nameCounts[nama] ?: 0) + 1
+                // Find the selected employee in pemuatList
+                var selectedEmployee = pemuatList.firstOrNull {
+                    it.nik == selectedNik || it.nama?.trim()
+                        ?.equals(selectedPemuat.trim(), ignoreCase = true) == true
+                }
+
+                // If not found by exact match, try partial match on name
+                if (selectedEmployee == null && lastDashIndex != -1) {
+                    val nameWithoutNik = selectedPemuat.substring(0, lastDashIndex).trim()
+                    selectedEmployee = pemuatList.firstOrNull {
+                        it.nama?.trim()?.equals(nameWithoutNik, ignoreCase = true) == true
                     }
                 }
 
-                // Update map keys to include NIK for duplicate names
+                if (selectedEmployee == null) {
+                    selectedEmployee = pemuatList.firstOrNull {
+                        it.nama?.contains(
+                            selectedPemuat.split(" - ")[0],
+                            ignoreCase = true
+                        ) == true
+                    }
+                }
+
+                // Process the pemuatList to build the maps
+                val nameCounts = mutableMapOf<String, Int>()
+                pemuatList.forEach {
+                    it.nama?.trim()?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 }
+                }
+
+                // Building the maps based on existing list
                 pemuatList.forEach {
                     it.nama?.trim()?.let { nama ->
                         val key = if (nameCounts[nama]!! > 1) {
@@ -1681,40 +1753,51 @@ class FormESPBActivity : AppCompatActivity() {
                         }
                         karyawanIdMap[key] = it.id!!
                         kemandoranIdMap[key] = it.kemandoran_id!!
+                        // If you need to store names separately as in original code
+                        karyawanNamaMap[key] = nama
                     }
                 }
 
-                // Find the selected employee either by NIK or name
-                val selectedEmployee = if (selectedNik != null) {
-                    nikToEmployeeMap[selectedNik]
-                } else {
-                    pemuatList.find { it.nama?.trim() == selectedName }
+                // Explicitly ensure the selected employee is in the maps
+                if (selectedEmployee != null) {
+                    // Get clean name of selected employee
+                    val employeeName = selectedEmployee.nama?.trim() ?: ""
+                    // Get name without NIK from selection
+                    val selectionName = if (lastDashIndex != -1) {
+                        selectedPemuat.substring(0, lastDashIndex).trim()
+                    } else {
+                        selectedPemuat.trim()
+                    }
+
+                    // Make sure employee is in maps by both full selection name and clean name
+                    karyawanIdMap[selectedPemuat] = selectedEmployee.id!!
+                    kemandoranIdMap[selectedPemuat] = selectedEmployee.kemandoran_id!!
+
+                    karyawanIdMap[selectionName] = selectedEmployee.id!!
+                    kemandoranIdMap[selectionName] = selectedEmployee.kemandoran_id!!
+
+                    karyawanIdMap[employeeName] = selectedEmployee.id!!
+                    kemandoranIdMap[employeeName] = selectedEmployee.kemandoran_id!!
                 }
 
                 if (selectedEmployee != null) {
-                    val worker = Worker(selectedEmployee.toString(), selectedItem)
+                    val worker = Worker(selectedEmployee.id.toString(), selectedPemuat)
                     selectedPemuatAdapter.addWorker(worker)
-                    pemuatListId.add(selectedEmployee.toString())
+                    // If you're tracking selected worker IDs as in your new code
+                    pemuatListId.add(selectedEmployee.id.toString())
 
-                    // Update available workers with proper name formatting
-                    selectedPemuatAdapter.setAvailableWorkers(pemuatList.map {
-                        val workerName = if (nameCounts[it.nama?.trim()] ?: 0 > 1) {
-                            "${it.nama?.trim()} - ${it.nik}"
-                        } else {
-                            it.nama?.trim() ?: ""
-                        }
-                        Worker(it.id.toString(), workerName)
-                    })
-
-                    // Get updated available workers for spinner
                     val availableWorkers = selectedPemuatAdapter.getAvailableWorkers()
 
-                    Log.d("FormESPBActivityPemuat", "availableWorkers: $availableWorkers")
                     if (availableWorkers.isNotEmpty()) {
-                        setupSpinner(R.id.formEspbPemuat, availableWorkers.map { it.name })
+                        setupSpinner(
+                            R.id.formEspbPemuat,
+                            availableWorkers.map { it.name }
+                        )
                     }
 
-                    AppLogger.d("Selected Worker: $selectedItem, ID: ${selectedEmployee.id}")
+                    AppLogger.d("Selected Worker: $selectedPemuat, ID: ${selectedEmployee.id}")
+                } else {
+                    AppLogger.d("Error: Could not find worker with name $selectedPemuat or NIK $selectedNik")
                 }
             }
 
@@ -1753,21 +1836,7 @@ class FormESPBActivity : AppCompatActivity() {
     ): String {
         val gson = Gson()
 
-        // Extract NIKs from pemuat_nik models
-        val nikList = StringBuilder()
-        val pemuat_nik_parts = pemuat_nik.split("),")
-
-        pemuat_nik_parts.forEachIndexed { index, part ->
-            // Extract the NIK using regex
-            val nikMatch = Regex("nik=(\\d+)").find(part)
-            if (nikMatch != null) {
-                val nik = nikMatch.groupValues[1]
-                if (index > 0) {
-                    nikList.append(",")
-                }
-                nikList.append(nik)
-            }
-        }
+        val nikList = pemuat_nik
 
         // Extract unique dates from tph1 and prepare optimized string
         val dateMap = JsonObject()
