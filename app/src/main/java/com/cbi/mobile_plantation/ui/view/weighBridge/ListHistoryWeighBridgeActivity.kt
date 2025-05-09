@@ -99,11 +99,10 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private lateinit var headerCheckBoxWB: CheckBox // Add this
     private lateinit var dateButton: Button
 
-    private var allJsonFiles = mutableListOf<JsonFileInfo>()
+    private var allJsonData = mutableListOf<JsonData>()
 
-    data class JsonFileInfo(
-        val filePath: String,
-        val fileName: String
+    data class JsonData(
+        val data: String,           // The JSON string data
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -229,19 +228,20 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             )
         }
 
-        val cmpItems = allJsonFiles.mapIndexed { index, jsonFile ->
+        val cmpItems = allJsonData.mapIndexed { index, jsonData ->
             val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
             UploadCMPItem(
                 id = pproItems.maxByOrNull { it.id }?.id?.plus(index + 1) ?: (index + 1),
-                title = jsonFile.fileName,
-                fullPath = jsonFile.filePath,
-                baseFilename = jsonFile.fileName,
+                title = "ESPB Data (${allJsonData.size} item)", // Use the noESPB in the title
+                fullPath = "", // Empty since we don't have filePath
+                baseFilename = "", // Empty since we don't have fileName
                 data = Gson().toJson(mapOf(
+                    "espb_json" to jsonData.data,
                     "espb_ids" to globalESPBIds,
                     "uploader_info" to infoApp,
                     "uploaded_at" to currentDate,
-                    "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt()
+                    "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt(),
                 )),
                 type = AppUtils.DatabaseServer.CMP
             )
@@ -297,7 +297,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         dialog.show()
 
         closeDialogBtn.setOnClickListener {
-            allJsonFiles.clear()
+            allJsonData.clear()
             uploadCMPViewModel.resetState()
             weightBridgeViewModel.loadHistoryESPB()
             dialog.dismiss()
@@ -1114,8 +1114,9 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
                                     var mappedESPBData: List<Map<String, Any>> = emptyList()
                                     val espbList = espbDeferred.await()
-                                    try {
+                                    var espbJsonString: String? = null // Store the JSON string instead of filepath
 
+                                    try {
                                         if (espbList.isNotEmpty()) {
                                             val allZipped = espbList.all { it.dataIsZipped == 1 }
 
@@ -1123,20 +1124,16 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                             val itemsNeedingUpload =
                                                 espbList.filter { it.status_upload_cmp_wb !in 1..3 }
 
-
                                             AppLogger.d("itemsNeedingUpload $itemsNeedingUpload")
 
                                             if (itemsNeedingUpload.isEmpty()) {
                                                 // If no items need upload, log and skip JSON creation
-
                                                 globalESPBIds = espbList.map { it.id }
 
                                                 if (allZipped) {
                                                     zipDeferred.complete(true)
                                                 }
                                             } else {
-
-
                                                 // Map and process only the items that need upload
                                                 mappedESPBData = itemsNeedingUpload.map { data ->
                                                     val blokJjgList =
@@ -1207,28 +1204,26 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                         "jabatan" to prefManager!!.jabatanUserLogin.toString(),
                                                     )
                                                 }
-                                                globalESPBIds =
-                                                    mappedESPBData.map { it["id"] as Int }
+                                                globalESPBIds = mappedESPBData.map { it["id"] as Int }
 
                                                 // Only create JSON if we have items to upload
                                                 if (mappedESPBData.isNotEmpty()) {
-                                                    val espbJson = Gson().toJson(mappedESPBData)
-                                                    val (espbFilePath, espbFilename) = AppUtils.createTempJsonFile(
-                                                        context = this@ListHistoryWeighBridgeActivity,
-                                                        baseFilename = AppUtils.DatabaseTables.ESPB,
-                                                        jsonData = espbJson,
-                                                        userId = prefManager!!.idUserLogin.toString(),
-                                                        dataDate = ""
+                                                    // Wrap the ESPB data as requested
+                                                    val wrappedEspbData = mapOf(
+                                                        AppUtils.DatabaseTables.ESPB to mappedESPBData
                                                     )
 
-                                                    // Add the file info to our global variable
-                                                    allJsonFiles.add(
-                                                        JsonFileInfo(
-                                                            filePath = espbFilePath,
-                                                            fileName = espbFilename
+                                                    // Convert the wrapped data to JSON
+                                                    espbJsonString = Gson().toJson(wrappedEspbData)
+
+                                                    // Add the JSON string to our data structure instead of file info
+                                                    allJsonData.add(
+                                                        JsonData(
+                                                            data = espbJsonString
                                                         )
                                                     )
-                                                    AppLogger.d("Created JSON file for upload: $espbFilename with ${itemsNeedingUpload.size} items")
+
+                                                    AppLogger.d("Created JSON string for upload with ${itemsNeedingUpload.size} items")
                                                 }
 
                                                 // Only skip the zipping process if all items are already zipped
@@ -1245,12 +1240,10 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         Log.e("UploadCheck", "❌ Error: ${e.message}")
                                     } finally {
                                         // Only do zipping if not all items were already zipped
-                                        val allZipped =
-                                            espbList?.all { it.dataIsZipped == 1 } ?: false
+                                        val allZipped = espbList?.all { it.dataIsZipped == 1 } ?: false
 
                                         if (!allZipped) {
-                                            val uploadDataList =
-                                                mutableListOf<Pair<String, List<Map<String, Any>>>>()
+                                            val uploadDataList = mutableListOf<Pair<String, List<Map<String, Any>>>>()
                                             if (mappedESPBData.isNotEmpty()) uploadDataList.add(
                                                 AppUtils.DatabaseTables.ESPB to mappedESPBData
                                             )
@@ -1292,8 +1285,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
                                     val zipSuccess = zipDeferred.await()
 
+                                    // Pass the JSON strings to the upload handler instead of files
                                     handleUpload(selectedItems)
-
                                 }
 
 

@@ -554,6 +554,11 @@ class UploadCMPRepository(context: Context) {
                         null
                     }
 
+                    // Extract the espb_json field which contains the actual data to upload
+                    val espbJson = dataMap?.get("espb_json")?.toString() ?: ""
+
+
+
                     val espbIds = (dataMap?.get("espb_ids") as? List<*>)?.mapNotNull {
                         (it as? Double)?.toInt() ?: (it as? Int)
                     } ?: emptyList()
@@ -569,45 +574,29 @@ class UploadCMPRepository(context: Context) {
 
 
                     try {
-                        AppLogger.d("CMP: Processing file upload for file: $filename")
-                        AppLogger.d("CMP: File path: $jsonFilePath")
-
-                        // Ensure the file exists
-                        val file = File(jsonFilePath)
-                        if (!file.exists() || !file.isFile) {
-                            val errorMsg = "File not found or invalid: $jsonFilePath"
+                        // Check if JSON data is empty
+                        if (espbJson.isBlank()) {
+                            val errorMsg = "JSON data is empty for $filename"
                             AppLogger.e(errorMsg)
-
-                            // Use postValue for LiveData updates or dispatch to main thread
                             withContext(Dispatchers.Main) {
                                 onProgressUpdate(100, false, errorMsg)
                             }
-
                             return@withContext Result.failure(Exception(errorMsg))
                         }
 
-                        // Use simple RequestBody instead of ProgressRequestBody
-                        val fileRequestBody = RequestBody.create(
+// Create the request body from the JSON string
+                        val jsonRequestBody = RequestBody.create(
                             "application/json".toMediaTypeOrNull(),
-                            file
+                            espbJson
                         )
-                        val filePart = MultipartBody.Part.createFormData("jsonFile", filename, fileRequestBody)
-
-                        // Create the filename part
-                        val filenameRequestBody = RequestBody.create(
-                            "text/plain".toMediaTypeOrNull(),
-                            filename
-                        )
-
 
                         withContext(Dispatchers.Main) {
                             onProgressUpdate(50, false, null)
                         }
 
                         AppLogger.d("CMP: Making API call to upload JSON file")
-                        val response = TestingAPIClient.instance.uploadJsonV3(
-                            jsonFile = filePart,
-                            filename = filenameRequestBody
+                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                            jsonData = jsonRequestBody
                         )
 
                         val responseBody = response.body()
@@ -617,6 +606,16 @@ class UploadCMPRepository(context: Context) {
 
                         if (response.isSuccessful && responseBody != null) {
                             AppLogger.d("CMP: Upload successful, response: $responseBody")
+
+                            // Check if the status is between 1 and 3 (inclusive)
+                            val isStatusValid = responseBody.status in 1..3
+                            val resultMessage = if (isStatusValid) {
+                                "Success Uploading to CMP"
+                            } else {
+                                "Upload completed but with invalid status: ${responseBody.status}. Message: ${responseBody.message ?: "No message"}"
+                            }
+
+                            AppLogger.d("CMP: Status check - isStatusValid: $isStatusValid, status: ${responseBody.status}, message: $resultMessage")
 
                             // Update local database with response data
                             responseBody.let {
@@ -657,27 +656,31 @@ class UploadCMPRepository(context: Context) {
                                         withContext(Dispatchers.IO) {
                                             updateUploadStatusCMP(
                                                 id,
-                                                responseBody?.status ?: 0,
+                                                responseBody.status,
                                                 uploaderInfo,
                                                 uploadedAt,
                                                 uploadedById,
-                                                "Success Uploading to CMP"
+                                                resultMessage
                                             )
                                         }
-                                        AppLogger.d("ESPB table dengan id $id has been updated")
+                                        AppLogger.d("ESPB table dengan id $id has been updated with status message: $resultMessage")
                                     } catch (e: Exception) {
                                         AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
                                     }
                                 }
                             }
 
-                            // Report 100% progress with success
+                            // Report progress based on the status check
                             withContext(Dispatchers.Main) {
-                                onProgressUpdate(100, true, null)
+                                onProgressUpdate(
+                                    100,
+                                    isStatusValid,
+                                    if (!isStatusValid) responseBody.message else null
+                                )
                             }
 
                             return@withContext Result.success(responseBody)
-                        } else {
+                        }else {
                             // Get error details
                             val errorBodyString = response.errorBody()?.string() ?: "No error body"
                             val errorMsg = "JSON upload failed: HTTP $httpStatusCode - ${response.message()}"
