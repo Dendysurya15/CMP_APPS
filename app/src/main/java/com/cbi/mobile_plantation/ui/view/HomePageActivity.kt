@@ -504,7 +504,7 @@ class HomePageActivity : AppCompatActivity() {
         fun getFilteredFeaturesByJabatan(jabatan: String): List<FeatureCard> {
             val commonFeatures = listOf(
                 features.find { it.featureName == AppUtils.ListFeatureNames.SinkronisasiData },
-                features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
+//                features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
             ).filterNotNull()
 
             // Determine which role pattern matches the jabatan
@@ -538,6 +538,7 @@ class HomePageActivity : AppCompatActivity() {
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
 
                 AppUtils.ListFeatureByRoleUser.KeraniTimbang -> listOfNotNull(
@@ -554,6 +555,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
 
                 AppUtils.ListFeatureByRoleUser.Asisten -> listOfNotNull(
@@ -565,6 +567,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
 
                 AppUtils.ListFeatureByRoleUser.MandorPanen -> listOfNotNull(
@@ -574,6 +577,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
 
                 AppUtils.ListFeatureByRoleUser.IT -> features

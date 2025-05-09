@@ -1,94 +1,101 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/clParentListPanen"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:scrollbars="none"
+    android:fillViewport="true">
 
-    <ImageView
-        android:id="@+id/imageView"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/clParentListPanen"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:src="@drawable/splash_img"
-        android:scaleType="centerCrop"
-        app:layout_constraintHeight_percent="0.6"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:background="@drawable/splash_background_rounded"
-        android:orientation="vertical"
-        android:layout_marginBottom="0dp"
-        app:layout_constraintHeight_percent="0.5"
-        app:layout_constraintBottom_toBottomOf="parent">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="19sp"
-            android:gravity="left"
-            android:textStyle="italic"
-            android:fontFamily="@font/manrope_semibold"
-            android:layout_marginHorizontal="30dp"
-            android:layout_marginTop="30dp"
-            android:textColor="@color/grayDefault"
-            android:text="@string/welcome_splash" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="29sp"
-            android:fontFamily="@font/manrope_extrabold"
-            android:textColor="@color/greenDarker"
-            android:layout_marginHorizontal="30dp"
-            android:gravity="left"
-            android:layout_marginBottom="5dp"
-            android:text="@string/name_app" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="18sp"
-            android:textColor="@color/black"
-            android:layout_marginHorizontal="30dp"
-            android:gravity="left"
-            android:fontFamily="@font/manrope_medium"
-            android:text="@string/description_short" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-    </LinearLayout>
-
-    <!-- New LinearLayout for logo and version at the bottom -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:layout_marginBottom="10dp"
-        app:layout_constraintBottom_toBottomOf="parent">
+        android:layout_height="wrap_content">
 
         <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="65dp"
-            android:src="@drawable/cbi"
-            android:scaleType="fitCenter" />
+            android:id="@+id/imageView"
+            android:layout_width="match_parent"
+            android:layout_height="350dp"
+            android:src="@drawable/splash_img"
+            android:scaleType="centerCrop"
+            tools:ignore="MissingConstraints" />
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="18sp"
-            android:textColor="@color/black"
-            android:gravity="center"
-            android:id="@+id/version_app"
-            android:fontFamily="@font/manrope_semibold"
-            android:text="Versi 1.5.73"
-            android:layout_marginBottom="30dp"
-            android:layout_marginTop="5dp" />
-    </LinearLayout>
+            android:background="@drawable/splash_background_rounded"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_marginTop="-30dp"
+            app:layout_constraintTop_toBottomOf="@id/imageView"
+            android:layout_marginBottom="0dp">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/l"
+                android:gravity="left"
+                android:textStyle="italic"
+                android:fontFamily="@font/manrope_semibold"
+                android:layout_marginHorizontal="30dp"
+                android:layout_marginTop="30dp"
+                android:textColor="@color/grayDefault"
+                android:text="@string/welcome_splash" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/xxl"
+                android:fontFamily="@font/manrope_extrabold"
+                android:textColor="@color/greenDarker"
+                android:layout_marginHorizontal="30dp"
+                android:gravity="left"
+                android:layout_marginBottom="5dp"
+                android:text="@string/name_app" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/m"
+                android:textColor="@color/black"
+                android:layout_marginHorizontal="30dp"
+                android:gravity="left"
+                android:fontFamily="@font/manrope_medium"
+                android:text="@string/description_short" />
+
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="275dp"
+                android:gravity="center"
+                android:id="@+id/logo_container"
+                >
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="65dp"
+                    android:src="@drawable/cbi"
+                    android:scaleType="fitCenter" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="@dimen/l"
+                    android:textColor="@color/black"
+                    android:gravity="center"
+                    android:id="@+id/version_app"
+                    android:fontFamily="@font/manrope_semibold"
+                    android:text="Versi 1.5.73"
+                    android:layout_marginBottom="30dp"
+                    android:layout_marginTop="5dp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Logo and version at the bottom -->
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

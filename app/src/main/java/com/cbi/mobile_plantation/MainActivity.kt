@@ -3,9 +3,12 @@ package com.cbi.mobile_plantation
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.util.DisplayMetrics
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup.MarginLayoutParams
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -44,21 +47,41 @@ class MainActivity : AppCompatActivity() {
             layoutInflater.inflate(R.layout.activity_welcome_screen, null)
         }
 
-        setAppVersion(rootView) // Pass the rootView to set the version text
+        // Adjust the logo container's top margin based on screen height
+        val logoContainer = rootView.findViewById<LinearLayout>(R.id.logo_container)
+        if (logoContainer != null) {
+            // Get the device screen height
+            val displayMetrics = DisplayMetrics()
+            windowManager.defaultDisplay.getMetrics(displayMetrics)
+            val screenHeightPx = displayMetrics.heightPixels
 
-        setContentView(rootView) // Now set the inflated view as the content view
+            // Get current layout parameters
+            val layoutParams = logoContainer.layoutParams as MarginLayoutParams
+
+            // For small screens, use 75dp margin
+            if (screenHeightPx < 1800) { // Adjust this threshold as needed
+                val marginTopDp = 125
+                val marginTopPx = (marginTopDp * resources.displayMetrics.density).toInt()
+                layoutParams.topMargin = marginTopPx
+            }
+
+            logoContainer.layoutParams = layoutParams
+        }
+
+        setAppVersion(rootView)
+        setContentView(rootView)
 
         // Initialize database
         lifecycleScope.launch(Dispatchers.IO) {
             initializeDatabase()
 
-            // After database initialization, wait for splash screen
             withContext(Dispatchers.Main) {
                 delay(1500) // Wait for 1.5 seconds
                 showMainContent()
             }
         }
     }
+
 
     @SuppressLint("SetTextI18n")
     private fun setAppVersion(rootView: View) {
