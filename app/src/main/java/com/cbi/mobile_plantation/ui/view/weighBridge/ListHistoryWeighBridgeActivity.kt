@@ -371,6 +371,19 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
                 AppLogger.d("failedUploads $failedUploads")
 
+                val originalSizes = mutableMapOf<String, Long>()
+
+                // Store sizes of original failed uploads by title/path to preserve them
+                failedUploads.forEach { failedItem ->
+                    // Get the size from the adapter's fileSizeMap
+                    val originalSize = adapter.getFileSizeById(failedItem.id)
+                    if (originalSize > 0) {
+                        // Create a unique key using title and path to identify items
+                        val itemKey = "${failedItem.title}:${failedItem.fullPath}"
+                        originalSizes[itemKey] = originalSize
+                    }
+                }
+
                 failedUploads.forEach { failedItem ->
                     when (failedItem.type) {
                         AppUtils.DatabaseServer.PPRO -> {
@@ -435,6 +448,30 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
                 // Clear and update the RecyclerView with only failed items
                 adapter.updateItems(retryUploadItems)
+
+
+                retryUploadItems.forEach { retryItem ->
+                    // Create a key to match with original size map
+                    val itemKey = "${retryItem.title}:${retryItem.fullPath}"
+                    val size = originalSizes[itemKey] ?: 0L
+
+                    AppLogger.d("Setting file size for item ${retryItem.id} (${retryItem.title}): originalSize=$size")
+
+                    // If we have data but no size from the map, calculate from data length
+                    if (size == 0L && retryItem.data.isNotEmpty()) {
+                        val dataSize = retryItem.data.length.toLong()
+                        AppLogger.d("No original size found, using data length: $dataSize")
+                        adapter.setFileSize(retryItem.id, dataSize)
+                    } else {
+                        // Use the stored size
+                        AppLogger.d("Using original size: $size")
+                        adapter.setFileSize(retryItem.id, size)
+                    }
+
+                    // Verify the size was set correctly
+                    val verifySize = adapter.getFileSizeById(retryItem.id)
+                    AppLogger.d("Verified size for item ${retryItem.id}: $verifySize")
+                }
 
                 // Reset adapter state (progress bars, status icons, etc.)
                 adapter.resetState()

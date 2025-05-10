@@ -12,7 +12,6 @@ import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.StagingApiClient
-import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.gson.Gson
@@ -394,8 +393,8 @@ class UploadCMPRepository(context: Context) {
                                 )
 
                                 // Make the API call for single image
-                                val response = TestingAPIClient.instance.uploadPhotos(
-                                    photos = listOf(photoPart),  // Send as single-item list
+                                val response = CMPApiClient.instance.uploadPhotos(
+                                    photos = listOf(photoPart),
                                     datasetType = datasetTypeRequestBody,
                                     path = basePathRequestBody
                                 )
@@ -595,7 +594,7 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         AppLogger.d("CMP: Making API call to upload JSON file")
-                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                        val response = CMPApiClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -784,6 +783,7 @@ class UploadCMPRepository(context: Context) {
 
                         // Extract the item ID for database update
                         val itemId = (jsonData["id"] as? Double)?.toInt() ?: (jsonData["id"] as? Int) ?: 0
+                        val ipMill = (jsonData["ip"] as? Double)?.toInt() ?: (jsonData["ip"] as? Int) ?: 0
 
                         // Extract the uploader info for database update
                         val uploaderInfo = jsonData["uploader_info"]?.toString() ?: ""
@@ -873,7 +873,7 @@ class UploadCMPRepository(context: Context) {
 
                         try {
                             AppLogger.d("PPRO: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
-                            StagingApiClient.updateBaseUrl("http://:3000")
+                            StagingApiClient.updateBaseUrl("http://$ipMill:3000")
 
                             val response = StagingApiClient.instance.insertESPBKraniTimbangPPRO(apiData)
                             AppLogger.d("PPRO: API call completed, isSuccessful=${response.isSuccessful}, code=${response.code()}")
@@ -1162,7 +1162,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using raw JSON body")
 
-                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                        val response = CMPApiClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 

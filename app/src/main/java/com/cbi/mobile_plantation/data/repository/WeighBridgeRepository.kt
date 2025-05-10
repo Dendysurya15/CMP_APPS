@@ -275,8 +275,7 @@ class WeighBridgeRepository(context: Context) {
 
                                 try {
                                     AppLogger.d("PPRO: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
-//                                    StagingApiClient.updateBaseUrl("http://$ipMill:3000")
-                                    StagingApiClient.updateBaseUrl("http://:3000")
+                                    StagingApiClient.updateBaseUrl("http://$ipMill:3000")
 
                                     val response =
                                         StagingApiClient.instance.insertESPBKraniTimbangPPRO(data)
@@ -524,7 +523,7 @@ class WeighBridgeRepository(context: Context) {
 
                                 try {
                                     // Use the direct method for uploading JSON data
-                                    val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                                    val response = CMPApiClient.instance.uploadJsonV3Raw(
                                         jsonData = jsonRequestBody
                                     )
 
