@@ -1346,9 +1346,16 @@ class HomePageActivity : AppCompatActivity() {
                                                 // Store the IDs for this batch
                                                 val batchIds = batch.mapNotNull { it["id"] as? Int }
 
+                                                // Create filename - remove batch reference if only one batch exists
+                                                val filename = if (panenBatches.size == 1) {
+                                                    "Data Panen ${prefManager!!.estateUserLogin}"
+                                                } else {
+                                                    "Data Panen ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
+                                                }
+
                                                 panenBatchMap[batchKey] = mapOf(
                                                     "data" to batchJson,
-                                                    "filename" to "PANEN ${prefManager!!.estateUserLogin} ${batchIndex + 1}",
+                                                    "filename" to filename,
                                                     "ids" to batchIds
                                                 )
                                             }
@@ -1739,19 +1746,19 @@ class HomePageActivity : AppCompatActivity() {
         uploadCMPViewModel.resetState()
         loadingDialog.dismiss()
 
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
-        val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-        titleTV.text = "Upload Data CMP"
+            val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
+            val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
+            titleTV.text = "Upload Data CMP"
 
-        val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
-        val totalSizeProgressTV = dialogView.findViewById<TextView>(R.id.total_size_progress)
-        val counterSizeFile = dialogView.findViewById<LinearLayout>(R.id.counterSizeFile)
-        counterSizeFile.visibility = View.VISIBLE
+            val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
+            val totalSizeProgressTV = dialogView.findViewById<TextView>(R.id.total_size_progress)
+            val counterSizeFile = dialogView.findViewById<LinearLayout>(R.id.counterSizeFile)
+            counterSizeFile.visibility = View.VISIBLE
 
-        // Get all buttons
-        val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
-        val btnUploadDataCMP = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
-        val btnRetryUpload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
+            // Get all buttons
+            val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+            val btnUploadDataCMP = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
+            val btnRetryUpload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
 
         val containerDownloadDataset =
             dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
@@ -1950,6 +1957,9 @@ class HomePageActivity : AppCompatActivity() {
 
             val itemsToUpload = uploadItems.toList()
 
+
+            AppLogger.d("itemsToUpload $itemsToUpload")
+
             // Start the upload process
             uploadCMPViewModel.uploadMultipleJsonsV3(itemsToUpload)
 
@@ -1994,6 +2004,20 @@ class HomePageActivity : AppCompatActivity() {
                 AppLogger.d("failedUploads $failedUploads")
                 AppLogger.d("globalImageNameError $globalImageNameError")
 
+                // Track the sizes of the original items to preserve them
+                val originalSizes = mutableMapOf<String, Long>()
+
+                // Store sizes of original failed uploads by title/path to preserve them
+                failedUploads.forEach { failedItem ->
+                    // Get the size from the adapter's fileSizeMap
+                    val originalSize = adapter.getFileSizeById(failedItem.id)
+                    if (originalSize > 0) {
+                        // Create a unique key using title and path to identify items
+                        val itemKey = "${failedItem.title}:${failedItem.fullPath}"
+                        originalSizes[itemKey] = originalSize
+                    }
+                }
+
                 failedUploads.forEach { failedItem ->
                     when (failedItem.type) {
                         "image" -> {
@@ -2026,16 +2050,16 @@ class HomePageActivity : AppCompatActivity() {
                                         ).trim()
                                         val newTitle = "$baseTitle (${onlyFailedImages.size} file)"
 
-                                        retryUploadItems.add(
-                                            UploadCMPItem(
-                                                id = itemId++,
-                                                title = newTitle,
-                                                fullPath = failedItem.fullPath,
-                                                baseFilename = failedItem.baseFilename,
-                                                data = failedImagesJson,
-                                                type = failedItem.type
-                                            )
+                                        val newItem = UploadCMPItem(
+                                            id = itemId++,
+                                            title = newTitle,
+                                            fullPath = failedItem.fullPath,
+                                            baseFilename = failedItem.baseFilename,
+                                            data = failedImagesJson,
+                                            type = failedItem.type
                                         )
+
+                                        retryUploadItems.add(newItem)
 
                                         AppLogger.d("Filtered images for retry: ${onlyFailedImages.map { it["name"] }}")
                                     } else {
@@ -2091,9 +2115,32 @@ class HomePageActivity : AppCompatActivity() {
                 // Flag that we're in a retry operation
                 isRetryOperation = true
 
-                // Clear and update the RecyclerView with only failed items
+// First update the adapter items
                 adapter.updateItems(retryUploadItems)
 
+// Then set the file sizes for each retry item
+                retryUploadItems.forEach { retryItem ->
+                    // Create a key to match with original size map
+                    val itemKey = "${retryItem.title}:${retryItem.fullPath}"
+                    val size = originalSizes[itemKey] ?: 0L
+
+                    AppLogger.d("Setting file size for item ${retryItem.id} (${retryItem.title}): originalSize=$size")
+
+                    // If we have data but no size from the map, calculate from data length
+                    if (size == 0L && retryItem.data.isNotEmpty()) {
+                        val dataSize = retryItem.data.length.toLong()
+                        AppLogger.d("No original size found, using data length: $dataSize")
+                        adapter.setFileSize(retryItem.id, dataSize)
+                    } else {
+                        // Use the stored size
+                        AppLogger.d("Using original size: $size")
+                        adapter.setFileSize(retryItem.id, size)
+                    }
+
+                    // Verify the size was set correctly
+                    val verifySize = adapter.getFileSizeById(retryItem.id)
+                    AppLogger.d("Verified size for item ${retryItem.id}: $verifySize")
+                }
                 // Reset adapter state (progress bars, status icons, etc.)
                 adapter.resetState()
 
