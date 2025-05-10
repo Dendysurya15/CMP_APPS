@@ -217,7 +217,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var selectedPemanenLainAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
     private lateinit var rvSelectedPemanenLain: RecyclerView
-
+    private var selectedTPHJenisId: Int? = null
     enum class InputType {
         SPINNER,
         EDITTEXT,
@@ -266,7 +266,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var userName: String? = null
     private var userId: Int? = null
     private var jabatanUser: String? = null
-    private var panenStoredLocal: MutableMap<Int, Int> = mutableMapOf()
+    private data class TPHData(val count: Int, val jenisTPHId: Int)
+    private var panenStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
     private var isEmptyScannedTPH = true
@@ -373,13 +374,26 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     withContext(Dispatchers.Main) {
                         panenViewModel.activePanenList.observe(this@FeaturePanenTBSActivity) { list ->
-                            val tphCounts = list?.mapNotNull { it.tph?.id }
-                                ?.groupingBy { it }
-                                ?.eachCount()
-                                ?: emptyMap()
+                            val tphDataMap = mutableMapOf<Int, TPHData>()
+
+                            list?.forEach { panen ->
+                                val tphId = panen.tph?.id
+                                val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
+
+                                if (tphId != null && jenisTPHId != null) {
+                                    val existingData = tphDataMap[tphId]
+                                    if (existingData != null) {
+                                        // Increment the count for existing TPH
+                                        tphDataMap[tphId] = existingData.copy(count = existingData.count + 1)
+                                    } else {
+                                        // Create new entry for this TPH
+                                        tphDataMap[tphId] = TPHData(count = 1, jenisTPHId = jenisTPHId)
+                                    }
+                                }
+                            }
 
                             panenStoredLocal.clear()
-                            panenStoredLocal.putAll(tphCounts)
+                            panenStoredLocal.putAll(tphDataMap)
 
                             panenDeferred.complete(list ?: emptyList())
                         }
@@ -397,6 +411,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             jenisTPHDeferred.complete(list ?: emptyList())
                         }
                     }
+
+                    AppLogger.d("jenisTPHlistGlobal $jenisTPHListGlobal")
 
                     val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
 
@@ -763,13 +779,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             "success.json",
                                             R.color.greenDefault
                                         ) {
-
                                             val tphId = selectedTPHValue!!.toInt()
-                                            val currentCount = panenStoredLocal[tphId] ?: 0
-                                            panenStoredLocal[tphId] = currentCount + 1
+                                            val tphData = panenStoredLocal[tphId]
+
+                                            if (tphData != null) {
+                                                // Update existing entry
+                                                panenStoredLocal[tphId] = tphData.copy(count = tphData.count + 1)
+                                            } else {
+                                                // Create new entry with jenisTPHId from your selected TPH
+                                                val jenisTPHId = selectedTPHJenisId ?: 0  // Use 0 as a default if null
+                                                panenStoredLocal[tphId] = TPHData(count = 1, jenisTPHId = jenisTPHId)
+                                            }
+
                                             resetFormAfterSaveData()
                                         }
                                     }
+
 
                                     is AppRepository.SaveResultPanen.Error -> {
                                         AlertDialogUtility.withSingleAction(
@@ -1255,14 +1280,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 handleItemSelection(tipePanenLayout, tipePanenPosition, selectedItem)
             }
         }
-
-//        setupSpinnerView(findViewById(R.id.layoutNoTPH), emptyList())
-//        setupSpinnerView(findViewById(R.id.layoutKemandoranLain), emptyList())
-
-//        blokList = emptyList()
-//        kemandoranList = emptyList()
-//        kemandoranLainList = emptyList()
-//        tphList = emptyList()
 
         val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
         etAncak.setText("")
@@ -2655,12 +2672,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Location.distanceBetween(userLat, userLon, location.lat, location.lon, results)
             val distance = results[0]
 
-            val jenisTPHId = location.jenisTPHId
+            val jenisTPHId = location.jenisTPHId.toInt()
 
             // Get selection data from panenStoredLocal
-            val selectedCount = panenStoredLocal[id] ?: 0
+            val tphData = panenStoredLocal[id]
+            val selectedCount = tphData?.count ?: 0
             val isSelected = selectedCount > 0
             val isCurrentlySelected = id == selectedTPHIdByScan
+
+            // Find the limit for this jenisTPHId
+            // When finding the limit, use a default value like 1 if no limit is found
+            val limit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
 
             // Include if within radius OR is the currently selected TPH
             if (distance <= radiusMinimum || isCurrentlySelected) {
@@ -2672,9 +2694,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         distance = distance,
                         isAlreadySelected = isSelected,
                         selectionCount = selectedCount,
-                        canBeSelectedAgain = selectedCount < AppUtils.MAX_SELECTIONS_PER_TPH,
+                        canBeSelectedAgain = selectedCount < limit,
                         isWithinRange = distance <= radiusMinimum,
-                        jenisTPHId = jenisTPHId
+                        jenisTPHId = jenisTPHId.toString()
                     )
                 )
 
@@ -3401,16 +3423,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         if (selectedTPHValue != null && blokBanjir == 1) {
             val tphId = selectedTPHValue!!.toInt()
-            val currentCount = panenStoredLocal[tphId] ?: 0
-            if (currentCount > AppUtils.MAX_SELECTIONS_PER_TPH - 1) {
+            val tphData = panenStoredLocal[tphId]
+            val currentCount = tphData?.count ?: 0
+            val jenisTPHId = selectedTPHJenisId ?: 0
+
+            // Find the limit for this jenisTPHId
+            val limit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+
+            if (currentCount >= limit) {
                 isValid = false
                 val layoutNoTPH = findViewById<LinearLayout>(R.id.layoutNoTPH)
                 layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
-                    text =
-                        "TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!"
+                    text = "TPH sudah terpilih $currentCount dari $limit kali, Harap ganti nomor TPH!"
                     visibility = View.VISIBLE
                 }
-                errorMessages.add("TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!")
+                errorMessages.add("TPH sudah terpilih $currentCount dari $limit kali, Harap ganti nomor TPH!")
             }
         }
 
@@ -3717,7 +3744,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
             R.id.layoutTahunTanam -> {
-                resetTPHSpinner(linearLayout.rootView)
+//                resetTPHSpinner(linearLayout.rootView)
                 val selectedTahunTanam = selectedItem.toString()
                 selectedTahunTanamValue = selectedTahunTanam
                 selectedTahunTanamIdSpinner = position
@@ -3835,6 +3862,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     return
                 }
 
+                // In the handleItemSelection for R.id.layoutBlok
                 lifecycleScope.launch(Dispatchers.IO) {
                     withContext(Dispatchers.Main) {
                         animateLoadingDots(linearLayout)
@@ -3842,6 +3870,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
 
                     try {
+                        // Log all parameters to ensure they're not null
+                        AppLogger.d("Loading TPHs with params: estateId=$estateId, selectedDivisiValue=$selectedDivisiValue, selectedTahunTanamValue=$selectedTahunTanamValue, selectedBlokValue=$selectedBlokValue")
+
                         if (estateId == null || selectedDivisiValue == null || selectedTahunTanamValue == null || selectedBlokValue == null) {
                             throw IllegalStateException("One or more required parameters are null!")
                         }
@@ -3854,6 +3885,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                     estateId!!.toInt()
                                 }
 
+                            AppLogger.d("Getting TPH list with: estateId=$estateIdToUse, divisi=$selectedDivisiValue, tahunTanam=$selectedTahunTanamValue, blok=$selectedBlokValue")
                             datasetViewModel.getTPHList(
                                 estateIdToUse,
                                 selectedDivisiValue!!,
@@ -3863,6 +3895,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
 
                         tphList = tphDeferred.await() ?: emptyList() // Avoid null crash
+                        AppLogger.d("Retrieved tphList size: ${tphList.size}")
 
                         val normalTphList = tphList.filter { tph ->
                             // Convert jenis_tph_id to Int, defaulting to 0 if null or not a valid integer
@@ -3871,33 +3904,50 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             // Only include TPH with jenis_tph_id = 1 (normal)
                             jenisId == 1
                         }
-
+                        AppLogger.d("Filtered normalTphList size: ${normalTphList.size}")
+                        AppLogger.d("panenStoredLocal contents: ")
+                        panenStoredLocal.forEach { (tphId, data) ->
+                            AppLogger.d("TPH ID: $tphId, Count: ${data.count}, JenisTPHId: ${data.jenisTPHId}")
+                        }
                         val noTPHList = normalTphList.map { tph ->
-                            val selectionCount = panenStoredLocal[tph.id] ?: 0
+                            val tphData = panenStoredLocal[tph.id]
+                            val selectionCount = tphData?.count ?: 0
+                            val jenisTPHId = tph.jenis_tph_id?.toIntOrNull() ?: 0
+
+                            // Find the limit for this jenisTPHId
+                            val limit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+
+                            AppLogger.d("TPH ${tph.id} (${tph.nomor}): selectionCount=$selectionCount, jenisTPHId=$jenisTPHId, limit=$limit")
+
                             when (selectionCount) {
                                 0 -> tph.nomor
-                                1 -> "${tph.nomor} (sudah terpilih 1 kali)"
-                                else -> "${tph.nomor} (sudah terpilih ${selectionCount} kali)"
+                                else -> "${tph.nomor} (sudah terpilih ${selectionCount} dari ${limit} kali)"
                             }
                         }
-
-
+                        AppLogger.d("Created noTPHList size: ${noTPHList.size}")
+                        AppLogger.d(noTPHList.toString())
                         withContext(Dispatchers.Main) {
                             val layoutNoTPH =
                                 linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
 
+                            AppLogger.d("Setting up TPH spinner with ${noTPHList.size} items")
                             if (noTPHList.isNotEmpty()) {
+
+
                                 setupSpinnerView(layoutNoTPH, noTPHList as List<String>)
+                                AppLogger.d("TPH spinner populated with ${noTPHList.size} items")
                             } else {
                                 setupSpinnerView(layoutNoTPH, emptyList())
+                                AppLogger.d("TPH spinner populated with empty list")
                             }
                         }
                     } catch (e: Exception) {
-                        AppLogger.e("Error fetching afdeling data: ${e.message}")
+                        AppLogger.e("Error fetching TPH data: ${e.message}")
+                        AppLogger.e("Stack trace: ${e.stackTraceToString()}")
                         withContext(Dispatchers.Main) {
                             Toast.makeText(
                                 this@FeaturePanenTBSActivity,
-                                "Error loading afdeling data: ${e.message}",
+                                "Error loading TPH data: ${e.message}",
                                 Toast.LENGTH_LONG
                             ).show()
                         }

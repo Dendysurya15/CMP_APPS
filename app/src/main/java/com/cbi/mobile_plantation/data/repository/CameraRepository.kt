@@ -483,7 +483,7 @@ class CameraRepository(
                                             }
 
 // Create user info line with estate and jabatan
-                                        val userInfo = "${prefManager!!.estateUserLogin} - ${prefManager!!.jabatanUserLogin}"
+                                        val userInfo = "${prefManager!!.estateUserLogin} - ${prefManager!!.nameUserLogin}"
 
 // Line 1: Always "CMP-$featureName"
 // Line 2: Always user info
