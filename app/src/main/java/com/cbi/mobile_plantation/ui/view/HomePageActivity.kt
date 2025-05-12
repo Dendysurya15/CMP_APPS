@@ -553,8 +553,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
 
@@ -565,8 +565,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
 

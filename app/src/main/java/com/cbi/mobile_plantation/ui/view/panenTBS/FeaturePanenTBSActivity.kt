@@ -4560,7 +4560,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
         takeFotoPreviewAdapter = TakeFotoPreviewAdapter(
-            3,
+            5,
             cameraViewModel,
             this,
             AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
