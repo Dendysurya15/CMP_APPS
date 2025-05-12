@@ -444,6 +444,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         update_date = safeGetString("update_date"),
                         status = safeGetString("status"),
                         jenis_tph_id = safeGetString("jenis_tph_id"),
+                        limit_tph = safeGetString("limit_tph"),
                     )
 
                     // Log the first few items to check conversion
@@ -904,7 +905,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         AppUtils.DatasetNames.kemandoran,
                         AppUtils.DatasetNames.tph,
                         AppUtils.DatasetNames.transporter,
-                        AppUtils.DatasetNames.kendaraan
+                        AppUtils.DatasetNames.kendaraan,
+                        AppUtils.DatasetNames.jenisTPH,
                     )
 
                     var modifiedRequest = request
@@ -926,6 +928,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     }
 
                     AppLogger.d("Downloading dataset for ${modifiedRequest.estateAbbr}/ ${modifiedRequest.dataset}")
+
+                    AppLogger.d("modifiedRequest $modifiedRequest")
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
@@ -1163,6 +1167,27 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                         if (lastModified != null) {
                                             prefManager.lastModifiedDatasetKendaraan = lastModified
+                                        }
+
+                                        processed = true
+                                    }
+
+                                    AppUtils.DatasetNames.jenisTPH -> {
+                                        val jenisTPHList = parseStructuredJsonToList(jsonContent, JenisTPHModel::class.java)
+                                        AppLogger.d("Parsed ${jenisTPHList.size} jenis TPH records, starting database update")
+
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                repository.updateOrInsertJenisTPH(jenisTPHList)
+                                                AppLogger.d("Database update completed for kendaraan dataset")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Database update error for kendaraan: ${e.message}")
+                                                throw e
+                                            }
+                                        }
+
+                                        if (lastModified != null) {
+                                            prefManager.lastModifiedDatasetJenisTPH = lastModified
                                         }
 
                                         processed = true
@@ -2352,9 +2377,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 transformedArray.add(transformedObj)
             }
 
-//            AppLogger.d("About to convert array of size: ${transformedArray.size()}")
-
-//            AppLogger.d(transformedArray.toString())
             return gson.fromJson(
                 transformedArray,
                 TypeToken.getParameterized(List::class.java, classType).type

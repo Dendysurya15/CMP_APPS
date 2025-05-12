@@ -367,7 +367,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 )
                                             }
 
-                                            val itemsToUpload = listOf(cmpItem)
+                                            val itemsToUpload = listOf(itemToUpload, cmpItem)
                                             val globalIdEspb = listOf(savedItemId)
 
                                             loadingDialog.setMessage(

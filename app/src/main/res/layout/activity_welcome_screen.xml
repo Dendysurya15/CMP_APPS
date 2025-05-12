@@ -69,7 +69,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginTop="275dp"
+                android:layout_marginTop="255dp"
                 android:gravity="center"
                 android:id="@+id/logo_container">
 
@@ -88,7 +88,7 @@
                     android:id="@+id/version_app"
                     android:fontFamily="@font/manrope_semibold"
                     android:text="Versi 1.5.73"
-                    android:layout_marginBottom="30dp"
+
                     android:layout_marginTop="5dp" />
             </LinearLayout>
 

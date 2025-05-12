@@ -73,14 +73,15 @@ class ListTPHInsideRadiusAdapter(
         // Get the TPH item for this position
         val tphItem = tphList[position]
 
-// Get the jenisTPHId (defaulting to 1 for normal if null or invalid)
-        val jenisTPHId = tphItem.jenisTPHId.toIntOrNull() ?: 1
+        AppLogger.d("tphItem $tphItem")
 
-// Create background drawable
+        val jenisTPHId = tphItem.jenisTPHId.toInt()
+
+        // Create background drawable
         val itemBackground = GradientDrawable()
         itemBackground.cornerRadius = 8f
 
-// Set the appropriate color based on jenisTPHId
+        // Set the appropriate color based on jenisTPHId
         val textColor = when (jenisTPHId) {
             1 -> ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton)
             2 -> ContextCompat.getColor(holder.itemView.context, R.color.bluedarklight)
@@ -88,38 +89,39 @@ class ListTPHInsideRadiusAdapter(
             else -> ContextCompat.getColor(holder.itemView.context, R.color.black)
         }
 
-// Set up the background
+        // Set up the background
         holder.itemView.background = itemBackground
         holder.itemView.setPadding(16, 8, 16, 8)
 
-// Setup margins
+        // Setup margins
         val layoutParams = holder.itemView.layoutParams as RecyclerView.LayoutParams
         layoutParams.setMargins(8, 4, 8, 4)
         holder.itemView.layoutParams = layoutParams
 
-// Get the jenisTPH name
+        // Get the jenisTPH name - IMPORTANT FIX: Make sure to use the jenisTPHId from this item, not a cached one
         val jenisTPHName = jenisTPHList.find { it.id == jenisTPHId }?.jenis_tph ?: "normal"
+        AppLogger.d("Position $position: Found jenisTPH name: $jenisTPHName for id: $jenisTPHId")
 
-// Format distance text
+        // Format distance text
         val distanceValue = when {
             tphItem.distance > 100 -> ">100 m"
             else -> "${tphItem.distance.toInt()} m"
         }
 
-// Base TPH info text
+        // Base TPH info text
         val baseText = "TPH ${tphItem.number} - ${tphItem.blockCode}"
 
-// Create the full text
+        // Create the full text
         val plainText = if (!tphItem.isWithinRange) {
             "$baseText ($distanceValue)\ndiluar jangkauan"
         } else {
             "$baseText ($distanceValue)"
         }
 
-// Create spannable for coloring
+        // Create spannable for coloring
         val spannable = SpannableString(plainText)
 
-// Color the baseText part with the appropriate color
+        // Color the baseText part with the appropriate color
         spannable.setSpan(
             ForegroundColorSpan(textColor),
             0,
@@ -127,7 +129,7 @@ class ListTPHInsideRadiusAdapter(
             Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
         )
 
-// Color the distance part yellow if out of range
+        // Color the distance part yellow if out of range
         if (!tphItem.isWithinRange) {
             val yellowColor = ContextCompat.getColor(holder.itemView.context, R.color.yellowbutton)
             val openParenIndex = plainText.indexOf('(')
@@ -142,13 +144,15 @@ class ListTPHInsideRadiusAdapter(
             }
         }
 
-// Set the text
+        // Set the text
         holder.tphInfoTextView.text = spannable
 
-// Handle jenisTPHName TextView visibility
+        // IMPORTANT FIX: Always reset the jenisTPHNameTextView visibility and content for each item
+        // Handle jenisTPHName TextView visibility
         if (jenisTPHId == 1) {
             // Hide for Normal type
             holder.jenisTPHNameTextView.visibility = View.GONE
+            holder.jenisTPHNameTextView.text = "" // Clear text for recycled views
         } else {
             // Show for other types
             holder.jenisTPHNameTextView.visibility = View.VISIBLE
@@ -169,7 +173,9 @@ class ListTPHInsideRadiusAdapter(
             // Set text and color
             holder.jenisTPHNameTextView.text = spannableJenisTPH
             holder.jenisTPHNameTextView.setTextColor(textColor)
+
         }
+
         val isCurrentlySelected = tphItem.id == selectedTPHId
         holder.radioButton.isChecked = isCurrentlySelected
 
@@ -179,11 +185,37 @@ class ListTPHInsideRadiusAdapter(
 
         // Handle status text based on selection and range
         if (tphItem.isAlreadySelected) {
+            val jenisTPHId = tphItem.jenisTPHId.toInt()
+            // Get the default limit from jenisTPHList
+            val defaultLimit = jenisTPHList.find { it.id == jenisTPHId }?.limit ?: 1
+
+            // Get the custom limit if available
+            val customLimit = try {
+                tphItem.customLimit?.toIntOrNull()
+            } catch (e: Exception) {
+                null
+            }
+
+            // Calculate the limit to use based on TPH type
+            val limit = if (jenisTPHId == 2 && jenisTPHList.find { it.id == 2 }?.jenis_tph == "induk") {
+                // Special case for jenis_tph = induk (id = 2)
+                if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                    // Use the custom limit if it's greater than 3 and up to 999
+                    customLimit
+                } else {
+                    // Otherwise, use the default limit (7)
+                    defaultLimit
+                }
+            } else {
+                // For other jenis_tph_id values
+                customLimit ?: defaultLimit
+            }
+
             // Show different messages based on selection count
-            if (tphItem.selectionCount >= AppUtils.MAX_SELECTIONS_PER_TPH) {
+            if (tphItem.selectionCount >= limit!!) {
                 // TPH has reached maximum selections
                 holder.tphHasBeenSelected.text =
-                    "TPH sudah terpilih ${tphItem.selectionCount} kali (maksimal)!"
+                    "TPH sudah terpilih ${tphItem.selectionCount} dari $limit kali (maksimal)!"
                 holder.tphHasBeenSelected.visibility = View.VISIBLE
 
                 // Disable radio button
@@ -192,26 +224,18 @@ class ListTPHInsideRadiusAdapter(
             } else {
                 // TPH has been selected but can be selected again
                 holder.tphHasBeenSelected.text =
-                    "TPH sudah terpilih ${tphItem.selectionCount} kali!"
+                    "TPH sudah terpilih ${tphItem.selectionCount} dari $limit kali!"
                 holder.tphHasBeenSelected.visibility = View.VISIBLE
 
                 // Radio button remains enabled
                 holder.radioButton.isEnabled = true
                 holder.radioButton.alpha = 1.0f
             }
-        } else {
-            // TPH has not been selected before
-            holder.tphHasBeenSelected.visibility = View.GONE
-
-            // Handle out of range TPHs
-            if (!tphItem.isWithinRange) {
-                holder.radioButton.isEnabled = false
-                holder.radioButton.alpha = 0.5f // Make it look disabled
-            } else {
-                holder.radioButton.isEnabled = true
-                holder.radioButton.alpha = 1.0f
-            }
         }
+
+        // Reset click listeners for all items
+        holder.radioButton.setOnClickListener(null)
+        holder.itemView.setOnClickListener(null)
 
         // Only enable click listener if the TPH can be selected again and is within range
         if (tphItem.canBeSelectedAgain && tphItem.isWithinRange) {
@@ -232,10 +256,6 @@ class ListTPHInsideRadiusAdapter(
             holder.itemView.setOnClickListener {
                 holder.radioButton.performClick()
             }
-        } else {
-            // Remove click listeners if TPH cannot be selected again or is out of range
-            holder.radioButton.setOnClickListener(null)
-            holder.itemView.setOnClickListener(null)
         }
     }
 

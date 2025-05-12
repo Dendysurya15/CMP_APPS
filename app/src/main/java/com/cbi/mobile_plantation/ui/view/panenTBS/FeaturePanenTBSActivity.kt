@@ -266,7 +266,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var userName: String? = null
     private var userId: Int? = null
     private var jabatanUser: String? = null
-    private data class TPHData(val count: Int, val jenisTPHId: Int)
+    // This should be defined at the class level
+    private data class TPHData(val count: Int, val jenisTPHId: Int, val limitTPH: String? = null)
     private var panenStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
@@ -379,6 +380,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             list?.forEach { panen ->
                                 val tphId = panen.tph?.id
                                 val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
+                                val limitTPH = panen.tph?.limit_tph  // Extract limit_tph directly from panen.tph
 
                                 if (tphId != null && jenisTPHId != null) {
                                     val existingData = tphDataMap[tphId]
@@ -386,8 +388,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         // Increment the count for existing TPH
                                         tphDataMap[tphId] = existingData.copy(count = existingData.count + 1)
                                     } else {
-                                        // Create new entry for this TPH
-                                        tphDataMap[tphId] = TPHData(count = 1, jenisTPHId = jenisTPHId)
+                                        // Create new entry for this TPH with the limit_tph
+                                        tphDataMap[tphId] = TPHData(count = 1, jenisTPHId = jenisTPHId, limitTPH = limitTPH!!)
                                     }
                                 }
                             }
@@ -783,12 +785,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             val tphData = panenStoredLocal[tphId]
 
                                             if (tphData != null) {
-                                                // Update existing entry
+                                                // Update existing entry, maintain the same jenisTPHId and limitTPH
                                                 panenStoredLocal[tphId] = tphData.copy(count = tphData.count + 1)
                                             } else {
-                                                // Create new entry with jenisTPHId from your selected TPH
-                                                val jenisTPHId = selectedTPHJenisId ?: 0  // Use 0 as a default if null
-                                                panenStoredLocal[tphId] = TPHData(count = 1, jenisTPHId = jenisTPHId)
+                                                // Create new entry
+                                                val jenisTPHId = selectedTPHJenisId ?: 0
+
+                                                val limitTPH = tphList.find { it.id == tphId }?.limit_tph
+                                                panenStoredLocal[tphId] = TPHData(count = 1, jenisTPHId = jenisTPHId, limitTPH = limitTPH)
                                             }
 
                                             resetFormAfterSaveData()
@@ -2674,15 +2678,44 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             val jenisTPHId = location.jenisTPHId.toInt()
 
-            // Get selection data from panenStoredLocal
             val tphData = panenStoredLocal[id]
             val selectedCount = tphData?.count ?: 0
             val isSelected = selectedCount > 0
             val isCurrentlySelected = id == selectedTPHIdByScan
 
-            // Find the limit for this jenisTPHId
-            // When finding the limit, use a default value like 1 if no limit is found
-            val limit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+            // Get the default limit from jenisTPHListGlobal
+            val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+
+            // Calculate the final limit to use
+            val limit = if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
+                // Special case for jenis_tph = induk (id = 2)
+                try {
+                    val customLimit = tphData?.limitTPH?.toInt()
+
+                    AppLogger.d("customLimit $customLimit")
+                    if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                        // Use the custom limit if it's greater than 3 and up to 999
+                        customLimit
+                    } else {
+                        // Otherwise, use the default limit (7)
+                        defaultLimit
+                    }
+                } catch (e: Exception) {
+                    defaultLimit
+                }
+            } else {
+                // For other jenis_tph_id values
+                try {
+                    val customLimit = tphData?.limitTPH?.toInt()
+                    if (customLimit != null) {
+                        customLimit
+                    } else {
+                        defaultLimit
+                    }
+                } catch (e: Exception) {
+                    defaultLimit
+                }
+            }
 
             // Include if within radius OR is the currently selected TPH
             if (distance <= radiusMinimum || isCurrentlySelected) {
@@ -2696,7 +2729,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         selectionCount = selectedCount,
                         canBeSelectedAgain = selectedCount < limit,
                         isWithinRange = distance <= radiusMinimum,
-                        jenisTPHId = jenisTPHId.toString()
+                        jenisTPHId = jenisTPHId.toString(),
+                        customLimit = limit.toString()
                     )
                 )
 
@@ -3427,17 +3461,51 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val currentCount = tphData?.count ?: 0
             val jenisTPHId = selectedTPHJenisId ?: 0
 
-            // Find the limit for this jenisTPHId
-            val limit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+            // Get the default limit from jenisTPHListGlobal
+            val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
 
-            if (currentCount >= limit) {
+            // Calculate the final limit to use
+            val limitValue = if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
+                // Special case for jenis_tph = induk (id = 2)
+                // First check if limitTPH exists and can be converted to an Int
+                val customLimit = try {
+                    tphData?.limitTPH?.toInt()
+                } catch (e: Exception) {
+                    null
+                }
+
+                // Use the custom limit if it's valid and within range
+                if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                    customLimit
+                } else {
+                    // Otherwise, use the default limit (7)
+                    defaultLimit // This should be 7 for jenisTPHId = 2
+                }
+            } else {
+                // For other jenis_tph_id values
+                try {
+                    // Try to get the custom limit first
+                    val customLimit = tphData?.limitTPH?.toInt()
+                    if (customLimit != null) {
+                        customLimit
+                    } else {
+                        defaultLimit
+                    }
+                } catch (e: Exception) {
+                    // If conversion fails, use the default
+                    defaultLimit
+                }
+            }
+
+            // Now use the properly converted Int value for comparison
+            if (currentCount >= limitValue) {
                 isValid = false
                 val layoutNoTPH = findViewById<LinearLayout>(R.id.layoutNoTPH)
                 layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
-                    text = "TPH sudah terpilih $currentCount dari $limit kali, Harap ganti nomor TPH!"
+                    text = "TPH sudah terpilih $currentCount dari $limitValue kali, Harap ganti nomor TPH!"
                     visibility = View.VISIBLE
                 }
-                errorMessages.add("TPH sudah terpilih $currentCount dari $limit kali, Harap ganti nomor TPH!")
+                errorMessages.add("TPH sudah terpilih $currentCount dari $limitValue kali, Harap ganti nomor TPH!")
             }
         }
 
@@ -3914,8 +3982,37 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             val selectionCount = tphData?.count ?: 0
                             val jenisTPHId = tph.jenis_tph_id?.toIntOrNull() ?: 0
 
-                            // Find the limit for this jenisTPHId
-                            val limit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+                            // Get the default limit from jenisTPHListGlobal
+                            val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+
+                            // Calculate the final limit to use
+                            val limit = if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
+                                // Special case for jenis_tph = induk (id = 2)
+                                try {
+                                    val customLimit = tphData?.limitTPH?.toInt()
+                                    if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                                        // Use the custom limit if it's greater than 3 and up to 999
+                                        customLimit
+                                    } else {
+                                        // Otherwise, use the default limit (7)
+                                        defaultLimit
+                                    }
+                                } catch (e: Exception) {
+                                    defaultLimit
+                                }
+                            } else {
+                                // For other jenis_tph_id values
+                                try {
+                                    val customLimit = tphData?.limitTPH?.toInt()
+                                    if (customLimit != null) {
+                                        customLimit
+                                    } else {
+                                        defaultLimit
+                                    }
+                                } catch (e: Exception) {
+                                    defaultLimit
+                                }
+                            }
 
                             AppLogger.d("TPH ${tph.id} (${tph.nomor}): selectionCount=$selectionCount, jenisTPHId=$jenisTPHId, limit=$limit")
 

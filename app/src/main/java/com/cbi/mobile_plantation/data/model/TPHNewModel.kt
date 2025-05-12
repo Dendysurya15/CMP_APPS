@@ -69,4 +69,5 @@ data class TPHNewModel (
     val update_date:String?,
     val status:String?,
     val jenis_tph_id:String?,
+    val limit_tph:String?,
 )

@@ -77,7 +77,7 @@ import java.util.concurrent.Executors
         AfdelingModel::class,
         JenisTPHModel::class
     ],
-    version = 38
+    version = 39
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -147,7 +147,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_33_34,
                         MIGRATION_34_35,
                         MIGRATION_35_36,
-                        MIGRATION_36_37
+                        MIGRATION_36_37,
+                        MIGRATION_37_38
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -489,6 +490,13 @@ abstract class AppDatabase : RoomDatabase() {
                             "limit INTEGER, " +
                             "keterangan TEXT)"
                 )
+            }
+        }
+
+        val MIGRATION_37_38 = object : Migration(33, 34) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+
+                database.execSQL("ALTER TABLE tph ADD COLUMN limit_tph TEXT NOT NULL DEFAULT 1")
             }
         }
 
