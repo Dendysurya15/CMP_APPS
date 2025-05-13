@@ -3,37 +3,30 @@ package com.cbi.mobile_plantation.ui.view.Absensi
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.text.Html
+import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.activity.enableEdgeToEdge
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cbi.mobile_plantation.R
-import com.cbi.mobile_plantation.data.model.weighBridge.wbQRData
-import com.cbi.mobile_plantation.data.repository.AbsensiRepository
-import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
-import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity
-import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity.InfoType
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
-import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
-import com.cbi.mobile_plantation.utils.AppUtils.formatToIndonesianDate
 import com.cbi.mobile_plantation.utils.AppUtils.setMaxBrightness
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.playSound
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.google.zxing.ResultPoint
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.BarcodeResult
@@ -44,11 +37,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Date
-import java.util.Locale
 
 class ScanAbsensiActivity : AppCompatActivity() {
 
@@ -99,7 +89,7 @@ class ScanAbsensiActivity : AppCompatActivity() {
     @SuppressLint("MissingInflatedId")
     private fun setupBottomSheet() {
         bottomSheetDialog = BottomSheetDialog(this)
-        val bottomSheetView = layoutInflater.inflate(R.layout.layout_bottom_sheet_absen, null)
+        val bottomSheetView = layoutInflater.inflate(R.layout.layout_bottom_sheet_absensi, null)
         bottomSheetDialog.setContentView(bottomSheetView)
 
         bottomSheetDialog.setCanceledOnTouchOutside(false)
@@ -210,7 +200,7 @@ class ScanAbsensiActivity : AppCompatActivity() {
             )
         }
 
-        bottomSheetView.findViewById<Button>(R.id.btnScanAgainAbsen)?.setOnClickListener {
+        bottomSheetView.findViewById<Button>(R.id.btnScanAgainAbsensi)?.setOnClickListener {
             bottomSheetDialog.dismiss()
         }
 
@@ -287,142 +277,137 @@ class ScanAbsensiActivity : AppCompatActivity() {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
                     AppLogger.d("cek Json: $jsonStr")
 
+                    if (jsonStr.isNullOrEmpty()) {
+                        throw Exception("JSON string is empty or null")
+                    }
+
                     val jsonObject = JSONObject(jsonStr)
-                    AppLogger.d("gas jsonObject: $jsonObject")
 
-                    val idKemandoranList = jsonObject.optJSONArray("idKemandoran")
+                    // Extract the essential data
+                    val idKemandoranList = jsonObject.optJSONArray("id_kemandoran")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
-                    globalIdKemandoran = idKemandoranList.joinToString(",")
-
-                    val idKaryawanList = jsonObject.optJSONArray("idKaryawan")
-                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
-                    globalKaryawanMskId = idKaryawanList.joinToString(",")
 
                     val datetimeList = jsonObject.optJSONArray("datetime")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val rawDatetime = datetimeList.firstOrNull() ?: ""
-                    globalDateTime = rawDatetime
+
+                    val estateList = jsonObject.optJSONArray("estate")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val estate = estateList.firstOrNull() ?: ""
+
+                    val afdelingList = jsonObject.optJSONArray("afdeling")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val afdeling = afdelingList.firstOrNull() ?: ""
 
                     val formattedDatetime = if (rawDatetime.isNotEmpty()) {
-                        val parsedDate = LocalDate.parse(rawDatetime, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                        parsedDate.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
+                        try {
+                            // Check if we need to add seconds (since your formatting function expects HH:mm:ss)
+                            val dateTimeWithSeconds = if (rawDatetime.contains(" ")) {
+                                // Already has time component
+                                if (rawDatetime.matches(Regex(".*\\d\\d:\\d\\d:\\d\\d.*"))) {
+                                    // Already has seconds
+                                    rawDatetime
+                                } else {
+                                    // Add seconds
+                                    rawDatetime.replace(Regex("(\\d\\d:\\d\\d)"), "$1:00")
+                                }
+                            } else {
+                                // Only date component, add a default time
+                                "$rawDatetime 00:00:00"
+                            }
+
+                            AppUtils.formatToIndonesianDate(dateTimeWithSeconds)
+                        } catch (e: Exception) {
+                            AppLogger.e("Error formatting datetime: ${e.message}")
+                            rawDatetime // fallback to raw datetime if parsing fails
+                        }
                     } else {
                         ""
                     }
 
-                    val estateList = jsonObject.optJSONArray("estate")
+                    // Process the NIK data (just for logging, we don't show it in the UI)
+                    val nikKaryawanMskList = jsonObject.optJSONArray("karyawan_msk_nik")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
-                    globalEstate =  estateList.firstOrNull() ?: ""
-
-                    AppLogger.d("gasss $estateList")
-                    AppLogger.d("gas $globalEstate")
-                    val afdelingList = jsonObject.optJSONArray("afdeling")
+                    val nikKaryawanTdkMskList = jsonObject.optJSONArray("karyawan_tdk_msk_nik")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
-                    globalAfdeling = afdelingList.joinToString(", ")
 
-//                    globalCreatedBy = if (jsonObject.has("createdBy")) jsonObject.optInt("createdBy") else null
-                    globalCreatedBy = jsonObject.optJSONArray("createdBy")?.optString(0)?.toIntOrNull()
+                    AppLogger.d("Present employees (NIK): ${nikKaryawanMskList.joinToString(", ")}")
+                    AppLogger.d("Absent employees (NIK): ${nikKaryawanTdkMskList.joinToString(", ")}")
 
+                    // Get the kemandoran name
 
-                    val fotoList = jsonObject.optJSONArray("foto")
-                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
-                    globalFoto = fotoList.joinToString(", ")
-
-                    val komentarList = jsonObject.optJSONArray("komentar")
-                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
-                    globalKomentar = komentarList.joinToString("\n")
-
-//                    globalAsistensi = if (jsonObject.has("asistensi")) jsonObject.optInt("asistensi") else null
-//                    globalLat = if (jsonObject.has("lat")) jsonObject.optDouble("lat", 0.0) else null
-//                    globalLon = if (jsonObject.has("lon")) jsonObject.optDouble("lon", 0.0) else null
-
-//                    globalAsistensi = jsonObject.opt("asistensi") as? Int
-//                    globalLat = jsonObject.opt("lat") as? Double
-//                    globalLon = jsonObject.opt("lon") as? Double
-                    globalAsistensi = jsonObject.optJSONArray("asistensi")?.optString(0)?.toIntOrNull()
-                    globalLat = jsonObject.optJSONArray("lat")?.optString(0)?.toDoubleOrNull()
-                    globalLon = jsonObject.optJSONArray("lon")?.optString(0)?.toDoubleOrNull()
-
-                    val infoList = jsonObject.optJSONArray("info")
-                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
-                    globalInfo = infoList.joinToString(", ")
-
-                    AppLogger.d("Parsed JSON Data: idKemandoran=$globalIdKemandoran, idKaryawan=$globalKaryawanMskId, datetime=$globalDateTime, estate=$globalEstate, afdeling=$globalAfdeling, createdBy=$globalCreatedBy, foto=$globalFoto, komentar=$globalKomentar, asistensi=$globalAsistensi, lat=$globalLat, lon=$globalLon, info=$globalInfo")
-
-                    // Mengambil data kemandoran berdasarkan ID
-                    val kemandoranDeferred = async {
-                        try {
-                            absensiViewModel.getKemandoranById(idKemandoranList)
-                        } catch (e: Exception) {
-                            AppLogger.e("Error fetching Kemandoran Data: ${e.message}")
-                            null
-                        }
+                    AppLogger.d(idKemandoranList.toString())
+                    var namaKemandoran = "-"
+                    try {
+                        val kemandoranData = absensiViewModel.getKemandoranById(idKemandoranList)
+                        namaKemandoran = kemandoranData?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
+                            ?.joinToString("\n") ?: "-"
+                        AppLogger.d("Kemandoran name: $namaKemandoran")
+                    } catch (e: Exception) {
+                        AppLogger.e("Error getting kemandoran name: ${e.message}")
                     }
 
-                    val kemandoranData = kemandoranDeferred.await()
-                    val kemandoranRow = kemandoranData?.mapNotNull { it.kode }?.takeIf { it.isNotEmpty() }
-                        ?.joinToString("\n") ?: "-"
+                    // Calculate attendance statistics
+                    val totalMasuk = nikKaryawanMskList.size
+                    val totalTidakMasuk = nikKaryawanTdkMskList.size
+                    val totalAll = totalMasuk + totalTidakMasuk
+                    val kehadiranText = "$totalMasuk / $totalAll"
 
-                    AppLogger.d(kemandoranRow)
+                    AppLogger.d("Attendance stats: $kehadiranText")
 
-                    // Mengambil data pemuat berdasarkan ID karyawan
-                    val pemuatDeferred = async {
-                        try {
-                            absensiViewModel.getPemuatByIdList(idKaryawanList)
-                        } catch (e: Exception) {
-                            AppLogger.e("Error fetching Pemuat Data: ${e.message}")
-                            null
-                        }
-                    }
-
-                    val pemuatData = pemuatDeferred.await()
-                    val pemuatNama = pemuatData?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
-                        ?.joinToString(", ") ?: "-"
-
-                    AppLogger.d(pemuatNama)
+                    AppLogger.d("estate: $estate")
+                    AppLogger.d("afdeling: $afdeling")
 
                     withContext(Dispatchers.Main) {
-                        showBottomSheetWithData(
-                            namaKemandoranQR = kemandoranRow,
-                            namaKaryawanQR = pemuatNama,
-                            datetimeQR = formattedDatetime,
-                            estateQR = "",
-                            afdelingQR = globalAfdeling,
-                            createdByQR = globalCreatedBy?.toString() ?: "-",
-                            fotoQR = globalFoto,
-                            komentarQR = globalKomentar,
-                            asistensiQR = globalAsistensi?.toString() ?: "-",
-                            latQR = globalLat?.toString() ?: "-",
-                            lonQR = globalLon?.toString() ?: "-",
-                            infoQR = globalInfo,
-                            hasError = false
-                        )
+                        try {
+                            showBottomSheetWithData(
+                                datetimeQR = formattedDatetime,
+                                estateAfdelingQR = "$estate / $afdeling",
+                                namaKemandoranQR = namaKemandoran,
+                                kehadiranQR = kehadiranText,
+                                hasError = false,
+                                errorMessage = null
+                            )
+                        } catch (e: Exception) {
+                            AppLogger.e("Error showing bottom sheet with data: ${e.message}")
+                            e.printStackTrace()
+                            showBottomSheetWithData(
+                                datetimeQR = "-",
+                                estateAfdelingQR = "-",
+                                namaKemandoranQR = "-",
+                                kehadiranQR = "-",
+                                hasError = true,
+                                errorMessage = "Error showing data: ${e.message ?: "Unknown error"}"
+                            )
+                        }
                     }
                 }
-
             } catch (e: Exception) {
                 AppLogger.e("Error Processing QR Result: ${e.message}")
+                e.printStackTrace()
+
                 withContext(Dispatchers.Main) {
-                    showBottomSheetWithData(
-                        namaKemandoranQR = "-",
-                        namaKaryawanQR = "-",
-                        datetimeQR = "-",
-                        estateQR = "-",
-                        afdelingQR = "-",
-                        createdByQR = "-",
-                        fotoQR = "-",
-                        komentarQR = "-",
-                        asistensiQR = "-",
-                        latQR = "-",
-                        lonQR = "-",
-                        infoQR = "-",
-                        hasError = true,
-                        errorMessage = e.message ?: "Unknown error occurred"
-                    )
+                    try {
+                        showBottomSheetWithData(
+                            datetimeQR = "-",
+                            estateAfdelingQR = "-",
+                            namaKemandoranQR = "-",
+                            kehadiranQR = "-",
+                            hasError = true,
+                            errorMessage = e.message ?: "Unknown error occurred"
+                        )
+                    } catch (showError: Exception) {
+                        AppLogger.e("Failed even to show error dialog: ${showError.message}")
+                        showError.printStackTrace()
+                    }
                 }
             } finally {
                 withContext(Dispatchers.Main) {
-                    loadingDialog.dismiss()
+                    try {
+                        loadingDialog.dismiss()
+                    } catch (e: Exception) {
+                        AppLogger.e("Error dismissing loading dialog: ${e.message}")
+                    }
                 }
             }
 
@@ -431,72 +416,190 @@ class ScanAbsensiActivity : AppCompatActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun showBottomSheetWithData(
-        namaKemandoranQR: String,
-        namaKaryawanQR: String,
         datetimeQR: String,
-        estateQR: String,
-        afdelingQR: String,
-        createdByQR: String,
-        fotoQR: String,
-        komentarQR: String,
-        asistensiQR: String,
-        latQR: String,
-        lonQR: String,
-        infoQR: String,
+        estateAfdelingQR: String,
+        namaKemandoranQR: String,
+        kehadiranQR: String,
         hasError: Boolean = false,
         errorMessage: String? = null
     ) {
-        val bottomSheetView = bottomSheetDialog.findViewById<View>(R.id.bottomSheetContentAbsen)
-        bottomSheetView?.let {
-            val errorCard = it.findViewById<LinearLayout>(R.id.errorCardAbsen)
-            val dataContainer = it.findViewById<LinearLayout>(R.id.dataContainerAbsen)
-            val errorText = it.findViewById<TextView>(R.id.errorTextAbsen)
-            val btnProcess = it.findViewById<Button>(R.id.btnSaveUploadeAbsen)
+        try {
+            bottomSheetDialog?.let { dialog ->
+                try {
+                    // Get all views with detailed logging
+                    val titleDialogDetailTable = dialog.findViewById<TextView>(R.id.titleDialogDetailTableAbsensi)
+                    val dashedline = dialog.findViewById<View>(R.id.dashedLineAbsensi)
+                    val errorCard = dialog.findViewById<LinearLayout>(R.id.errorCardAbsensi)
+                    val dataContainer = dialog.findViewById<LinearLayout>(R.id.dataContainerAbsensi)
+                    val errorText = dialog.findViewById<TextView>(R.id.errorTextAbsensi)
+                    val btnProcess = dialog.findViewById<Button>(R.id.btnSaveUploadAbsensi)
 
-            if (hasError) {
-                errorCard.visibility = View.VISIBLE
-                dataContainer.visibility = View.GONE
-                errorText.text = errorMessage
-                btnProcess.visibility = View.GONE
-            } else {
-                errorCard.visibility = View.GONE
-                dataContainer.visibility = View.VISIBLE
-                btnProcess.visibility = View.VISIBLE
+                    if (titleDialogDetailTable == null || errorCard == null || dataContainer == null ||
+                        errorText == null || btnProcess == null) {
+                        AppLogger.e("Cannot proceed with bottom sheet - essential views are missing")
+                        return@let
+                    }
 
-                val infoItems = listOf(
-                    InfoType.DATE to datetimeQR,
-                    InfoType.ESTATE to estateQR,
-                    InfoType.AFDELING to afdelingQR,
-                    InfoType.NAMAKEMANDORAN to namaKemandoranQR,
-                    InfoType.NAMAKARYAWAN to namaKaryawanQR
-                )
+                    // Configure based on error state
+                    if (hasError) {
+                        titleDialogDetailTable.text = "Terjadi Kesalahan Scan QR!"
+                        titleDialogDetailTable.setTextColor(
+                            ContextCompat.getColor(
+                                this,
+                                R.color.colorRedDark
+                            )
+                        )
+                        errorCard.visibility = View.VISIBLE
+                        dataContainer.visibility = View.GONE
+                        errorText.text = errorMessage ?: "Unknown error"
+                        btnProcess.visibility = View.GONE
 
-                infoItems.forEach { (type, value) ->
-                    val itemView = it.findViewById<View>(type.id)
-                    setInfoItemValues(itemView, type.label, value)
+                    } else {
+
+
+                        titleDialogDetailTable.text = "Konfirmasi Data Absensi"
+                        titleDialogDetailTable.setTextColor(ContextCompat.getColor(this, R.color.black))
+
+                        errorCard.visibility = View.GONE
+                        dataContainer.visibility = View.VISIBLE
+                        btnProcess.visibility = View.VISIBLE
+
+                        try {
+                            playSound(R.raw.berhasil_scan)
+                        } catch (e: Exception) {
+                            AppLogger.e("Failed to play sound: ${e.message}")
+                        }
+
+                        try {
+                            val availableInfoTypes = InfoType.values().joinToString { "${it.name}: ${it.id}" }
+                            AppLogger.d("Available InfoTypes: $availableInfoTypes")
+
+                            val infoItems = listOf(
+                                InfoType.DATE to datetimeQR,
+                                InfoType.ESTATEAFDELING to estateAfdelingQR,
+                                InfoType.KEMANDORAN to namaKemandoranQR,
+                                InfoType.KEHADIRAN to kehadiranQR
+                            )
+
+                            // Debug info items
+                            AppLogger.d("Info items to set: $infoItems")
+
+                            infoItems.forEach { (type, value) ->
+                                try {
+                                    AppLogger.d("Finding view for InfoType: ${type.name} with ID: ${type.id}")
+                                    val itemView = dialog.findViewById<View>(type.id)
+
+                                    if (itemView != null) {
+                                        setInfoItemValues(itemView, type.label, value)
+                                    } else {
+                                        AppLogger.e("View not found for InfoType: ${type.name} with ID: ${type.id}")
+                                    }
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error setting info for ${type.name}: ${e.message}")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.e("Error setting info items: ${e.message}")
+                        }
+                    }
+
+                    // Set bottom sheet behavior safely
+                    try {
+                        val maxHeight = (resources.displayMetrics.heightPixels * 0.7).toInt()
+                        val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+
+                        if (bottomSheet != null) {
+                            val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                            behavior.apply {
+                                this.peekHeight = maxHeight
+                                this.state = BottomSheetBehavior.STATE_EXPANDED
+                                this.isFitToContents = true
+                                this.isDraggable = false
+                            }
+
+                            bottomSheet.layoutParams?.height = maxHeight
+                        } else {
+                            AppLogger.e("Bottom sheet view not found")
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error setting bottom sheet behavior: ${e.message}")
+                    }
+
+                    // Set up button click listener
+                    btnProcess.setOnClickListener {
+                        try {
+                            // Add your button click handler here
+                            AppLogger.d("Button clicked")
+                            // For example: processAbsensiData()
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in button click handler: ${e.message}")
+                        }
+                    }
+
+                } catch (e: Exception) {
+                    AppLogger.e("Error setting up bottom sheet views: ${e.message}")
+                    e.printStackTrace()
                 }
             }
 
-        }
+            // Show the dialog safely
+            try {
+                bottomSheetDialog?.show()
+            } catch (e: Exception) {
+                AppLogger.e("Error showing bottom sheet dialog: ${e.message}")
+                e.printStackTrace()
+            }
 
-        bottomSheetDialog.show()
+        } catch (e: Exception) {
+            AppLogger.e("Critical error in showBottomSheetWithData: ${e.message}")
+            e.printStackTrace()
+
+            // Last resort - show a toast
+            try {
+                Toast.makeText(
+                    this,
+                    "Terjadi kesalahan: ${e.message ?: "Unknown error"}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } catch (t: Exception) {
+                // Nothing more we can do
+            }
+        }
     }
 
     enum class InfoType(val id: Int, val label: String) {
-        DATE(R.id.infoCreatedAtAbsen, "Tanggal"),
-        ESTATE(R.id.infoEstateAbsen, "Estate"),
-        AFDELING(R.id.infoAfdelingAbsen, "Afdeling"),
-        NAMAKEMANDORAN(R.id.infoKemandoranAbsen, "Kemandoran"),
-        NAMAKARYAWAN(R.id.infoKaryawanAbsen, "Karyawan")
+        DATE(R.id.tglAbsensi, "Tanggal"),
+        ESTATEAFDELING(R.id.estateAfdAbsensi, "Estate/Afdeling"),
+        KEMANDORAN(R.id.kemandoranAbsensi, "Kemandoran"),
+        KEHADIRAN(R.id.kehadiranAbsensi, "Total Kehadiran"),
     }
 
     private fun setInfoItemValues(view: View, label: String, value: String) {
-
         view.findViewById<TextView>(R.id.tvLabel)?.text = label
 
-        view.findViewById<TextView>(R.id.tvValue)?.text = when (view.id) {
-            R.id.infoBlok -> value
-            else -> ": $value"
+        val tvValue = view.findViewById<TextView>(R.id.tvValue)
+        if (tvValue != null) {
+            if (value.contains("\n")) {
+                // For multi-line text, convert to bullet points and remove the colon
+                val lines = value.split("\n")
+                val bulletedText = lines.joinToString("\n") { "• $it" }
+
+                // Set the bulleted text
+                tvValue.text = bulletedText
+
+                // Adjust styling for multi-line text
+                tvValue.gravity = Gravity.TOP
+                tvValue.setLineSpacing(6f, 1.2f)  // Extra spacing between lines
+            } else {
+                // For single-line text, use the regular format with colon
+                val formattedValue = when (view.id) {
+                    R.id.infoBlok -> value
+                    else -> ": $value"
+                }
+                tvValue.text = formattedValue
+                tvValue.gravity = Gravity.CENTER_VERTICAL
+            }
         }
     }
 

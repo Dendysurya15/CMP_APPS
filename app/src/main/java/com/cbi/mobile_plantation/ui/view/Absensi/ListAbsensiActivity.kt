@@ -629,9 +629,9 @@ class ListAbsensiActivity : AppCompatActivity() {
                                         0f,
                                         1f
                                     ).apply {
-                                            duration = 250
-                                            startDelay = 150
-                                        }
+                                        duration = 250
+                                        startDelay = 150
+                                    }
                                 // Create fade-in animation for QR code and dashed line
                                 val fadeIn =
                                     ObjectAnimator.ofFloat(qrCodeImageView, "alpha", 0f, 1f)
@@ -807,7 +807,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                 AppLogger.d("infoTotalJjg found: ${infoTotalJjg != null}")
                 AppLogger.d("infoTotalTransaksi found: ${infoTotalTransaksi != null}")
 
-                if ( infoTotalJjg == null || infoTotalTransaksi == null) {
+                if (infoTotalJjg == null || infoTotalTransaksi == null) {
                     AppLogger.e("One or more info layout views not found - falling back to direct search")
 
                     // Last ditch effort - search for any view that has tvLabel and tvValue
@@ -915,7 +915,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                         is String -> {
                             // If it's a string, it might be a single name or a comma-separated list
                             if (namaKemandoran.contains(",")) {
-                                kemandoranIds.addAll(namaKemandoran.split(",").filter { it.isNotEmpty() })
+                                kemandoranIds.addAll(
+                                    namaKemandoran.split(",").filter { it.isNotEmpty() })
                             } else {
                                 kemandoranIds.add(namaKemandoran)
                             }
@@ -1366,88 +1367,51 @@ class ListAbsensiActivity : AppCompatActivity() {
             }
 
             val allKemandoran = mutableSetOf<String>()
+            val allNamaKemandoran = mutableSetOf<String>()
             val estateSet = mutableSetOf<String>()
             val afdelingSet = mutableSetOf<String>()
             val createdBySet = mutableSetOf<String>()
             val datetimeSet = mutableSetOf<String>()
-            val allKaryawan = mutableSetOf<String>()
-            val fotoSet = mutableSetOf<String>()
-            val komentarSet = mutableSetOf<String>()
-            val asistensiSet = mutableSetOf<String>()
-            val latSet = mutableSetOf<String>()
-            val lonSet = mutableSetOf<String>()
-            val infoSet = mutableSetOf<String>()
+            val karyawanMskSet = mutableSetOf<String>()
+            val karyawanTdkMskSet = mutableSetOf<String>()
 
             mappedData.forEach { data ->
                 val idKemandoran = data["id_kemandoran"]?.toString()
-                    ?: throw IllegalArgumentException("Missing idKemandoran.")
+                    ?: throw IllegalArgumentException("Missing id_kemandoran.")
                 val estate = data["estate"]?.toString()?.trim() ?: ""
                 val afdeling = data["afdeling"]?.toString()?.trim() ?: ""
                 val createdBy = data["created_by"]?.toString() ?: ""
                 val dateAbsen = data["datetime"]?.toString() ?: ""
-                val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
-                val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
-                val foto = data["foto"]?.toString() ?: ""
-                val komentar = data["komentar"]?.toString() ?: ""
-                val asistensi = data["asistensi"]?.toString() ?: ""
-                val lat = data["lat"]?.toString() ?: ""
-                val lon = data["lon"]?.toString() ?: ""
-                val info = data["info"]?.toString() ?: ""
+                val karyawanMskNik = data["karyawan_msk_nik"]?.toString() ?: ""
+                val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
 
-                // Extract idKemandoran values
-                idKemandoran.removeSurrounding("[", "]").split(", ")
+                // Split and add
+                idKemandoran.removeSurrounding("[", "]").split(",")
                     .forEach { allKemandoran.add(it.trim()) }
 
-                // Extract karyawan_msk_id values
-                karyawanMskId.split(",").filter { it.isNotEmpty() }
-                    .forEach { allKaryawan.add(it.trim()) }
+                karyawanMskNik.split(",").filter { it.isNotEmpty() }
+                    .forEach { karyawanMskSet.add(it.trim()) }
 
-                // Extract karyawan_tdk_msk_id values
-                karyawanTdkMskId.split(",").filter { it.isNotEmpty() }
-                    .forEach { allKaryawan.add(it.trim()) }
+                karyawanTdkMskNik.split(",").filter { it.isNotEmpty() }
+                    .forEach { karyawanTdkMskSet.add(it.trim()) }
 
                 if (estate.isNotEmpty()) estateSet.add(estate)
-                // Collect unique datetime and afdeling
                 if (dateAbsen.isNotEmpty()) datetimeSet.add(dateAbsen)
                 if (afdeling.isNotEmpty()) {
-                    afdeling.split("\n")
-                        .forEach { afdelingSet.add(it.trim()) } // Fix multiline issues
+                    afdeling.split("\n").forEach { afdelingSet.add(it.trim()) }
                 }
-
-                // Collect createdBy values
                 if (createdBy.isNotEmpty()) createdBySet.add(createdBy)
-
-                // Collect foto values
-                if (foto.isNotEmpty()) fotoSet.add(foto)
-
-                // Collect komentar values
-                if (komentar.isNotEmpty()) komentarSet.add(komentar)
-
-                // Collect asistensi values
-                if (asistensi.isNotEmpty()) asistensiSet.add(asistensi)
-
-                // Collect lat and lon values
-                if (lat.isNotEmpty()) latSet.add(lat)
-                if (lon.isNotEmpty()) lonSet.add(lon)
-
-                // Collect info values
-                if (info.isNotEmpty()) infoSet.add(info)
             }
 
-            // Create the final JSON object
+            // Final JSON
             val jsonObject = JSONObject().apply {
-                put("idKemandoran", JSONArray(allKemandoran))
-                put("idKaryawan", JSONArray(allKaryawan))
+                put("id_kemandoran", JSONArray(allKemandoran))
                 put("datetime", JSONArray(datetimeSet))
                 put("estate", JSONArray(estateSet))
                 put("afdeling", JSONArray(afdelingSet))
-                put("createdBy", JSONArray(createdBySet))
-                put("foto", JSONArray(fotoSet))
-                put("komentar", JSONArray(komentarSet))
-                put("asistensi", JSONArray(asistensiSet))
-                put("lat", JSONArray(latSet))
-                put("lon", JSONArray(lonSet))
-                put("info", JSONArray(infoSet))
+                put("created_by", JSONArray(createdBySet))
+                put("karyawan_msk_nik", JSONArray(karyawanMskSet))
+                put("karyawan_tdk_msk_nik", JSONArray(karyawanTdkMskSet))
             }
 
             AppLogger.d("cek json object: $jsonObject")
@@ -1687,97 +1651,120 @@ class ListAbsensiActivity : AppCompatActivity() {
                     tvEmptyStateAbsensi.visibility = View.GONE
                     recyclerView.visibility = View.VISIBLE
 
-//                // Launch coroutine in lifecycleScope
                     lifecycleScope.launch {
                         try {
-                            val filteredData = coroutineScope {
-                                AppLogger.d(data.toString())
-                                data.map { absensiWithRelations ->
-                                    val rawKemandoran = absensiWithRelations.absensi.kemandoran_id
-                                        .split(",")
-                                        .map { it.trim() }
-                                        .filter { it.isNotEmpty() } ?: emptyList()
+                            val filteredData = withContext(Dispatchers.IO) {
+                                try {
+                                    AppLogger.d("Processing absensi data: ${data.size} items")
 
-                                    val kemandoranDeferred = async {
+                                    // Use a more straightforward approach with fewer nested coroutines
+                                    data.map { absensiWithRelations ->
                                         try {
-                                            absensiViewModel.getKemandoranById(rawKemandoran)
+                                            // Extract kemandoran IDs
+                                            val rawKemandoran =
+                                                absensiWithRelations.absensi.kemandoran_id
+                                                    .split(",")
+                                                    .map { it.trim() }
+                                                    .filter { it.isNotEmpty() }
+                                                    .takeIf { it.isNotEmpty() } ?: emptyList()
+
+                                            AppLogger.d("Processing item ID ${absensiWithRelations.absensi.id} with kemandoran IDs: $rawKemandoran")
+
+                                            // Get kemandoran data safely
+                                            val kemandoranData = try {
+                                                absensiViewModel.getKemandoranById(rawKemandoran)
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error fetching kemandoran data for IDs $rawKemandoran: ${e.message}")
+                                                null
+                                            }
+
+                                            AppLogger.d("Kemandoran data for ID ${absensiWithRelations.absensi.id}: ${kemandoranData?.map { it.id }}")
+                                            AppLogger.d("kemandoranData $kemandoranData")
+                                            // Process kemandoran names
+                                            val kemandoranNama = if (kemandoranData != null && kemandoranData.isNotEmpty()) {
+                                                val kodes = kemandoranData.mapNotNull { it.kode }
+                                                if (kodes.isNotEmpty()) {
+                                                    kodes.joinToString("\n")
+                                                } else {
+                                                    "-"
+                                                }
+                                            } else {
+                                                "-"
+                                            }
+
+                                            AppLogger.d("Final kemandoranNama using alternative method: $kemandoranNama")
+
+                                            // Add to mappedData (safely handling nulls)
+                                            mappedData = mappedData + mapOf(
+                                                "id_kemandoran" to (rawKemandoran.takeIf { it.isNotEmpty() }
+                                                    ?: listOf("-")),
+                                                "id" to absensiWithRelations.absensi.id,
+                                                "nama_kemandoran" to (absensiWithRelations.kemandoran?.nama
+                                                    ?: "-"),
+                                                "afdeling" to absensiWithRelations.absensi.divisi_abbr,
+                                                "estate" to absensiWithRelations.absensi.dept_abbr,
+                                                "datetime" to (absensiWithRelations.absensi.date_absen
+                                                    ?: "-"),
+                                                "created_by" to (absensiWithRelations.absensi.created_by
+                                                    ?: "-"),
+                                                "karyawan_msk_nik" to (absensiWithRelations.absensi.karyawan_msk_nik
+                                                    ?: ""),
+                                                "karyawan_tdk_msk_nik" to (absensiWithRelations.absensi.karyawan_tdk_msk_nik
+                                                    ?: "")
+                                            )
+
+                                            // Return the AbsensiDataRekap object
+                                            AbsensiDataRekap(
+                                                id = absensiWithRelations.absensi.id,
+                                                afdeling = absensiWithRelations.absensi.divisi_abbr
+                                                    ?: "-",
+                                                datetime = absensiWithRelations.absensi.date_absen
+                                                    ?: "-",
+                                                kemandoran = kemandoranNama,
+                                                karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id
+                                                    ?: "",
+                                                karyawan_tdk_msk_id = absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                                    ?: ""
+                                            )
                                         } catch (e: Exception) {
-                                            AppLogger.e("Error fetching Pemuat Data: ${e.message}")
-                                            null
+                                            AppLogger.e("Error processing item ${absensiWithRelations.absensi.id}: ${e.message}")
+                                            e.printStackTrace()
+
+                                            // Return a default AbsensiDataRekap object with the ID to avoid losing data
+                                            AbsensiDataRekap(
+                                                id = absensiWithRelations.absensi.id,
+                                                afdeling = "-",
+                                                datetime = "-",
+                                                kemandoran = "-",
+                                                karyawan_msk_id = "",
+                                                karyawan_tdk_msk_id = ""
+                                            )
                                         }
                                     }
-
-                                    val kemandoranData = try {
-                                        kemandoranDeferred.await()
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Failed to fetch Pemuat Data: ${e.message}")
-                                        null
-                                    }
-                                    AppLogger.d("kemandoranData $kemandoranData")
-
-                                    val afdeling = kemandoranData
-                                        ?.mapNotNull { it.divisi_abbr }
-                                        ?.distinct() // Hapus duplikat
-                                        ?.takeIf { it.isNotEmpty() }
-                                        ?.joinToString("\n") ?: "-"
-
-                                    val estate =
-                                        kemandoranData?.firstNotNullOfOrNull { it.dept_abbr } ?: "-"
-                                    val kemandoranRow = kemandoranData?.mapNotNull { it.kode }
-                                        ?.takeIf { it.isNotEmpty() }
-                                        ?.joinToString("\n") ?: "-"
-
-                                    val kemandoranRaw = kemandoranData?.mapNotNull { it.kode }
-                                        ?.takeIf { it.isNotEmpty() }
-                                        ?.joinToString("\n") ?: "-"
-                                    async {
-                                        mappedData = mappedData + mapOf(
-                                            "id_kemandoran" to rawKemandoran,
-                                            "nama_kemandoran" to absensiWithRelations.kemandoran!!.nama!!,
-                                            "id" to absensiWithRelations.absensi.id,
-                                            "estate" to absensiWithRelations.absensi.dept_abbr,
-                                            "afdeling" to absensiWithRelations.absensi.divisi_abbr,
-                                            "created_by" to absensiWithRelations.absensi.created_by,
-                                            "datetime" to absensiWithRelations.absensi.date_absen,
-                                            "karyawan_msk_id" to absensiWithRelations.absensi.karyawan_msk_id,
-                                            "karyawan_tdk_msk_id" to absensiWithRelations.absensi.karyawan_tdk_msk_id,
-                                            "foto" to absensiWithRelations.absensi.foto,
-                                            "komentar" to absensiWithRelations.absensi.komentar,
-                                            "asistensi" to absensiWithRelations.absensi.asistensi,
-                                            "lat" to absensiWithRelations.absensi.lat,
-                                            "lon" to absensiWithRelations.absensi.lat,
-                                            "info" to absensiWithRelations.absensi.info
-                                        )
-
-                                        AbsensiDataRekap(
-                                            //data untuk upload staging
-                                            id = absensiWithRelations.absensi.id,
-//                                        estate = deptPPRO,
-//                                        afdeling = divisiPPRO,
-//                                        datetime = 0,
-//                                        karyawan_msk_id = item.blok_jjg,
-//                                        karyawan_tdk_msk_id = item.nopol,
-//                                        driver = item.driver,
-//                                        pemuat_id = item.pemuat_id,
-//                                        transporter_id = item.transporter_id,
-//                                        mill_id = item.mill_id,
-//                                        created_by_id = item.created_by_id,
-//                                        created_at = item.created_at,
-//                                        noSPB = item.noESPB.ifEmpty { "-" },
-                                            //untuk table
-                                            afdeling = afdeling,
-                                            datetime = absensiWithRelations.absensi.date_absen,
-                                            kemandoran = kemandoranRow,
-                                            karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id,
-                                            karyawan_tdk_msk_id = absensiWithRelations.absensi.karyawan_tdk_msk_id
-                                        )
-                                    }
-                                }.map { it.await() } // Wait for all async tasks to complete
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error processing data list: ${e.message}")
+                                    e.printStackTrace()
+                                    emptyList() // Return empty list on error
+                                }
                             }
-                            AppLogger.d("cek data ${mappedData.toString()}")
+
+                            AppLogger.d("Data processing complete. Mapped data: ${mappedData.size} items")
+
+                            // Update the adapter with the results
                             absensiAdapter.updateList(filteredData)
+
                         } catch (e: Exception) {
                             AppLogger.e("Data processing error: ${e.message}")
+                            e.printStackTrace()
+
+                            // Show an error message to the user if needed
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    this@ListAbsensiActivity,
+                                    "Error loading data: ${e.message ?: "Unknown error"}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
                     }
                 } else {
@@ -1795,7 +1782,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                     tglAbsensi.visibility = View.GONE
                 } else {
                     btnGenerateQRAbsensi.visibility = View.VISIBLE
-                    dialUploadAbsensi.visibility = View.VISIBLE
+                    dialUploadAbsensi.visibility = View.GONE
                     tglAbsensi.visibility = View.VISIBLE
                 }
                 loadingDialog.dismiss()
@@ -1813,81 +1800,102 @@ class ListAbsensiActivity : AppCompatActivity() {
                     tvEmptyStateAbsensi.visibility = View.GONE
                     recyclerView.visibility = View.VISIBLE
 
-//                // Launch coroutine in lifecycleScope
                     lifecycleScope.launch {
                         try {
-                            val filteredData = coroutineScope {
-                                AppLogger.d(data.toString())
-                                data.map { absensiWithRelations ->
-                                    val rawKemandoran = absensiWithRelations.absensi.kemandoran_id
-                                        .split(",")
-                                        .map { it.trim() }
-                                        .filter { it.isNotEmpty() } ?: emptyList()
+                            // Process the data on IO thread
+                            val filteredData = withContext(Dispatchers.IO) {
+                                AppLogger.d("Processing ${data.size} items")
 
-                                    val kemandoranDeferred = async {
-                                        try {
+                                data.map { absensiWithRelations ->
+                                    try {
+                                        // Extract kemandoran IDs
+                                        val rawKemandoran =
+                                            absensiWithRelations.absensi.kemandoran_id
+                                                .split(",")
+                                                .map { it.trim() }
+                                                .filter { it.isNotEmpty() } ?: emptyList()
+
+                                        AppLogger.d("Processing ID ${absensiWithRelations.absensi.id} with kemandoran: $rawKemandoran")
+
+                                        // Get kemandoran data
+                                        val kemandoranData = try {
                                             absensiViewModel.getKemandoranById(rawKemandoran)
                                         } catch (e: Exception) {
-                                            AppLogger.e("Error fetching Pemuat Data: ${e.message}")
+                                            AppLogger.e("Error fetching kemandoran data: ${e.message}")
                                             null
                                         }
-                                    }
 
-                                    val kemandoranData = try {
-                                        kemandoranDeferred.await()
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Failed to fetch Pemuat Data: ${e.message}")
-                                        null
-                                    }
-                                    AppLogger.d(kemandoranData.toString())
-                                    val kemandoranNama =
-                                        kemandoranData?.mapNotNull { it.divisi_abbr }
-                                            ?.takeIf { it.isNotEmpty() }
-                                            ?.joinToString("\n") ?: "-"
+                                        // Process kemandoran kode
+                                        val kemandoranNama =
+                                            if (kemandoranData != null && kemandoranData.isNotEmpty()) {
+                                                val kodes = kemandoranData.mapNotNull { it.kode }
+                                                if (kodes.isNotEmpty()) {
+                                                    kodes.joinToString("\n")
+                                                } else {
+                                                    "-"
+                                                }
+                                            } else {
+                                                "-"
+                                            }
 
-//                                    val kemandoranId = kemandoranData?.mapNotNull { it.divisi_abbr }?.takeIf { it.isNotEmpty() }
-//                                        ?.joinToString("\n") ?: "-"
-
-                                    async {
+                                        // Update mappedData
                                         mappedData = mappedData + mapOf(
                                             "id_kemandoran" to rawKemandoran,
                                             "id" to absensiWithRelations.absensi.id,
-                                            "nama_kemandoran" to absensiWithRelations.kemandoran!!.nama!!,
-                                            "afdeling" to kemandoranNama,
-                                            "datetime" to absensiWithRelations.absensi.date_absen,
-                                            "karyawan_msk_id" to absensiWithRelations.absensi.karyawan_msk_id,
-                                            "karyawan_tdk_msk_id" to absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                            "nama_kemandoran" to (absensiWithRelations.kemandoran?.nama
+                                                ?: "-"),
+                                            "afdeling" to absensiWithRelations.absensi.divisi_abbr,
+                                            "estate" to absensiWithRelations.absensi.dept_abbr,
+                                            "datetime" to (absensiWithRelations.absensi.date_absen
+                                                ?: "-"),
+                                            "karyawan_msk_id" to (absensiWithRelations.absensi.karyawan_msk_id
+                                                ?: ""),
+                                            "karyawan_tdk_msk_id" to (absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                                ?: "")
                                         )
 
+                                        // Return the data object
                                         AbsensiDataRekap(
-                                            //data untuk upload staging
                                             id = absensiWithRelations.absensi.id,
-//                                        estate = deptPPRO,
-//                                        afdeling = divisiPPRO,
-//                                        datetime = 0,
-//                                        karyawan_msk_id = item.blok_jjg,
-//                                        karyawan_tdk_msk_id = item.nopol,
-//                                        driver = item.driver,
-//                                        pemuat_id = item.pemuat_id,
-//                                        transporter_id = item.transporter_id,
-//                                        mill_id = item.mill_id,
-//                                        created_by_id = item.created_by_id,
-//                                        created_at = item.created_at,
-//                                        noSPB = item.noESPB.ifEmpty { "-" },
-                                            //untuk table
-                                            afdeling = kemandoranNama,
-                                            datetime = absensiWithRelations.absensi.date_absen,
-                                            kemandoran = absensiWithRelations.kemandoran?.kode.toString(),
-                                            karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id,
+                                            afdeling = absensiWithRelations.absensi.divisi_abbr
+                                                ?: "-",
+                                            datetime = absensiWithRelations.absensi.date_absen
+                                                ?: "-",
+                                            kemandoran = kemandoranNama,
+                                            karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id
+                                                ?: "",
                                             karyawan_tdk_msk_id = absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                                ?: ""
+                                        )
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error processing item ${absensiWithRelations.absensi.id}: ${e.message}")
+
+                                        // Return a default object on error
+                                        AbsensiDataRekap(
+                                            id = absensiWithRelations.absensi.id,
+                                            afdeling = "-",
+                                            datetime = "-",
+                                            kemandoran = "-",
+                                            karyawan_msk_id = "",
+                                            karyawan_tdk_msk_id = ""
                                         )
                                     }
-                                }.map { it.await() } // Wait for all async tasks to complete
+                                }
                             }
-                            AppLogger.d("cek data ${mappedData.toString()}")
+
+                            AppLogger.d("Data processing complete: ${mappedData.size} items")
                             absensiAdapter.updateList(filteredData)
+
                         } catch (e: Exception) {
                             AppLogger.e("Data processing error: ${e.message}")
+                            e.printStackTrace()
+
+                            // Show error message
+                            Toast.makeText(
+                                this@ListAbsensiActivity,
+                                "Error loading data: ${e.message ?: "Unknown error"}",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                 } else {

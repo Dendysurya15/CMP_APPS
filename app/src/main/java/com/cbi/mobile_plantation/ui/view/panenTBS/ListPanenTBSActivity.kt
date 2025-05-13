@@ -585,7 +585,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupSearch()
         setupObservers()
         if (featureName != "Buat eSPB" && featureName != "Detail eSPB") {
-            setupSpeedDial()
+//            setupSpeedDial()
             setupCheckboxControl()  // Add this
         }
         setupCardListeners()

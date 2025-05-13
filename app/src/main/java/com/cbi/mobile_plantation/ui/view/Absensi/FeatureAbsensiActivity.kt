@@ -274,7 +274,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
                                     val karyawanTdkMskNama = karyawanTidakMasuk.joinToString(",") { it.namaOnly }
 
                                     val dateAbsen =
-                                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
+                                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
                                             Date()
                                         )
 
