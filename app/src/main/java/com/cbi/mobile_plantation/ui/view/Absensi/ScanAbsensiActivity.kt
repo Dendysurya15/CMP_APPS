@@ -98,107 +98,14 @@ class ScanAbsensiActivity : AppCompatActivity() {
             isDraggable = false
         }
 
-        bottomSheetView.findViewById<Button>(R.id.btnSaveUploadeAbsen)?.setOnClickListener {
-            isScanning = false
-            pauseScanner()
-
-            AppLogger.d("Tombol Simpan Absen Diklik")
-
-            AlertDialogUtility.withTwoActions(
-                this,
-                "Simpan Data",
-                getString(R.string.confirmation_dialog_title),
-                getString(R.string.al_submit_upload_data_absensi),
-                "warning.json",
-                ContextCompat.getColor(
-                    this@ScanAbsensiActivity,
-                    R.color.bluedarklight
-                ),
-                function = {
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        try {
-                            // Debug log sebelum menyimpan
-                            AppLogger.d("TAG" +
-                                    "kemandoran_id=$globalIdKemandoran, " +
-                                    "date_absen=$globalDateTime, " +
-                                    "created_by=$globalCreatedBy, " +
-                                    "karyawan_msk_id=$globalKaryawanMskId, " +
-                                    "karyawan_tdk_msk_id=$globalKaryawanTdkMskId, " +
-                                    "foto=$globalFoto, " +
-                                    "komentar=$globalKomentar, " +
-                                    "asistensi=$globalAsistensi, " +
-                                    "lat=$globalLat, lon=$globalLon, " +
-                                    "info=$globalInfo")
-
-                            val result = withContext(Dispatchers.IO) {
-                                val response = absensiViewModel.saveDataAbsensi(
-                                    kemandoran_id = globalIdKemandoran ?: "",
-                                    date_absen = globalDateTime,
-                                    created_by = globalCreatedBy ?: 0,
-                                    karyawan_msk_id = globalKaryawanMskId ?: "",
-                                    karyawan_tdk_msk_id = globalKaryawanTdkMskId ?: "",
-                                    karyawan_msk_nik = "",  // Default empty string for now
-                                    karyawan_tdk_msk_nik = "",  // Default empty string for now
-                                    karyawan_msk_nama = "",  // Default empty string for now
-                                    karyawan_tdk_msk_nama = "",  // Default empty string for now
-                                    foto = globalFoto,
-                                    komentar = globalKomentar,
-                                    asistensi = globalAsistensi ?: 0,
-                                    lat = globalLat ?: 0.0,
-                                    lon = globalLon ?: 0.0,
-                                    info = globalInfo,
-                                    status_scan = 1,
-                                    archive = 0
-                                )
-
-                                AppLogger.d("Hasil penyimpanan data: $response")
-                                response
-                            }
-
-                            if (result != null) {
-                                AppLogger.d("TAG", "Data berhasil disimpan!")
-                                AlertDialogUtility.withSingleAction(
-                                    this@ScanAbsensiActivity,
-                                    stringXML(R.string.al_back),
-                                    stringXML(R.string.al_success_save_local),
-                                    stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang),
-                                    "success.json",
-                                    R.color.greendarkerbutton
-                                ) {
-                                    val intent = Intent(this@ScanAbsensiActivity, HomePageActivity::class.java)
-                                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                                    startActivity(intent)
-                                    finish()
-                                }
-                            } else {
-                                AppLogger.d("Gagal menyimpan data: response null")
-                                AlertDialogUtility.withSingleAction(
-                                    this@ScanAbsensiActivity,
-                                    stringXML(R.string.al_back),
-                                    stringXML(R.string.al_failed_save_local),
-                                    stringXML(R.string.al_failed_save_local_krani_timbang),
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {}
-                            }
-
-                        } catch (e: Exception) {
-                            AppLogger.d("Unexpected error: ${e.message}")
-                            loadingDialog.dismiss()
-
-                            AlertDialogUtility.withSingleAction(
-                                this@ScanAbsensiActivity,
-                                stringXML(R.string.al_back),
-                                stringXML(R.string.al_failed_save_local),
-                                "${stringXML(R.string.al_failed_save_local_krani_timbang)} : ${e.message}",
-                                "warning.json",
-                                R.color.colorRedDark
-                            ) {}
-                        }
-                    }
-                }
-            )
-        }
+//        bottomSheetView.findViewById<Button>(R.id.btnSaveUploadAbsensi)?.setOnClickListener {
+//            isScanning = false
+//            pauseScanner()
+//
+//            AppLogger.d("Tombol Simpan Absen Diklik")
+//
+//
+//        }
 
         bottomSheetView.findViewById<Button>(R.id.btnScanAgainAbsensi)?.setOnClickListener {
             bottomSheetDialog.dismiss()
@@ -529,9 +436,101 @@ class ScanAbsensiActivity : AppCompatActivity() {
                     // Set up button click listener
                     btnProcess.setOnClickListener {
                         try {
-                            // Add your button click handler here
-                            AppLogger.d("Button clicked")
-                            // For example: processAbsensiData()
+                            AlertDialogUtility.withTwoActions(
+                                this,
+                                "Simpan Data",
+                                getString(R.string.confirmation_dialog_title),
+                                getString(R.string.al_submit_upload_data_absensi),
+                                "warning.json",
+                                ContextCompat.getColor(
+                                    this@ScanAbsensiActivity,
+                                    R.color.bluedarklight
+                                ),
+                                function = {
+                                    lifecycleScope.launch(Dispatchers.Main) {
+                                        try {
+                                            // Debug log sebelum menyimpan
+                                            AppLogger.d("TAG" +
+                                                    "kemandoran_id=$globalIdKemandoran, " +
+                                                    "date_absen=$globalDateTime, " +
+                                                    "created_by=$globalCreatedBy, " +
+                                                    "karyawan_msk_id=$globalKaryawanMskId, " +
+                                                    "karyawan_tdk_msk_id=$globalKaryawanTdkMskId, " +
+                                                    "foto=$globalFoto, " +
+                                                    "komentar=$globalKomentar, " +
+                                                    "asistensi=$globalAsistensi, " +
+                                                    "lat=$globalLat, lon=$globalLon, " +
+                                                    "info=$globalInfo")
+
+                                            val result = withContext(Dispatchers.IO) {
+                                                val response = absensiViewModel.saveDataAbsensi(
+                                                    kemandoran_id = globalIdKemandoran ?: "",
+                                                    date_absen = globalDateTime,
+                                                    created_by = globalCreatedBy ?: 0,
+                                                    karyawan_msk_id = globalKaryawanMskId ?: "",
+                                                    karyawan_tdk_msk_id = globalKaryawanTdkMskId ?: "",
+                                                    karyawan_msk_nik = "",  // Default empty string for now
+                                                    karyawan_tdk_msk_nik = "",  // Default empty string for now
+                                                    karyawan_msk_nama = "",  // Default empty string for now
+                                                    karyawan_tdk_msk_nama = "",  // Default empty string for now
+                                                    foto = globalFoto,
+                                                    komentar = globalKomentar,
+                                                    asistensi = globalAsistensi ?: 0,
+                                                    lat = globalLat ?: 0.0,
+                                                    lon = globalLon ?: 0.0,
+                                                    info = globalInfo,
+                                                    status_scan = 1,
+                                                    archive = 0
+                                                )
+
+                                                AppLogger.d("Hasil penyimpanan data: $response")
+                                                response
+                                            }
+
+                                            if (result != null) {
+                                                AppLogger.d("TAG", "Data berhasil disimpan!")
+                                                AlertDialogUtility.withSingleAction(
+                                                    this@ScanAbsensiActivity,
+                                                    stringXML(R.string.al_back),
+                                                    stringXML(R.string.al_success_save_local),
+                                                    stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang),
+                                                    "success.json",
+                                                    R.color.greendarkerbutton
+                                                ) {
+                                                    val intent = Intent(this@ScanAbsensiActivity, HomePageActivity::class.java)
+                                                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                                    startActivity(intent)
+                                                    finish()
+                                                }
+                                            } else {
+                                                AppLogger.d("Gagal menyimpan data: response null")
+                                                AlertDialogUtility.withSingleAction(
+                                                    this@ScanAbsensiActivity,
+                                                    stringXML(R.string.al_back),
+                                                    stringXML(R.string.al_failed_save_local),
+                                                    stringXML(R.string.al_failed_save_local_krani_timbang),
+                                                    "warning.json",
+                                                    R.color.colorRedDark
+                                                ) {}
+                                            }
+
+                                        } catch (e: Exception) {
+                                            AppLogger.d("Unexpected error: ${e.message}")
+                                            loadingDialog.dismiss()
+
+                                            AlertDialogUtility.withSingleAction(
+                                                this@ScanAbsensiActivity,
+                                                stringXML(R.string.al_back),
+                                                stringXML(R.string.al_failed_save_local),
+                                                "${stringXML(R.string.al_failed_save_local_krani_timbang)} : ${e.message}",
+                                                "warning.json",
+                                                R.color.colorRedDark
+                                            ) {}
+                                        }
+                                    }
+                                }
+                            )
+
                         } catch (e: Exception) {
                             AppLogger.e("Error in button click handler: ${e.message}")
                         }

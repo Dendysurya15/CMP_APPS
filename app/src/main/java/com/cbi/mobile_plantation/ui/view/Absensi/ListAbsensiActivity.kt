@@ -758,6 +758,9 @@ class ListAbsensiActivity : AppCompatActivity() {
                     return@launch
                 }
 
+
+                AppLogger.d("mappedData $mappedData")
+
                 // Inflate the correct screenshot layout
                 val screenshotLayout: View =
                     layoutInflater.inflate(R.layout.layout_screenshot_qr_absensi, null)
@@ -790,24 +793,24 @@ class ListAbsensiActivity : AppCompatActivity() {
                 AppLogger.d("Looking for info layouts in screenshot_qr_absensi.xml")
 
                 // Let's print the resource IDs to make sure we're looking for the right ones
-                val infoTotalJjgId = resources.getIdentifier("infoTotalJjg", "id", packageName)
+                val infoKemandoranId = resources.getIdentifier("infoKemandoran", "id", packageName)
                 val infoTotalTransaksiId =
                     resources.getIdentifier("infoTotalTransaksi", "id", packageName)
 
                 // Try to find the included layout views using resource IDs
 
 
-                val infoTotalJjg = screenshotLayout.findViewById<View>(infoTotalJjgId)
+                val infoKemandoran = screenshotLayout.findViewById<View>(infoKemandoranId)
                     ?: screenshotLayout.findViewById<View>(R.id.infoKemandoran) // Fallback ID
 
                 val infoTotalTransaksi = screenshotLayout.findViewById<View>(infoTotalTransaksiId)
                     ?: screenshotLayout.findViewById<View>(R.id.infoKehadiran) // Fallback ID
 
                 // Log whether we found the views
-                AppLogger.d("infoTotalJjg found: ${infoTotalJjg != null}")
+                AppLogger.d("infoKemandoran found: ${infoKemandoran != null}")
                 AppLogger.d("infoTotalTransaksi found: ${infoTotalTransaksi != null}")
 
-                if (infoTotalJjg == null || infoTotalTransaksi == null) {
+                if (infoKemandoran == null || infoTotalTransaksi == null) {
                     AppLogger.e("One or more info layout views not found - falling back to direct search")
 
                     // Last ditch effort - search for any view that has tvLabel and tvValue
@@ -887,65 +890,52 @@ class ListAbsensiActivity : AppCompatActivity() {
                     "Unknown/Unknown"
                 }
 
-                AppLogger.d("Estate/Afdeling: $estateAfdeling")
+                var kemandoranValue = ""
+                if (mappedData.isNotEmpty() && mappedData[0]["nama_kemandoran"] != null) {
+                    val namaKemandoran = mappedData[0]["nama_kemandoran"]
 
-                // Log the estate/afdeling data for debugging
-                AppLogger.d("Estate/Afdeling: $estateAfdeling")
-
-                // Extract kemandoran list
-                // Process the data for display in the screenshot
-                val kemandoranIds = mutableListOf<String>()
-                for (data in mappedData) {
-                    val namaKemandoran = data["nama_kemandoran"]
-                    AppLogger.d("nama_kemandoran: $namaKemandoran (${namaKemandoran?.javaClass?.name})")
-
-                    when (namaKemandoran) {
-                        is List<*> -> {
-                            namaKemandoran.forEach { name ->
-                                if (name != null) kemandoranIds.add(name.toString())
-                            }
-                        }
-
-                        is Array<*> -> {
-                            namaKemandoran.forEach { name ->
-                                if (name != null) kemandoranIds.add(name.toString())
-                            }
-                        }
-
+                    // Convert to list of strings regardless of original type
+                    val kemandoranList = when (namaKemandoran) {
+                        is List<*> -> namaKemandoran.filterNotNull().map { it.toString() }
+                        is Array<*> -> namaKemandoran.filterNotNull().map { it.toString() }
                         is String -> {
-                            // If it's a string, it might be a single name or a comma-separated list
                             if (namaKemandoran.contains(",")) {
-                                kemandoranIds.addAll(
-                                    namaKemandoran.split(",").filter { it.isNotEmpty() })
+                                namaKemandoran.split(",").filter { it.isNotEmpty() }
                             } else {
-                                kemandoranIds.add(namaKemandoran)
+                                listOf(namaKemandoran)
                             }
                         }
-
-                        else -> {
-                            if (namaKemandoran != null) kemandoranIds.add(namaKemandoran.toString())
-                        }
+                        else -> listOf(namaKemandoran.toString())
                     }
-                }
 
-                val kemandoranList = kemandoranIds.distinct().joinToString("\n")
-                AppLogger.d("Kemandoran list: $kemandoranList")
+                    // Format based on number of items
+                    kemandoranValue = if (kemandoranList.size > 1) {
+                        val bulletList = kemandoranList.joinToString("\n") { "• $it" }
+                        ":\n$bulletList"
+                    } else if (kemandoranList.size == 1) {
+                        ": ${kemandoranList[0]}"
+                    } else {
+                        ": -"
+                    }
+                } else {
+                    kemandoranValue = ": -"
+                }
 
                 // Calculate attendance
                 var totalMasuk = 0
                 var totalTidakMasuk = 0
 
                 for (data in mappedData) {
-                    val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
-                    val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
+                    val karyawanMskNik = data["karyawan_msk_nik"]?.toString() ?: ""
+                    val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
 
-                    totalMasuk += karyawanMskId.split(",").filter { it.isNotEmpty() }.size
-                    totalTidakMasuk += karyawanTdkMskId.split(",").filter { it.isNotEmpty() }.size
+                    totalMasuk += karyawanMskNik.split(",").filter { it.isNotEmpty() }.size
+                    totalTidakMasuk += karyawanTdkMskNik.split(",").filter { it.isNotEmpty() }.size
                 }
 
                 val totalKaryawan = totalMasuk + totalTidakMasuk
 
-// Format as "Present / Total"
+
                 val totalAttendance = "$totalMasuk / $totalKaryawan"
                 AppLogger.d("Total attendance: $totalAttendance")
 
@@ -966,9 +956,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                 tvFooter.text =
                     "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
 
-                // Set the data in the info views
-//                setInfoData(infoBlokList, "Est/Afd", ": $estateAfdeling")
-                setInfoData(infoTotalJjg, "Kemandoran", ": $kemandoranList")
+
+                setInfoData(infoKemandoran, "Kemandoran", kemandoranValue)
                 setInfoData(infoTotalTransaksi, "Kehadiran", ": $totalAttendance")
 
                 // Take the screenshot
@@ -1681,8 +1670,19 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             AppLogger.d("Kemandoran data for ID ${absensiWithRelations.absensi.id}: ${kemandoranData?.map { it.id }}")
                                             AppLogger.d("kemandoranData $kemandoranData")
                                             // Process kemandoran names
-                                            val kemandoranNama = if (kemandoranData != null && kemandoranData.isNotEmpty()) {
+                                            val kemandoranKode = if (kemandoranData != null && kemandoranData.isNotEmpty()) {
                                                 val kodes = kemandoranData.mapNotNull { it.kode }
+                                                if (kodes.isNotEmpty()) {
+                                                    kodes.joinToString("\n")
+                                                } else {
+                                                    "-"
+                                                }
+                                            } else {
+                                                "-"
+                                            }
+
+                                            val kemandoranNama = if (kemandoranData != null && kemandoranData.isNotEmpty()) {
+                                                val kodes = kemandoranData.mapNotNull { it.nama }
                                                 if (kodes.isNotEmpty()) {
                                                     kodes.joinToString("\n")
                                                 } else {
@@ -1699,8 +1699,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 "id_kemandoran" to (rawKemandoran.takeIf { it.isNotEmpty() }
                                                     ?: listOf("-")),
                                                 "id" to absensiWithRelations.absensi.id,
-                                                "nama_kemandoran" to (absensiWithRelations.kemandoran?.nama
-                                                    ?: "-"),
+                                                "nama_kemandoran" to kemandoranNama,
                                                 "afdeling" to absensiWithRelations.absensi.divisi_abbr,
                                                 "estate" to absensiWithRelations.absensi.dept_abbr,
                                                 "datetime" to (absensiWithRelations.absensi.date_absen
@@ -1720,7 +1719,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                     ?: "-",
                                                 datetime = absensiWithRelations.absensi.date_absen
                                                     ?: "-",
-                                                kemandoran = kemandoranNama,
+                                                kemandoran = kemandoranKode,
                                                 karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id
                                                     ?: "",
                                                 karyawan_tdk_msk_id = absensiWithRelations.absensi.karyawan_tdk_msk_id
