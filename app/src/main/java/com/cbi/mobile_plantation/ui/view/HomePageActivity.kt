@@ -19,6 +19,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -178,6 +179,37 @@ class HomePageActivity : AppCompatActivity() {
 
         //cek tanggal otomatis
         checkDateTimeSettings()
+
+        val appVersion = AppUtils.getAppVersion(this)
+        val infoIcon: ImageView = findViewById(R.id.infoPatchNote)
+
+        infoIcon.setOnClickListener {
+            showPatchNoteDialog()
+        }
+    }
+
+    private fun showPatchNoteDialog() {
+        val version = AppUtils.getAppVersion(this)
+
+        AlertDialog.Builder(this)
+            .setTitle("Update - Versi $version")
+            .setMessage(
+                """
+            • Perbaikan bug upload foto
+            • Penambahan fitur sortir data Optimasi performa halaman utama Optimasi performa halaman utama
+            • Optimasi performa halaman utama Optimasi performa halaman utama Optimasi performa halaman utama
+            • Tampilan UI diperbarui Optimasi performa halaman utama Optimasi performa halaman utama
+            • Optimasi performa halaman utama Optimasi performa halaman utama Optimasi performa halaman utama
+            • Tampilan UI diperbarui Optimasi performa halaman utama Optimasi performa halaman utama
+            • Penambahan fitur sortir data Optimasi performa halaman utama Optimasi performa halaman utama
+            • Optimasi performa halaman utama Optimasi performa halaman utamaOptimasi performa halaman utama
+            • Tampilan UI diperbarui
+            """.trimIndent()
+            )
+            .setPositiveButton("Tutup") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
     }
 
     private fun fetchDataEachCard() {
