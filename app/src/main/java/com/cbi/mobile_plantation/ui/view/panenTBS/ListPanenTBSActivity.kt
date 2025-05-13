@@ -3647,11 +3647,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                 // Create a meaningful filename
                 val screenshotFileName = if (featureName == "Detail eSPB") {
-                    "eSPB_QR_${no_espb.replace("/", "_")}"
+                    "eSPB_QR"
                 } else {
-                    val date =
-                        SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                    "Panen_QR_$date"
+                    "Panen_QR"
                 }
 
                 val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen)

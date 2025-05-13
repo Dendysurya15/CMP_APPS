@@ -5,21 +5,31 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Intent
 import android.database.sqlite.SQLiteException
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
+import android.view.Window
+import android.view.WindowManager
 import android.view.animation.AnimationUtils
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -37,6 +47,8 @@ import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.ScreenshotUtil
+import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
@@ -47,6 +59,7 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.leinardi.android.speeddial.SpeedDialView
+import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -86,6 +99,7 @@ class ListAbsensiActivity : AppCompatActivity() {
     private var originalData: List<Map<String, Any>> = emptyList()
 
     private lateinit var filterSection: LinearLayout
+
     // Add views for buttons and counters
     private lateinit var cardTersimpan: MaterialCardView
     private lateinit var cardTerscan: MaterialCardView
@@ -111,7 +125,7 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupUI(){
+    private fun setupUI() {
         prefManager = PrefManager(this)
         loadingDialog = LoadingDialog(this)
 
@@ -121,14 +135,14 @@ class ListAbsensiActivity : AppCompatActivity() {
         setupRecyclerView()
         initializeViews()
         setupObserveData()
-        if(prefManager!!.jabatanUserLogin == "Kerani Panen"){
+        if (prefManager!!.jabatanUserLogin == "Kerani Panen") {
             absensiViewModel.getAllDataAbsensi(1)
-        }else{
+        } else {
             absensiViewModel.getAllDataAbsensi(0)
         }
-        if(prefManager!!.jabatanUserLogin == "Kerani Panen"){
+        if (prefManager!!.jabatanUserLogin == "Kerani Panen") {
             absensiViewModel.loadAbsensiCountArchive(1)
-        }else{
+        } else {
             absensiViewModel.loadAbsensiCountArchive(0)
         }
         setupQRAbsensi()
@@ -270,7 +284,11 @@ class ListAbsensiActivity : AppCompatActivity() {
         } else {
             AppLogger.d("❌ Data cannot be generated, different date")
             // Tampilkan pesan ke pengguna bahwa tidak bisa generate data
-            Toast.makeText(this, "Generate hanya bisa dilakukan untuk tanggal yang sama!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                "Generate hanya bisa dilakukan untuk tanggal yang sama!",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -280,7 +298,8 @@ class ListAbsensiActivity : AppCompatActivity() {
         btnGenerateQRAbsensi.setOnClickListener {
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
-            val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
+            val generatedDate =
+                getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
 
             // Log tanggal
             AppLogger.d("Generated Date: '$generatedDate'")
@@ -295,7 +314,11 @@ class ListAbsensiActivity : AppCompatActivity() {
                 showBottomSheetQR()
             } else {
                 // Jika tanggal berbeda, tampilkan pesan error
-                Toast.makeText(this, "QR hanya bisa digenerate jika tanggal sama!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "QR hanya bisa digenerate jika tanggal sama!",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
@@ -319,6 +342,13 @@ class ListAbsensiActivity : AppCompatActivity() {
         val dashedLine: View = view.findViewById(R.id.dashedLine)
         val loadingContainer: LinearLayout =
             view.findViewById(R.id.loadingDotsContainerBottomSheet)
+
+        val btnPreviewFullQR: MaterialButton =
+            view.findViewById(R.id.btnPreviewFullQR)
+
+        btnPreviewFullQR.setOnClickListener {
+            showQrCodeFullScreen(qrCodeImageView.drawable, view)
+        }
 
         // Initially hide QR code and dashed line, show loading
         qrCodeImageView.visibility = View.GONE
@@ -406,6 +436,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             var hasError = false
                                             var successCount = 0
                                             val errorMessages = mutableListOf<String>()
+                                            takeQRCodeScreenshot(view)
 
                                             mappedData.forEach { item ->
                                                 try {
@@ -564,6 +595,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                 titleQRConfirm.alpha = 0f
                                 descQRConfirm.alpha = 0f
                                 btnConfirmScanAbsensi.alpha = 0f
+                                btnPreviewFullQR.alpha = 0f
 
                                 // Fade-in animations
                                 val fadeInQR =
@@ -586,6 +618,17 @@ class ListAbsensiActivity : AppCompatActivity() {
                                         1f
                                     )
                                         .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
+                                val fadeInButtonPreviewBtn =
+                                    ObjectAnimator.ofFloat(
+                                        btnPreviewFullQR,
+                                        "alpha",
+                                        0f,
+                                        1f
+                                    ).apply {
                                             duration = 250
                                             startDelay = 150
                                         }
@@ -646,6 +689,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             titleQRConfirm.visibility = View.VISIBLE
                                             descQRConfirm.visibility = View.VISIBLE
                                             btnConfirmScanAbsensi.visibility = View.VISIBLE
+                                            btnPreviewFullQR.visibility = View.VISIBLE
 
                                             fadeInQR.start()
                                             fadeInDashedLine.start()
@@ -654,6 +698,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             fadeInTitleConfirm.start()
                                             fadeInDescConfirm.start()
                                             fadeInButton.start()
+                                            fadeInButtonPreviewBtn.start()
                                         }
                                     })
                                     start()
@@ -695,6 +740,573 @@ class ListAbsensiActivity : AppCompatActivity() {
         val errorText = view.findViewById<TextView>(R.id.errorText)
         errorText.text = message
         errorCard.visibility = View.VISIBLE
+    }
+
+    private fun takeQRCodeScreenshot(view: View) {
+        lifecycleScope.launch {
+            try {
+                // First check if we have data
+                if (mappedData.isEmpty()) {
+                    AppLogger.e("mappedData is empty")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@ListAbsensiActivity,
+                            "Tidak ada data untuk tangkapan layar",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                // Inflate the correct screenshot layout
+                val screenshotLayout: View =
+                    layoutInflater.inflate(R.layout.layout_screenshot_qr_absensi, null)
+
+                AppLogger.d("Inflated layout_screenshot_qr_absensi layout")
+
+                // Get QR code from the bottom sheet view
+                val originalQrImageView = view.findViewById<ImageView>(R.id.qrCodeImageView)
+                if (originalQrImageView == null || originalQrImageView.drawable == null) {
+                    AppLogger.e("Original QR ImageView or drawable is null")
+                    return@launch
+                }
+
+                // Get references to views in the screenshot layout
+                val tvUserName = screenshotLayout.findViewById<TextView>(R.id.tvUserName)
+                val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
+                val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
+
+                // Check that we found the essential views
+                if (tvUserName == null) AppLogger.e("tvUserName not found")
+                if (qrCodeImageView == null) AppLogger.e("qrCodeImageView not found")
+                if (tvFooter == null) AppLogger.e("tvFooter not found")
+
+                if (tvUserName == null || qrCodeImageView == null || tvFooter == null) {
+                    AppLogger.e("Essential views not found in screenshot layout")
+                    return@launch
+                }
+
+                // Find the included layout views - log each ID for debugging
+                AppLogger.d("Looking for info layouts in screenshot_qr_absensi.xml")
+
+                // Let's print the resource IDs to make sure we're looking for the right ones
+                val infoTotalJjgId = resources.getIdentifier("infoTotalJjg", "id", packageName)
+                val infoTotalTransaksiId =
+                    resources.getIdentifier("infoTotalTransaksi", "id", packageName)
+
+                // Try to find the included layout views using resource IDs
+
+
+                val infoTotalJjg = screenshotLayout.findViewById<View>(infoTotalJjgId)
+                    ?: screenshotLayout.findViewById<View>(R.id.infoKemandoran) // Fallback ID
+
+                val infoTotalTransaksi = screenshotLayout.findViewById<View>(infoTotalTransaksiId)
+                    ?: screenshotLayout.findViewById<View>(R.id.infoKehadiran) // Fallback ID
+
+                // Log whether we found the views
+                AppLogger.d("infoTotalJjg found: ${infoTotalJjg != null}")
+                AppLogger.d("infoTotalTransaksi found: ${infoTotalTransaksi != null}")
+
+                if ( infoTotalJjg == null || infoTotalTransaksi == null) {
+                    AppLogger.e("One or more info layout views not found - falling back to direct search")
+
+                    // Last ditch effort - search for any view that has tvLabel and tvValue
+                    val infoViews = findViewsWithLabels(screenshotLayout as ViewGroup)
+                    AppLogger.d("Found ${infoViews.size} potential info views with tvLabel and tvValue")
+
+                    if (infoViews.size >= 3) {
+                        AppLogger.d("Using dynamically found info views instead")
+                        // We'll use these views instead
+                        processScreenshotWithFoundViews(
+                            screenshotLayout,
+                            tvUserName,
+                            qrCodeImageView,
+                            tvFooter,
+                            infoViews[0],
+                            infoViews[1],
+                            infoViews[2],
+                            originalQrImageView
+                        )
+                        return@launch
+                    } else {
+                        AppLogger.e("Not enough info views found automatically - screenshot may be incomplete")
+                        // Continue with what we have - some views might be missing
+                    }
+                }
+
+                // Helper function to set info data
+                fun setInfoData(includeView: View?, labelText: String, valueText: String) {
+                    if (includeView == null) {
+                        AppLogger.e("Cannot set data for null includeView: $labelText")
+                        return
+                    }
+
+                    val tvLabel = includeView.findViewById<TextView>(R.id.tvLabel)
+                    val tvValue = includeView.findViewById<TextView>(R.id.tvValue)
+
+                    if (tvLabel == null) AppLogger.e("tvLabel not found in includeView for $labelText")
+                    if (tvValue == null) AppLogger.e("tvValue not found in includeView for $labelText")
+
+                    if (tvLabel != null && tvValue != null) {
+                        tvLabel.text = labelText
+                        tvValue.text = valueText
+                    }
+                }
+
+                // Convert QR drawable to bitmap
+                val qrBitmap = if (originalQrImageView.drawable is BitmapDrawable) {
+                    (originalQrImageView.drawable as BitmapDrawable).bitmap
+                } else {
+                    try {
+                        val drawable = originalQrImageView.drawable
+                        val bitmap = Bitmap.createBitmap(
+                            drawable.intrinsicWidth,
+                            drawable.intrinsicHeight,
+                            Bitmap.Config.ARGB_8888
+                        )
+                        val canvas = Canvas(bitmap)
+                        drawable.setBounds(0, 0, canvas.width, canvas.height)
+                        drawable.draw(canvas)
+                        bitmap
+                    } catch (e: Exception) {
+                        AppLogger.e("Error converting drawable to bitmap: ${e.message}")
+                        return@launch
+                    }
+                }
+
+                // Set the QR bitmap in our screenshot layout
+                qrCodeImageView.setImageBitmap(qrBitmap)
+
+                // Process the data for display
+                val estateAfdeling = if (mappedData.isNotEmpty()) {
+                    val firstData = mappedData[0]
+                    val estate = firstData["estate"]?.toString() ?: "Unknown"
+                    val afdeling = firstData["afdeling"]?.toString() ?: "Unknown"
+                    "$estate/$afdeling"
+                } else {
+                    "Unknown/Unknown"
+                }
+
+                AppLogger.d("Estate/Afdeling: $estateAfdeling")
+
+                // Log the estate/afdeling data for debugging
+                AppLogger.d("Estate/Afdeling: $estateAfdeling")
+
+                // Extract kemandoran list
+                // Process the data for display in the screenshot
+                val kemandoranIds = mutableListOf<String>()
+                for (data in mappedData) {
+                    val namaKemandoran = data["nama_kemandoran"]
+                    AppLogger.d("nama_kemandoran: $namaKemandoran (${namaKemandoran?.javaClass?.name})")
+
+                    when (namaKemandoran) {
+                        is List<*> -> {
+                            namaKemandoran.forEach { name ->
+                                if (name != null) kemandoranIds.add(name.toString())
+                            }
+                        }
+
+                        is Array<*> -> {
+                            namaKemandoran.forEach { name ->
+                                if (name != null) kemandoranIds.add(name.toString())
+                            }
+                        }
+
+                        is String -> {
+                            // If it's a string, it might be a single name or a comma-separated list
+                            if (namaKemandoran.contains(",")) {
+                                kemandoranIds.addAll(namaKemandoran.split(",").filter { it.isNotEmpty() })
+                            } else {
+                                kemandoranIds.add(namaKemandoran)
+                            }
+                        }
+
+                        else -> {
+                            if (namaKemandoran != null) kemandoranIds.add(namaKemandoran.toString())
+                        }
+                    }
+                }
+
+                val kemandoranList = kemandoranIds.distinct().joinToString("\n")
+                AppLogger.d("Kemandoran list: $kemandoranList")
+
+                // Calculate attendance
+                var totalMasuk = 0
+                var totalTidakMasuk = 0
+
+                for (data in mappedData) {
+                    val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
+                    val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
+
+                    totalMasuk += karyawanMskId.split(",").filter { it.isNotEmpty() }.size
+                    totalTidakMasuk += karyawanTdkMskId.split(",").filter { it.isNotEmpty() }.size
+                }
+
+                val totalKaryawan = totalMasuk + totalTidakMasuk
+
+// Format as "Present / Total"
+                val totalAttendance = "$totalMasuk / $totalKaryawan"
+                AppLogger.d("Total attendance: $totalAttendance")
+
+
+                // Set user info
+                tvUserName.text =
+                    "Hasil QR dari ${prefManager?.jabatanUserLogin ?: "Unknown"} - ${estateAfdeling}"
+
+                // Set footer with date/time
+                val currentDate = Date()
+                val indonesianLocale = Locale("id", "ID")
+                val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
+                val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                val formattedTime = timeFormat.format(currentDate)
+
+                tvFooter.text =
+                    "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
+
+                // Set the data in the info views
+//                setInfoData(infoBlokList, "Est/Afd", ": $estateAfdeling")
+                setInfoData(infoTotalJjg, "Kemandoran", ": $kemandoranList")
+                setInfoData(infoTotalTransaksi, "Kehadiran", ": $totalAttendance")
+
+                // Take the screenshot
+                val displayMetrics = resources.displayMetrics
+                val width = displayMetrics.widthPixels
+
+                screenshotLayout.measure(
+                    View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                )
+
+                screenshotLayout.layout(
+                    0, 0, screenshotLayout.measuredWidth, screenshotLayout.measuredHeight
+                )
+
+                val screenshotFileName = "Absensi_QR"
+                val watermarkType = AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
+
+                AppLogger.d("Taking screenshot now")
+                val screenshotFile = ScreenshotUtil.takeScreenshot(
+                    screenshotLayout,
+                    screenshotFileName,
+                    watermarkType
+                )
+
+                if (screenshotFile != null) {
+                    AppLogger.d("Screenshot saved successfully: ${screenshotFile.absolutePath}")
+                    withContext(Dispatchers.Main) {
+                        Toasty.success(
+                            this@ListAbsensiActivity,
+                            "QR sudah tersimpan digaleri",
+                            Toast.LENGTH_LONG,
+                            true
+                        ).show()
+                    }
+                } else {
+                    AppLogger.e("Screenshot file is null")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@ListAbsensiActivity,
+                            "Gagal menyimpan QR Code: Screenshot file is null",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error taking QR screenshot: ${e.message}")
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@ListAbsensiActivity,
+                        "Gagal menyimpan QR Code: ${e.message ?: "Unknown error"}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
+    // Helper method to process screenshot with dynamically found views
+    private suspend fun processScreenshotWithFoundViews(
+        screenshotLayout: View,
+        tvUserName: TextView,
+        qrCodeImageView: ImageView,
+        tvFooter: TextView,
+        infoView1: View,
+        infoView2: View,
+        infoView3: View,
+        originalQrImageView: ImageView
+    ) {
+        try {
+            // Convert QR drawable to bitmap
+            val qrBitmap = if (originalQrImageView.drawable is BitmapDrawable) {
+                (originalQrImageView.drawable as BitmapDrawable).bitmap
+            } else {
+                val drawable = originalQrImageView.drawable
+                val bitmap = Bitmap.createBitmap(
+                    drawable.intrinsicWidth,
+                    drawable.intrinsicHeight,
+                    Bitmap.Config.ARGB_8888
+                )
+                val canvas = Canvas(bitmap)
+                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                drawable.draw(canvas)
+                bitmap
+            }
+
+            // Set the QR bitmap in our screenshot layout
+            qrCodeImageView.setImageBitmap(qrBitmap)
+
+            // Helper function to set info data
+            fun setInfoData(view: View, labelText: String, valueText: String) {
+                val tvLabel = view.findViewById<TextView>(R.id.tvLabel)
+                val tvValue = view.findViewById<TextView>(R.id.tvValue)
+
+                if (tvLabel != null && tvValue != null) {
+                    tvLabel.text = labelText
+                    tvValue.text = valueText
+                }
+            }
+
+            // Process the data for display
+            val estateAfdeling = mappedData.joinToString("\n") {
+                "${it["estate"] ?: "Unknown"}/${it["afdeling"] ?: "Unknown"}"
+            }
+
+            // Extract kemandoran list
+            val kemandoranIds = mutableListOf<String>()
+            for (data in mappedData) {
+                val idKemandoran = data["id_kemandoran"]
+                when (idKemandoran) {
+                    is List<*> -> {
+                        idKemandoran.forEach { id ->
+                            if (id != null) kemandoranIds.add(id.toString())
+                        }
+                    }
+
+                    is Array<*> -> {
+                        idKemandoran.forEach { id ->
+                            if (id != null) kemandoranIds.add(id.toString())
+                        }
+                    }
+
+                    is String -> {
+                        // If it's a string, it might be a single ID or a comma-separated list
+                        if (idKemandoran.contains(",")) {
+                            kemandoranIds.addAll(idKemandoran.split(",").filter { it.isNotEmpty() })
+                        } else {
+                            kemandoranIds.add(idKemandoran)
+                        }
+                    }
+
+                    else -> {
+                        if (idKemandoran != null) kemandoranIds.add(idKemandoran.toString())
+                    }
+                }
+            }
+
+            val kemandoranList = kemandoranIds.distinct().joinToString("\n")
+
+            // Calculate attendance
+            var totalMasuk = 0
+            var totalTidakMasuk = 0
+
+            for (data in mappedData) {
+                val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
+                val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
+
+                totalMasuk += karyawanMskId.split(",").filter { it.isNotEmpty() }.size
+                totalTidakMasuk += karyawanTdkMskId.split(",").filter { it.isNotEmpty() }.size
+            }
+
+            val totalAttendance = "$totalMasuk / $totalTidakMasuk"
+
+            // Set user info
+            tvUserName.text =
+                "Hasil QR dari ${prefManager?.jabatanUserLogin ?: "Unknown"} - ${prefManager?.estateUserLogin ?: "Unknown"}"
+
+            // Set footer with date/time
+            val currentDate = Date()
+            val indonesianLocale = Locale("id", "ID")
+            val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
+            val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+            val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+            val formattedTime = timeFormat.format(currentDate)
+
+            tvFooter.text =
+                "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
+
+            // Set the data in the info views
+            setInfoData(infoView1, "Est/Afd", ": $estateAfdeling")
+            setInfoData(infoView2, "Kemandoran", ": $kemandoranList")
+            setInfoData(infoView3, "Total Hadir / Tidak Hadir", ": $totalAttendance")
+
+            // Take the screenshot
+            val displayMetrics = resources.displayMetrics
+            val width = displayMetrics.widthPixels
+
+            screenshotLayout.measure(
+                View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            )
+
+            screenshotLayout.layout(
+                0, 0, screenshotLayout.measuredWidth, screenshotLayout.measuredHeight
+            )
+
+            // Create a filename and take the screenshot
+            val screenshotFileName = "Absensi_QR"
+
+            val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen)
+                AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
+            else if (featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen) {
+                AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
+            } else
+                AppUtils.WaterMarkFotoDanFolder.WMESPB
+
+            AppLogger.d("Taking screenshot now")
+            val screenshotFile = ScreenshotUtil.takeScreenshot(
+                screenshotLayout,
+                screenshotFileName,
+                watermarkType
+            )
+
+            if (screenshotFile != null) {
+                AppLogger.d("Screenshot saved successfully: ${screenshotFile.absolutePath}")
+                withContext(Dispatchers.Main) {
+                    Toasty.success(
+                        this@ListAbsensiActivity,
+                        "QR sudah tersimpan digaleri",
+                        Toast.LENGTH_LONG,
+                        true
+                    ).show()
+                }
+            } else {
+                AppLogger.e("Screenshot file is null")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@ListAbsensiActivity,
+                        "Gagal menyimpan QR Code: Screenshot file is null",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error processing with found views: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    // Helper function to find views that have both tvLabel and tvValue TextViews
+    private fun findViewsWithLabels(viewGroup: ViewGroup): List<View> {
+        val result = mutableListOf<View>()
+
+        // Check if this ViewGroup has both tvLabel and tvValue
+        val hasLabel = viewGroup.findViewById<TextView>(R.id.tvLabel) != null
+        val hasValue = viewGroup.findViewById<TextView>(R.id.tvValue) != null
+
+        if (hasLabel && hasValue) {
+            result.add(viewGroup)
+        }
+
+        // Check all children recursively
+        for (i in 0 until viewGroup.childCount) {
+            val child = viewGroup.getChildAt(i)
+            if (child is ViewGroup) {
+                result.addAll(findViewsWithLabels(child))
+            }
+        }
+
+        return result
+    }
+
+    private fun showQrCodeFullScreen(qrDrawable: Drawable?, bottomSheetView: View) {
+        if (qrDrawable == null) return
+
+        // Get the bottom sheet behavior to control it
+        val bottomSheetBehavior = BottomSheetBehavior.from(bottomSheetView.parent as View)
+
+        // Save current state to restore later
+        val previousState = bottomSheetBehavior.state
+
+        // Expand bottom sheet fully first
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+
+        // Create a dialog to display the QR code
+        val context = bottomSheetView.context
+        val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+
+        // Make dialog dismissible with back button
+        dialog.setCancelable(true)
+        dialog.setOnCancelListener {
+            // Restore previous bottom sheet state when dismissed with back button
+            bottomSheetBehavior.state = previousState
+        }
+
+        // Inflate the camera_edit layout
+        val fullscreenView = layoutInflater.inflate(R.layout.camera_edit, null)
+        dialog.setContentView(fullscreenView)
+
+        // Find views within the dialog layout
+        val fotoLayout = fullscreenView.findViewById<ConstraintLayout>(R.id.clZoomLayout)
+        val photoView = fullscreenView.findViewById<PhotoView>(R.id.fotoZoom)
+        val closeZoomCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardCloseZoom)
+        val changePhotoCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardChangePhoto)
+        val deletePhotoCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
+
+        // Find the TextView and ImageView for color changes
+        val tvCardCloseButton = fullscreenView.findViewById<TextView>(R.id.tvCardCloseButton)
+        val closeZoomIcon = fullscreenView.findViewById<ImageView>(R.id.closeZoom)
+
+        // Set the image to the PhotoView
+        photoView.setImageDrawable(qrDrawable)
+
+        // Hide edit options
+        changePhotoCard.visibility = View.GONE
+        deletePhotoCard.visibility = View.GONE
+
+        // Set background color of the layout to white using your color resource
+        fotoLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.white))
+
+        // Set close button background color to green using your color resource
+        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
+
+        // Change the text color to white
+        tvCardCloseButton.setTextColor(ContextCompat.getColor(context, R.color.white))
+
+        // Change the close icon tint to white
+        closeZoomIcon.setColorFilter(ContextCompat.getColor(context, R.color.white))
+
+        // Set up close button to restore previous bottom sheet state
+        closeZoomCard.setOnClickListener {
+            dialog.dismiss()
+            // Restore previous bottom sheet state
+            bottomSheetBehavior.state = previousState
+        }
+
+        // Make dialog display properly
+        dialog.window?.apply {
+            // Set window background to white using your color resource
+            setBackgroundDrawable(ColorDrawable(ContextCompat.getColor(context, R.color.white)))
+            setDimAmount(0f) // Remove dimming since we have a white background
+
+            // This is important - use TYPE_APPLICATION to ensure it appears above the bottom sheet
+            attributes.type = WindowManager.LayoutParams.TYPE_APPLICATION
+
+            // Make sure to set the layout flags properly
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+
+            // Add FLAG_NOT_TOUCH_MODAL to make sure it gets all touch events
+            addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+
+            // This helps ensure it appears on top
+            setGravity(Gravity.CENTER)
+        }
+
+        dialog.show()
     }
 
     fun encodeJsonToBase64ZipQR(jsonData: String): String? {
@@ -767,7 +1379,8 @@ class ListAbsensiActivity : AppCompatActivity() {
             val infoSet = mutableSetOf<String>()
 
             mappedData.forEach { data ->
-                val idKemandoran = data["id_kemandoran"]?.toString() ?: throw IllegalArgumentException("Missing idKemandoran.")
+                val idKemandoran = data["id_kemandoran"]?.toString()
+                    ?: throw IllegalArgumentException("Missing idKemandoran.")
                 val estate = data["estate"]?.toString()?.trim() ?: ""
                 val afdeling = data["afdeling"]?.toString()?.trim() ?: ""
                 val createdBy = data["created_by"]?.toString() ?: ""
@@ -782,19 +1395,23 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val info = data["info"]?.toString() ?: ""
 
                 // Extract idKemandoran values
-                idKemandoran.removeSurrounding("[", "]").split(", ").forEach { allKemandoran.add(it.trim()) }
+                idKemandoran.removeSurrounding("[", "]").split(", ")
+                    .forEach { allKemandoran.add(it.trim()) }
 
                 // Extract karyawan_msk_id values
-                karyawanMskId.split(",").filter { it.isNotEmpty() }.forEach { allKaryawan.add(it.trim()) }
+                karyawanMskId.split(",").filter { it.isNotEmpty() }
+                    .forEach { allKaryawan.add(it.trim()) }
 
                 // Extract karyawan_tdk_msk_id values
-                karyawanTdkMskId.split(",").filter { it.isNotEmpty() }.forEach { allKaryawan.add(it.trim()) }
+                karyawanTdkMskId.split(",").filter { it.isNotEmpty() }
+                    .forEach { allKaryawan.add(it.trim()) }
 
                 if (estate.isNotEmpty()) estateSet.add(estate)
                 // Collect unique datetime and afdeling
                 if (dateAbsen.isNotEmpty()) datetimeSet.add(dateAbsen)
                 if (afdeling.isNotEmpty()) {
-                    afdeling.split("\n").forEach { afdelingSet.add(it.trim()) } // Fix multiline issues
+                    afdeling.split("\n")
+                        .forEach { afdelingSet.add(it.trim()) } // Fix multiline issues
                 }
 
                 // Collect createdBy values
@@ -842,7 +1459,6 @@ class ListAbsensiActivity : AppCompatActivity() {
     }
 
 
-
     private fun setupCardListeners() {
         cardTersimpan.setOnClickListener {
             currentState = 0
@@ -853,9 +1469,9 @@ class ListAbsensiActivity : AppCompatActivity() {
             tvEmptyStateAbsensi.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
             absensiAdapter.updateArchiveState(0)
-            if(prefManager!!.jabatanUserLogin == "Kerani Panen"){
+            if (prefManager!!.jabatanUserLogin == "Kerani Panen") {
                 absensiViewModel.getAllDataAbsensi(1)
-            }else{
+            } else {
                 absensiViewModel.getAllDataAbsensi(0)
             }
 
@@ -1029,7 +1645,8 @@ class ListAbsensiActivity : AppCompatActivity() {
         return try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val date = inputFormat.parse(dateStr) ?: return dateStr
-            val outputFormat = SimpleDateFormat("d MMMM yyyy", Locale("id")) // Example: 6 Maret 2025
+            val outputFormat =
+                SimpleDateFormat("d MMMM yyyy", Locale("id")) // Example: 6 Maret 2025
             outputFormat.format(date)
         } catch (e: Exception) {
             dateStr // Return original string in case of error
@@ -1055,12 +1672,14 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
 
         absensiViewModel.savedDataAbsensiList.observe(this) { data ->
-            if (currentState == 0 ) {
+            if (currentState == 0) {
                 absensiAdapter.updateList(emptyList())
 
                 if (data.isNotEmpty()) {
-                    val dateAbsen = data.first().absensi.date_absen // Get date_absen from first item
-                    val formattedDate = formatToIndonesianDate(dateAbsen) // Format it to Indonesian date
+                    val dateAbsen =
+                        data.first().absensi.date_absen // Get date_absen from first item
+                    val formattedDate =
+                        formatToIndonesianDate(dateAbsen) // Format it to Indonesian date
                     val tglAbsensi = findViewById<TextView>(R.id.tvTglAbsensi)
                     tglAbsensi.text = formattedDate
 
@@ -1094,7 +1713,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                         AppLogger.e("Failed to fetch Pemuat Data: ${e.message}")
                                         null
                                     }
-                                    AppLogger.d(kemandoranData.toString())
+                                    AppLogger.d("kemandoranData $kemandoranData")
 
                                     val afdeling = kemandoranData
                                         ?.mapNotNull { it.divisi_abbr }
@@ -1102,18 +1721,22 @@ class ListAbsensiActivity : AppCompatActivity() {
                                         ?.takeIf { it.isNotEmpty() }
                                         ?.joinToString("\n") ?: "-"
 
-                                    val estate = kemandoranData?.firstNotNullOfOrNull { it.dept_abbr } ?: "-"
-                                    val kemandoranRow = kemandoranData?.mapNotNull { it.kode }?.takeIf { it.isNotEmpty() }
+                                    val estate =
+                                        kemandoranData?.firstNotNullOfOrNull { it.dept_abbr } ?: "-"
+                                    val kemandoranRow = kemandoranData?.mapNotNull { it.kode }
+                                        ?.takeIf { it.isNotEmpty() }
                                         ?.joinToString("\n") ?: "-"
 
-                                    val kemandoranRaw = kemandoranData?.mapNotNull { it.kode }?.takeIf { it.isNotEmpty() }
+                                    val kemandoranRaw = kemandoranData?.mapNotNull { it.kode }
+                                        ?.takeIf { it.isNotEmpty() }
                                         ?.joinToString("\n") ?: "-"
                                     async {
                                         mappedData = mappedData + mapOf(
                                             "id_kemandoran" to rawKemandoran,
+                                            "nama_kemandoran" to absensiWithRelations.kemandoran!!.nama!!,
                                             "id" to absensiWithRelations.absensi.id,
-                                            "estate" to estate,
-                                            "afdeling" to afdeling,
+                                            "estate" to absensiWithRelations.absensi.dept_abbr,
+                                            "afdeling" to absensiWithRelations.absensi.divisi_abbr,
                                             "created_by" to absensiWithRelations.absensi.created_by,
                                             "datetime" to absensiWithRelations.absensi.date_absen,
                                             "karyawan_msk_id" to absensiWithRelations.absensi.karyawan_msk_id,
@@ -1183,7 +1806,7 @@ class ListAbsensiActivity : AppCompatActivity() {
             btnGenerateQRAbsensi.visibility = View.GONE
             tglAbsensi.visibility = View.GONE
 
-            if (currentState == 1 ) {
+            if (currentState == 1) {
                 absensiAdapter.updateList(emptyList())
                 if (data.isNotEmpty()) {
                     speedDial.visibility = View.GONE
@@ -1217,8 +1840,10 @@ class ListAbsensiActivity : AppCompatActivity() {
                                         null
                                     }
                                     AppLogger.d(kemandoranData.toString())
-                                    val kemandoranNama = kemandoranData?.mapNotNull { it.divisi_abbr }?.takeIf { it.isNotEmpty() }
-                                        ?.joinToString("\n") ?: "-"
+                                    val kemandoranNama =
+                                        kemandoranData?.mapNotNull { it.divisi_abbr }
+                                            ?.takeIf { it.isNotEmpty() }
+                                            ?.joinToString("\n") ?: "-"
 
 //                                    val kemandoranId = kemandoranData?.mapNotNull { it.divisi_abbr }?.takeIf { it.isNotEmpty() }
 //                                        ?.joinToString("\n") ?: "-"
@@ -1227,6 +1852,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                         mappedData = mappedData + mapOf(
                                             "id_kemandoran" to rawKemandoran,
                                             "id" to absensiWithRelations.absensi.id,
+                                            "nama_kemandoran" to absensiWithRelations.kemandoran!!.nama!!,
                                             "afdeling" to kemandoranNama,
                                             "datetime" to absensiWithRelations.absensi.date_absen,
                                             "karyawan_msk_id" to absensiWithRelations.absensi.karyawan_msk_id,

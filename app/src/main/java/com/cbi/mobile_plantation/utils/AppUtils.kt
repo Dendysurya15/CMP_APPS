@@ -217,6 +217,7 @@ object AppUtils {
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
         const val WMInspeksi = "INSPEKSI"
+        const val WMAbsensiPanen = "ABSENSI PANEN"
         const val WMESPB = "E-SPB"
     }
 

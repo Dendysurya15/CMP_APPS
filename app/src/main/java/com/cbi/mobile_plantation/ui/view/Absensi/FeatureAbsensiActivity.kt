@@ -253,7 +253,6 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
         val mbSaveDataAbsensi = findViewById<MaterialButton>(R.id.mbSaveDataAbsensi)
         mbSaveDataAbsensi.setOnClickListener {
             if (validateAndShowErrors()) {
-//                mbSaveDataAbsensi.isEnabled = false
                 AlertDialogUtility.withTwoActions(
                     this,
                     "Simpan Data",
@@ -306,6 +305,10 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
                                         kemandoran_id = listKemandoran,
                                         date_absen = dateAbsen,
                                         created_by = userId!!,
+                                        dept = prefManager!!.estateIdUserLogin!!,
+                                        dept_abbr = prefManager!!.estateUserLogin!!,
+                                        divisi = selectedDivisiValue.toString(),
+                                        divisi_abbr = selectedAfdeling,
                                         karyawan_msk_id = karyawanMskId,
                                         karyawan_tdk_msk_id = karyawanTdkMskId,
                                         karyawan_msk_nik = karyawanNikMasuk,
@@ -474,7 +477,6 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
                             setupSpinnerView(layoutView, namaEstate)
                             findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
                         }
-
                         R.id.layoutAfdelingAbsensi -> {
                             AppLogger.d(divisiList.toString())
                             val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
@@ -543,7 +545,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
-        takeFotoPreviewAdapter = TakeFotoPreviewAdapter(1, cameraViewModel, this, featureName)
+        takeFotoPreviewAdapter = TakeFotoPreviewAdapter(1, cameraViewModel, this, AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen)
         recyclerView.adapter = takeFotoPreviewAdapter
     }
 

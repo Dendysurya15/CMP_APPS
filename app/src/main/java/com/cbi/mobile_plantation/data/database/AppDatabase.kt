@@ -77,7 +77,7 @@ import java.util.concurrent.Executors
         AfdelingModel::class,
         JenisTPHModel::class
     ],
-    version = 40
+    version = 41
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -149,7 +149,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_35_36,
                         MIGRATION_36_37,
                         MIGRATION_37_38,
-                        MIGRATION_38_39
+                        MIGRATION_38_39,
+                        MIGRATION_39_40,
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -510,6 +511,17 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN karyawan_tdk_msk_nama TEXT NOT NULL DEFAULT ''")
             }
         }
+
+        val MIGRATION_39_40 = object : Migration(38, 39) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add the new columns to the ABSENSI table
+                database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN dept TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN dept_abbr TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN divisi TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN divisi_abbr TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
 
         fun closeDatabase() {
             INSTANCE?.close()

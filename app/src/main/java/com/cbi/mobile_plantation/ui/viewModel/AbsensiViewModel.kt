@@ -145,6 +145,10 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         kemandoran_id: String,
         date_absen: String,
         created_by: Int,
+        dept: String = "",
+        dept_abbr: String = "",
+        divisi: String = "",
+        divisi_abbr: String = "",
         karyawan_msk_id: String,
         karyawan_tdk_msk_id: String,
         karyawan_msk_nik: String,
@@ -157,7 +161,7 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         lat: Double,
         lon: Double,
         info: String,
-        status_scan : Int = 0,
+        status_scan: Int = 0,
         archive: Int
     ): SaveDataAbsensiState {
         return try {
@@ -165,6 +169,10 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
                 kemandoran_id = kemandoran_id,
                 date_absen = date_absen,
                 created_by = created_by,
+                dept = dept,
+                dept_abbr = dept_abbr,
+                divisi = divisi,
+                divisi_abbr = divisi_abbr,
                 karyawan_msk_id = karyawan_msk_id,
                 karyawan_tdk_msk_id = karyawan_tdk_msk_id,
                 karyawan_msk_nik = karyawan_msk_nik,
