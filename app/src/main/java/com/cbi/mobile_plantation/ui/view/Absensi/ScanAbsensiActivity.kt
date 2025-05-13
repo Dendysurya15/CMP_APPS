@@ -57,8 +57,6 @@ class ScanAbsensiActivity : AppCompatActivity() {
     private lateinit var loadingDialog: LoadingDialog
 
     var globalIdKemandoran: String? = null
-    var globalEstate: String = ""
-    var globalAfdeling: String = ""
     var globalDateTime: String = ""
     var globalKaryawanMskId: String? = ""
     var globalKaryawanTdkMskId: String? = ""
@@ -69,6 +67,14 @@ class ScanAbsensiActivity : AppCompatActivity() {
     var globalLat: Double? = null
     var globalLon: Double? = null
     var globalInfo: String = ""
+    var globalDept : String = ""
+    var globalDeptAbbr : String = ""
+    var globalDivisi : String = ""
+    var globalDivisiAbbr : String = ""
+    var globalKaryawanMskNama : String = ""
+    var globalKaryawanTdkMskNama : String = ""
+    var globalKaryawanMskNik : String = ""
+    var globalKaryawanTdkMskNik : String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -198,13 +204,47 @@ class ScanAbsensiActivity : AppCompatActivity() {
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val rawDatetime = datetimeList.firstOrNull() ?: ""
 
-                    val estateList = jsonObject.optJSONArray("estate")
+                    // Extract dept and dept_abbr (previously estate)
+                    val deptList = jsonObject.optJSONArray("dept")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val dept = deptList.firstOrNull() ?: ""
+
+                    val deptAbbrList = jsonObject.optJSONArray("dept_abbr")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val deptAbbr = deptAbbrList.firstOrNull() ?: ""
+
+                    // Use estate as fallback for dept_abbr if not present
+                    val estateList = jsonObject.optJSONArray("dept")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val estate = estateList.firstOrNull() ?: ""
 
-                    val afdelingList = jsonObject.optJSONArray("afdeling")
+                    val finalDeptAbbr = if (deptAbbr.isNotEmpty()) deptAbbr else estate
+
+                    // Extract divisi and divisi_abbr (previously afdeling)
+                    val divisiList = jsonObject.optJSONArray("divisi")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val divisi = divisiList.firstOrNull() ?: ""
+
+                    val divisiAbbrList = jsonObject.optJSONArray("divisi_abbr")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val divisiAbbr = divisiAbbrList.firstOrNull() ?: ""
+
+                    // Use afdeling as fallback for divisi_abbr if not present
+                    val afdelingList = jsonObject.optJSONArray("divisi")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val afdeling = afdelingList.firstOrNull() ?: ""
+
+                    val finalDivisiAbbr = if (divisiAbbr.isNotEmpty()) divisiAbbr else afdeling
+
+                    // Extract info field
+                    val infoList = jsonObject.optJSONArray("info")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val info = infoList.firstOrNull() ?: ""
+
+                    // Extract created_by field
+                    val createdByList = jsonObject.optJSONArray("created_by")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val createdBy = createdByList.firstOrNull()?.toIntOrNull() ?: 0
 
                     val formattedDatetime = if (rawDatetime.isNotEmpty()) {
                         try {
@@ -232,17 +272,56 @@ class ScanAbsensiActivity : AppCompatActivity() {
                         ""
                     }
 
-                    // Process the NIK data (just for logging, we don't show it in the UI)
+                    // Process the employee data
+                    // First try karyawan_msk_id and karyawan_tdk_msk_id
+                    val karyawanMskIdList = jsonObject.optJSONArray("karyawan_msk_id")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val karyawanTdkMskIdList = jsonObject.optJSONArray("karyawan_tdk_msk_id")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+
+                    // Fallback to NIK if ID lists are empty
                     val nikKaryawanMskList = jsonObject.optJSONArray("karyawan_msk_nik")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val nikKaryawanTdkMskList = jsonObject.optJSONArray("karyawan_tdk_msk_nik")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
 
-                    AppLogger.d("Present employees (NIK): ${nikKaryawanMskList.joinToString(", ")}")
-                    AppLogger.d("Absent employees (NIK): ${nikKaryawanTdkMskList.joinToString(", ")}")
+                    // Use IDs if available, otherwise use NIKs
+                    val finalKaryawanMskIdList = if (karyawanMskIdList.isNotEmpty()) karyawanMskIdList else nikKaryawanMskList
+                    val finalKaryawanTdkMskIdList = if (karyawanTdkMskIdList.isNotEmpty()) karyawanTdkMskIdList else nikKaryawanTdkMskList
+
+                    // Join lists to strings for global variables
+                    val karyawanMskIdString = finalKaryawanMskIdList.joinToString(",")
+                    val karyawanTdkMskIdString = finalKaryawanTdkMskIdList.joinToString(",")
+                    val nikKaryawanMskString = nikKaryawanMskList.joinToString(",")
+                    val nikKaryawanTdkMskString = nikKaryawanTdkMskList.joinToString(",")
+                    val idKemandoranString = idKemandoranList.joinToString(",")
+
+                    AppLogger.d("Present employees (ID/NIK): ${finalKaryawanMskIdList.joinToString(", ")}")
+                    AppLogger.d("Absent employees (ID/NIK): ${finalKaryawanTdkMskIdList.joinToString(", ")}")
+
+                    // Get employee names if needed
+                    var karyawanMskNamaString = ""
+                    var karyawanTdkMskNamaString = ""
+
+                    try {
+                        // Query to get names of employees who are present
+                        if (nikKaryawanMskList.isNotEmpty()) {
+                            val presentEmployees = absensiViewModel.getKaryawanByNikList(nikKaryawanMskList)
+                            karyawanMskNamaString = presentEmployees.mapNotNull { it.nama }
+                                .takeIf { it.isNotEmpty() }?.joinToString(",") ?: ""
+                        }
+
+                        // Query to get names of employees who are absent
+                        if (nikKaryawanTdkMskList.isNotEmpty()) {
+                            val absentEmployees = absensiViewModel.getKaryawanByNikList(nikKaryawanTdkMskList)
+                            karyawanTdkMskNamaString = absentEmployees.mapNotNull { it.nama }
+                                .takeIf { it.isNotEmpty() }?.joinToString(",") ?: ""
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error getting employee names: ${e.message}")
+                    }
 
                     // Get the kemandoran name
-
                     AppLogger.d(idKemandoranList.toString())
                     var namaKemandoran = "-"
                     try {
@@ -255,21 +334,40 @@ class ScanAbsensiActivity : AppCompatActivity() {
                     }
 
                     // Calculate attendance statistics
-                    val totalMasuk = nikKaryawanMskList.size
-                    val totalTidakMasuk = nikKaryawanTdkMskList.size
+                    val totalMasuk = finalKaryawanMskIdList.size
+                    val totalTidakMasuk = finalKaryawanTdkMskIdList.size
                     val totalAll = totalMasuk + totalTidakMasuk
                     val kehadiranText = "$totalMasuk / $totalAll"
 
                     AppLogger.d("Attendance stats: $kehadiranText")
+                    AppLogger.d("dept: $dept, dept_abbr: $finalDeptAbbr")
+                    AppLogger.d("divisi: $divisi, divisi_abbr: $finalDivisiAbbr")
 
-                    AppLogger.d("estate: $estate")
-                    AppLogger.d("afdeling: $afdeling")
+                    // Set global variables for saving data
+                    globalIdKemandoran = idKemandoranString
+                    globalDateTime = rawDatetime
+                    globalCreatedBy = createdBy
+                    globalKaryawanMskId = karyawanMskIdString
+                    globalKaryawanTdkMskId = karyawanTdkMskIdString
+                    globalInfo = info
+
+                    // Store dept and divisi information
+                    globalDept = dept
+                    globalDeptAbbr = finalDeptAbbr
+                    globalDivisi = divisi
+                    globalDivisiAbbr = finalDivisiAbbr
+
+                    // Store employee names
+                    globalKaryawanMskNama = karyawanMskNamaString
+                    globalKaryawanTdkMskNama = karyawanTdkMskNamaString
+                    globalKaryawanMskNik = nikKaryawanMskString
+                    globalKaryawanTdkMskNik = nikKaryawanTdkMskString
 
                     withContext(Dispatchers.Main) {
                         try {
                             showBottomSheetWithData(
                                 datetimeQR = formattedDatetime,
-                                estateAfdelingQR = "$estate / $afdeling",
+                                estateAfdelingQR = "$finalDeptAbbr / $finalDivisiAbbr",
                                 namaKemandoranQR = namaKemandoran,
                                 kehadiranQR = kehadiranText,
                                 hasError = false,
@@ -317,7 +415,6 @@ class ScanAbsensiActivity : AppCompatActivity() {
                     }
                 }
             }
-
         }
     }
 
@@ -464,21 +561,25 @@ class ScanAbsensiActivity : AppCompatActivity() {
 
                                             val result = withContext(Dispatchers.IO) {
                                                 val response = absensiViewModel.saveDataAbsensi(
+                                                    dept = globalDept ?: "",
+                                                    dept_abbr = globalDeptAbbr ?: "",
+                                                    divisi = globalDivisi ?: "",
+                                                    divisi_abbr = globalDivisiAbbr ?: "",
                                                     kemandoran_id = globalIdKemandoran ?: "",
                                                     date_absen = globalDateTime,
                                                     created_by = globalCreatedBy ?: 0,
                                                     karyawan_msk_id = globalKaryawanMskId ?: "",
                                                     karyawan_tdk_msk_id = globalKaryawanTdkMskId ?: "",
-                                                    karyawan_msk_nik = "",  // Default empty string for now
-                                                    karyawan_tdk_msk_nik = "",  // Default empty string for now
-                                                    karyawan_msk_nama = "",  // Default empty string for now
-                                                    karyawan_tdk_msk_nama = "",  // Default empty string for now
+                                                    karyawan_msk_nik = globalKaryawanMskNik ?: "",  // Use the NIK values
+                                                    karyawan_tdk_msk_nik = globalKaryawanTdkMskNik ?: "",  // Use the NIK values
+                                                    karyawan_msk_nama = globalKaryawanMskNama ?: "",
+                                                    karyawan_tdk_msk_nama = globalKaryawanTdkMskNama ?: "",
                                                     foto = globalFoto,
                                                     komentar = globalKomentar,
                                                     asistensi = globalAsistensi ?: 0,
                                                     lat = globalLat ?: 0.0,
                                                     lon = globalLon ?: 0.0,
-                                                    info = globalInfo,
+                                                    info = globalInfo ?: "",
                                                     status_scan = 1,
                                                     archive = 0
                                                 )

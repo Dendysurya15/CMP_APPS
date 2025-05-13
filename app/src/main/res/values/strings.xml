@@ -99,6 +99,7 @@
     <string name="al_notified_alert">Perhatian!</string>
     <string name="al_notify_to_generate_qr_after_60_transaction">Transaksi anda sudah mencapai 60, disarankan untuk melakukan generate QR!</string>
     <string name="al_description_success_save_local_and_espb_krani_timbang">Data e-SPB berhasil disimpan!</string>
+    <string name="al_description_success_absensi">Data Absensi berhasil disimpan!</string>
     <string name="al_success_save_local">Sukses Simpan</string>
     <string name="al_success_delete">Berhasil Hapus</string>
     <string name="al_success_update">Berhasil Update Data</string>

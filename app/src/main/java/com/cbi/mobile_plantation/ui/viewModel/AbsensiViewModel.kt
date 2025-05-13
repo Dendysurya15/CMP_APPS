@@ -196,8 +196,8 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
-        return repository.getPemuatByIdList(idPemuat)
+    suspend fun getKaryawanByNikList(nikKaryawan: List<String>): List<KaryawanModel> {
+        return repository.getKaryawanByNikList(nikKaryawan)
     }
 
 //    suspend fun saveDataLokalAbsensi(

@@ -883,8 +883,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                 // Process the data for display
                 val estateAfdeling = if (mappedData.isNotEmpty()) {
                     val firstData = mappedData[0]
-                    val estate = firstData["estate"]?.toString() ?: "Unknown"
-                    val afdeling = firstData["afdeling"]?.toString() ?: "Unknown"
+                    val estate = firstData["dept_abbr"]?.toString() ?: "Unknown"
+                    val afdeling = firstData["divisi_abbr"]?.toString() ?: "Unknown"
                     "$estate/$afdeling"
                 } else {
                     "Unknown/Unknown"
@@ -1356,51 +1356,99 @@ class ListAbsensiActivity : AppCompatActivity() {
             }
 
             val allKemandoran = mutableSetOf<String>()
-            val allNamaKemandoran = mutableSetOf<String>()
-            val estateSet = mutableSetOf<String>()
-            val afdelingSet = mutableSetOf<String>()
+            val deptSet = mutableSetOf<String>()        // Replace estateSet
+            val deptAbbrSet = mutableSetOf<String>()    // New field for dept_abbr
+            val divisiSet = mutableSetOf<String>()      // Replace afdelingSet
+            val divisiAbbrSet = mutableSetOf<String>()  // New field for divisi_abbr
             val createdBySet = mutableSetOf<String>()
             val datetimeSet = mutableSetOf<String>()
             val karyawanMskSet = mutableSetOf<String>()
             val karyawanTdkMskSet = mutableSetOf<String>()
+            val karyawanMskIdSet = mutableSetOf<String>() // New field for karyawan_msk_id
+            val karyawanTdkMskIdSet = mutableSetOf<String>() // New field for karyawan_tdk_msk_id
+            val infoSet = mutableSetOf<String>()
+
 
             mappedData.forEach { data ->
                 val idKemandoran = data["id_kemandoran"]?.toString()
                     ?: throw IllegalArgumentException("Missing id_kemandoran.")
-                val estate = data["estate"]?.toString()?.trim() ?: ""
-                val afdeling = data["afdeling"]?.toString()?.trim() ?: ""
+
+                // Renamed from estate to dept_abbr, but still read from "estate" in mappedData
+                val deptAbbr = data["dept_abbr"]?.toString()?.trim() ?: ""
+
+                // Renamed from afdeling to divisi_abbr, but still read from "afdeling" in mappedData
+                val divisiAbbr = data["divisi_abbr"]?.toString()?.trim() ?: ""
+
+                // Try to get dept/divisi from mappedData if available, otherwise use abbr values
+                val dept = data["dept"]?.toString()?.trim() ?: deptAbbr
+                val divisi = data["divisi"]?.toString()?.trim() ?: divisiAbbr
+
                 val createdBy = data["created_by"]?.toString() ?: ""
                 val dateAbsen = data["datetime"]?.toString() ?: ""
+
                 val karyawanMskNik = data["karyawan_msk_nik"]?.toString() ?: ""
                 val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
 
-                // Split and add
+                // Try to get karyawan IDs, if not available use NIK values
+                val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: karyawanMskNik
+                val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: karyawanTdkMskNik
+                val info = data["info"]?.toString() ?: ""
+
+                // Process id_kemandoran
                 idKemandoran.removeSurrounding("[", "]").split(",")
                     .forEach { allKemandoran.add(it.trim()) }
 
+                // Process karyawan_msk_nik
                 karyawanMskNik.split(",").filter { it.isNotEmpty() }
                     .forEach { karyawanMskSet.add(it.trim()) }
 
+                // Process karyawan_tdk_msk_nik
                 karyawanTdkMskNik.split(",").filter { it.isNotEmpty() }
                     .forEach { karyawanTdkMskSet.add(it.trim()) }
 
-                if (estate.isNotEmpty()) estateSet.add(estate)
+                // Process karyawan_msk_id
+                karyawanMskId.split(",").filter { it.isNotEmpty() }
+                    .forEach { karyawanMskIdSet.add(it.trim()) }
+
+                // Process karyawan_tdk_msk_id
+                karyawanTdkMskId.split(",").filter { it.isNotEmpty() }
+                    .forEach { karyawanTdkMskIdSet.add(it.trim()) }
+
+                // Add dept and dept_abbr
+                if (dept.isNotEmpty()) deptSet.add(dept)
+                if (deptAbbr.isNotEmpty()) deptAbbrSet.add(deptAbbr)
+
+                // Add datetime
                 if (dateAbsen.isNotEmpty()) datetimeSet.add(dateAbsen)
-                if (afdeling.isNotEmpty()) {
-                    afdeling.split("\n").forEach { afdelingSet.add(it.trim()) }
+
+                // Process divisi and divisi_abbr
+                if (divisi.isNotEmpty()) {
+                    divisi.split("\n").forEach { divisiSet.add(it.trim()) }
                 }
+                if (divisiAbbr.isNotEmpty()) {
+                    divisiAbbr.split("\n").forEach { divisiAbbrSet.add(it.trim()) }
+                }
+
+                // Add created_by
                 if (createdBy.isNotEmpty()) createdBySet.add(createdBy)
+
+                if (info.isNotEmpty()) infoSet.add(info)
             }
 
-            // Final JSON
+            // Final JSON with updated field names
             val jsonObject = JSONObject().apply {
                 put("id_kemandoran", JSONArray(allKemandoran))
                 put("datetime", JSONArray(datetimeSet))
-                put("estate", JSONArray(estateSet))
-                put("afdeling", JSONArray(afdelingSet))
+                put("dept", JSONArray(deptSet))
+                put("dept_abbr", JSONArray(deptAbbrSet))
+                put("divisi", JSONArray(divisiSet))
+                put("divisi_abbr", JSONArray(divisiAbbrSet))
                 put("created_by", JSONArray(createdBySet))
                 put("karyawan_msk_nik", JSONArray(karyawanMskSet))
                 put("karyawan_tdk_msk_nik", JSONArray(karyawanTdkMskSet))
+                put("karyawan_msk_id", JSONArray(karyawanMskIdSet))
+                put("karyawan_tdk_msk_id", JSONArray(karyawanTdkMskIdSet))
+                put("info", JSONArray(infoSet))
             }
 
             AppLogger.d("cek json object: $jsonObject")
@@ -1700,15 +1748,23 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                     ?: listOf("-")),
                                                 "id" to absensiWithRelations.absensi.id,
                                                 "nama_kemandoran" to kemandoranNama,
-                                                "afdeling" to absensiWithRelations.absensi.divisi_abbr,
-                                                "estate" to absensiWithRelations.absensi.dept_abbr,
+                                                "divisi" to absensiWithRelations.absensi.divisi,
+                                                "divisi_abbr" to absensiWithRelations.absensi.divisi_abbr,
+                                                "dept" to absensiWithRelations.absensi.dept,
+                                                "dept_abbr" to absensiWithRelations.absensi.dept_abbr,
                                                 "datetime" to (absensiWithRelations.absensi.date_absen
                                                     ?: "-"),
                                                 "created_by" to (absensiWithRelations.absensi.created_by
                                                     ?: "-"),
+                                                "info" to (absensiWithRelations.absensi.info
+                                                    ?: "-"),
                                                 "karyawan_msk_nik" to (absensiWithRelations.absensi.karyawan_msk_nik
                                                     ?: ""),
                                                 "karyawan_tdk_msk_nik" to (absensiWithRelations.absensi.karyawan_tdk_msk_nik
+                                                    ?: ""),
+                                                "karyawan_msk_id" to (absensiWithRelations.absensi.karyawan_msk_id
+                                                    ?: ""),
+                                                "karyawan_tdk_msk_id" to (absensiWithRelations.absensi.karyawan_tdk_msk_id
                                                     ?: "")
                                             )
 
