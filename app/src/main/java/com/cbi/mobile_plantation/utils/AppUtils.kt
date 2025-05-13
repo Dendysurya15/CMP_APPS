@@ -203,8 +203,8 @@ object AppUtils {
         const val ScanESPBTimbanganMill = "Scan e-SPB Timbangan Mill"
         const val RekapESPBTimbanganMill = "Rekap e-SPB Timbangan Mill"
         const val AbsensiPanen = "Absensi panen"
-        const val RekapAbsensiPanen = "Rekap absensi panen"
-        const val ScanAbsensiPanen = "Scan absensi panen"
+        const val RekapAbsensiPanen = "Rekap Absensi Panen"
+        const val ScanAbsensiPanen = "Scan Absensi Panen"
         const val SinkronisasiData = "Sinkronisasi data"
         const val UploadDataCMP = "Upload Data CMP"
 

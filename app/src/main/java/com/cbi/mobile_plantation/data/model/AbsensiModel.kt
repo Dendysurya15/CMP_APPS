@@ -12,14 +12,17 @@ data class AbsensiModel(
     val created_by: Int,
     val karyawan_msk_id: String,  //"30,59,9"
     val karyawan_tdk_msk_id: String,  //"30,59,9"
+    val karyawan_msk_nik: String = "",  // New field
+    val karyawan_tdk_msk_nik: String = "",  // New field
+    val karyawan_msk_nama: String = "",  // New field
+    val karyawan_tdk_msk_nama: String = "",  // New field
     val foto: String,
-    val komentar:  String,
+    val komentar: String,
     val asistensi: Int,
     val lat: Double,
     val lon: Double,
     val info: String,
-    val status_scan:Int = 0,
+    val status_scan: Int = 0,
     val archive: Int,
     val dataIsZipped: Int = 0,
-    )
-
+)

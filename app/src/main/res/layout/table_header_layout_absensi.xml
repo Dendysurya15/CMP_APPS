@@ -39,20 +39,6 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:text="Jabatan"
-                android:fontFamily="@font/manrope_extrabold"
-                android:gravity="center"
-                android:textColor="@color/black"
-                android:padding="5dp"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:clickable="false"
-                android:focusable="false"/>
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
                 android:text="Hadir"
                 android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"

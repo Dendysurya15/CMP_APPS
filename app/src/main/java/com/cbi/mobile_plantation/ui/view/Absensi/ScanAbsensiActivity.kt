@@ -147,6 +147,10 @@ class ScanAbsensiActivity : AppCompatActivity() {
                                     created_by = globalCreatedBy ?: 0,
                                     karyawan_msk_id = globalKaryawanMskId ?: "",
                                     karyawan_tdk_msk_id = globalKaryawanTdkMskId ?: "",
+                                    karyawan_msk_nik = "",  // Default empty string for now
+                                    karyawan_tdk_msk_nik = "",  // Default empty string for now
+                                    karyawan_msk_nama = "",  // Default empty string for now
+                                    karyawan_tdk_msk_nama = "",  // Default empty string for now
                                     foto = globalFoto,
                                     komentar = globalKomentar,
                                     asistensi = globalAsistensi ?: 0,

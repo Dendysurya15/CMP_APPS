@@ -267,10 +267,12 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
                                     val absensiList = absensiAdapter.getItems()
                                     val (karyawanMasuk, karyawanTidakMasuk) = absensiList.partition { it.isChecked }
 
-                                    val karyawanMskId =
-                                        karyawanMasuk.joinToString(",") { it.id.toString() }
-                                    val karyawanTdkMskId =
-                                        karyawanTidakMasuk.joinToString(",") { it.id.toString() }
+                                    val karyawanMskId = karyawanMasuk.joinToString(",") { it.id.toString() }
+                                    val karyawanTdkMskId = karyawanTidakMasuk.joinToString(",") { it.id.toString() }
+                                    val karyawanNikMasuk = karyawanMasuk.joinToString(",") { it.nik }
+                                    val karyawanNikTidakMasuk = karyawanTidakMasuk.joinToString(",") { it.nik }
+                                    val karyawanMskNama = karyawanMasuk.joinToString(",") { it.namaOnly }
+                                    val karyawanTdkMskNama = karyawanTidakMasuk.joinToString(",") { it.namaOnly }
 
                                     val dateAbsen =
                                         SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
@@ -289,32 +291,37 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
 
                                     AppLogger.d("Tgl ${dateAbsen} + idKar ${karyawanMskId}")
 
-                                val listKemandoran = (filteredKemandoranId + selectedKemandoranIds + filteredKemandoranIdLain + selectedKemandoranIdsLain)
-                                    .sortedBy { id -> kemandoranList.find { it.id == id }?.divisi_abbr ?: "" } // Urutkan berdasarkan lokasi kerja
-                                    .joinToString(",") // Gabungkan menjadi string
+                                    val listKemandoran = (filteredKemandoranId + selectedKemandoranIds + filteredKemandoranIdLain + selectedKemandoranIdsLain)
+                                        .sortedBy { id -> kemandoranList.find { it.id == id }?.divisi_abbr ?: "" } // Urutkan berdasarkan lokasi kerja
+                                        .joinToString(",") // Gabungkan menjadi string
 
-                                AppLogger.d("Sorted Kemandoran List: $listKemandoran")
+                                    AppLogger.d("Sorted Kemandoran List: $listKemandoran")
 
                                     val photoFilesString = photoFiles.joinToString(";")
                                     val komentarFotoString = komentarFoto.joinToString(";")
 
-                                AppLogger.d("Tgl ${listKemandoran}")
+                                    AppLogger.d("Tgl ${listKemandoran}")
 
-                                absensiViewModel.saveDataAbsensi(
-                                    kemandoran_id = listKemandoran,
-                                    date_absen = dateAbsen,
-                                    created_by = userId!!,
-                                    karyawan_msk_id = karyawanMskId,
-                                    karyawan_tdk_msk_id = karyawanTdkMskId,
-                                    foto = photoFilesString,
-                                    komentar = komentarFotoString,
-                                    asistensi = asistensi ?: 0,
-                                    lat = lat ?: 0.0,
-                                    lon = lon ?: 0.0,
-                                    info = infoApp ?: "",
-                                    archive = 0
-                                )
-                            }
+                                    absensiViewModel.saveDataAbsensi(
+                                        kemandoran_id = listKemandoran,
+                                        date_absen = dateAbsen,
+                                        created_by = userId!!,
+                                        karyawan_msk_id = karyawanMskId,
+                                        karyawan_tdk_msk_id = karyawanTdkMskId,
+                                        karyawan_msk_nik = karyawanNikMasuk,
+                                        karyawan_tdk_msk_nik = karyawanNikTidakMasuk,
+                                        karyawan_msk_nama = karyawanMskNama,
+                                        karyawan_tdk_msk_nama = karyawanTdkMskNama,
+                                        foto = photoFilesString,
+                                        komentar = komentarFotoString,
+                                        asistensi = asistensi ?: 0,
+                                        lat = lat ?: 0.0,
+                                        lon = lon ?: 0.0,
+                                        info = infoApp ?: "",
+                                        archive = 0
+                                    )
+                                }
+
 
                                 when (result) {
                                     is SaveDataAbsensiState.Success -> {
@@ -330,6 +337,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
                                                 this@FeatureAbsensiActivity,
                                                 ListAbsensiActivity::class.java
                                             )
+                                            // Add the FEATURE_NAME extra to match the homepage behavior
+                                            intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.RekapAbsensiPanen)
                                             intent.flags =
                                                 Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                                             startActivity(intent)
@@ -1033,7 +1042,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
                                 AbsensiDataList(
                                     id = karyawan.id!!,
                                     nama = "${karyawan.nik}\n${karyawan.nama}",
-                                    jabatan = karyawan.jabatan ?: "-",
+                                    namaOnly = karyawan.nama!!,
+                                    nik = karyawan.nik!!,
                                     kemandoranId = selecteKemandoranId!!
                                 )
                             }
@@ -1108,8 +1118,9 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
                             val absensiLainList = karyawanLainList.sortedBy { it.nama }.map { karyawan ->
                                 AbsensiDataList(
                                     id = karyawan.id!!,
-                                    nama = "${karyawan.nik} - ${karyawan.nama}",
-                                    jabatan = karyawan.jabatan ?: "-", //
+                                    nama = "${karyawan.nik}\n${karyawan.nama}",
+                                    namaOnly = karyawan.nama!!,
+                                    nik = karyawan.nik!!,
                                     kemandoranId = selecteKemandoranLainId!!
                                 )
                             }

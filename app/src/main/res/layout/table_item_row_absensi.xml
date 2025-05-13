@@ -28,17 +28,17 @@
             android:textStyle="bold" />
 
         <!-- Position column (1/3 width) -->
-        <TextView
-            android:id="@+id/tvItemJabatan"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:textColor="@color/black"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:fontFamily="@font/manrope_semibold"
-            android:padding="5dp"
-            android:textSize="@dimen/m"
-            android:textStyle="bold" />
+<!--        <TextView-->
+<!--            android:id="@+id/tvItemJabatan"-->
+<!--            android:layout_width="0dp"-->
+<!--            android:layout_weight="1"-->
+<!--            android:textColor="@color/black"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:gravity="center"-->
+<!--            android:fontFamily="@font/manrope_semibold"-->
+<!--            android:padding="5dp"-->
+<!--            android:textSize="@dimen/m"-->
+<!--            android:textStyle="bold" />-->
 
         <!-- Checkbox column (1/3 width) -->
         <LinearLayout

@@ -12,7 +12,8 @@ import com.cbi.mobile_plantation.utils.AppLogger
 data class AbsensiDataList(
     val id: Int,
     val nama: String,
-    val jabatan: String,
+    val namaOnly: String,
+    val nik: String,
     val kemandoranId: Int, // Add this field
     var isChecked: Boolean = false
 )
@@ -45,7 +46,7 @@ class AbsensiAdapter(
     // ViewHolder for items
     class ItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvNama: TextView = itemView.findViewById(R.id.tvItemNama)
-        val tvJabatan: TextView = itemView.findViewById(R.id.tvItemJabatan)
+//        val tvJabatan: TextView = itemView.findViewById(R.id.tvItemJabatan)
         val flCheckbox: CheckBox = itemView.findViewById(R.id.checkBoxAbsensi)
     }
 
@@ -116,7 +117,7 @@ class AbsensiAdapter(
 
                     // Bind data to ViewHolder
                     holder.tvNama.text = absensiData.nama
-                    holder.tvJabatan.text = absensiData.jabatan
+//                    holder.tvJabatan.text = absensiData.jabatan
                     holder.flCheckbox.setOnCheckedChangeListener(null) // Remove previous listener
                     holder.flCheckbox.isChecked = absensiData.isChecked
 
