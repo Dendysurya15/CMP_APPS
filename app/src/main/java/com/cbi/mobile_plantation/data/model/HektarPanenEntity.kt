@@ -44,5 +44,7 @@ data class HektarPanenEntity(
     val divisi_nama:String?,
     val blok_ppro:Int?,
     val blok_kode:String?,
-    val blok_nama:String?
+    val blok_nama:String?,
+    val status_upload: Int = 0,
+    val dataIsZipped: Int = 0,
 )

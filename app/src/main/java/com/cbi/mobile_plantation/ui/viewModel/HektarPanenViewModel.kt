@@ -13,6 +13,9 @@ import kotlinx.coroutines.launch
 
 class HektarPanenViewModel(private val repository: AppRepository) : ViewModel() {
 
+    private val _updateStatus = MutableLiveData<Boolean>()
+    val updateStatus: LiveData<Boolean> get() = _updateStatus
+
     suspend fun countWhereLuasPanenIsZeroAndDateToday(): Int {
         val count = repository.countWhereLuasPanenIsZeroAndDateToday()
         return count
@@ -49,6 +52,17 @@ class HektarPanenViewModel(private val repository: AppRepository) : ViewModel() 
 
     suspend fun getNikLuasPanenLuasBlokDibayarByDateAndBlok(date: String?, blok: Int?): List<HektarPanenEntity> {
         return repository.getNikLuasPanenLuasBlokDibayarByDateAndBlok(date!!, blok!!)
+    }
+
+    fun updateDataIsZippedHP(ids: List<Int>, status:Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateDataIsZippedHP(ids,status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+            }
+        }
     }
 
     class HektarPanenViewModelFactory(

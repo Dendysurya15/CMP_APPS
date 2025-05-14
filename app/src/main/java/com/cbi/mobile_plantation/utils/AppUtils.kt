@@ -176,6 +176,10 @@ object AppUtils {
         const val UPLOADCMP = "upload_cmp"
         const val FLAGESPB = "flag_espb"
         const val HEKTAR_PANEN = "hektar_panen"
+
+        //for upload hektaran and hektaran_detail
+        const val HEKTARAN= "hektaran"
+        const val HEKTARAN_DETAIL = "hektaran_detail"
     }
 
     object ListFeatureByRoleUser {
@@ -298,6 +302,65 @@ object AppUtils {
         }
     }
 
+    fun createTempJsonFile(
+        context: Context,
+        baseFilename: String,
+        jsonData: String,
+        userId: String,
+        dataDate: String? = null
+    ): Pair<String, String> {
+        try {
+            // Create a TEMP directory in external files storage
+            val tempDir = File(context.getExternalFilesDir(null), "TEMP").apply {
+                if (!exists()) mkdirs()
+            }
+
+            val appVersion = getCleanVersionNumber(getAppVersion(context))
+
+            // Use provided date as is, or use current date if not available
+            var dateForFilename = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
+
+            // Try to parse and use the provided date if available
+            if (!dataDate.isNullOrEmpty()) {
+                try {
+                    // Attempt to parse the data date - assuming format "yyyy-MM-dd HH:mm:ss"
+                    val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    val outputFormat = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+                    val date = inputFormat.parse(dataDate)
+                    if (date != null) {
+                        dateForFilename = outputFormat.format(date)
+                    }
+                } catch (e: Exception) {
+                    AppLogger.d("Could not parse data date: $dataDate, using current date instead")
+                }
+            }
+            val currentTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
+
+            val filename = "v${appVersion}_${userId}_${currentTime}.json"
+            val tempFile = File(tempDir, filename)
+
+            // Parse the JSON data
+            val gson = Gson()
+            val dataArray = gson.fromJson(jsonData, JsonArray::class.java)
+
+            // Create a wrapper object with the baseFilename as the key
+            val wrapper = JsonObject()
+            wrapper.add(baseFilename, dataArray)
+
+            // Write the properly structured JSON data to the file
+            FileOutputStream(tempFile).use { fos ->
+                fos.write(gson.toJson(wrapper).toByteArray())
+            }
+
+            AppLogger.d("Created temp JSON file: ${tempFile.absolutePath}")
+            return Pair(tempFile.absolutePath, filename)
+        } catch (e: Exception) {
+            AppLogger.e("Error creating temp JSON file: ${e.message}")
+            e.printStackTrace()
+            throw e
+        }
+    }
+
 
     fun formatFileSize(size: Long): String {
         return when {
@@ -365,16 +428,65 @@ object AppUtils {
         }
     }
 
-    // New implementation with expanded callback
-    fun createAndSaveZipUploadCMPWithFiles(
+    fun createAndSaveZipUploadHektaran(
         context: Context,
-        featureDataList: List<Pair<String, List<Map<String, Any>>>>,
+        hektaranJson: String,
         userId: String,
-        onResult: (Boolean, String, String, List<File>) -> Unit // New callback with List<File>
+        onResult: (Boolean, String, String, File) -> Unit
     ) {
-        // Directly call the implementation
-        createAndSaveZipUploadCMPImpl(context, featureDataList, userId, onResult)
+        try {
+            val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
+
+            val appFilesDir = File(context.getExternalFilesDir(null), "Upload").apply {
+                if (!exists()) mkdirs()
+            }
+
+            // Simple filename format
+            val zipFileName = "${userId}_hektaran_${dateTime}.zip"
+            val zipFile = File(appFilesDir, zipFileName)
+
+            val zip = ZipFile(zipFile)
+            zip.setPassword(ZIP_PASSWORD.toCharArray())
+
+            val zipParams = ZipParameters().apply {
+                compressionMethod = CompressionMethod.DEFLATE
+                isEncryptFiles = true
+                encryptionMethod = EncryptionMethod.ZIP_STANDARD
+            }
+
+            // Parse the combined JSON to extract hektaran and hektaran_detail data
+            val gson = Gson()
+            val combinedData = gson.fromJson(hektaranJson, Map::class.java)
+
+            // Extract the data for each table
+            val hektaranData = gson.toJson(combinedData[AppUtils.DatabaseTables.HEKTARAN])
+            val hektaranDetailData = gson.toJson(combinedData[AppUtils.DatabaseTables.HEKTARAN_DETAIL])
+
+            // Add hektaran data.json
+            val hektaranInputStream = ByteArrayInputStream(hektaranData.toByteArray())
+            zip.addStream(
+                hektaranInputStream,
+                zipParams.apply { fileNameInZip = "${AppUtils.DatabaseTables.HEKTARAN}/data.json" }
+            )
+
+            // Add hektaran_detail data.json
+            val hektaranDetailInputStream = ByteArrayInputStream(hektaranDetailData.toByteArray())
+            zip.addStream(
+                hektaranDetailInputStream,
+                zipParams.apply { fileNameInZip = "${AppUtils.DatabaseTables.HEKTARAN_DETAIL}/data.json" }
+            )
+
+            // Return the result using the callback
+            onResult(true, zipFile.name, zipFile.absolutePath, zipFile)
+
+        } catch (e: Exception) {
+            val errorMessage = "❌ Error creating encrypted ZIP file: ${e.message}"
+            AppLogger.e(errorMessage)
+            e.printStackTrace()
+            onResult(false, errorMessage, "", File(""))
+        }
     }
+
 
     private fun createAndSaveZipUploadCMPImpl(
         context: Context,

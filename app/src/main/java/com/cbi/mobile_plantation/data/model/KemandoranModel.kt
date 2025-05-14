@@ -41,6 +41,7 @@ data class KemandoranModel(
     val divisi_ppro: Int?,
     val divisi_abbr: String?,
     val divisi_nama: String?,
+    val kemandoran_ppro: String?,
     val kode: String?,
     val nama: String?,
     val type: String?,

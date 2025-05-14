@@ -843,6 +843,10 @@ class AppRepository(context: Context) {
         tphDao.geCompanyAbbrByTphId(id)
     }
 
+    suspend fun updateDataIsZippedHP(ids: List<Int>, status: Int) {
+        hektarPanenDao.updateDataIsZippedHP(ids, status)
+    }
+
     suspend fun getBlokKodeByTphId(tphId: Int): String? = withContext(Dispatchers.IO) {
         tphDao.getBlokKodeByTphId(tphId)
     }
