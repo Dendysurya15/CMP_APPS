@@ -121,7 +121,6 @@ class TransferHektarPanenActivity : AppCompatActivity() {
     private var blok = "NULL"
     private var tph = 0
 
-
     private lateinit var tvEmptyState: TextView // Add this
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
     private var activityInitialized = false
@@ -655,7 +654,6 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         startActivity(intent)
         finishAffinity()
     }
-
 
     private fun setupButtonGenerateQR() {
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)

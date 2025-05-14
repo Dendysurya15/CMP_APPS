@@ -168,7 +168,7 @@ abstract class PanenDao {
     }
 
     //count where status_scan_mpanen = 0 date now
-    @Query("SELECT COUNT(*) FROM panen_table WHERE status_scan_mpanen = :status_scan_mpanen AND date(date_created) = date('now', 'localtime')")
-    abstract suspend fun getCountScanMPanen(status_scan_mpanen: Int): Int
+    @Query("SELECT COUNT(*) FROM panen_table WHERE archive_mpanen = :archive_mpanen AND date(date_created) = date('now', 'localtime')")
+    abstract suspend fun getCountScanMPanen(archive_mpanen: Int): Int
 
 }
