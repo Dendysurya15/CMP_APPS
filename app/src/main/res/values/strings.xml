@@ -49,7 +49,7 @@
 
 
     <string name="desc_informasi_blok">Keterangan Blok Panen TPH</string>
-    <string name="desc_lampiran_foto">Upload foto sebagai bukti pengisian form panen</string>
+    <string name="desc_lampiran_foto">Upload foto sebagai bukti pengisian form panen (Minimal 1 Foto untuk simpan)</string>
     <string name="desc_data_grading">Input Data Grading</string>
 
     <string name="alert_login_username_field_empty">Username Tidak Boleh Kosong!</string>
@@ -99,6 +99,7 @@
     <string name="al_notified_alert">Perhatian!</string>
     <string name="al_notify_to_generate_qr_after_60_transaction">Transaksi anda sudah mencapai 60, disarankan untuk melakukan generate QR!</string>
     <string name="al_description_success_save_local_and_espb_krani_timbang">Data e-SPB berhasil disimpan!</string>
+    <string name="al_description_success_absensi">Data Absensi berhasil disimpan!</string>
     <string name="al_success_save_local">Sukses Simpan</string>
     <string name="al_success_delete">Berhasil Hapus</string>
     <string name="al_success_update">Berhasil Update Data</string>
@@ -116,6 +117,7 @@
     <string name="ganti_akun">Ganti Akun?</string>
     <string name="daftar_tph_sudah_terangkut">Informasi TPH Sudah Terangkut</string>
     <string name="al_must_checked_master_estate">Centang pilihan estate diatas!</string>
+    <string name="al_validation_qr_krani_scan">Data blok tidak tervalidasi dalam database. Pastikan QR Code yang dipindai merupakan QR Code dari Kerani panen estate yang sesuai.</string>
 
     <string-array name="tipe_panen_options">
         <item>Normal</item>

@@ -44,10 +44,12 @@ data class TPHNewModel (
     val regional:String?,
     val company:Int?,
     val company_abbr:String?,
+    val company_nama:String?,
     val wilayah:String?,
     val dept:Int?,
     val dept_ppro:Int?,
     val dept_abbr:String?,
+    val dept_nama:String?,
     val divisi:Int?,
     val divisi_ppro:Int?,
     val divisi_abbr:String?,
@@ -65,5 +67,7 @@ data class TPHNewModel (
     val lat:String?,
     val lon:String?,
     val update_date:String?,
-    val status:String?
+    val status:String?,
+    val jenis_tph_id:String?,
+    val limit_tph:String?,
 )

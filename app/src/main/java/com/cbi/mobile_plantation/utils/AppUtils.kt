@@ -26,6 +26,7 @@ import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.google.gson.Gson
 import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
 import net.lingala.zip4j.model.enums.CompressionMethod
@@ -39,6 +40,7 @@ import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -157,6 +159,7 @@ object AppUtils {
 
     object DatabaseTables {
         const val PANEN = "panen_table"
+        const val JENIS_TPH = "jenis_tph"
         const val INSPEKSI = "inspeksi"
         const val INSPEKSI_PATH = "inspeksi_path"
         const val ESPB = "espb_table"
@@ -172,13 +175,14 @@ object AppUtils {
         const val BLOK = "blok"
         const val UPLOADCMP = "upload_cmp"
         const val FLAGESPB = "flag_espb"
+        const val HEKTAR_PANEN = "hektar_panen"
     }
 
     object ListFeatureByRoleUser {
+        const val MandorPanen = "Mandor Panen"
         const val KeraniTimbang = "Kerani Timbang"
         const val Asisten = "Asisten"
         const val Mandor1 = "Mandor 1"
-        const val MandorPanen = "Mandor Panen"
         const val KeraniPanen = "Kerani Panen"
         const val IT = "IT"
     }
@@ -199,15 +203,21 @@ object AppUtils {
         const val ScanESPBTimbanganMill = "Scan e-SPB Timbangan Mill"
         const val RekapESPBTimbanganMill = "Rekap e-SPB Timbangan Mill"
         const val AbsensiPanen = "Absensi panen"
-        const val RekapAbsensiPanen = "Rekap absensi panen"
-        const val ScanAbsensiPanen = "Scan absensi panen"
+        const val RekapAbsensiPanen = "Rekap Absensi Panen"
+        const val ScanAbsensiPanen = "Scan Absensi Panen"
         const val SinkronisasiData = "Sinkronisasi data"
         const val UploadDataCMP = "Upload Data CMP"
+
+        const val ScanPanenMPanen = "Scan Mandor Panen"
+        const val DaftarHektarPanen = "Daftar Hektar Panen"
+        const val TransferHektarPanen = "Transfer Hektar Panen"
+
     }
 
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
         const val WMInspeksi = "INSPEKSI"
+        const val WMAbsensiPanen = "ABSENSI PANEN"
         const val WMESPB = "E-SPB"
     }
 
@@ -225,6 +235,7 @@ object AppUtils {
         const val tph = "tph"
         const val blok = "blok"
         const val estate = "estate"
+        const val jenisTPH = "jenis_tph"
         const val pemanen = "pemanen"
         const val kemandoran = "kemandoran"
         const val transporter = "transporter"
@@ -245,130 +256,48 @@ object AppUtils {
         _selectedDate = date
     }
 
+    // Add this new method to reset the date
+    fun resetSelectedDate() {
+        _selectedDate = null
+    }
+
     fun getAppVersion(context: Context): String {
         return context.getString(R.string.app_version)
     }
 
-    fun checkUploadZipReadyToday(idUser: String, context: Context): List<File> {
-        val todayDate =
-            SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date()) // Get today's date
-        val uploadDir = File(context.getExternalFilesDir(null), "Upload").apply {
-            if (!exists()) mkdirs()
-        }
+    private fun getCleanVersionNumber(version: String): String {
+        // Use regex to extract just the numeric parts with dots
+        val numericVersion = Regex("""(\d+(\.\d+)*)""").find(version)?.value ?: version
 
-        return uploadDir.listFiles { file ->
-            file.isFile && file.name.matches(Regex("$idUser+_${todayDate}.*\\.zip"))
-        }?.toList() ?: emptyList()
+        // Remove dots
+        return numericVersion.replace(".", "")
     }
 
-    fun checkAllUploadZipFiles(idUser: String, context: Context): List<File> {
-        val uploadDir = File(context.getExternalFilesDir(null), "Upload").apply {
-            if (!exists()) mkdirs()
-        }
-
-        return uploadDir.listFiles { file ->
-            file.isFile && file.name.matches(Regex("$idUser+_.*\\.zip"))
-        }?.toList() ?: emptyList()
-    }
-
-    fun extractIdsFromZipFile(
-        context: Context,
-        fileName: String,
-        zipPassword: String
-    ): Pair<List<Int>, List<Int>> {
-        val panenIds = mutableListOf<Int>()
-        val espbIds = mutableListOf<Int>()
-
+    fun clearTempJsonFiles(context: Context) {
         try {
-            val appFilesDir = File(context.getExternalFilesDir(null), "Upload")
-            val zipFile = File(appFilesDir, fileName)
+            val tempDir = File(context.getExternalFilesDir(null), "TEMP")
 
-            if (!zipFile.exists()) {
-                AppLogger.e("ZIP file not found: $fileName")
-                return Pair(panenIds, espbIds)
-            }
-
-            AppLogger.d("Opening ZIP file: ${zipFile.absolutePath}")
-
-            // Open the ZIP file with password
-            val zip = ZipFile(zipFile)
-            zip.setPassword(zipPassword.toCharArray())
-
-            // Get all entries
-            val entries = zip.fileHeaders
-
-            // Look for data.json files in all folders
-            for (header in entries) {
-                val entryName = header.fileName
-
-                // Check if it's a data.json file
-                if (entryName.endsWith("data.json")) {
-                    AppLogger.d("Found data.json in: $entryName")
-
-                    // Extract the folder name to determine if it's PANEN or ESPB
-                    val folderName = entryName.split("/").firstOrNull()?.toUpperCase() ?: ""
-
-                    // Read the data.json content
-                    val inputStream = zip.getInputStream(header)
-                    val content = inputStream.bufferedReader().use { it.readText() }
-                    inputStream.close()
-
-                    // Parse the JSON
-                    try {
-                        val jsonArray = Gson().fromJson(content, JsonArray::class.java)
-
-                        // Extract IDs based on folder type
-                        for (i in 0 until jsonArray.size()) {
-                            val item = jsonArray.get(i).asJsonObject
-                            val id = item.get("id").asInt
-
-                            when (folderName) {
-                                "A", "PANEN" -> {
-                                    if (!panenIds.contains(id)) {
-                                        panenIds.add(id)
-                                        AppLogger.d("Added PANEN ID: $id")
-                                    }
-                                }
-
-                                "B", "ESPB" -> {
-                                    if (!espbIds.contains(id)) {
-                                        espbIds.add(id)
-                                        AppLogger.d("Added ESPB ID: $id")
-                                    }
-                                }
-
-                                else -> {
-                                    AppLogger.d("Unknown folder: $folderName, checking content for type")
-                                    // Try to determine type from JSON structure if folder name is unclear
-                                    if (item.has("tph") && item.has("karyawan_id")) {
-                                        if (!panenIds.contains(id)) {
-                                            panenIds.add(id)
-                                            AppLogger.d("Added to PANEN IDs based on structure: $id")
-                                        }
-                                    } else {
-                                        if (!espbIds.contains(id)) {
-                                            espbIds.add(id)
-                                            AppLogger.d("Added to ESPB IDs based on structure: $id")
-                                        }
-                                    }
-                                }
-                            }
+            if (tempDir.exists() && tempDir.isDirectory) {
+                tempDir.listFiles()?.forEach { file ->
+                    if (file.isFile && file.extension == "json") {
+                        val deleted = file.delete()
+                        if (deleted) {
+                            AppLogger.d("Deleted JSON file: ${file.name}")
+                        } else {
+                            AppLogger.e("Failed to delete: ${file.name}")
                         }
-                    } catch (e: Exception) {
-                        AppLogger.e("Error parsing JSON from $entryName: ${e.message}")
                     }
                 }
+                AppLogger.d("Temp folder cleanup completed")
+            } else {
+                AppLogger.d("Temp directory doesn't exist")
             }
-
-            AppLogger.d("Extracted PANEN IDs: ${panenIds.size}")
-            AppLogger.d("Extracted ESPB IDs: ${espbIds.size}")
-
         } catch (e: Exception) {
-            AppLogger.e("Error processing ZIP file $fileName: ${e.message}")
+            AppLogger.e("Error cleaning temp folder: ${e.message}")
+            e.printStackTrace()
         }
-
-        return Pair(panenIds, espbIds)
     }
+
 
     fun formatFileSize(size: Long): String {
         return when {
@@ -378,16 +307,61 @@ object AppUtils {
         }
     }
 
-    fun createAndSaveZipUploadCMP(
+    fun createAndSaveZipUploadCMPSingle(
         context: Context,
         featureDataList: List<Pair<String, List<Map<String, Any>>>>,
         userId: String,
-        onResult: (Boolean, String, String) -> Unit // Original callback
+        onResult: (Boolean, String, String, File) -> Unit // Note: Changed to return a single File
     ) {
-        // Call the new implementation with a wrapper that ignores the List<File> parameter
-        createAndSaveZipUploadCMPImpl(context, featureDataList, userId) { success, fileName, fullPath, _ ->
-            // Only pass the first three parameters to the original callback
-            onResult(success, fileName, fullPath)
+        try {
+            val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
+
+            val appFilesDir = File(context.getExternalFilesDir(null), "Upload").apply {
+                if (!exists()) mkdirs()
+            }
+
+            // Get the Pictures directories - try both locations
+            val picturesDirs = listOf(
+                context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                File(context.getExternalFilesDir(null)?.parent ?: "", "Pictures")
+            ).filterNotNull()
+
+            // Simple filename format without chunking
+            val zipFileName = "${userId}_${dateTime}.zip"
+            val zipFile = File(appFilesDir, zipFileName)
+
+            val zip = ZipFile(zipFile)
+            zip.setPassword(ZIP_PASSWORD.toCharArray())
+
+            val zipParams = ZipParameters().apply {
+                compressionMethod = CompressionMethod.DEFLATE
+                isEncryptFiles = true
+                encryptionMethod = EncryptionMethod.ZIP_STANDARD
+            }
+
+            // Process each feature and its data
+            featureDataList.forEach { (featureKey, dataList) ->
+                // Add JSON data for this feature
+                val jsonString = convertDataToJsonString(dataList)
+                val jsonBytes = jsonString.toByteArray()
+
+                val inputStream = ByteArrayInputStream(jsonBytes)
+                zip.addStream(
+                    inputStream,
+                    zipParams.apply { fileNameInZip = "$featureKey/data.json" }
+                )
+
+                // Add photos for this feature's data
+                addFeaturePhotosToZip(context, dataList, featureKey, picturesDirs, zip, zipParams)
+            }
+
+            // Return the result using the callback
+            onResult(true, zipFile.name, zipFile.absolutePath, zipFile)
+
+        } catch (e: Exception) {
+            val errorMessage = "❌ Error creating encrypted ZIP file: ${e.message}"
+            AppLogger.e(errorMessage)
+            onResult(false, errorMessage, "", File(""))
         }
     }
 

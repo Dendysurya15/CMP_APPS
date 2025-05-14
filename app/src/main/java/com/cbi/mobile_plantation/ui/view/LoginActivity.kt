@@ -38,6 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -87,65 +88,32 @@ class LoginActivity : AppCompatActivity() {
         if (!activityInitialized) {
             activityInitialized = true
             prefManager = PrefManager(this)
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val todayDate = dateFormat.format(Date())
-            val today = dateFormat.parse(todayDate) ?: Date()
 
-            val lastSyncRaw = prefManager!!.lastSyncDate ?: ""
-            val lastSyncDateOnly = try {
-                // Parse the full datetime and format it to just date
-                val fullDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                val parsedDate = fullDateFormat.parse(lastSyncRaw)
-                if (parsedDate != null) {
-                    dateFormat.format(parsedDate)
-                } else {
-                    ""
-                }
-            } catch (e: Exception) {
-                "" // If parsing fails
-            }
+            // Check if the current year is before 2025
+            val calendar = Calendar.getInstance()
+            calendar.time = Date()
+            val currentYear = calendar.get(Calendar.YEAR)
+            val isYearValid = currentYear >= 2025
 
-            val lastSyncDate = try {
-                if (lastSyncDateOnly.isNotEmpty()) {
-                    dateFormat.parse(lastSyncDateOnly)
-                } else {
-                    null
-                }
-            } catch (e: Exception) {
-                null
-            }
+            AppLogger.d("Current year: $currentYear")
+            AppLogger.d("Year valid (2025 or later): $isYearValid")
 
-            // Check if same day - only if lastSyncDateOnly is not empty
-            val isSameDay = lastSyncDateOnly.isNotEmpty() && todayDate == lastSyncDateOnly
-
-            // Check if within 90 days - only if lastSyncDate is not null
-            val isWithin90Days = if (lastSyncDate != null) {
-                val diffInMillis = today.time - lastSyncDate.time
-                val diffInDays = diffInMillis / (1000 * 60 * 60 * 24)
-                diffInDays <= 90
-            } else {
-                false
-            }
-
-            AppLogger.d("Today: $todayDate")
-            AppLogger.d("Last Sync: $lastSyncDateOnly")
-            AppLogger.d("Within 90 days: $isWithin90Days")
-
-            val isFirstTimeLogin = lastSyncRaw.isNullOrEmpty()
-
-            if (isFirstTimeLogin || isSameDay || isWithin90Days) {
-                setupUI()
-            } else {
+            // First check if year is valid
+            if (!isYearValid) {
+                // If year is not valid, show alert and exit
                 AlertDialogUtility.withSingleAction(
                     this@LoginActivity,
                     stringXML(R.string.al_back),
-                    "Sinkronisasi Tanggal",
-                    "Sistem mendeteksi tanggal berbeda dengan tanggal terakhir sinkronisasi data.\nSilakan sambungkan perangkat ke Internet untuk sinkronisasi data!.",
+                    "Sinkronisasi Tanggal Gagal",
+                    "Sistem mendeteksi tanggal perangkat sebelum tahun 2025.\nSilakan melakukan sinkronisasi waktu dan tanggal dengan menhubungkan perangkat ke internet",
                     "warning.json",
                     R.color.colorRedDark
                 ) {
                     finish()
                 }
+            } else {
+                // If year is valid (2025 or later), proceed with setupUI
+                setupUI()
             }
         }
     }
@@ -287,6 +255,9 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.companyIdUserLogin = loginResponse.data?.user?.company
                         prefManager!!.companyAbbrUserLogin = loginResponse.data?.user?.company_abbr
                         prefManager!!.companyNamaUserLogin = loginResponse.data?.user?.company_nama
+                        prefManager!!.kemandoranUserLogin = loginResponse.data?.user?.kemandoran
+                        prefManager!!.kemandoranNamaUserLogin = loginResponse.data?.user?.kemandoran_nama
+                        prefManager!!.kemandoranKodeUserLogin = loginResponse.data?.user?.kemandoran_kode
 
                         Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()
                         navigateToHomePage()

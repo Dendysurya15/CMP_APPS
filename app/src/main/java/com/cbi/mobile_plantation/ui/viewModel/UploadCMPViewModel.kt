@@ -9,6 +9,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
+import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
+import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.repository.UploadCMPRepository
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -157,11 +159,11 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uploadErrorCMP = MutableLiveData<String?>()
     val uploadErrorCMP: LiveData<String?> get() = _uploadErrorCMP
 
-    private val _uploadResult = MutableLiveData<Result<UploadCMPResponse>>()
-    val uploadResult: LiveData<Result<UploadCMPResponse>> get() = _uploadResult
+    private val _uploadResult = MutableLiveData<Result<UploadV3Response>>()
+    val uploadResult: LiveData<Result<UploadV3Response>> get() = _uploadResult
 
-    private val _uploadResponseCMP = MutableLiveData<UploadCMPResponse?>()
-    val uploadResponseCMP: LiveData<UploadCMPResponse?> get() = _uploadResponseCMP
+    private val _uploadResponseCMP = MutableLiveData<UploadV3Response?>()
+    val uploadResponseCMP: LiveData<UploadV3Response?> get() = _uploadResponseCMP
 
     // New LiveData for multiple uploads
     // Map to track progress for each upload item by ID
@@ -177,8 +179,8 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
     val itemErrorMap: LiveData<Map<Int, String?>> get() = _itemErrorMap
 
     // Map to store responses for each upload item by ID
-    private val _itemResponseMap = MutableLiveData<Map<Int, UploadCMPResponse?>>(mutableMapOf())
-    val itemResponseMap: LiveData<Map<Int, UploadCMPResponse?>> get() = _itemResponseMap
+    private val _itemResponseMap = MutableLiveData<Map<Int, UploadV3Response?>>(mutableMapOf())
+    val itemResponseMap: LiveData<Map<Int, UploadV3Response?>> get() = _itemResponseMap
 
     // Track completed uploads count
     val _completedCount = MutableLiveData(0)
@@ -188,36 +190,6 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
     private val _totalCount = MutableLiveData(0)
     val totalCount: LiveData<Int> get() = _totalCount
 
-    // Original method for single file upload
-    fun uploadZipToServer(fileZip: String) {
-        viewModelScope.launch {
-            // Reset progress values
-            _uploadProgressCMP.value = 0
-            _uploadStatusCMP.value = AppUtils.UploadStatusUtils.WAITING
-            _uploadErrorCMP.value = null
-            _uploadResponseCMP.value = null
-
-            val result = repository.uploadZipToServer(fileZip) { progress, isSuccess, error ->
-                // Update LiveData
-                _uploadProgressCMP.postValue(progress)
-                _uploadStatusCMP.postValue(
-                    when {
-                        !isSuccess && !error.isNullOrEmpty() -> AppUtils.UploadStatusUtils.FAILED
-                        isSuccess -> AppUtils.UploadStatusUtils.SUCCESS
-                        progress in 1..99 -> AppUtils.UploadStatusUtils.UPLOADING
-                        else -> AppUtils.UploadStatusUtils.WAITING
-                    }
-                )
-                _uploadErrorCMP.postValue(error)
-            }
-
-            result?.let {
-                if (it.isSuccess) {
-                    _uploadResponseCMP.postValue(it.getOrNull()) // Store response
-                }
-            }
-        }
-    }
 
     private val _allIdsAndFilenames = MutableLiveData<List<Pair<String, String>>>()
     val allIdsAndFilenames: LiveData<List<Pair<String, String>>> = _allIdsAndFilenames
@@ -238,9 +210,98 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun uploadMultipleZipsV2(items: List<UploadCMPItem>) {
+//    fun uploadMultipleZipsV2(items: List<UploadCMPItem>) {
+//        viewModelScope.launch {
+//            // Reset counters
+//            _completedCount.value = 0
+//            _totalCount.value = items.size
+//
+//            val progressMap = items.associate { it.id to 0 }
+//            val statusMap = items.associate {
+//                // First item should be UPLOADING, others WAITING
+//                if (it.id == items.firstOrNull()?.id) {
+//                    it.id to AppUtils.UploadStatusUtils.UPLOADING
+//                } else {
+//                    it.id to AppUtils.UploadStatusUtils.WAITING
+//                }
+//            }
+//            val errorMap = items.associate { it.id to null as String? }
+//            val responseMap = items.associate { it.id to null as UploadV3Response? }
+//
+//            _itemProgressMap.value = progressMap
+//            _itemStatusMap.value = statusMap
+//            _itemErrorMap.value = errorMap
+//            _itemResponseMap.value = responseMap
+//
+//            // Generate a unique batch UUID for this upload session
+//            val batchUuid = UUID.randomUUID().toString()
+//            AppLogger.d("Generated batch UUID: $batchUuid for ${items.size} files")
+//
+//            // For each item, upload sequentially
+//            for (item in items) {
+//
+//                if (item.id != items.firstOrNull()?.id) {
+//                    // Update current item status to UPLOADING
+//                    AppLogger.d("masuk broo update to uploading")
+//                    updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
+//                }
+//
+//                // For current item, also update the original LiveData
+//                _uploadProgressCMP.value = 0
+//                _uploadStatusCMP.value = AppUtils.UploadStatusUtils.UPLOADING
+//                _uploadErrorCMP.value = null
+//                _uploadResponseCMP.value = null
+//
+//                AppLogger.d("Uploading file ${item.title} as part ${item.partNumber} of ${item.totalParts}, UUID: $batchUuid")
+//
+//
+//                val result = repository.uploadZipToServerV2(
+//                    fileZipPath = item.fullPath,
+//                    batchUuid = batchUuid,
+//                    partNumber = item.partNumber,
+//                    totalParts = item.totalParts
+//                ) { progress, isSuccess, error ->
+//                    // Update item's progress
+//                    // Update item's progress
+//                    updateItemProgress(item.id, progress)
+//
+//                    // Determine status - FIXED LOGIC HERE
+//                    val status = when {
+//                        !isSuccess && !error.isNullOrEmpty() -> AppUtils.UploadStatusUtils.FAILED
+//                        isSuccess -> AppUtils.UploadStatusUtils.SUCCESS
+//                        else -> AppUtils.UploadStatusUtils.UPLOADING  // Keep as UPLOADING for any progress including 0
+//                    }
+//
+//                    // Update item's status and error
+//                    updateItemStatus(item.id, status)
+//                    updateItemError(item.id, error)
+//
+//                    // Also update the original LiveData for current item
+//                    _uploadProgressCMP.postValue(progress)
+//                    _uploadStatusCMP.postValue(status)
+//                    _uploadErrorCMP.postValue(error)
+//                }
+//
+//                // Process result
+//                result?.let {
+//                    if (it.isSuccess) {
+//                        val response = it.getOrNull()
+//                        // Update item's response
+//                        updateItemResponse(item.id, response)
+//                    }
+//                }
+//
+//                // Increase completed count regardless of success or failure
+//                _completedCount.value = (_completedCount.value ?: 0) + 1
+//            }
+//        }
+//    }
+
+
+
+    fun uploadMultipleJsonsV3(items: List<UploadCMPItem>) {
         viewModelScope.launch {
-            // Reset counters
+            // Reset counters - these operations are safe as they're in the viewModelScope
             _completedCount.value = 0
             _totalCount.value = items.size
 
@@ -254,23 +315,18 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             }
             val errorMap = items.associate { it.id to null as String? }
-            val responseMap = items.associate { it.id to null as UploadCMPResponse? }
+            val responseMap = items.associate { it.id to null as UploadV3Response? }
 
             _itemProgressMap.value = progressMap
             _itemStatusMap.value = statusMap
             _itemErrorMap.value = errorMap
             _itemResponseMap.value = responseMap
 
-            // Generate a unique batch UUID for this upload session
-            val batchUuid = UUID.randomUUID().toString()
-            AppLogger.d("Generated batch UUID: $batchUuid for ${items.size} files")
-
             // For each item, upload sequentially
             for (item in items) {
-
                 if (item.id != items.firstOrNull()?.id) {
                     // Update current item status to UPLOADING
-                    AppLogger.d("masuk broo update to uploading")
+                    AppLogger.d("Moving to next item: ${item.title}")
                     updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
                 }
 
@@ -280,83 +336,20 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                 _uploadErrorCMP.value = null
                 _uploadResponseCMP.value = null
 
-                AppLogger.d("Uploading file ${item.title} as part ${item.partNumber} of ${item.totalParts}, UUID: $batchUuid")
+                val jsonFilePath = item.fullPath
+                val filename = item.baseFilename
+                val data = item.data
+                val type = item.type
+                val tableIds = item.tableIds
 
-
-                val result = repository.uploadZipToServerV2(
-                    fileZipPath = item.fullPath,
-                    batchUuid = batchUuid,
-                    partNumber = item.partNumber,
-                    totalParts = item.totalParts
-                ) { progress, isSuccess, error ->
-                    // Update item's progress
-                    // Update item's progress
-                    updateItemProgress(item.id, progress)
-
-                    // Determine status - FIXED LOGIC HERE
-                    val status = when {
-                        !isSuccess && !error.isNullOrEmpty() -> AppUtils.UploadStatusUtils.FAILED
-                        isSuccess -> AppUtils.UploadStatusUtils.SUCCESS
-                        else -> AppUtils.UploadStatusUtils.UPLOADING  // Keep as UPLOADING for any progress including 0
-                    }
-
-                    // Update item's status and error
-                    updateItemStatus(item.id, status)
-                    updateItemError(item.id, error)
-
-                    // Also update the original LiveData for current item
-                    _uploadProgressCMP.postValue(progress)
-                    _uploadStatusCMP.postValue(status)
-                    _uploadErrorCMP.postValue(error)
-                }
-
-                // Process result
-                result?.let {
-                    if (it.isSuccess) {
-                        val response = it.getOrNull()
-                        // Update item's response
-                        updateItemResponse(item.id, response)
-                    }
-                }
-
-                // Increase completed count regardless of success or failure
-                _completedCount.value = (_completedCount.value ?: 0) + 1
-            }
-        }
-    }
-
-    // New method for multiple uploads
-    fun uploadMultipleZips(items: List<UploadCMPItem>) {
-        viewModelScope.launch {
-            // Reset counters
-            _completedCount.value = 0
-            _totalCount.value = items.size
-
-            // Initialize maps with default values
-            val progressMap = items.associate { it.id to 0 }
-            val statusMap = items.associate { it.id to AppUtils.UploadStatusUtils.WAITING }
-            val errorMap = items.associate { it.id to null as String? }
-            val responseMap = items.associate { it.id to null as UploadCMPResponse? }
-
-            _itemProgressMap.value = progressMap
-            _itemStatusMap.value = statusMap
-            _itemErrorMap.value = errorMap
-            _itemResponseMap.value = responseMap
-
-            // For each item, upload sequentially
-            for (item in items) {
-
-                // For current item, also update the original LiveData
-                _uploadProgressCMP.value = 0
-                _uploadStatusCMP.value = AppUtils.UploadStatusUtils.WAITING
-                _uploadErrorCMP.value = null
-                _uploadResponseCMP.value = null
-
-                // Update status to uploading
-                updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
-
-                val result =
-                    repository.uploadZipToServer(item.fullPath) { progress, isSuccess, error ->
+                val result = repository.uploadJsonToServerV3(
+                    jsonFilePath = jsonFilePath,  // Use the file path directly
+                    filename = filename,
+                    data = data,
+                    type = type,
+                    tableIds = tableIds,
+                    onProgressUpdate = { progress, isSuccess, error ->
+                        // This callback will be running on the main thread
                         // Update item's progress
                         updateItemProgress(item.id, progress)
 
@@ -364,8 +357,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                         val status = when {
                             !isSuccess && !error.isNullOrEmpty() -> AppUtils.UploadStatusUtils.FAILED
                             isSuccess -> AppUtils.UploadStatusUtils.SUCCESS
-                            progress in 1..99 -> AppUtils.UploadStatusUtils.UPLOADING
-                            else -> AppUtils.UploadStatusUtils.WAITING
+                            else -> AppUtils.UploadStatusUtils.UPLOADING
                         }
 
                         // Update item's status and error
@@ -373,19 +365,23 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                         updateItemError(item.id, error)
 
                         // Also update the original LiveData for current item
-                        _uploadProgressCMP.postValue(progress)
-                        _uploadStatusCMP.postValue(status)
-                        _uploadErrorCMP.postValue(error)
+                        _uploadProgressCMP.value = progress
+                        _uploadStatusCMP.value = status
+                        _uploadErrorCMP.value = error
                     }
+                )
 
                 // Process result
-                result?.let {
-                    if (it.isSuccess) {
-                        val response = it.getOrNull()
+                result.fold(
+                    onSuccess = { response ->
                         // Update item's response
                         updateItemResponse(item.id, response)
+                    },
+                    onFailure = { error ->
+                        // Error handling is already done in the onProgressUpdate callback
+                        AppLogger.d("Upload failed for ${item.title}: ${error.message}")
                     }
-                }
+                )
 
                 // Increase completed count regardless of success or failure
                 _completedCount.value = (_completedCount.value ?: 0) + 1
@@ -393,30 +389,29 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    // Helper functions to update maps - FIXED to use postValue instead of setValue
-    fun updateItemProgress(id: Int, progress: Int) {
-        val currentMap = _itemProgressMap.value?.toMutableMap() ?: mutableMapOf()
-        currentMap[id] = progress
-        _itemProgressMap.postValue(currentMap)  // Changed to postValue
+    // Helper functions for updating individual items
+    private fun updateItemProgress(id: Int, progress: Int) {
+        _itemProgressMap.value = _itemProgressMap.value?.toMutableMap()?.apply {
+            put(id, progress)
+        }
     }
 
-    fun updateItemStatus(id: Int, status: String) {
-        AppLogger.d("Updating status for item $id to $status")
-        val currentMap = _itemStatusMap.value?.toMutableMap() ?: mutableMapOf()
-        currentMap[id] = status
-        _itemStatusMap.postValue(currentMap)  // Using postValue to post from background thread
+    private fun updateItemStatus(id: Int, status: String) {
+        _itemStatusMap.value = _itemStatusMap.value?.toMutableMap()?.apply {
+            put(id, status)
+        }
     }
 
-    fun updateItemError(id: Int, error: String?) {
-        val currentMap = _itemErrorMap.value?.toMutableMap() ?: mutableMapOf()
-        currentMap[id] = error
-        _itemErrorMap.postValue(currentMap)  // Changed to postValue
+    private fun updateItemError(id: Int, error: String?) {
+        _itemErrorMap.value = _itemErrorMap.value?.toMutableMap()?.apply {
+            put(id, error)
+        }
     }
 
-    private fun updateItemResponse(id: Int, response: UploadCMPResponse?) {
-        val currentMap = _itemResponseMap.value?.toMutableMap() ?: mutableMapOf()
-        currentMap[id] = response
-        _itemResponseMap.postValue(currentMap)  // Changed to postValue
+    private fun updateItemResponse(id: Int, response: UploadV3Response?) {
+        _itemResponseMap.value = _itemResponseMap.value?.toMutableMap()?.apply {
+            put(id, response)
+        }
     }
 
 

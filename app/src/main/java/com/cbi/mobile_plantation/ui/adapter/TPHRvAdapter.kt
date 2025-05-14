@@ -9,9 +9,12 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.TphRvData
+import com.cbi.mobile_plantation.utils.AppUtils
 
-class TPHRvAdapter(private var items: List<TphRvData>) :
-    RecyclerView.Adapter<TPHRvAdapter.ViewHolder>() {
+class TPHRvAdapter(
+    private var items: List<TphRvData>,
+    private val featureName: String? = null
+) : RecyclerView.Adapter<TPHRvAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val td1: TextView = view.findViewById(R.id.td1)
@@ -35,10 +38,21 @@ class TPHRvAdapter(private var items: List<TphRvData>) :
         holder.td3.visibility = View.VISIBLE
         holder.td4.visibility = View.VISIBLE
 
-        holder.td1.text = item.namaBlok
-        holder.td2.text = "${item.noTPH}/${item.jjg}"
-        holder.td3.text = item.time
-        holder.td4.text = item.username
+        // Customize display based on featureName
+        if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
+            // Custom display for ScanPanenMPanen
+            holder.td1.text = item.namaBlok // Blok-TPH
+            holder.td2.text = item.noTPH    // NIK
+            holder.td3.text = item.time     // Jam
+            holder.td4.text = item.jjg      // Just show JJG count
+        } else {
+            // Default display (ScanHasilPanen)
+            holder.td1.text = item.namaBlok
+            holder.td2.text = "${item.noTPH}/${item.jjg}"
+            holder.td3.text = item.time
+            holder.td4.text = item.username
+        }
+
         holder.flCheckBoxItemTph.visibility = View.GONE
     }
 

@@ -137,6 +137,28 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var kemandoranUserLogin: String?
+        get() = pref.getString("kemandoranUserLogin", "")
+        set(kemandoranUserLogin) {
+            editor.putString("kemandoranUserLogin", kemandoranUserLogin)
+            editor.commit()
+        }
+
+    var kemandoranNamaUserLogin: String?
+        get() = pref.getString("kemandoranNamaUserLogin", "")
+        set(kemandoranNamaUserLogin) {
+            editor.putString("kemandoranNamaUserLogin", kemandoranNamaUserLogin)
+            editor.commit()
+        }
+
+    var kemandoranKodeUserLogin: String?
+        get() = pref.getString("kemandoranKodeUserLogin", "")
+        set(kemandoranKodeUserLogin) {
+            editor.putString("kemandoranKodeUserLogin", kemandoranKodeUserLogin)
+            editor.commit()
+        }
+
+
     var password: String?
         get() = pref.getString(PASSWORD, "")
         set(password) {
@@ -148,6 +170,13 @@ class PrefManager(_context: Context) {
         get() = pref.getString("lastModifiedDatasetTPH", "")
         set(lastModifiedDatasetTPH) {
             editor.putString("lastModifiedDatasetTPH", lastModifiedDatasetTPH)
+            editor.commit()
+        }
+
+    var lastModifiedDatasetJenisTPH: String?
+        get() = pref.getString("lastModifiedDatasetJenisTPH", "")
+        set(lastModifiedDatasetJenisTPH) {
+            editor.putString("lastModifiedDatasetJenisTPH", lastModifiedDatasetJenisTPH)
             editor.commit()
         }
 

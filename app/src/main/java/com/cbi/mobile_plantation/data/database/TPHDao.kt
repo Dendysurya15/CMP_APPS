@@ -16,8 +16,18 @@ data class DepartmentInfo(
     val dept_abbr: String
 )
 
+
+data class TPHBlokInfo(
+    val tphNomor: String,
+    val blokKode: String,
+    val blokId: Int  // Add this field
+)
+
 @Dao
 abstract class TPHDao {
+
+    @Query("SELECT luas_area FROM tph WHERE id = :id")
+    abstract suspend fun getLuasAreaByTphId(id: Int): String?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract fun insertAll(tph: List<TPHNewModel>)
@@ -67,6 +77,9 @@ abstract class TPHDao {
         }
     }
 
+    @Query("SELECT * FROM tph WHERE blok = :blockId LIMIT 1")
+    abstract suspend fun getTPHByBlockId(blockId: Int): TPHNewModel?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertTPHAsistensi(tph: List<TPHNewModel>)
 
@@ -85,13 +98,13 @@ abstract class TPHDao {
     abstract suspend fun getCount(): Int
 
     @Query("""
-        SELECT 
-            nomor as tphNomor,
-            blok_kode as blokKode
-        FROM tph
-        
-        WHERE id = :id
-    """)
+    SELECT 
+        nomor as tphNomor,
+        blok_kode as blokKode,
+        blok as blokId
+    FROM tph
+    WHERE id = :id
+""")
     abstract suspend fun getTPHAndBlokInfo(id: Int): TPHBlokInfo?
 
     @Query("SELECT DISTINCT dept, dept_abbr FROM tph WHERE dept IS NOT NULL AND dept_abbr IS NOT NULL")
@@ -111,10 +124,13 @@ abstract class TPHDao {
 
     // If you need the values separately, keep these queries as well
     @Query("SELECT nomor FROM tph WHERE id = :id")
-    abstract suspend fun getTPHNomor(id: Int): String?
+    abstract suspend fun getNomorTPHbyId(id: Int): String?
 
     @Query("SELECT blok_kode FROM tph WHERE id = :id")
     abstract suspend fun getBlokKode(id: Int): String?
+
+    @Query("SELECT blok FROM tph WHERE id = :id")
+    abstract suspend fun getBlokIdbyIhTph(id: Int): Int?
 
     @Query(
         """
@@ -155,5 +171,9 @@ abstract class TPHDao {
 
     @Query("SELECT * FROM tph WHERE id IN (:tphIds)")
     abstract suspend fun getTPHsByIds(tphIds: List<Int>): List<TPHNewModel>
+
+    //get blok_kode by tphid
+    @Query("SELECT blok_kode FROM tph WHERE id = :tphId")
+    abstract suspend fun getBlokKodeByTphId(tphId: Int): String?
 
 }

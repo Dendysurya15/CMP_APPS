@@ -295,6 +295,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:id="@+id/titleTotalJjg"
                         android:fontFamily="@font/manrope_bold"
                         android:text="Total Jjg: "
                         android:textColor="@color/black"

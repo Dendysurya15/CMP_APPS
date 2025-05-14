@@ -16,6 +16,8 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.displayHektarPanenTanggalBlok
+import com.cbi.mobile_plantation.data.model.filterHektarPanenTanggalBlok
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -59,7 +61,7 @@ class ESPBAdapter(private var items: List<ESPBData>, private val context: Activi
         holder.td3.visibility = View.VISIBLE
         holder.td4.visibility = View.VISIBLE
         holder.td5.visibility = View.VISIBLE
-        holder.td6.visibility = View.VISIBLE
+        holder.td6.visibility = View.GONE
 
         holder.td1.text = formatToIndonesianDateTime(item.time)
         holder.td2.text = item.blok
@@ -79,43 +81,6 @@ class ESPBAdapter(private var items: List<ESPBData>, private val context: Activi
                 alpha = 0.5f
             }
         }
-
-        val statusMekanisasi = LinearLayout(holder.itemView.context).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-
-            addView(LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                addView(ImageView(context).apply {
-                    setImageResource(
-                        if (item.status_mekanisasi == 1) R.drawable.baseline_check_box_24
-                        else R.drawable.baseline_close_24
-                    )
-                    layoutParams = LinearLayout.LayoutParams(
-                        24.dpToPx(context),
-                        24.dpToPx(context)
-                    )
-                    val color = if (item.status_mekanisasi == 1) {
-                        ContextCompat.getColor(context, R.color.greendarkerbutton)
-                    } else {
-                        ContextCompat.getColor(context, R.color.colorRedDark)
-                    }
-                    setColorFilter(color)
-                })
-            })
-        }
-
-        holder.td5.removeAllViews()
-        holder.td5.addView(statusMekanisasi)
 
         val statusScan = LinearLayout(holder.itemView.context).apply {
             orientation = LinearLayout.VERTICAL
@@ -151,15 +116,12 @@ class ESPBAdapter(private var items: List<ESPBData>, private val context: Activi
             })
         }
 
-        holder.td6.removeAllViews()
-        holder.td6.addView(statusScan)
+        holder.td5.removeAllViews()
+        holder.td5.addView(statusScan)
 
         val layoutParamsTd5 = holder.td5.layoutParams as LinearLayout.LayoutParams
         layoutParamsTd5.weight = 0.3f
         holder.td5.layoutParams = layoutParamsTd5
-        val layoutParamsTd6 = holder.td6.layoutParams as LinearLayout.LayoutParams
-        layoutParamsTd6.weight = 0.3f
-        holder.td6.layoutParams = layoutParamsTd6
     }
 
     private fun Int.dpToPx(context: Context): Int {

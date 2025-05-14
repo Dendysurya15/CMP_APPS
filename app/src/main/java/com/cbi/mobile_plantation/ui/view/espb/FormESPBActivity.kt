@@ -2,8 +2,10 @@ package com.cbi.mobile_plantation.ui.view.espb
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -11,6 +13,7 @@ import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -18,15 +21,18 @@ import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.view.Window
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -36,6 +42,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -69,9 +76,12 @@ import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.ScreenshotUtil
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
+import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.gson.Gson
@@ -130,12 +140,15 @@ class FormESPBActivity : AppCompatActivity() {
     private var afdelingUser: String? = null
     private val karyawanIdMap: MutableMap<String, Int> = mutableMapOf()
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
+    private val karyawanNamaMap = mutableMapOf<String, String>()
     private var activityInitialized = false
     private var noESPBStr = "NULL"
     private var pemuat_id = "NULL"
     private var kemandoran_id = "NULL"
     private var pemuat_nik = "NULL"
     private var tph1NoIdPanen = ""
+    private lateinit var warningText: TextView
+    private lateinit var warningCard: CardView
 
 
     private var prefManager: PrefManager? = null
@@ -156,7 +169,23 @@ class FormESPBActivity : AppCompatActivity() {
         checkDateTimeSettings()
     }
 
+    private fun setupWarningCard() {
+        warningCard = findViewById(R.id.warning_card)
+        warningText = warningCard.findViewById(R.id.warningText)
+        updateWarningText()
+        warningCard.findViewById<ImageButton>(R.id.btnCloseWarning).setOnClickListener {
+            warningCard.visibility = View.GONE
+        }
+    }
+
+    private fun updateWarningText() {
+        warningText.text = "Peringatan, pastikan semua form sudah terisi dengan benar!\n" +
+                "Jika QR Code sudah tampil, maka anda harus melakukan Scan QR Code dan konfirmasi scan dengan menekan tombol!"
+        warningText.setTextColor(ContextCompat.getColor(this, R.color.black))
+    }
+
     private fun setupUI() {
+        setupWarningCard()
         findViewById<ConstraintLayout>(R.id.headerFormESPB).findViewById<ImageView>(R.id.statusLocation)
             .apply {
                 visibility = View.GONE
@@ -167,7 +196,7 @@ class FormESPBActivity : AppCompatActivity() {
                     this@FormESPBActivity,
                     "KEMBALI",
                     "Kembali ke Menu utama?",
-                    "Data scan sebelumnya akan terhapus",
+                    "Data scan sebelumnya akan terhapus dan dapat diisi ulang kembali",
                     "warning.json",
                     function = {
                         startActivity(
@@ -381,7 +410,7 @@ class FormESPBActivity : AppCompatActivity() {
                 divisiList = divisiDeferred.await()
 
                 // You can add more code here to handle the divisiList
-                val nameDivisi: List<String> = divisiList.map { it.divisi_abbr.toString() }
+                val nameDivisi: List<String> = divisiList.sortedBy { it.divisi_abbr }.map { it.divisi_abbr.toString() }
                 Log.d("FormESPBActivityDivisi", "nameDivisi: $nameDivisi")
                 withContext(Dispatchers.Main) {
                     setupSpinner(R.id.formEspbAfdeling, nameDivisi)
@@ -530,8 +559,13 @@ class FormESPBActivity : AppCompatActivity() {
             }
         }
 
+
         val btnGenerateQRESPB = findViewById<FloatingActionButton>(R.id.btnGenerateQRESPB)
         btnGenerateQRESPB.setOnClickListener {
+            btnGenerateQRESPB.isEnabled = false
+            btnGenerateQRESPB.backgroundTintList =
+                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.graytextdark))
+
 
             Log.d("FormESPBActivity", "Generate QR clicked, selectedNopol = $selectedNopol")
 
@@ -547,6 +581,7 @@ class FormESPBActivity : AppCompatActivity() {
                 Log.e("FormESPBActivity", "Nopol validation failed: '$selectedNopol'")
                 Log.e("FormESPBActivity", "Available nopols: ${nopolList.map { it.no_kendaraan }}")
 
+                enableButtonAndSpinners()
                 return@setOnClickListener
             }
 
@@ -555,7 +590,8 @@ class FormESPBActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Toasty.error(this, "Terjadi Kesalahan saat mengambil Driver $e", Toasty.LENGTH_LONG)
                     .show()
-                "NULL"
+                enableButtonAndSpinners()  // Re-enable if there's an error
+                return@setOnClickListener
             }
 
             val espbDate: String = try {
@@ -566,7 +602,8 @@ class FormESPBActivity : AppCompatActivity() {
                     "Terjadi Kesalahan saat mengambil Tanggal ESPB $e",
                     Toasty.LENGTH_LONG
                 ).show()
-                "NULL"
+                enableButtonAndSpinners()
+                return@setOnClickListener
             }
 
             val appVersion: String = try {
@@ -609,55 +646,104 @@ class FormESPBActivity : AppCompatActivity() {
                     "Terjadi Kesalahan saat mengambil Janjang Blok $e",
                     Toasty.LENGTH_LONG
                 ).show()
-                "NULL"
+                enableButtonAndSpinners()  // Re-enable if there's an error
+                return@setOnClickListener
             }
 
-            AppLogger.d("blok jjg $blok_jjg")
-            val selectedPemanen = selectedPemuatAdapter.getSelectedWorkers()
-            AppLogger.d(selectedPemanen.toString())
+            val selectedPemuat = selectedPemuatAdapter.getSelectedWorkers()
+            AppLogger.d("selectedPemuat: $selectedPemuat")
 
-// Get a map of names to counts to determine which names have duplicates
-            val workerNameCounts = mutableMapOf<String, Int>()
-            selectedPemanen.forEach { worker ->
-                val baseName = worker.name.substringBefore(" - ").trim()
-                workerNameCounts[baseName] = (workerNameCounts[baseName] ?: 0) + 1
+            AppLogger.d("karyawanIdMap $karyawanIdMap")
+
+            val idKaryawanList = selectedPemuat.mapNotNull { worker ->
+                // First try to get ID using the full name (with NIK if present)
+                var id = karyawanIdMap[worker.name]
+
+                // If that fails and the name contains a NIK separator, try with just the base name
+                if (id == null && worker.name.contains(" - ")) {
+                    val baseName = worker.name.substringBefore(" - ").trim()
+                    id = karyawanIdMap[baseName]
+                }
+
+                // If that still fails and we don't have a NIK separator, try all possible matches
+                // that start with this name (handles case where map has "NAME - NIK" but worker just has "NAME")
+                if (id == null && !worker.name.contains(" - ")) {
+                    // Find any key in the map that starts with this worker's name followed by " - "
+                    val possibleKey =
+                        karyawanIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                    if (possibleKey != null) {
+                        id = karyawanIdMap[possibleKey]
+                    }
+                }
+
+                id
             }
 
-// For worker ID lookup, handle both duplicate and non-duplicate cases
-            val idKaryawanList = selectedPemanen.mapNotNull { worker ->
-                val baseName = worker.name.substringBefore(" - ").trim()
+            val kemandoranIdList = selectedPemuat.mapNotNull { worker ->
+                var id = kemandoranIdMap[worker.name]
 
+                // If that fails and the name contains a NIK separator, try with just the base name
+                if (id == null && worker.name.contains(" - ")) {
+                    val baseName = worker.name.substringBefore(" - ").trim()
+                    id = kemandoranIdMap[baseName]
+                }
+
+                // If that still fails and we don't have a NIK separator, try all possible matches
+                if (id == null && !worker.name.contains(" - ")) {
+                    val possibleKey =
+                        kemandoranIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                    if (possibleKey != null) {
+                        id = kemandoranIdMap[possibleKey]
+                    }
+                }
+
+                id
+            }
+
+// If you need to maintain karyawanNamaMap logic like in original code
+            val selectedNamaPemuatList = selectedPemuat.mapNotNull { worker ->
+                // First try to get name using the full worker name (with NIK if present)
+                var nama = karyawanNamaMap[worker.name]
+
+                // If that fails and the name contains a NIK separator, try with just the base name
+                if (nama == null && worker.name.contains(" - ")) {
+                    val baseName = worker.name.substringBefore(" - ").trim()
+                    nama = karyawanNamaMap[baseName]
+                }
+
+                // If that still fails and we don't have a NIK separator, try all possible matches
+                if (nama == null && !worker.name.contains(" - ")) {
+                    // Find any key in the map that starts with this worker's name followed by " - "
+                    val possibleKey = karyawanNamaMap.keys.find { it.startsWith("${worker.name} - ") }
+                    if (possibleKey != null) {
+                        nama = karyawanNamaMap[possibleKey]
+                    } else {
+                        // If all else fails, use the worker name itself
+                        nama = worker.name
+                    }
+                }
+
+                nama
+            }
+
+            val selectedNikPemuatIds = selectedPemuat.mapNotNull { worker ->
                 if (worker.name.contains(" - ")) {
-                    // If name contains NIK, try with the full name first
-                    karyawanIdMap[worker.name] ?: karyawanIdMap[baseName]
+                    // Find the last occurrence of " - " to extract only the NIK
+                    val lastDashIndex = worker.name.lastIndexOf(" - ")
+                    if (lastDashIndex != -1) {
+                        worker.name.substring(lastDashIndex + 3).trim()
+                    } else {
+                        null
+                    }
                 } else {
-                    // For names without NIK, just use the base name
-                    karyawanIdMap[baseName]
+                    null
                 }
             }
 
-            val kemandoranIdList = selectedPemanen.mapNotNull { worker ->
-                val baseName = worker.name.substringBefore(" - ").trim()
+// Final joining of all collected data
+            val uniqueNamaPemuat = selectedNamaPemuatList.joinToString(",")
 
-                if (worker.name.contains(" - ")) {
-                    // If name contains NIK, try with the full name first
-                    kemandoranIdMap[worker.name] ?: kemandoranIdMap[baseName]
-                } else {
-                    // For names without NIK, just use the base name
-                    kemandoranIdMap[baseName]
-                }
-            }
-
-            val selectedNikPemanenIds = selectedPemanen.mapNotNull { worker ->
-                if (worker.name.contains(" - ")) {
-                    worker.name.substringAfter(" - ").trim()
-                } else {
-                    worker.id // Fallback to worker.id if NIK not in the name
-                }
-            }
-
-            val uniqueNikPemanen = selectedNikPemanenIds
-                .joinToString(",")
+            val uniqueNikPemanen = selectedNikPemuatIds.joinToString(",")
 
             val uniqueIdKaryawan = idKaryawanList
                 .map { it.toString() }
@@ -673,8 +759,10 @@ class FormESPBActivity : AppCompatActivity() {
 
                     val job = lifecycleScope.async(Dispatchers.IO) {
                         try {
-                            val result = weightBridgeViewModel.getPemuatByIdList(idKaryawanStringList)
-                            result?.mapNotNull { "${it.nama} - ${it.nik}" }?.takeIf { it.isNotEmpty() }
+                            val result =
+                                weightBridgeViewModel.getPemuatByIdList(idKaryawanStringList)
+                            result?.mapNotNull { "${it.nama} - ${it.nik}" }
+                                ?.takeIf { it.isNotEmpty() }
                                 ?.joinToString(", ") ?: "-"
                         } catch (e: Exception) {
                             AppLogger.e("Gagal mendapatkan data pemuat: ${e.message}")
@@ -699,10 +787,7 @@ class FormESPBActivity : AppCompatActivity() {
                 }
             }
 
-
-            AppLogger.d(tph1)
             val blokDisplay = getFormattedBlokDisplay(tph1)
-
             AppLogger.d(blokDisplay)
 
             if (selectedNopol == "NULL" || selectedNopol == "") {
@@ -711,11 +796,13 @@ class FormESPBActivity : AppCompatActivity() {
                     "Mohon lengkapi data No Polisi terlebih dahulu",
                     Toasty.LENGTH_LONG
                 ).show()
+                enableButtonAndSpinners()  // Re-enable if validation fails
                 return@setOnClickListener
             }
             if (driver == "NULL" || driver == "") {
                 Toasty.error(this, "Mohon lengkapi data Driver terlebih dahulu", Toasty.LENGTH_LONG)
                     .show()
+                enableButtonAndSpinners()  // Re-enable if validation fails
                 return@setOnClickListener
             }
             if (selectedTransporterId == 0 && !cbFormEspbTransporter.isChecked) {
@@ -724,14 +811,20 @@ class FormESPBActivity : AppCompatActivity() {
                     "Mohon lengkapi data Transporter terlebih dahulu",
                     Toasty.LENGTH_LONG
                 ).show()
+                enableButtonAndSpinners()  // Re-enable if validation fails
                 return@setOnClickListener
             }
             if (selectedMillId == 0) {
                 Toasty.error(this, "Mohon lengkapi data Mill terlebih dahulu", Toasty.LENGTH_LONG)
                     .show()
+                enableButtonAndSpinners()  // Re-enable if validation fails
                 return@setOnClickListener
             }
+
             val qrCodeImageView: ImageView = findViewById(R.id.qrCodeImageViewESPB)
+
+            val btnPreviewFullQR: MaterialButton = findViewById(R.id.btnPreviewFullQR)
+
             AlertDialogUtility.Companion.withTwoActions(
                 this,
                 "SIMPAN",
@@ -739,7 +832,34 @@ class FormESPBActivity : AppCompatActivity() {
                 "Pastikan seluruh data sudah valid!",
                 "warning.json",
                 function = {
-
+                    btnPreviewFullQR.visibility = View.VISIBLE
+                    btnPreviewFullQR.setOnClickListener {
+                        showQrCodeFullScreen(qrCodeImageView.drawable)
+                    }
+                    disableAllSpinners()
+                    val statusDraft = if (mekanisasi == 0) {
+                        1
+                    } else {
+                        0
+                    }
+                    saveESPB(
+                        blok_jjg = blok_jjg,
+                        nopol = selectedNopol,
+                        driver = driver,
+                        pemuat_id = uniqueIdKaryawan,
+                        transporter_id = transporter_id,
+                        mill_id = selectedMillId!!,
+                        created_by_id = idPetugas!!,
+                        creator_info = creatorInfo.toString(),
+                        noESPB = noESPBStr,
+                        created_at = getCurrentDateTime(),
+                        tph0 = "",
+                        tph1 = tph1,
+                        status_draft = statusDraft,
+                        status_mekanisasi = mekanisasi,
+                        pemuat_nik = uniqueNikPemanen,
+                        kemandoran_id = uniqueKemandoranId
+                    )
                     val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
                     btKonfirmScanESPB.visibility = View.VISIBLE
                     btKonfirmScanESPB.setOnClickListener {
@@ -754,37 +874,19 @@ class FormESPBActivity : AppCompatActivity() {
                                 R.color.bluedarklight
                             ),
                             function = {
-                                val statusDraft = if (mekanisasi == 0) {
-                                    1
-                                } else {
-                                    0
-                                }
-                                takeQRCodeScreenshot(qrCodeImageView, pemuatNama, driver, blokDisplay)
-                                saveESPB(
-                                    blok_jjg = blok_jjg,
-                                    nopol = selectedNopol,
-                                    driver = driver,
-                                    pemuat_id = uniqueIdKaryawan,
-                                    transporter_id = transporter_id,
-                                    mill_id = selectedMillId!!,
-                                    created_by_id = idPetugas!!,
-                                    creator_info = creatorInfo.toString(),
-                                    noESPB = noESPBStr,
-                                    created_at = getCurrentDateTime(),
-                                    tph0 = "",
-                                    tph1 = tph1,
-                                    status_draft = statusDraft,
-                                    status_mekanisasi = mekanisasi,
-                                    pemuat_nik = uniqueNikPemanen,
-                                    kemandoran_id = uniqueKemandoranId
-                                )
+                                playSound(R.raw.berhasil_konfirmasi)
+                                showSuccessAndNavigate()
+
                             },
                             cancelFunction = {
+                                // Don't re-enable since we're still in the outer dialog
                             }
                         )
-
                     }
+
                     if (mekanisasi == 0) {
+
+                        AppLogger.d("uniqueNikPemanen $uniqueNikPemanen")
                         val json = constructESPBJson(
                             blok_jjg = blok_jjg,
                             nopol = selectedNopol,
@@ -803,6 +905,7 @@ class FormESPBActivity : AppCompatActivity() {
                             kemandoran_id = uniqueKemandoranId
                         )
 
+                        AppLogger.d("json $json")
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
 
                         ListPanenTBSActivity().generateHighQualityQRCode(
@@ -811,14 +914,18 @@ class FormESPBActivity : AppCompatActivity() {
                         )
                         setMaxBrightness(this, true)
                         playSound(R.raw.berhasil_generate_qr)
-//                        btKonfirmScanESPB.isEnabled = true
 
-
+                        takeQRCodeScreenshot(
+                            qrCodeImageView,
+                            pemuatNama,
+                            driver,
+                            blokDisplay
+                        )
                     }
-//                    btnGenerateQRESPB.isEnabled = true
                 },
                 cancelFunction = {
-//                    btnGenerateQRESPB.isEnabled = true
+                    // Re-enable the button if the user cancels the operation
+                    enableButtonAndSpinners()
                 }
             )
         }
@@ -856,6 +963,119 @@ class FormESPBActivity : AppCompatActivity() {
 //        }
     }
 
+    private fun disableAllSpinners() {
+        // Disable all spinners
+        disableSpinner(R.id.formEspbNopol)
+        disableSpinner(R.id.formEspbMill)
+        disableSpinner(R.id.formEspbKemandoran)
+        disableSpinner(R.id.formEspbAfdeling)
+        disableSpinner(R.id.formEspbTransporter)
+        disableSpinner(R.id.formEspbPemuat)
+
+        // Also disable the driver input field
+        val formEspbDriver = findViewById<LinearLayout>(R.id.formEspbDriver)
+        val etEspbDriver = formEspbDriver.findViewById<EditText>(R.id.etPaneEt)
+        etEspbDriver.isEnabled = false
+        etEspbDriver.alpha = 0.5f
+
+        val cbFormEspbTransporter = findViewById<MaterialCheckBox>(R.id.cbFormEspbTransporter)
+        cbFormEspbTransporter.isEnabled = false
+        cbFormEspbTransporter.alpha = 0.5f
+
+        disableRecyclerViewItems(rvSelectedPemanen)
+    }
+
+
+    private fun disableRecyclerViewItems(recyclerView: RecyclerView) {
+        // First, make the RecyclerView non-interactive
+        recyclerView.alpha = 0.8f
+
+        // Loop through all visible child views to disable remove buttons
+        for (i in 0 until recyclerView.childCount) {
+            val itemView = recyclerView.getChildAt(i)
+
+            // Find and disable the remove button in each item
+            val removeButton = itemView.findViewById<ImageView>(R.id.remove_worker)
+            removeButton?.let {
+                it.isEnabled = false
+                it.alpha = 0.5f
+
+                // Prevent click events by setting a dummy listener that does nothing
+                it.setOnClickListener(null)
+            }
+        }
+
+        // Store original OnItemTouchListener(s) and replace with one that blocks interactions
+        // We'll re-enable interactions in enableRecyclerViewItems
+        recyclerView.addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
+            override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
+                // Intercept all touch events to prevent interactions
+                return true
+            }
+
+            override fun onTouchEvent(rv: RecyclerView, e: MotionEvent) {
+                // Do nothing with the touch events
+            }
+
+            override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
+                // No implementation needed
+            }
+        })
+    }
+
+    /**
+     * Enables the button and all spinners
+     */
+    private fun enableButtonAndSpinners() {
+        // Re-enable the button with original color
+        val btnGenerateQRESPB = findViewById<FloatingActionButton>(R.id.btnGenerateQRESPB)
+        btnGenerateQRESPB.isEnabled = true
+        btnGenerateQRESPB.backgroundTintList =
+            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.greendarkerbutton))
+
+        // Re-enable all spinners
+        enableSpinner(R.id.formEspbNopol)
+        enableSpinner(R.id.formEspbMill)
+        enableSpinner(R.id.formEspbKemandoran)
+        enableSpinner(R.id.formEspbAfdeling)
+        enableSpinner(R.id.formEspbTransporter)
+        enableSpinner(R.id.formEspbPemuat)
+
+        // Re-enable the driver input field
+        val formEspbDriver = findViewById<LinearLayout>(R.id.formEspbDriver)
+        val etEspbDriver = formEspbDriver.findViewById<EditText>(R.id.etPaneEt)
+        etEspbDriver.isEnabled = true
+        etEspbDriver.alpha = 1.0f
+    }
+
+    /**
+     * Disables a specific spinner
+     */
+    private fun disableSpinner(spinnerId: Int) {
+        val spinnerLayout = findViewById<LinearLayout>(spinnerId)
+        val spinner = spinnerLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+        spinner.isEnabled = false
+        spinner.alpha = 0.5f // Reduce opacity to visually indicate disabled state
+
+        // Also disable the TextView title for a consistent look
+        val tvTitle = spinnerLayout.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
+        tvTitle.alpha = 0.5f
+    }
+
+    /**
+     * Enables a specific spinner
+     */
+    private fun enableSpinner(spinnerId: Int) {
+        val spinnerLayout = findViewById<LinearLayout>(spinnerId)
+        val spinner = spinnerLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+        spinner.isEnabled = true
+        spinner.alpha = 1.0f // Restore full opacity
+
+        // Also restore the TextView title
+        val tvTitle = spinnerLayout.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
+        tvTitle.alpha = 1.0f
+    }
+
     private fun setupViewModel() {
         val repository = AppRepository(this) // Get millDao from your database
         viewModelFactory = ESPBViewModelFactory(repository)
@@ -873,12 +1093,18 @@ class FormESPBActivity : AppCompatActivity() {
         weightBridgeViewModel = ViewModelProvider(this, factory2)[WeighBridgeViewModel::class.java]
     }
 
-    private fun takeQRCodeScreenshot(sourceQrImageView: ImageView, pemuatNama :String, driver:String, blokDisplay:String) {
+    private fun takeQRCodeScreenshot(
+        sourceQrImageView: ImageView,
+        pemuatNama: String,
+        driver: String,
+        blokDisplay: String
+    ) {
 
         lifecycleScope.launch {
             try {
                 // Inflate custom screenshot layout
-                val screenshotLayout = layoutInflater.inflate(R.layout.layout_screenshot_qr_mandor, null)
+                val screenshotLayout =
+                    layoutInflater.inflate(R.layout.layout_screenshot_qr_mandor, null)
 
                 // Get references to views in the custom layout
                 val tvUserName = screenshotLayout.findViewById<TextView>(R.id.tvUserName)
@@ -888,7 +1114,8 @@ class FormESPBActivity : AppCompatActivity() {
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
-                val infoTotalTransaksi = screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+                val infoTotalTransaksi =
+                    screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
                 val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
                 val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
                 val infoNopol = screenshotLayout.findViewById<View>(R.id.infoNopol)
@@ -973,7 +1200,8 @@ class FormESPBActivity : AppCompatActivity() {
                 setInfoData(infoPemuat, "Pemuat", ": $pemuatNama")
 
 
-                tvFooter.text = "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
+                tvFooter.text =
+                    "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
 
                 // Measure and layout the screenshot view
                 val displayMetrics = resources.displayMetrics
@@ -1000,7 +1228,12 @@ class FormESPBActivity : AppCompatActivity() {
                 )
 
                 if (screenshotFile != null) {
-                    Toasty.success(this@FormESPBActivity, "QR sudah tersimpan digaleri", Toast.LENGTH_LONG, true).show()
+                    Toasty.success(
+                        this@FormESPBActivity,
+                        "QR sudah tersimpan digaleri",
+                        Toast.LENGTH_LONG,
+                        true
+                    ).show()
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error taking QR screenshot: ${e.message}")
@@ -1012,6 +1245,85 @@ class FormESPBActivity : AppCompatActivity() {
                     ).show()
                 }
             }
+        }
+    }
+
+    /**
+     * Shows the QR code in fullscreen mode without relying on a bottom sheet
+     */
+    private fun showQrCodeFullScreen(qrDrawable: Drawable?) {
+        if (qrDrawable == null) return
+
+        // Create a dialog to display the QR code
+        val dialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+
+        // Make dialog dismissible with back button
+        dialog.setCancelable(true)
+
+        // Inflate the camera_edit layout
+        val fullscreenView = layoutInflater.inflate(R.layout.camera_edit, null)
+        dialog.setContentView(fullscreenView)
+
+        // Find views within the dialog layout
+        val fotoLayout = fullscreenView.findViewById<ConstraintLayout>(R.id.clZoomLayout)
+        val photoView = fullscreenView.findViewById<PhotoView>(R.id.fotoZoom)
+        val closeZoomCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardCloseZoom)
+        val changePhotoCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardChangePhoto)
+        val deletePhotoCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
+
+        // Find the TextView and ImageView for color changes
+        val tvCardCloseButton = fullscreenView.findViewById<TextView>(R.id.tvCardCloseButton)
+        val closeZoomIcon = fullscreenView.findViewById<ImageView>(R.id.closeZoom)
+
+        // Set the image to the PhotoView
+        photoView.setImageDrawable(qrDrawable)
+
+        // Hide edit options
+        changePhotoCard.visibility = View.GONE
+        deletePhotoCard.visibility = View.GONE
+
+        // Set background color of the layout to white
+        fotoLayout.setBackgroundColor(ContextCompat.getColor(this, R.color.white))
+
+        // Set close button background color to green
+        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(this, R.color.greenDarker))
+
+        // Change the text color to white
+        tvCardCloseButton.setTextColor(ContextCompat.getColor(this, R.color.white))
+
+        // Change the close icon tint to white
+        closeZoomIcon.setColorFilter(ContextCompat.getColor(this, R.color.white))
+
+        // Set up close button
+        closeZoomCard.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        // Make dialog display properly
+        dialog.window?.apply {
+            // Set window background to white
+            setBackgroundDrawable(ColorDrawable(ContextCompat.getColor(this@FormESPBActivity, R.color.white)))
+            setDimAmount(0f) // Remove dimming since we have a white background
+
+            // Set fullscreen and proper layout
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+
+            // This helps ensure it appears on top
+            setGravity(Gravity.CENTER)
+
+            // Set maximum brightness for better QR code scanning
+            attributes.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
+        }
+
+        dialog.show()
+
+        // Set phone to maximum brightness for better QR visibility
+        setMaxBrightness(this, true)
+
+        // When dialog is dismissed, restore original brightness
+        dialog.setOnDismissListener {
+            setMaxBrightness(this, false)
         }
     }
 
@@ -1353,7 +1665,7 @@ class FormESPBActivity : AppCompatActivity() {
                         }
                         pemuatList = karyawanDeferred.await()
                         Log.d("FormESPBActivityKemandoran", "pemuatList: $pemuatList")
-                        val pemuatNames = pemuatList.map { it.nama.toString() }
+                        val pemuatNames = pemuatList.map { "${it.nama} - ${it.nik ?: "N/A"}" }
                         Log.d("FormESPBActivityKemandoran", "pemuatNames: $pemuatNames")
                         withContext(Dispatchers.Main) {
                             setupSpinner(R.id.formEspbPemuat, pemuatNames)
@@ -1389,26 +1701,49 @@ class FormESPBActivity : AppCompatActivity() {
             }
 
             R.id.formEspbPemuat -> {
-                val selectedItem = selectedItem.toString()
+                val selectedPemuat = selectedItem.toString()
+                AppLogger.d("Selected Pemuat: $selectedPemuat")
 
-                // Check if selectedItem contains a NIK (for duplicate names)
-                val hasNik = selectedItem.contains(" - ")
-                val selectedName = selectedItem.substringBefore(" - ").trim()
-                val selectedNik = if (hasNik) selectedItem.substringAfter(" - ").trim() else null
+                // Extract NIK from the selection
+                val lastDashIndex = selectedPemuat.lastIndexOf(" - ")
+                val selectedNik =
+                    if (lastDashIndex != -1 && lastDashIndex < selectedPemuat.length - 3) {
+                        val potentialNik = selectedPemuat.substring(lastDashIndex + 3).trim()
+                        if (potentialNik.all { it.isDigit() }) potentialNik else ""
+                    } else ""
 
-                // Create a NIK to Employee map for lookup by NIK
-                val nikToEmployeeMap = pemuatList.filter { it.nik != null }
-                    .associateBy { it.nik!! }
+                AppLogger.d("Extracted NIK: $selectedNik")
 
-                // Create a map to count occurrences of each name
-                val nameCounts = mutableMapOf<String, Int>()
-                pemuatList.forEach {
-                    it.nama?.trim()?.let { nama ->
-                        nameCounts[nama] = (nameCounts[nama] ?: 0) + 1
+                // Find the selected employee in pemuatList
+                var selectedEmployee = pemuatList.firstOrNull {
+                    it.nik == selectedNik || it.nama?.trim()
+                        ?.equals(selectedPemuat.trim(), ignoreCase = true) == true
+                }
+
+                // If not found by exact match, try partial match on name
+                if (selectedEmployee == null && lastDashIndex != -1) {
+                    val nameWithoutNik = selectedPemuat.substring(0, lastDashIndex).trim()
+                    selectedEmployee = pemuatList.firstOrNull {
+                        it.nama?.trim()?.equals(nameWithoutNik, ignoreCase = true) == true
                     }
                 }
 
-                // Update map keys to include NIK for duplicate names
+                if (selectedEmployee == null) {
+                    selectedEmployee = pemuatList.firstOrNull {
+                        it.nama?.contains(
+                            selectedPemuat.split(" - ")[0],
+                            ignoreCase = true
+                        ) == true
+                    }
+                }
+
+                // Process the pemuatList to build the maps
+                val nameCounts = mutableMapOf<String, Int>()
+                pemuatList.forEach {
+                    it.nama?.trim()?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 }
+                }
+
+                // Building the maps based on existing list
                 pemuatList.forEach {
                     it.nama?.trim()?.let { nama ->
                         val key = if (nameCounts[nama]!! > 1) {
@@ -1418,40 +1753,51 @@ class FormESPBActivity : AppCompatActivity() {
                         }
                         karyawanIdMap[key] = it.id!!
                         kemandoranIdMap[key] = it.kemandoran_id!!
+                        // If you need to store names separately as in original code
+                        karyawanNamaMap[key] = nama
                     }
                 }
 
-                // Find the selected employee either by NIK or name
-                val selectedEmployee = if (selectedNik != null) {
-                    nikToEmployeeMap[selectedNik]
-                } else {
-                    pemuatList.find { it.nama?.trim() == selectedName }
+                // Explicitly ensure the selected employee is in the maps
+                if (selectedEmployee != null) {
+                    // Get clean name of selected employee
+                    val employeeName = selectedEmployee.nama?.trim() ?: ""
+                    // Get name without NIK from selection
+                    val selectionName = if (lastDashIndex != -1) {
+                        selectedPemuat.substring(0, lastDashIndex).trim()
+                    } else {
+                        selectedPemuat.trim()
+                    }
+
+                    // Make sure employee is in maps by both full selection name and clean name
+                    karyawanIdMap[selectedPemuat] = selectedEmployee.id!!
+                    kemandoranIdMap[selectedPemuat] = selectedEmployee.kemandoran_id!!
+
+                    karyawanIdMap[selectionName] = selectedEmployee.id!!
+                    kemandoranIdMap[selectionName] = selectedEmployee.kemandoran_id!!
+
+                    karyawanIdMap[employeeName] = selectedEmployee.id!!
+                    kemandoranIdMap[employeeName] = selectedEmployee.kemandoran_id!!
                 }
 
                 if (selectedEmployee != null) {
-                    val worker = Worker(selectedEmployee.toString(), selectedItem)
+                    val worker = Worker(selectedEmployee.id.toString(), selectedPemuat)
                     selectedPemuatAdapter.addWorker(worker)
-                    pemuatListId.add(selectedEmployee.toString())
+                    // If you're tracking selected worker IDs as in your new code
+                    pemuatListId.add(selectedEmployee.id.toString())
 
-                    // Update available workers with proper name formatting
-                    selectedPemuatAdapter.setAvailableWorkers(pemuatList.map {
-                        val workerName = if (nameCounts[it.nama?.trim()] ?: 0 > 1) {
-                            "${it.nama?.trim()} - ${it.nik}"
-                        } else {
-                            it.nama?.trim() ?: ""
-                        }
-                        Worker(it.id.toString(), workerName)
-                    })
-
-                    // Get updated available workers for spinner
                     val availableWorkers = selectedPemuatAdapter.getAvailableWorkers()
 
-                    Log.d("FormESPBActivityPemuat", "availableWorkers: $availableWorkers")
                     if (availableWorkers.isNotEmpty()) {
-                        setupSpinner(R.id.formEspbPemuat, availableWorkers.map { it.name })
+                        setupSpinner(
+                            R.id.formEspbPemuat,
+                            availableWorkers.map { it.name }
+                        )
                     }
 
-                    AppLogger.d("Selected Worker: $selectedItem, ID: ${selectedEmployee.id}")
+                    AppLogger.d("Selected Worker: $selectedPemuat, ID: ${selectedEmployee.id}")
+                } else {
+                    AppLogger.d("Error: Could not find worker with name $selectedPemuat or NIK $selectedNik")
                 }
             }
 
@@ -1490,6 +1836,50 @@ class FormESPBActivity : AppCompatActivity() {
     ): String {
         val gson = Gson()
 
+        val nikList = pemuat_nik
+
+        // Extract unique dates from tph1 and prepare optimized string
+        val dateMap = JsonObject()
+        val optimizedTph1 = StringBuilder()
+
+        // Process tph1 if not empty
+        if (tph1.isNotEmpty()) {
+            val entries = tph1.split(";")
+            entries.forEachIndexed { index, entry ->
+                if (entry.isNotEmpty()) {
+                    val parts = entry.split(",")
+                    if (parts.size >= 2) {
+                        // Extract date and time
+                        val dateTime = parts[1]
+                        val dateParts = dateTime.split(" ")
+                        if (dateParts.size >= 2) {
+                            val date = dateParts[0]
+                            val time = dateParts[1]
+
+                            // Add date to dateMap with index 0 (instead of 1)
+                            if (!dateMap.has("0")) {
+                                dateMap.addProperty("0", date)
+                            }
+
+                            // Create optimized entry: ID,0,TIME,VALUE1,VALUE2...
+                            // Note: using 0 instead of 1 for the index
+                            val newEntry = StringBuilder("${parts[0]},0,${time}")
+
+                            // Add remaining values (starting from index 2)
+                            for (i in 2 until parts.size) {
+                                newEntry.append(",${parts[i]}")
+                            }
+
+                            if (index > 0) {
+                                optimizedTph1.append(";")
+                            }
+                            optimizedTph1.append(newEntry)
+                        }
+                    }
+                }
+            }
+        }
+
         // Create the nested ESPB object
         val espbObject = JsonObject().apply {
             addProperty("blok_jjg", blok_jjg)
@@ -1499,7 +1889,7 @@ class FormESPBActivity : AppCompatActivity() {
             addProperty("transporter_id", transporter_id)
             addProperty("mill_id", mill_id)
             addProperty("kemandoran_id", kemandoran_id)
-            addProperty("pemuat_nik", pemuat_nik)
+            addProperty("pemuat_nik", nikList.toString()) // Use the extracted NIKs only
             addProperty("created_by_id", created_by_id)
             add("creator_info", createCreatorInfo(appVersion, osVersion, phoneModel))
             addProperty("no_espb", no_espb)
@@ -1510,7 +1900,8 @@ class FormESPBActivity : AppCompatActivity() {
         val rootObject = JsonObject().apply {
             add("espb", espbObject)
             addProperty("tph_0", tph0)
-            addProperty("tph_1", tph1)
+            addProperty("tph_1", optimizedTph1.toString())
+            add("tgl", dateMap)
         }
 
         return gson.toJson(rootObject)
@@ -1608,6 +1999,7 @@ class FormESPBActivity : AppCompatActivity() {
 
         return formattedBlokDisplay
     }
+
     class ESPBViewModelFactory(private val repository: AppRepository) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(ESPBViewModel::class.java)) {
@@ -1716,11 +2108,10 @@ class FormESPBActivity : AppCompatActivity() {
                     // Log successful operation
                     AppLogger.i("ESPB saved successfully with ID: $espbId")
 
-                    // Update UI on main thread
-                    withContext(Dispatchers.Main) {
-                        playSound(R.raw.berhasil_konfirmasi)
-                        showSuccessAndNavigate()
-                    }
+//                    // Update UI on main thread
+//                    withContext(Dispatchers.Main) {
+//
+//                    }
                 } else {
                     withContext(Dispatchers.Main) {
                         Toasty.error(

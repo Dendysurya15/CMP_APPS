@@ -17,57 +17,118 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <LinearLayout
-        android:id="@+id/calendarContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="10dp"
-        android:layout_marginTop="10dp"
-        android:paddingBottom="5dp"
-        android:orientation="horizontal"
-        android:visibility="visible"
+        android:id="@+id/ll_summary"
         app:layout_constraintTop_toBottomOf="@id/navbar"
-        tools:ignore="MissingConstraints">
+        tools:ignore="MissingConstraints"
+        android:orientation="vertical">
 
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            app:cardCornerRadius="8dp"
-            app:cardBackgroundColor="@color/white"
-            app:rippleColor="@color/ripple_material_light"
-            android:clickable="true"
-            android:focusable="true">
+        <LinearLayout
+            android:id="@+id/calendarContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginTop="10dp"
+            android:paddingBottom="5dp"
+            android:orientation="horizontal"
+            android:visibility="visible">
 
-            <Button
-                android:id="@+id/calendarPicker"
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                app:cardCornerRadius="8dp"
+                app:cardBackgroundColor="@color/white"
+                app:rippleColor="@color/ripple_material_light"
+                android:clickable="true"
+                android:focusable="true">
+
+                <Button
+                    android:id="@+id/calendarPicker"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="10dp"
+                    android:layout_marginVertical="5dp"
+                    android:backgroundTint="@color/white"
+                    android:textColor="@color/black"
+                    android:drawableEnd="@drawable/baseline_keyboard_arrow_down_24"
+                    android:onClick="openDatePicker"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    tools:ignore="MissingConstraints" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <CheckBox
+                android:id="@+id/calendarCheckbox"
+                style="@style/defaultBoxColor"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="10dp"
-                android:layout_marginVertical="5dp"
-                android:backgroundTint="@color/white"
+                android:layout_marginStart="10dp" />
+
+            <TextView
+                android:id="@+id/calendarCheckboxCaption"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+
+                android:gravity="center_vertical"
+                android:text="Filter Semua Tanggal"
                 android:textColor="@color/black"
-                android:drawableEnd="@drawable/baseline_keyboard_arrow_down_24"
-                android:onClick="openDatePicker"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                tools:ignore="MissingConstraints" />
+                android:fontFamily="@font/manrope_semibold"
+                android:textSize="@dimen/m" />
+        </LinearLayout>
 
-        </com.google.android.material.card.MaterialCardView>
+        <HorizontalScrollView
+            android:layout_marginHorizontal="10dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <com.google.android.material.chip.ChipGroup
+                android:layout_width="match_parent"
+                android:id="@+id/cgBlok"
+                android:layout_height="wrap_content"/>
 
-        <CheckBox
-            android:id="@+id/calendarCheckbox"
-            style="@style/defaultBoxColor"
-            android:layout_width="wrap_content"
+        </HorizontalScrollView>
+
+        <LinearLayout
+            android:layout_marginHorizontal="10dp"
+            android:id="@+id/ll_HektarPanenSum"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp" />
+            android:orientation="horizontal"
+            android:visibility="gone">
 
-        <TextView
-            android:id="@+id/calendarCheckboxCaption"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:fontFamily="@font/manrope_semibold"
-            android:gravity="center_vertical"
-            android:text="Filter Semua Tanggal"
-            android:textColor="@color/black"
-            android:textSize="@dimen/m" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Luas Blok: "
+                android:textColor="@color/black"
+                android:fontFamily="@font/manrope_semibold"
+                android:textSize="@dimen/m" />
+            <TextView
+                android:id="@+id/tvLuasBlok"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="30.00(ha)"
+                android:textColor="@color/black"
+                android:fontFamily="@font/manrope_semibold"
+                android:textSize="@dimen/m" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="   Luas Panen: "
+                android:textColor="@color/black"
+                android:fontFamily="@font/manrope_semibold"
+                android:textSize="@dimen/m" />
+            <TextView
+                android:id="@+id/tvLuasPanen"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="30.00(ha)"
+                android:textColor="@color/black"
+                android:fontFamily="@font/manrope_semibold"
+                android:textSize="@dimen/m" />
+
+        </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
@@ -76,7 +137,7 @@
         android:orientation="vertical"
         android:visibility="gone"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/calendarContainer">
+        app:layout_constraintTop_toBottomOf="@id/ll_summary">
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="wrap_content"
@@ -142,6 +203,9 @@
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
+        <!-- Add this layout to activity_list_history_weigh_bridge.xml after the filterDateContainer -->
+
     </LinearLayout>
 
     <LinearLayout
@@ -198,6 +262,66 @@
 
     </LinearLayout>
 
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnGenerateQRTPH"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="30dp"
+        android:layout_marginBottom="30dp"
+        android:src="@drawable/baseline_qr_code_scanner_24"
+        android:tooltipText="Generate QR TPH"
+        app:backgroundTint="@color/bluedarklight"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:maxImageSize="30dp"
+        android:visibility="gone"
+        app:rippleColor="@color/bgLightOrange"
+        app:tint="@color/white"/>
+
+    <TextView
+        android:id="@+id/tvGenQR60"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Gen QR 40"
+        android:visibility="gone"
+        android:outlineSpotShadowColor="@color/white"
+        android:outlineAmbientShadowColor="@color/white"
+        android:shadowColor="@color/white"
+        android:fontFamily="@font/manrope_bold"
+        app:layout_constraintEnd_toEndOf="@+id/btnGenerateQRTPH"
+        app:layout_constraintStart_toStartOf="@+id/btnGenerateQRTPH"
+        app:layout_constraintTop_toBottomOf="@+id/btnGenerateQRTPH" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnGenerateQRTPHUnl"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="30dp"
+        android:layout_marginBottom="30dp"
+        android:src="@drawable/qrcode_solid"
+        android:tooltipText="Generate QR TPH"
+        android:visibility="gone"
+        app:backgroundTint="@color/greendarkerbutton"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btnGenerateQRTPH"
+        app:maxImageSize="30dp"
+        app:rippleColor="@color/bgLightOrange"
+        app:tint="@color/white" />
+
+    <TextView
+        android:id="@+id/tvGenQRFull"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/manrope_bold"
+        android:text="Gen QR Full"
+        android:shadowColor="@color/white"
+        android:outlineSpotShadowColor="@color/white"
+        android:outlineAmbientShadowColor="@color/white"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="@+id/btnGenerateQRTPHUnl"
+        app:layout_constraintStart_toStartOf="@+id/btnGenerateQRTPHUnl"
+        app:layout_constraintTop_toBottomOf="@+id/btnGenerateQRTPHUnl" />
+
     <com.leinardi.android.speeddial.SpeedDialView
         android:id="@+id/dial_tph_list_krani_timbang_espb"
         android:layout_width="wrap_content"
@@ -205,10 +329,8 @@
         android:layout_marginBottom="30dp"
         android:layout_marginRight="20dp"
         android:visibility="gone"
-
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-
         app:sdMainFabClosedBackgroundColor="@color/greenDarker"
         app:sdMainFabClosedIconColor="@color/white"
         app:sdMainFabClosedSrc="@drawable/list_solid"

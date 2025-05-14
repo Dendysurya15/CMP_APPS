@@ -27,11 +27,18 @@ abstract class KaryawanDao {
         insertAll(karyawan)
     }
 
+    @Query("SELECT * FROM karyawan WHERE nik IN (:nikList)")
+    abstract suspend fun getKaryawanByNikList(nikList: List<String>): List<KaryawanModel>
+
     @Query("SELECT * FROM karyawan ORDER BY nama ASC")
     abstract suspend fun getAllKaryawan(): List<KaryawanModel>
 
     @Query("SELECT COUNT(*) FROM karyawan")
     abstract suspend fun getCount(): Int
+
+    //get nama from nik
+    @Query("SELECT nama FROM karyawan WHERE nik = :nik")
+    abstract suspend fun getNamaByNik(nik: String): String?
 
     @Query("SELECT * FROM karyawan WHERE kemandoran_id = :filteredId")
     abstract fun getKaryawanByCriteria(

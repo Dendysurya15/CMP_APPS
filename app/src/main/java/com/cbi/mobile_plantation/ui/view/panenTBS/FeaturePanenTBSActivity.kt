@@ -106,6 +106,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.transition.Visibility
+import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.EstateModel
@@ -207,7 +208,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var afdelingList: List<AfdelingModel> = emptyList()
     private var kemandoranLainList: List<KemandoranModel> = emptyList()
-
+    private val karyawanNamaMap = mutableMapOf<String, String>()
+    private val karyawanNamaLainMap = mutableMapOf<String, String>()
     private var tphList: List<TPHNewModel> = emptyList()
 
     private lateinit var loadingDialog: LoadingDialog
@@ -215,7 +217,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var selectedPemanenLainAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
     private lateinit var rvSelectedPemanenLain: RecyclerView
-
+    private var selectedTPHJenisId: Int? = null
     enum class InputType {
         SPINNER,
         EDITTEXT,
@@ -228,6 +230,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var selectedTipePanen: String = ""
     private var selectedAfdeling: String = ""
     private var selectedAfdelingIdSpinner: Int = 0
+    private var selectedKemandoranIdSpinner: Int = 0
+    private var selectedTahunTanamIdSpinner: Int = 0
+    private var selectedKemandoranLainIdSpinner: Int = 0
+    private var selectedBlokIdSpinner: Int = 0
+    private var selectedTPHIdSpinner: Int = 0
     private var selectedEstate: String = ""
     private var selectedEstateIdSpinner: Int = 0
     private var selectedBlok: String = ""
@@ -249,8 +256,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     var persenAbnormal = 0f
     var persenJjgKosong = 0f
     var persenMasak = 0f
-    private var hasShownErrorDialog = false  // Add this property
-    private lateinit var adapter: DownloadProgressDatasetAdapter
     private lateinit var jjg_json: String
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private lateinit var datasetViewModel: DatasetViewModel
@@ -261,8 +266,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var userName: String? = null
     private var userId: Int? = null
     private var jabatanUser: String? = null
-    private var afdelingUser: String? = null
-    private var panenStoredLocal: MutableMap<Int, Int> = mutableMapOf()
+    // This should be defined at the class level
+    private data class TPHData(val count: Int, val jenisTPHId: Int, val limitTPH: String? = null)
+    private var panenStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
     private var isEmptyScannedTPH = true
@@ -287,7 +293,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private val autoScanInterval = 5000L // 5 seconds
     private lateinit var switchAutoScan: SwitchMaterial
     private lateinit var layoutAutoScan: LinearLayout
-
+    private var jenisTPHListGlobal: List<JenisTPHModel> = emptyList()
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -369,17 +375,46 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     withContext(Dispatchers.Main) {
                         panenViewModel.activePanenList.observe(this@FeaturePanenTBSActivity) { list ->
-                            val tphCounts = list?.mapNotNull { it.tph?.id }
-                                ?.groupingBy { it }
-                                ?.eachCount()
-                                ?: emptyMap()
+                            val tphDataMap = mutableMapOf<Int, TPHData>()
+
+                            list?.forEach { panen ->
+                                val tphId = panen.tph?.id
+                                val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
+                                val limitTPH = panen.tph?.limit_tph  // Extract limit_tph directly from panen.tph
+
+                                if (tphId != null && jenisTPHId != null) {
+                                    val existingData = tphDataMap[tphId]
+                                    if (existingData != null) {
+                                        // Increment the count for existing TPH
+                                        tphDataMap[tphId] = existingData.copy(count = existingData.count + 1)
+                                    } else {
+                                        // Create new entry for this TPH with the limit_tph
+                                        tphDataMap[tphId] = TPHData(count = 1, jenisTPHId = jenisTPHId, limitTPH = limitTPH!!)
+                                    }
+                                }
+                            }
 
                             panenStoredLocal.clear()
-                            panenStoredLocal.putAll(tphCounts)
+                            panenStoredLocal.putAll(tphDataMap)
 
                             panenDeferred.complete(list ?: emptyList())
                         }
                     }
+
+
+                    val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
+
+                    panenViewModel.getAllJenisTPH()
+                    delay(100)
+
+                    withContext(Dispatchers.Main) {
+                        panenViewModel.jenisTPHList.observe(this@FeaturePanenTBSActivity) { list ->
+                            jenisTPHListGlobal = list ?: emptyList()
+                            jenisTPHDeferred.complete(list ?: emptyList())
+                        }
+                    }
+
+                    AppLogger.d("jenisTPHlistGlobal $jenisTPHListGlobal")
 
                     val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
 
@@ -586,6 +621,30 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                     id
                                 }
+                                val selectedNamaPemanenList = selectedPemanen.mapNotNull { worker ->
+                                    // First try to get name using the full worker name (with NIK if present)
+                                    var nama = karyawanNamaMap[worker.name]
+
+                                    // If that fails and the name contains a NIK separator, try with just the base name
+                                    if (nama == null && worker.name.contains(" - ")) {
+                                        val baseName = worker.name.substringBefore(" - ").trim()
+                                        nama = karyawanNamaMap[baseName]
+                                    }
+
+                                    // If that still fails and we don't have a NIK separator, try all possible matches
+                                    if (nama == null && !worker.name.contains(" - ")) {
+                                        // Find any key in the map that starts with this worker's name followed by " - "
+                                        val possibleKey = karyawanNamaMap.keys.find { it.startsWith("${worker.name} - ") }
+                                        if (possibleKey != null) {
+                                            nama = karyawanNamaMap[possibleKey]
+                                        } else {
+                                            // If all else fails, use the worker name itself
+                                            nama = worker.name
+                                        }
+                                    }
+
+                                    nama
+                                }
 
 
                                 val selectedPemanenLain =
@@ -623,9 +682,27 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         }
                                     }
 
+                                val selectedNamaPemanenLainList = selectedPemanenLain.mapNotNull { worker ->
+                                    val baseName = worker.name.substringBefore(" - ").trim()
+
+                                    if (workerLainNameCounts[baseName]!! > 1) {
+                                        // For duplicate names, use the full key with NIK
+                                        karyawanNamaLainMap[worker.name]
+                                    } else {
+                                        // For unique names, just use the base name
+                                        karyawanNamaLainMap[baseName] ?: baseName  // Fallback to baseName if not in map
+                                    }
+                                }
+
                                 val selectedNikPemanenIds = selectedPemanen.mapNotNull { worker ->
                                     if (worker.name.contains(" - ")) {
-                                        worker.name.substringAfter(" - ").trim()
+                                        // Find the last occurrence of " - " to extract only the NIK
+                                        val lastDashIndex = worker.name.lastIndexOf(" - ")
+                                        if (lastDashIndex != -1) {
+                                            worker.name.substring(lastDashIndex + 3).trim()
+                                        } else {
+                                            null
+                                        }
                                     } else {
                                         null
                                     }
@@ -634,11 +711,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                 val selectedNikPemanenLainIds =
                                     selectedPemanenLain.mapNotNull { worker ->
                                         if (worker.name.contains(" - ")) {
-                                            worker.name.substringAfter(" - ").trim()
+                                            // Find the last occurrence of " - " to extract only the NIK
+                                            val lastDashIndex = worker.name.lastIndexOf(" - ")
+                                            if (lastDashIndex != -1) {
+                                                worker.name.substring(lastDashIndex + 3).trim()
+                                            } else {
+                                                null
+                                            }
                                         } else {
                                             null
                                         }
                                     }
+
+                                val uniqueNamaPemanen = (selectedNamaPemanenList + selectedNamaPemanenLainList)
+                                    .joinToString(",")
 
                                 val uniqueNikPemanen =
                                     (selectedNikPemanenIds + selectedNikPemanenLainIds)
@@ -666,6 +752,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         karyawan_id = uniqueIdKaryawan,
                                         kemandoran_id = uniqueKemandoranId,
                                         karyawan_nik = uniqueNikPemanen,
+                                        karyawan_nama = uniqueNamaPemanen,
                                         jjg_json = jjg_json,
                                         foto = photoFilesString,
                                         komentar = komentarFotoString,
@@ -694,13 +781,24 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             "success.json",
                                             R.color.greenDefault
                                         ) {
-
                                             val tphId = selectedTPHValue!!.toInt()
-                                            val currentCount = panenStoredLocal[tphId] ?: 0
-                                            panenStoredLocal[tphId] = currentCount + 1
+                                            val tphData = panenStoredLocal[tphId]
+
+                                            if (tphData != null) {
+                                                // Update existing entry, maintain the same jenisTPHId and limitTPH
+                                                panenStoredLocal[tphId] = tphData.copy(count = tphData.count + 1)
+                                            } else {
+                                                // Create new entry
+                                                val jenisTPHId = selectedTPHJenisId ?: 0
+
+                                                val limitTPH = tphList.find { it.id == tphId }?.limit_tph
+                                                panenStoredLocal[tphId] = TPHData(count = 1, jenisTPHId = jenisTPHId, limitTPH = limitTPH)
+                                            }
+
                                             resetFormAfterSaveData()
                                         }
                                     }
+
 
                                     is AppRepository.SaveResultPanen.Error -> {
                                         AlertDialogUtility.withSingleAction(
@@ -817,6 +915,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
     private fun resetFormAfterSaveData() {
+
         selectedPemanenAdapter.clearAllWorkers()
         selectedPemanenLainAdapter.clearAllWorkers()
 
@@ -829,6 +928,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val kemandoranLayout = findViewById<LinearLayout>(R.id.layoutKemandoran)
         val kemandoranLainLayout = findViewById<LinearLayout>(R.id.layoutKemandoranLain)
+        val tahunTanamLayout = findViewById<LinearLayout>(R.id.layoutTahunTanam)
 
         // Reset main kemandoran filter container
         val kemandoranFilterContainer =
@@ -874,19 +974,300 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             newPosition >= divisiNames.size -> 0  // Default to first if beyond list bounds
             else -> newPosition  // Use the calculated position if it's valid
         }
-
         afdelingSpinner.setSelectedIndex(safePosition)
-
         if (safePosition >= 0 && safePosition < divisiNames.size) {
             val selectedItem = divisiNames[safePosition]
             selectedAfdelingIdSpinner = safePosition
             selectedAfdeling = selectedItem
             handleItemSelection(afdelingLayout, safePosition, selectedItem)
-
         }
 
-        setupSpinnerView(findViewById(R.id.layoutTahunTanam), emptyList())
-        setupSpinnerView(findViewById(R.id.layoutBlok), emptyList())
+        // Handle tahun tanam selection similarly
+        val tahunTanamNames = if (blokList.isNotEmpty()) {
+            blokList.mapNotNull { it.tahun }.distinct().sortedBy { it.toIntOrNull() }
+        } else {
+            emptyList()
+        }
+
+        setupSpinnerView(tahunTanamLayout, tahunTanamNames)
+        val tahunTanamSpinner = tahunTanamLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+
+        val tahunTanamPosition = tahunTanamNames.indexOf(selectedTahunTanamValue)
+        AppLogger.d("Found tahunTanamPosition: $tahunTanamPosition for name: $selectedTahunTanamValue")
+
+        // Only proceed with selection if we have a valid position and non-empty selection
+        if (tahunTanamPosition >= 0 && selectedTahunTanamValue!!.isNotEmpty() && tahunTanamNames.isNotEmpty()) {
+            try {
+                // Force selection by posting to the main thread
+                tahunTanamSpinner.post {
+                    // Explicitly set the text first to override the hint
+                    val textToSet = tahunTanamNames[tahunTanamPosition]
+                    tahunTanamSpinner.setText(textToSet)
+
+                    // Then set the selected index
+                    tahunTanamSpinner.setSelectedIndex(tahunTanamPosition)
+                    AppLogger.d("Set tahun tanam selectedIndex to: $tahunTanamPosition with text: $textToSet")
+
+                    // Force UI update with a small delay to ensure rendering
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        // Update tracking variables
+                        selectedTahunTanamIdSpinner = tahunTanamPosition
+                        selectedTahunTanamValue = textToSet
+                        AppLogger.d("Updated selectedTahunTanamValue to: $textToSet")
+
+                        // Call handleItemSelection to trigger the regular selection handling logic
+                        handleItemSelection(tahunTanamLayout, tahunTanamPosition, textToSet)
+                    }, 200) // Small delay to ensure UI updates
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error setting tahun tanam selection: ${e.message}")
+            }
+        } else {
+            // If no valid tahun tanam is found or selection is empty, leave as hint
+            AppLogger.d("No valid tahun tanam selection found, leaving as hint")
+
+            // Reset tahun tanam selection variables
+            selectedTahunTanamIdSpinner = -1
+            selectedTahunTanamValue = ""
+
+            // Ensure spinner shows hint
+            tahunTanamSpinner.setHint("Pilih Kategori Yang Sesuai")
+        }
+
+        val blokLayout = findViewById<LinearLayout>(R.id.layoutBlok)
+        val blokNames = if (blokList.isNotEmpty()) {
+            blokList.mapNotNull { it.blok_kode }
+        } else {
+            emptyList()
+        }
+
+        setupSpinnerView(blokLayout, blokNames)
+        val blokSpinner = blokLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+// Log current state for debugging
+        AppLogger.d("Current selectedBlokIdSpinner: $selectedBlokIdSpinner, selectedBlok: $selectedBlok")
+        AppLogger.d("Available blokNames size: ${blokNames.size}")
+
+// CHANGED: Prioritize using the position directly if it's valid
+        var targetPosition = if (selectedBlokIdSpinner >= 0 && selectedBlokIdSpinner < blokNames.size) {
+            selectedBlokIdSpinner
+        } else {
+            // Fall back to finding by value if position is invalid
+            blokNames.indexOf(selectedBlok)
+        }
+
+// If we still don't have a valid position, default to 0 if we have items
+        if (targetPosition < 0) {
+            targetPosition = if (blokNames.isNotEmpty()) 0 else -1
+            AppLogger.d("Defaulting to position: $targetPosition")
+        }
+
+// Only proceed if we have a valid position
+        if (targetPosition >= 0 && blokNames.isNotEmpty()) {
+            // Set the spinner selection
+            blokSpinner.setSelectedIndex(targetPosition)
+
+            // Update tracking variables
+            val selectedItem = blokNames[targetPosition]
+            selectedBlokIdSpinner = targetPosition
+            selectedBlok = selectedItem
+
+            AppLogger.d("Setting blok selection to position: $targetPosition, value: $selectedItem")
+
+            // Handle the selection
+            handleItemSelection(blokLayout, targetPosition, selectedItem)
+        } else {
+            AppLogger.d("No valid selection could be made for blok spinner")
+        }
+
+
+        selectedTPH = ""
+        selectedTPHValue = null
+
+        val kemandoranNames = kemandoranList.mapNotNull { it.nama }
+        setupSpinnerView(kemandoranLayout, kemandoranNames)
+        val kemandoranSpinner = kemandoranLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+        // Find the position of the saved kemandoran in the list
+        val kemandoranPosition = kemandoranNames.indexOf(selectedKemandoran)
+        AppLogger.d("Found kemandoranPosition: $kemandoranPosition for name: $selectedKemandoran")
+
+        // Only proceed with selection if we have a valid position and non-empty selection
+        if (kemandoranPosition >= 0 && selectedKemandoran.isNotEmpty() && kemandoranNames.isNotEmpty()) {
+            try {
+                // Force selection by posting to the main thread
+                kemandoranSpinner.post {
+                    // Explicitly set the text first to override the hint
+                    val textToSet = kemandoranNames[kemandoranPosition]
+                    kemandoranSpinner.setText(textToSet)
+
+                    // Then set the selected index
+                    kemandoranSpinner.setSelectedIndex(kemandoranPosition)
+                    AppLogger.d("Set selectedIndex to: $kemandoranPosition with text: $textToSet")
+
+                    // Force UI update with a small delay to ensure rendering
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        // Verify selection took effect
+                        val actualSelection = kemandoranSpinner.selectedIndex
+                        val actualText = kemandoranSpinner.text.toString()
+                        AppLogger.d("Actual selection after setting: $actualSelection with text: $actualText")
+
+                        // If the spinner still shows hint, try alternative approach
+                        if (actualText != textToSet) {
+                            // Alternative approach - try setting directly
+                            try {
+                                kemandoranSpinner.performClick()
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    kemandoranSpinner.setSelectedIndex(kemandoranPosition)
+                                    kemandoranSpinner.setText(textToSet)
+                                    kemandoranSpinner.performClick() // Close the dropdown
+                                }, 100)
+                            } catch (e: Exception) {
+                                AppLogger.e("Error in alternative approach: ${e.message}")
+                            }
+                        }
+
+                        // Update tracking variables
+                        selectedKemandoranIdSpinner = kemandoranPosition
+                        selectedKemandoran = textToSet
+                        AppLogger.d("Updated selectedKemandoran to: $textToSet")
+
+                        // Call handleItemSelection to trigger the regular selection handling logic
+                        handleItemSelection(kemandoranLayout, kemandoranPosition, textToSet)
+                    }, 200) // Small delay to ensure UI updates
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error setting kemandoran selection: ${e.message}")
+                // Call the suspend function from a coroutine
+                lifecycleScope.launch {
+                    try {
+                        loadPemanenFullEstate(kemandoranLayout.rootView)
+                    } catch (e: Exception) {
+                        Toast.makeText(
+                            this@FeaturePanenTBSActivity,
+                            "Error loading full pemanen estate: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+        } else {
+            // If no valid kemandoran is found or selection is empty, leave as hint
+            AppLogger.d("No valid kemandoran selection found, leaving as hint")
+
+            // Reset kemandoran selection variables
+            selectedKemandoranIdSpinner = -1
+            selectedKemandoran = ""
+
+            // Ensure spinner shows hint
+            kemandoranSpinner.setHint("Pilih Kategori Yang Sesuai")
+
+            // Call the suspend function from a coroutine
+            lifecycleScope.launch {
+                try {
+                    loadPemanenFullEstate(kemandoranLayout.rootView)
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Error loading full pemanen estate: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+
+        val kemandoranLainNames = kemandoranLainList.mapNotNull { it.nama }
+        setupSpinnerView(kemandoranLainLayout, kemandoranLainNames)
+        val kemandoranLainSpinner = kemandoranLainLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+// Find the position of the saved kemandoranLain in the list
+        val kemandoranLainPosition = kemandoranLainNames.indexOf(selectedKemandoranLain)
+        AppLogger.d("Found kemandoranLainPosition: $kemandoranLainPosition for name: $selectedKemandoranLain")
+
+// Only proceed with selection if we have a valid position and non-empty selection
+        if (kemandoranLainPosition >= 0 && selectedKemandoranLain.isNotEmpty() && kemandoranLainNames.isNotEmpty()) {
+            try {
+                // Force selection by posting to the main thread
+                kemandoranLainSpinner.post {
+                    // Explicitly set the text first to override the hint
+                    val textToSet = kemandoranLainNames[kemandoranLainPosition]
+                    kemandoranLainSpinner.setText(textToSet)
+
+                    // Then set the selected index
+                    kemandoranLainSpinner.setSelectedIndex(kemandoranLainPosition)
+                    AppLogger.d("Set kemandoranLain selectedIndex to: $kemandoranLainPosition with text: $textToSet")
+
+                    // Force UI update with a small delay to ensure rendering
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        // Verify selection took effect
+                        val actualSelection = kemandoranLainSpinner.selectedIndex
+                        val actualText = kemandoranLainSpinner.text.toString()
+                        AppLogger.d("Actual kemandoranLain selection after setting: $actualSelection with text: $actualText")
+
+                        // If the spinner still shows hint, try alternative approach
+                        if (actualText != textToSet) {
+                            // Alternative approach - try setting directly
+                            try {
+                                kemandoranLainSpinner.performClick()
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    kemandoranLainSpinner.setSelectedIndex(kemandoranLainPosition)
+                                    kemandoranLainSpinner.setText(textToSet)
+                                    kemandoranLainSpinner.performClick() // Close the dropdown
+                                }, 100)
+                            } catch (e: Exception) {
+                                AppLogger.e("Error in alternative kemandoranLain approach: ${e.message}")
+                            }
+                        }
+
+                        // Update tracking variables
+                        selectedKemandoranLainIdSpinner = kemandoranLainPosition
+                        selectedKemandoranLain = textToSet
+                        AppLogger.d("Updated selectedKemandoranLain to: $textToSet")
+
+                        // Call handleItemSelection to trigger the regular selection handling logic
+                        handleItemSelection(kemandoranLainLayout, kemandoranLainPosition, textToSet)
+                    }, 200) // Small delay to ensure UI updates
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error setting kemandoranLain selection: ${e.message}")
+                // Call the suspend function from a coroutine if needed
+                lifecycleScope.launch {
+                    try {
+                        loadPemanenFullEstate(kemandoranLainLayout.rootView)
+                    } catch (e: Exception) {
+                        Toast.makeText(
+                            this@FeaturePanenTBSActivity,
+                            "Error loading full pemanen estate: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+        } else {
+            // If no valid kemandoranLain is found or selection is empty, leave as hint
+            AppLogger.d("No valid kemandoranLain selection found, leaving as hint")
+
+            // Reset kemandoranLain selection variables
+            selectedKemandoranLainIdSpinner = -1
+            selectedKemandoranLain = ""
+
+            // Ensure spinner shows hint
+            kemandoranLainSpinner.setHint("Pilih Kategori Yang Sesuai")
+
+            // Call the suspend function from a coroutine if needed
+            lifecycleScope.launch {
+                try {
+                    loadPemanenFullEstate(kemandoranLainLayout.rootView)
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Error loading full pemanen estate: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
 
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         setupSpinnerView(findViewById(R.id.layoutTipePanen), tipePanenOptions)
@@ -904,19 +1285,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
-        setupSpinnerView(findViewById(R.id.layoutNoTPH), emptyList())
-        setupSpinnerView(findViewById(R.id.layoutKemandoran), emptyList())
-        setupSpinnerView(findViewById(R.id.layoutKemandoranLain), emptyList())
-
-        val etHomeMarkerTPH = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
-        etHomeMarkerTPH.setText("")
-
-//        blokList = emptyList()
-        kemandoranList = emptyList()
-        kemandoranLainList = emptyList()
-        tphList = emptyList()
+        val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
+        etAncak.setText("")
         ancakInput = ""
-
 
 
         resetAllCounters()
@@ -924,50 +1295,68 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         lifecycleScope.launch {
             val layoutPemanen = findViewById<LinearLayout>(R.id.layoutPemanen)
             val layoutPemanenLain = findViewById<LinearLayout>(R.id.layoutPemanenLain)
+
+            val shouldLoadKemandoran = selectedKemandoran.isEmpty()
+            val shouldLoadKemandoranLain = selectedKemandoranLain.isEmpty()
+
+            // Always show loading dialog and process data
             loadingDialog.show()
             loadingDialog.setMessage("Sedang memproses data...")
-            delay(300)
+            delay(1500)
+
             try {
-                // Reload all karyawan
+                // Always reload all karyawan
                 withContext(Dispatchers.IO) {
                     panenViewModel.getAllKaryawan()
                     delay(100)
                 }
 
                 val allKaryawan = panenViewModel.allKaryawanList.value ?: emptyList()
-
-                // Store in both lists to use for main workers and secondary workers
-                karyawanList = allKaryawan
-                karyawanLainList = allKaryawan
-
                 AppLogger.d("Reset: Reloaded ${allKaryawan.size} karyawan")
 
+                // Conditionally assign to lists based on what needs loading
+                if (shouldLoadKemandoran) {
+                    karyawanList = allKaryawan
+                    AppLogger.d("Assigned allKaryawan to karyawanList because selectedKemandoran is empty")
+                }
+
+                if (shouldLoadKemandoranLain) {
+                    karyawanLainList = allKaryawan
+                    AppLogger.d("Assigned allKaryawan to karyawanLainList because selectedKemandoranLain is empty")
+                }
+
                 withContext(Dispatchers.Main) {
-                    // Set up spinner views for both layouts
+                    // Set up spinner views for the layouts that need it
                     if (allKaryawan.isNotEmpty()) {
                         val karyawanNames = allKaryawan
                             .sortedBy { it.nama }
                             .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
-                        setupSpinnerView(layoutPemanen, karyawanNames)
-                        setupSpinnerView(layoutPemanenLain, karyawanNames)
-                        if (blokBanjir != 0) {
-                            layoutPemanen.visibility = View.VISIBLE
-                        } else {
-                            layoutKemandoran.visibility = View.GONE
-                            layoutPemanen.visibility = View.GONE
-                            layoutSelAsistensi.visibility = View.GONE
+                        // Only set up spinners for layouts that need it
+                        if (shouldLoadKemandoran) {
+                            setupSpinnerView(layoutPemanen, karyawanNames)
+                            AppLogger.d("Set up spinner for layoutPemanen")
 
+                            // Only handle visibility for this case
+                            if (blokBanjir != 0) {
+                                layoutPemanen.visibility = View.VISIBLE
+                            } else {
+                                layoutKemandoran.visibility = View.GONE
+                                layoutPemanen.visibility = View.GONE
+                                layoutSelAsistensi.visibility = View.GONE
+                            }
                         }
 
-
+                        if (shouldLoadKemandoranLain) {
+                            setupSpinnerView(layoutPemanenLain, karyawanNames)
+                            AppLogger.d("Set up spinner for layoutPemanenLain")
+                        }
                     }
                     delay(100)
 
                     // Now scroll to top AFTER all data loading and UI setup is complete
                     val scPanen = findViewById<ScrollView>(R.id.scPanen)
                     scPanen.fullScroll(ScrollView.FOCUS_UP)
-
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error reloading karyawan in reset: ${e.message}")
@@ -986,7 +1375,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             loadingDialog.dismiss()
         }
 
-        //reset all image
+// Reset all image
         photoCount = 0
         photoFiles.clear()
         komentarFoto.clear()
@@ -1676,9 +2065,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     id = itemId++,
                     title = "Master TPH ${request.estateAbbr}",
                     fullPath = "",
-                    partNumber = 1,  // Single part for downloads
-                    totalParts = 1,  // Single part for downloads
-                    baseFilename = request.estateAbbr ?: ""
+                    baseFilename = request.estateAbbr ?: "",
+                    data = "",
+                    type = ""
                 )
             )
         }
@@ -1776,9 +2165,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             id = itemId++,
                             title = "${request.estateAbbr} - ${request.dataset}",
                             fullPath = "",
-                            partNumber = 1,
-                            totalParts = 1,
-                            baseFilename = request.estateAbbr ?: ""
+                            baseFilename = request.estateAbbr ?: "",
+                            data = "",
+                            type = ""
                         )
                     )
                 }
@@ -1951,7 +2340,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         setupSpinnerView(layoutEstate, masterDeptAbbrList)
 
 
-
                     }
                 }
             }
@@ -2035,13 +2423,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private fun checkScannedTPHInsideRadius() {
         if (lat != null && lon != null) {
             val tphList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
+
+            AppLogger.d("jenisTPHListGlobal $jenisTPHListGlobal")
             if (tphList.isNotEmpty() || selectedTPHIdByScan != null) {
                 isEmptyScannedTPH = false
                 tphScannedResultRecyclerView.visibility = View.VISIBLE
                 titleScannedTPHInsideRadius.visibility = View.VISIBLE
                 descScannedTPHInsideRadius.visibility = View.VISIBLE
                 emptyScannedTPHInsideRadius.visibility = View.GONE
-                tphScannedResultRecyclerView.adapter = ListTPHInsideRadiusAdapter(tphList, this)
+                tphScannedResultRecyclerView.adapter = ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal)
+
 
                 val itemHeight = 50
                 val maxHeight = 250
@@ -2285,10 +2676,46 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Location.distanceBetween(userLat, userLon, location.lat, location.lon, results)
             val distance = results[0]
 
-            // Get selection data from panenStoredLocal
-            val selectedCount = panenStoredLocal[id] ?: 0
+            val jenisTPHId = location.jenisTPHId.toInt()
+
+            val tphData = panenStoredLocal[id]
+            val selectedCount = tphData?.count ?: 0
             val isSelected = selectedCount > 0
             val isCurrentlySelected = id == selectedTPHIdByScan
+
+            // Get the default limit from jenisTPHListGlobal
+            val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+
+            // Calculate the final limit to use
+            val limit = if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
+                // Special case for jenis_tph = induk (id = 2)
+                try {
+                    val customLimit = tphData?.limitTPH?.toInt()
+
+                    AppLogger.d("customLimit $customLimit")
+                    if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                        // Use the custom limit if it's greater than 3 and up to 999
+                        customLimit
+                    } else {
+                        // Otherwise, use the default limit (7)
+                        defaultLimit
+                    }
+                } catch (e: Exception) {
+                    defaultLimit
+                }
+            } else {
+                // For other jenis_tph_id values
+                try {
+                    val customLimit = tphData?.limitTPH?.toInt()
+                    if (customLimit != null) {
+                        customLimit
+                    } else {
+                        defaultLimit
+                    }
+                } catch (e: Exception) {
+                    defaultLimit
+                }
+            }
 
             // Include if within radius OR is the currently selected TPH
             if (distance <= radiusMinimum || isCurrentlySelected) {
@@ -2300,8 +2727,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         distance = distance,
                         isAlreadySelected = isSelected,
                         selectionCount = selectedCount,
-                        canBeSelectedAgain = selectedCount < AppUtils.MAX_SELECTIONS_PER_TPH,
+                        canBeSelectedAgain = selectedCount < limit,
                         isWithinRange = distance <= radiusMinimum,
+                        jenisTPHId = jenisTPHId.toString(),
+                        customLimit = limit.toString()
                     )
                 )
 
@@ -2311,9 +2740,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
         }
 
-        // If we have a currently selected TPH (selectedTPHIdByScan) but it wasn't found in coordinates,
-        // we don't add a placeholder - just let the empty state handle it
-
         return resultsList.sortedBy { it.distance }
     }
 
@@ -2321,7 +2747,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private fun resetDependentSpinners(rootView: View) {
         val switchAsistensi = rootView.findViewById<SwitchMaterial>(R.id.selAsistensi)
         if (switchAsistensi.isChecked) {
-            switchAsistensi.isChecked = false
+            switchAsistensi.isChecked = true
         }
 
         if (blokBanjir == 0) {
@@ -2335,10 +2761,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val baseLayouts = listOf(
             R.id.layoutTahunTanam,
-            R.id.layoutBlok,
-            R.id.layoutNoTPH,
-            R.id.layoutKemandoran,
-            R.id.layoutKemandoranLain,
+//            R.id.layoutBlok,
+//            R.id.layoutNoTPH,
+//            R.id.layoutKemandoran,
+//            R.id.layoutKemandoranLain,
         )
 
         val dependentLayouts = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
@@ -2353,13 +2779,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
         // Reset related data
-        blokList = emptyList()
-        kemandoranList = emptyList()
-        kemandoranLainList = emptyList()
-        tphList = emptyList()
+//        blokList = emptyList()
+//        kemandoranList = emptyList()
+//        kemandoranLainList = emptyList()
+//        tphList = emptyList()
 
-        val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
-        etAncak.setText("")
 
         if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
 
@@ -2376,18 +2800,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         }
 
-        ancakInput = ""
         // Reset selected values
-        selectedTahunTanamValue = null
-        selectedBlok = ""
-        selectedBlokValue = null
-        selectedTPH = ""
-        selectedTPHValue = null
-        selectedKemandoranLain = ""
+//        selectedTahunTanamValue = null
+//        selectedBlok = ""
+//        selectedBlokValue = null
+//        selectedTPH = ""
+//        selectedTPHValue = null
+//        selectedKemandoranLain = ""
 
         // Clear adapters if they exist
-        selectedPemanenAdapter.clearAllWorkers()
-        selectedPemanenLainAdapter.clearAllWorkers()
+//        selectedPemanenAdapter.clearAllWorkers()
+//        selectedPemanenLainAdapter.clearAllWorkers()
     }
 
     private suspend fun loadPemanenFullEstate(rootView: View) {
@@ -2431,9 +2854,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private fun resetTPHSpinner(rootView: View) {
         val layoutNoTPH = rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
         setupSpinnerView(layoutNoTPH, emptyList())
-        tphList = emptyList()
-        selectedTPH = ""
-        selectedTPHValue = null
+//        tphList = emptyList()
+//        selectedTPH = ""
+//        selectedTPHValue = null
     }
 
     private fun animateLoadingDots(linearLayout: LinearLayout) {
@@ -2476,92 +2899,177 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         onItemSelected: (Int) -> Unit = {},
         onMultiItemsSelected: (List<String>, List<Int>) -> Unit = { _, _ -> }
     ) {
-        val editText = linearLayout.findViewById<EditText>(R.id.etHomeMarkerTPH)
-        val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-        val tvError = linearLayout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-
-        spinner.setItems(data)
-
-        // Hide keyboard helper
-        fun ensureKeyboardHidden() {
-            val imm =
-                application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.hideSoftInputFromWindow(linearLayout.windowToken, 0)
-            editText.clearFocus()
-        }
-
-        // For layoutMasterTPH use multi-select with checkboxes
-        if (linearLayout.id == R.id.layoutMasterTPH) {
-            spinner.setOnTouchListener { _, event ->
-                ensureKeyboardHidden()
-                if (event.action == MotionEvent.ACTION_UP) {
-                    // Always use isMultiSelect=true for layoutMasterTPH
-                    showPopupSearchDropdown(
-                        spinner,
-                        data,
-                        editText,
-                        linearLayout,
-                        true // Force multi-select for this layout
-                    ) { selectedItem, position ->
-                        spinner.text = selectedItem // Update spinner UI
-                        tvError.visibility = View.GONE
-
-
-                        onItemSelected(position)
-
+        try {
+            // Make sure we're on the main thread
+            if (Looper.myLooper() != Looper.getMainLooper()) {
+                // If we're not on the main thread, post to the main thread
+                Handler(Looper.getMainLooper()).post {
+                    try {
+                        setupSpinnerViewOnMainThread(
+                            linearLayout,
+                            data,
+                            isMultiSelect,
+                            onItemSelected,
+                            onMultiItemsSelected
+                        )
+                    } catch (e: Exception) {
+                        Log.e(
+                            "SetupSpinnerView",
+                            "Error setting up spinner on main thread: ${e.message}",
+                            e
+                        )
+                        // Handle error - maybe show a fallback UI or toast notification
                     }
                 }
-                true // Consume event, preventing default behavior
+            } else {
+                // Already on main thread, proceed directly
+                setupSpinnerViewOnMainThread(
+                    linearLayout,
+                    data,
+                    isMultiSelect,
+                    onItemSelected,
+                    onMultiItemsSelected
+                )
             }
-
-            // Modified: Count directly from the value-based map
-            val selectedCount = masterEstateHasBeenChoice.count { it.value }
-            if (selectedCount > 0) {
-                // Modified: Get selected estate names directly from the keys
-                val selectedTexts =
-                    masterEstateHasBeenChoice.filter { it.value }.keys.toList().sorted()
-
-            }
-
-            // Update the button text initially
-            updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+        } catch (e: Exception) {
+            Log.e("SetupSpinnerView", "Error in setupSpinnerView: ${e.message}", e)
+            // Handle error - maybe show a fallback UI or toast notification
         }
-        // For these layouts use regular search dropdown (no checkboxes)
-        else if (linearLayout.id == R.id.layoutKemandoran || linearLayout.id == R.id.layoutPemanen ||
-            linearLayout.id == R.id.layoutKemandoranLain || linearLayout.id == R.id.layoutPemanenLain
-        ) {
-            // Spinner with regular search (no checkboxes)
-            spinner.setOnTouchListener { _, event ->
-                ensureKeyboardHidden()
-                if (event.action == MotionEvent.ACTION_UP) {
-                    // Always use isMultiSelect=false for these layouts
-                    showPopupSearchDropdown(
-                        spinner,
-                        data,
-                        editText,
-                        linearLayout,
-                        false // Force single-select for these layouts
-                    ) { selectedItem, position ->
-                        spinner.text = selectedItem // Update spinner UI
-                        tvError.visibility = View.GONE
-                        onItemSelected(position) // Single selection callback
-                    }
+    }
+
+    // The actual implementation that should run on the main thread
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupSpinnerViewOnMainThread(
+        linearLayout: LinearLayout,
+        data: List<String>,
+        isMultiSelect: Boolean = false,
+        onItemSelected: (Int) -> Unit = {},
+        onMultiItemsSelected: (List<String>, List<Int>) -> Unit = { _, _ -> }
+    ) {
+        try {
+            val editText = linearLayout.findViewById<EditText>(R.id.etHomeMarkerTPH)
+            val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+            val tvError = linearLayout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+
+            // This was causing the crash - now safely on main thread
+            spinner.setItems(data)
+
+            // Hide keyboard helper
+            fun ensureKeyboardHidden() {
+                try {
+                    val imm =
+                        application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.hideSoftInputFromWindow(linearLayout.windowToken, 0)
+                    editText.clearFocus()
+                } catch (e: Exception) {
+                    Log.e("SetupSpinnerView", "Error hiding keyboard: ${e.message}", e)
                 }
-                true // Consume event, preventing default behavior
             }
-        }
 
-        if (linearLayout.id == R.id.layoutEstate && featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
-            spinner.isEnabled = false // Disable spinner
-        }
+            // For layoutMasterTPH use multi-select with checkboxes
+            if (linearLayout.id == R.id.layoutMasterTPH) {
+                spinner.setOnTouchListener { _, event ->
+                    try {
+                        ensureKeyboardHidden()
+                        if (event.action == MotionEvent.ACTION_UP) {
+                            // Always use isMultiSelect=true for layoutMasterTPH
+                            showPopupSearchDropdown(
+                                spinner,
+                                data,
+                                editText,
+                                linearLayout,
+                                true // Force multi-select for this layout
+                            ) { selectedItem, position ->
+                                try {
+                                    spinner.text = selectedItem // Update spinner UI
+                                    tvError.visibility = View.GONE
+                                    onItemSelected(position)
+                                } catch (e: Exception) {
+                                    Log.e(
+                                        "SetupSpinnerView",
+                                        "Error in item selection: ${e.message}",
+                                        e
+                                    )
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("SetupSpinnerView", "Error in touch listener: ${e.message}", e)
+                    }
+                    true // Consume event, preventing default behavior
+                }
 
-        spinner.setOnItemSelectedListener { _, position, _, item ->
-            tvError.visibility = View.GONE
-            handleItemSelection(
-                linearLayout,
-                position,
-                item.toString()
-            ) // ✅ Ensure `linearLayout` is passed
+                try {
+                    // Modified: Count directly from the value-based map
+                    val selectedCount = masterEstateHasBeenChoice.count { it.value }
+                    if (selectedCount > 0) {
+                        // Modified: Get selected estate names directly from the keys
+                        val selectedTexts =
+                            masterEstateHasBeenChoice.filter { it.value }.keys.toList().sorted()
+                    }
+
+                    // Update the button text initially
+                    updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+                } catch (e: Exception) {
+                    Log.e("SetupSpinnerView", "Error processing selection count: ${e.message}", e)
+                }
+            }
+            // For these layouts use regular search dropdown (no checkboxes)
+            else if (linearLayout.id == R.id.layoutKemandoran || linearLayout.id == R.id.layoutPemanen ||
+                linearLayout.id == R.id.layoutKemandoranLain || linearLayout.id == R.id.layoutPemanenLain
+            ) {
+                // Spinner with regular search (no checkboxes)
+                spinner.setOnTouchListener { _, event ->
+                    try {
+                        ensureKeyboardHidden()
+                        if (event.action == MotionEvent.ACTION_UP) {
+                            // Always use isMultiSelect=false for these layouts
+                            showPopupSearchDropdown(
+                                spinner,
+                                data,
+                                editText,
+                                linearLayout,
+                                false // Force single-select for these layouts
+                            ) { selectedItem, position ->
+                                try {
+                                    spinner.text = selectedItem // Update spinner UI
+                                    tvError.visibility = View.GONE
+                                    onItemSelected(position) // Single selection callback
+                                } catch (e: Exception) {
+                                    Log.e(
+                                        "SetupSpinnerView",
+                                        "Error in item selection: ${e.message}",
+                                        e
+                                    )
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("SetupSpinnerView", "Error in touch listener: ${e.message}", e)
+                    }
+                    true // Consume event, preventing default behavior
+                }
+            }
+
+            if (linearLayout.id == R.id.layoutEstate && featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                spinner.isEnabled = false // Disable spinner
+            }
+
+            spinner.setOnItemSelectedListener { _, position, _, item ->
+                try {
+                    tvError.visibility = View.GONE
+                    handleItemSelection(
+                        linearLayout,
+                        position,
+                        item.toString()
+                    ) // ✅ Ensure `linearLayout` is passed
+                } catch (e: Exception) {
+                    Log.e("SetupSpinnerView", "Error in item selected listener: ${e.message}", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SetupSpinnerView", "Error in setupSpinnerViewOnMainThread: ${e.message}", e)
+            // Handle error - maybe show a fallback UI or toast notification
         }
     }
 
@@ -2604,13 +3112,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 layoutTipePanen.visibility = View.VISIBLE
                 selectedTPHIdByScan = null
                 selectedTPHValue = null
-                kemandoranList = emptyList()
+//                kemandoranList = emptyList()
                 kemandoranLainList = emptyList()
                 tphList = emptyList()
 
                 setupSpinnerView(layoutBlok, emptyList())
                 setupSpinnerView(layoutNoTPH, emptyList())
-                setupSpinnerView(layoutKemandoran, emptyList())
+//                setupSpinnerView(layoutKemandoran, emptyList())
 
                 // Repopulate pemanen spinners with cached data
                 if (cachedKaryawanList.isNotEmpty()) {
@@ -2625,8 +3133,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 etAncak.setText("")
                 ancakInput = ""
 
-                selectedTipePanen = ""
-                setupSpinnerView(layoutTipePanen, tipePanenOptions)
+                val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
+                setupSpinnerView(findViewById(R.id.layoutTipePanen), tipePanenOptions)
+
+                val tipePanenLayout = findViewById<LinearLayout>(R.id.layoutTipePanen)
+                val tipePanenSpinner =
+                    tipePanenLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+                if (selectedTipePanen != null && selectedTipePanen.isNotEmpty()) {
+                    val tipePanenPosition = selectedTipePanen.toIntOrNull() ?: 0
+                    tipePanenSpinner.setSelectedIndex(tipePanenPosition)
+
+                    if (tipePanenPosition >= 0 && tipePanenPosition < tipePanenOptions.size) {
+                        val selectedItem = tipePanenOptions[tipePanenPosition]
+                        handleItemSelection(tipePanenLayout, tipePanenPosition, selectedItem)
+                    }
+                }
 
                 // Reset selected values
                 selectedTahunTanamValue = null
@@ -2935,16 +3457,55 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         if (selectedTPHValue != null && blokBanjir == 1) {
             val tphId = selectedTPHValue!!.toInt()
-            val currentCount = panenStoredLocal[tphId] ?: 0
-            if (currentCount > AppUtils.MAX_SELECTIONS_PER_TPH - 1) {
+            val tphData = panenStoredLocal[tphId]
+            val currentCount = tphData?.count ?: 0
+            val jenisTPHId = selectedTPHJenisId ?: 0
+
+            // Get the default limit from jenisTPHListGlobal
+            val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+
+            // Calculate the final limit to use
+            val limitValue = if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
+                // Special case for jenis_tph = induk (id = 2)
+                // First check if limitTPH exists and can be converted to an Int
+                val customLimit = try {
+                    tphData?.limitTPH?.toInt()
+                } catch (e: Exception) {
+                    null
+                }
+
+                // Use the custom limit if it's valid and within range
+                if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                    customLimit
+                } else {
+                    // Otherwise, use the default limit (7)
+                    defaultLimit // This should be 7 for jenisTPHId = 2
+                }
+            } else {
+                // For other jenis_tph_id values
+                try {
+                    // Try to get the custom limit first
+                    val customLimit = tphData?.limitTPH?.toInt()
+                    if (customLimit != null) {
+                        customLimit
+                    } else {
+                        defaultLimit
+                    }
+                } catch (e: Exception) {
+                    // If conversion fails, use the default
+                    defaultLimit
+                }
+            }
+
+            // Now use the properly converted Int value for comparison
+            if (currentCount >= limitValue) {
                 isValid = false
                 val layoutNoTPH = findViewById<LinearLayout>(R.id.layoutNoTPH)
                 layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
-                    text =
-                        "TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!"
+                    text = "TPH sudah terpilih $currentCount dari $limitValue kali, Harap ganti nomor TPH!"
                     visibility = View.VISIBLE
                 }
-                errorMessages.add("TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!")
+                errorMessages.add("TPH sudah terpilih $currentCount dari $limitValue kali, Harap ganti nomor TPH!")
             }
         }
 
@@ -3088,10 +3649,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 }
 
                 lifecycleScope.launch(Dispatchers.IO) {
-                    withContext(Dispatchers.Main) {
-                        animateLoadingDots(linearLayout)
-                        delay(300) // 1 second delay
-                    }
+
 
                     try {
                         if (estateId == null || selectedDivisiId == null) {
@@ -3179,9 +3737,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             val lon = it.lon?.toDoubleOrNull()
                                             val nomor = it.nomor ?: ""
                                             val blokKode = it.blok_kode ?: ""
+                                            val jenisTPHId = it.jenis_tph_id ?: "1" // Get jenis_tph_id with default "1"
 
                                             if (id != null && lat != null && lon != null) {
-                                                id to ScannedTPHLocation(lat, lon, nomor, blokKode)
+                                                id to ScannedTPHLocation(lat, lon, nomor, blokKode, jenisTPHId)
                                             } else {
                                                 null
                                             }
@@ -3253,10 +3812,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
             R.id.layoutTahunTanam -> {
-                resetTPHSpinner(linearLayout.rootView)
+//                resetTPHSpinner(linearLayout.rootView)
                 val selectedTahunTanam = selectedItem.toString()
                 selectedTahunTanamValue = selectedTahunTanam
-
+                selectedTahunTanamIdSpinner = position
 
                 AppLogger.d(estateId.toString())
                 AppLogger.d(selectedDivisiValue.toString())
@@ -3338,9 +3897,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             }
 
             R.id.layoutBlok -> {
-                resetTPHSpinner(linearLayout.rootView)
+//                resetTPHSpinner(linearLayout.rootView)
                 selectedBlok = selectedItem.toString()
-
+                selectedBlokIdSpinner = position
 
                 val selectedFieldId = try {
                     // Determine which estate ID to use
@@ -3371,6 +3930,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     return
                 }
 
+                // In the handleItemSelection for R.id.layoutBlok
                 lifecycleScope.launch(Dispatchers.IO) {
                     withContext(Dispatchers.Main) {
                         animateLoadingDots(linearLayout)
@@ -3378,6 +3938,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
 
                     try {
+                        // Log all parameters to ensure they're not null
+                        AppLogger.d("Loading TPHs with params: estateId=$estateId, selectedDivisiValue=$selectedDivisiValue, selectedTahunTanamValue=$selectedTahunTanamValue, selectedBlokValue=$selectedBlokValue")
+
                         if (estateId == null || selectedDivisiValue == null || selectedTahunTanamValue == null || selectedBlokValue == null) {
                             throw IllegalStateException("One or more required parameters are null!")
                         }
@@ -3390,6 +3953,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                     estateId!!.toInt()
                                 }
 
+                            AppLogger.d("Getting TPH list with: estateId=$estateIdToUse, divisi=$selectedDivisiValue, tahunTanam=$selectedTahunTanamValue, blok=$selectedBlokValue")
                             datasetViewModel.getTPHList(
                                 estateIdToUse,
                                 selectedDivisiValue!!,
@@ -3399,34 +3963,88 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
 
                         tphList = tphDeferred.await() ?: emptyList() // Avoid null crash
+                        AppLogger.d("Retrieved tphList size: ${tphList.size}")
 
+                        val normalTphList = tphList.filter { tph ->
+                            // Convert jenis_tph_id to Int, defaulting to 0 if null or not a valid integer
+                            val jenisId = tph.jenis_tph_id?.toIntOrNull() ?: 0
 
-                        val noTPHList = tphList.map { tph ->
-                            val selectionCount = panenStoredLocal[tph.id] ?: 0
+                            // Only include TPH with jenis_tph_id = 1 (normal)
+                            jenisId == 1
+                        }
+                        AppLogger.d("Filtered normalTphList size: ${normalTphList.size}")
+                        AppLogger.d("panenStoredLocal contents: ")
+                        panenStoredLocal.forEach { (tphId, data) ->
+                            AppLogger.d("TPH ID: $tphId, Count: ${data.count}, JenisTPHId: ${data.jenisTPHId}")
+                        }
+                        val noTPHList = normalTphList.map { tph ->
+                            val tphData = panenStoredLocal[tph.id]
+                            val selectionCount = tphData?.count ?: 0
+                            val jenisTPHId = tph.jenis_tph_id?.toIntOrNull() ?: 0
+
+                            // Get the default limit from jenisTPHListGlobal
+                            val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+
+                            // Calculate the final limit to use
+                            val limit = if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
+                                // Special case for jenis_tph = induk (id = 2)
+                                try {
+                                    val customLimit = tphData?.limitTPH?.toInt()
+                                    if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                                        // Use the custom limit if it's greater than 3 and up to 999
+                                        customLimit
+                                    } else {
+                                        // Otherwise, use the default limit (7)
+                                        defaultLimit
+                                    }
+                                } catch (e: Exception) {
+                                    defaultLimit
+                                }
+                            } else {
+                                // For other jenis_tph_id values
+                                try {
+                                    val customLimit = tphData?.limitTPH?.toInt()
+                                    if (customLimit != null) {
+                                        customLimit
+                                    } else {
+                                        defaultLimit
+                                    }
+                                } catch (e: Exception) {
+                                    defaultLimit
+                                }
+                            }
+
+                            AppLogger.d("TPH ${tph.id} (${tph.nomor}): selectionCount=$selectionCount, jenisTPHId=$jenisTPHId, limit=$limit")
+
                             when (selectionCount) {
                                 0 -> tph.nomor
-                                1 -> "${tph.nomor} (sudah terpilih 1 kali)"
-                                else -> "${tph.nomor} (sudah terpilih ${selectionCount} kali)"
+                                else -> "${tph.nomor} (sudah terpilih ${selectionCount} dari ${limit} kali)"
                             }
                         }
-
-
+                        AppLogger.d("Created noTPHList size: ${noTPHList.size}")
+                        AppLogger.d(noTPHList.toString())
                         withContext(Dispatchers.Main) {
                             val layoutNoTPH =
                                 linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
 
+                            AppLogger.d("Setting up TPH spinner with ${noTPHList.size} items")
                             if (noTPHList.isNotEmpty()) {
+
+
                                 setupSpinnerView(layoutNoTPH, noTPHList as List<String>)
+                                AppLogger.d("TPH spinner populated with ${noTPHList.size} items")
                             } else {
                                 setupSpinnerView(layoutNoTPH, emptyList())
+                                AppLogger.d("TPH spinner populated with empty list")
                             }
                         }
                     } catch (e: Exception) {
-                        AppLogger.e("Error fetching afdeling data: ${e.message}")
+                        AppLogger.e("Error fetching TPH data: ${e.message}")
+                        AppLogger.e("Stack trace: ${e.stackTraceToString()}")
                         withContext(Dispatchers.Main) {
                             Toast.makeText(
                                 this@FeaturePanenTBSActivity,
-                                "Error loading afdeling data: ${e.message}",
+                                "Error loading TPH data: ${e.message}",
                                 Toast.LENGTH_LONG
                             ).show()
                         }
@@ -3441,7 +4059,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 //
             R.id.layoutNoTPH -> {
                 val selectedText = selectedItem.trim()
+                AppLogger.d("selectedText $selectedText")
                 selectedTPH = selectedText.split(" (").firstOrNull()?.trim() ?: selectedText
+                selectedTPHIdSpinner = position
 
                 val selectionCountMatch = Regex("sudah terpilih (\\d+) kali").find(selectedText)
                 val selectionCount = selectionCountMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
@@ -3463,6 +4083,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             estateId?.toIntOrNull()
                         }
 
+                    AppLogger.d(selectedDivisiValue.toString())
+                    AppLogger.d(selectedBlokValue.toString())
+                    AppLogger.d(selectedTPH)
+                    AppLogger.d(selectedTahunTanamValue.toString())
                     tphList?.find {
                         it.dept == estateIdToUse && // Using conditional estate ID
                                 it.divisi == selectedDivisiValue &&
@@ -3489,7 +4113,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 //
             R.id.layoutKemandoran -> {
                 selectedKemandoran = selectedItem.toString()
+                selectedKemandoranIdSpinner = position
+                AppLogger.d("selectedItem $selectedItem")
 
+
+                AppLogger.d("selectedKemandoran $selectedKemandoran")
                 val filteredKemandoranId: Int? = try {
                     kemandoranList.find {
                         it.nama == selectedKemandoran
@@ -3556,6 +4184,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             karyawanList = karyawanDeferred.await()
 
+
+                            AppLogger.d(karyawanList.size.toString())
+
                             val karyawanNames = karyawanList
                                 .sortedBy { it.nama } // Sort by name alphabetically
                                 .map { "${it.nama} - ${it.nik ?: "N/A"}" }
@@ -3593,40 +4224,48 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
             R.id.layoutPemanen -> {
                 selectedPemanen = selectedItem.toString()
-
-                // Improved NIK extraction - look for the last occurrence of " - " followed by numbers
-                val lastDashIndex = selectedPemanen.lastIndexOf(" - ")
-                val selectedNik = if (lastDashIndex != -1 && lastDashIndex < selectedPemanen.length - 3) {
-                    val potentialNik = selectedPemanen.substring(lastDashIndex + 3).trim()
-                    // Verify if it's a numeric NIK
-                    if (potentialNik.all { it.isDigit() }) {
-                        potentialNik
-                    } else {
-                        // If not numeric, try to find the NIK in the karyawan list by name
-                        val matchingKaryawan = karyawanList.firstOrNull {
-                            it.nama?.trim() == selectedPemanen.trim()
-                        }
-                        matchingKaryawan?.nik ?: ""
-                    }
-                } else {
-                    // If no dash, try to find the NIK in the karyawan list by name
-                    val matchingKaryawan = karyawanList.firstOrNull {
-                        it.nama?.trim() == selectedPemanen.trim()
-                    }
-                    matchingKaryawan?.nik ?: ""
-                }
-
                 AppLogger.d("Selected Pemanen: $selectedPemanen")
+
+                // Extract NIK from the selection
+                val lastDashIndex = selectedPemanen.lastIndexOf(" - ")
+                val selectedNik =
+                    if (lastDashIndex != -1 && lastDashIndex < selectedPemanen.length - 3) {
+                        val potentialNik = selectedPemanen.substring(lastDashIndex + 3).trim()
+                        if (potentialNik.all { it.isDigit() }) potentialNik else ""
+                    } else ""
+
                 AppLogger.d("Extracted NIK: $selectedNik")
 
-                val nikToEmployeeMap = karyawanList.filter { it.nik != null }
-                    .associateBy { it.nik!! }
+                // Find the selected employee in karyawanList
+                var selectedEmployee = karyawanList.firstOrNull {
+                    it.nik == selectedNik || it.nama?.trim()
+                        ?.equals(selectedPemanen.trim(), ignoreCase = true) == true
+                }
 
+                // If not found by exact match, try partial match on name
+                if (selectedEmployee == null && lastDashIndex != -1) {
+                    val nameWithoutNik = selectedPemanen.substring(0, lastDashIndex).trim()
+                    selectedEmployee = karyawanList.firstOrNull {
+                        it.nama?.trim()?.equals(nameWithoutNik, ignoreCase = true) == true
+                    }
+                }
+
+                if (selectedEmployee == null) {
+                    selectedEmployee = karyawanList.firstOrNull {
+                        it.nama?.contains(
+                            selectedPemanen.split(" - ")[0],
+                            ignoreCase = true
+                        ) == true
+                    }
+                }
+
+                // Process the karyawan list to build the maps
                 val nameCounts = mutableMapOf<String, Int>()
                 karyawanList.forEach {
                     it.nama?.trim()?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 }
                 }
 
+                // Building the maps based on existing list
                 karyawanList.forEach {
                     it.nama?.trim()?.let { nama ->
                         val key = if (nameCounts[nama]!! > 1) {
@@ -3636,38 +4275,42 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
                         karyawanIdMap[key] = it.id!!
                         kemandoranIdMap[key] = it.kemandoran_id!!
+                        karyawanNamaMap[key] = nama  // Store the actual name without NIK
                     }
                 }
 
-                AppLogger.d("karyawanList $karyawanList")
-                AppLogger.d("karyawanIdMap $karyawanIdMap")
-                AppLogger.d("kemandoranIdMap $kemandoranIdMap")
-
-                var selectedEmployee = nikToEmployeeMap[selectedNik]
-
-                if (selectedEmployee == null) {
-                    selectedEmployee = karyawanList.firstOrNull {
-                        it.nama?.trim() == selectedPemanen.trim()
+                // Explicitly ensure the selected employee is in the maps
+                if (selectedEmployee != null) {
+                    // Get clean name of selected employee
+                    val employeeName = selectedEmployee.nama?.trim() ?: ""
+                    // Get name without NIK from selection
+                    val selectionName = if (lastDashIndex != -1) {
+                        selectedPemanen.substring(0, lastDashIndex).trim()
+                    } else {
+                        selectedPemanen.trim()
                     }
-                }
 
-                // If still not found, try to find by name without the NIK part
-                if (selectedEmployee == null && lastDashIndex != -1) {
-                    val nameWithoutNik = selectedPemanen.substring(0, lastDashIndex).trim()
-                    selectedEmployee = karyawanList.firstOrNull {
-                        it.nama?.trim() == nameWithoutNik
-                    }
+                    // Make sure employee is in both maps by both the full selection name and the clean name
+                    karyawanIdMap[selectedPemanen] = selectedEmployee.id!!
+                    kemandoranIdMap[selectedPemanen] = selectedEmployee.kemandoran_id!!
+
+                    karyawanIdMap[selectionName] = selectedEmployee.id!!
+                    kemandoranIdMap[selectionName] = selectedEmployee.kemandoran_id!!
+
+                    karyawanIdMap[employeeName] = selectedEmployee.id!!
+                    kemandoranIdMap[employeeName] = selectedEmployee.kemandoran_id!!
                 }
 
                 if (selectedEmployee != null) {
-                    val worker = Worker(selectedEmployee.toString(), selectedPemanen)
+                    val worker = Worker(selectedEmployee.id.toString(), selectedPemanen)
                     selectedPemanenAdapter.addWorker(worker)
                     val availableWorkers = selectedPemanenAdapter.getAvailableWorkers()
 
                     if (availableWorkers.isNotEmpty()) {
                         setupSpinnerView(
                             linearLayout,
-                            availableWorkers.map { it.name })  // Extract names
+                            availableWorkers.map { it.name }
+                        )
                     }
 
                     AppLogger.d("Selected Worker: $selectedPemanen, ID: $selectedEmployee")
@@ -3676,10 +4319,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 }
             }
 
-            R.id.layoutKemandoranLain -> {
-                selectedPemanenLainAdapter.clearAllWorkers()
-                selectedKemandoranLain = selectedItem.toString()
 
+            R.id.layoutKemandoranLain -> {
+//                selectedPemanenLainAdapter.clearAllWorkers()
+                selectedKemandoranLain = selectedItem.toString()
+                selectedKemandoranLainIdSpinner = position
 
                 val selectedIdKemandoranLain: Int? = try {
                     kemandoranLainList.find {
@@ -3821,25 +4465,26 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                 // Improved NIK extraction - look for the last occurrence of " - " followed by numbers
                 val lastDashIndex = selectedPemanenLain.lastIndexOf(" - ")
-                val selectedNik = if (lastDashIndex != -1 && lastDashIndex < selectedPemanenLain.length - 3) {
-                    val potentialNik = selectedPemanenLain.substring(lastDashIndex + 3).trim()
-                    // Verify if it's a numeric NIK
-                    if (potentialNik.all { it.isDigit() }) {
-                        potentialNik
+                val selectedNik =
+                    if (lastDashIndex != -1 && lastDashIndex < selectedPemanenLain.length - 3) {
+                        val potentialNik = selectedPemanenLain.substring(lastDashIndex + 3).trim()
+                        // Verify if it's a numeric NIK
+                        if (potentialNik.all { it.isDigit() }) {
+                            potentialNik
+                        } else {
+                            // If not numeric, try to find the NIK in the karyawan list by name
+                            val matchingKaryawan = karyawanLainList.firstOrNull {
+                                it.nama?.trim() == selectedPemanenLain.trim()
+                            }
+                            matchingKaryawan?.nik ?: ""
+                        }
                     } else {
-                        // If not numeric, try to find the NIK in the karyawan list by name
+                        // If no dash, try to find the NIK in the karyawan list by name
                         val matchingKaryawan = karyawanLainList.firstOrNull {
                             it.nama?.trim() == selectedPemanenLain.trim()
                         }
                         matchingKaryawan?.nik ?: ""
                     }
-                } else {
-                    // If no dash, try to find the NIK in the karyawan list by name
-                    val matchingKaryawan = karyawanLainList.firstOrNull {
-                        it.nama?.trim() == selectedPemanenLain.trim()
-                    }
-                    matchingKaryawan?.nik ?: ""
-                }
 
                 AppLogger.d("Selected Pemanen Lain: $selectedPemanenLain")
                 AppLogger.d("Extracted NIK: $selectedNik")
@@ -3864,6 +4509,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
                         karyawanLainIdMap[key] = it.id!!
                         kemandoranLainIdMap[key] = it.kemandoran_id!!
+                        karyawanNamaLainMap[key] = nama
                     }
                 }
 
@@ -3907,7 +4553,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
-
     private fun setupRecyclerViewTakePreviewFoto() {
         val recyclerView: RecyclerView = findViewById(R.id.recyclerViewFotoPreview)
 
@@ -3915,7 +4560,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
         takeFotoPreviewAdapter = TakeFotoPreviewAdapter(
-            3,
+            5,
             cameraViewModel,
             this,
             AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
@@ -4313,7 +4958,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     val isUserEstate = itemValue == prefManager!!.estateUserLengkapLogin
 
-                    // If it has existing data, add an indicator and disable selection
                     if (hasExistingData || isUserEstate) {
                         // Set a visual indicator that this estate already has data
                         textView.setTypeface(textView.typeface, Typeface.BOLD)
@@ -4328,7 +4972,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         val existingText = itemValue
 
                         if (isUserEstate) {
-
                             textView.text = "★ $existingText"
                             textView.setTypeface(textView.typeface, Typeface.BOLD)
                             textView.setTextColor(
@@ -4346,8 +4989,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         checkbox.isClickable = false
                         checkbox.isFocusable = false
 
-                        // Don't modify the selection map here
-                        // Remove: selectedItems[itemValue] = true
+                        // Important: Set the specific color for these pre-checked items
+                        checkbox.buttonTintList = ColorStateList.valueOf(
+                            ContextCompat.getColor(context, R.color.greendarkerbutton)
+                        )
 
                         view.alpha = 1.0f
                         // Disable clicking on the entire row for this item
@@ -4360,34 +5005,28 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         )  // Reset to normal typeface
                         textView.text = itemValue  // Reset text without symbols
                         checkbox.isEnabled = true
+                        checkbox.isClickable = true  // Make sure this is clickable
+                        checkbox.isFocusable = true  // Make sure this is focusable
 
                         view.isClickable = true
                         view.alpha = 1.0f
+                        view.setOnTouchListener(null)  // Clear any touch listeners
 
                         val isChecked = selectedItems[itemValue] == true
                         checkbox.isChecked = isChecked
 
-                        if (isChecked) {
-                            checkbox.buttonTintList = ColorStateList.valueOf(
-                                ContextCompat.getColor(context, R.color.greenBorder)
-                            )
-                        } else {
-                            checkbox.buttonTintList = ContextCompat.getColorStateList(
-                                context,
-                                R.color.greenBorder
-                            )
-                        }
+                        // Always set the color explicitly based on the current state
+                        checkbox.buttonTintList = ColorStateList.valueOf(
+                            ContextCompat.getColor(context, R.color.greenBorder)
+                        )
 
                         checkbox.setOnClickListener {
                             val nowChecked = checkbox.isChecked
                             selectedItems[itemValue] = nowChecked
 
-                            // Update tint based on checked state
+                            // The color is always greenBorder for these items
                             checkbox.buttonTintList = ColorStateList.valueOf(
-                                ContextCompat.getColor(
-                                    context,
-                                    if (nowChecked) R.color.greenBorder else R.color.greenBorder
-                                )
+                                ContextCompat.getColor(context, R.color.greenBorder)
                             )
 
                             val errorTextView =
@@ -4405,12 +5044,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             checkbox.isChecked = nowChecked
                             selectedItems[itemValue] = nowChecked
 
-                            // Update tint based on checked state
+                            // The color is always greenBorder for these items
                             checkbox.buttonTintList = ColorStateList.valueOf(
-                                ContextCompat.getColor(
-                                    context,
-                                    if (nowChecked) R.color.greenBorder else R.color.greenBorder
-                                )
+                                ContextCompat.getColor(context, R.color.greenBorder)
                             )
 
                             if (linearLayout.id == R.id.layoutMasterTPH) {

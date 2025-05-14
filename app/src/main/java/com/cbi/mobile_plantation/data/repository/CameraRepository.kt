@@ -49,6 +49,7 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.LoadingDialog
+import com.cbi.mobile_plantation.utils.PrefManager
 import com.daimajia.androidanimations.library.Techniques
 import com.daimajia.androidanimations.library.YoYo
 import com.google.android.material.card.MaterialCardView
@@ -81,7 +82,7 @@ class CameraRepository(
     }
 
     private var photoCallback: PhotoCallback? = null
-
+    private var prefManager: PrefManager? = null
 
     private var lastCameraId = 0
     private var rotatedCam = false
@@ -219,6 +220,7 @@ class CameraRepository(
 
     @SuppressLint("ClickableViewAccessibility")
     fun takeCameraPhotos(
+        context: Context,
         resultCode: String,
         imageView: ImageView,
         pageForm: Int,
@@ -229,6 +231,7 @@ class CameraRepository(
         latitude: Double?=null,
         longitude: Double?=null
     ) {
+        prefManager = PrefManager(context)
         setDefaultIconTorchButton(view)
         loadingDialog = LoadingDialog(context)
         val rootDCIM = File(
@@ -398,6 +401,7 @@ class CameraRepository(
                                             }
 
                                             takeCameraPhotos(
+                                                context,
                                                 resultCode,
                                                 imageView,
                                                 pageForm,
@@ -432,10 +436,12 @@ class CameraRepository(
                                             val dirDCIM = File(rootDCIM)
                                             if (!dirDCIM.exists()) dirDCIM.mkdirs()
 
-                                            val dateFormat =
-                                                SimpleDateFormat("yyyyMdd_HHmmss").format(Calendar.getInstance().time)
-                                            fileName =
-                                                "${featureName}_${kodeFoto}_${dateFormat}.jpg"
+                                            val dateTimeFormat = SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
+
+                                            val cleanFeatureName = featureName!!.replace(" ", "_")
+
+                                            // Create filename
+                                            fileName = "${cleanFeatureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_${dateTimeFormat}.jpg"
                                             file = File(dirApp, fileName)
 
                                             fileDCIM = File(dirDCIM, fileName)
@@ -468,7 +474,7 @@ class CameraRepository(
                                         commentWm = commentWm?.replace("|", ",")?.replace("\n", "")
                                         commentWm = AppUtils.splitStringWatermark(commentWm!!, 60)
 
-                                        // Build the location string if coordinates are available
+// Build the location string if coordinates are available
                                         val locationText =
                                             if (latitude != null && longitude != null) {
                                                 "Lat: $latitude, Lon: $longitude"
@@ -476,22 +482,25 @@ class CameraRepository(
                                                 ""
                                             }
 
-                                        val watermarkText = when {
-                                            resultCode == "0" || commentWm.isEmpty() -> {
-                                                if (locationText.isNotEmpty()) {
-                                                    "CMP-$featureName\n$locationText\n${dateWM}"
-                                                } else {
-                                                    "CMP-$featureName\n${dateWM}"
-                                                }
-                                            }
-                                            else -> {
-                                                if (locationText.isNotEmpty()) {
-                                                    "CMP-$featureName\n$locationText\n${commentWm}\n${dateWM}"
-                                                } else {
-                                                    "CMP-$featureName\n${commentWm}\n${dateWM}"
-                                                }
-                                            }
+// Create user info line with estate and jabatan
+                                        val userInfo = "${prefManager!!.estateUserLogin} - ${prefManager!!.nameUserLogin}"
+
+// Line 1: Always "CMP-$featureName"
+// Line 2: Always user info
+// Line 3: Conditional - location, comment, or both (or placeholder "-" if none)
+// Line 4: Always date
+                                        val line3 = when {
+                                            locationText.isNotEmpty() && (resultCode != "0" && commentWm.isNotEmpty()) ->
+                                                "$locationText - $commentWm"
+                                            locationText.isNotEmpty() ->
+                                                locationText
+                                            resultCode != "0" && commentWm.isNotEmpty() ->
+                                                commentWm
+                                            else ->
+                                                "-"  // Placeholder when no location or comment
                                         }
+
+                                        val watermarkText = "CMP-$featureName\n$userInfo\n$line3\n$dateWM"
 
                                         val watermarkedBitmap =
                                             addWatermark(takenImage, watermarkText)

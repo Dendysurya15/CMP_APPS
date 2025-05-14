@@ -18,9 +18,10 @@ data class UploadCMPItem(
     val id: Int,
     val title: String,
     val fullPath: String,
-    val partNumber: Int,
-    val totalParts: Int,
-    val baseFilename: String
+    val baseFilename: String,
+    val data :String,
+    val type:String,
+    val tableIds: String? = null
 )
 
 class UploadProgressCMPDataAdapter(
@@ -72,11 +73,28 @@ class UploadProgressCMPDataAdapter(
         return UploadViewHolder(view)
     }
 
+
+    fun setFileSize(itemId: Int, size: Long) {
+        fileSizeMap[itemId] = size
+        notifyDataSetChanged()
+    }
+
+    fun logFileSizeMap(): String {
+        return fileSizeMap.entries.joinToString(", ") {
+            "id=${it.key}: ${formatFileSize(it.value)}"
+        }
+    }
+
+    fun setItems(items: List<UploadCMPItem>) {
+        dataList.clear()
+        dataList.addAll(items)
+        notifyDataSetChanged()
+    }
+
     override fun onBindViewHolder(holder: UploadViewHolder, position: Int) {
         val item = dataList[position]
         val fileSize = fileSizeMap[item.id] ?: 0L
-        val uploadedBytes = uploadedBytesMap[item.id] ?: 0L
-
+        // Your existing binding code
         if (item.title.contains("Master")) {
             holder.tvNameProgress.text = item.title
         } else {
@@ -321,26 +339,32 @@ class UploadProgressCMPDataAdapter(
         uploadErrorMap.clear()
         uploadedBytesMap.clear()
 
-        // Initialize file size map again
-        dataList.forEach { item ->
-            try {
-                val file = File(item.fullPath)
-                if (file.exists()) {
-                    fileSizeMap[item.id] = file.length()
-                } else {
-                    fileSizeMap[item.id] = 0L
-                }
-            } catch (e: Exception) {
-                fileSizeMap[item.id] = 0L
-            }
-        }
+        // We're NOT clearing fileSizeMap here to preserve the sizes
+        // fileSizeMap.clear() - remove this line if it exists
 
         notifyDataSetChanged()
     }
 
+    // Add this method to access file sizes by ID
+    fun getFileSizeById(id: Int): Long {
+        return fileSizeMap[id] ?: 0L
+    }
+
     fun updateItems(newItems: List<UploadCMPItem>) {
+        // Save the current file sizes before clearing the list
+        val savedFileSizes = fileSizeMap.toMap()
+
+        // Update the data list
         dataList.clear()
         dataList.addAll(newItems)
+
+        // Restore file sizes for items that still exist (by ID)
+        newItems.forEach { item ->
+            if (savedFileSizes.containsKey(item.id)) {
+                fileSizeMap[item.id] = savedFileSizes[item.id] ?: 0L
+            }
+        }
+
         notifyDataSetChanged()
     }
     // Cleanup method to be called when the RecyclerView is detached

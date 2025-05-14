@@ -33,8 +33,8 @@ class AbsensiRepository(context: Context) {
 //    }
 
 
-    suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
-        return karyawanDao.getPemuatByIdList(idPemuat)
+    suspend fun getKaryawanByNikList(nikKaryawan: List<String>): List<KaryawanModel> {
+        return karyawanDao.getKaryawanByNikList(nikKaryawan)
     }
 
     suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {

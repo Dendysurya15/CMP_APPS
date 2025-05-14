@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.database.KaryawanDao
 
@@ -28,8 +29,6 @@ import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
-import com.cbi.mobile_plantation.data.model.uploadCMP.CheckZipServerResponse
-import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -79,6 +78,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _karyawanStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val karyawanStatus: StateFlow<Result<Boolean>> = _karyawanStatus.asStateFlow()
+
+    private val _jenisTPHStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
+    val jenisTPHStatus: StateFlow<Result<Boolean>> = _jenisTPHStatus.asStateFlow()
 
     private val _blokStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val blokStatus: StateFlow<Result<Boolean>> = _blokStatus.asStateFlow()
@@ -237,6 +239,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
+    fun updateOrInsertJenisTPH(jenisTPH: List<JenisTPHModel>) =
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.updateOrInsertJenisTPH(jenisTPH)
+                _jenisTPHStatus.value = Result.success(true)
+            } catch (e: Exception) {
+                _jenisTPHStatus.value = Result.failure(e)
+            }
+        }
+
     fun InsertTransporter(transporter: List<TransporterModel>) =
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -256,6 +268,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 _kendaraanStatus.value = Result.failure(e)
             }
         }
+
+
 
     fun updateOrInsertTPH(tph: List<TPHNewModel>, isAsistensi: Boolean = false) =
         viewModelScope.launch(Dispatchers.IO) {
@@ -405,10 +419,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         ?: "0",
                         company = safeGetInt("company"),
                         company_abbr = safeGetString("company_abbr"),
+                        company_nama = safeGetString("company_nama"),
                         wilayah = safeGetString("wilayah"),
                         dept = safeGetInt("dept"),
                         dept_ppro = safeGetInt("dept_ppro"),
                         dept_abbr = safeGetString("dept_abbr"),
+                        dept_nama = safeGetString("dept_nama"),
                         divisi = safeGetInt("divisi"),
                         divisi_ppro = safeGetInt("divisi_ppro"),
                         divisi_abbr = safeGetString("divisi_abbr"),
@@ -426,7 +442,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         lat = safeGetString("lat"),
                         lon = safeGetString("lon"),
                         update_date = safeGetString("update_date"),
-                        status = safeGetString("status")
+                        status = safeGetString("status"),
+                        jenis_tph_id = safeGetString("jenis_tph_id"),
+                        limit_tph = safeGetString("limit_tph"),
                     )
 
                     // Log the first few items to check conversion
@@ -560,6 +578,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                     AppUtils.DatasetNames.blok -> prefManager.lastModifiedDatasetBlok =
                         lastModifiedTimestamp
+
+                    AppUtils.DatasetNames.jenisTPH -> prefManager.lastModifiedDatasetJenisTPH =
+                        lastModifiedTimestamp
                 }
                 prefManager!!.addDataset(dataset)
             } else {
@@ -594,80 +615,177 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val message: String
     )
 
-    fun updateLocalUploadCMP(uploadData: List<Pair<String, String>>): Deferred<Boolean> {
+    fun updateLocalUploadCMP(uploadData: List<Pair<String, String>>, jabatan :String): Deferred<Boolean> {
         val result = CompletableDeferred<Boolean>()
 
         viewModelScope.launch {
             try {
-                AppLogger.d("Processing upload data: $uploadData")
+                AppLogger.d("=== Starting updateLocalUploadCMP ===")
+                AppLogger.d("Processing ${uploadData.size} items")
+                uploadData.forEachIndexed { index, (id, file) ->
+                    AppLogger.d("Item $index: trackingId=$id, filename=$file")
+                }
+
                 val errorItems = mutableListOf<ErrorItem>()
 
                 // Process each item sequentially
-                for ((trackingId, filename) in uploadData) {
+                uploadData.forEachIndexed { index, (trackingId, filename) ->
+                    AppLogger.d("\n--- Processing item ${index + 1}/${uploadData.size} ---")
+                    AppLogger.d("TrackingId: $trackingId")
+
                     try {
-                        // Use the GET endpoint with the UUID
+                        // Get status for this tracking ID
+                        AppLogger.d("Requesting status for trackingId: $trackingId")
                         val response = repository.checkStatusUploadCMP(trackingId)
-                        val responseBodyString = response.body()?.string() ?: "Empty Response"
 
-                        AppLogger.d("Response for $trackingId, file $filename: $responseBodyString")
+                        AppLogger.d("Response received - isSuccessful: ${response.isSuccessful}")
+                        AppLogger.d("Response code: ${response.code()}")
 
-                        try {
-                            val statusResponse = Gson().fromJson(
-                                responseBodyString,
-                                CheckZipServerResponse::class.java
-                            )
+                        if (response.isSuccessful && response.body() != null) {
+                            val statusResponse = response.body()!!
 
-                            // Find matching tracking info entry for this file
-                            val baseFilename = filename.substringBeforeLast(".zip")
-                            val trackingInfoEntries = statusResponse.trackingInfo ?: emptyList()
-                            AppLogger.d("Tracking info for $filename: $trackingInfoEntries")
+                            AppLogger.d("Response body success: ${statusResponse.success}")
+                            AppLogger.d("Data count: ${statusResponse.data.size}")
+                            AppLogger.d("Full response: ${statusResponse}")
 
-                            // Try to find the matching tracking info by filename
-                            val trackingInfoEntry = trackingInfoEntries.find {
-                                it.fileName.contains(baseFilename)
+                            // Since we're not checking filenames anymore, just use the first data item
+                            // Or implement a different logic to choose the right status data
+                            val statusData = statusResponse.data.firstOrNull()
+
+                            AppLogger.d("\nStatus data result:")
+                            AppLogger.d("Found: ${statusData != null}")
+                            if (statusData != null) {
+                                AppLogger.d("Status: ${statusData.status}")
+                                AppLogger.d("Message: ${statusData.message}")
+                                AppLogger.d("StatusText: ${statusData.statusText}")
                             }
 
-                            // Get the status code to update
-                            val finalStatusCode =
-                                trackingInfoEntry?.status ?: statusResponse.statusCode
-                            AppLogger.d("Final status code for $filename: $finalStatusCode")
+                            if (statusData != null) {
+                                // Get the status code for database update
+                                val statusCode = statusData.status
+                                AppLogger.d("Updating database - trackingId=$trackingId, statusCode=$statusCode")
 
-                            // Update status in the database
-                            uploadCMPDao.updateStatus(trackingId, filename, finalStatusCode)
+                                // Update status in the database
+                                uploadCMPDao.updateStatus(trackingId, statusCode)
+                                AppLogger.d("Database update completed successfully")
 
-                            // Check if this was an error status
-                            if (finalStatusCode >= 4) {
-                                val errorMessage =
-                                    trackingInfoEntry?.message ?: statusResponse.message
+                                // Get table_ids from database
+                                val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(trackingId)
+                                AppLogger.d("Retrieved table_ids JSON: $tableIdsJson")
+
+                                if (tableIdsJson != null) {
+                                    try {
+                                        // Parse JSON using Gson or JSONObject
+                                        val json = JSONObject(tableIdsJson)
+                                        val keys = json.keys()
+
+                                        while (keys.hasNext()) {
+                                            val tableName = keys.next()
+                                            val ids = json.getJSONArray(tableName)
+                                            val idList = mutableListOf<Int>()
+
+                                            for (i in 0 until ids.length()) {
+                                                idList.add(ids.getInt(i))
+                                            }
+
+                                            AppLogger.d("Updating $tableName with ids: $idList, status: $statusCode")
+
+                                            when (tableName) {
+                                                AppUtils.DatabaseTables.PANEN -> {
+                                                    panenDao.updateStatusUploadPanen(idList, statusCode)
+                                                    AppLogger.d("Updated panen_table successfully")
+                                                }
+                                                AppUtils.DatabaseTables.ESPB -> {
+                                                    // Conditional update based on jabatan/role
+                                                    when (jabatan) {
+                                                        AppUtils.ListFeatureByRoleUser.Mandor1,
+                                                        AppUtils.ListFeatureByRoleUser.Asisten -> {
+                                                            espbDao.updateStatusUploadEspbCmpSp(idList, statusCode)
+                                                            AppLogger.d("Updated espb_table status_upload_cmp_sp successfully")
+                                                        }
+                                                        AppUtils.ListFeatureByRoleUser.KeraniTimbang -> {
+                                                            espbDao.updateStatusUploadEspbCmpWb(idList, statusCode)
+                                                            AppLogger.d("Updated espb_table status_upload_cmp_wb successfully")
+                                                        }
+                                                    }
+                                                }
+                                                else -> {
+                                                    AppLogger.w("Unknown table name: $tableName")
+                                                }
+                                            }
+                                        }
+                                    } catch (jsonException: Exception) {
+                                        AppLogger.e("Error parsing table_ids JSON: ${jsonException.message}")
+                                        errorItems.add(
+                                            ErrorItem(
+                                                fileName = "",  // No filename needed
+                                                message = "Failed to parse table_ids JSON"
+                                            )
+                                        )
+                                    }
+                                } else {
+                                    AppLogger.w("No table_ids found for trackingId: $trackingId")
+                                }
+
+                                // Check if this was an error status
+                                AppLogger.d("Checking if status code ($statusCode) >= 4")
+                                if (statusCode >= 4) {
+                                    AppLogger.d("Error status detected - adding to error items")
+                                    errorItems.add(
+                                        ErrorItem(
+                                            fileName = "",  // No filename needed
+                                            message = statusData.message
+                                        )
+                                    )
+                                    AppLogger.d("Error item added: message=${statusData.message}")
+                                } else {
+                                    AppLogger.d("Status code is OK (< 4)")
+                                }
+                            } else {
+                                // No status data found
+                                AppLogger.e("ERROR: No status data found for trackingId: $trackingId")
                                 errorItems.add(
                                     ErrorItem(
-                                        fileName = filename,
-                                        message = errorMessage
+                                        fileName = "",  // No filename needed
+                                        message = "No status data found for this tracking ID"
                                     )
                                 )
                             }
-
-                        } catch (e: Exception) {
-                            AppLogger.e("Error parsing JSON for $trackingId: ${e.localizedMessage}")
+                        } else {
+                            // Handle unsuccessful response
+                            AppLogger.e("ERROR: Failed response for $trackingId")
+                            AppLogger.e("Response code: ${response.code()}")
+                            AppLogger.e("Error body: ${response.errorBody()?.string()}")
                             errorItems.add(
                                 ErrorItem(
-                                    fileName = filename,
-                                    message = "Error processing response: ${e.localizedMessage}"
+                                    fileName = "",  // No filename needed
+                                    message = "Server error: ${response.code()}"
                                 )
                             )
                         }
                     } catch (e: Exception) {
-                        AppLogger.e("Network error for $trackingId: ${e.localizedMessage}")
+                        AppLogger.e("EXCEPTION: Network error for $trackingId")
+                        AppLogger.e("Exception type: ${e.javaClass.simpleName}")
+                        AppLogger.e("Exception message: ${e.localizedMessage}")
+                        AppLogger.e("Stack trace: ${e.stackTrace.take(5).joinToString("\n")}")
                         errorItems.add(
                             ErrorItem(
-                                fileName = filename,
+                                fileName = "",  // No filename needed
                                 message = "Network error: ${e.localizedMessage}"
                             )
                         )
                     }
+
+                    AppLogger.d("--- Completed item ${index + 1}/${uploadData.size} ---\n")
                 }
 
                 // All processing complete
+                AppLogger.d("\n=== All processing complete ===")
+                AppLogger.d("Total error items: ${errorItems.size}")
+                errorItems.forEachIndexed { index, error ->
+                    AppLogger.d("Error $index: fileName=${error.fileName}, message=${error.message}")
+                }
+
                 withContext(Dispatchers.Main) {
                     val message = if (errorItems.isNotEmpty()) {
                         "Terjadi kesalahan insert di server!"
@@ -675,14 +793,19 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         "Berhasil sinkronisasi data"
                     }
 
-                    AppLogger.d("Update completed with message: $message")
+                    AppLogger.d("Final message to display: $message")
+                    AppLogger.d("Completing with result: ${errorItems.isEmpty()}")
 
                     // Complete with success if no errors, or with false if there were errors
                     result.complete(errorItems.isEmpty())
                 }
 
             } catch (e: Exception) {
-                AppLogger.e("Error in updateLocalUploadCMP: ${e}")
+                AppLogger.e("=== FATAL ERROR in updateLocalUploadCMP ===")
+                AppLogger.e("Exception type: ${e.javaClass.simpleName}")
+                AppLogger.e("Exception message: ${e.localizedMessage}")
+                AppLogger.e("Full stack trace:")
+                e.printStackTrace()
                 result.complete(false)
             }
         }
@@ -782,7 +905,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         AppUtils.DatasetNames.kemandoran,
                         AppUtils.DatasetNames.tph,
                         AppUtils.DatasetNames.transporter,
-                        AppUtils.DatasetNames.kendaraan
+                        AppUtils.DatasetNames.kendaraan,
+                        AppUtils.DatasetNames.jenisTPH,
                     )
 
                     var modifiedRequest = request
@@ -804,6 +928,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     }
 
                     AppLogger.d("Downloading dataset for ${modifiedRequest.estateAbbr}/ ${modifiedRequest.dataset}")
+
+                    AppLogger.d("modifiedRequest $modifiedRequest")
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
@@ -1041,6 +1167,27 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                         if (lastModified != null) {
                                             prefManager.lastModifiedDatasetKendaraan = lastModified
+                                        }
+
+                                        processed = true
+                                    }
+
+                                    AppUtils.DatasetNames.jenisTPH -> {
+                                        val jenisTPHList = parseStructuredJsonToList(jsonContent, JenisTPHModel::class.java)
+                                        AppLogger.d("Parsed ${jenisTPHList.size} jenis TPH records, starting database update")
+
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                repository.updateOrInsertJenisTPH(jenisTPHList)
+                                                AppLogger.d("Database update completed for kendaraan dataset")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Database update error for kendaraan: ${e.message}")
+                                                throw e
+                                            }
+                                        }
+
+                                        if (lastModified != null) {
+                                            prefManager.lastModifiedDatasetJenisTPH = lastModified
                                         }
 
                                         processed = true
@@ -1488,7 +1635,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     AppUtils.DatasetNames.pemanen,
                     AppUtils.DatasetNames.kemandoran,
                     AppUtils.DatasetNames.tph,
-                    AppUtils.DatasetNames.transporter
+                    AppUtils.DatasetNames.transporter,
+                    AppUtils.DatasetNames.jenisTPH
                 )
                 val datasetName = request.dataset
                 var modifiedRequest = request  // Create a mutable copy of the request
@@ -1507,6 +1655,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         }
                     }
                 }
+
+                AppLogger.d(modifiedRequest.toString())
 
                 try {
                     var response: Response<ResponseBody>? = null
@@ -1695,6 +1845,20 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             response = response,
                                                             updateOperation = ::InsertKendaraan,
                                                             statusFlow = kendaraanStatus,
+                                                            hasShownError = hasShownError,
+                                                            lastModifiedTimestamp = lastModified
+                                                                ?: ""
+                                                        )
+
+                                                    AppUtils.DatasetNames.jenisTPH -> hasShownError =
+                                                        processDataset(
+                                                            jsonContent = jsonContent,
+                                                            dataset = request.dataset,
+                                                            modelClass = JenisTPHModel::class.java,
+                                                            results = results,
+                                                            response = response,
+                                                            updateOperation = ::updateOrInsertJenisTPH,
+                                                            statusFlow = jenisTPHStatus,
                                                             hasShownError = hasShownError,
                                                             lastModifiedTimestamp = lastModified
                                                                 ?: ""
@@ -2213,9 +2377,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 transformedArray.add(transformedObj)
             }
 
-//            AppLogger.d("About to convert array of size: ${transformedArray.size()}")
-
-//            AppLogger.d(transformedArray.toString())
             return gson.fromJson(
                 transformedArray,
                 TypeToken.getParameterized(List::class.java, classType).type

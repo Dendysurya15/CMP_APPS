@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
@@ -40,10 +41,10 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     val panenList: LiveData<List<PanenEntity>> get() = _panenList
 
     private val _archivedPanenList = MutableLiveData<List<PanenEntityWithRelations>>()
-    val archivedPanenList: LiveData<List<PanenEntityWithRelations>> = _archivedPanenList
+    val archivedPanenList: LiveData<List<PanenEntityWithRelations>>  = _archivedPanenList
 
     private val _activePanenList = MutableLiveData<List<PanenEntityWithRelations>>()
-    val activePanenList: LiveData<List<PanenEntityWithRelations>> = _activePanenList
+    val activePanenList: LiveData<List<PanenEntityWithRelations>> get() = _activePanenList
 
     private val _deleteItemsResult = MutableLiveData<Boolean>()
     val deleteItemsResult: LiveData<Boolean> = _deleteItemsResult
@@ -71,6 +72,11 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _panenCountArchived = MutableLiveData<Int>()
     val panenCountArchived: LiveData<Int> = _panenCountArchived
+
+
+    // ViewModel.kt
+    private val _jenisTPHList = MutableLiveData<List<JenisTPHModel>>()
+    val jenisTPHList: LiveData<List<JenisTPHModel>> = _jenisTPHList
 
 
     fun loadAllPanen() {
@@ -146,6 +152,12 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         return count
     }
 
+    suspend fun getCountScanMPanen(status_scan_mpanen: Int = 0): Int{
+        val count = repository.getCountScanMPanen(status_scan_mpanen)
+        _panenCount.value = count
+        return count
+    }
+
     fun loadCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
             val formattedDate = date?.take(10) // Ensures only YYYY-MM-DD is passed
@@ -174,6 +186,18 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateStatusUploadPanen(ids: List<Int>, status: Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateStatusUploadPanen(ids, status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+                AppLogger.e("Error updating status_upload: ${e.message}")
+            }
+        }
+    }
+
     fun loadActivePanen() {
         viewModelScope.launch {
             repository.getActivePanen()
@@ -198,6 +222,18 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadActivePanenESPBAll() {
+        viewModelScope.launch {
+            repository.getActivePanenESPBAll()
+                .onSuccess { panenList ->
+                    _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
     fun getAllTPHHasBeenSelected() {
         viewModelScope.launch {
             repository.getAllTPHHasBeenSelected()
@@ -207,6 +243,41 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 .onFailure { exception ->
                     _error.postValue(exception.message ?: "Failed to load data")
                 }
+        }
+    }
+
+    fun getAllJenisTPH() {
+        viewModelScope.launch {
+            repository.getAllJenisTPH()
+                .onSuccess { jenisTPHModels ->
+                    _jenisTPHList.value = jenisTPHModels
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load JenisTPH data")
+                }
+        }
+    }
+
+
+//    fun getAllScanMPanenByDate(status_mpanen: Int, date: String) {
+//        viewModelScope.launch {
+//            repository.getAllScanMPanenByDate(status_mpanen, date)
+//                .onSuccess { panenList ->
+//                    _activePanenList.value = panenList
+//                }
+//                .onFailure { exception ->
+//                    _error.postValue(exception.message ?: "Failed to load data")
+//                }
+//        }
+//    }
+
+    fun getAllScanMPanenByDate(archiveMpanen: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.getAllScanMPanenByDate(archiveMpanen, date)
+            _activePanenList.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading getAllScanMPanenByDate: ${e.message}")
+            _activePanenList.value = emptyList()  // Return empty list if there's an error
         }
     }
 
@@ -269,6 +340,8 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+
+
     fun deleteMultipleItems(items: List<Map<String, Any>>) {
         viewModelScope.launch {
             try {
@@ -300,12 +373,45 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-
     fun archivePanenById(id: Int) {
         viewModelScope.launch {
             repository.archivePanenById(id)
             loadAllPanen() // Refresh the data
         }
+    }
+
+    fun archiveMpanenByID(id: Int) {
+        viewModelScope.launch {
+            repository.archiveMpanenByID(id)
+            loadAllPanen() // Refresh the data
+        }
+    }
+
+    suspend fun getBlokKodeByTphId(tphId: Int): String {
+        return try {
+            repository.getBlokKodeByTphId(tphId)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading blok kode: ${e.message}")
+            ""
+        }.toString()
+    }
+
+    suspend fun getNamaByNik(nik: String): String {
+        return try {
+            repository.getNamaByNik(nik)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading blok kode: ${e.message}")
+            ""
+        }.toString()
+    }
+
+    suspend fun getNomorTPHbyId(tphId: Int): String {
+        return try {
+            repository.getNomorTPHbyId(tphId)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading nomor TPH: ${e.message}")
+            ""
+        }.toString()
     }
 
     suspend fun saveDataPanen(
@@ -315,6 +421,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         karyawan_id: String,
         kemandoran_id: String,
         karyawan_nik: String,
+        karyawan_nama: String,
         jjg_json: String,
         foto: String,
         komentar: String,
@@ -335,6 +442,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 karyawan_id = karyawan_id,
                 kemandoran_id = kemandoran_id,
                 karyawan_nik = karyawan_nik,
+                karyawan_nama = karyawan_nama,
                 jjg_json = jjg_json,
                 foto = foto,
                 komentar = komentar,

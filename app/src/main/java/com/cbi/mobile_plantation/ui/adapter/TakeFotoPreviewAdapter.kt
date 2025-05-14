@@ -160,6 +160,7 @@ class TakeFotoPreviewAdapter(
                 position = position.toString(),
                 onChangePhoto = {
                     cameraViewModel.takeCameraPhotos(
+                        context,
                         uniqueKodeFoto,
                         holder.imageView,
                         position,
@@ -196,6 +197,7 @@ class TakeFotoPreviewAdapter(
             AppLogger.d(currentLatitude.toString())
             AppLogger.d(currentLongitude.toString())
             cameraViewModel.takeCameraPhotos(
+                context,
                 uniqueKodeFoto,
                 holder.imageView,
                 position,

@@ -6,6 +6,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -15,6 +16,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -23,7 +26,11 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Base64
 import android.util.Log
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
+import android.view.Window
+import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AnimationUtils
 import android.widget.Button
@@ -67,6 +74,7 @@ import com.cbi.mobile_plantation.utils.ScreenshotUtil
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
 import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
+import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
@@ -318,8 +326,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         if (featureName == AppUtils.ListFeatureNames.BuatESPB || featureName == AppUtils.ListFeatureNames.DetailESPB) {
             findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.GONE
             findViewById<LinearLayout>(R.id.filterDateContainer).visibility = View.GONE
-
-
         } else {
             findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.VISIBLE
             dateButton = findViewById(R.id.calendarPicker)
@@ -360,19 +366,16 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         panenViewModel.loadTPHNonESPB(0, 0, 1)
                     } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                         if (currentState == 0) {
-                            AppLogger.d(" gess")
                             panenViewModel.loadTPHNonESPB(0, 0, 1)
                             panenViewModel.countTPHNonESPB(0, 0, 1)
                             panenViewModel.countTPHESPB(1, 0, 1)
                             panenViewModel.countHasBeenESPB(0, 1, 1)
                         } else if (currentState == 1) {
-                            AppLogger.d("gas terus bro  gess")
                             panenViewModel.loadTPHESPB(1, 0, 1)
                             panenViewModel.countTPHNonESPB(0, 0, 1)
                             panenViewModel.countTPHESPB(1, 0, 1)
                             panenViewModel.countHasBeenESPB(0, 1, 1)
                         } else {
-                            AppLogger.d("nais gess")
                             panenViewModel.loadTPHESPB(0, 1, 1)
                             panenViewModel.countTPHNonESPB(0, 0, 1)
                             panenViewModel.countTPHESPB(1, 0, 1)
@@ -400,7 +403,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
                     } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                         if (currentState == 0) {
-                            AppLogger.d("masuk sini gess")
+
 
                             AppLogger.d(globalFormattedDate)
                             panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
@@ -408,13 +411,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
                             panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
                         } else if (currentState == 1) {
-                            AppLogger.d("nah kan")
+
                             panenViewModel.loadTPHESPB(1, 0, 1, globalFormattedDate)
                             panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
                             panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
                             panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
                         } else {
-                            AppLogger.d("masuk sini gess terus")
                             panenViewModel.loadTPHESPB(0, 1, 1, globalFormattedDate)
                             panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
                             panenViewModel.countTPHESPB(0, 1, 1, globalFormattedDate)
@@ -472,19 +474,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
                     } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                         if (currentState == 0) {
-                            AppLogger.d(" gess")
                             panenViewModel.loadTPHNonESPB(0, 0, 1, todayBackendDate)
                             panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
                             panenViewModel.countTPHESPB(1, 0, 1, todayBackendDate)
                             panenViewModel.countHasBeenESPB(0, 1, 1, todayBackendDate)
                         } else if (currentState == 1) {
-                            AppLogger.d("gas terus bro  gess")
                             panenViewModel.loadTPHESPB(1, 0, 1, todayBackendDate)
                             panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
                             panenViewModel.countTPHESPB(1, 0, 1, todayBackendDate)
                             panenViewModel.countHasBeenESPB(0, 1, 1, todayBackendDate)
                         } else {
-                            AppLogger.d("nais gess")
+
                             panenViewModel.loadTPHESPB(0, 1, 1, todayBackendDate)
                             panenViewModel.countTPHNonESPB(0, 0, 1, todayBackendDate)
                             panenViewModel.countTPHESPB(1, 0, 1, todayBackendDate)
@@ -585,7 +585,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupSearch()
         setupObservers()
         if (featureName != "Buat eSPB" && featureName != "Detail eSPB") {
-            setupSpeedDial()
+//            setupSpeedDial()
             setupCheckboxControl()  // Add this
         }
         setupCardListeners()
@@ -631,6 +631,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 panenViewModel.countTPHNonESPB(0, 0, 1, AppUtils.currentDate)
                 panenViewModel.countTPHESPB(1, 0, 1, AppUtils.currentDate)
                 panenViewModel.countHasBeenESPB(0, 1, 1, AppUtils.currentDate)
+                val headerCheckBoxPanen = findViewById<ConstraintLayout>(R.id.tableHeader)
+                    .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                headerCheckBoxPanen.visibility = View.GONE
             } else if (featureName == "Detail eSPB") {
                 val btnEditEspb = findViewById<FloatingActionButton>(R.id.btnEditEspb)
                 btnEditEspb.visibility = View.VISIBLE
@@ -829,6 +832,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     }
                 }
             } else {
+                val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                    .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                headerCheckBox.visibility = View.GONE
+                val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
+                    .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
+                flCheckBoxTableHeaderLayout.visibility = View.GONE
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.VISIBLE
                 panenViewModel.loadTPHNonESPB(0, 0, 0, AppUtils.currentDate)
                 panenViewModel.countTPHNonESPB(0, 0, 0, AppUtils.currentDate)
@@ -926,10 +935,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             listAdapter.updateArchiveState(currentState)
             val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                 .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
-            headerCheckBox.visibility = View.VISIBLE
+            headerCheckBox.visibility = View.GONE
             val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
                 .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
-            flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
+            flCheckBoxTableHeaderLayout.visibility = View.GONE
             speedDial.visibility =
                 if (listAdapter.getSelectedItems().isNotEmpty()) View.VISIBLE else View.GONE
 
@@ -938,23 +947,28 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
 
             if (featureName == "Buat eSPB") {
+                flCheckBoxTableHeaderLayout.visibility = View.GONE
                 panenViewModel.loadActivePanenESPB()
             } else if (featureName == "Rekap panen dan restan") {
                 loadingDialog.setMessage("Loading data tph...")
+                val headerCheckBoxPanen = findViewById<ConstraintLayout>(R.id.tableHeader)
+                    .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                headerCheckBoxPanen.visibility = View.GONE
                 if (isAllDataFiltered) {
-                    AppLogger.d("lagi yuyh")
+
                     panenViewModel.loadTPHNonESPB(0, 0, 1)
                     panenViewModel.countTPHNonESPB(0, 0, 1)
                     panenViewModel.countTPHESPB(1, 0, 1)
                     panenViewModel.countHasBeenESPB(0, 1, 1)
                 } else {
-                    AppLogger.d("ok gas terus pokoknya")
                     panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
                     panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
                     panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
                     panenViewModel.countHasBeenESPB(0, 1, 1, globalFormattedDate)
                 }
             } else {
+//                flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
+//                headerCheckBox.visibility = View.VISIBLE
                 loadingDialog.setMessage("Loading data tersimpan", true)
                 if (isAllDataFiltered) {
                     panenViewModel.loadTPHNonESPB(0, 0, 0)
@@ -987,10 +1001,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             listAdapter.updateArchiveState(currentState)
             val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                 .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
-            headerCheckBox.visibility = View.VISIBLE
+            headerCheckBox.visibility = View.GONE
             val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
                 .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
-            flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
+            flCheckBoxTableHeaderLayout.visibility = View.GONE
 
             loadingDialog.setMessage("Loading data terscan", true)
 
@@ -1004,7 +1018,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     panenViewModel.countTPHNonESPB(0, 0, 1)
                     panenViewModel.countHasBeenESPB(0, 1, 1)
                 } else {
-                    AppLogger.d("dateToUse $dateToUse")
                     panenViewModel.loadTPHESPB(1, 0, 1, globalFormattedDate)
                     panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
                     panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
@@ -1057,14 +1070,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 loadingDialog.setMessage("Loading TPH menjadi E-SPB...")
 
                 if (isAllDataFiltered) {
-                    AppLogger.d("nais bro ooooo")
-
                     panenViewModel.loadTPHESPB(0, 1, 1)
                     panenViewModel.countTPHNonESPB(0, 0, 1)
                     panenViewModel.countTPHESPB(1, 0, 1)
                     panenViewModel.countHasBeenESPB(0, 1, 1)
                 } else {
-                    AppLogger.d("nais bro kah")
                     panenViewModel.loadTPHESPB(0, 1, 1, globalFormattedDate)
                     panenViewModel.countTPHNonESPB(0, 0, 1, globalFormattedDate)
                     panenViewModel.countTPHESPB(1, 0, 1, globalFormattedDate)
@@ -1280,7 +1290,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
 
                         val key =
-                            if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") "KP" else "TO"
+                            if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB" || featureName == AppUtils.ListFeatureNames.RekapHasilPanen) "KP" else "TO"
 
                         val toValue = if (jjgJson.has(key)) {
                             jjgJson.getInt(key)
@@ -1297,6 +1307,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val date = dateParts[0]  // 2025-03-28
                         val time = dateParts[1]  // 13:15:18
 
+
+                        AppLogger.d(key.toString())
                         // Use dateIndexMap.size as the index for new dates
                         append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue;")
                     } catch (e: Exception) {
@@ -1665,6 +1677,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
 //                        }
                 val btnConfirmScanPanenTPH: MaterialButton =
                     view.findViewById(R.id.btnConfirmScanPanenTPH)
+                val btnPreviewFullQR: MaterialButton =
+                    view.findViewById(R.id.btnPreviewFullQR)
+
+                btnPreviewFullQR.setOnClickListener {
+                    showQrCodeFullScreen(qrCodeImageView.drawable, view)
+                }
 
                 // Initially hide QR code and dashed line, show loading
                 qrCodeImageView.visibility = View.GONE
@@ -1708,7 +1726,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     }
                 }
 
-                val maxHeight = (resources.displayMetrics.heightPixels * 0.95).toInt()
+                val maxHeight = (resources.displayMetrics.heightPixels * 0.85).toInt()
 
                 dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
                     ?.let { bottomSheet ->
@@ -1766,7 +1784,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         val limitedData = mappedData.take(effectiveLimit)
 
 
-                                        AppLogger.d(limitedData.size.toString())
                                         limitedData.forEach { item ->
                                             try {
                                                 // Null check for item
@@ -1971,6 +1988,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
                         }
 
+
+                        AppLogger.d("jsonData $jsonData")
                         val encodedData = withContext(Dispatchers.IO) {
                             try {
                                 encodeJsonToBase64ZipQR(jsonData)
@@ -1985,14 +2004,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val effectiveLimit =
                             if (limit == 0) mappedData.size else limit
                         val limitedData = mappedData.take(effectiveLimit)
-
-                        AppLogger.d(limitedData.size.toString())
                         val processedData =
                             AppUtils.getPanenProcessedData(limitedData, featureName)
-
-
-
-                        AppLogger.d(limit.toString())
                         val listBlok = view.findViewById<TextView>(R.id.listBlok)
                         val totalJjg = view.findViewById<TextView>(R.id.totalJjg)
                         val totalTPH = view.findViewById<TextView>(R.id.totalTPH)
@@ -2029,7 +2042,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 confimationContainer.alpha = 0f
                                 descQRConfirm.alpha = 0f
                                 btnConfirmScanPanenTPH.alpha = 0f
-
+                                btnPreviewFullQR.alpha = 0f
 
                                 // Create fade-in animations
 
@@ -2105,6 +2118,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             startDelay = 150
                                         }
 
+                                val fadeInButtonPreviewBtn =
+                                    ObjectAnimator.ofFloat(
+                                        btnPreviewFullQR,
+                                        "alpha",
+                                        0f,
+                                        1f
+                                    )
+                                        .apply {
+                                            duration = 250
+                                            startDelay = 150
+                                        }
+
 
                                 // Run animations sequentially
                                 AnimatorSet().apply {
@@ -2124,6 +2149,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             blokSection.visibility = View.VISIBLE
                                             totalSection.visibility = View.VISIBLE
                                             btnConfirmScanPanenTPH.visibility = View.VISIBLE
+                                            btnPreviewFullQR.visibility = View.VISIBLE
 
                                             lifecycleScope.launch {
                                                 delay(200)
@@ -2143,7 +2169,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             fadeInConfirmationContainer.start()
                                             fadeInDescConfirm.start()
                                             fadeInButton.start()
-
+                                            fadeInButtonPreviewBtn.start()
                                         }
                                     })
                                     start()
@@ -2180,8 +2206,95 @@ class ListPanenTBSActivity : AppCompatActivity() {
         )
     }
 
+    private fun showQrCodeFullScreen(qrDrawable: Drawable?, bottomSheetView: View) {
+        if (qrDrawable == null) return
+
+        // Get the bottom sheet behavior to control it
+        val bottomSheetBehavior = BottomSheetBehavior.from(bottomSheetView.parent as View)
+
+        // Save current state to restore later
+        val previousState = bottomSheetBehavior.state
+
+        // Expand bottom sheet fully first
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+
+        // Create a dialog to display the QR code
+        val context = bottomSheetView.context
+        val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+
+        // Make dialog dismissible with back button
+        dialog.setCancelable(true)
+        dialog.setOnCancelListener {
+            // Restore previous bottom sheet state when dismissed with back button
+            bottomSheetBehavior.state = previousState
+        }
+
+        // Inflate the camera_edit layout
+        val fullscreenView = layoutInflater.inflate(R.layout.camera_edit, null)
+        dialog.setContentView(fullscreenView)
+
+        // Find views within the dialog layout
+        val fotoLayout = fullscreenView.findViewById<ConstraintLayout>(R.id.clZoomLayout)
+        val photoView = fullscreenView.findViewById<PhotoView>(R.id.fotoZoom)
+        val closeZoomCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardCloseZoom)
+        val changePhotoCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardChangePhoto)
+        val deletePhotoCard = fullscreenView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
+
+        // Find the TextView and ImageView for color changes
+        val tvCardCloseButton = fullscreenView.findViewById<TextView>(R.id.tvCardCloseButton)
+        val closeZoomIcon = fullscreenView.findViewById<ImageView>(R.id.closeZoom)
+
+        // Set the image to the PhotoView
+        photoView.setImageDrawable(qrDrawable)
+
+        // Hide edit options
+        changePhotoCard.visibility = View.GONE
+        deletePhotoCard.visibility = View.GONE
+
+        // Set background color of the layout to white using your color resource
+        fotoLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.white))
+
+        // Set close button background color to green using your color resource
+        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
+
+        // Change the text color to white
+        tvCardCloseButton.setTextColor(ContextCompat.getColor(context, R.color.white))
+
+        // Change the close icon tint to white
+        closeZoomIcon.setColorFilter(ContextCompat.getColor(context, R.color.white))
+
+        // Set up close button to restore previous bottom sheet state
+        closeZoomCard.setOnClickListener {
+            dialog.dismiss()
+            // Restore previous bottom sheet state
+            bottomSheetBehavior.state = previousState
+        }
+
+        // Make dialog display properly
+        dialog.window?.apply {
+            // Set window background to white using your color resource
+            setBackgroundDrawable(ColorDrawable(ContextCompat.getColor(context, R.color.white)))
+            setDimAmount(0f) // Remove dimming since we have a white background
+
+            // This is important - use TYPE_APPLICATION to ensure it appears above the bottom sheet
+            attributes.type = WindowManager.LayoutParams.TYPE_APPLICATION
+
+            // Make sure to set the layout flags properly
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+
+            // Add FLAG_NOT_TOUCH_MODAL to make sure it gets all touch events
+            addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+
+            // This helps ensure it appears on top
+            setGravity(Gravity.CENTER)
+        }
+
+        dialog.show()
+    }
+
     // Helper function to stop the loading animation and hide UI
-    private fun stopLoadingAnimation(
+    fun stopLoadingAnimation(
         loadingLogo: ImageView,
         loadingContainer: LinearLayout
     ) {
@@ -2289,6 +2402,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         panenViewModel.activePanenList.observe(this) { panenList ->
+
             if (currentState == 0 || currentState == 2 || currentState == 3) {
                 listAdapter.updateData(emptyList())
                 Handler(Looper.getMainLooper()).postDelayed({
@@ -2514,6 +2628,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
                                         ?.takeIf { it.isNotEmpty() }
                                         ?.joinToString("\n") { "• $it" } ?: "-"
+
+
 
                                     val karyawanNamas = pemuatData?.mapNotNull { karyawan ->
                                         karyawan.nama?.let { nama ->
@@ -2968,16 +3084,38 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         btnGenerateQRTPHUnl.visibility = View.VISIBLE
                         tvGenQR60.visibility = View.VISIBLE
                         tvGenQRFull.visibility = View.VISIBLE
-                    } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+
+                        val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
+                            .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                        headerCheckBox.visibility = View.VISIBLE
+                        val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
+                            .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
+                        flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
+                    }
+                    else if(featureName == "Rekap Hasil Panen" && (currentState == 2 || currentState == 3)){
+                        btnGenerateQRTPHUnl.visibility = View.GONE
+                        tvGenQR60.visibility = View.GONE
+                        tvGenQRFull.visibility = View.GONE
+                        btnGenerateQRTPH.visibility = View.GONE
+                    }
+                    else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                         if (panenList.size > 0) {
                             btnGenerateQRTPH.visibility = View.VISIBLE
                             tvGenQRFull.visibility = View.VISIBLE
                             btnGenerateQRTPHUnl.visibility = View.VISIBLE
                             tvGenQR60.visibility = View.VISIBLE
+                            val headerCheckBoxPanen = findViewById<ConstraintLayout>(R.id.tableHeader)
+                                .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                            headerCheckBoxPanen.visibility = View.GONE
                         } else {
                             btnGenerateQRTPH.visibility = View.GONE
                         }
+                    }else if(featureName == AppUtils.ListFeatureNames.BuatESPB){
+                        val headerCheckBoxPanen = findViewById<ConstraintLayout>(R.id.tableHeader)
+                            .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                        headerCheckBoxPanen.visibility = View.GONE
                     }
+
                 }, 500)
             }
         }
@@ -3232,7 +3370,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-
+        AppUtils.resetSelectedDate()
         SoundPlayer.releaseMediaPlayer()
         // Ensure handler callbacks are removed
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
@@ -3448,7 +3586,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val processedData =
                     AppUtils.getPanenProcessedData(limitedData, featureName)
 
-                tvUserName.text = "Hasil QR dari ${prefManager!!.jabatanUserLogin}"
+                tvUserName.text = "Hasil QR dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
                 if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                     val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
                     val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
@@ -3508,11 +3646,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                 // Create a meaningful filename
                 val screenshotFileName = if (featureName == "Detail eSPB") {
-                    "eSPB_QR_${no_espb.replace("/", "_")}"
+                    "eSPB_QR"
                 } else {
-                    val date =
-                        SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                    "Panen_QR_$date"
+                    "Panen_QR"
                 }
 
                 val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen)
@@ -3808,7 +3944,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val totalTphTextView: TextView = findViewById(R.id.totalTPH)
         val tvTotalTPH: TextView = findViewById(R.id.tvTotalTPH)
         val listBlokTextView: TextView = findViewById(R.id.listBlok) // Add this line
-
+        val titleTotalJjg: TextView = findViewById(R.id.titleTotalJjg)
         val headers = if (featureName == "Buat eSPB") {
             listOf("BLOK", "NO TPH/JJG", "JAM", "KP")
         } else {
@@ -3838,6 +3974,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     totalTphTextView.text = tphCount.toString()
                     totalJjgTextView.text = jjgCount.toString()
                     tvTotalTPH.text = "Jmlh Transaksi: "
+                    titleTotalJjg.text = "Kirim Pabrik: "
 
                     // No need to format again, just join the already formatted blocks
                     val blocksText = formattedBlocks.joinToString(", ")
@@ -3849,6 +3986,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     listBlokTextView.visibility = View.GONE
                 }
             }
+        }else if(featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan){
+            titleTotalJjg.text = "Kirim Pabrik: "
         }
     }
 

@@ -99,19 +99,29 @@ abstract class PanenDao {
     @Query("UPDATE panen_table SET archive = 1 WHERE id = :id")
     abstract fun archiveByID(id: Int): Int
 
+    @Query("UPDATE panen_table SET archive_mpanen = 1 WHERE id = :id")
+    abstract fun archiveMpanenByID(id: Int): Int
+
     @Query("UPDATE panen_table SET dataIsZipped = :status WHERE id IN (:ids)")
     abstract  suspend fun updateDataIsZippedPanen(ids: List<Int>, status: Int)
 
     @Query("UPDATE panen_table SET archive = 1 WHERE id IN (:id)")
     abstract fun archiveByListID(id: List<Int>): Int
 
+    @Query("UPDATE panen_table SET status_upload = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadPanen(ids: List<Int>, status: Int)
+
     @Transaction
     @Query("SELECT * FROM panen_table WHERE archive = 0 AND status_espb = 0")
     abstract fun getAllActiveWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE dataIsZipped = 0 AND status_espb = 0")
+    @Query("SELECT * FROM panen_table WHERE status_upload = 0 AND status_espb = 0")
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
+
+    @Transaction
+    @Query("SELECT * FROM panen_table WHERE status_espb = 0")
+    abstract fun getAllActivePanenESPBAll(): List<PanenEntityWithRelations>
 
     @Transaction
     @Query("SELECT * FROM panen_table WHERE archive != 1")
@@ -131,7 +141,34 @@ abstract class PanenDao {
     @Query("UPDATE panen_table SET status_pengangkutan = :status WHERE id IN (:ids)")
     abstract suspend fun panenUpdateStatusAngkut(ids: List<Int>, status: Int): Int
 
+    @Query("UPDATE panen_table SET status_uploaded_image = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadedImage(ids: List<Int>, status: String): Int
+
     @Transaction
     @Query("SELECT * FROM panen_table WHERE date(date_created) < date(:cutoffDate)")
     abstract suspend fun getPanenOlderThan(cutoffDate: String): List<PanenEntityWithRelations>
+
+    //getall where status_scan_mpanen = 0
+    @Query("SELECT * FROM panen_table WHERE status_scan_mpanen = :status_scan_mpanen")
+    abstract fun getAllScanMPanen(status_scan_mpanen: Int = 0): List<PanenEntity>
+
+    @Query("SELECT * FROM panen_table WHERE archive_mpanen = :status_scan_mpanen AND strftime('%Y-%m-%d', date_created) = :date")
+    abstract fun getAllScanMPanenByDateWithFilter(status_scan_mpanen: Int, date: String): List<PanenEntityWithRelations>
+
+    @Query("SELECT * FROM panen_table WHERE archive_mpanen = :status_scan_mpanen")
+    abstract fun getAllScanMPanenWithoutDateFilter(status_scan_mpanen: Int): List<PanenEntityWithRelations>
+
+    // Then create a wrapper function to handle the logic
+    fun getAllScanMPanenByDate(archiveMpanen: Int, date: String? = null): List<PanenEntityWithRelations> {
+        return if (date == null) {
+            getAllScanMPanenWithoutDateFilter(archiveMpanen)
+        } else {
+            getAllScanMPanenByDateWithFilter(archiveMpanen, date)
+        }
+    }
+
+    //count where status_scan_mpanen = 0 date now
+    @Query("SELECT COUNT(*) FROM panen_table WHERE status_scan_mpanen = :status_scan_mpanen AND date(date_created) = date('now', 'localtime')")
+    abstract suspend fun getCountScanMPanen(status_scan_mpanen: Int): Int
+
 }

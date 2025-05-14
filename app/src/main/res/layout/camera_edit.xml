@@ -77,7 +77,7 @@
                         android:text="Ganti"
 
                         android:textColor="@color/black"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/m" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -115,7 +115,7 @@
                         android:fontFamily="@font/manrope_bold"
                         android:text="Hapus"
                         android:textColor="@color/black"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/m" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -154,7 +154,7 @@
                         android:fontFamily="@font/manrope_bold"
                         android:text="Tutup"
                         android:textColor="@color/black"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/m" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
