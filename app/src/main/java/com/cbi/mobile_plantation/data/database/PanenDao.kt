@@ -99,6 +99,9 @@ abstract class PanenDao {
     @Query("UPDATE panen_table SET archive = 1 WHERE id = :id")
     abstract fun archiveByID(id: Int): Int
 
+    @Query("UPDATE panen_table SET archive_mpanen = 1 WHERE id = :id")
+    abstract fun archiveMpanenByID(id: Int): Int
+
     @Query("UPDATE panen_table SET dataIsZipped = :status WHERE id IN (:ids)")
     abstract  suspend fun updateDataIsZippedPanen(ids: List<Int>, status: Int)
 
@@ -149,18 +152,18 @@ abstract class PanenDao {
     @Query("SELECT * FROM panen_table WHERE status_scan_mpanen = :status_scan_mpanen")
     abstract fun getAllScanMPanen(status_scan_mpanen: Int = 0): List<PanenEntity>
 
-    @Query("SELECT * FROM panen_table WHERE status_scan_mpanen = :status_scan_mpanen AND strftime('%Y-%m-%d', date_created) = :date")
+    @Query("SELECT * FROM panen_table WHERE archive_mpanen = :status_scan_mpanen AND strftime('%Y-%m-%d', date_created) = :date")
     abstract fun getAllScanMPanenByDateWithFilter(status_scan_mpanen: Int, date: String): List<PanenEntityWithRelations>
 
-    @Query("SELECT * FROM panen_table WHERE status_scan_mpanen = :status_scan_mpanen")
+    @Query("SELECT * FROM panen_table WHERE archive_mpanen = :status_scan_mpanen")
     abstract fun getAllScanMPanenWithoutDateFilter(status_scan_mpanen: Int): List<PanenEntityWithRelations>
 
     // Then create a wrapper function to handle the logic
-    fun getAllScanMPanenByDate(status_scan_mpanen: Int, date: String? = null): List<PanenEntityWithRelations> {
+    fun getAllScanMPanenByDate(archiveMpanen: Int, date: String? = null): List<PanenEntityWithRelations> {
         return if (date == null) {
-            getAllScanMPanenWithoutDateFilter(status_scan_mpanen)
+            getAllScanMPanenWithoutDateFilter(archiveMpanen)
         } else {
-            getAllScanMPanenByDateWithFilter(status_scan_mpanen, date)
+            getAllScanMPanenByDateWithFilter(archiveMpanen, date)
         }
     }
 

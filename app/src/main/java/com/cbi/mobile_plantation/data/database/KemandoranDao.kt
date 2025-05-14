@@ -36,6 +36,16 @@ abstract class KemandoranDao {
         idKemandoran: List<String>,
     ): List<KemandoranModel>
 
+    @Query(
+        """
+    SELECT * FROM kemandoran 
+    WHERE id = :idKemandoran
+    """
+    )
+    abstract fun getKemandoranByTheId(
+        idKemandoran: Int,
+    ): KemandoranModel
+
     @Query("SELECT COUNT(*) FROM kemandoran")
     abstract suspend fun getCount(): Int
 
