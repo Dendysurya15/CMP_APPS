@@ -585,7 +585,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupSearch()
         setupObservers()
         if (featureName != "Buat eSPB" && featureName != "Detail eSPB") {
-//            setupSpeedDial()
+            setupSpeedDial()
             setupCheckboxControl()  // Add this
         }
         setupCardListeners()
@@ -3745,6 +3745,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun setupSpeedDial() {
         speedDial = findViewById(R.id.dial_tph_list)
+
+        if(featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen){
+            speedDial.visibility = View.GONE
+        }else{
+            speedDial.visibility = View.VISIBLE
+        }
 
         speedDial.apply {
 //            addActionItem(

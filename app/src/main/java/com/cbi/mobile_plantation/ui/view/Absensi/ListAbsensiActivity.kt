@@ -1823,7 +1823,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                         }
                     }
                 } else {
-                    tvEmptyStateAbsensi.text = "No Uploaded e-SPB data available"
+                    tvEmptyStateAbsensi.text = "Tidak ada data kehadiran yang tercatat"
                     tvEmptyStateAbsensi.visibility = View.VISIBLE
                     recyclerView.visibility = View.GONE
                     tglSection.visibility = View.GONE
@@ -1954,7 +1954,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                         }
                     }
                 } else {
-                    tvEmptyStateAbsensi.text = "No Uploaded e-SPB data available"
+                    tvEmptyStateAbsensi.text = "Tidak ada data kehadiran yang tercatat"
                     tvEmptyStateAbsensi.visibility = View.VISIBLE
                     recyclerView.visibility = View.GONE
                     tglSection.visibility = View.GONE

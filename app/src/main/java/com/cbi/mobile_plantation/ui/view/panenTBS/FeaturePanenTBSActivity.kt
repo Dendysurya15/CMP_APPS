@@ -1431,13 +1431,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             setupSpinnerView(layoutPemanenLain, emptyList())
                             AppLogger.d("No present workers found for layoutPemanenLain")
                         }
-
-                        // Show a toast message if no present workers are found
-                        Toast.makeText(
-                            this@FeaturePanenTBSActivity,
-                            "No present workers found for today",
-                            Toast.LENGTH_SHORT
-                        ).show()
                     }
                     delay(100)
 
