@@ -213,15 +213,9 @@ class HomePageActivity : AppCompatActivity() {
             .setTitle("Update - Versi $version")
             .setMessage(
                 """
-            • Perbaikan bug upload foto
-            • Penambahan fitur sortir data Optimasi performa halaman utama Optimasi performa halaman utama
-            • Optimasi performa halaman utama Optimasi performa halaman utama Optimasi performa halaman utama
-            • Tampilan UI diperbarui Optimasi performa halaman utama Optimasi performa halaman utama
-            • Optimasi performa halaman utama Optimasi performa halaman utama Optimasi performa halaman utama
-            • Tampilan UI diperbarui Optimasi performa halaman utama Optimasi performa halaman utama
-            • Penambahan fitur sortir data Optimasi performa halaman utama Optimasi performa halaman utama
-            • Optimasi performa halaman utama Optimasi performa halaman utamaOptimasi performa halaman utama
-            • Tampilan UI diperbarui
+            • Penambahan TPH Induk & TPH Banjir
+            • Penambahan fitur absensi
+            • Penambahan fitur input hektar panen
             """.trimIndent()
             )
             .setPositiveButton("Tutup") { dialog, _ ->
