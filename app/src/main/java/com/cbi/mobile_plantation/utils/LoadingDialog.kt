@@ -112,7 +112,7 @@ class LoadingDialog(context: Context) : Dialog(context) {
                 }
                 gravity = Gravity.CENTER
                 typeface = ResourcesCompat.getFont(context, R.font.manrope_medium)
-                textSize = context.resources.getDimension(R.dimen.m) / context.resources.displayMetrics.density
+                textSize = context.resources.getDimension(R.dimen.l) / context.resources.displayMetrics.density
                 setTextColor(ContextCompat.getColor(context, R.color.white))
 
                 if (showIcon) {

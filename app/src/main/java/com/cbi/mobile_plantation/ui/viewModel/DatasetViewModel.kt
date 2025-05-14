@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.database.KaryawanDao
 
@@ -77,6 +78,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _karyawanStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val karyawanStatus: StateFlow<Result<Boolean>> = _karyawanStatus.asStateFlow()
+
+    private val _jenisTPHStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
+    val jenisTPHStatus: StateFlow<Result<Boolean>> = _jenisTPHStatus.asStateFlow()
 
     private val _blokStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val blokStatus: StateFlow<Result<Boolean>> = _blokStatus.asStateFlow()
@@ -235,6 +239,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
+    fun updateOrInsertJenisTPH(jenisTPH: List<JenisTPHModel>) =
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.updateOrInsertJenisTPH(jenisTPH)
+                _jenisTPHStatus.value = Result.success(true)
+            } catch (e: Exception) {
+                _jenisTPHStatus.value = Result.failure(e)
+            }
+        }
+
     fun InsertTransporter(transporter: List<TransporterModel>) =
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -254,6 +268,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 _kendaraanStatus.value = Result.failure(e)
             }
         }
+
+
 
     fun updateOrInsertTPH(tph: List<TPHNewModel>, isAsistensi: Boolean = false) =
         viewModelScope.launch(Dispatchers.IO) {
@@ -426,7 +442,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         lat = safeGetString("lat"),
                         lon = safeGetString("lon"),
                         update_date = safeGetString("update_date"),
-                        status = safeGetString("status")
+                        status = safeGetString("status"),
+                        jenis_tph_id = safeGetString("jenis_tph_id"),
+                        limit_tph = safeGetString("limit_tph"),
                     )
 
                     // Log the first few items to check conversion
@@ -560,6 +578,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                     AppUtils.DatasetNames.blok -> prefManager.lastModifiedDatasetBlok =
                         lastModifiedTimestamp
+
+                    AppUtils.DatasetNames.jenisTPH -> prefManager.lastModifiedDatasetJenisTPH =
+                        lastModifiedTimestamp
                 }
                 prefManager!!.addDataset(dataset)
             } else {
@@ -594,7 +615,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val message: String
     )
 
-    fun updateLocalUploadCMP(uploadData: List<Pair<String, String>>): Deferred<Boolean> {
+    fun updateLocalUploadCMP(uploadData: List<Pair<String, String>>, jabatan :String): Deferred<Boolean> {
         val result = CompletableDeferred<Boolean>()
 
         viewModelScope.launch {
@@ -610,7 +631,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 // Process each item sequentially
                 uploadData.forEachIndexed { index, (trackingId, filename) ->
                     AppLogger.d("\n--- Processing item ${index + 1}/${uploadData.size} ---")
-                    AppLogger.d("TrackingId: $trackingId, Filename: $filename")
+                    AppLogger.d("TrackingId: $trackingId")
 
                     try {
                         // Get status for this tracking ID
@@ -627,36 +648,29 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             AppLogger.d("Data count: ${statusResponse.data.size}")
                             AppLogger.d("Full response: ${statusResponse}")
 
-                            // Find matching status data for this file
-                            val baseFilename = filename.substringBeforeLast(".json")
-                            AppLogger.d("Base filename (without .json): $baseFilename")
+                            // Since we're not checking filenames anymore, just use the first data item
+                            // Or implement a different logic to choose the right status data
+                            val statusData = statusResponse.data.firstOrNull()
 
-                            val matchingData = statusResponse.data.find {
-                                val match = it.nama_file.contains(baseFilename)
-                                AppLogger.d("Checking file: ${it.nama_file} against $baseFilename - Match: $match")
-                                match
+                            AppLogger.d("\nStatus data result:")
+                            AppLogger.d("Found: ${statusData != null}")
+                            if (statusData != null) {
+                                AppLogger.d("Status: ${statusData.status}")
+                                AppLogger.d("Message: ${statusData.message}")
+                                AppLogger.d("StatusText: ${statusData.statusText}")
                             }
 
-                            AppLogger.d("\nMatching data result:")
-                            AppLogger.d("Found: ${matchingData != null}")
-                            if (matchingData != null) {
-                                AppLogger.d("File: ${matchingData.nama_file}")
-                                AppLogger.d("Status: ${matchingData.status}")
-                                AppLogger.d("Message: ${matchingData.message}")
-                                AppLogger.d("StatusText: ${matchingData.statusText}")
-                            }
-
-                            if (matchingData != null) {
+                            if (statusData != null) {
                                 // Get the status code for database update
-                                val statusCode = matchingData.status
-                                AppLogger.d("Updating database - trackingId=$trackingId, filename=$filename, statusCode=$statusCode")
+                                val statusCode = statusData.status
+                                AppLogger.d("Updating database - trackingId=$trackingId, statusCode=$statusCode")
 
                                 // Update status in the database
-                                uploadCMPDao.updateStatus(trackingId, filename, statusCode)
+                                uploadCMPDao.updateStatus(trackingId, statusCode)
                                 AppLogger.d("Database update completed successfully")
 
                                 // Get table_ids from database
-                                val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(trackingId, filename)
+                                val tableIdsJson = uploadCMPDao.getTableIdsByTrackingId(trackingId)
                                 AppLogger.d("Retrieved table_ids JSON: $tableIdsJson")
 
                                 if (tableIdsJson != null) {
@@ -682,8 +696,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     AppLogger.d("Updated panen_table successfully")
                                                 }
                                                 AppUtils.DatabaseTables.ESPB -> {
-                                                    espbDao.updateStatusUploadEspb(idList, statusCode)
-                                                    AppLogger.d("Updated espb_table successfully")
+                                                    // Conditional update based on jabatan/role
+                                                    when (jabatan) {
+                                                        AppUtils.ListFeatureByRoleUser.Mandor1,
+                                                        AppUtils.ListFeatureByRoleUser.Asisten -> {
+                                                            espbDao.updateStatusUploadEspbCmpSp(idList, statusCode)
+                                                            AppLogger.d("Updated espb_table status_upload_cmp_sp successfully")
+                                                        }
+                                                        AppUtils.ListFeatureByRoleUser.KeraniTimbang -> {
+                                                            espbDao.updateStatusUploadEspbCmpWb(idList, statusCode)
+                                                            AppLogger.d("Updated espb_table status_upload_cmp_wb successfully")
+                                                        }
+                                                    }
                                                 }
                                                 else -> {
                                                     AppLogger.w("Unknown table name: $tableName")
@@ -694,13 +718,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         AppLogger.e("Error parsing table_ids JSON: ${jsonException.message}")
                                         errorItems.add(
                                             ErrorItem(
-                                                fileName = filename,
+                                                fileName = "",  // No filename needed
                                                 message = "Failed to parse table_ids JSON"
                                             )
                                         )
                                     }
                                 } else {
-                                    AppLogger.w("No table_ids found for trackingId: $trackingId, filename: $filename")
+                                    AppLogger.w("No table_ids found for trackingId: $trackingId")
                                 }
 
                                 // Check if this was an error status
@@ -709,25 +733,21 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     AppLogger.d("Error status detected - adding to error items")
                                     errorItems.add(
                                         ErrorItem(
-                                            fileName = filename,
-                                            message = matchingData.message
+                                            fileName = "",  // No filename needed
+                                            message = statusData.message
                                         )
                                     )
-                                    AppLogger.d("Error item added: fileName=$filename, message=${matchingData.message}")
+                                    AppLogger.d("Error item added: message=${statusData.message}")
                                 } else {
                                     AppLogger.d("Status code is OK (< 4)")
                                 }
                             } else {
-                                // No matching data found for this file
-                                AppLogger.e("ERROR: No matching data found for file: $filename")
-                                AppLogger.e("Available files in response:")
-                                statusResponse.data.forEach { data ->
-                                    AppLogger.e("  - ${data.nama_file}")
-                                }
+                                // No status data found
+                                AppLogger.e("ERROR: No status data found for trackingId: $trackingId")
                                 errorItems.add(
                                     ErrorItem(
-                                        fileName = filename,
-                                        message = "No status data found for this file"
+                                        fileName = "",  // No filename needed
+                                        message = "No status data found for this tracking ID"
                                     )
                                 )
                             }
@@ -738,7 +758,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             AppLogger.e("Error body: ${response.errorBody()?.string()}")
                             errorItems.add(
                                 ErrorItem(
-                                    fileName = filename,
+                                    fileName = "",  // No filename needed
                                     message = "Server error: ${response.code()}"
                                 )
                             )
@@ -750,7 +770,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         AppLogger.e("Stack trace: ${e.stackTrace.take(5).joinToString("\n")}")
                         errorItems.add(
                             ErrorItem(
-                                fileName = filename,
+                                fileName = "",  // No filename needed
                                 message = "Network error: ${e.localizedMessage}"
                             )
                         )
@@ -885,7 +905,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         AppUtils.DatasetNames.kemandoran,
                         AppUtils.DatasetNames.tph,
                         AppUtils.DatasetNames.transporter,
-                        AppUtils.DatasetNames.kendaraan
+                        AppUtils.DatasetNames.kendaraan,
+                        AppUtils.DatasetNames.jenisTPH,
                     )
 
                     var modifiedRequest = request
@@ -907,6 +928,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     }
 
                     AppLogger.d("Downloading dataset for ${modifiedRequest.estateAbbr}/ ${modifiedRequest.dataset}")
+
+                    AppLogger.d("modifiedRequest $modifiedRequest")
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
@@ -1144,6 +1167,27 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                         if (lastModified != null) {
                                             prefManager.lastModifiedDatasetKendaraan = lastModified
+                                        }
+
+                                        processed = true
+                                    }
+
+                                    AppUtils.DatasetNames.jenisTPH -> {
+                                        val jenisTPHList = parseStructuredJsonToList(jsonContent, JenisTPHModel::class.java)
+                                        AppLogger.d("Parsed ${jenisTPHList.size} jenis TPH records, starting database update")
+
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                repository.updateOrInsertJenisTPH(jenisTPHList)
+                                                AppLogger.d("Database update completed for kendaraan dataset")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Database update error for kendaraan: ${e.message}")
+                                                throw e
+                                            }
+                                        }
+
+                                        if (lastModified != null) {
+                                            prefManager.lastModifiedDatasetJenisTPH = lastModified
                                         }
 
                                         processed = true
@@ -1591,7 +1635,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     AppUtils.DatasetNames.pemanen,
                     AppUtils.DatasetNames.kemandoran,
                     AppUtils.DatasetNames.tph,
-                    AppUtils.DatasetNames.transporter
+                    AppUtils.DatasetNames.transporter,
+                    AppUtils.DatasetNames.jenisTPH
                 )
                 val datasetName = request.dataset
                 var modifiedRequest = request  // Create a mutable copy of the request
@@ -1610,6 +1655,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         }
                     }
                 }
+
+                AppLogger.d(modifiedRequest.toString())
 
                 try {
                     var response: Response<ResponseBody>? = null
@@ -1798,6 +1845,20 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             response = response,
                                                             updateOperation = ::InsertKendaraan,
                                                             statusFlow = kendaraanStatus,
+                                                            hasShownError = hasShownError,
+                                                            lastModifiedTimestamp = lastModified
+                                                                ?: ""
+                                                        )
+
+                                                    AppUtils.DatasetNames.jenisTPH -> hasShownError =
+                                                        processDataset(
+                                                            jsonContent = jsonContent,
+                                                            dataset = request.dataset,
+                                                            modelClass = JenisTPHModel::class.java,
+                                                            results = results,
+                                                            response = response,
+                                                            updateOperation = ::updateOrInsertJenisTPH,
+                                                            statusFlow = jenisTPHStatus,
                                                             hasShownError = hasShownError,
                                                             lastModifiedTimestamp = lastModified
                                                                 ?: ""
@@ -2316,9 +2377,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 transformedArray.add(transformedObj)
             }
 
-//            AppLogger.d("About to convert array of size: ${transformedArray.size()}")
-
-//            AppLogger.d(transformedArray.toString())
             return gson.fromJson(
                 transformedArray,
                 TypeToken.getParameterized(List::class.java, classType).type

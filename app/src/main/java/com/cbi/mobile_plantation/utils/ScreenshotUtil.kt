@@ -16,14 +16,7 @@ import java.util.Locale
  */
 class ScreenshotUtil {
     companion object {
-        /**
-         * Takes a screenshot of the provided view and saves it to the DCIM directory
-         *
-         * @param view The view to capture in the screenshot
-         * @param fileName The name for the screenshot file (without extension)
-         * @param featureName The feature name to use in the directory path
-         * @return The saved file or null if unsuccessful
-         */
+
         fun takeScreenshot(view: View, fileName: String, featureName: String): File? {
             try {
                 // Create bitmap of the view

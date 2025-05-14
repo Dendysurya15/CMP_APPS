@@ -38,6 +38,11 @@
     <color name="yellowBorder">#FFCC00</color>
     <color name="greenBorder">#6FAF2F</color>
     <color name="blueLightBorder">#7FB0E1</color>
+    <color name="greenlight">#f3ffee</color>
+    <color name="redlight">#f2b1ac</color>
+    <color name="bluelight">#9cd0ff</color>
+    <color name="redborder">#ffaca6</color>
+
 
 
 

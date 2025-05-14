@@ -28,11 +28,19 @@ import com.cbi.mobile_plantation.utils.AppUtils
 )
 data class KemandoranModel(
     @PrimaryKey val id: Int, // Primary key is typically non-null
+    val server: Int?,
     val company: Int?,
+    val company_ppro: Int?,
+    val company_abbr: String?,
+    val company_nama: String?,
     val dept: Int?,
+    val dept_ppro: Int?,
     val dept_abbr: String?,
+    val dept_nama: String?,
     val divisi: Int?,
+    val divisi_ppro: Int?,
     val divisi_abbr: String?,
+    val divisi_nama: String?,
     val kode: String?,
     val nama: String?,
     val type: String?,

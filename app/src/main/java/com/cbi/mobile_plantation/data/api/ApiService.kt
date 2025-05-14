@@ -141,6 +141,14 @@ interface ApiService {
         @Part("filename") filename: RequestBody
     ): Response<UploadV3Response>
 
+    // Add this method to your CMPApiClient interface
+    // Update the API interface to remove the filename parameter
+    @POST("cmpmain/uploadv3")
+    @Headers("Content-Type: application/json")
+    suspend fun uploadJsonV3Raw(
+        @Body jsonData: RequestBody
+    ): Response<UploadV3Response>
+
     @POST("org/fetch-estate")
     @Headers(
         "Accept: application/json",
@@ -184,6 +192,7 @@ interface ApiService {
     suspend fun uploadPhotos(
         @Part photos: List<MultipartBody.Part>,  // Multiple parts
         @Part("datasetType") datasetType: RequestBody,
+        @Part("path") path: RequestBody,
     ): Response<PhotoUploadResponse>
 
 }

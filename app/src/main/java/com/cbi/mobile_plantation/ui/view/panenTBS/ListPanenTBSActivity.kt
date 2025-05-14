@@ -585,7 +585,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupSearch()
         setupObservers()
         if (featureName != "Buat eSPB" && featureName != "Detail eSPB") {
-            setupSpeedDial()
+//            setupSpeedDial()
             setupCheckboxControl()  // Add this
         }
         setupCardListeners()
@@ -1989,7 +1989,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
 
 
-                        AppLogger.d(jsonData.toString())
+                        AppLogger.d("jsonData $jsonData")
                         val encodedData = withContext(Dispatchers.IO) {
                             try {
                                 encodeJsonToBase64ZipQR(jsonData)
@@ -3646,11 +3646,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                 // Create a meaningful filename
                 val screenshotFileName = if (featureName == "Detail eSPB") {
-                    "eSPB_QR_${no_espb.replace("/", "_")}"
+                    "eSPB_QR"
                 } else {
-                    val date =
-                        SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                    "Panen_QR_$date"
+                    "Panen_QR"
                 }
 
                 val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen)

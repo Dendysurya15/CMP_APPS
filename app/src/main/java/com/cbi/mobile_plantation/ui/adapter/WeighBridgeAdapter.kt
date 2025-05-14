@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.ui.adapter
 
 import android.content.Context
+import android.text.TextUtils
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -14,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.utils.AppLogger
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.card.MaterialCardView
@@ -156,9 +158,9 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
             }
         }
 
-        if (item.status_upload_cmp_wb == 1 && item.status_upload_ppro_wb == 1) {
+        if ((item.status_upload_cmp_wb in 1..3) && (item.status_upload_ppro_wb in 1..3)) {
             holder.checkbox.apply {
-//                isChecked = true
+//      isChecked = true
                 isEnabled = false
                 alpha = 0.5f
             }
@@ -201,15 +203,17 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
 
                 // CMP Icon
                 addView(ImageView(context).apply {
+                    val isSuccess = item.status_upload_cmp_wb in 1..3
+
                     setImageResource(
-                        if (item.status_upload_cmp_wb == 1) R.drawable.baseline_check_box_24
+                        if (isSuccess) R.drawable.baseline_check_box_24
                         else R.drawable.baseline_close_24
                     )
                     layoutParams = LinearLayout.LayoutParams(
                         24.dpToPx(context),
                         24.dpToPx(context)
                     )
-                    val color = if (item.status_upload_cmp_wb == 1) {
+                    val color = if (isSuccess) {
                         ContextCompat.getColor(context, R.color.greendarkerbutton)
                     } else {
                         ContextCompat.getColor(context, R.color.colorRedDark)
@@ -270,7 +274,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
         parentView: ViewGroup,
         status: Int,
         uploadedAt: String,
-        uploaded_response:String,
+        uploaded_response: String,
     ) {
         val inflater = LayoutInflater.from(parentView.context)
         val cardView = inflater.inflate(R.layout.layout_status_upload_wb, parentView, false) as MaterialCardView
@@ -294,41 +298,44 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
 
         uploadDate.text = formattedDate
 
-        val statusText = when (status) {
-            1 -> "SUCCESS"
-            0 -> "FAILED"
-            else -> "PENDING"
+        // Use HTTP status codes for proper status display
+        val isSuccess = status in 1..3
+
+        if (isSuccess) {
+            statusAlertMessage.text = "SUCCESS"
+            statusAlertMessage.setTextColor(ContextCompat.getColor(parentView.context, R.color.greendarkerbutton))
+            iconStatusAlertMessage.setImageResource(R.drawable.baseline_check_24)
+        } else {
+            statusAlertMessage.text = "FAILED"
+            statusAlertMessage.setTextColor(ContextCompat.getColor(parentView.context, R.color.colorRedDark))
+            iconStatusAlertMessage.setImageResource(R.drawable.baseline_close_24)
+            iconStatusAlertMessage.setColorFilter(
+                ContextCompat.getColor(parentView.context, R.color.colorRedDark),
+            )
         }
 
-        when (statusText) {
-            "SUCCESS" -> {
-                statusAlertMessage.text = "SUCCESS"
-                statusAlertMessage.setTextColor(ContextCompat.getColor(parentView.context, R.color.greendarkerbutton))
-                iconStatusAlertMessage.setImageResource(R.drawable.baseline_check_24)
-            }
-            "FAILED" -> {
-                statusAlertMessage.text = "FAILED"
-                statusAlertMessage.setTextColor(ContextCompat.getColor(parentView.context, R.color.colorRedDark))
-                iconStatusAlertMessage.setImageResource(R.drawable.baseline_close_24)
-                iconStatusAlertMessage.setColorFilter(
-                    ContextCompat.getColor(parentView.context, R.color.colorRedDark),
-                )
-            }
-            else -> {
-                statusAlertMessage.text = "PENDING"
-                statusAlertMessage.setTextColor(ContextCompat.getColor(parentView.context, R.color.graytextdark))
-                iconStatusAlertMessage.setImageResource(R.drawable.baseline_file_upload_24)
-                iconStatusAlertMessage.setColorFilter(
-                    ContextCompat.getColor(parentView.context, R.color.graytextdark),
-                )
-            }
-        }
+        AppLogger.d("Response message: $uploaded_response")
 
+        // Handle message display logic
         messageResponseUpload.text = when {
-            type == "CMP" && uploaded_response.isNotEmpty() -> "Upload Berhasil"
-            type == "PPRO" && status == 1 -> "Upload Berhasil"
-            else -> uploaded_response
+            // For successful CMP uploads
+            type == "CMP" && isSuccess -> "Upload Berhasil"
+            // For successful PPRO uploads
+            type == "PPRO" && isSuccess -> "Upload Berhasil"
+            // For error messages, make sure to show a readable portion
+            !isSuccess && uploaded_response.isNotEmpty() -> {
+                // Trim very long error messages but keep the important part
+
+                    uploaded_response
+
+            }
+            // Fallback for empty responses
+            else -> if (isSuccess) "Upload Berhasil" else "Upload Gagal"
         }
+
+        // Make sure TextView can display multiple lines for error messages
+        messageResponseUpload.maxLines = if (!isSuccess) 4 else 2
+        messageResponseUpload.ellipsize = TextUtils.TruncateAt.END
 
         parentView.addView(cardView)
     }

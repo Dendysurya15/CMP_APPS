@@ -34,7 +34,7 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table WHERE status_upload = 0")
     abstract fun getAllActiveESPB(): List<ESPBEntity>
 
-    @Query("SELECT * FROM espb_table WHERE dataIsZipped = 0 AND id IN (:ids)")
+    @Query("SELECT * FROM espb_table WHERE  id IN (:ids)")
     abstract fun getActiveESPBByIds(ids: List<Int>): List<ESPBEntity>
 
     @Query("DELETE FROM espb_table WHERE id = :id")
@@ -52,8 +52,11 @@ abstract class ESPBDao {
     @Query("SELECT COUNT(*) FROM espb_table WHERE status_draft = 1 AND scan_status = 0")
     abstract fun getCountDraft(): Int
 
-    @Query("UPDATE espb_table SET status_upload = :status WHERE id IN (:ids)")
-    abstract suspend fun updateStatusUploadEspb(ids: List<Int>, status: Int)
+    @Query("UPDATE espb_table SET status_upload_cmp_sp = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadEspbCmpSp(ids: List<Int>, status: Int)
+
+    @Query("UPDATE espb_table SET status_upload_cmp_wb = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadEspbCmpWb(ids: List<Int>, status: Int)
 
     @Transaction
     open fun updateOrInsert(espb: List<ESPBEntity>) {

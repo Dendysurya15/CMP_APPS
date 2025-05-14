@@ -7,6 +7,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.database.InspectionDao
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionPathModel
@@ -74,8 +75,9 @@ import java.util.concurrent.Executors
         HektarPanenEntity::class,
         EstateModel::class,
         AfdelingModel::class,
+        JenisTPHModel::class
     ],
-    version = 39
+    version = 43
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -95,6 +97,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun estateDao(): EstateDao
     abstract fun afdelingDao(): AfdelingDao
     abstract fun hektarPanenDao(): HektarPanenDao
+    abstract fun jenisTPHDao(): JenisTPHDao
 
     // Function to restore data from backup tables if needed
 //    fun restoreFromBackups() {
@@ -109,7 +112,6 @@ abstract class AppDatabase : RoomDatabase() {
 //            Log.d("Database Restoration", "Successfully restored data from backup tables")
 //        }
 //    }
-
 
 
     companion object {
@@ -144,7 +146,13 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_32_33,
                         MIGRATION_33_34,
                         MIGRATION_34_35,
-                        MIGRATION_35_36
+                        MIGRATION_35_36,
+                        MIGRATION_36_37,
+                        MIGRATION_37_38,
+                        MIGRATION_38_39,
+                        MIGRATION_39_40,
+                        MIGRATION_40_41,
+                        MIGRATION_41_42
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -472,6 +480,118 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE panen ADD COLUMN status_uploaded_image STRING NOT NULL DEFAULT 0")
             }
         }
+
+        val MIGRATION_36_37 = object : Migration(36, 37) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add new column to tph table
+                database.execSQL("ALTER TABLE tph ADD COLUMN jenis_tph_id STRING NOT NULL DEFAULT 1")
+
+                // Create the JenisTPH table
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS " + AppUtils.DatabaseTables.JENIS_TPH + " (" +
+                            "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                            "jenis_tph TEXT, " +
+                            "limit INTEGER, " +
+                            "keterangan TEXT)"
+                )
+            }
+        }
+
+        val MIGRATION_37_38 = object : Migration(33, 34) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+
+                database.execSQL("ALTER TABLE tph ADD COLUMN limit_tph TEXT NOT NULL DEFAULT 1")
+            }
+        }
+
+        val MIGRATION_38_39 = object : Migration(38, 39) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add the new columns to the ABSENSI table
+                database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN karyawan_msk_nik TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN karyawan_tdk_msk_nik TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN karyawan_msk_nama TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN karyawan_tdk_msk_nama TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_39_40 = object : Migration(38, 39) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add the new columns to the ABSENSI table
+                database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN dept TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN dept_abbr TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN divisi TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN divisi_abbr TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_40_41 = object : Migration(40, 41) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE absensi ADD COLUMN status_upload INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_41_42 = object : Migration(41, 42) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Create a temporary table with the correct column types
+                database.execSQL(
+                    """
+            CREATE TABLE kemandoran_temp (
+                id INTEGER PRIMARY KEY,
+                server INTEGER,
+                company INTEGER,
+                company_ppro INTEGER,
+                company_abbr TEXT,
+                company_nama TEXT,
+                dept INTEGER,
+                dept_ppro INTEGER,
+                dept_abbr TEXT,
+                dept_nama TEXT,
+                divisi INTEGER,
+                divisi_ppro INTEGER,
+                divisi_abbr TEXT,
+                divisi_nama TEXT,
+                kode TEXT,
+                nama TEXT,
+                type TEXT,
+                asistensi INTEGER,
+                foto TEXT,
+                komentar TEXT,
+                lat REAL,
+                lon REAL,
+                date_absen TEXT,
+                status_absen TEXT,
+                status INTEGER
+            )
+            """
+                )
+
+                // Copy data from the old table to the temporary table, converting int to string
+                database.execSQL(
+                    """
+            INSERT INTO kemandoran_temp (
+                id, server, company, company_ppro, company_abbr, company_nama,
+                dept, dept_ppro, dept_abbr, dept_nama, divisi, divisi_ppro, 
+                divisi_abbr, divisi_nama, kode, nama, type, asistensi, foto, 
+                komentar, lat, lon, date_absen, status_absen, status
+            )
+            SELECT 
+                id, server, company, company_ppro, 
+                CAST(company_abbr AS TEXT), CAST(company_nama AS TEXT),
+                dept, dept_ppro, dept_abbr, dept_nama, divisi, divisi_ppro,
+                divisi_abbr, divisi_nama, kode, nama, type, asistensi, foto,
+                komentar, lat, lon, date_absen, status_absen, status
+            FROM kemandoran
+            """
+                )
+
+                // Drop the old table
+                database.execSQL("DROP TABLE kemandoran")
+
+                // Rename the temporary table to the original table name
+                database.execSQL("ALTER TABLE kemandoran_temp RENAME TO kemandoran")
+            }
+        }
+
 
         fun closeDatabase() {
             INSTANCE?.close()
