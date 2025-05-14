@@ -996,6 +996,7 @@ class HomePageActivity : AppCompatActivity() {
                                 val panenDeferred =
                                     CompletableDeferred<List<PanenEntityWithRelations>>()
                                 val espbDeferred = CompletableDeferred<List<ESPBEntity>>()
+//                                val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
                                 val zipDeferred = CompletableDeferred<Boolean>()
 
                                 panenViewModel.loadActivePanenESPBAll()
@@ -1017,6 +1018,16 @@ class HomePageActivity : AppCompatActivity() {
                                     ) // Ensure it's never null
                                 }
 
+                                // Load absensi
+//                                absensiViewModel.getAllDataAbsensi(1)
+//                                delay(100)
+//                                absensiViewModel.savedDataAbsensiList.observeOnce(this@HomePageActivity) { list ->
+//                                    Log.d("UploadCheck", "Absensi Data Received: ${list.size}")
+//                                    absensiDeferred.complete(
+//                                        list ?: emptyList()
+//                                    ) // Ensure it's never null
+//                                }
+
 
                                 var unzippedPanenData: List<Map<String, Any>> = emptyList()
                                 var unzippedESPBData: List<Map<String, Any>> = emptyList()
@@ -1029,7 +1040,7 @@ class HomePageActivity : AppCompatActivity() {
                                 try {
                                     val panenList = panenDeferred.await()
                                     val espbList = espbDeferred.await()
-
+//                                    val absensiList = absensiDeferred.await()
 
                                     // Prepare to search for photo files in CMP directories
                                     val picturesDirs = listOf(
@@ -1395,7 +1406,7 @@ class HomePageActivity : AppCompatActivity() {
 
                                     if (espbList.isNotEmpty()) {
                                         val espbDataToUpload = espbList.filter { data ->
-                                            data.status_upload == 0
+                                            data.status_upload_cmp_sp == 0
                                         }
 
                                         if (espbDataToUpload.isNotEmpty()) {
@@ -1637,7 +1648,7 @@ class HomePageActivity : AppCompatActivity() {
                                     it.panen.status_upload == 0
                                 }
                                 val espbToUpload = updatedESPBList.filter {
-                                    it.status_upload == 0
+                                    it.status_upload_cmp_sp == 0
                                 }
 
                                 val hasPhotosToUpload = allPhotos.isNotEmpty()

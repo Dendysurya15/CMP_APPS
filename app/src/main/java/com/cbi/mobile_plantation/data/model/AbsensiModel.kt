@@ -29,4 +29,5 @@ data class AbsensiModel(
     val status_scan: Int = 0,
     val archive: Int,
     val dataIsZipped: Int = 0,
+    val status_upload: Int = 0,
 )

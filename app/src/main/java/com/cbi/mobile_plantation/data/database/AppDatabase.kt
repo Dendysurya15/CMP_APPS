@@ -77,7 +77,7 @@ import java.util.concurrent.Executors
         AfdelingModel::class,
         JenisTPHModel::class
     ],
-    version = 41
+    version = 43
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -151,6 +151,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_37_38,
                         MIGRATION_38_39,
                         MIGRATION_39_40,
+                        MIGRATION_40_41,
+                        MIGRATION_41_42
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -519,6 +521,74 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN dept_abbr TEXT NOT NULL DEFAULT ''")
                 database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN divisi TEXT NOT NULL DEFAULT ''")
                 database.execSQL("ALTER TABLE ${AppUtils.DatabaseTables.ABSENSI} ADD COLUMN divisi_abbr TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_40_41 = object : Migration(40, 41) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE absensi ADD COLUMN status_upload INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_41_42 = object : Migration(41, 42) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Create a temporary table with the correct column types
+                database.execSQL(
+                    """
+            CREATE TABLE kemandoran_temp (
+                id INTEGER PRIMARY KEY,
+                server INTEGER,
+                company INTEGER,
+                company_ppro INTEGER,
+                company_abbr TEXT,
+                company_nama TEXT,
+                dept INTEGER,
+                dept_ppro INTEGER,
+                dept_abbr TEXT,
+                dept_nama TEXT,
+                divisi INTEGER,
+                divisi_ppro INTEGER,
+                divisi_abbr TEXT,
+                divisi_nama TEXT,
+                kode TEXT,
+                nama TEXT,
+                type TEXT,
+                asistensi INTEGER,
+                foto TEXT,
+                komentar TEXT,
+                lat REAL,
+                lon REAL,
+                date_absen TEXT,
+                status_absen TEXT,
+                status INTEGER
+            )
+            """
+                )
+
+                // Copy data from the old table to the temporary table, converting int to string
+                database.execSQL(
+                    """
+            INSERT INTO kemandoran_temp (
+                id, server, company, company_ppro, company_abbr, company_nama,
+                dept, dept_ppro, dept_abbr, dept_nama, divisi, divisi_ppro, 
+                divisi_abbr, divisi_nama, kode, nama, type, asistensi, foto, 
+                komentar, lat, lon, date_absen, status_absen, status
+            )
+            SELECT 
+                id, server, company, company_ppro, 
+                CAST(company_abbr AS TEXT), CAST(company_nama AS TEXT),
+                dept, dept_ppro, dept_abbr, dept_nama, divisi, divisi_ppro,
+                divisi_abbr, divisi_nama, kode, nama, type, asistensi, foto,
+                komentar, lat, lon, date_absen, status_absen, status
+            FROM kemandoran
+            """
+                )
+
+                // Drop the old table
+                database.execSQL("DROP TABLE kemandoran")
+
+                // Rename the temporary table to the original table name
+                database.execSQL("ALTER TABLE kemandoran_temp RENAME TO kemandoran")
             }
         }
 
