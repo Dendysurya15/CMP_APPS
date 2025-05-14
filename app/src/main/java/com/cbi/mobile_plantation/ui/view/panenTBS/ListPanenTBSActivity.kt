@@ -507,7 +507,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             ""
         }
 
-//        Log.d("listTPHDriver", listTPHDriver.toString())
+        Log.d("listTPHDriver", listTPHDriver.toString())
 
         prefManager = PrefManager(this)
         userName = prefManager!!.nameUserLogin
@@ -546,6 +546,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 e.printStackTrace()
                 ""
             }
+
+            AppLogger.d(currentScanTphIds)
 
             // If we have previous scan data stored in tph1, extract TPH IDs
             val previousScanTphIds = if (tph1.isNotEmpty()) {

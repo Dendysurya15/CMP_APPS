@@ -68,7 +68,7 @@ class ListTPHInsideRadiusAdapter(
         return ViewHolder(view)
     }
 
-    @SuppressLint("SetTextI18s", "NotifyDataSetChanged")
+    @SuppressLint("SetTextI18s", "NotifyDataSetChanged", "SetTextI18n")
     override fun onBindViewHolder(holder: ViewHolder, @SuppressLint("RecyclerView") position: Int) {
         // Get the TPH item for this position
         val tphItem = tphList[position]

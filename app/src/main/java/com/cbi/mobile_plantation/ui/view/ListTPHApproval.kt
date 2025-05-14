@@ -445,6 +445,8 @@ class ListTPHApproval : AppCompatActivity() {
                 withContext(Dispatchers.IO) {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
 
+
+                    AppLogger.d(jsonStr.toString())
                     jsonStr?.let {
                         data = parseTphData(it)
                         withContext(Dispatchers.Main) {

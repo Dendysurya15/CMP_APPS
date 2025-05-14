@@ -573,7 +573,8 @@ class HomePageActivity : AppCompatActivity() {
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen }
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 ).filterNotNull()
 
                 AppUtils.ListFeatureByRoleUser.KeraniTimbang -> listOfNotNull(
@@ -590,7 +591,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
+                            features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
 
                 AppUtils.ListFeatureByRoleUser.Asisten -> listOfNotNull(
@@ -602,7 +603,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
                 )
 
                 AppUtils.ListFeatureByRoleUser.MandorPanen -> listOfNotNull(
@@ -612,7 +613,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
+
                 )
 
                 AppUtils.ListFeatureByRoleUser.IT -> features
@@ -1696,13 +1698,16 @@ class HomePageActivity : AppCompatActivity() {
                                                         "luasan_panen" to totalLuasanPanen,
                                                         "jumlah_pemanen" to distinctPemanen,
                                                         "created_name" to "",
-                                                        "created_by" to (firstItem.created_by ?: ""),
-                                                        "created_date" to (firstItem.date_created ?: ""),
+                                                        "created_by" to (firstItem.created_by
+                                                            ?: ""),
+                                                        "created_date" to (firstItem.date_created
+                                                            ?: ""),
                                                     )
                                                 }
 
                                             // Process data for HEKTARAN_DETAIL
-                                            val hektarPanenDetailData = mutableListOf<Map<String, Any>>()
+                                            val hektarPanenDetailData =
+                                                mutableListOf<Map<String, Any>>()
 
                                             for (data in hektarPanenToUpload) {
                                                 // Split TPH IDs
@@ -1717,11 +1722,13 @@ class HomePageActivity : AppCompatActivity() {
                                                 val ripeList = data.ripe_arr.split(";")
                                                 val kirimList = data.kirim_pabrik_arr.split(";")
                                                 val dibayarList = data.dibayar_arr.split(";")
-                                                val dateCreatedPanenList = data.date_created_panen.split(";")
+                                                val dateCreatedPanenList =
+                                                    data.date_created_panen.split(";")
 
                                                 // Get the kemandoran_ppro by fetching from the database
                                                 // Since we need this to be synchronous within our loop, we'll use a CompletableDeferred
-                                                val kemandoranDeferred = CompletableDeferred<List<KemandoranModel>>()
+                                                val kemandoranDeferred =
+                                                    CompletableDeferred<List<KemandoranModel>>()
 
                                                 // Create a list containing just this kemandoran ID
                                                 val kemandoranIds = listOf(data.kemandoran_id ?: "")
@@ -1731,8 +1738,13 @@ class HomePageActivity : AppCompatActivity() {
                                                     // Launch a coroutine to fetch the data
                                                     lifecycleScope.launch(Dispatchers.IO) {
                                                         try {
-                                                            val kemandoranList = absensiViewModel.getKemandoranById(kemandoranIds)
-                                                            kemandoranDeferred.complete(kemandoranList)
+                                                            val kemandoranList =
+                                                                absensiViewModel.getKemandoranById(
+                                                                    kemandoranIds
+                                                                )
+                                                            kemandoranDeferred.complete(
+                                                                kemandoranList
+                                                            )
                                                         } catch (e: Exception) {
                                                             AppLogger.e("Error fetching kemandoran data: ${e.message}")
                                                             kemandoranDeferred.complete(emptyList())
@@ -1752,17 +1764,19 @@ class HomePageActivity : AppCompatActivity() {
                                                 }
 
                                                 // Extract the kemandoran_ppro from the result
-                                                val kemandoranPpro = if (kemandoranList.isNotEmpty()) {
-                                                    kemandoranList.first().kemandoran_ppro ?: ""
-                                                } else {
-                                                    ""
-                                                }
+                                                val kemandoranPpro =
+                                                    if (kemandoranList.isNotEmpty()) {
+                                                        kemandoranList.first().kemandoran_ppro ?: ""
+                                                    } else {
+                                                        ""
+                                                    }
 
-                                                val kemandoranKode = if (kemandoranList.isNotEmpty()) {
-                                                    kemandoranList.first().kode ?: ""
-                                                } else {
-                                                    ""
-                                                }
+                                                val kemandoranKode =
+                                                    if (kemandoranList.isNotEmpty()) {
+                                                        kemandoranList.first().kode ?: ""
+                                                    } else {
+                                                        ""
+                                                    }
 
                                                 // Calculate how many entries we need to create (based on the length of tphIdsList)
                                                 val entryCount = tphIdsList.size
@@ -1773,29 +1787,42 @@ class HomePageActivity : AppCompatActivity() {
                                                         val tphId = tphIdsList[i]
 
                                                         // Get corresponding JJG values, default to "0" if index out of bounds
-                                                        val jjgPanen = if (i < totalJjgList.size) totalJjgList[i] else "0"
-                                                        val jjgMentah = if (i < unripeList.size) unripeList[i] else "0"
-                                                        val jjgLewatMasak = if (i < overripeList.size) overripeList[i] else "0"
-                                                        val jjgKosong = if (i < emptyBunchList.size) emptyBunchList[i] else "0"
-                                                        val jjgAbnormal = if (i < abnormalList.size) abnormalList[i] else "0"
-                                                        val jjgMasak = if (i < ripeList.size) ripeList[i] else "0"
-                                                        val jjgKirim = if (i < kirimList.size) kirimList[i] else "0"
-                                                        val jjgBayar = if (i < dibayarList.size) dibayarList[i] else "0"
+                                                        val jjgPanen =
+                                                            if (i < totalJjgList.size) totalJjgList[i] else "0"
+                                                        val jjgMentah =
+                                                            if (i < unripeList.size) unripeList[i] else "0"
+                                                        val jjgLewatMasak =
+                                                            if (i < overripeList.size) overripeList[i] else "0"
+                                                        val jjgKosong =
+                                                            if (i < emptyBunchList.size) emptyBunchList[i] else "0"
+                                                        val jjgAbnormal =
+                                                            if (i < abnormalList.size) abnormalList[i] else "0"
+                                                        val jjgMasak =
+                                                            if (i < ripeList.size) ripeList[i] else "0"
+                                                        val jjgKirim =
+                                                            if (i < kirimList.size) kirimList[i] else "0"
+                                                        val jjgBayar =
+                                                            if (i < dibayarList.size) dibayarList[i] else "0"
 
                                                         // Get corresponding date_created value, use a default if out of bounds
-                                                        val dateCreated = if (i < dateCreatedPanenList.size) dateCreatedPanenList[i] else data.date_created
+                                                        val dateCreated =
+                                                            if (i < dateCreatedPanenList.size) dateCreatedPanenList[i] else data.date_created
 
                                                         // Create an entry for this combination
                                                         hektarPanenDetailData.add(
                                                             mapOf<String, Any>(
                                                                 "tipe" to "",
-                                                                "blok" to (data.blok ?: 0), // Foreign key to hektaran
-                                                                "kemandoran_id" to (data.kemandoran_id ?: ""),
-                                                                "kemandoran_nama" to (data.kemandoran_nama ?: ""),
+                                                                "blok" to (data.blok
+                                                                    ?: 0), // Foreign key to hektaran
+                                                                "kemandoran_id" to (data.kemandoran_id
+                                                                    ?: ""),
+                                                                "kemandoran_nama" to (data.kemandoran_nama
+                                                                    ?: ""),
                                                                 "kemandoran_ppro" to kemandoranPpro, // Add the kemandoran_ppro we fetched
                                                                 "kemandoran_kode" to kemandoranKode, // Add the kemandoran_ppro we fetched
                                                                 "pemanen_nik" to (data.nik ?: ""),
-                                                                "pemanen_nama" to (data.pemanen_nama ?: ""),
+                                                                "pemanen_nama" to (data.pemanen_nama
+                                                                    ?: ""),
                                                                 "tph" to tphId,
                                                                 "ancak" to "",
                                                                 "jjg_panen" to jjgPanen,
