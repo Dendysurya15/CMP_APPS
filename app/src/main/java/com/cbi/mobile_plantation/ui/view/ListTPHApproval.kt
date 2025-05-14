@@ -19,8 +19,6 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.constraintlayout.widget.ConstraintSet
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -723,14 +721,15 @@ class ListTPHApproval : AppCompatActivity() {
                                 jjg = jjg.toString(),
                                 username = usernameString
                             )
-
                             // 2. Create separate PanenEntity for each NIK
-                            val kPpA = parts[5].toInt() + parts[7].toInt() + parts[8].toInt()
+                            val kP = parts[4].toInt() + parts[5].toInt() + parts[7].toInt() + parts[8].toInt()
+                            val pA = parts[5].toInt() + parts[7].toInt() + parts[8].toInt()
+
                             val panenEntity = PanenEntity(
                                 tph_id = idtph.toString(),
                                 date_created = fullDateTime,
                                 karyawan_nik = nik,
-                                jjg_json = "{\"TO\":$jjg,\"UN\":${parts[4]},\"OV\":${parts[5]},\"EM\":${parts[6]},\"AB\":${parts[7]},\"RI\":${parts[8]},\"KP\":$kPpA,\"PA\":$kPpA}",
+                                jjg_json = "{\"TO\":$jjg,\"UN\":${parts[4]},\"OV\":${parts[5]},\"EM\":${parts[6]},\"AB\":${parts[7]},\"RI\":${parts[8]},\"KP\":$kP,\"PA\":$pA}",
                                 foto = "NULL",
                                 komentar = "NULL",
                                 asistensi = 0,
@@ -774,5 +773,4 @@ class ListTPHApproval : AppCompatActivity() {
         data class TPHData(val data: TphRvData) : SaveDataType()
         data class PanenData(val data: PanenEntity) : SaveDataType()
     }
-
 }
