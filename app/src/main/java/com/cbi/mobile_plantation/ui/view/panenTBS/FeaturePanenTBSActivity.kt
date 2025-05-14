@@ -1164,7 +1164,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             AppLogger.d("No valid selection could be made - invalid index or empty list")
         }
 
-
         selectedTPH = ""
         selectedTPHValue = null
 
