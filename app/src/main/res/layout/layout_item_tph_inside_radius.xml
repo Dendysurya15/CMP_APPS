@@ -13,30 +13,47 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:orientation="horizontal"
-        android:weightSum="2"
         android:layout_gravity="center_vertical"
-        android:layout_height="match_parent">
+        android:gravity="center_vertical"
+        android:layout_height="wrap_content">
 
-        <TextView
-            android:id="@+id/tphInfoTextView"
-            android:layout_width="match_parent"
-            android:textColor="@color/black"
+        <LinearLayout
+            android:layout_width="0dp"
+            android:orientation="vertical"
             android:layout_weight="1"
-            android:layout_gravity="center_vertical"
-            android:layout_height="wrap_content"
-            android:text="TPH 13 - 39483 (24m diluar radius)"
-            android:fontFamily="@font/manrope_bold"
-            android:textSize="@dimen/m" />
+            android:gravity="center_vertical"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/tphInfoTextView"
+                android:layout_width="match_parent"
+                android:textColor="@color/black"
+                android:layout_height="wrap_content"
+                android:text="TPH 13 - 39483"
+                android:fontFamily="@font/manrope_bold"
+
+                android:textSize="@dimen/m" />
+
+            <TextView
+                android:id="@+id/jenisTPHName"
+                android:layout_width="match_parent"
+                android:textColor="@color/black"
+                android:text="askdjfkads"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/manrope_bold"
+                android:textSize="@dimen/m" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tphHasBeenSelected"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_weight="1"
             android:textColor="@color/greendarkerbutton"
             android:visibility="visible"
             android:text="TPH sudah terpilih"
             android:gravity="center_vertical"
             android:layout_height="match_parent"
+            android:layout_marginStart="8dp"
             android:fontFamily="@font/manrope_bold"
             android:textSize="@dimen/m" />
     </LinearLayout>

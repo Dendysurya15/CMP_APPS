@@ -16,7 +16,7 @@
     <dimen name="m">15sp</dimen>
     <dimen name="l">19sp</dimen>
     <dimen name="xl">23sp</dimen>
-    <dimen name="xxl">27sp</dimen>
+    <dimen name="xxl">29sp</dimen>
     <dimen name="large_size">50sp</dimen>
 
 </resources>

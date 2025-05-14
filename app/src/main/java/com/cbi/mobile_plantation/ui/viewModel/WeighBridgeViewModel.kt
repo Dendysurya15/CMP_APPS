@@ -64,10 +64,10 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     private val _activeESPBByIds = MutableLiveData<List<ESPBEntity>>()
     val activeESPBByIds: LiveData<List<ESPBEntity>> = _activeESPBByIds
 
-    fun updateStatusUploadEspb(ids: List<Int>, status: Int) {
+    fun updateStatusUploadEspbCmpSp(ids: List<Int>, status: Int) {
         viewModelScope.launch {
             try {
-                repository.updateStatusUploadEspb(ids, status)
+                repository.updateStatusUploadEspbCmpSp(ids, status)
                 _updateStatus.postValue(true)
             } catch (e: Exception) {
                 _updateStatus.postValue(false)

@@ -3,10 +3,11 @@ package com.cbi.mobile_plantation.data.model.weighBridge
 import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 
-data class wbQRData(
+ data class wbQRData(
     @SerializedName("espb") val espb: wbESPBData,
     @SerializedName("tph_0") val tph0: String?,
-    @SerializedName("tph_1") val tph1: String?
+    @SerializedName("tph_1") val tph1: String?,
+    @SerializedName("tgl") val tgl: Map<String, String>?
 )
 
 data class wbESPBData(
@@ -21,6 +22,6 @@ data class wbESPBData(
     @SerializedName("created_by_id") val createdById: Int,
     @SerializedName("no_espb") val noEspb: String,
     @SerializedName("created_at") val createdAt: String,
-    @SerializedName("update_info_sp") val update_info_sp: String,
     @SerializedName("creator_info") val creatorInfo: JsonElement,
+    @SerializedName("update_info_sp") val update_info_sp: String?
 )

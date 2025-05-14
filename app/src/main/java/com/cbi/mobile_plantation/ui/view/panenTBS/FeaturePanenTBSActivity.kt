@@ -106,6 +106,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.transition.Visibility
+import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.EstateModel
@@ -216,7 +217,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var selectedPemanenLainAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
     private lateinit var rvSelectedPemanenLain: RecyclerView
-
+    private var selectedTPHJenisId: Int? = null
     enum class InputType {
         SPINNER,
         EDITTEXT,
@@ -255,8 +256,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     var persenAbnormal = 0f
     var persenJjgKosong = 0f
     var persenMasak = 0f
-    private var hasShownErrorDialog = false  // Add this property
-    private lateinit var adapter: DownloadProgressDatasetAdapter
     private lateinit var jjg_json: String
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private lateinit var datasetViewModel: DatasetViewModel
@@ -267,8 +266,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var userName: String? = null
     private var userId: Int? = null
     private var jabatanUser: String? = null
-    private var afdelingUser: String? = null
-    private var panenStoredLocal: MutableMap<Int, Int> = mutableMapOf()
+    // This should be defined at the class level
+    private data class TPHData(val count: Int, val jenisTPHId: Int, val limitTPH: String? = null)
+    private var panenStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
     private var isEmptyScannedTPH = true
@@ -293,7 +293,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private val autoScanInterval = 5000L // 5 seconds
     private lateinit var switchAutoScan: SwitchMaterial
     private lateinit var layoutAutoScan: LinearLayout
-
+    private var jenisTPHListGlobal: List<JenisTPHModel> = emptyList()
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -375,17 +375,46 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                     withContext(Dispatchers.Main) {
                         panenViewModel.activePanenList.observe(this@FeaturePanenTBSActivity) { list ->
-                            val tphCounts = list?.mapNotNull { it.tph?.id }
-                                ?.groupingBy { it }
-                                ?.eachCount()
-                                ?: emptyMap()
+                            val tphDataMap = mutableMapOf<Int, TPHData>()
+
+                            list?.forEach { panen ->
+                                val tphId = panen.tph?.id
+                                val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
+                                val limitTPH = panen.tph?.limit_tph  // Extract limit_tph directly from panen.tph
+
+                                if (tphId != null && jenisTPHId != null) {
+                                    val existingData = tphDataMap[tphId]
+                                    if (existingData != null) {
+                                        // Increment the count for existing TPH
+                                        tphDataMap[tphId] = existingData.copy(count = existingData.count + 1)
+                                    } else {
+                                        // Create new entry for this TPH with the limit_tph
+                                        tphDataMap[tphId] = TPHData(count = 1, jenisTPHId = jenisTPHId, limitTPH = limitTPH!!)
+                                    }
+                                }
+                            }
 
                             panenStoredLocal.clear()
-                            panenStoredLocal.putAll(tphCounts)
+                            panenStoredLocal.putAll(tphDataMap)
 
                             panenDeferred.complete(list ?: emptyList())
                         }
                     }
+
+
+                    val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
+
+                    panenViewModel.getAllJenisTPH()
+                    delay(100)
+
+                    withContext(Dispatchers.Main) {
+                        panenViewModel.jenisTPHList.observe(this@FeaturePanenTBSActivity) { list ->
+                            jenisTPHListGlobal = list ?: emptyList()
+                            jenisTPHDeferred.complete(list ?: emptyList())
+                        }
+                    }
+
+                    AppLogger.d("jenisTPHlistGlobal $jenisTPHListGlobal")
 
                     val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
 
@@ -752,13 +781,24 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             "success.json",
                                             R.color.greenDefault
                                         ) {
-
                                             val tphId = selectedTPHValue!!.toInt()
-                                            val currentCount = panenStoredLocal[tphId] ?: 0
-                                            panenStoredLocal[tphId] = currentCount + 1
+                                            val tphData = panenStoredLocal[tphId]
+
+                                            if (tphData != null) {
+                                                // Update existing entry, maintain the same jenisTPHId and limitTPH
+                                                panenStoredLocal[tphId] = tphData.copy(count = tphData.count + 1)
+                                            } else {
+                                                // Create new entry
+                                                val jenisTPHId = selectedTPHJenisId ?: 0
+
+                                                val limitTPH = tphList.find { it.id == tphId }?.limit_tph
+                                                panenStoredLocal[tphId] = TPHData(count = 1, jenisTPHId = jenisTPHId, limitTPH = limitTPH)
+                                            }
+
                                             resetFormAfterSaveData()
                                         }
                                     }
+
 
                                     is AppRepository.SaveResultPanen.Error -> {
                                         AlertDialogUtility.withSingleAction(
@@ -1003,29 +1043,42 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
 
         setupSpinnerView(blokLayout, blokNames)
-
         val blokSpinner = blokLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
 
-        var newBlokPosition = blokNames.indexOf(selectedBlok)
+// Log current state for debugging
+        AppLogger.d("Current selectedBlokIdSpinner: $selectedBlokIdSpinner, selectedBlok: $selectedBlok")
+        AppLogger.d("Available blokNames size: ${blokNames.size}")
 
-        if (newBlokPosition < 0) {
-            newBlokPosition = selectedBlokIdSpinner
+// CHANGED: Prioritize using the position directly if it's valid
+        var targetPosition = if (selectedBlokIdSpinner >= 0 && selectedBlokIdSpinner < blokNames.size) {
+            selectedBlokIdSpinner
+        } else {
+            // Fall back to finding by value if position is invalid
+            blokNames.indexOf(selectedBlok)
         }
 
-        val safeBlokPosition = when {
-            newBlokPosition < 0 -> 0  // Default to first item if negative
-            newBlokPosition >= blokNames.size -> 0  // Default to first if beyond list bounds
-            else -> newBlokPosition  // Use the calculated position if it's valid
+// If we still don't have a valid position, default to 0 if we have items
+        if (targetPosition < 0) {
+            targetPosition = if (blokNames.isNotEmpty()) 0 else -1
+            AppLogger.d("Defaulting to position: $targetPosition")
         }
 
-// Set the selection
-        blokSpinner.setSelectedIndex(safeBlokPosition)
+// Only proceed if we have a valid position
+        if (targetPosition >= 0 && blokNames.isNotEmpty()) {
+            // Set the spinner selection
+            blokSpinner.setSelectedIndex(targetPosition)
 
-        if (safeBlokPosition >= 0 && safeBlokPosition < blokNames.size) {
-            val selectedItem = blokNames[safeBlokPosition]
-            selectedBlokIdSpinner = safeBlokPosition
+            // Update tracking variables
+            val selectedItem = blokNames[targetPosition]
+            selectedBlokIdSpinner = targetPosition
             selectedBlok = selectedItem
-            handleItemSelection(blokLayout, safeBlokPosition, selectedItem)
+
+            AppLogger.d("Setting blok selection to position: $targetPosition, value: $selectedItem")
+
+            // Handle the selection
+            handleItemSelection(blokLayout, targetPosition, selectedItem)
+        } else {
+            AppLogger.d("No valid selection could be made for blok spinner")
         }
 
 
@@ -1231,14 +1284,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 handleItemSelection(tipePanenLayout, tipePanenPosition, selectedItem)
             }
         }
-
-//        setupSpinnerView(findViewById(R.id.layoutNoTPH), emptyList())
-//        setupSpinnerView(findViewById(R.id.layoutKemandoranLain), emptyList())
-
-//        blokList = emptyList()
-//        kemandoranList = emptyList()
-//        kemandoranLainList = emptyList()
-//        tphList = emptyList()
 
         val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
         etAncak.setText("")
@@ -2378,13 +2423,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private fun checkScannedTPHInsideRadius() {
         if (lat != null && lon != null) {
             val tphList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
+
+            AppLogger.d("jenisTPHListGlobal $jenisTPHListGlobal")
             if (tphList.isNotEmpty() || selectedTPHIdByScan != null) {
                 isEmptyScannedTPH = false
                 tphScannedResultRecyclerView.visibility = View.VISIBLE
                 titleScannedTPHInsideRadius.visibility = View.VISIBLE
                 descScannedTPHInsideRadius.visibility = View.VISIBLE
                 emptyScannedTPHInsideRadius.visibility = View.GONE
-                tphScannedResultRecyclerView.adapter = ListTPHInsideRadiusAdapter(tphList, this)
+                tphScannedResultRecyclerView.adapter = ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal)
+
 
                 val itemHeight = 50
                 val maxHeight = 250
@@ -2628,10 +2676,46 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             Location.distanceBetween(userLat, userLon, location.lat, location.lon, results)
             val distance = results[0]
 
-            // Get selection data from panenStoredLocal
-            val selectedCount = panenStoredLocal[id] ?: 0
+            val jenisTPHId = location.jenisTPHId.toInt()
+
+            val tphData = panenStoredLocal[id]
+            val selectedCount = tphData?.count ?: 0
             val isSelected = selectedCount > 0
             val isCurrentlySelected = id == selectedTPHIdByScan
+
+            // Get the default limit from jenisTPHListGlobal
+            val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+
+            // Calculate the final limit to use
+            val limit = if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
+                // Special case for jenis_tph = induk (id = 2)
+                try {
+                    val customLimit = tphData?.limitTPH?.toInt()
+
+                    AppLogger.d("customLimit $customLimit")
+                    if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                        // Use the custom limit if it's greater than 3 and up to 999
+                        customLimit
+                    } else {
+                        // Otherwise, use the default limit (7)
+                        defaultLimit
+                    }
+                } catch (e: Exception) {
+                    defaultLimit
+                }
+            } else {
+                // For other jenis_tph_id values
+                try {
+                    val customLimit = tphData?.limitTPH?.toInt()
+                    if (customLimit != null) {
+                        customLimit
+                    } else {
+                        defaultLimit
+                    }
+                } catch (e: Exception) {
+                    defaultLimit
+                }
+            }
 
             // Include if within radius OR is the currently selected TPH
             if (distance <= radiusMinimum || isCurrentlySelected) {
@@ -2643,8 +2727,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         distance = distance,
                         isAlreadySelected = isSelected,
                         selectionCount = selectedCount,
-                        canBeSelectedAgain = selectedCount < AppUtils.MAX_SELECTIONS_PER_TPH,
+                        canBeSelectedAgain = selectedCount < limit,
                         isWithinRange = distance <= radiusMinimum,
+                        jenisTPHId = jenisTPHId.toString(),
+                        customLimit = limit.toString()
                     )
                 )
 
@@ -2653,9 +2739,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 }
             }
         }
-
-        // If we have a currently selected TPH (selectedTPHIdByScan) but it wasn't found in coordinates,
-        // we don't add a placeholder - just let the empty state handle it
 
         return resultsList.sortedBy { it.distance }
     }
@@ -3374,16 +3457,55 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         if (selectedTPHValue != null && blokBanjir == 1) {
             val tphId = selectedTPHValue!!.toInt()
-            val currentCount = panenStoredLocal[tphId] ?: 0
-            if (currentCount > AppUtils.MAX_SELECTIONS_PER_TPH - 1) {
+            val tphData = panenStoredLocal[tphId]
+            val currentCount = tphData?.count ?: 0
+            val jenisTPHId = selectedTPHJenisId ?: 0
+
+            // Get the default limit from jenisTPHListGlobal
+            val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+
+            // Calculate the final limit to use
+            val limitValue = if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
+                // Special case for jenis_tph = induk (id = 2)
+                // First check if limitTPH exists and can be converted to an Int
+                val customLimit = try {
+                    tphData?.limitTPH?.toInt()
+                } catch (e: Exception) {
+                    null
+                }
+
+                // Use the custom limit if it's valid and within range
+                if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                    customLimit
+                } else {
+                    // Otherwise, use the default limit (7)
+                    defaultLimit // This should be 7 for jenisTPHId = 2
+                }
+            } else {
+                // For other jenis_tph_id values
+                try {
+                    // Try to get the custom limit first
+                    val customLimit = tphData?.limitTPH?.toInt()
+                    if (customLimit != null) {
+                        customLimit
+                    } else {
+                        defaultLimit
+                    }
+                } catch (e: Exception) {
+                    // If conversion fails, use the default
+                    defaultLimit
+                }
+            }
+
+            // Now use the properly converted Int value for comparison
+            if (currentCount >= limitValue) {
                 isValid = false
                 val layoutNoTPH = findViewById<LinearLayout>(R.id.layoutNoTPH)
                 layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
-                    text =
-                        "TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!"
+                    text = "TPH sudah terpilih $currentCount dari $limitValue kali, Harap ganti nomor TPH!"
                     visibility = View.VISIBLE
                 }
-                errorMessages.add("TPH sudah terpilih ${AppUtils.MAX_SELECTIONS_PER_TPH} kali, Harap ganti nomor TPH!")
+                errorMessages.add("TPH sudah terpilih $currentCount dari $limitValue kali, Harap ganti nomor TPH!")
             }
         }
 
@@ -3615,9 +3737,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             val lon = it.lon?.toDoubleOrNull()
                                             val nomor = it.nomor ?: ""
                                             val blokKode = it.blok_kode ?: ""
+                                            val jenisTPHId = it.jenis_tph_id ?: "1" // Get jenis_tph_id with default "1"
 
                                             if (id != null && lat != null && lon != null) {
-                                                id to ScannedTPHLocation(lat, lon, nomor, blokKode)
+                                                id to ScannedTPHLocation(lat, lon, nomor, blokKode, jenisTPHId)
                                             } else {
                                                 null
                                             }
@@ -3689,7 +3812,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
             R.id.layoutTahunTanam -> {
-                resetTPHSpinner(linearLayout.rootView)
+//                resetTPHSpinner(linearLayout.rootView)
                 val selectedTahunTanam = selectedItem.toString()
                 selectedTahunTanamValue = selectedTahunTanam
                 selectedTahunTanamIdSpinner = position
@@ -3807,6 +3930,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     return
                 }
 
+                // In the handleItemSelection for R.id.layoutBlok
                 lifecycleScope.launch(Dispatchers.IO) {
                     withContext(Dispatchers.Main) {
                         animateLoadingDots(linearLayout)
@@ -3814,6 +3938,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     }
 
                     try {
+                        // Log all parameters to ensure they're not null
+                        AppLogger.d("Loading TPHs with params: estateId=$estateId, selectedDivisiValue=$selectedDivisiValue, selectedTahunTanamValue=$selectedTahunTanamValue, selectedBlokValue=$selectedBlokValue")
+
                         if (estateId == null || selectedDivisiValue == null || selectedTahunTanamValue == null || selectedBlokValue == null) {
                             throw IllegalStateException("One or more required parameters are null!")
                         }
@@ -3826,6 +3953,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                     estateId!!.toInt()
                                 }
 
+                            AppLogger.d("Getting TPH list with: estateId=$estateIdToUse, divisi=$selectedDivisiValue, tahunTanam=$selectedTahunTanamValue, blok=$selectedBlokValue")
                             datasetViewModel.getTPHList(
                                 estateIdToUse,
                                 selectedDivisiValue!!,
@@ -3835,33 +3963,88 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
 
                         tphList = tphDeferred.await() ?: emptyList() // Avoid null crash
+                        AppLogger.d("Retrieved tphList size: ${tphList.size}")
 
-                        val noTPHList = tphList.map { tph ->
-                            val selectionCount = panenStoredLocal[tph.id] ?: 0
+                        val normalTphList = tphList.filter { tph ->
+                            // Convert jenis_tph_id to Int, defaulting to 0 if null or not a valid integer
+                            val jenisId = tph.jenis_tph_id?.toIntOrNull() ?: 0
+
+                            // Only include TPH with jenis_tph_id = 1 (normal)
+                            jenisId == 1
+                        }
+                        AppLogger.d("Filtered normalTphList size: ${normalTphList.size}")
+                        AppLogger.d("panenStoredLocal contents: ")
+                        panenStoredLocal.forEach { (tphId, data) ->
+                            AppLogger.d("TPH ID: $tphId, Count: ${data.count}, JenisTPHId: ${data.jenisTPHId}")
+                        }
+                        val noTPHList = normalTphList.map { tph ->
+                            val tphData = panenStoredLocal[tph.id]
+                            val selectionCount = tphData?.count ?: 0
+                            val jenisTPHId = tph.jenis_tph_id?.toIntOrNull() ?: 0
+
+                            // Get the default limit from jenisTPHListGlobal
+                            val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+
+                            // Calculate the final limit to use
+                            val limit = if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
+                                // Special case for jenis_tph = induk (id = 2)
+                                try {
+                                    val customLimit = tphData?.limitTPH?.toInt()
+                                    if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                                        // Use the custom limit if it's greater than 3 and up to 999
+                                        customLimit
+                                    } else {
+                                        // Otherwise, use the default limit (7)
+                                        defaultLimit
+                                    }
+                                } catch (e: Exception) {
+                                    defaultLimit
+                                }
+                            } else {
+                                // For other jenis_tph_id values
+                                try {
+                                    val customLimit = tphData?.limitTPH?.toInt()
+                                    if (customLimit != null) {
+                                        customLimit
+                                    } else {
+                                        defaultLimit
+                                    }
+                                } catch (e: Exception) {
+                                    defaultLimit
+                                }
+                            }
+
+                            AppLogger.d("TPH ${tph.id} (${tph.nomor}): selectionCount=$selectionCount, jenisTPHId=$jenisTPHId, limit=$limit")
+
                             when (selectionCount) {
                                 0 -> tph.nomor
-                                1 -> "${tph.nomor} (sudah terpilih 1 kali)"
-                                else -> "${tph.nomor} (sudah terpilih ${selectionCount} kali)"
+                                else -> "${tph.nomor} (sudah terpilih ${selectionCount} dari ${limit} kali)"
                             }
                         }
-
-
+                        AppLogger.d("Created noTPHList size: ${noTPHList.size}")
+                        AppLogger.d(noTPHList.toString())
                         withContext(Dispatchers.Main) {
                             val layoutNoTPH =
                                 linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
 
+                            AppLogger.d("Setting up TPH spinner with ${noTPHList.size} items")
                             if (noTPHList.isNotEmpty()) {
+
+
                                 setupSpinnerView(layoutNoTPH, noTPHList as List<String>)
+                                AppLogger.d("TPH spinner populated with ${noTPHList.size} items")
                             } else {
                                 setupSpinnerView(layoutNoTPH, emptyList())
+                                AppLogger.d("TPH spinner populated with empty list")
                             }
                         }
                     } catch (e: Exception) {
-                        AppLogger.e("Error fetching afdeling data: ${e.message}")
+                        AppLogger.e("Error fetching TPH data: ${e.message}")
+                        AppLogger.e("Stack trace: ${e.stackTraceToString()}")
                         withContext(Dispatchers.Main) {
                             Toast.makeText(
                                 this@FeaturePanenTBSActivity,
-                                "Error loading afdeling data: ${e.message}",
+                                "Error loading TPH data: ${e.message}",
                                 Toast.LENGTH_LONG
                             ).show()
                         }
@@ -4377,7 +4560,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
         takeFotoPreviewAdapter = TakeFotoPreviewAdapter(
-            3,
+            5,
             cameraViewModel,
             this,
             AppUtils.WaterMarkFotoDanFolder.WMPanenTPH

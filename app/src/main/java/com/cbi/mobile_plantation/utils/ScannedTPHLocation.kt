@@ -4,5 +4,6 @@ data class ScannedTPHLocation(
     val lat: Double,
     val lon: Double,
     val nomor: String,
-    val blokKode: String
+    val blokKode: String,
+    val jenisTPHId: String = "1"
 )

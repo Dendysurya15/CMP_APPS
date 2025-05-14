@@ -436,10 +436,12 @@ class CameraRepository(
                                             val dirDCIM = File(rootDCIM)
                                             if (!dirDCIM.exists()) dirDCIM.mkdirs()
 
-                                            val dateFormat =
-                                                SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
-                                            fileName =
-                                                "${featureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_${dateFormat}.jpg"
+                                            val dateTimeFormat = SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
+
+                                            val cleanFeatureName = featureName!!.replace(" ", "_")
+
+                                            // Create filename
+                                            fileName = "${cleanFeatureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_${dateTimeFormat}.jpg"
                                             file = File(dirApp, fileName)
 
                                             fileDCIM = File(dirDCIM, fileName)
@@ -472,7 +474,7 @@ class CameraRepository(
                                         commentWm = commentWm?.replace("|", ",")?.replace("\n", "")
                                         commentWm = AppUtils.splitStringWatermark(commentWm!!, 60)
 
-                                        // Build the location string if coordinates are available
+// Build the location string if coordinates are available
                                         val locationText =
                                             if (latitude != null && longitude != null) {
                                                 "Lat: $latitude, Lon: $longitude"
@@ -480,22 +482,25 @@ class CameraRepository(
                                                 ""
                                             }
 
-                                        val watermarkText = when {
-                                            resultCode == "0" || commentWm.isEmpty() -> {
-                                                if (locationText.isNotEmpty()) {
-                                                    "CMP-$featureName ${prefManager!!.estateUserLogin}\n$locationText\n${dateWM}"
-                                                } else {
-                                                    "CMP-$featureName ${prefManager!!.estateUserLogin}\n${dateWM}"
-                                                }
-                                            }
-                                            else -> {
-                                                if (locationText.isNotEmpty()) {
-                                                    "CMP-$featureName ${prefManager!!.estateUserLogin}\n$locationText\n${commentWm}\n${dateWM}"
-                                                } else {
-                                                    "CMP-$featureName ${prefManager!!.estateUserLogin}\n${commentWm}\n${dateWM}"
-                                                }
-                                            }
+// Create user info line with estate and jabatan
+                                        val userInfo = "${prefManager!!.estateUserLogin} - ${prefManager!!.nameUserLogin}"
+
+// Line 1: Always "CMP-$featureName"
+// Line 2: Always user info
+// Line 3: Conditional - location, comment, or both (or placeholder "-" if none)
+// Line 4: Always date
+                                        val line3 = when {
+                                            locationText.isNotEmpty() && (resultCode != "0" && commentWm.isNotEmpty()) ->
+                                                "$locationText - $commentWm"
+                                            locationText.isNotEmpty() ->
+                                                locationText
+                                            resultCode != "0" && commentWm.isNotEmpty() ->
+                                                commentWm
+                                            else ->
+                                                "-"  // Placeholder when no location or comment
                                         }
+
+                                        val watermarkText = "CMP-$featureName\n$userInfo\n$line3\n$dateWM"
 
                                         val watermarkedBitmap =
                                             addWatermark(takenImage, watermarkText)

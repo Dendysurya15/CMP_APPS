@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
@@ -10,6 +11,7 @@ import com.cbi.mobile_plantation.data.model.uploadCMP.UploadResults
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.network.CMPApiClient
+import com.cbi.mobile_plantation.data.network.StagingApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
@@ -28,6 +30,7 @@ import okio.BufferedSink
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
 
 
 sealed class SaveResultNewUploadDataCMP {
@@ -40,13 +43,14 @@ class UploadCMPRepository(context: Context) {
     private val database = AppDatabase.getDatabase(context)
     private val uploadCMPDao = database.uploadCMPDao()
     private val panenDao = database.panenDao()
+    private val espbDao = database.espbDao()
 
 
     suspend fun UpdateOrInsertDataUpload(data: UploadCMPModel) {
         val existingCount = uploadCMPDao.getTrackingIdCount(data.tracking_id!!,data.nama_file!!)
 
         if (existingCount > 0) {
-            uploadCMPDao.updateStatus(data.tracking_id,data.nama_file!!,  data.status!!)
+            uploadCMPDao.updateStatus(data.tracking_id,  data.status!!)
         } else {
             uploadCMPDao.insertNewData(data)
         }
@@ -254,11 +258,14 @@ class UploadCMPRepository(context: Context) {
         }
     }
 
+    data class ImageFileInfo(val file: File, val imageName: String, val tableId: String, val basePath: String)
+
     suspend fun uploadJsonToServerV3(
         jsonFilePath: String,
         filename: String,
         data: String,
         type: String,
+        tableIds: String? = null,
         onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
     ): Result<UploadV3Response> {
         return try {
@@ -296,7 +303,7 @@ class UploadCMPRepository(context: Context) {
 //                        }
 
                         // Validate all files exist first
-                        val validImageFiles = mutableListOf<Triple<File, String, String>>()
+                        val validImageFiles = mutableListOf<ImageFileInfo>()
                         val failedFiles = mutableListOf<String>()
 
                         AppLogger.d("====== CHECKING FILE EXISTENCE ======")
@@ -305,12 +312,14 @@ class UploadCMPRepository(context: Context) {
                             val imagePath = imageData["path"] ?: ""
                             val imageName = imageData["name"] ?: ""
                             val tableId = imageData["table_ids"]?.toIntOrNull() ?: -1
-
+                            val basePathImage = imageData["base_path"]
                             AppLogger.d("Checking file ${index + 1}/${imageList.size}: $imageName - Table ID: $tableId")
 
                             val file = File(imagePath)
                             if (file.exists()) {
-                                validImageFiles.add(Triple(file, imageName, tableId.toString()))
+                                validImageFiles.add(ImageFileInfo(file, imageName, tableId.toString(),
+                                    basePathImage!!
+                                ))
                                 AppLogger.d("✓ File exists: $imageName")
                             } else {
                                 failedFiles.add(imageName)
@@ -353,52 +362,54 @@ class UploadCMPRepository(context: Context) {
                         val failedImagePaths = mutableListOf<String>()
                         val failedImageNames = mutableListOf<String>()
 
-                        validImageFiles.forEachIndexed { index, (file, imageName, tableId) ->
+                        validImageFiles.forEachIndexed { index, fileInfo  ->
                             AppLogger.d("====== UPLOADING IMAGE ${index + 1}/${validImageFiles.size} ======")
-                            AppLogger.d("Image name: $imageName")
-                            AppLogger.d("Image path: ${file.absolutePath}")
-                            AppLogger.d("File size: ${file.length()} bytes")
-                            AppLogger.d("Table ID: $tableId")
+                            AppLogger.d("Image name: ${fileInfo.imageName}")
+                            AppLogger.d("Image path: ${fileInfo.file.absolutePath}")
+                            AppLogger.d("File size: ${fileInfo.file.length()} bytes")
+                            AppLogger.d("Table ID: ${fileInfo.tableId}")
 
 //                            withContext(Dispatchers.Main) {
 //                                onProgressUpdate(currentProgress, false, "Uploading ${imageName} (${index + 1}/${validImageFiles.size})")
 //                            }
 
                             try {
-                                // TEST: Force error for second image (PANEN TPH_2_2025505_143611.jpg)
-                                if (imageName.contains("_2_") && imageName.contains("143611")) {
-                                    AppLogger.d("TEST ERROR: Forcing error for second image...")
-                                    throw Exception("Simulated error for testing - second image failed to upload")
-                                }
+
 
                                 // Create the multipart data for single image
                                 val photoRequestBody = RequestBody.create(
                                     "image/*".toMediaTypeOrNull(),
-                                    file
+                                    fileInfo.file
                                 )
-                                val photoPart = MultipartBody.Part.createFormData("photos", imageName, photoRequestBody)
+                                val photoPart = MultipartBody.Part.createFormData("photos", fileInfo.imageName, photoRequestBody)
 
                                 val datasetTypeRequestBody = RequestBody.create(
                                     "text/plain".toMediaTypeOrNull(),
-                                    "panen_table"
+                                    AppUtils.DatabaseTables.PANEN,
+                                )
+
+                                val basePathRequestBody = RequestBody.create(
+                                    "text/plain".toMediaTypeOrNull(),
+                                    fileInfo.basePath,
                                 )
 
                                 // Make the API call for single image
                                 val response = CMPApiClient.instance.uploadPhotos(
-                                    photos = listOf(photoPart),  // Send as single-item list
-                                    datasetType = datasetTypeRequestBody
+                                    photos = listOf(photoPart),
+                                    datasetType = datasetTypeRequestBody,
+                                    path = basePathRequestBody
                                 )
 
                                 AppLogger.d("====== RESPONSE FOR IMAGE ${index + 1} ======")
                                 AppLogger.d("Response successful: ${response.isSuccessful}")
                                 AppLogger.d("Response code: ${response.code()}")
 
-                                val tableIdInt = tableId.toIntOrNull() ?: -1
+                                val tableIdInt = fileInfo.tableId.toIntOrNull() ?: -1
 
                                 if (response.isSuccessful) {
                                     val responseBody = response.body()
                                     if (responseBody != null) {
-                                        AppLogger.d("Success uploading: $imageName")
+                                        AppLogger.d("Success uploading: ${fileInfo.imageName}")
                                         AppLogger.d("Response: ${responseBody.message}")
 
                                         // Add result to our list
@@ -420,14 +431,14 @@ class UploadCMPRepository(context: Context) {
 //                                            onProgressUpdate(currentProgress, false, "✓ ${imageName} uploaded successfully")
 //                                        }
                                     } else {
-                                        AppLogger.e("Null response body for: $imageName")
+                                        AppLogger.e("Null response body for: ${fileInfo.imageName}")
                                         failureCount++
 
                                         // Update status with error
                                         if (tableIdInt != -1) {
                                             val errorJson = JsonObject().apply {
                                                 add("error", JsonArray().apply {
-                                                    add(imageName)
+                                                    add(fileInfo.imageName)
                                                 })
                                             }.toString()
                                             panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
@@ -441,14 +452,14 @@ class UploadCMPRepository(context: Context) {
                                     }
                                 } else {
                                     val errorBody = response.errorBody()?.string()
-                                    AppLogger.e("Failed to upload: $imageName - Code: ${response.code()}, Error: $errorBody")
+                                    AppLogger.e("Failed to upload: ${fileInfo.imageName} - Code: ${response.code()}, Error: $errorBody")
                                     failureCount++
 
                                     // Update status with error code
                                     if (tableIdInt != -1) {
                                         val errorJson = JsonObject().apply {
                                             add("error", JsonArray().apply {
-                                                add(imageName)
+                                                add(fileInfo.imageName)
                                             })
                                         }.toString()
                                         panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
@@ -457,22 +468,22 @@ class UploadCMPRepository(context: Context) {
 
                                     currentProgress += progressPerImage
                                     withContext(Dispatchers.Main) {
-                                        onProgressUpdate(currentProgress, false, "✗ ${imageName} failed - ${response.code()}")
+                                        onProgressUpdate(currentProgress, false, "✗ ${fileInfo.imageName} failed - ${response.code()}")
                                     }
 
-                                    failedImagePaths.add(file.absolutePath)
-                                    failedImageNames.add(imageName)
+                                    failedImagePaths.add(fileInfo.file.absolutePath)
+                                    failedImageNames.add(fileInfo.imageName)
                                 }
                             } catch (e: Exception) {
-                                AppLogger.e("Exception uploading $imageName: ${e.message}")
+                                AppLogger.e("Exception uploading${fileInfo.imageName}: ${e.message}")
                                 failureCount++
 
                                 // Update status with exception
-                                val tableIdInt = tableId.toIntOrNull() ?: -1
+                                val tableIdInt = fileInfo.tableId.toIntOrNull() ?: -1
                                 if (tableIdInt != -1) {
                                     val errorJson = JsonObject().apply {
                                         add("error", JsonArray().apply {
-                                            add(imageName)
+                                            add(fileInfo.imageName)
                                         })
                                     }.toString()
                                     panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
@@ -481,10 +492,10 @@ class UploadCMPRepository(context: Context) {
 
                                 currentProgress += progressPerImage
                                 withContext(Dispatchers.Main) {
-                                    onProgressUpdate(currentProgress, false, "✗ ${imageName} error - ${e.message}")
+                                    onProgressUpdate(currentProgress, false, "✗ ${fileInfo.imageName} error - ${e.message}")
                                 }
-                                failedImagePaths.add(file.absolutePath)
-                                failedImageNames.add(imageName)
+                                failedImagePaths.add(fileInfo.file.absolutePath)
+                                failedImageNames.add(fileInfo.imageName)
                             }
                         }
 
@@ -501,7 +512,6 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("Uploaded files: ${uploadResults.size}")
                         AppLogger.d("isSuccess: $isSuccess")
 
-// This should be called only once
                         withContext(Dispatchers.Main) {
                             onProgressUpdate(100, isSuccess, if (isSuccess) null else finalMessage)
                         }
@@ -530,15 +540,43 @@ class UploadCMPRepository(context: Context) {
                         }
                         Result.failure(Exception(errorMsg))
                     }
-                } else {
-                    // Original JSON upload logic for non-image types
-                    AppLogger.d("Starting JSON file upload for file: $jsonFilePath")
+                }
+                else if (type == AppUtils.DatabaseServer.CMP) {
+
+                    val dataMap = if (data.isNotEmpty()) {
+                        try {
+                            Gson().fromJson(data, Map::class.java)
+                        } catch (e: Exception) {
+                            AppLogger.e("Error parsing data JSON: ${e.message}")
+                            null
+                        }
+                    } else {
+                        null
+                    }
+
+                    // Extract the espb_json field which contains the actual data to upload
+                    val espbJson = dataMap?.get("espb_json")?.toString() ?: ""
+
+
+
+                    val espbIds = (dataMap?.get("espb_ids") as? List<*>)?.mapNotNull {
+                        (it as? Double)?.toInt() ?: (it as? Int)
+                    } ?: emptyList()
+
+                    // Extract the additional parameters
+                    val uploaderInfo = dataMap?.get("uploader_info")?.toString() ?: ""
+                    val uploadedAt = dataMap?.get("uploaded_at")?.toString() ?: ""
+                    val uploadedById = when (val id = dataMap?.get("uploaded_by_id")) {
+                        is Double -> id.toInt()
+                        is Int -> id
+                        else -> 0
+                    }
+
 
                     try {
-                        // Check if file exists
-                        val file = File(jsonFilePath)
-                        if (!file.exists()) {
-                            val errorMsg = "JSON file not found: $jsonFilePath"
+                        // Check if JSON data is empty
+                        if (espbJson.isBlank()) {
+                            val errorMsg = "JSON data is empty for $filename"
                             AppLogger.e(errorMsg)
                             withContext(Dispatchers.Main) {
                                 onProgressUpdate(100, false, errorMsg)
@@ -546,36 +584,587 @@ class UploadCMPRepository(context: Context) {
                             return@withContext Result.failure(Exception(errorMsg))
                         }
 
-                        // Create the file part
-                        val fileRequestBody = RequestBody.create(
+// Create the request body from the JSON string
+                        val jsonRequestBody = RequestBody.create(
                             "application/json".toMediaTypeOrNull(),
-                            file
+                            espbJson
                         )
-                        val filePart = MultipartBody.Part.createFormData("jsonFile", filename, fileRequestBody)
 
-                        // Create the filename part
-                        val filenameRequestBody = RequestBody.create(
-                            "text/plain".toMediaTypeOrNull(),
-                            filename
+                        withContext(Dispatchers.Main) {
+                            onProgressUpdate(50, false, null)
+                        }
+
+                        AppLogger.d("CMP: Making API call to upload JSON file")
+                        val response = CMPApiClient.instance.uploadJsonV3Raw(
+                            jsonData = jsonRequestBody
+                        )
+
+                        val responseBody = response.body()
+                        val httpStatusCode = response.code()
+
+                        AppLogger.d("CMP: Response received, HTTP code: $httpStatusCode")
+
+                        if (response.isSuccessful && responseBody != null) {
+                            AppLogger.d("CMP: Upload successful, response: $responseBody")
+
+                            // Check if the status is between 1 and 3 (inclusive)
+                            val isStatusValid = responseBody.status in 1..3
+                            val resultMessage = if (isStatusValid) {
+                                "Success Uploading to CMP"
+                            } else {
+                                "Upload completed but with invalid status: ${responseBody.status}. Message: ${responseBody.message ?: "No message"}"
+                            }
+
+                            AppLogger.d("CMP: Status check - isStatusValid: $isStatusValid, status: ${responseBody.status}, message: $resultMessage")
+
+                            // Update local database with response data
+                            responseBody.let {
+                                // Create table name mapping for database update
+                                val jsonResultTableIds = createJsonTableNameMapping(espbIds)
+
+                                // Create upload model for database
+                                val uploadData = UploadCMPModel(
+                                    tracking_id = it.trackingId.toString(),
+                                    nama_file = it.nama_file,
+                                    status = it.status,
+                                    tanggal_upload = it.tanggal_upload,
+                                    table_ids = jsonResultTableIds
+                                )
+
+                                // Update or insert into database
+                                withContext(Dispatchers.IO) {
+                                    val existingCount = uploadCMPDao.getTrackingIdCount(
+                                        uploadData.tracking_id!!,
+                                        uploadData.nama_file!!
+                                    )
+
+                                    if (existingCount > 0) {
+                                        uploadCMPDao.updateStatus(
+                                            uploadData.tracking_id,
+                                            uploadData.status!!
+                                        )
+                                    } else {
+                                        uploadCMPDao.insertNewData(uploadData)
+                                    }
+                                }
+
+                                delay(100) // Small delay before next operation
+
+                                // Update status for all related ESPB IDs
+                                for (id in espbIds) {
+                                    try {
+                                        withContext(Dispatchers.IO) {
+                                            updateUploadStatusCMP(
+                                                id,
+                                                responseBody.status,
+                                                uploaderInfo,
+                                                uploadedAt,
+                                                uploadedById,
+                                                resultMessage
+                                            )
+                                        }
+                                        AppLogger.d("ESPB table dengan id $id has been updated with status message: $resultMessage")
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                                    }
+                                }
+                            }
+
+                            // Report progress based on the status check
+                            withContext(Dispatchers.Main) {
+                                onProgressUpdate(
+                                    100,
+                                    isStatusValid,
+                                    if (!isStatusValid) responseBody.message else null
+                                )
+                            }
+
+                            return@withContext Result.success(responseBody)
+                        }else {
+                            // Get error details
+                            val errorBodyString = response.errorBody()?.string() ?: "No error body"
+                            val errorMsg = "JSON upload failed: HTTP $httpStatusCode - ${response.message()}"
+                            AppLogger.e("CMP: Error: $errorMsg")
+                            AppLogger.e("CMP: Error response body: $errorBodyString")
+
+                            // Update status for all related ESPB IDs with error
+                            for (id in espbIds) {
+                                try {
+                                    withContext(Dispatchers.IO) {
+                                        updateUploadStatusCMP(
+                                            id,
+                                            responseBody?.status ?: 0,
+                                            uploaderInfo,
+                                            uploadedAt,
+                                            uploadedById,
+                                            "${errorMsg.take(1000)}..."
+                                        )
+                                    }
+                                    AppLogger.d("ESPB table dengan id $id has been updated with error status")
+                                } catch (e: Exception) {
+                                    AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                                }
+                            }
+
+                            // Report 100% progress with error
+                            withContext(Dispatchers.Main) {
+                                onProgressUpdate(100, false, errorMsg)
+                            }
+
+                            // Create error response
+                            val errorResponse = UploadV3Response(
+                                success = false,
+                                trackingId = 0,
+                                message = errorMsg,
+                                status = responseBody?.status ?: 0,
+                                tanggal_upload = "",
+                                nama_file = filename,
+                                results = null,
+                                type = AppUtils.DatabaseServer.CMP,
+                                imageFullPath = emptyList(),
+                                imageName = emptyList()
+                            )
+
+                            return@withContext Result.success(errorResponse)
+                        }
+                    } catch (e: Exception) {
+                        val exceptionType = e.javaClass.simpleName
+                        val errorMsg = "CMP upload error: [$exceptionType] ${e.message ?: "Unknown error"}"
+                        AppLogger.e(errorMsg)
+                        AppLogger.e("Stack trace: ${Log.getStackTraceString(e)}")
+
+                        // Update status for all related ESPB IDs with exception error
+                        for (id in espbIds) {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    updateUploadStatusCMP(
+                                        id,
+                                        0,
+                                        uploaderInfo,
+                                        uploadedAt,
+                                        uploadedById,
+                                        "${errorMsg.take(1000)}..."
+                                    )
+                                }
+                                AppLogger.d("ESPB table dengan id $id has been updated with exception error")
+                            } catch (e: Exception) {
+                                AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                            }
+                        }
+
+                        // Report 100% progress with error
+                        withContext(Dispatchers.Main) {
+                            onProgressUpdate(100, false, errorMsg)
+                        }
+
+                        val errorResponse = UploadV3Response(
+                            success = false,
+                            trackingId = 0,
+                            message = errorMsg,
+                            status = 0,
+                            tanggal_upload = "",
+                            nama_file = filename,
+                            results = null,
+                            type = AppUtils.DatabaseServer.CMP,
+                            imageFullPath = emptyList(),
+                            imageName = emptyList()
+                        )
+
+                        return@withContext Result.success(errorResponse)
+                    }
+                }
+                else if (type == AppUtils.DatabaseServer.PPRO) {
+                    // Handle PPRO upload
+                    try {
+                        AppLogger.d("PPRO: Processing data payload")
+
+                        // Parse the JSON data
+                        val jsonData = Gson().fromJson(data, Map::class.java)
+                        AppLogger.d("PPRO: Parsed JSON data")
+
+                        // Extract the item ID for database update
+                        val itemId = (jsonData["id"] as? Double)?.toInt() ?: (jsonData["id"] as? Int) ?: 0
+                        val ipMill = (jsonData["ip"] as? Double)?.toInt() ?: (jsonData["ip"] as? Int) ?: 0
+
+                        // Extract the uploader info for database update
+                        val uploaderInfo = jsonData["uploader_info"]?.toString() ?: ""
+                        val uploadedAt = jsonData["uploaded_at"]?.toString() ?: ""
+                        val uploadedById = when (val id = jsonData["uploaded_by_id"]) {
+                            is Double -> id.toInt()
+                            is Int -> id
+                            else -> 0
+                        }
+
+                        AppLogger.d("PPRO: Item ID: $itemId")
+                        AppLogger.d("PPRO: Uploader info: $uploaderInfo")
+                        AppLogger.d("PPRO: Uploaded at: $uploadedAt")
+                        AppLogger.d("PPRO: Uploaded by ID: $uploadedById")
+
+                        // Safe update of progress on main thread
+                        withContext(Dispatchers.Main) {
+                            onProgressUpdate(10, false, null)
+                        }
+
+                        // Extract data for API call
+                        val apiData = try {
+                            val result = ApiService.dataUploadEspbKraniTimbangPPRO(
+                                dept_ppro = (jsonData["dept_ppro"] ?: "0").toString(),
+                                divisi_ppro = (jsonData["divisi_ppro"] ?: "0").toString(),
+                                commodity = (jsonData["commodity"] ?: "2").toString(),
+                                blok_jjg = (jsonData["blok_jjg"] ?: "").toString(),
+                                nopol = (jsonData["nopol"] ?: "").toString(),
+                                driver = (jsonData["driver"] ?: "").toString(),
+                                pemuat_id = (jsonData["pemuat_id"] ?: "").toString(),
+                                transporter_id = (jsonData["transporter_id"] ?: "0").toString(),
+                                mill_id = (jsonData["mill_id"] ?: "0").toString(),
+                                created_by_id = (jsonData["created_by_id"] ?: "0").toString(),
+                                created_at = (jsonData["created_at"] ?: "").toString(),
+                                no_espb = (jsonData["no_espb"] ?: "").toString()
+                            )
+                            AppLogger.d("PPRO: Data prepared successfully")
+                            result
+                        } catch (e: Exception) {
+                            val errorMsg = "Data error: ${e.message}"
+                            AppLogger.e("PPRO: Data preparation error - $errorMsg")
+
+                            // Update database with error
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    updateUploadStatusPPRO(
+                                        itemId,
+                                        0,
+                                        uploaderInfo,
+                                        uploadedAt,
+                                        uploadedById,
+                                        "${errorMsg.take(1000)}..."
+                                    )
+                                }
+                                AppLogger.d("PPRO: Item ID $itemId has been updated with data preparation error")
+                            } catch (e: Exception) {
+                                AppLogger.e("PPRO: Failed to update database for Item ID: $itemId - ${e.message}")
+                            }
+
+                            // Safe update of progress on main thread
+                            withContext(Dispatchers.Main) {
+                                onProgressUpdate(100, false, errorMsg)
+                            }
+
+                            val errorResponse = UploadV3Response(
+                                success = false,
+                                trackingId = 0,
+                                message = errorMsg,
+                                status = 0,
+                                tanggal_upload = "",
+                                nama_file = filename,
+                                results = null,
+                                type = AppUtils.DatabaseServer.PPRO,
+                                imageFullPath = emptyList(),
+                                imageName = emptyList()
+                            )
+
+                            return@withContext Result.success(errorResponse)
+                        }
+
+                        AppLogger.d("PPRO: Data prepared: $apiData")
+
+                        // Safe update of progress on main thread
+                        withContext(Dispatchers.Main) {
+                            onProgressUpdate(50, false, null)
+                        }
+
+                        try {
+                            AppLogger.d("PPRO: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
+                            StagingApiClient.updateBaseUrl("http://$ipMill:3000")
+
+                            val response = StagingApiClient.instance.insertESPBKraniTimbangPPRO(apiData)
+                            AppLogger.d("PPRO: API call completed, isSuccessful=${response.isSuccessful}, code=${response.code()}")
+
+                            if (response.isSuccessful) {
+                                val responseBody = response.body()
+                                AppLogger.d("PPRO: Response body received, status=${responseBody?.status}")
+
+                                if (responseBody != null && responseBody.status == 1) {
+                                    AppLogger.d("PPRO: Upload successful")
+
+                                    // Update database with success
+                                    try {
+                                        withContext(Dispatchers.IO) {
+                                            updateUploadStatusPPRO(
+                                                itemId,
+                                                1,
+                                                uploaderInfo,
+                                                uploadedAt,
+                                                uploadedById,
+                                                "Success Uploading to PPRO"
+                                            )
+                                        }
+                                        AppLogger.d("PPRO: Item ID $itemId has been updated with success status")
+                                    } catch (e: Exception) {
+                                        AppLogger.e("PPRO: Failed to update database for Item ID: $itemId - ${e.message}")
+                                    }
+
+                                    // Safe update of progress on main thread
+                                    withContext(Dispatchers.Main) {
+                                        onProgressUpdate(100, true, null)
+                                    }
+
+                                    val successResponse = UploadV3Response(
+                                        success = true,
+                                        trackingId = 0,
+                                        message = "Upload successful",
+                                        status = responseBody.status,
+                                        tanggal_upload = "",
+                                        nama_file = filename,
+                                        results = null,
+                                        type = AppUtils.DatabaseServer.PPRO,
+                                        imageFullPath = emptyList(),
+                                        imageName = emptyList()
+                                    )
+
+                                    return@withContext Result.success(successResponse)
+                                } else {
+                                    // Extract error message
+                                    val rawErrorMessage = responseBody?.message?.toString() ?: "No message provided"
+                                    val extractedMessage = if (rawErrorMessage.contains("message=")) {
+                                        try {
+                                            // Extract the actual error message
+                                            val startIndex = rawErrorMessage.indexOf("message=") + "message=".length
+                                            val endIndex = rawErrorMessage.indexOf(",", startIndex).takeIf { it > 0 }
+                                                ?: rawErrorMessage.indexOf(".", startIndex).takeIf { it > 0 }
+                                                ?: rawErrorMessage.length
+
+                                            rawErrorMessage.substring(startIndex, endIndex).trim()
+                                        } catch (e: Exception) {
+                                            "API Error: ${rawErrorMessage.take(100)}"
+                                        }
+                                    } else {
+                                        "API Error: ${rawErrorMessage.take(100)}"
+                                    }
+
+                                    AppLogger.e("PPRO: API Error - $extractedMessage")
+
+                                    // Update database with error
+                                    try {
+                                        withContext(Dispatchers.IO) {
+                                            updateUploadStatusPPRO(
+                                                itemId,
+                                                0,
+                                                uploaderInfo,
+                                                uploadedAt,
+                                                uploadedById,
+                                                "${extractedMessage.take(1000)}..."
+                                            )
+                                        }
+                                        AppLogger.d("PPRO: Item ID $itemId has been updated with API error")
+                                    } catch (e: Exception) {
+                                        AppLogger.e("PPRO: Failed to update database for Item ID: $itemId - ${e.message}")
+                                    }
+
+                                    // Safe update of progress on main thread
+                                    withContext(Dispatchers.Main) {
+                                        onProgressUpdate(100, false, extractedMessage)
+                                    }
+
+                                    val errorResponse = UploadV3Response(
+                                        success = false,
+                                        trackingId = 0,
+                                        message = extractedMessage,
+                                        status = 0,
+                                        tanggal_upload = "",
+                                        nama_file = filename,
+                                        results = null,
+                                        type = AppUtils.DatabaseServer.PPRO,
+                                        imageFullPath = emptyList(),
+                                        imageName = emptyList()
+                                    )
+
+                                    return@withContext Result.success(errorResponse)
+                                }
+                            } else {
+                                val errorMessage = response.errorBody()?.string() ?: "Server error: ${response.code()}"
+                                AppLogger.e("PPRO: Server Error - $errorMessage")
+
+                                // Update database with error
+                                try {
+                                    withContext(Dispatchers.IO) {
+                                        updateUploadStatusPPRO(
+                                            itemId,
+                                            0,
+                                            uploaderInfo,
+                                            uploadedAt,
+                                            uploadedById,
+                                            "${errorMessage.take(1000)}..."
+                                        )
+                                    }
+                                    AppLogger.d("PPRO: Item ID $itemId has been updated with server error")
+                                } catch (e: Exception) {
+                                    AppLogger.e("PPRO: Failed to update database for Item ID: $itemId - ${e.message}")
+                                }
+
+                                // Safe update of progress on main thread
+                                withContext(Dispatchers.Main) {
+                                    onProgressUpdate(100, false, errorMessage)
+                                }
+
+                                val errorResponse = UploadV3Response(
+                                    success = false,
+                                    trackingId = 0,
+                                    message = errorMessage,
+                                    status = response.code(),
+                                    tanggal_upload = "",
+                                    nama_file = filename,
+                                    results = null,
+                                    type = AppUtils.DatabaseServer.PPRO,
+                                    imageFullPath = emptyList(),
+                                    imageName = emptyList()
+                                )
+
+                                return@withContext Result.success(errorResponse)
+                            }
+                        } catch (e: IOException) {
+                            val errorMessage = "Network error: ${e.message}"
+                            AppLogger.e("PPRO: Network error - $errorMessage")
+                            AppLogger.e("PPRO: Stack trace: ${e.stackTraceToString()}")
+
+                            // Update database with error
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    updateUploadStatusPPRO(
+                                        itemId,
+                                        0,
+                                        uploaderInfo,
+                                        uploadedAt,
+                                        uploadedById,
+                                        "${errorMessage.take(1000)}..."
+                                    )
+                                }
+                                AppLogger.d("PPRO: Item ID $itemId has been updated with network error")
+                            } catch (e: Exception) {
+                                AppLogger.e("PPRO: Failed to update database for Item ID: $itemId - ${e.message}")
+                            }
+
+                            // Safe update of progress on main thread
+                            withContext(Dispatchers.Main) {
+                                onProgressUpdate(100, false, errorMessage)
+                            }
+
+                            val errorResponse = UploadV3Response(
+                                success = false,
+                                trackingId = 0,
+                                message = errorMessage,
+                                status = 0,
+                                tanggal_upload = "",
+                                nama_file = filename,
+                                results = null,
+                                type = AppUtils.DatabaseServer.PPRO,
+                                imageFullPath = emptyList(),
+                                imageName = emptyList()
+                            )
+
+                            return@withContext Result.success(errorResponse)
+                        } catch (e: Exception) {
+                            val errorMessage = "API error: ${e.message}"
+                            AppLogger.e("PPRO: Exception during API call - ${e.javaClass.simpleName} - $errorMessage")
+                            AppLogger.e("PPRO: Stack trace: ${e.stackTraceToString()}")
+
+                            // Update database with error
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    updateUploadStatusPPRO(
+                                        itemId,
+                                        0,
+                                        uploaderInfo,
+                                        uploadedAt,
+                                        uploadedById,
+                                        "${errorMessage.take(1000)}..."
+                                    )
+                                }
+                                AppLogger.d("PPRO: Item ID $itemId has been updated with API exception")
+                            } catch (e: Exception) {
+                                AppLogger.e("PPRO: Failed to update database for Item ID: $itemId - ${e.message}")
+                            }
+
+                            // Safe update of progress on main thread
+                            withContext(Dispatchers.Main) {
+                                onProgressUpdate(100, false, errorMessage)
+                            }
+
+                            val errorResponse = UploadV3Response(
+                                success = false,
+                                trackingId = 0,
+                                message = errorMessage,
+                                status = 0,
+                                tanggal_upload = "",
+                                nama_file = filename,
+                                results = null,
+                                type = AppUtils.DatabaseServer.PPRO,
+                                imageFullPath = emptyList(),
+                                imageName = emptyList()
+                            )
+
+                            return@withContext Result.success(errorResponse)
+                        }
+                    } catch (e: Exception) {
+                        val errorMessage = "Fatal error in PPRO upload: ${e.message}"
+                        AppLogger.e("PPRO: Top-level exception - $errorMessage")
+                        AppLogger.e("PPRO: Stack trace: ${e.stackTraceToString()}")
+
+                        // Safe update of progress on main thread
+                        withContext(Dispatchers.Main) {
+                            onProgressUpdate(100, false, errorMessage)
+                        }
+
+                        val errorResponse = UploadV3Response(
+                            success = false,
+                            trackingId = 0,
+                            message = errorMessage,
+                            status = 0,
+                            tanggal_upload = "",
+                            nama_file = filename,
+                            results = null,
+                            type = AppUtils.DatabaseServer.PPRO,
+                            imageFullPath = emptyList(),
+                            imageName = emptyList()
+                        )
+
+                        return@withContext Result.success(errorResponse)
+                    }
+                }
+                else {
+                    AppLogger.d("Starting JSON data upload for: $filename")
+
+                    try {
+                        // Validate that we have data
+                        if (data.isBlank()) {
+                            val errorMsg = "JSON data is empty for $filename"
+                            AppLogger.e(errorMsg)
+                            withContext(Dispatchers.Main) {
+                                onProgressUpdate(100, false, errorMsg)
+                            }
+                            return@withContext Result.failure(Exception(errorMsg))
+                        }
+
+                        // Create the request body from the JSON string
+                        val jsonRequestBody = RequestBody.create(
+                            "application/json".toMediaTypeOrNull(),
+                            data
                         )
 
                         AppLogger.d("====== REQUEST DATA ======")
-                        AppLogger.d("Filename: $filename")
-                        AppLogger.d("JSON File Path: $jsonFilePath")
-                        AppLogger.d("File size: ${file.length()} bytes")
+                        AppLogger.d("Filename: $filename (for reference only)")
+                        AppLogger.d("JSON Data length: ${data.length} characters")
 
                         // Simulate progress
                         withContext(Dispatchers.Main) {
                             onProgressUpdate(25, false, null)
                         }
 
-                        // Make the API call
+                        // Make the API call with raw JSON
                         AppLogger.d("====== MAKING API CALL ======")
-                        AppLogger.d("Using MultipartBody.Part for jsonFile")
+                        AppLogger.d("Using raw JSON body")
 
-                        val response = CMPApiClient.instance.uploadJsonV3(
-                            jsonFile = filePart,
-                            filename = filenameRequestBody
+                        val response = CMPApiClient.instance.uploadJsonV3Raw(
+                            jsonData = jsonRequestBody
                         )
 
                         AppLogger.d("====== RAW RESPONSE ======")
@@ -624,9 +1213,22 @@ class UploadCMPRepository(context: Context) {
                                 AppLogger.d("Errors: ${responseBody.results!!.errors}")
                                 AppLogger.d("Skipped: ${responseBody.results!!.skipped}")
 
-                                // Mark as success with 100% progress
+                                // Check if status is between 1 and 3
+                                val statusInt = responseBody.status.toInt()
+                                val isSuccess = statusInt in 1..3
+
+                                // Update progress based on status
                                 withContext(Dispatchers.Main) {
-                                    onProgressUpdate(100, true, null)
+                                    if (isSuccess) {
+                                        // Status is valid, mark as success
+                                        onProgressUpdate(100, true, null)
+                                        AppLogger.d("Upload marked as SUCCESS with status: $statusInt")
+                                    } else {
+                                        // Status is outside valid range, mark as failure
+                                        val errorMessage = responseBody.message ?: "Upload failed with status: $statusInt"
+                                        onProgressUpdate(100, false, errorMessage)
+                                        AppLogger.d("Upload marked as FAILURE: $errorMessage")
+                                    }
                                 }
 
                                 val jsonResponse = UploadV3Response(
@@ -637,7 +1239,8 @@ class UploadCMPRepository(context: Context) {
                                     tanggal_upload = responseBody.tanggal_upload,
                                     nama_file = responseBody.nama_file,
                                     results = responseBody.results,
-                                    type = "json"
+                                    type = "json",
+                                    table_ids = tableIds
                                 )
 
                                 Result.success(jsonResponse)
@@ -696,6 +1299,49 @@ class UploadCMPRepository(context: Context) {
             }
             Result.failure(Exception(errorMsg))
         }
+    }
+
+    fun createJsonTableNameMapping(globalIdESPB: List<Int>): String {
+        val tableMap = mapOf(
+            AppUtils.DatabaseTables.ESPB to globalIdESPB // Use the passed parameter
+        )
+        return Gson().toJson(tableMap) // Convert to JSON string
+    }
+
+    private suspend fun updateUploadStatusCMP(
+        id: Int,
+        statusUploadCMP: Int,
+        uploaderInfo: String,
+        uploaderAt: String,
+        uploadedById: Int,
+        message: String? = null
+    ) {
+        espbDao.updateUploadStatusCMP(
+            id,
+            statusUploadCMP,
+            uploaderInfo,
+            uploaderAt,
+            uploadedById,
+            message
+        )
+    }
+
+    private suspend fun updateUploadStatusPPRO(
+        id: Int,
+        statusUploadPpro: Int,
+        uploaderInfo: String,
+        uploaderAt: String,
+        uploadedById: Int,
+        message: String? = null
+    ) {
+        espbDao.updateUploadStatusPPRO(
+            id,
+            statusUploadPpro,
+            uploaderInfo,
+            uploaderAt,
+            uploadedById,
+            message
+        )
     }
 
         suspend fun uploadZipToServer(

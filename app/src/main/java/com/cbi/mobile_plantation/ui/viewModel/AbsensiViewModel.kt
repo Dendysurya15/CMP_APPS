@@ -145,15 +145,23 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         kemandoran_id: String,
         date_absen: String,
         created_by: Int,
+        dept: String = "",
+        dept_abbr: String = "",
+        divisi: String = "",
+        divisi_abbr: String = "",
         karyawan_msk_id: String,
         karyawan_tdk_msk_id: String,
+        karyawan_msk_nik: String,
+        karyawan_tdk_msk_nik: String,
+        karyawan_msk_nama: String,
+        karyawan_tdk_msk_nama: String,
         foto: String,
         komentar: String,
         asistensi: Int,
         lat: Double,
         lon: Double,
         info: String,
-        status_scan : Int = 0,
+        status_scan: Int = 0,
         archive: Int
     ): SaveDataAbsensiState {
         return try {
@@ -161,8 +169,16 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
                 kemandoran_id = kemandoran_id,
                 date_absen = date_absen,
                 created_by = created_by,
+                dept = dept,
+                dept_abbr = dept_abbr,
+                divisi = divisi,
+                divisi_abbr = divisi_abbr,
                 karyawan_msk_id = karyawan_msk_id,
                 karyawan_tdk_msk_id = karyawan_tdk_msk_id,
+                karyawan_msk_nik = karyawan_msk_nik,
+                karyawan_tdk_msk_nik = karyawan_tdk_msk_nik,
+                karyawan_msk_nama = karyawan_msk_nama,
+                karyawan_tdk_msk_nama = karyawan_tdk_msk_nama,
                 foto = foto,
                 komentar = komentar,
                 asistensi = asistensi,
@@ -180,8 +196,8 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
-        return repository.getPemuatByIdList(idPemuat)
+    suspend fun getKaryawanByNikList(nikKaryawan: List<String>): List<KaryawanModel> {
+        return repository.getKaryawanByNikList(nikKaryawan)
     }
 
 //    suspend fun saveDataLokalAbsensi(

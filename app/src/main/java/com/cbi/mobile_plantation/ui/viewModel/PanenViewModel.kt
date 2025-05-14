@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
@@ -71,6 +72,11 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _panenCountArchived = MutableLiveData<Int>()
     val panenCountArchived: LiveData<Int> = _panenCountArchived
+
+
+    // ViewModel.kt
+    private val _jenisTPHList = MutableLiveData<List<JenisTPHModel>>()
+    val jenisTPHList: LiveData<List<JenisTPHModel>> = _jenisTPHList
 
 
     fun loadAllPanen() {
@@ -236,6 +242,18 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 .onFailure { exception ->
                     _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
+    fun getAllJenisTPH() {
+        viewModelScope.launch {
+            repository.getAllJenisTPH()
+                .onSuccess { jenisTPHModels ->
+                    _jenisTPHList.value = jenisTPHModels
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load JenisTPH data")
                 }
         }
     }

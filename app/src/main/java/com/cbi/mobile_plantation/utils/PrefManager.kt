@@ -173,6 +173,13 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var lastModifiedDatasetJenisTPH: String?
+        get() = pref.getString("lastModifiedDatasetJenisTPH", "")
+        set(lastModifiedDatasetJenisTPH) {
+            editor.putString("lastModifiedDatasetJenisTPH", lastModifiedDatasetJenisTPH)
+            editor.commit()
+        }
+
     var lastSyncDate: String?
         get() = pref.getString("lastSyncDate", "")
         set(lastSyncDate) {
