@@ -209,15 +209,9 @@ class HomePageActivity : AppCompatActivity() {
             .setTitle("Update - Versi $version")
             .setMessage(
                 """
-            • Perbaikan bug upload foto
-            • Penambahan fitur sortir data Optimasi performa halaman utama Optimasi performa halaman utama
-            • Optimasi performa halaman utama Optimasi performa halaman utama Optimasi performa halaman utama
-            • Tampilan UI diperbarui Optimasi performa halaman utama Optimasi performa halaman utama
-            • Optimasi performa halaman utama Optimasi performa halaman utama Optimasi performa halaman utama
-            • Tampilan UI diperbarui Optimasi performa halaman utama Optimasi performa halaman utama
-            • Penambahan fitur sortir data Optimasi performa halaman utama Optimasi performa halaman utama
-            • Optimasi performa halaman utama Optimasi performa halaman utamaOptimasi performa halaman utama
-            • Tampilan UI diperbarui
+            • Penambahan TPH Induk dan TPH Banjir
+            • Penambahan fitur absensi
+            • Penambahan fitur input hektar panen
             """.trimIndent()
             )
             .setPositiveButton("Tutup") { dialog, _ ->
@@ -571,7 +565,7 @@ class HomePageActivity : AppCompatActivity() {
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen }
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen }
                 ).filterNotNull()
 
                 AppUtils.ListFeatureByRoleUser.KeraniTimbang -> listOfNotNull(

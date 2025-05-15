@@ -66,6 +66,7 @@ import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.ui.adapter.SelectedPemanenAbsensiAdapter
 import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
 import com.cbi.mobile_plantation.ui.adapter.Worker
+import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 //import com.cbi.markertph.data.model.DeptModel
@@ -328,6 +329,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
 
                                 when (result) {
                                     is SaveDataAbsensiState.Success -> {
+                                        playSound(R.raw.berhasil_simpan)
                                         AlertDialogUtility.withSingleAction(
                                             this@FeatureAbsensiActivity,
                                             stringXML(R.string.al_back),

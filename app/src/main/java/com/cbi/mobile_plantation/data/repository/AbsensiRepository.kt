@@ -10,6 +10,7 @@ import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
+import com.cbi.mobile_plantation.ui.adapter.AbsensiDataRekap
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +33,10 @@ class AbsensiRepository(context: Context) {
 //        absensiDao.insertAbsensiDataLokal(absensiDataLokal)
 //    }
 
+    // In your AbsensiRepository
+    suspend fun deleteAbsensiByIds(ids: List<Int>): Int {
+        return absensiDao.deleteByListID(ids)
+    }
 
     suspend fun getKaryawanByNikList(nikKaryawan: List<String>): List<KaryawanModel> {
         return karyawanDao.getKaryawanByNikList(nikKaryawan)

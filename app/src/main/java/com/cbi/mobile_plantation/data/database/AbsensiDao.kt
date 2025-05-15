@@ -12,6 +12,7 @@ import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AbsensiModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
+import com.cbi.mobile_plantation.ui.adapter.AbsensiDataRekap
 import com.cbi.mobile_plantation.utils.AppLogger
 
 @Dao
@@ -46,6 +47,9 @@ abstract class AbsensiDao {
     @Transaction
     @Query("SELECT * FROM absensi WHERE archive = 0 AND date(date_absen) = date('now', 'localtime')")
     abstract fun getAllActiveAbsensiWithRelations(): List<AbsensiKemandoranRelations>
+
+    @Query("DELETE FROM absensi WHERE id IN (:id)")
+    abstract fun deleteByListID(id: List<Int>): Int
 
     @Transaction
     @Query("SELECT * FROM absensi WHERE archive = 1 AND date(date_absen) = date('now', 'localtime')")
