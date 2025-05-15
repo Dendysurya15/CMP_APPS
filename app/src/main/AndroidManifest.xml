@@ -90,6 +90,9 @@
             android:name=".ui.view.panenTBS.ListPanenTBSActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.view.Inspection.ListInspectionActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.view.HomePageActivity"
             android:exported="false"
             android:label="@string/title_activity_home_page" />

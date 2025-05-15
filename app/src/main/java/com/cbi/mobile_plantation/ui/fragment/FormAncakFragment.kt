@@ -65,7 +65,12 @@ class FormAncakFragment : Fragment() {
             "1" to "Standard",
             "2" to "Overpruning",
             "3" to "Underpruning"
-        )
+        ),
+        "InspectionStatus" to mapOf(
+            "1" to "Tidak terdapat temuan",
+            "2" to "Terdapat temuan",
+            "3" to "Titik kosong"
+        ),
     )
 
     private var pageNumber: Int = 1
@@ -126,12 +131,13 @@ class FormAncakFragment : Fragment() {
             R.id.lyNeatPelepahInspect to "NeatOrNot",
             R.id.lyPelepahSengklehInspect to "PelepahType",
             R.id.lyPruningInspect to "PruningType",
-        )
+            R.id.lyExistsTreeInspect to "InspectionStatus"
+            )
 
         val inputMappings: List<InputMapping> = listOf(
             InputMapping(
                 R.id.lyExistsTreeInspect,
-                "Titik Kosong?",
+                "Status temuan:",
                 InputType.RADIO,
                 { currentData, value -> currentData.copy(emptyTree = value) },
                 { it.emptyTree }
@@ -370,7 +376,7 @@ class FormAncakFragment : Fragment() {
 
         if (layoutId == R.id.lyExistsTreeInspect) {
             viewModel.isInspection.observe(viewLifecycleOwner) { isInspection ->
-                titleTextView.text = if (isInspection) "Titik Kosong?" else "Pokok Dipanen?"
+                titleTextView.text = if (isInspection) "Status temuan:" else "Pokok Dipanen?"
 
                 val currentData = viewModel.getPageData(pageNumber)
                 if (currentData != null) {
