@@ -1706,7 +1706,7 @@ class HomePageActivity : AppCompatActivity() {
                                                             ?: ""),
                                                         "blok_ppro" to (firstItem.blok_ppro ?: 0),
                                                         "blok_nama" to (firstItem.blok_nama ?: ""),
-                                                        "luasan_blok" to 0f, // Empty for now as requested
+                                                        "luasan_blok" to (firstItem.luas_blok ?: ""), // Empty for now as requested
                                                         "luasan_panen" to totalLuasanPanen,
                                                         "jumlah_pemanen" to distinctPemanen,
                                                         "created_name" to "",
@@ -1987,23 +1987,18 @@ class HomePageActivity : AppCompatActivity() {
                                             for (absensiRelation in absensiToUpload) {
                                                 val absensi = absensiRelation.absensi
 
+                                                // Process photo for upload if needed (but continue with data processing regardless)
                                                 val photoName = absensi.foto.trim()
                                                 if (photoName.isNotEmpty()) {
                                                     if (photoName !in uniquePhotos) {
                                                         val uploadStatusImage = absensi.status_uploaded_image
 
-                                                        // Skip only if status is 200 (fully uploaded)
-                                                        if (uploadStatusImage == "200") {
-                                                            AppLogger.d("Skipping photo $photoName - record ${absensi.id} fully uploaded (status 200)")
-                                                            continue
-                                                        }
-
-                                                        // Add shouldAdd variable and logic similar to the panenList code
-                                                        var shouldAdd = false
+                                                        // Only process photos that need uploading
+                                                        var shouldAddPhoto = false
 
                                                         if (uploadStatusImage == "0") {
                                                             // Default status - hasn't been uploaded yet
-                                                            shouldAdd = true
+                                                            shouldAddPhoto = true
                                                             AppLogger.d("Photo $photoName hasn't been uploaded (status 0)")
                                                         } else if (uploadStatusImage.startsWith("{")) {
                                                             try {
@@ -2016,7 +2011,7 @@ class HomePageActivity : AppCompatActivity() {
 
                                                                 errorArray?.forEach { errorItem ->
                                                                     if (errorItem.asString == photoName) {
-                                                                        shouldAdd = true
+                                                                        shouldAddPhoto = true
                                                                         AppLogger.d("Photo $photoName is marked as error in record ${absensi.id}")
                                                                     }
                                                                 }
@@ -2025,8 +2020,8 @@ class HomePageActivity : AppCompatActivity() {
                                                             }
                                                         }
 
-                                                        // Only proceed with finding and adding the photo if shouldAdd is true
-                                                        if (shouldAdd) {
+                                                        // Only process the photo if it needs uploading
+                                                        if (shouldAddPhoto) {
                                                             var photoFound = false
 
                                                             for (cmpDir in cmpDirectories) {
@@ -2077,11 +2072,12 @@ class HomePageActivity : AppCompatActivity() {
                                                                 AppLogger.w("Absensi photo not found: $photoName")
                                                             }
                                                         } else {
-                                                            AppLogger.d("Skipping photo $photoName - no upload needed based on status")
+                                                            AppLogger.d("Skipping photo upload for $photoName - already uploaded (status: $uploadStatusImage)")
                                                         }
                                                     }
                                                 }
 
+                                                // Continue with absensi data processing regardless of photo status
                                                 // Split the kemandoran_id string into individual IDs
                                                 val kemandoranIds = absensi.kemandoran_id.split(",")
                                                     .filter { it.isNotEmpty() }.map { it.trim() }
@@ -2322,6 +2318,8 @@ class HomePageActivity : AppCompatActivity() {
                                                 AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
                                                 e.printStackTrace()
                                             }
+
+                                            AppLogger.d(absensiJson)
 
                                             // Extract all IDs for tracking
                                             val absensiIds = absensiToUpload.map { it.absensi.id }
