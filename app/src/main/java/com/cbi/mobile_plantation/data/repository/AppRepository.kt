@@ -1295,4 +1295,18 @@ class AppRepository(context: Context) {
             .toString()
     }
 
+    suspend fun getHektarPanenById(id: Int): HektarPanenEntity? = withContext(Dispatchers.IO) {
+        database.hektarPanenDao().getById(id)
+    }
+
+    // Get total luas_panen for a blok on a specific date
+    suspend fun getTotalLuasPanenForBlokAndDate(blokId: Int, dateOnly: String, excludeId: Int): Float = withContext(Dispatchers.IO) {
+        database.hektarPanenDao().getTotalLuasPanenForBlokAndDate(blokId, dateOnly, excludeId)
+    }
+
+    // Update luas_panen
+    suspend fun updateLuasPanenBaru(id: Int, newValue: Float): Int = withContext(Dispatchers.IO) {
+        database.hektarPanenDao().updateLuasPanenBaru(id, newValue)
+    }
+
 }
