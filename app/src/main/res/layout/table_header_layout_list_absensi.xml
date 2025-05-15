@@ -23,6 +23,34 @@
             android:orientation="horizontal"
             android:padding="5dp">
 
+            <FrameLayout
+                android:layout_width="0dp"
+                android:id="@+id/flCheckBoxTableHeaderLayoutAbsensi"
+                android:layout_height="match_parent"
+                android:layout_weight="0.4">
+
+                <CheckBox
+                    android:id="@+id/headerCheckBoxAbsensi"
+                    style="@style/defaultBoxColor"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:minWidth="48dp"
+                    android:minHeight="48dp"
+                    />
+
+                <TextView
+                    android:id="@+id/headerNoListAbsensi"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="No."
+                    android:gravity="center"
+                    android:padding="5dp"
+                    android:visibility="gone"
+                    android:textSize="@dimen/m"
+                    android:textStyle="bold"/>
+            </FrameLayout>
+
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="match_parent"

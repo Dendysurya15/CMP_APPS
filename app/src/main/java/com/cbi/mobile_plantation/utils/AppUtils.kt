@@ -180,6 +180,8 @@ object AppUtils {
         //for upload hektaran and hektaran_detail
         const val HEKTARAN= "hektaran"
         const val HEKTARAN_DETAIL = "hektaran_detail"
+
+        const val ABSENSI_DETAIL = "absensi_detail"
     }
 
     object ListFeatureByRoleUser {
@@ -428,10 +430,12 @@ object AppUtils {
         }
     }
 
-    fun createAndSaveZipUploadHektaran(
+    fun createAndSaveZipUpload(
         context: Context,
-        hektaranJson: String,
+        jsonData: String,
         userId: String,
+        featureType: String, // e.g., "hektaran", "absensi"
+        photosList: List<Map<String, String>> = emptyList(), // Optional parameter for photos, default is empty
         onResult: (Boolean, String, String, File) -> Unit
     ) {
         try {
@@ -441,8 +445,8 @@ object AppUtils {
                 if (!exists()) mkdirs()
             }
 
-            // Simple filename format
-            val zipFileName = "${userId}_hektaran_${dateTime}.zip"
+            // Dynamic filename based on feature type
+            val zipFileName = "${userId}_${featureType}_${dateTime}.zip"
             val zipFile = File(appFilesDir, zipFileName)
 
             val zip = ZipFile(zipFile)
@@ -454,27 +458,36 @@ object AppUtils {
                 encryptionMethod = EncryptionMethod.ZIP_STANDARD
             }
 
-            // Parse the combined JSON to extract hektaran and hektaran_detail data
-            val gson = Gson()
-            val combinedData = gson.fromJson(hektaranJson, Map::class.java)
-
-            // Extract the data for each table
-            val hektaranData = gson.toJson(combinedData[AppUtils.DatabaseTables.HEKTARAN])
-            val hektaranDetailData = gson.toJson(combinedData[AppUtils.DatabaseTables.HEKTARAN_DETAIL])
-
-            // Add hektaran data.json
-            val hektaranInputStream = ByteArrayInputStream(hektaranData.toByteArray())
+            // Add json data with the complete nested structure
+            // The featureType determines the folder name in the ZIP
+            val dataInputStream = ByteArrayInputStream(jsonData.toByteArray())
             zip.addStream(
-                hektaranInputStream,
-                zipParams.apply { fileNameInZip = "${AppUtils.DatabaseTables.HEKTARAN}/data.json" }
+                dataInputStream,
+                zipParams.apply { fileNameInZip = "${featureType}/data.json" }
             )
 
-            // Add hektaran_detail data.json
-            val hektaranDetailInputStream = ByteArrayInputStream(hektaranDetailData.toByteArray())
-            zip.addStream(
-                hektaranDetailInputStream,
-                zipParams.apply { fileNameInZip = "${AppUtils.DatabaseTables.HEKTARAN_DETAIL}/data.json" }
-            )
+            // If photo list is provided, add all photos to the zip
+            if (photosList.isNotEmpty()) {
+                AppLogger.d("Adding ${photosList.size} photos to ${featureType} zip")
+
+                for (photoData in photosList) {
+                    val photoPath = photoData["path"] ?: continue
+                    val photoName = photoData["name"] ?: continue
+
+                    val photoFile = File(photoPath)
+                    if (photoFile.exists() && photoFile.isFile) {
+                        try {
+                            zipParams.fileNameInZip = "${featureType}/photos/$photoName"
+                            zip.addFile(photoFile, zipParams)
+                            AppLogger.d("Added photo to ${featureType} zip: $photoName")
+                        } catch (e: Exception) {
+                            AppLogger.e("Failed to add photo to ${featureType} zip: $photoName - ${e.message}")
+                        }
+                    } else {
+                        AppLogger.w("Photo file not found: $photoPath")
+                    }
+                }
+            }
 
             // Return the result using the callback
             onResult(true, zipFile.name, zipFile.absolutePath, zipFile)

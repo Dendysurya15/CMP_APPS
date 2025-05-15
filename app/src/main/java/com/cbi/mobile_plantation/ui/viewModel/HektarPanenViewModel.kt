@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.repository.AppRepository
+import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -54,6 +55,18 @@ class HektarPanenViewModel(private val repository: AppRepository) : ViewModel() 
         return repository.getNikLuasPanenLuasBlokDibayarByDateAndBlok(date!!, blok!!)
     }
 
+    fun updateStatusUploadHektarPanen(ids: List<Int>, status: Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateStatusUploadHektarPanen(ids, status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+                AppLogger.e("Error updating status_upload: ${e.message}")
+            }
+        }
+    }
+
     fun updateDataIsZippedHP(ids: List<Int>, status:Int) {
         viewModelScope.launch {
             try {
@@ -86,6 +99,21 @@ class HektarPanenViewModel(private val repository: AppRepository) : ViewModel() 
             Log.e("HektarPanenVM", "Error loading data: ${e.message}", e)
             _historyHektarPanen.postValue(emptyList())
         }
+    }
+
+    // Get item by ID
+    suspend fun getItemById(id: Int): HektarPanenEntity? {
+        return repository.getHektarPanenById(id)
+    }
+
+    // Get total luas_panen for a specific blok and date (excluding a specific item)
+    suspend fun getTotalLuasPanenForBlokAndDate(blokId: Int, dateOnly: String, excludeId: Int): Float {
+        return repository.getTotalLuasPanenForBlokAndDate(blokId, dateOnly, excludeId)
+    }
+
+    // Update luas_panen for an item
+    suspend fun updateLuasPanenBaru(id: Int, newValue: Float): Int {
+        return repository.updateLuasPanenBaru(id, newValue)
     }
 
 

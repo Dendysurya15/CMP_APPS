@@ -6,4 +6,6 @@
     <item name="scan_qr" type="id" />
     <item name="item_id_tag" type="id" />
     <item name="text_watcher_tag" type="id" />
+    <item name="fab_delete" type="id" />
+    <item name="fab_select_all" type="id" />
 </resources>

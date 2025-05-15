@@ -16,6 +16,7 @@ import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.repository.AbsensiRepository
 import com.cbi.mobile_plantation.data.repository.PanenTBSRepository
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
+import com.cbi.mobile_plantation.ui.adapter.AbsensiDataRekap
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,9 +62,15 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
     private val _updateKemandoranbsensiState = MutableStateFlow<UpdateKemandoranAbsensiState>(UpdateKemandoranAbsensiState.Loading)
     val updateKemandoranbsensiState: StateFlow<UpdateKemandoranAbsensiState> get() = _updateKemandoranbsensiState.asStateFlow()
 
+    private val _deleteItemsResult = MutableLiveData<Boolean>()
+    val deleteItemsResult: LiveData<Boolean> = _deleteItemsResult
+
     fun isAbsensiExist(dateAbsen: String, karyawanMskIds: List<String>): Boolean {
         return repository.isAbsensiExist(dateAbsen, karyawanMskIds)
     }
+
+    private val _updateStatus = MutableLiveData<Boolean>()
+    val updateStatus: LiveData<Boolean> get() = _updateStatus
 
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
@@ -121,9 +128,56 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun deleteMultipleItems(items: List<Map<String, Any>>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Extract IDs from the items
+                val ids = items.mapNotNull { item ->
+                    (item["id"] as? Number)?.toInt()
+                }
+
+                if (ids.isEmpty()) {
+                    _deleteItemsResult.postValue(false)
+                    _error.postValue("No valid IDs found to delete")
+                    return@launch
+                }
+
+                // Log the IDs about to be deleted
+                AppLogger.d("Deleting IDs: $ids")
+
+                // Perform deletion on background thread
+                val result = repository.deleteAbsensiByIds(ids)
+
+                // Check if the number of deleted items matches the number of IDs
+                val isSuccess = result == ids.size
+                _deleteItemsResult.postValue(isSuccess)
+
+                if (!isSuccess) {
+                    _error.postValue("Failed to delete all items")
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error deleting items ${e}")
+                _deleteItemsResult.postValue(false)
+                _error.postValue("Error deleting items: ${e.message}")
+            }
+        }
+    }
+
     fun getAllDataAbsensi(status_scan: Int) {
         viewModelScope.launch {
             repository.getAllDataAbsensi(status_scan)
+                .onSuccess { listData ->
+                    _savedDataAbsensiList.postValue(listData)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
+    fun getAllData(status_scan: Int) {
+        viewModelScope.launch {
+            repository.getAllData(status_scan)
                 .onSuccess { listData ->
                     _savedDataAbsensiList.postValue(listData)
                 }
@@ -139,6 +193,28 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun updateDataIsZippedAbsensi(ids: List<Int>, status:Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateDataIsZippedAbsensi(ids,status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+            }
+        }
+    }
+
+    fun updateStatusUploadAbsensiPanen(ids: List<Int>, status: Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateStatusUploadAbsensiPanen(ids, status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+                AppLogger.e("Error updating status_upload: ${e.message}")
+            }
+        }
+    }
 
 
     suspend fun saveDataAbsensi(

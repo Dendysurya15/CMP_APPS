@@ -10,6 +10,7 @@ import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
+import com.cbi.mobile_plantation.ui.adapter.AbsensiDataRekap
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +33,10 @@ class AbsensiRepository(context: Context) {
 //        absensiDao.insertAbsensiDataLokal(absensiDataLokal)
 //    }
 
+    // In your AbsensiRepository
+    suspend fun deleteAbsensiByIds(ids: List<Int>): Int {
+        return absensiDao.deleteByListID(ids)
+    }
 
     suspend fun getKaryawanByNikList(nikKaryawan: List<String>): List<KaryawanModel> {
         return karyawanDao.getKaryawanByNikList(nikKaryawan)
@@ -44,6 +49,11 @@ class AbsensiRepository(context: Context) {
     suspend fun getAbsensiCount(): Int {
         return absensiDao.getCountAbsensi()
     }
+
+    suspend fun updateDataIsZippedAbsensi(ids: List<Int>, status: Int) {
+        absensiDao.updateDataIsZippedAbsensi(ids, status)
+    }
+
 
     suspend fun getAbsensiCountArhive(load_status_scan: Int): Int {
         return absensiDao.getCountArchiveAbsensi(load_status_scan)
@@ -84,6 +94,19 @@ class AbsensiRepository(context: Context) {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun getAllData(status_scan:Int): Result<List<AbsensiKemandoranRelations>> = withContext(Dispatchers.IO) {
+        try {
+            val data = absensiDao.getAllData(status_scan)
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateStatusUploadAbsensiPanen(ids: List<Int>, statusUpload: Int) {
+        absensiDao.updateStatusUploadAbsensiPanen(ids, statusUpload)
     }
 
     sealed class SaveResultAbsensi {

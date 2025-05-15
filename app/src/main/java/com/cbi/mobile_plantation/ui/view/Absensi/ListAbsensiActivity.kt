@@ -24,10 +24,12 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.view.animation.AnimationUtils
+import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
@@ -48,6 +50,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.ScreenshotUtil
+import com.cbi.mobile_plantation.utils.playSound
 import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -58,6 +61,7 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
+import com.leinardi.android.speeddial.SpeedDialActionItem
 import com.leinardi.android.speeddial.SpeedDialView
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
@@ -85,6 +89,7 @@ class ListAbsensiActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var absensiViewModel: AbsensiViewModel
     private lateinit var absensiAdapter: ListAbsensiAdapter
+    private var isSettingUpCheckbox = false
     private var prefManager: PrefManager? = null
     private var featureName: String? = null
     private var regionalId: String? = null
@@ -95,6 +100,9 @@ class ListAbsensiActivity : AppCompatActivity() {
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
     private var infoApp: String = ""
+
+    // Flag to track if we're currently in the process of deleting
+    private var isDeleting = false
 
     private var originalData: List<Map<String, Any>> = emptyList()
 
@@ -109,12 +117,19 @@ class ListAbsensiActivity : AppCompatActivity() {
     private var mappedData: List<Map<String, Any>> = emptyList()
     private lateinit var loadingDialog: LoadingDialog
     private lateinit var speedDial: SpeedDialView
+    private lateinit var rvListAbsensi: RecyclerView
+    private var tvTitlePage: TextView? = null
     private lateinit var tvEmptyStateAbsensi: TextView // Add this
     private var activityInitialized = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list_absensi)
 
+        // Initialize views
+        recyclerView = findViewById(R.id.rvTableDataAbsensiList)
+        speedDial = findViewById(R.id.dial_listAbsensi)
+        tvTitlePage = findViewById(R.id.tvEmptyStateAbsensiList) // This might be null if you don't have it
     }
 
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
@@ -135,6 +150,7 @@ class ListAbsensiActivity : AppCompatActivity() {
         setupRecyclerView()
         initializeViews()
         setupObserveData()
+        setupSpeedDial()
         if (prefManager!!.jabatanUserLogin == "Kerani Panen") {
             absensiViewModel.getAllDataAbsensi(1)
         } else {
@@ -306,6 +322,7 @@ class ListAbsensiActivity : AppCompatActivity() {
             AppLogger.d("Today Date: '$todayDate'")
 
             if (generatedDate.isEmpty()) {
+                playSound(R.raw.berhasil_generate_qr)
                 saveGeneratedDate(todayDate)
                 generateData() // Tambahkan ini agar langsung bisa dijalankan
 //                showBottomSheetQR()
@@ -1988,10 +2005,124 @@ class ListAbsensiActivity : AppCompatActivity() {
         val headers = listOf("LOKASI", "KEMANDORAN", "TOTAL KEHADIRAN")
         updateTableHeaders(headers)
 
-        recyclerView = findViewById(R.id.rvTableDataAbsensiList)
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        absensiAdapter = ListAbsensiAdapter(emptyList())
+        absensiAdapter = ListAbsensiAdapter(listOf())
         recyclerView.adapter = absensiAdapter
+        recyclerView.layoutManager = LinearLayoutManager(this)
+
+//        recyclerView = findViewById(R.id.rvTableDataAbsensiList)
+//        recyclerView.layoutManager = LinearLayoutManager(this)
+//        absensiAdapter = ListAbsensiAdapter(emptyList())
+//        recyclerView.adapter = absensiAdapter
+
+        // Handle selection changes
+        absensiAdapter.setOnSelectionChangeListener { selectedCount ->
+            if (selectedCount > 0) {
+                // Show speed dial when items are selected
+                speedDial.visibility = View.VISIBLE
+                // Update title or show counter
+                tvTitlePage?.text = "$selectedCount item selected"
+            } else {
+                // Hide speed dial when no items are selected
+                speedDial.visibility = View.GONE
+                // Reset title
+                tvTitlePage?.text = "Daftar Absensi"
+                // Disable selection mode if there are no selections
+                absensiAdapter.disableSelectionMode()
+            }
+        }
+    }
+
+    private fun setupSpeedDial() {
+        speedDial.apply {
+            // Add actions to the speed dial
+            addActionItem(
+                SpeedDialActionItem.Builder(R.id.fab_delete, R.drawable.baseline_delete_forever_24)
+                    .setLabel("Delete")
+                    .setFabBackgroundColor(ContextCompat.getColor(this@ListAbsensiActivity, R.color.colorRed))
+                    .setLabelBackgroundColor(ContextCompat.getColor(this@ListAbsensiActivity, R.color.white))
+                    .create()
+            )
+
+            // Handle speed dial clicks
+            setOnActionSelectedListener { actionItem ->
+                when (actionItem.id) {
+                    R.id.fab_delete -> {
+                        // Show confirmation dialog before deleting
+                        showDeleteConfirmationDialog()
+                        return@setOnActionSelectedListener true
+                    }
+                    R.id.fab_select_all -> {
+                        // Toggle select all
+                        absensiAdapter.toggleSelectAll()
+                        return@setOnActionSelectedListener true
+                    }
+                }
+                false
+            }
+
+            // Handle main FAB click (optional)
+            setOnChangeListener(object : SpeedDialView.OnChangeListener {
+                override fun onMainActionSelected(): Boolean {
+                    // If you want to do something when the main FAB is clicked
+                    return false
+                }
+
+                override fun onToggleChanged(isOpen: Boolean) {
+                    // Optional: Do something when the speed dial is opened/closed
+                }
+            })
+        }
+    }
+
+    private fun showDeleteConfirmationDialog() {
+        val selectedCount = absensiAdapter.getSelectedItems().size
+
+        AlertDialog.Builder(this)
+            .setTitle("Konfirmasi Hapus")
+            .setMessage("Apa Anda yakin ingin menghapus $selectedCount item?")
+            .setPositiveButton("Hapus") { _, _ ->
+                deleteSelectedItems()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun deleteSelectedItems() {
+        val selectedIds = absensiAdapter.getSelectedItemsIdLocal()
+        absensiViewModel.deleteMultipleItems(selectedIds)
+        absensiViewModel.deleteItemsResult.observe(this) { isSuccess ->
+            loadingDialog.dismiss()
+            val selectedCount = absensiAdapter.getSelectedItemsIdLocal().size
+            if (isSuccess) {
+                absensiViewModel.getAllDataAbsensi(0)
+                playSound(R.raw.data_terhapus)
+                Toast.makeText(
+                    this,
+                    "${getString(R.string.al_success_delete)} $selectedCount data",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                Toast.makeText(
+                    this,
+                    "${getString(R.string.al_failed_delete)} data",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+
+            // Reset UI state
+            val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeaderAbsensi)
+                .findViewById<CheckBox>(R.id.headerCheckBoxAbsensi)
+            headerCheckBox.isChecked = false
+            absensiAdapter.clearSelections()
+            speedDial.visibility = View.GONE
+        }
+        AppLogger.d("testId ${selectedIds}")
+
+        Toast.makeText(this, "${selectedIds.size} items deleted", Toast.LENGTH_SHORT).show()
+
+        // After deletion, refresh your data and reset selection mode
+        absensiAdapter.disableSelectionMode()
+        absensiViewModel.getAllDataAbsensi(0)
     }
 
     private fun updateTableHeaders(headerNames: List<String>) {

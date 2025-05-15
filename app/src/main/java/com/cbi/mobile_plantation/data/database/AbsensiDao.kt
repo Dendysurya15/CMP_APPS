@@ -12,6 +12,7 @@ import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AbsensiModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
+import com.cbi.mobile_plantation.ui.adapter.AbsensiDataRekap
 import com.cbi.mobile_plantation.utils.AppLogger
 
 @Dao
@@ -25,6 +26,9 @@ abstract class AbsensiDao {
     @Query("SELECT * FROM absensi WHERE archive = 0 AND status_scan == :status_scan AND date(date_absen) = date('now', 'localtime')")
     abstract fun getAllDataAbsensi(status_scan:Int): List<AbsensiKemandoranRelations>
 
+    @Query("SELECT * FROM absensi WHERE archive = 0 AND status_scan == :status_scan")
+    abstract fun getAllData(status_scan:Int): List<AbsensiKemandoranRelations>
+
     @Delete
     abstract fun deleteAll(espb: List<AbsensiModel>)
 
@@ -33,6 +37,12 @@ abstract class AbsensiDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertAbsensiData(absensiData: AbsensiModel)
+
+    @Query("UPDATE absensi SET status_upload = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadAbsensiPanen(ids: List<Int>, status: Int)
+
+    @Query("UPDATE absensi SET status_uploaded_image = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadedImage(ids: List<Int>, status: String): Int
 
 //    @Insert(onConflict = OnConflictStrategy.REPLACE)
 //    abstract suspend fun insertAbsensiDataLokal(absensiDataLokal: AbsensiModelScan)
@@ -47,12 +57,18 @@ abstract class AbsensiDao {
     @Query("SELECT * FROM absensi WHERE archive = 0 AND date(date_absen) = date('now', 'localtime')")
     abstract fun getAllActiveAbsensiWithRelations(): List<AbsensiKemandoranRelations>
 
+    @Query("DELETE FROM absensi WHERE id IN (:id)")
+    abstract fun deleteByListID(id: List<Int>): Int
+
     @Transaction
     @Query("SELECT * FROM absensi WHERE archive = 1 AND date(date_absen) = date('now', 'localtime')")
     abstract fun getAllArchivedAbsensiWithRelations(): List<AbsensiKemandoranRelations>
 
     @Query("UPDATE absensi SET archive = 1 WHERE id = :id")
     abstract fun archiveAbsensiByID(id: Int): Int
+
+    @Query("UPDATE absensi SET dataIsZipped = :status WHERE id IN (:ids)")
+    abstract  suspend fun updateDataIsZippedAbsensi(ids: List<Int>, status: Int)
 
     @Query("""
     SELECT COUNT(*) FROM absensi 

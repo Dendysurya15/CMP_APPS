@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
+import com.cbi.mobile_plantation.utils.AppUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -31,6 +32,9 @@ abstract class HektarPanenDao {
 
     @Query("UPDATE hektar_panen SET dataIsZipped = :status WHERE id IN (:ids)")
     abstract  suspend fun updateDataIsZippedHP(ids: List<Int>, status: Int)
+
+    @Query("UPDATE hektar_panen SET status_upload = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadHektarPanen(ids: List<Int>, status: Int)
 
     //getallbydate
     @Query("SELECT * FROM hektar_panen WHERE strftime('%Y-%m-%d', date_created_panen) = :date")
@@ -108,4 +112,14 @@ abstract class HektarPanenDao {
     //luas_blok - sum luas panen where date_created_panen like '%' || :date || '%' and blok = :blok
     @Query("SELECT SUM(luas_panen) FROM hektar_panen WHERE date_created_panen LIKE '%' || :date || '%' AND blok = :blok")
     abstract fun getSumLuasPanen(blok: Int, date: String= SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())): Float
+
+    @Query("SELECT * FROM ${AppUtils.DatabaseTables.HEKTAR_PANEN} WHERE id = :id")
+    abstract suspend fun getById(id: Int): HektarPanenEntity?
+
+    @Query("SELECT SUM(luas_panen) FROM ${AppUtils.DatabaseTables.HEKTAR_PANEN} WHERE blok = :blokId AND date_created LIKE :dateOnly AND id != :excludeId")
+    abstract suspend fun getTotalLuasPanenForBlokAndDate(blokId: Int, dateOnly: String, excludeId: Int): Float
+
+    @Query("UPDATE ${AppUtils.DatabaseTables.HEKTAR_PANEN} SET luas_panen = :newValue WHERE id = :id")
+    abstract suspend fun updateLuasPanenBaru(id: Int, newValue: Float): Int
+
 }

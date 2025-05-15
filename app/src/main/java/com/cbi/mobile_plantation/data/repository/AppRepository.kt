@@ -684,6 +684,10 @@ class AppRepository(context: Context) {
             }
         }
 
+    suspend fun updateStatusUploadPanen(ids: List<Int>, statusUpload: Int) {
+        panenDao.updateStatusUploadPanen(ids, statusUpload)
+    }
+
     suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
         return karyawanDao.getPemuatByIdList(idPemuat)
     }
@@ -701,8 +705,8 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun updateStatusUploadPanen(ids: List<Int>, statusUpload: Int) {
-        panenDao.updateStatusUploadPanen(ids, statusUpload)
+    suspend fun updateStatusUploadHektarPanen(ids: List<Int>, statusUpload: Int) {
+        hektarPanenDao.updateStatusUploadHektarPanen(ids, statusUpload)
     }
 
     suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<SaveTPHResult> =
@@ -1293,6 +1297,20 @@ class AppRepository(context: Context) {
         return BigDecimal(value.toDouble())
             .setScale(2, RoundingMode.HALF_EVEN)
             .toString()
+    }
+
+    suspend fun getHektarPanenById(id: Int): HektarPanenEntity? = withContext(Dispatchers.IO) {
+        database.hektarPanenDao().getById(id)
+    }
+
+    // Get total luas_panen for a blok on a specific date
+    suspend fun getTotalLuasPanenForBlokAndDate(blokId: Int, dateOnly: String, excludeId: Int): Float = withContext(Dispatchers.IO) {
+        database.hektarPanenDao().getTotalLuasPanenForBlokAndDate(blokId, dateOnly, excludeId)
+    }
+
+    // Update luas_panen
+    suspend fun updateLuasPanenBaru(id: Int, newValue: Float): Int = withContext(Dispatchers.IO) {
+        database.hektarPanenDao().updateLuasPanenBaru(id, newValue)
     }
 
 }

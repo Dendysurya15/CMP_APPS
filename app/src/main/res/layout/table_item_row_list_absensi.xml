@@ -14,6 +14,36 @@
         android:gravity="center_vertical"
         tools:ignore="MissingConstraints">
 
+        <FrameLayout
+            android:layout_width="0dp"
+            android:id="@+id/flCheckBoxItemAbsensi"
+            android:layout_height="match_parent"
+            android:layout_weight="0.4">
+
+            <CheckBox
+                android:id="@+id/checkBoxItemAbsensi"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:visibility="visible"
+                style="@style/defaultBoxColor"
+                android:minWidth="48dp"
+                android:minHeight="48dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:id="@+id/numListTeruploadAbsensi"
+                android:text="1"
+                android:textColor="@color/black"
+                android:visibility="gone"
+                android:textSize="@dimen/s"
+                android:padding="5dp"
+                android:textStyle="bold" />
+
+        </FrameLayout>
+
         <TextView
             android:id="@+id/td1ListAbsensi"
             android:layout_width="0dp"
