@@ -25,6 +25,9 @@ abstract class AbsensiDao {
     @Query("SELECT * FROM absensi WHERE archive = 0 AND status_scan == :status_scan AND date(date_absen) = date('now', 'localtime')")
     abstract fun getAllDataAbsensi(status_scan:Int): List<AbsensiKemandoranRelations>
 
+    @Query("SELECT * FROM absensi WHERE archive = 0 AND status_scan == :status_scan")
+    abstract fun getAllData(status_scan:Int): List<AbsensiKemandoranRelations>
+
     @Delete
     abstract fun deleteAll(espb: List<AbsensiModel>)
 

@@ -133,6 +133,18 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun getAllData(status_scan: Int) {
+        viewModelScope.launch {
+            repository.getAllData(status_scan)
+                .onSuccess { listData ->
+                    _savedDataAbsensiList.postValue(listData)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
     suspend fun getKemandoranById(idKemandoran: List<String>): List<KemandoranModel> {
         return withContext(Dispatchers.IO) {  // Run on background thread
             repository.getKemandoranById(idKemandoran)

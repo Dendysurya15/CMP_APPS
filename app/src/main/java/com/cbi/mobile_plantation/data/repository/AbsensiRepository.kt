@@ -86,6 +86,15 @@ class AbsensiRepository(context: Context) {
         }
     }
 
+    suspend fun getAllData(status_scan:Int): Result<List<AbsensiKemandoranRelations>> = withContext(Dispatchers.IO) {
+        try {
+            val data = absensiDao.getAllData(status_scan)
+            Result.success(data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     sealed class SaveResultAbsensi {
         object Success : SaveResultAbsensi()
         object AlreadyExists : SaveResultAbsensi()
