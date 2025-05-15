@@ -88,5 +88,20 @@ class HektarPanenViewModel(private val repository: AppRepository) : ViewModel() 
         }
     }
 
+    // Get item by ID
+    suspend fun getItemById(id: Int): HektarPanenEntity? {
+        return repository.getHektarPanenById(id)
+    }
+
+    // Get total luas_panen for a specific blok and date (excluding a specific item)
+    suspend fun getTotalLuasPanenForBlokAndDate(blokId: Int, dateOnly: String, excludeId: Int): Float {
+        return repository.getTotalLuasPanenForBlokAndDate(blokId, dateOnly, excludeId)
+    }
+
+    // Update luas_panen for an item
+    suspend fun updateLuasPanenBaru(id: Int, newValue: Float): Int {
+        return repository.updateLuasPanenBaru(id, newValue)
+    }
+
 
 }
