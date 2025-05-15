@@ -594,7 +594,7 @@ class ScanAbsensiActivity : AppCompatActivity() {
                                                     this@ScanAbsensiActivity,
                                                     stringXML(R.string.al_back),
                                                     stringXML(R.string.al_success_save_local),
-                                                    stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang),
+                                                    stringXML(R.string.al_description_success_absensi),
                                                     "success.json",
                                                     R.color.greendarkerbutton
                                                 ) {

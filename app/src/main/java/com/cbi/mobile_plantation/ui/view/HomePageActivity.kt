@@ -217,7 +217,7 @@ class HomePageActivity : AppCompatActivity() {
             .setTitle("Update - Versi $version")
             .setMessage(
                 """
-            • Penambahan TPH Induk dan TPH Banjir
+            • Penambahan TPH Induk & TPH Banjir
             • Penambahan fitur absensi
             • Penambahan fitur input hektar panen
             """.trimIndent()
@@ -577,7 +577,8 @@ class HomePageActivity : AppCompatActivity() {
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
-//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen }
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 ).filterNotNull()
 
                 AppUtils.ListFeatureByRoleUser.KeraniTimbang -> listOfNotNull(
@@ -594,7 +595,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
+                            features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
 
                 AppUtils.ListFeatureByRoleUser.Asisten -> listOfNotNull(
@@ -606,7 +607,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
                 )
 
                 AppUtils.ListFeatureByRoleUser.MandorPanen -> listOfNotNull(
@@ -616,7 +617,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
+
                 )
 
                 AppUtils.ListFeatureByRoleUser.IT -> features
@@ -1711,7 +1713,7 @@ class HomePageActivity : AppCompatActivity() {
                                                         "created_by" to (firstItem.created_by
                                                             ?: ""),
                                                         "created_date" to (firstItem.date_created
-                                                            ?: "")
+                                                            ?: ""),
                                                     )
 
                                                     // Process detail records for this blok

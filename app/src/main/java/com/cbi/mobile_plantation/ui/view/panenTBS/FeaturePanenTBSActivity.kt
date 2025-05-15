@@ -105,22 +105,20 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.transition.Visibility
 import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.repository.AppRepository
-import com.cbi.mobile_plantation.ui.adapter.DownloadItem
-import com.cbi.mobile_plantation.ui.adapter.DownloadProgressDatasetAdapter
-import com.cbi.mobile_plantation.ui.adapter.ListPanenTPHAdapter
 import com.cbi.mobile_plantation.ui.adapter.ListTPHInsideRadiusAdapter
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 import com.cbi.mobile_plantation.utils.ScannedTPHLocation
 import com.cbi.mobile_plantation.utils.ScannedTPHSelectionItem
@@ -193,7 +191,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var progressBarScanTPHManual: ProgressBar
     private lateinit var progressBarScanTPHAuto: ProgressBar
     private var keyboardBeingDismissed = false
-    private lateinit var dialog: Dialog
+    private var presentNikSet: Set<String> = emptySet()
 
     private var latLonMap: Map<Int, ScannedTPHLocation> = emptyMap()
 
@@ -202,6 +200,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var masterDeptInfoMap: Map<String, String> = emptyMap()
     private var estateList: List<EstateModel> = emptyList()
     private var divisiList: List<TPHNewModel> = emptyList()
+    private var absensiList: List<AbsensiKemandoranRelations> = emptyList()
     private var blokList: List<TPHNewModel> = emptyList()
     private var karyawanList: List<KaryawanModel> = emptyList()
     private var karyawanLainList: List<KaryawanModel> = emptyList()
@@ -218,6 +217,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var rvSelectedPemanen: RecyclerView
     private lateinit var rvSelectedPemanenLain: RecyclerView
     private var selectedTPHJenisId: Int? = null
+
     enum class InputType {
         SPINNER,
         EDITTEXT,
@@ -260,14 +260,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var panenViewModel: PanenViewModel
+    private lateinit var absensiViewModel: AbsensiViewModel
     private var regionalId: String? = null
     private var estateId: String? = null
     private var estateName: String? = null
     private var userName: String? = null
     private var userId: Int? = null
     private var jabatanUser: String? = null
+
     // This should be defined at the class level
     private data class TPHData(val count: Int, val jenisTPHId: Int, val limitTPH: String? = null)
+
     private var panenStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
@@ -294,6 +297,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private lateinit var switchAutoScan: SwitchMaterial
     private lateinit var layoutAutoScan: LinearLayout
     private var jenisTPHListGlobal: List<JenisTPHModel> = emptyList()
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -380,16 +384,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             list?.forEach { panen ->
                                 val tphId = panen.tph?.id
                                 val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
-                                val limitTPH = panen.tph?.limit_tph  // Extract limit_tph directly from panen.tph
+                                val limitTPH =
+                                    panen.tph?.limit_tph  // Extract limit_tph directly from panen.tph
 
                                 if (tphId != null && jenisTPHId != null) {
                                     val existingData = tphDataMap[tphId]
                                     if (existingData != null) {
                                         // Increment the count for existing TPH
-                                        tphDataMap[tphId] = existingData.copy(count = existingData.count + 1)
+                                        tphDataMap[tphId] =
+                                            existingData.copy(count = existingData.count + 1)
                                     } else {
                                         // Create new entry for this TPH with the limit_tph
-                                        tphDataMap[tphId] = TPHData(count = 1, jenisTPHId = jenisTPHId, limitTPH = limitTPH!!)
+                                        tphDataMap[tphId] = TPHData(
+                                            count = 1,
+                                            jenisTPHId = jenisTPHId,
+                                            limitTPH = limitTPH!!
+                                        )
                                     }
                                 }
                             }
@@ -414,7 +424,37 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         }
                     }
 
-                    AppLogger.d("jenisTPHlistGlobal $jenisTPHListGlobal")
+                    val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
+
+                    absensiViewModel.loadActiveAbsensi()
+                    delay(100)
+
+                    withContext(Dispatchers.Main) {
+                        absensiViewModel.activeAbsensiList.observe(this@FeaturePanenTBSActivity) { absensiWithRelations ->
+                            val absensiData = absensiWithRelations ?: emptyList()
+
+                            // Store the absensi models in the global variable
+                            absensiList = absensiData
+
+                            // Extract all NIKs of present karyawan from all absensi entries
+                            val newPresentNikSet = mutableSetOf<String>()
+
+                            absensiData.forEach { absensiRelation ->
+                                val absensi = absensiRelation.absensi
+                                // Split the comma-separated NIK string and add each NIK to the set
+                                val niks = absensi.karyawan_msk_nik.split(",")
+                                newPresentNikSet.addAll(niks.filter {
+                                    it.isNotEmpty() && it.trim().isNotEmpty()
+                                })
+                            }
+
+                            // Update the global set
+                            presentNikSet = newPresentNikSet
+
+                            AppLogger.d("Found ${presentNikSet.size} present NIKs from absensi data")
+                            absensiDeferred.complete(absensiData)
+                        }
+                    }
 
                     val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
 
@@ -422,19 +462,51 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     delay(100)
 
                     withContext(Dispatchers.Main) {
-
                         panenViewModel.allKaryawanList.observe(this@FeaturePanenTBSActivity) { list ->
                             val allKaryawan = list ?: emptyList()
 
-                            // Store in both lists to use for main workers and secondary (lain) workers
-                            karyawanList = allKaryawan
-                            karyawanLainList = allKaryawan
-                            if (allKaryawan.isNotEmpty()) {
-                                val sampleSize = minOf(3, allKaryawan.size)
-                                val sample = allKaryawan.take(sampleSize)
-                            }
+                            // Only filter if presentNikSet has values
+                            if (presentNikSet.isNotEmpty()) {
+                                // Filter to get only present karyawan
+                                val presentKaryawan = allKaryawan.filter { karyawan ->
+                                    karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+                                }
 
-                            karyawanDeferred.complete(allKaryawan)
+                                // Store filtered (present) karyawan in both global lists
+                                karyawanList = presentKaryawan
+                                karyawanLainList = presentKaryawan
+
+                                AppLogger.d("Total karyawan: ${allKaryawan.size}")
+                                AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
+
+                                // If we have present karyawan, log a sample
+                                if (presentKaryawan.isNotEmpty()) {
+                                    val sampleSize = minOf(3, presentKaryawan.size)
+                                    val sample = presentKaryawan.take(sampleSize)
+                                    AppLogger.d("Sample present karyawan: $sample")
+                                } else {
+                                    AppLogger.d("No present karyawan found after filtering")
+                                }
+
+                                // Complete the deferred with the filtered karyawan
+                                karyawanDeferred.complete(presentKaryawan)
+                            } else {
+                                // No presentNikSet, use original behavior
+                                // Store all karyawan in both global lists
+                                karyawanList = allKaryawan
+                                karyawanLainList = allKaryawan
+
+                                AppLogger.d("Present NIK set is empty, using all ${allKaryawan.size} karyawan")
+
+                                if (allKaryawan.isNotEmpty()) {
+                                    val sampleSize = minOf(3, allKaryawan.size)
+                                    val sample = allKaryawan.take(sampleSize)
+                                    AppLogger.d("Sample karyawan: $sample")
+                                }
+
+                                // Complete the deferred with all karyawan
+                                karyawanDeferred.complete(allKaryawan)
+                            }
                         }
                     }
 
@@ -634,7 +706,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                     // If that still fails and we don't have a NIK separator, try all possible matches
                                     if (nama == null && !worker.name.contains(" - ")) {
                                         // Find any key in the map that starts with this worker's name followed by " - "
-                                        val possibleKey = karyawanNamaMap.keys.find { it.startsWith("${worker.name} - ") }
+                                        val possibleKey =
+                                            karyawanNamaMap.keys.find { it.startsWith("${worker.name} - ") }
                                         if (possibleKey != null) {
                                             nama = karyawanNamaMap[possibleKey]
                                         } else {
@@ -682,17 +755,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         }
                                     }
 
-                                val selectedNamaPemanenLainList = selectedPemanenLain.mapNotNull { worker ->
-                                    val baseName = worker.name.substringBefore(" - ").trim()
+                                val selectedNamaPemanenLainList =
+                                    selectedPemanenLain.mapNotNull { worker ->
+                                        val baseName = worker.name.substringBefore(" - ").trim()
 
-                                    if (workerLainNameCounts[baseName]!! > 1) {
-                                        // For duplicate names, use the full key with NIK
-                                        karyawanNamaLainMap[worker.name]
-                                    } else {
-                                        // For unique names, just use the base name
-                                        karyawanNamaLainMap[baseName] ?: baseName  // Fallback to baseName if not in map
+                                        if (workerLainNameCounts[baseName]!! > 1) {
+                                            // For duplicate names, use the full key with NIK
+                                            karyawanNamaLainMap[worker.name]
+                                        } else {
+                                            // For unique names, just use the base name
+                                            karyawanNamaLainMap[baseName]
+                                                ?: baseName  // Fallback to baseName if not in map
+                                        }
                                     }
-                                }
 
                                 val selectedNikPemanenIds = selectedPemanen.mapNotNull { worker ->
                                     if (worker.name.contains(" - ")) {
@@ -723,8 +798,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         }
                                     }
 
-                                val uniqueNamaPemanen = (selectedNamaPemanenList + selectedNamaPemanenLainList)
-                                    .joinToString(",")
+                                val uniqueNamaPemanen =
+                                    (selectedNamaPemanenList + selectedNamaPemanenLainList)
+                                        .joinToString(",")
 
                                 val uniqueNikPemanen =
                                     (selectedNikPemanenIds + selectedNikPemanenLainIds)
@@ -786,13 +862,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                             if (tphData != null) {
                                                 // Update existing entry, maintain the same jenisTPHId and limitTPH
-                                                panenStoredLocal[tphId] = tphData.copy(count = tphData.count + 1)
+                                                panenStoredLocal[tphId] =
+                                                    tphData.copy(count = tphData.count + 1)
                                             } else {
                                                 // Create new entry
                                                 val jenisTPHId = selectedTPHJenisId ?: 0
 
-                                                val limitTPH = tphList.find { it.id == tphId }?.limit_tph
-                                                panenStoredLocal[tphId] = TPHData(count = 1, jenisTPHId = jenisTPHId, limitTPH = limitTPH)
+                                                val limitTPH =
+                                                    tphList.find { it.id == tphId }?.limit_tph
+                                                panenStoredLocal[tphId] = TPHData(
+                                                    count = 1,
+                                                    jenisTPHId = jenisTPHId,
+                                                    limitTPH = limitTPH
+                                                )
                                             }
 
                                             resetFormAfterSaveData()
@@ -1027,60 +1109,60 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             // If no valid tahun tanam is found or selection is empty, leave as hint
             AppLogger.d("No valid tahun tanam selection found, leaving as hint")
 
-            // Reset tahun tanam selection variables
-            selectedTahunTanamIdSpinner = -1
-            selectedTahunTanamValue = ""
+//            // Reset tahun tanam selection variables
+//            selectedTahunTanamIdSpinner = -1
+//            selectedTahunTanamValue = ""
 
             // Ensure spinner shows hint
             tahunTanamSpinner.setHint("Pilih Kategori Yang Sesuai")
         }
 
         val blokLayout = findViewById<LinearLayout>(R.id.layoutBlok)
-        val blokNames = if (blokList.isNotEmpty()) {
-            blokList.mapNotNull { it.blok_kode }
-        } else {
-            emptyList()
+
+
+        val estateIdToUse =
+            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                selectedEstate.toIntOrNull()
+            } else {
+                estateId?.toIntOrNull()
+            }
+
+        val filteredBlokList = blokList.filter { blok ->
+            blok.dept == estateIdToUse &&
+                    blok.divisi == selectedDivisiValue &&
+                    blok.tahun == selectedTahunTanamValue
         }
 
+
+        val blokNames = filteredBlokList.mapNotNull { it.blok_kode }
         setupSpinnerView(blokLayout, blokNames)
         val blokSpinner = blokLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
 
-// Log current state for debugging
-        AppLogger.d("Current selectedBlokIdSpinner: $selectedBlokIdSpinner, selectedBlok: $selectedBlok")
-        AppLogger.d("Available blokNames size: ${blokNames.size}")
+        if (blokNames.isNotEmpty() && selectedBlokIdSpinner >= 0 && selectedBlokIdSpinner < blokNames.size) {
+            try {
+                // Use post to ensure spinner is initialized
+                blokSpinner.post {
+                    try {
+                        // Set selection directly with the index we want
+                        blokSpinner.setSelectedIndex(selectedBlokIdSpinner)
+                        AppLogger.d("setSelectedIndex called with position: $selectedBlokIdSpinner")
 
-// CHANGED: Prioritize using the position directly if it's valid
-        var targetPosition = if (selectedBlokIdSpinner >= 0 && selectedBlokIdSpinner < blokNames.size) {
-            selectedBlokIdSpinner
+                        // Update the selectedBlok value based on the selection
+                        selectedBlok = blokNames[selectedBlokIdSpinner]
+                        AppLogger.d("Updated selectedBlok to: $selectedBlok")
+
+                        // Handle the selection with the updated values
+                        handleItemSelection(blokLayout, selectedBlokIdSpinner, selectedBlok)
+                    } catch (e: Exception) {
+                        AppLogger.e("Error setting selection: ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error in blok selection: ${e.message}")
+            }
         } else {
-            // Fall back to finding by value if position is invalid
-            blokNames.indexOf(selectedBlok)
+            AppLogger.d("No valid selection could be made - invalid index or empty list")
         }
-
-// If we still don't have a valid position, default to 0 if we have items
-        if (targetPosition < 0) {
-            targetPosition = if (blokNames.isNotEmpty()) 0 else -1
-            AppLogger.d("Defaulting to position: $targetPosition")
-        }
-
-// Only proceed if we have a valid position
-        if (targetPosition >= 0 && blokNames.isNotEmpty()) {
-            // Set the spinner selection
-            blokSpinner.setSelectedIndex(targetPosition)
-
-            // Update tracking variables
-            val selectedItem = blokNames[targetPosition]
-            selectedBlokIdSpinner = targetPosition
-            selectedBlok = selectedItem
-
-            AppLogger.d("Setting blok selection to position: $targetPosition, value: $selectedItem")
-
-            // Handle the selection
-            handleItemSelection(blokLayout, targetPosition, selectedItem)
-        } else {
-            AppLogger.d("No valid selection could be made for blok spinner")
-        }
-
 
         selectedTPH = ""
         selectedTPHValue = null
@@ -1179,7 +1261,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val kemandoranLainNames = kemandoranLainList.mapNotNull { it.nama }
         setupSpinnerView(kemandoranLainLayout, kemandoranLainNames)
-        val kemandoranLainSpinner = kemandoranLainLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+        val kemandoranLainSpinner =
+            kemandoranLainLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
 
 // Find the position of the saved kemandoranLain in the list
         val kemandoranLainPosition = kemandoranLainNames.indexOf(selectedKemandoranLain)
@@ -1314,28 +1397,37 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 val allKaryawan = panenViewModel.allKaryawanList.value ?: emptyList()
                 AppLogger.d("Reset: Reloaded ${allKaryawan.size} karyawan")
 
+                // Filter the list to only include workers who are present
+                val presentKaryawan = allKaryawan.filter { karyawan ->
+                    karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+                }
+
+                AppLogger.d("Reset: Found ${presentKaryawan.size} present karyawan out of ${allKaryawan.size} total")
+
                 // Conditionally assign to lists based on what needs loading
                 if (shouldLoadKemandoran) {
+                    // Store all karyawan in the global list
                     karyawanList = allKaryawan
                     AppLogger.d("Assigned allKaryawan to karyawanList because selectedKemandoran is empty")
                 }
 
                 if (shouldLoadKemandoranLain) {
+                    // Store all karyawan in the global list
                     karyawanLainList = allKaryawan
                     AppLogger.d("Assigned allKaryawan to karyawanLainList because selectedKemandoranLain is empty")
                 }
 
                 withContext(Dispatchers.Main) {
                     // Set up spinner views for the layouts that need it
-                    if (allKaryawan.isNotEmpty()) {
-                        val karyawanNames = allKaryawan
+                    if (presentKaryawan.isNotEmpty()) {
+                        val karyawanNames = presentKaryawan
                             .sortedBy { it.nama }
                             .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
                         // Only set up spinners for layouts that need it
                         if (shouldLoadKemandoran) {
                             setupSpinnerView(layoutPemanen, karyawanNames)
-                            AppLogger.d("Set up spinner for layoutPemanen")
+                            AppLogger.d("Set up spinner for layoutPemanen with ${karyawanNames.size} present workers")
 
                             // Only handle visibility for this case
                             if (blokBanjir != 0) {
@@ -1349,7 +1441,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                         if (shouldLoadKemandoranLain) {
                             setupSpinnerView(layoutPemanenLain, karyawanNames)
-                            AppLogger.d("Set up spinner for layoutPemanenLain")
+                            AppLogger.d("Set up spinner for layoutPemanenLain with ${karyawanNames.size} present workers")
+                        }
+                    } else {
+                        // Handle the case where no present workers are found
+                        if (shouldLoadKemandoran) {
+                            setupSpinnerView(layoutPemanen, emptyList())
+                            AppLogger.d("No present workers found for layoutPemanen")
+                        }
+
+                        if (shouldLoadKemandoranLain) {
+                            setupSpinnerView(layoutPemanenLain, emptyList())
+                            AppLogger.d("No present workers found for layoutPemanenLain")
                         }
                     }
                     delay(100)
@@ -1640,6 +1743,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
         val factoryPanenViewModel = PanenViewModel.PanenViewModelFactory(application)
         panenViewModel = ViewModelProvider(this, factoryPanenViewModel)[PanenViewModel::class.java]
+
+        val factoryAbsensiViewModel = AbsensiViewModel.AbsensiViewModelFactory(application)
+        absensiViewModel =
+            ViewModelProvider(this, factoryAbsensiViewModel)[AbsensiViewModel::class.java]
     }
 
 
@@ -2431,7 +2538,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 titleScannedTPHInsideRadius.visibility = View.VISIBLE
                 descScannedTPHInsideRadius.visibility = View.VISIBLE
                 emptyScannedTPHInsideRadius.visibility = View.GONE
-                tphScannedResultRecyclerView.adapter = ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal)
+                tphScannedResultRecyclerView.adapter =
+                    ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal)
 
 
                 val itemHeight = 50
@@ -2687,35 +2795,36 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
 
             // Calculate the final limit to use
-            val limit = if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
-                // Special case for jenis_tph = induk (id = 2)
-                try {
-                    val customLimit = tphData?.limitTPH?.toInt()
+            val limit =
+                if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
+                    // Special case for jenis_tph = induk (id = 2)
+                    try {
+                        val customLimit = tphData?.limitTPH?.toInt()
 
-                    AppLogger.d("customLimit $customLimit")
-                    if (customLimit != null && customLimit > 3 && customLimit <= 999) {
-                        // Use the custom limit if it's greater than 3 and up to 999
-                        customLimit
-                    } else {
-                        // Otherwise, use the default limit (7)
+                        AppLogger.d("customLimit $customLimit")
+                        if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                            // Use the custom limit if it's greater than 3 and up to 999
+                            customLimit
+                        } else {
+                            // Otherwise, use the default limit (7)
+                            defaultLimit
+                        }
+                    } catch (e: Exception) {
                         defaultLimit
                     }
-                } catch (e: Exception) {
-                    defaultLimit
-                }
-            } else {
-                // For other jenis_tph_id values
-                try {
-                    val customLimit = tphData?.limitTPH?.toInt()
-                    if (customLimit != null) {
-                        customLimit
-                    } else {
+                } else {
+                    // For other jenis_tph_id values
+                    try {
+                        val customLimit = tphData?.limitTPH?.toInt()
+                        if (customLimit != null) {
+                            customLimit
+                        } else {
+                            defaultLimit
+                        }
+                    } catch (e: Exception) {
                         defaultLimit
                     }
-                } catch (e: Exception) {
-                    defaultLimit
                 }
-            }
 
             // Include if within radius OR is the currently selected TPH
             if (distance <= radiusMinimum || isCurrentlySelected) {
@@ -2823,20 +2932,90 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 }
             }
 
-            karyawanList = karyawanDeferred.await()
-            karyawanLainList = karyawanList
+            val allKaryawan = karyawanDeferred.await()
 
-            val karyawanNames = karyawanList
-                .sortedBy { it.nama }
-                .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+            // Only filter if presentNikSet has values
+            if (presentNikSet.isNotEmpty()) {
+                // Filter karyawan list to only include those who are present
+                val presentKaryawan = allKaryawan.filter { karyawan ->
+                    karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+                }
 
-            withContext(Dispatchers.Main) {
-                val layoutPemanen = rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
-                layoutPemanen.visibility = View.VISIBLE
-                if (karyawanNames.isNotEmpty()) {
-                    setupSpinnerView(layoutPemanen, karyawanNames)
-                } else {
-                    setupSpinnerView(layoutPemanen, emptyList())
+                // Store filtered karyawan in the global lists
+                karyawanList = presentKaryawan
+                karyawanLainList = presentKaryawan
+
+                // Log statistics for debugging
+                AppLogger.d("Total karyawan: ${allKaryawan.size}")
+                AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
+
+                val karyawanNames = presentKaryawan
+                    .sortedBy { it.nama }
+                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                withContext(Dispatchers.Main) {
+                    val layoutPemanen = rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                    layoutPemanen.visibility = View.VISIBLE
+
+                    if (karyawanNames.isNotEmpty()) {
+                        setupSpinnerView(layoutPemanen, karyawanNames)
+                    } else {
+                        setupSpinnerView(layoutPemanen, emptyList())
+                        val pemanenSpinner =
+                            layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                        pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
+                    }
+
+                    val layoutPemanenLain =
+                        rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                    if (layoutPemanenLain != null) {
+                        if (karyawanNames.isNotEmpty()) {
+                            setupSpinnerView(layoutPemanenLain, karyawanNames)
+                        } else {
+                            setupSpinnerView(layoutPemanenLain, emptyList())
+                            val pemanenLainSpinner =
+                                layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                            pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
+                        }
+                    }
+                }
+            } else {
+                // No presentNikSet, use original behavior
+                // Store all karyawan in the global lists
+                karyawanList = allKaryawan
+                karyawanLainList = allKaryawan
+
+                AppLogger.d("Present NIK set is empty, using all ${allKaryawan.size} karyawan")
+
+                val karyawanNames = allKaryawan
+                    .sortedBy { it.nama }
+                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                withContext(Dispatchers.Main) {
+                    val layoutPemanen = rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                    layoutPemanen.visibility = View.VISIBLE
+
+                    if (karyawanNames.isNotEmpty()) {
+                        setupSpinnerView(layoutPemanen, karyawanNames)
+                    } else {
+                        setupSpinnerView(layoutPemanen, emptyList())
+                        val pemanenSpinner =
+                            layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                        pemanenSpinner.setHint("Tidak Ada Karyawan")
+                    }
+
+                    val layoutPemanenLain =
+                        rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                    if (layoutPemanenLain != null) {
+                        if (karyawanNames.isNotEmpty()) {
+                            setupSpinnerView(layoutPemanenLain, karyawanNames)
+                        } else {
+                            setupSpinnerView(layoutPemanenLain, emptyList())
+                            val pemanenLainSpinner =
+                                layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                            pemanenLainSpinner.setHint("Tidak Ada Karyawan")
+                        }
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -3465,44 +3644,46 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
 
             // Calculate the final limit to use
-            val limitValue = if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
-                // Special case for jenis_tph = induk (id = 2)
-                // First check if limitTPH exists and can be converted to an Int
-                val customLimit = try {
-                    tphData?.limitTPH?.toInt()
-                } catch (e: Exception) {
-                    null
-                }
+            val limitValue =
+                if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
+                    // Special case for jenis_tph = induk (id = 2)
+                    // First check if limitTPH exists and can be converted to an Int
+                    val customLimit = try {
+                        tphData?.limitTPH?.toInt()
+                    } catch (e: Exception) {
+                        null
+                    }
 
-                // Use the custom limit if it's valid and within range
-                if (customLimit != null && customLimit > 3 && customLimit <= 999) {
-                    customLimit
-                } else {
-                    // Otherwise, use the default limit (7)
-                    defaultLimit // This should be 7 for jenisTPHId = 2
-                }
-            } else {
-                // For other jenis_tph_id values
-                try {
-                    // Try to get the custom limit first
-                    val customLimit = tphData?.limitTPH?.toInt()
-                    if (customLimit != null) {
+                    // Use the custom limit if it's valid and within range
+                    if (customLimit != null && customLimit > 3 && customLimit <= 999) {
                         customLimit
                     } else {
+                        // Otherwise, use the default limit (7)
+                        defaultLimit // This should be 7 for jenisTPHId = 2
+                    }
+                } else {
+                    // For other jenis_tph_id values
+                    try {
+                        // Try to get the custom limit first
+                        val customLimit = tphData?.limitTPH?.toInt()
+                        if (customLimit != null) {
+                            customLimit
+                        } else {
+                            defaultLimit
+                        }
+                    } catch (e: Exception) {
+                        // If conversion fails, use the default
                         defaultLimit
                     }
-                } catch (e: Exception) {
-                    // If conversion fails, use the default
-                    defaultLimit
                 }
-            }
 
             // Now use the properly converted Int value for comparison
             if (currentCount >= limitValue) {
                 isValid = false
                 val layoutNoTPH = findViewById<LinearLayout>(R.id.layoutNoTPH)
                 layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS)?.apply {
-                    text = "TPH sudah terpilih $currentCount dari $limitValue kali, Harap ganti nomor TPH!"
+                    text =
+                        "TPH sudah terpilih $currentCount dari $limitValue kali, Harap ganti nomor TPH!"
                     visibility = View.VISIBLE
                 }
                 errorMessages.add("TPH sudah terpilih $currentCount dari $limitValue kali, Harap ganti nomor TPH!")
@@ -3737,10 +3918,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                             val lon = it.lon?.toDoubleOrNull()
                                             val nomor = it.nomor ?: ""
                                             val blokKode = it.blok_kode ?: ""
-                                            val jenisTPHId = it.jenis_tph_id ?: "1" // Get jenis_tph_id with default "1"
+                                            val jenisTPHId = it.jenis_tph_id
+                                                ?: "1" // Get jenis_tph_id with default "1"
 
                                             if (id != null && lat != null && lon != null) {
-                                                id to ScannedTPHLocation(lat, lon, nomor, blokKode, jenisTPHId)
+                                                id to ScannedTPHLocation(
+                                                    lat,
+                                                    lon,
+                                                    nomor,
+                                                    blokKode,
+                                                    jenisTPHId
+                                                )
                                             } else {
                                                 null
                                             }
@@ -3901,6 +4089,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 selectedBlok = selectedItem.toString()
                 selectedBlokIdSpinner = position
 
+                AppLogger.d(selectedDivisiValue.toString())
+                AppLogger.d(selectedTahunTanamValue.toString())
+                AppLogger.d(selectedBlok.toString())
+
                 val selectedFieldId = try {
                     // Determine which estate ID to use
                     val estateIdToUse =
@@ -3929,6 +4121,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     AppLogger.e("Selected Blok ID is null, skipping processing.")
                     return
                 }
+
+                setupSpinnerView(layoutNoTPH, emptyList())
 
                 // In the handleItemSelection for R.id.layoutBlok
                 lifecycleScope.launch(Dispatchers.IO) {
@@ -3983,36 +4177,38 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             val jenisTPHId = tph.jenis_tph_id?.toIntOrNull() ?: 0
 
                             // Get the default limit from jenisTPHListGlobal
-                            val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+                            val defaultLimit =
+                                jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
 
                             // Calculate the final limit to use
-                            val limit = if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
-                                // Special case for jenis_tph = induk (id = 2)
-                                try {
-                                    val customLimit = tphData?.limitTPH?.toInt()
-                                    if (customLimit != null && customLimit > 3 && customLimit <= 999) {
-                                        // Use the custom limit if it's greater than 3 and up to 999
-                                        customLimit
-                                    } else {
-                                        // Otherwise, use the default limit (7)
+                            val limit =
+                                if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
+                                    // Special case for jenis_tph = induk (id = 2)
+                                    try {
+                                        val customLimit = tphData?.limitTPH?.toInt()
+                                        if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                                            // Use the custom limit if it's greater than 3 and up to 999
+                                            customLimit
+                                        } else {
+                                            // Otherwise, use the default limit (7)
+                                            defaultLimit
+                                        }
+                                    } catch (e: Exception) {
                                         defaultLimit
                                     }
-                                } catch (e: Exception) {
-                                    defaultLimit
-                                }
-                            } else {
-                                // For other jenis_tph_id values
-                                try {
-                                    val customLimit = tphData?.limitTPH?.toInt()
-                                    if (customLimit != null) {
-                                        customLimit
-                                    } else {
+                                } else {
+                                    // For other jenis_tph_id values
+                                    try {
+                                        val customLimit = tphData?.limitTPH?.toInt()
+                                        if (customLimit != null) {
+                                            customLimit
+                                        } else {
+                                            defaultLimit
+                                        }
+                                    } catch (e: Exception) {
                                         defaultLimit
                                     }
-                                } catch (e: Exception) {
-                                    defaultLimit
                                 }
-                            }
 
                             AppLogger.d("TPH ${tph.id} (${tph.nomor}): selectionCount=$selectionCount, jenisTPHId=$jenisTPHId, limit=$limit")
 
@@ -4184,22 +4380,70 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             karyawanList = karyawanDeferred.await()
 
+                            // Check if we have absensi data to filter with
+                            if (presentNikSet.isNotEmpty()) {
+                                // Filter karyawan list to only include those who are present
+                                val presentKaryawan = karyawanList.filter { karyawan ->
+                                    karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+                                }
 
-                            AppLogger.d(karyawanList.size.toString())
+                                val absentKaryawan = karyawanList.filter { karyawan ->
+                                    karyawan.nik == null || !presentNikSet.contains(karyawan.nik)
+                                }
 
-                            val karyawanNames = karyawanList
-                                .sortedBy { it.nama } // Sort by name alphabetically
-                                .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                // Log statistics
+                                AppLogger.d("Total karyawan: ${karyawanList.size}")
+                                AppLogger.d("Present karyawan: ${presentKaryawan.size}")
+                                AppLogger.d("Absent karyawan: ${absentKaryawan.size}")
 
-                            withContext(Dispatchers.Main) {
-                                val layoutPemanen =
-                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
-                                layoutPemanen.visibility = View.VISIBLE
+                                val karyawanNames = presentKaryawan
+                                    .sortedBy { it.nama } // Sort by name alphabetically
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                AppLogger.d("Present karyawan names and NIKs: $karyawanNames")
 
-                                if (karyawanNames.isNotEmpty()) {
-                                    setupSpinnerView(layoutPemanen, karyawanNames)
-                                } else {
-                                    setupSpinnerView(layoutPemanen, emptyList())
+                                val absentKaryawanNames = absentKaryawan
+                                    .sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                AppLogger.d("Absent karyawan names and NIKs: $absentKaryawanNames")
+
+                                withContext(Dispatchers.Main) {
+                                    val layoutPemanen =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                    layoutPemanen.visibility = View.VISIBLE
+
+                                    if (karyawanNames.isNotEmpty()) {
+                                        setupSpinnerView(layoutPemanen, karyawanNames)
+                                    } else {
+                                        // Set empty and update hint
+                                        setupSpinnerView(layoutPemanen, emptyList())
+                                        val pemanenSpinner =
+                                            layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                        pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
+
+                                    }
+                                }
+                            } else {
+                                // No presentNikSet, use original behavior - show all karyawan
+                                AppLogger.d("Present NIK set is empty, showing all ${karyawanList.size} karyawan")
+
+                                val karyawanNames = karyawanList
+                                    .sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                                withContext(Dispatchers.Main) {
+                                    val layoutPemanen =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                    layoutPemanen.visibility = View.VISIBLE
+
+                                    if (karyawanNames.isNotEmpty()) {
+                                        setupSpinnerView(layoutPemanen, karyawanNames)
+                                    } else {
+                                        // Set empty and update hint
+                                        setupSpinnerView(layoutPemanen, emptyList())
+                                        val pemanenSpinner =
+                                            layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                        pemanenSpinner.setHint("Tidak Ada Karyawan")
+                                    }
                                 }
                             }
                         } catch (e: Exception) {
@@ -4321,7 +4565,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
 
             R.id.layoutKemandoranLain -> {
-//                selectedPemanenLainAdapter.clearAllWorkers()
                 selectedKemandoranLain = selectedItem.toString()
                 selectedKemandoranLainIdSpinner = position
 
@@ -4377,18 +4620,58 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                                 karyawanLainList = karyawanDeferred.await()
 
-                                val karyawanNames = karyawanLainList
-                                    .sortedBy { it.nama }
-                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                // Check if we have absensi data to filter with
+                                if (presentNikSet.isNotEmpty()) {
+                                    // Filter karyawan list to only include those who are present
+                                    val presentKaryawan = karyawanLainList.filter { karyawan ->
+                                        karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+                                    }
 
-                                withContext(Dispatchers.Main) {
-                                    val layoutPemanen =
-                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
-                                    layoutPemanen.visibility = View.VISIBLE
-                                    if (karyawanNames.isNotEmpty()) {
-                                        setupSpinnerView(layoutPemanen, karyawanNames)
-                                    } else {
-                                        setupSpinnerView(layoutPemanen, emptyList())
+                                    // Log statistics for debugging
+                                    AppLogger.d("Total karyawan lain: ${karyawanLainList.size}")
+                                    AppLogger.d("Present karyawan lain: ${presentKaryawan.size}")
+
+                                    val karyawanNames = presentKaryawan
+                                        .sortedBy { it.nama }
+                                        .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                                    withContext(Dispatchers.Main) {
+                                        val layoutPemanen =
+                                            linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                                        layoutPemanen.visibility = View.VISIBLE
+
+                                        if (karyawanNames.isNotEmpty()) {
+                                            setupSpinnerView(layoutPemanen, karyawanNames)
+                                        } else {
+                                            setupSpinnerView(layoutPemanen, emptyList())
+                                            // Set hint directly
+                                            val pemanenSpinner =
+                                                layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                            pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
+                                        }
+                                    }
+                                } else {
+                                    // No presentNikSet, use original behavior - show all karyawan
+                                    AppLogger.d("Present NIK set is empty, showing all ${karyawanLainList.size} karyawan")
+
+                                    val karyawanNames = karyawanLainList
+                                        .sortedBy { it.nama }
+                                        .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                                    withContext(Dispatchers.Main) {
+                                        val layoutPemanen =
+                                            linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                                        layoutPemanen.visibility = View.VISIBLE
+
+                                        if (karyawanNames.isNotEmpty()) {
+                                            setupSpinnerView(layoutPemanen, karyawanNames)
+                                        } else {
+                                            setupSpinnerView(layoutPemanen, emptyList())
+                                            // Set hint directly
+                                            val pemanenSpinner =
+                                                layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                            pemanenSpinner.setHint("Tidak Ada Karyawan")
+                                        }
                                     }
                                 }
                             } catch (e: Exception) {
@@ -4421,22 +4704,68 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
 
                             karyawanLainList = karyawanDeferred.await()
 
-                            val namaKaryawanKemandoranLain =
-                                karyawanLainList.sortedBy { it.nama } // Sort by name alphabetically
-                                    .map { "${it.nama} - ${it.nik}" }
+                            // Check if we have absensi data to filter with
+                            if (presentNikSet.isNotEmpty()) {
+                                // Filter karyawan list to only include those who are present
+                                val presentKaryawan = karyawanLainList.filter { karyawan ->
+                                    karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+                                }
+
+                                // Log statistics for debugging
+                                AppLogger.d("Total karyawan lain for kemandoran: ${karyawanLainList.size}")
+                                AppLogger.d("Present karyawan lain: ${presentKaryawan.size}")
+
+                                val namaKaryawanKemandoranLain = presentKaryawan
+                                    .sortedBy { it.nama } // Sort by name alphabetically
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                                withContext(Dispatchers.Main) {
+                                    val layoutPemanenLain =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+
+                                    if (namaKaryawanKemandoranLain.isNotEmpty()) {
+                                        setupSpinnerView(
+                                            layoutPemanenLain,
+                                            namaKaryawanKemandoranLain
+                                        )
+                                    } else {
+                                        setupSpinnerView(
+                                            layoutPemanenLain,
+                                            emptyList()
+                                        )
+                                        val pemanenLainSpinner =
+                                            layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                        pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
 
 
+                                    }
+                                }
+                            } else {
+                                // No presentNikSet, use original behavior - show all karyawan
+                                AppLogger.d("Present NIK set is empty, showing all ${karyawanLainList.size} karyawan")
 
-                            withContext(Dispatchers.Main) {
-                                val layoutPemanenLain =
-                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
-                                if (namaKaryawanKemandoranLain.isNotEmpty()) {
-                                    setupSpinnerView(
-                                        layoutPemanenLain,
-                                        namaKaryawanKemandoranLain as List<String>
-                                    )
-                                } else {
-                                    setupSpinnerView(layoutPemanenLain, emptyList())
+                                val namaKaryawanKemandoranLain = karyawanLainList
+                                    .sortedBy { it.nama } // Sort by name alphabetically
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                                withContext(Dispatchers.Main) {
+                                    val layoutPemanenLain =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+
+                                    if (namaKaryawanKemandoranLain.isNotEmpty()) {
+                                        setupSpinnerView(
+                                            layoutPemanenLain,
+                                            namaKaryawanKemandoranLain
+                                        )
+                                    } else {
+                                        setupSpinnerView(
+                                            layoutPemanenLain,
+                                            emptyList()
+                                        )
+                                        val pemanenLainSpinner =
+                                            layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                        pemanenLainSpinner.setHint("Tidak Ada Karyawan")
+                                    }
                                 }
                             }
                         } catch (e: Exception) {
@@ -4457,7 +4786,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 } else {
                     AppLogger.e("Selected ID Kemandoran Lain is null, skipping data fetch.")
                 }
-
             }
 
             R.id.layoutPemanenLain -> {

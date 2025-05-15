@@ -507,7 +507,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             ""
         }
 
-//        Log.d("listTPHDriver", listTPHDriver.toString())
+        Log.d("listTPHDriver", listTPHDriver.toString())
 
         prefManager = PrefManager(this)
         userName = prefManager!!.nameUserLogin
@@ -547,6 +547,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 ""
             }
 
+            AppLogger.d(currentScanTphIds)
+
             // If we have previous scan data stored in tph1, extract TPH IDs
             val previousScanTphIds = if (tph1.isNotEmpty()) {
                 // Get the TPH IDs from tph1 string
@@ -585,7 +587,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupSearch()
         setupObservers()
         if (featureName != "Buat eSPB" && featureName != "Detail eSPB") {
-//            setupSpeedDial()
+            setupSpeedDial()
             setupCheckboxControl()  // Add this
         }
         setupCardListeners()
@@ -3745,6 +3747,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun setupSpeedDial() {
         speedDial = findViewById(R.id.dial_tph_list)
+
+        if(featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen){
+            speedDial.visibility = View.GONE
+        }else{
+            speedDial.visibility = View.VISIBLE
+        }
 
         speedDial.apply {
 //            addActionItem(
