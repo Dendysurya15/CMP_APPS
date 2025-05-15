@@ -15,7 +15,6 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.displayHektarPanenTanggalBlok
@@ -86,10 +85,8 @@ class ListHektarPanenAdapter(
         holder.et4.setTag(R.id.item_id_tag, item.id) // You'll need to define this ID in res/values/ids.xml
         if (item.luas_panen == 0.0f){
             holder.et4.setText("")
-            holder.td1.setTextColor(ContextCompat.getColor(context, R.color.colorRed))
         }else{
             holder.et4.setText(item.luas_panen.toString())
-            holder.td1.setTextColor(ContextCompat.getColor(context, R.color.black))
         }
 
         // Remove existing TextWatcher if there is one
