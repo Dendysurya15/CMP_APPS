@@ -684,6 +684,10 @@ class AppRepository(context: Context) {
             }
         }
 
+    suspend fun updateStatusUploadPanen(ids: List<Int>, statusUpload: Int) {
+        panenDao.updateStatusUploadPanen(ids, statusUpload)
+    }
+
     suspend fun getPemuatByIdList(idPemuat: List<String>): List<KaryawanModel> {
         return karyawanDao.getPemuatByIdList(idPemuat)
     }
@@ -701,8 +705,8 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun updateStatusUploadPanen(ids: List<Int>, statusUpload: Int) {
-        panenDao.updateStatusUploadPanen(ids, statusUpload)
+    suspend fun updateStatusUploadHektarPanen(ids: List<Int>, statusUpload: Int) {
+        hektarPanenDao.updateStatusUploadHektarPanen(ids, statusUpload)
     }
 
     suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<SaveTPHResult> =

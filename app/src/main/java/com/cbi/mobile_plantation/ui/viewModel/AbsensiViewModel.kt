@@ -65,6 +65,9 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         return repository.isAbsensiExist(dateAbsen, karyawanMskIds)
     }
 
+    private val _updateStatus = MutableLiveData<Boolean>()
+    val updateStatus: LiveData<Boolean> get() = _updateStatus
+
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
 
@@ -151,6 +154,28 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun updateDataIsZippedAbsensi(ids: List<Int>, status:Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateDataIsZippedAbsensi(ids,status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+            }
+        }
+    }
+
+    fun updateStatusUploadAbsensiPanen(ids: List<Int>, status: Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateStatusUploadAbsensiPanen(ids, status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+                AppLogger.e("Error updating status_upload: ${e.message}")
+            }
+        }
+    }
 
 
     suspend fun saveDataAbsensi(

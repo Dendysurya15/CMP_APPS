@@ -45,6 +45,11 @@ class AbsensiRepository(context: Context) {
         return absensiDao.getCountAbsensi()
     }
 
+    suspend fun updateDataIsZippedAbsensi(ids: List<Int>, status: Int) {
+        absensiDao.updateDataIsZippedAbsensi(ids, status)
+    }
+
+
     suspend fun getAbsensiCountArhive(load_status_scan: Int): Int {
         return absensiDao.getCountArchiveAbsensi(load_status_scan)
     }
@@ -93,6 +98,10 @@ class AbsensiRepository(context: Context) {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun updateStatusUploadAbsensiPanen(ids: List<Int>, statusUpload: Int) {
+        absensiDao.updateStatusUploadAbsensiPanen(ids, statusUpload)
     }
 
     sealed class SaveResultAbsensi {

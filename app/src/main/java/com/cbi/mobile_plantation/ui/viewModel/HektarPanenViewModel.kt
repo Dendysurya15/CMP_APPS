@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.repository.AppRepository
+import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -52,6 +53,18 @@ class HektarPanenViewModel(private val repository: AppRepository) : ViewModel() 
 
     suspend fun getNikLuasPanenLuasBlokDibayarByDateAndBlok(date: String?, blok: Int?): List<HektarPanenEntity> {
         return repository.getNikLuasPanenLuasBlokDibayarByDateAndBlok(date!!, blok!!)
+    }
+
+    fun updateStatusUploadHektarPanen(ids: List<Int>, status: Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateStatusUploadHektarPanen(ids, status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+                AppLogger.e("Error updating status_upload: ${e.message}")
+            }
+        }
     }
 
     fun updateDataIsZippedHP(ids: List<Int>, status:Int) {

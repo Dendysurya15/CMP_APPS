@@ -435,6 +435,7 @@ object AppUtils {
         jsonData: String,
         userId: String,
         featureType: String, // e.g., "hektaran", "absensi"
+        photosList: List<Map<String, String>> = emptyList(), // Optional parameter for photos, default is empty
         onResult: (Boolean, String, String, File) -> Unit
     ) {
         try {
@@ -464,6 +465,29 @@ object AppUtils {
                 dataInputStream,
                 zipParams.apply { fileNameInZip = "${featureType}/data.json" }
             )
+
+            // If photo list is provided, add all photos to the zip
+            if (photosList.isNotEmpty()) {
+                AppLogger.d("Adding ${photosList.size} photos to ${featureType} zip")
+
+                for (photoData in photosList) {
+                    val photoPath = photoData["path"] ?: continue
+                    val photoName = photoData["name"] ?: continue
+
+                    val photoFile = File(photoPath)
+                    if (photoFile.exists() && photoFile.isFile) {
+                        try {
+                            zipParams.fileNameInZip = "${featureType}/photos/$photoName"
+                            zip.addFile(photoFile, zipParams)
+                            AppLogger.d("Added photo to ${featureType} zip: $photoName")
+                        } catch (e: Exception) {
+                            AppLogger.e("Failed to add photo to ${featureType} zip: $photoName - ${e.message}")
+                        }
+                    } else {
+                        AppLogger.w("Photo file not found: $photoPath")
+                    }
+                }
+            }
 
             // Return the result using the callback
             onResult(true, zipFile.name, zipFile.absolutePath, zipFile)

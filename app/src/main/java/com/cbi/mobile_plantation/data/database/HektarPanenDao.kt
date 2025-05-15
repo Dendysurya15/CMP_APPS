@@ -33,6 +33,9 @@ abstract class HektarPanenDao {
     @Query("UPDATE hektar_panen SET dataIsZipped = :status WHERE id IN (:ids)")
     abstract  suspend fun updateDataIsZippedHP(ids: List<Int>, status: Int)
 
+    @Query("UPDATE hektar_panen SET status_upload = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadHektarPanen(ids: List<Int>, status: Int)
+
     //getallbydate
     @Query("SELECT * FROM hektar_panen WHERE strftime('%Y-%m-%d', date_created_panen) = :date")
     abstract fun getAllByDate(date: String): List<HektarPanenEntity>

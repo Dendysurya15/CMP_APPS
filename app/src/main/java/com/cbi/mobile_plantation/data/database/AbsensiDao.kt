@@ -37,6 +37,12 @@ abstract class AbsensiDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertAbsensiData(absensiData: AbsensiModel)
 
+    @Query("UPDATE absensi SET status_upload = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadAbsensiPanen(ids: List<Int>, status: Int)
+
+    @Query("UPDATE absensi SET status_uploaded_image = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadedImage(ids: List<Int>, status: String): Int
+
 //    @Insert(onConflict = OnConflictStrategy.REPLACE)
 //    abstract suspend fun insertAbsensiDataLokal(absensiDataLokal: AbsensiModelScan)
 
@@ -56,6 +62,9 @@ abstract class AbsensiDao {
 
     @Query("UPDATE absensi SET archive = 1 WHERE id = :id")
     abstract fun archiveAbsensiByID(id: Int): Int
+
+    @Query("UPDATE absensi SET dataIsZipped = :status WHERE id IN (:ids)")
+    abstract  suspend fun updateDataIsZippedAbsensi(ids: List<Int>, status: Int)
 
     @Query("""
     SELECT COUNT(*) FROM absensi 

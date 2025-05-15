@@ -43,6 +43,7 @@ class UploadCMPRepository(context: Context) {
     private val database = AppDatabase.getDatabase(context)
     private val uploadCMPDao = database.uploadCMPDao()
     private val panenDao = database.panenDao()
+    private val absensiDao = database.absensiDao()
     private val espbDao = database.espbDao()
 
 
@@ -258,7 +259,7 @@ class UploadCMPRepository(context: Context) {
         }
     }
 
-    data class ImageFileInfo(val file: File, val imageName: String, val tableId: String, val basePath: String)
+    data class ImageFileInfo(val file: File, val imageName: String, val tableId: String, val basePath: String, val databaseTable:String)
 
     suspend fun uploadJsonToServerV3(
         jsonFilePath: String,
@@ -313,12 +314,13 @@ class UploadCMPRepository(context: Context) {
                             val imageName = imageData["name"] ?: ""
                             val tableId = imageData["table_ids"]?.toIntOrNull() ?: -1
                             val basePathImage = imageData["base_path"]
+                            val databaseTable = imageData["database"]
                             AppLogger.d("Checking file ${index + 1}/${imageList.size}: $imageName - Table ID: $tableId")
 
                             val file = File(imagePath)
                             if (file.exists()) {
                                 validImageFiles.add(ImageFileInfo(file, imageName, tableId.toString(),
-                                    basePathImage!!
+                                    basePathImage!!, databaseTable!!
                                 ))
                                 AppLogger.d("✓ File exists: $imageName")
                             } else {
@@ -333,7 +335,14 @@ class UploadCMPRepository(context: Context) {
                                         })
                                     }.toString()
 
-                                    panenDao.updateStatusUploadedImage(listOf(tableId), errorJson)
+                                    when (databaseTable) {
+                                        AppUtils.DatabaseTables.PANEN -> {
+                                            panenDao.updateStatusUploadedImage(listOf(tableId), errorJson)
+                                        }
+                                        AppUtils.DatabaseTables.ABSENSI -> {
+                                            absensiDao.updateStatusUploadedImage(listOf(tableId), errorJson)
+                                        }
+                                    }
                                     AppLogger.d("Updated status_uploaded_image for table ID $tableId with error: $errorJson")
                                 }
                             }
@@ -422,8 +431,15 @@ class UploadCMPRepository(context: Context) {
 
                                         // Update status to 200 (success)
                                         if (tableIdInt != -1) {
-                                            panenDao.updateStatusUploadedImage(listOf(tableIdInt), "200")
-                                            AppLogger.d("Updated status_uploaded_image for table ID $tableIdInt to 200")
+                                            when (fileInfo.databaseTable) {
+                                                AppUtils.DatabaseTables.PANEN -> {
+                                                    panenDao.updateStatusUploadedImage(listOf(tableIdInt), "200")
+                                                }
+                                                AppUtils.DatabaseTables.ABSENSI -> {
+                                                    absensiDao.updateStatusUploadedImage(listOf(tableIdInt), "200")
+                                                }
+                                            }
+//                                            AppLogger.d("Updated status_uploaded_image for table ID $tableIdInt to 200")
                                         }
 
                                         currentProgress += progressPerImage
@@ -441,8 +457,14 @@ class UploadCMPRepository(context: Context) {
                                                     add(fileInfo.imageName)
                                                 })
                                             }.toString()
-                                            panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
-                                            AppLogger.d("Updated status_uploaded_image for table ID $tableIdInt with error: $errorJson")
+                                            when (fileInfo.databaseTable) {
+                                                AppUtils.DatabaseTables.PANEN -> {
+                                                    panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                                }
+                                                AppUtils.DatabaseTables.ABSENSI -> {
+                                                    absensiDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                                }
+                                            }
                                         }
 
                                         currentProgress += progressPerImage
@@ -462,8 +484,15 @@ class UploadCMPRepository(context: Context) {
                                                 add(fileInfo.imageName)
                                             })
                                         }.toString()
-                                        panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
-                                        AppLogger.d("Updated status_uploaded_image for table ID $tableIdInt with error: $errorJson")
+                                        when (fileInfo.databaseTable) {
+                                            AppUtils.DatabaseTables.PANEN -> {
+                                                panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                            }
+                                            AppUtils.DatabaseTables.ABSENSI -> {
+                                                absensiDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                            }
+                                            // Add other cases if needed
+                                        }
                                     }
 
                                     currentProgress += progressPerImage
@@ -486,8 +515,15 @@ class UploadCMPRepository(context: Context) {
                                             add(fileInfo.imageName)
                                         })
                                     }.toString()
-                                    panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
-                                    AppLogger.d("Updated status_uploaded_image for table ID $tableIdInt with error: $errorJson")
+                                    when (fileInfo.databaseTable) {
+                                        AppUtils.DatabaseTables.PANEN -> {
+                                            panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                        }
+                                        AppUtils.DatabaseTables.ABSENSI -> {
+                                            absensiDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                        }
+                                        // Add other cases if needed
+                                    }
                                 }
 
                                 currentProgress += progressPerImage
