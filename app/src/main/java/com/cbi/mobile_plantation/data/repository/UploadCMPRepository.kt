@@ -438,10 +438,17 @@ class UploadCMPRepository(context: Context) {
                                     photoRequestBody
                                 )
 
+                                val datasetType = when (fileInfo.databaseTable) {
+                                    AppUtils.DatabaseTables.ABSENSI -> AppUtils.DatabaseTables.ABSENSI
+                                    else -> AppUtils.DatabaseTables.PANEN
+                                }
+
+                                // Create RequestBody once
                                 val datasetTypeRequestBody = RequestBody.create(
                                     "text/plain".toMediaTypeOrNull(),
-                                    AppUtils.DatabaseTables.PANEN,
+                                    datasetType
                                 )
+
 
                                 val basePathRequestBody = RequestBody.create(
                                     "text/plain".toMediaTypeOrNull(),
