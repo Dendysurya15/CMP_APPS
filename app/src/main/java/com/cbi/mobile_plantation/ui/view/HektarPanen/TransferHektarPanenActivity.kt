@@ -818,9 +818,10 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                     val effectiveLimit =
                                         if (limit == 0) mappedData.size else limit
                                     takeQRCodeScreenshot(view)
-                                    // Take only the required number of items
-                                    val limitedData = mappedData.take(effectiveLimit)
 
+                                    // Take only the required number of items
+                                    val limitedData = mappedData.take(effectiveLimit).toMutableList()
+                                    val itemsToRemove = mutableListOf<Map<String, Any?>>()
 
                                     limitedData.forEach { item ->
                                         try {
@@ -857,6 +858,9 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                             try {
                                                 viewModel.archiveMpanenByID(id)
 
+                                                // Mark this item for removal from mappedData after successful archiving
+                                                itemsToRemove.add(item)
+
                                                 successCount++
                                             } catch (e: SQLiteException) {
                                                 errorMessages.add("Database error for ID $id: ${e.message}")
@@ -871,6 +875,9 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                             hasError = true
                                         }
                                     }
+
+// Remove successfully processed items from mappedData
+                                    mappedData = mappedData.filter { it !in itemsToRemove }.toMutableList()
 
                                     // Show results
                                     withContext(Dispatchers.Main) {
