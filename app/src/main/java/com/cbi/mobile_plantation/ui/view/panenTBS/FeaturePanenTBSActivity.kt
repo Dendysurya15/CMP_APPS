@@ -151,6 +151,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     private var tidakVCut = 0
     private var lat: Double? = null
     private var lon: Double? = null
+    private var finalLat: Double? = null
+    private var finalLon: Double? = null
     private var selectedTPHIdByScan: Int? = null
 
     var currentAccuracy: Float = 0F
@@ -834,8 +836,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                                         komentar = komentarFotoString,
                                         asistensi = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 2 else (asistensi
                                             ?: 0),
-                                        lat = lat ?: 0.0, // Default to 0.0 if null
-                                        lon = lon ?: 0.0, // Default to 0.0 if null
+                                        lat = finalLat ?: 0.0,
+                                        lon = finalLon ?: 0.0,
                                         jenis_panen = selectedTipePanen.toIntOrNull()
                                             ?: 0, // Avoid NumberFormatException
                                         ancakInput = ancakInput.toInt(), // Default to "0" if null
@@ -5694,6 +5696,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             lon = location.longitude
             if (::takeFotoPreviewAdapter.isInitialized) {
                 takeFotoPreviewAdapter.updateCoordinates(lat, lon)
+                takeFotoPreviewAdapter.updateLocationData(
+                    prefManager!!.estateUserLogin,
+                    selectedAfdeling,
+                    selectedBlok,
+                )
             }
         }
 
@@ -5707,6 +5714,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             startPeriodicDateTimeChecking()
         }
     }
+
+
 
 
     private fun showSnackbarWithSettings(message: String) {
@@ -5773,7 +5782,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         resultCode: String,
         deletePhoto: View?,
         position: Int,
-        komentar: String?
+        komentar: String?,
+        latitude: Double?,
+        longitude: Double?
     ) {
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewFotoPreview)
         val adapter = recyclerView.adapter as? TakeFotoPreviewAdapter
@@ -5782,6 +5793,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         tvErrorNotAttachPhotos.visibility = View.GONE
 
         adapter?.addPhotoFile("$position", photoFile)
+
+        finalLat = latitude
+        finalLon = longitude
 
         photoCount++
         photoFiles.add(fname)

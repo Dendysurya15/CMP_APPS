@@ -30,6 +30,7 @@ import com.cbi.mobile_plantation.data.repository.CameraRepository
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.snackbar.Snackbar
@@ -40,7 +41,7 @@ class TakeFotoPreviewAdapter(
     private val maxCount: Int,
     private val cameraViewModel: CameraViewModel,
     private val context: Context,
-    private val featureName: String?
+    private val waterMarkFolder: String?
 ) : RecyclerView.Adapter<TakeFotoPreviewAdapter.FotoViewHolder>(), CameraRepository.PhotoCallback {
 
     var onItemClick: ((Int) -> Unit)? = null
@@ -50,6 +51,11 @@ class TakeFotoPreviewAdapter(
     private var currentLatitude: Double? = null
     private var currentLongitude: Double? = null
     private var maxVisibleSlots = 1  // Track how many slots have been visible
+
+    private var estate: String? = null
+    private var afdeling: String? = null
+    private var blok: String? = null
+
 
     var onPhotoDeleted: ((String, Int) -> Unit)? = null
 
@@ -76,6 +82,17 @@ class TakeFotoPreviewAdapter(
         return FotoViewHolder(view)
     }
 
+    fun updateLocationData(
+        estate: String? = null,
+        afdeling: String? = null,
+        blok: String? = null,
+
+    ) {
+        // Only update values that are provided (not null)
+        estate?.let { this.estate = it }
+        afdeling?.let { this.afdeling = it }
+        blok?.let { this.blok = it }
+    }
     fun updateCoordinates(latitude: Double?, longitude: Double?) {
         this.currentLatitude = latitude
         this.currentLongitude = longitude
@@ -151,9 +168,37 @@ class TakeFotoPreviewAdapter(
             return
         }
 
+        when (waterMarkFolder) {
+            AppUtils.WaterMarkFotoDanFolder.WMPanenTPH -> {
+                if (estate.isNullOrEmpty() || afdeling.isNullOrEmpty() || blok.isNullOrEmpty()) {
+                    Toast.makeText(
+                        context,
+                        "Pastikan sudah mengisi Estate, Afdeling, dan Blok terlebih dahulu!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return
+                }
+            }
+            AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen -> {
+
+                AppLogger.d(estate.toString())
+                AppLogger.d(afdeling.toString())
+
+                if (estate.isNullOrEmpty() || afdeling.isNullOrEmpty()) {
+                    Toast.makeText(
+                        context,
+                        "Pastikan sudah mengisi Estate dan Afdeling terlebih dahulu!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return
+                }
+            }
+        }
+
         val uniqueKodeFoto = "${position + 1}"
 
         if (listFileFoto.containsKey(position.toString())) {
+            val sourceFoto = buildSourceFoto(waterMarkFolder)
             val existingFile = listFileFoto[position.toString()]!!
             cameraViewModel.openZoomPhotos(
                 file = existingFile,
@@ -167,9 +212,10 @@ class TakeFotoPreviewAdapter(
                         null,
                         comments[position],
                         uniqueKodeFoto,
-                        featureName,
+                        waterMarkFolder,
                         currentLatitude,
-                        currentLongitude
+                        currentLongitude,
+                        sourceFoto
                     )
                 },
                 onDeletePhoto = { pos ->
@@ -194,8 +240,7 @@ class TakeFotoPreviewAdapter(
                 }
             )
         } else {
-            AppLogger.d(currentLatitude.toString())
-            AppLogger.d(currentLongitude.toString())
+            val sourceFoto = buildSourceFoto(waterMarkFolder)
             cameraViewModel.takeCameraPhotos(
                 context,
                 uniqueKodeFoto,
@@ -204,10 +249,32 @@ class TakeFotoPreviewAdapter(
                 null,
                 comments[position],
                 uniqueKodeFoto,
-                featureName,
+                waterMarkFolder,
                 currentLatitude,
-                currentLongitude
+                currentLongitude,
+                sourceFoto
             )
+        }
+    }
+
+    private fun buildSourceFoto(featureType: String?): String {
+        return when (featureType) {
+            AppUtils.WaterMarkFotoDanFolder.WMPanenTPH -> {
+                // For TPH feature, we include estate, afdeling, and blok
+                "$estate ${afdeling} ${blok}"
+            }
+            AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen -> {
+                "$estate ${afdeling}"
+            }
+            else -> {
+                // Default format - just include what we have
+                val parts = mutableListOf<String>()
+                estate?.let { if (it.isNotEmpty()) parts.add("Estate: $it") }
+                afdeling?.let { if (it.isNotEmpty()) parts.add("Afdeling: $it") }
+                blok?.let { if (it.isNotEmpty()) parts.add("Blok: $it") }
+
+                parts.joinToString(", ")
+            }
         }
     }
 
@@ -458,7 +525,9 @@ class TakeFotoPreviewAdapter(
         resultCode: String,
         deletePhoto: View?,
         position: Int,
-        komentar: String?
+        komentar: String?,
+        latitude: Double?,
+        longitude: Double?
     ) {
         Log.d("TakeFotoAdapter", "onPhotoTaken START - position: $position")
 
