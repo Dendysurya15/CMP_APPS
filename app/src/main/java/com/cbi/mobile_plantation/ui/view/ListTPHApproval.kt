@@ -746,7 +746,8 @@ class ListTPHApproval : AppCompatActivity() {
                                 karyawan_id = "NULL",
                                 kemandoran_id = "NULL",
                                 karyawan_nama = "NULL",
-                                jumlah_pemanen = if (nik.contains(",")) nik.split(",").size else 1
+                                jumlah_pemanen = if (nik.contains(",")) nik.split(",").size else 1,
+                                status_scan_mpanen = 1
                             )
                             saveDataMPanenList.add(panenEntity)
                         }

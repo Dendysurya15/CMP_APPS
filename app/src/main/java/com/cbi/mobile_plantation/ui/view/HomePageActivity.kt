@@ -1425,6 +1425,8 @@ class HomePageActivity : AppCompatActivity() {
                                             original?.panen?.status_upload == 0
                                         }
 
+
+
                                         // Only create the panen JSON file if there's data to upload
                                         if (panenDataToUpload.isNotEmpty()) {
                                             // Split into batches of 50
@@ -1451,12 +1453,33 @@ class HomePageActivity : AppCompatActivity() {
                                                     "Data Panen ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
                                                 }
 
+                                                try {
+                                                    val tempDir =
+                                                        File(getExternalFilesDir(null), "TEMP").apply {
+                                                            if (!exists()) mkdirs()
+                                                        }
+
+                                                    val filename =
+                                                        "panen_data_${System.currentTimeMillis()}.json"
+                                                    val tempFile = File(tempDir, filename)
+
+                                                    FileOutputStream(tempFile).use { fos ->
+                                                        fos.write(batchJson.toByteArray())
+                                                    }
+
+                                                    AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
+                                                    e.printStackTrace()
+                                                }
+
                                                 panenBatchMap[batchKey] = mapOf(
                                                     "data" to batchJson,
                                                     "filename" to filename,
                                                     "ids" to batchIds
                                                 )
                                             }
+
 
                                             if (panenBatchMap.isNotEmpty()) {
                                                 combinedUploadData[AppUtils.DatabaseTables.PANEN] =
@@ -1938,8 +1961,6 @@ class HomePageActivity : AppCompatActivity() {
                                         }
                                     }
 
-
-                                    AppLogger.d(absensiList.toString())
                                     if (absensiList.isNotEmpty()) {
                                         val absensiToUpload = absensiList.filter { data ->
                                             data.absensi.status_upload == 0

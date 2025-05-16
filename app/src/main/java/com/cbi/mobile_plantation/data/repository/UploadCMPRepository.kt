@@ -12,7 +12,6 @@ import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.StagingApiClient
-import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.gson.Gson
@@ -1265,7 +1264,8 @@ class UploadCMPRepository(context: Context) {
 
                         return@withContext Result.success(errorResponse)
                     }
-                } else {
+                }
+                else {
                     AppLogger.d("Starting JSON data upload for: $filename")
                     try {
                         // Validate that we have data
