@@ -1796,6 +1796,14 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id
                                                     ?: "",
                                                 karyawan_tdk_msk_id = absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                                    ?: "",
+                                                karyawan_msk_nama = absensiWithRelations.absensi.karyawan_msk_nama
+                                                    ?: "",
+                                                karyawan_tdk_msk_nama = absensiWithRelations.absensi.karyawan_tdk_msk_nama
+                                                    ?: "",
+                                                karyawan_msk_nik = absensiWithRelations.absensi.karyawan_msk_nik
+                                                    ?: "",
+                                                karyawan_tdk_msk_nik = absensiWithRelations.absensi.karyawan_tdk_msk_nik
                                                     ?: ""
                                             )
                                         } catch (e: Exception) {
@@ -1809,7 +1817,11 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 datetime = "-",
                                                 kemandoran = "-",
                                                 karyawan_msk_id = "",
-                                                karyawan_tdk_msk_id = ""
+                                                karyawan_tdk_msk_id = "",
+                                                karyawan_msk_nama = "",
+                                                karyawan_tdk_msk_nama = "",
+                                                karyawan_msk_nik = "",
+                                                karyawan_tdk_msk_nik = ""
                                             )
                                         }
                                     }
@@ -1937,6 +1949,14 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id
                                                 ?: "",
                                             karyawan_tdk_msk_id = absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                                ?: "",
+                                            karyawan_msk_nama = absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                                ?: "",
+                                            karyawan_tdk_msk_nama = absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                                ?: "",
+                                            karyawan_msk_nik = absensiWithRelations.absensi.karyawan_msk_nik
+                                                ?: "",
+                                            karyawan_tdk_msk_nik = absensiWithRelations.absensi.karyawan_tdk_msk_nik
                                                 ?: ""
                                         )
                                     } catch (e: Exception) {
@@ -1949,7 +1969,11 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             datetime = "-",
                                             kemandoran = "-",
                                             karyawan_msk_id = "",
-                                            karyawan_tdk_msk_id = ""
+                                            karyawan_tdk_msk_id = "",
+                                            karyawan_msk_nama = "",
+                                            karyawan_tdk_msk_nama = "",
+                                            karyawan_msk_nik = "",
+                                            karyawan_tdk_msk_nik = ""
                                         )
                                     }
                                 }
@@ -2005,7 +2029,7 @@ class ListAbsensiActivity : AppCompatActivity() {
         val headers = listOf("LOKASI", "KEMANDORAN", "TOTAL KEHADIRAN")
         updateTableHeaders(headers)
 
-        absensiAdapter = ListAbsensiAdapter(listOf())
+        absensiAdapter = ListAbsensiAdapter(this, listOf())
         recyclerView.adapter = absensiAdapter
         recyclerView.layoutManager = LinearLayoutManager(this)
 
