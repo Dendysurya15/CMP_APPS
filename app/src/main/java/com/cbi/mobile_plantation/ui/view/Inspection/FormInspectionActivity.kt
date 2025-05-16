@@ -1071,7 +1071,10 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                                             null,
                                             "", // soon assign lat lon
                                             currentPage.toString(),
-                                            WaterMarkFotoDanFolder.WMInspeksi
+                                            WaterMarkFotoDanFolder.WMInspeksi,
+                                            null,
+                                            null,
+                                            ""
                                         )
                                     }, 100)
                                 },
@@ -1104,7 +1107,10 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                                 null,
                                 "", // soon assign lat lon
                                 currentPage.toString(),
-                                WaterMarkFotoDanFolder.WMInspeksi
+                                WaterMarkFotoDanFolder.WMInspeksi,
+                                null,
+                                null,
+                                ""
                             )
                         }, 100)
                     }
@@ -2771,7 +2777,9 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
         resultCode: String,
         deletePhoto: View?,
         pageForm: Int,
-        komentar: String?
+        komentar: String?,
+        latitude:Double?,
+        longitude:Double?
     ) {
         if (shouldReopenBottomSheet) {
             shouldReopenBottomSheet = false

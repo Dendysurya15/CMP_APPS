@@ -1453,25 +1453,7 @@ class HomePageActivity : AppCompatActivity() {
                                                     "Data Panen ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
                                                 }
 
-                                                try {
-                                                    val tempDir =
-                                                        File(getExternalFilesDir(null), "TEMP").apply {
-                                                            if (!exists()) mkdirs()
-                                                        }
 
-                                                    val filename =
-                                                        "panen_data_${System.currentTimeMillis()}.json"
-                                                    val tempFile = File(tempDir, filename)
-
-                                                    FileOutputStream(tempFile).use { fos ->
-                                                        fos.write(batchJson.toByteArray())
-                                                    }
-
-                                                    AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
-                                                } catch (e: Exception) {
-                                                    AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
-                                                    e.printStackTrace()
-                                                }
 
                                                 panenBatchMap[batchKey] = mapOf(
                                                     "data" to batchJson,
@@ -1682,8 +1664,6 @@ class HomePageActivity : AppCompatActivity() {
                                         }
                                     }
 
-
-//                                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
                                     if (hektarPanenList.isNotEmpty()) {
                                         val hektarPanenToUpload = hektarPanenList.filter { data ->
                                             data.status_upload == 0
@@ -1712,7 +1692,7 @@ class HomePageActivity : AppCompatActivity() {
 
                                                     // Create a structure for this blok with its child details
                                                     val blokData = mutableMapOf<String, Any>(
-                                                        "blok" to (blokId ?: 0),
+
                                                         "tanggal" to (firstItem.date_created ?: ""),
                                                         "regional" to (firstItem.regional ?: ""),
                                                         "wilayah" to (firstItem.wilayah ?: ""),
@@ -1722,12 +1702,17 @@ class HomePageActivity : AppCompatActivity() {
                                                         "company_nama" to (firstItem.company_nama
                                                             ?: ""),
                                                         "dept" to (firstItem.dept ?: 0),
+                                                        "dept_ppro" to (firstItem.dept_ppro ?: 0),
                                                         "dept_abbr" to (firstItem.dept_abbr ?: ""),
                                                         "dept_nama" to (firstItem.dept_nama ?: ""),
                                                         "divisi" to (firstItem.divisi ?: 0),
                                                         "divisi_abbr" to (firstItem.divisi_abbr
                                                             ?: ""),
+                                                        "divisi_nama" to (firstItem.divisi_nama
+                                                            ?: ""),
+                                                        "blok" to (blokId ?: 0),
                                                         "blok_ppro" to (firstItem.blok_ppro ?: 0),
+                                                        "blok_kode" to (firstItem.blok_kode ?: 0),
                                                         "blok_nama" to (firstItem.blok_nama ?: ""),
                                                         "luasan_blok" to (firstItem.luas_blok ?: ""), // Empty for now as requested
                                                         "luasan_panen" to totalLuasanPanen,
@@ -1907,26 +1892,26 @@ class HomePageActivity : AppCompatActivity() {
                                             // Convert to JSON
                                             hektaranJson = Gson().toJson(finalData)
 
-//                                            // Save JSON to a temporary file for inspection - direct approach
-//                                            try {
-//                                                val tempDir =
-//                                                    File(getExternalFilesDir(null), "TEMP").apply {
-//                                                        if (!exists()) mkdirs()
-//                                                    }
-//
-//                                                val filename =
-//                                                    "hektaran_data_${System.currentTimeMillis()}.json"
-//                                                val tempFile = File(tempDir, filename)
-//
-//                                                FileOutputStream(tempFile).use { fos ->
-//                                                    fos.write(hektaranJson.toByteArray())
-//                                                }
-//
-//                                                AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
-//                                            } catch (e: Exception) {
-//                                                AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
-//                                                e.printStackTrace()
-//                                            }
+                                            // Save JSON to a temporary file for inspection - direct approach
+    //                                            try {
+    //                                                val tempDir =
+    //                                                    File(getExternalFilesDir(null), "TEMP").apply {
+    //                                                        if (!exists()) mkdirs()
+    //                                                    }
+    //
+    //                                                val filename =
+    //                                                    "hektaran_data_${System.currentTimeMillis()}.json"
+    //                                                val tempFile = File(tempDir, filename)
+    //
+    //                                                FileOutputStream(tempFile).use { fos ->
+    //                                                    fos.write(hektaranJson.toByteArray())
+    //                                                }
+    //
+    //                                                AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
+    //                                            } catch (e: Exception) {
+    //                                                AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
+    //                                                e.printStackTrace()
+    //                                            }
 
                                             // Extract all IDs for tracking
                                             val hektaranIds =
@@ -1962,6 +1947,162 @@ class HomePageActivity : AppCompatActivity() {
                                     }
 
                                     if (absensiList.isNotEmpty()) {
+                                        // First, process photos/images regardless of status_upload
+                                        val absensiWithPendingImages = absensiList.filter { data ->
+                                            val uploadStatusImage = data.absensi.status_uploaded_image
+                                            val photoName = data.absensi.foto.trim()
+
+                                            photoName.isNotEmpty() && (uploadStatusImage == "0" ||
+                                                    (uploadStatusImage.startsWith("{") && try {
+                                                        val errorJson = Gson().fromJson(uploadStatusImage, JsonObject::class.java)
+                                                        val errorArray = errorJson?.get("error")?.asJsonArray
+                                                        errorArray?.any { it.asString == photoName } ?: false
+                                                    } catch (e: Exception) {
+                                                        AppLogger.e("Error parsing upload status JSON: ${e.message}")
+                                                        false
+                                                    }))
+                                        }
+
+                                        val uniquePhotos = mutableMapOf<String, Map<String, String>>()
+
+                                        // Prepare to search for photo files in CMP directories
+                                        val picturesDirs = listOf(
+                                            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                                            File(
+                                                getExternalFilesDir(null)?.parent ?: "",
+                                                "Pictures"
+                                            )
+                                        ).filterNotNull()
+
+                                        val cmpDirectories = mutableListOf<File>()
+                                        for (picturesDir in picturesDirs) {
+                                            if (!picturesDir.exists() || !picturesDir.isDirectory) {
+                                                AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
+                                                continue
+                                            }
+
+                                            // Look specifically for CMP-ABSENSI directory
+                                            val cmpAbsensiDir = File(
+                                                picturesDir,
+                                                AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
+                                            )
+                                            if (cmpAbsensiDir.exists() && cmpAbsensiDir.isDirectory) {
+                                                cmpDirectories.add(cmpAbsensiDir)
+                                            }
+
+                                            // Also check for any other CMP directories
+                                            val otherCmpDirs = picturesDir.listFiles { file ->
+                                                file.isDirectory && file.name.startsWith("CMP") && file.name != AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
+                                            } ?: emptyArray()
+
+                                            cmpDirectories.addAll(otherCmpDirs)
+                                        }
+
+                                        // Process photos for absensi with pending images
+                                        if (absensiWithPendingImages.isNotEmpty()) {
+                                            for (absensiRelation in absensiWithPendingImages) {
+                                                val absensi = absensiRelation.absensi
+
+                                                // Process photo for upload
+                                                val photoName = absensi.foto.trim()
+                                                if (photoName.isNotEmpty() && photoName !in uniquePhotos) {
+                                                    val uploadStatusImage = absensi.status_uploaded_image
+
+                                                    // Determine if photo needs uploading
+                                                    var shouldAddPhoto = false
+
+                                                    if (uploadStatusImage == "0") {
+                                                        // Default status - hasn't been uploaded yet
+                                                        shouldAddPhoto = true
+                                                        AppLogger.d("Photo $photoName hasn't been uploaded (status 0)")
+                                                    } else if (uploadStatusImage.startsWith("{")) {
+                                                        try {
+                                                            // Using Gson to parse the JSON
+                                                            val errorJson = Gson().fromJson(
+                                                                uploadStatusImage,
+                                                                JsonObject::class.java
+                                                            )
+                                                            val errorArray = errorJson?.get("error")?.asJsonArray
+
+                                                            errorArray?.forEach { errorItem ->
+                                                                if (errorItem.asString == photoName) {
+                                                                    shouldAddPhoto = true
+                                                                    AppLogger.d("Photo $photoName is marked as error in record ${absensi.id}")
+                                                                }
+                                                            }
+                                                        } catch (e: Exception) {
+                                                            AppLogger.e("Error parsing upload status JSON: ${e.message}")
+                                                        }
+                                                    }
+
+                                                    // Only process the photo if it needs uploading
+                                                    if (shouldAddPhoto) {
+                                                        var photoFound = false
+
+                                                        for (cmpDir in cmpDirectories) {
+                                                            val photoFile = File(cmpDir, photoName)
+
+                                                            if (photoFile.exists() && photoFile.isFile) {
+                                                                val createdDate = absensi.date_absen ?: ""
+                                                                val formattedDate = try {
+                                                                    val dateFormat = SimpleDateFormat(
+                                                                        "yyyy-MM-dd HH:mm:ss",
+                                                                        Locale.getDefault()
+                                                                    )
+                                                                    val date = dateFormat.parse(createdDate)
+                                                                    val outputFormat = SimpleDateFormat(
+                                                                        "yyyy/MM/dd/",
+                                                                        Locale.getDefault()
+                                                                    )
+                                                                    outputFormat.format(date ?: Date())
+                                                                } catch (e: Exception) {
+                                                                    AppLogger.e("Error formatting date: ${e.message}")
+                                                                    // Default to current date if parsing fails
+                                                                    val outputFormat = SimpleDateFormat(
+                                                                        "yyyy/MM/dd/",
+                                                                        Locale.getDefault()
+                                                                    )
+                                                                    outputFormat.format(Date())
+                                                                }
+
+                                                                // Create the base path by appending the estate code or other identifier
+                                                                val basePathImage = formattedDate + prefManager!!.estateUserLogin
+
+                                                                uniquePhotos[photoName] = mapOf(
+                                                                    "name" to photoName,
+                                                                    "path" to photoFile.absolutePath,
+                                                                    "size" to photoFile.length().toString(),
+                                                                    "table_ids" to absensi.id.toString(),
+                                                                    "base_path" to basePathImage,
+                                                                    "database" to AppUtils.DatabaseTables.ABSENSI
+                                                                )
+
+                                                                AppLogger.d("Added absensi photo for upload: $photoName at ${photoFile.absolutePath}")
+                                                                photoFound = true
+                                                                break
+                                                            }
+                                                        }
+
+                                                        if (!photoFound) {
+                                                            AppLogger.w("Absensi photo not found: $photoName")
+                                                        }
+                                                    } else {
+                                                        AppLogger.d("Skipping photo upload for $photoName - already uploaded (status: $uploadStatusImage)")
+                                                    }
+                                                }
+                                            }
+
+                                            // Add photos to the combined upload data if we found any
+                                            allPhotosAbsensi = uniquePhotos.values.toMutableList()
+                                            if (allPhotosAbsensi.isNotEmpty()) {
+                                                AppLogger.d("Adding ${allPhotosAbsensi.size} absensi photos to upload data")
+                                                combinedUploadData["foto_absensi"] = allPhotosAbsensi
+                                            } else {
+                                                AppLogger.w("No absensi photos found to upload")
+                                            }
+                                        }
+
+                                        // Now process data with status_upload == 0, completely separate from the photo logic
                                         val absensiToUpload = absensiList.filter { data ->
                                             data.absensi.status_upload == 0
                                         }
@@ -1969,136 +2110,11 @@ class HomePageActivity : AppCompatActivity() {
                                         if (absensiToUpload.isNotEmpty()) {
                                             // Create a mutable list to hold our restructured data
                                             val restructuredData = mutableListOf<Map<String, Any>>()
-                                            val uniquePhotos = mutableMapOf<String, Map<String, String>>()
-
-                                            // Prepare to search for photo files in CMP directories
-                                            val picturesDirs = listOf(
-                                                getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                                                File(
-                                                    getExternalFilesDir(null)?.parent ?: "",
-                                                    "Pictures"
-                                                )
-                                            ).filterNotNull()
-
-                                            val cmpDirectories = mutableListOf<File>()
-                                            for (picturesDir in picturesDirs) {
-                                                if (!picturesDir.exists() || !picturesDir.isDirectory) {
-                                                    AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
-                                                    continue
-                                                }
-
-                                                // Look specifically for CMP-ABSENSI directory
-                                                val cmpAbsensiDir = File(
-                                                    picturesDir,
-                                                    AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
-                                                )
-                                                if (cmpAbsensiDir.exists() && cmpAbsensiDir.isDirectory) {
-                                                    cmpDirectories.add(cmpAbsensiDir)
-                                                }
-
-                                                // Also check for any other CMP directories
-                                                val otherCmpDirs = picturesDir.listFiles { file ->
-                                                    file.isDirectory && file.name.startsWith("CMP") && file.name != AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
-                                                } ?: emptyArray()
-
-                                                cmpDirectories.addAll(otherCmpDirs)
-                                            }
 
                                             // Process each absensi record
                                             for (absensiRelation in absensiToUpload) {
                                                 val absensi = absensiRelation.absensi
 
-                                                // Process photo for upload if needed (but continue with data processing regardless)
-                                                val photoName = absensi.foto.trim()
-                                                if (photoName.isNotEmpty()) {
-                                                    if (photoName !in uniquePhotos) {
-                                                        val uploadStatusImage = absensi.status_uploaded_image
-
-                                                        // Only process photos that need uploading
-                                                        var shouldAddPhoto = false
-
-                                                        if (uploadStatusImage == "0") {
-                                                            // Default status - hasn't been uploaded yet
-                                                            shouldAddPhoto = true
-                                                            AppLogger.d("Photo $photoName hasn't been uploaded (status 0)")
-                                                        } else if (uploadStatusImage.startsWith("{")) {
-                                                            try {
-                                                                // Using Gson to parse the JSON
-                                                                val errorJson = Gson().fromJson(
-                                                                    uploadStatusImage,
-                                                                    JsonObject::class.java
-                                                                )
-                                                                val errorArray = errorJson?.get("error")?.asJsonArray
-
-                                                                errorArray?.forEach { errorItem ->
-                                                                    if (errorItem.asString == photoName) {
-                                                                        shouldAddPhoto = true
-                                                                        AppLogger.d("Photo $photoName is marked as error in record ${absensi.id}")
-                                                                    }
-                                                                }
-                                                            } catch (e: Exception) {
-                                                                AppLogger.e("Error parsing upload status JSON: ${e.message}")
-                                                            }
-                                                        }
-
-                                                        // Only process the photo if it needs uploading
-                                                        if (shouldAddPhoto) {
-                                                            var photoFound = false
-
-                                                            for (cmpDir in cmpDirectories) {
-                                                                val photoFile = File(cmpDir, photoName)
-
-                                                                if (photoFile.exists() && photoFile.isFile) {
-                                                                    val createdDate = absensi.date_absen ?: ""
-                                                                    val formattedDate = try {
-                                                                        val dateFormat = SimpleDateFormat(
-                                                                            "yyyy-MM-dd HH:mm:ss",
-                                                                            Locale.getDefault()
-                                                                        )
-                                                                        val date = dateFormat.parse(createdDate)
-                                                                        val outputFormat = SimpleDateFormat(
-                                                                            "yyyy/MM/dd/",
-                                                                            Locale.getDefault()
-                                                                        )
-                                                                        outputFormat.format(date ?: Date())
-                                                                    } catch (e: Exception) {
-                                                                        AppLogger.e("Error formatting date: ${e.message}")
-                                                                        // Default to current date if parsing fails
-                                                                        val outputFormat = SimpleDateFormat(
-                                                                            "yyyy/MM/dd/",
-                                                                            Locale.getDefault()
-                                                                        )
-                                                                        outputFormat.format(Date())
-                                                                    }
-
-                                                                    // Create the base path by appending the estate code or other identifier
-                                                                    val basePathImage = formattedDate + prefManager!!.estateUserLogin
-
-                                                                    uniquePhotos[photoName] = mapOf(
-                                                                        "name" to photoName,
-                                                                        "path" to photoFile.absolutePath,
-                                                                        "size" to photoFile.length().toString(),
-                                                                        "table_ids" to absensi.id.toString(),
-                                                                        "base_path" to basePathImage,
-                                                                        "database" to AppUtils.DatabaseTables.ABSENSI
-                                                                    )
-
-                                                                    AppLogger.d("Added absensi photo for upload: $photoName at ${photoFile.absolutePath}")
-                                                                    photoFound = true
-                                                                    break
-                                                                }
-                                                            }
-
-                                                            if (!photoFound) {
-                                                                AppLogger.w("Absensi photo not found: $photoName")
-                                                            }
-                                                        } else {
-                                                            AppLogger.d("Skipping photo upload for $photoName - already uploaded (status: $uploadStatusImage)")
-                                                        }
-                                                    }
-                                                }
-
-                                                // Continue with absensi data processing regardless of photo status
                                                 // Split the kemandoran_id string into individual IDs
                                                 val kemandoranIds = absensi.kemandoran_id.split(",")
                                                     .filter { it.isNotEmpty() }.map { it.trim() }
@@ -2321,7 +2337,7 @@ class HomePageActivity : AppCompatActivity() {
                                             // Convert to JSON
                                             absensiJson = Gson().toJson(finalData)
 
-//                                             Save JSON to a temporary file for inspection
+                                            // Save JSON to a temporary file for inspection
                                             try {
                                                 val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
                                                     if (!exists()) mkdirs()
@@ -2352,14 +2368,6 @@ class HomePageActivity : AppCompatActivity() {
                                                 "ids" to absensiIds
                                             )
 
-                                            allPhotosAbsensi = uniquePhotos.values.toMutableList()
-                                            if (allPhotosAbsensi.isNotEmpty()) {
-                                                AppLogger.d("Adding ${allPhotosAbsensi.size} absensi photos to upload data")
-                                                combinedUploadData["foto_absensi"] = allPhotosAbsensi
-                                            } else {
-                                                AppLogger.w("No absensi photos found to upload")
-                                            }
-
                                             // Keep track of which records have been processed for zipping
                                             unzippedAbsensiData = restructuredData.filter { item ->
                                                 // Get the kemandoran_id from the current item
@@ -2378,6 +2386,7 @@ class HomePageActivity : AppCompatActivity() {
 
                                             globalAbsensiIds = absensiIds
                                         } else {
+                                            // If no data to upload, still set these variables
                                             mappedAbsensiData = emptyList()
                                             globalAbsensiIds = emptyList()
                                             unzippedAbsensiData = emptyList()
@@ -4357,6 +4366,10 @@ class HomePageActivity : AppCompatActivity() {
         )
 
         return datasets
+    }
+
+    private fun hasRole(role: String): Boolean {
+        return prefManager!!.jabatanUserLogin?.contains(role, ignoreCase = true) ?: false
     }
 
 

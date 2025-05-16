@@ -103,6 +103,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
 
     private var lat: Double? = null
     private var lon: Double? = null
+    private var finalLat: Double? = null
+    private var finalLon: Double? = null
     var currentAccuracy: Float = 0F
     private var prefManager: PrefManager? = null
 
@@ -140,6 +142,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
     private var selectedAfdeling: String = ""
     private var selectedAfdelingIdSpinner: Int = 0
     private var selectedKemandoran: String = ""
+    private var selectedKemandoranKode: String = ""
     private var selectedKemandoranLain: String = ""
     private var infoApp: String = ""
 
@@ -975,13 +978,15 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
                 selectedKemandoran = selectedItem.toString()
 //                val selectedNama = selectedKemandoran.substringAfter(" - ")
 
-                val kemandoranMap = kemandoranList.associateBy({ it.nama }, { it.id })
+                val selectedKemandoranObject = kemandoranList.find { it.nama == selectedKemandoran }
 
-                val selecteKemandoranId = kemandoranMap[selectedKemandoran]
-                if (selecteKemandoranId != null) {
-                    selectedKemandoranIds.add(selecteKemandoranId) // Tambahkan ke Set agar tidak duplikat
+                // Now you can get both the id and kode
+                val selectedKemandoranId = selectedKemandoranObject?.id
+                selectedKemandoranKode = selectedKemandoranObject?.kode!!
+                if (selectedKemandoranId != null) {
+                    selectedKemandoranIds.add(selectedKemandoranId) // Tambahkan ke Set agar tidak duplikat
 
-                    val worker = Worker(selecteKemandoranId.toString(), selectedKemandoran)
+                    val worker = Worker(selectedKemandoranId.toString(), selectedKemandoran)
                     selectedKemandoranAdapter.addWorker(worker)
 
                     val availableWorkers = selectedKemandoranAdapter.getAvailableWorkers()
@@ -992,7 +997,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
                             availableWorkers.map { it.name })  // Extract names
                     }
 
-                    AppLogger.d("Selected Worker: $selectedKemandoran, ID: $selecteKemandoranId")
+                    AppLogger.d("Selected Worker: $selectedKemandoran, ID: $selectedKemandoranId")
                 }
 
                 AppLogger.d(estateId.toString())
@@ -1048,7 +1053,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
                                     nama = "${karyawan.nik}\n${karyawan.nama}",
                                     namaOnly = karyawan.nama!!,
                                     nik = karyawan.nik!!,
-                                    kemandoranId = selecteKemandoranId!!
+                                    kemandoranId = selectedKemandoranId!!
                                 )
                             }
 
@@ -1360,6 +1365,11 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
             lon = location.longitude
             if (::takeFotoPreviewAdapter.isInitialized) {
                 takeFotoPreviewAdapter.updateCoordinates(lat, lon)
+                takeFotoPreviewAdapter.updateLocationData(
+                    prefManager!!.estateUserLogin,
+                    selectedAfdeling,
+                    ""
+                )
             }
         }
 
@@ -1429,7 +1439,9 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
         resultCode: String,
         deletePhoto: View?,
         position: Int,
-        komentar: String?
+        komentar: String?,
+        latitude: Double?,
+        longitude: Double?
     ) {
         val recyclerView = findViewById<RecyclerView>(R.id.rcFotoPreview)
         val adapter = recyclerView.adapter as? TakeFotoPreviewAdapter
@@ -1439,6 +1451,9 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
         photoCount++
         photoFiles.add(fname)
         komentarFoto.add(komentar!!)
+
+        finalLat = latitude
+        finalLon = longitude
 
         val viewHolder =
             recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder

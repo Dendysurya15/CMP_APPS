@@ -21,19 +21,17 @@
         android:layout_height="0dp"
         android:fillViewport="true"
         android:scrollbars="none"
-        app:layout_constraintTop_toBottomOf="@id/navbarPanenList"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/navbarPanenList">
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_marginTop="10dp"
             android:id="@+id/inner_constraint_layout"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            >
+            android:layout_marginTop="10dp">
 
 
-
-        <LinearLayout
+            <LinearLayout
                 android:id="@+id/calendarContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -293,9 +291,9 @@
                     android:orientation="horizontal">
 
                     <TextView
+                        android:id="@+id/titleTotalJjg"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:id="@+id/titleTotalJjg"
                         android:fontFamily="@font/manrope_bold"
                         android:text="Total Jjg: "
                         android:textColor="@color/black"
@@ -346,6 +344,14 @@
                 android:layout_marginTop="10dp"
                 android:orientation="vertical"
                 app:layout_constraintTop_toBottomOf="@id/total_section">
+
+                <include
+                    android:id="@+id/ll_detail_espb"
+                    layout="@layout/activity_detail_espbactivity"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:visibility="gone" />
 
                 <HorizontalScrollView
                     android:id="@+id/horizontalCardFeature"
@@ -471,7 +477,6 @@
                                 android:paddingHorizontal="10dp">
 
 
-
                                 <LinearLayout
                                     android:layout_width="wrap_content"
                                     android:layout_height="match_parent"
@@ -479,10 +484,10 @@
                                     android:paddingHorizontal="10dp">
 
                                     <TextView
+                                        android:id="@+id/tv_card_pemanen"
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:layout_gravity="center"
-                                        android:id="@+id/tv_card_pemanen"
                                         android:fontFamily="@font/manrope_semibold"
                                         android:text="Rekap Per Pemanen"
                                         android:textColor="@color/black"
@@ -525,10 +530,10 @@
                                 android:paddingHorizontal="10dp">
 
                                 <TextView
+                                    android:id="@+id/tv_card_blok"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center"
-                                    android:id="@+id/tv_card_blok"
                                     android:fontFamily="@font/manrope_semibold"
                                     android:text="Rekap Per Blok"
                                     android:textColor="@color/black"
@@ -543,12 +548,7 @@
 
                 </HorizontalScrollView>
 
-                <include
-                    android:id="@+id/ll_detail_espb"
-                    layout="@layout/activity_detail_espbactivity"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:visibility="gone" />
+
 
             </LinearLayout>
 
@@ -695,7 +695,6 @@
     </ScrollView>
 
 
-
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnGenerateQRTPH"
         android:layout_width="wrap_content"
@@ -710,19 +709,19 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:maxImageSize="30dp"
         app:rippleColor="@color/bgLightOrange"
-        app:tint="@color/white"/>
+        app:tint="@color/white" />
 
     <TextView
         android:id="@+id/tvGenQR60"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Gen QR 60"
-        android:visibility="gone"
-        android:textColor="@color/black"
-        android:outlineSpotShadowColor="@color/white"
-        android:outlineAmbientShadowColor="@color/white"
-        android:shadowColor="@color/white"
         android:fontFamily="@font/manrope_bold"
+        android:outlineAmbientShadowColor="@color/white"
+        android:outlineSpotShadowColor="@color/white"
+        android:shadowColor="@color/white"
+        android:text="Gen QR 60"
+        android:textColor="@color/black"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="@+id/btnGenerateQRTPH"
         app:layout_constraintStart_toStartOf="@+id/btnGenerateQRTPH"
         app:layout_constraintTop_toBottomOf="@+id/btnGenerateQRTPH" />
@@ -748,11 +747,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="@font/manrope_bold"
+        android:outlineAmbientShadowColor="@color/white"
+        android:outlineSpotShadowColor="@color/white"
+        android:shadowColor="@color/white"
         android:text="Gen QR Full"
         android:textColor="@color/black"
-        android:shadowColor="@color/white"
-        android:outlineSpotShadowColor="@color/white"
-        android:outlineAmbientShadowColor="@color/white"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="@+id/btnGenerateQRTPHUnl"
         app:layout_constraintStart_toStartOf="@+id/btnGenerateQRTPHUnl"

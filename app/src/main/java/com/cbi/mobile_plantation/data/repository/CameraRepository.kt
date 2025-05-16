@@ -77,7 +77,9 @@ class CameraRepository(
             resultCode: String,
             deletePhoto: View?,
             pageForm: Int,
-            komentar: String?
+            komentar: String?,
+            latitude: Double?,
+            longitude: Double?
         )
     }
 
@@ -229,7 +231,8 @@ class CameraRepository(
         kodeFoto: String,
         featureName: String?,
         latitude: Double?=null,
-        longitude: Double?=null
+        longitude: Double?=null,
+        sourceFoto: String
     ) {
         prefManager = PrefManager(context)
         setDefaultIconTorchButton(view)
@@ -410,7 +413,8 @@ class CameraRepository(
                                                 kodeFoto,
                                                 featureName,
                                                 latitude,
-                                                longitude
+                                                longitude,
+                                                sourceFoto
                                             )
                                         }
                                     }
@@ -483,7 +487,7 @@ class CameraRepository(
                                             }
 
 // Create user info line with estate and jabatan
-                                        val userInfo = "${prefManager!!.estateUserLogin} - ${prefManager!!.nameUserLogin}"
+                                        val userInfo = "${sourceFoto} - ${prefManager!!.nameUserLogin}"
 
 // Line 1: Always "CMP-$featureName"
 // Line 2: Always user info
@@ -596,7 +600,9 @@ class CameraRepository(
                                                 resultCode,
                                                 deletePhoto,
                                                 pageForm,
-                                                komentar
+                                                komentar,
+                                                latitude,
+                                                longitude
                                             )
                                         }
                                     }, handler)
