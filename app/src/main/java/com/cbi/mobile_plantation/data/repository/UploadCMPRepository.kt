@@ -28,6 +28,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okio.BufferedSink
 import org.json.JSONObject
+import retrofit2.Response
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -48,10 +49,10 @@ class UploadCMPRepository(context: Context) {
 
 
     suspend fun UpdateOrInsertDataUpload(data: UploadCMPModel) {
-        val existingCount = uploadCMPDao.getTrackingIdCount(data.tracking_id!!,data.nama_file!!)
+        val existingCount = uploadCMPDao.getTrackingIdCount(data.tracking_id!!, data.nama_file!!)
 
         if (existingCount > 0) {
-            uploadCMPDao.updateStatus(data.tracking_id,  data.status!!)
+            uploadCMPDao.updateStatus(data.tracking_id, data.status!!)
         } else {
             uploadCMPDao.insertNewData(data)
         }
@@ -60,6 +61,7 @@ class UploadCMPRepository(context: Context) {
     suspend fun getAllData(): List<UploadCMPModel> {
         return uploadCMPDao.getAllData() // Calls the DAO function
     }
+
     class ProgressRequestBody(
         private val file: File,
         private val contentType: String,
@@ -82,7 +84,8 @@ class UploadCMPRepository(context: Context) {
                     while (inputStream.read(buffer).also { read = it } != -1) {
                         // Update before writing in case writing takes time or fails
                         bytesWritten += read
-                        val progress = if (totalBytes > 0) ((bytesWritten * 100) / totalBytes).toInt() else 0
+                        val progress =
+                            if (totalBytes > 0) ((bytesWritten * 100) / totalBytes).toInt() else 0
 
                         // Report progress
                         onProgressUpdate(progress, bytesWritten, totalBytes, false)
@@ -172,8 +175,10 @@ class UploadCMPRepository(context: Context) {
                         signature[0] != 0x50.toByte() || // 'P'
                         signature[1] != 0x4B.toByte() || // 'K'
                         signature[2] != 0x03.toByte() ||
-                        signature[3] != 0x04.toByte()) {
-                        val errorMsg = "File exists but does not appear to be a valid ZIP file: $fileZipPath"
+                        signature[3] != 0x04.toByte()
+                    ) {
+                        val errorMsg =
+                            "File exists but does not appear to be a valid ZIP file: $fileZipPath"
                         AppLogger.d(errorMsg)
                         onProgressUpdate(100, false, errorMsg)
                         return@withContext Result.failure(Exception(errorMsg))
@@ -186,9 +191,24 @@ class UploadCMPRepository(context: Context) {
                 }
 
                 val fileSize = file.length()
-                AppLogger.d("Starting file upload: ${file.name}, Size: ${AppUtils.formatFileSize(fileSize)}")
-                val progressRequestBody = ProgressRequestBody(file, "application/zip") { progress, bytesUploaded, totalBytes, done ->
-                    AppLogger.d("Upload progress: $progress% (${AppUtils.formatFileSize(bytesUploaded)}/${AppUtils.formatFileSize(totalBytes)})")
+                AppLogger.d(
+                    "Starting file upload: ${file.name}, Size: ${
+                        AppUtils.formatFileSize(
+                            fileSize
+                        )
+                    }"
+                )
+                val progressRequestBody = ProgressRequestBody(
+                    file,
+                    "application/zip"
+                ) { progress, bytesUploaded, totalBytes, done ->
+                    AppLogger.d(
+                        "Upload progress: $progress% (${
+                            AppUtils.formatFileSize(
+                                bytesUploaded
+                            )
+                        }/${AppUtils.formatFileSize(totalBytes)})"
+                    )
 
                     // Only update progress during active upload
                     if (!done) {
@@ -197,12 +217,15 @@ class UploadCMPRepository(context: Context) {
                 }
 
                 // Create the parts for the multipart request
-                val filePart = MultipartBody.Part.createFormData("zipFile", file.name, progressRequestBody)
+                val filePart =
+                    MultipartBody.Part.createFormData("zipFile", file.name, progressRequestBody)
 
                 // Create RequestBody objects for the new parameters
                 val uuidPart = RequestBody.create("text/plain".toMediaTypeOrNull(), batchUuid)
-                val partPart = RequestBody.create("text/plain".toMediaTypeOrNull(), partNumber.toString())
-                val totalPart = RequestBody.create("text/plain".toMediaTypeOrNull(), totalParts.toString())
+                val partPart =
+                    RequestBody.create("text/plain".toMediaTypeOrNull(), partNumber.toString())
+                val totalPart =
+                    RequestBody.create("text/plain".toMediaTypeOrNull(), totalParts.toString())
 
                 AppLogger.d("Sending upload request with UUID: $batchUuid, Part: $partNumber, Total: $totalParts")
 
@@ -259,7 +282,13 @@ class UploadCMPRepository(context: Context) {
         }
     }
 
-    data class ImageFileInfo(val file: File, val imageName: String, val tableId: String, val basePath: String, val databaseTable:String)
+    data class ImageFileInfo(
+        val file: File,
+        val imageName: String,
+        val tableId: String,
+        val basePath: String,
+        val databaseTable: String
+    )
 
     suspend fun uploadJsonToServerV3(
         jsonFilePath: String,
@@ -267,6 +296,7 @@ class UploadCMPRepository(context: Context) {
         data: String,
         type: String,
         tableIds: String? = null,
+        databaseTable: String,
         onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
     ): Result<UploadV3Response> {
         return try {
@@ -282,7 +312,10 @@ class UploadCMPRepository(context: Context) {
                     try {
                         // Parse the data as JSON array of image objects
                         AppLogger.d("====== PARSING IMAGE DATA ======")
-                        val imageList = Gson().fromJson(data, object : TypeToken<List<Map<String, Any>>>() {}.type) as List<Map<String, String>>
+                        val imageList = Gson().fromJson(
+                            data,
+                            object : TypeToken<List<Map<String, Any>>>() {}.type
+                        ) as List<Map<String, String>>
 
                         if (imageList.isEmpty()) {
                             val errorMsg = "No images to upload"
@@ -319,9 +352,12 @@ class UploadCMPRepository(context: Context) {
 
                             val file = File(imagePath)
                             if (file.exists()) {
-                                validImageFiles.add(ImageFileInfo(file, imageName, tableId.toString(),
-                                    basePathImage!!, databaseTable!!
-                                ))
+                                validImageFiles.add(
+                                    ImageFileInfo(
+                                        file, imageName, tableId.toString(),
+                                        basePathImage!!, databaseTable!!
+                                    )
+                                )
                                 AppLogger.d("✓ File exists: $imageName")
                             } else {
                                 failedFiles.add(imageName)
@@ -337,10 +373,17 @@ class UploadCMPRepository(context: Context) {
 
                                     when (databaseTable) {
                                         AppUtils.DatabaseTables.PANEN -> {
-                                            panenDao.updateStatusUploadedImage(listOf(tableId), errorJson)
+                                            panenDao.updateStatusUploadedImage(
+                                                listOf(tableId),
+                                                errorJson
+                                            )
                                         }
+
                                         AppUtils.DatabaseTables.ABSENSI -> {
-                                            absensiDao.updateStatusUploadedImage(listOf(tableId), errorJson)
+                                            absensiDao.updateStatusUploadedImage(
+                                                listOf(tableId),
+                                                errorJson
+                                            )
                                         }
                                     }
                                     AppLogger.d("Updated status_uploaded_image for table ID $tableId with error: $errorJson")
@@ -371,7 +414,7 @@ class UploadCMPRepository(context: Context) {
                         val failedImagePaths = mutableListOf<String>()
                         val failedImageNames = mutableListOf<String>()
 
-                        validImageFiles.forEachIndexed { index, fileInfo  ->
+                        validImageFiles.forEachIndexed { index, fileInfo ->
                             AppLogger.d("====== UPLOADING IMAGE ${index + 1}/${validImageFiles.size} ======")
                             AppLogger.d("Image name: ${fileInfo.imageName}")
                             AppLogger.d("Image path: ${fileInfo.file.absolutePath}")
@@ -390,7 +433,11 @@ class UploadCMPRepository(context: Context) {
                                     "image/*".toMediaTypeOrNull(),
                                     fileInfo.file
                                 )
-                                val photoPart = MultipartBody.Part.createFormData("photos", fileInfo.imageName, photoRequestBody)
+                                val photoPart = MultipartBody.Part.createFormData(
+                                    "photos",
+                                    fileInfo.imageName,
+                                    photoRequestBody
+                                )
 
                                 val datasetTypeRequestBody = RequestBody.create(
                                     "text/plain".toMediaTypeOrNull(),
@@ -403,7 +450,7 @@ class UploadCMPRepository(context: Context) {
                                 )
 
                                 // Make the API call for single image
-                                val response = TestingAPIClient.instance.uploadPhotos(
+                                val response = CMPApiClient.instance.uploadPhotos(
                                     photos = listOf(photoPart),
                                     datasetType = datasetTypeRequestBody,
                                     path = basePathRequestBody
@@ -433,10 +480,19 @@ class UploadCMPRepository(context: Context) {
                                         if (tableIdInt != -1) {
                                             when (fileInfo.databaseTable) {
                                                 AppUtils.DatabaseTables.PANEN -> {
-                                                    panenDao.updateStatusUploadedImage(listOf(tableIdInt), "200")
+                                                    panenDao.updateStatusUploadedImage(
+                                                        listOf(
+                                                            tableIdInt
+                                                        ), "200"
+                                                    )
                                                 }
+
                                                 AppUtils.DatabaseTables.ABSENSI -> {
-                                                    absensiDao.updateStatusUploadedImage(listOf(tableIdInt), "200")
+                                                    absensiDao.updateStatusUploadedImage(
+                                                        listOf(
+                                                            tableIdInt
+                                                        ), "200"
+                                                    )
                                                 }
                                             }
 //                                            AppLogger.d("Updated status_uploaded_image for table ID $tableIdInt to 200")
@@ -459,10 +515,19 @@ class UploadCMPRepository(context: Context) {
                                             }.toString()
                                             when (fileInfo.databaseTable) {
                                                 AppUtils.DatabaseTables.PANEN -> {
-                                                    panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                                    panenDao.updateStatusUploadedImage(
+                                                        listOf(
+                                                            tableIdInt
+                                                        ), errorJson
+                                                    )
                                                 }
+
                                                 AppUtils.DatabaseTables.ABSENSI -> {
-                                                    absensiDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                                    absensiDao.updateStatusUploadedImage(
+                                                        listOf(
+                                                            tableIdInt
+                                                        ), errorJson
+                                                    )
                                                 }
                                             }
                                         }
@@ -486,10 +551,18 @@ class UploadCMPRepository(context: Context) {
                                         }.toString()
                                         when (fileInfo.databaseTable) {
                                             AppUtils.DatabaseTables.PANEN -> {
-                                                panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                                panenDao.updateStatusUploadedImage(
+                                                    listOf(tableIdInt),
+                                                    errorJson
+                                                )
                                             }
+
                                             AppUtils.DatabaseTables.ABSENSI -> {
-                                                absensiDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                                absensiDao.updateStatusUploadedImage(
+                                                    listOf(
+                                                        tableIdInt
+                                                    ), errorJson
+                                                )
                                             }
                                             // Add other cases if needed
                                         }
@@ -497,7 +570,11 @@ class UploadCMPRepository(context: Context) {
 
                                     currentProgress += progressPerImage
                                     withContext(Dispatchers.Main) {
-                                        onProgressUpdate(currentProgress, false, "✗ ${fileInfo.imageName} failed - ${response.code()}")
+                                        onProgressUpdate(
+                                            currentProgress,
+                                            false,
+                                            "✗ ${fileInfo.imageName} failed - ${response.code()}"
+                                        )
                                     }
 
                                     failedImagePaths.add(fileInfo.file.absolutePath)
@@ -517,10 +594,17 @@ class UploadCMPRepository(context: Context) {
                                     }.toString()
                                     when (fileInfo.databaseTable) {
                                         AppUtils.DatabaseTables.PANEN -> {
-                                            panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                            panenDao.updateStatusUploadedImage(
+                                                listOf(tableIdInt),
+                                                errorJson
+                                            )
                                         }
+
                                         AppUtils.DatabaseTables.ABSENSI -> {
-                                            absensiDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                            absensiDao.updateStatusUploadedImage(
+                                                listOf(tableIdInt),
+                                                errorJson
+                                            )
                                         }
                                         // Add other cases if needed
                                     }
@@ -528,7 +612,11 @@ class UploadCMPRepository(context: Context) {
 
                                 currentProgress += progressPerImage
                                 withContext(Dispatchers.Main) {
-                                    onProgressUpdate(currentProgress, false, "✗ ${fileInfo.imageName} error - ${e.message}")
+                                    onProgressUpdate(
+                                        currentProgress,
+                                        false,
+                                        "✗ ${fileInfo.imageName} error - ${e.message}"
+                                    )
                                 }
                                 failedImagePaths.add(fileInfo.file.absolutePath)
                                 failedImageNames.add(fileInfo.imageName)
@@ -592,7 +680,6 @@ class UploadCMPRepository(context: Context) {
 
                     // Extract the espb_json field which contains the actual data to upload
                     val espbJson = dataMap?.get("espb_json")?.toString() ?: ""
-
 
 
                     val espbIds = (dataMap?.get("espb_ids") as? List<*>)?.mapNotNull {
@@ -716,10 +803,11 @@ class UploadCMPRepository(context: Context) {
                             }
 
                             return@withContext Result.success(responseBody)
-                        }else {
+                        } else {
                             // Get error details
                             val errorBodyString = response.errorBody()?.string() ?: "No error body"
-                            val errorMsg = "JSON upload failed: HTTP $httpStatusCode - ${response.message()}"
+                            val errorMsg =
+                                "JSON upload failed: HTTP $httpStatusCode - ${response.message()}"
                             AppLogger.e("CMP: Error: $errorMsg")
                             AppLogger.e("CMP: Error response body: $errorBodyString")
 
@@ -765,7 +853,8 @@ class UploadCMPRepository(context: Context) {
                         }
                     } catch (e: Exception) {
                         val exceptionType = e.javaClass.simpleName
-                        val errorMsg = "CMP upload error: [$exceptionType] ${e.message ?: "Unknown error"}"
+                        val errorMsg =
+                            "CMP upload error: [$exceptionType] ${e.message ?: "Unknown error"}"
                         AppLogger.e(errorMsg)
                         AppLogger.e("Stack trace: ${Log.getStackTraceString(e)}")
 
@@ -819,8 +908,10 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("PPRO: Parsed JSON data")
 
                         // Extract the item ID for database update
-                        val itemId = (jsonData["id"] as? Double)?.toInt() ?: (jsonData["id"] as? Int) ?: 0
-                        val ipMill = (jsonData["ip"] as? Double)?.toInt() ?: (jsonData["ip"] as? Int) ?: 0
+                        val itemId =
+                            (jsonData["id"] as? Double)?.toInt() ?: (jsonData["id"] as? Int) ?: 0
+                        val ipMill =
+                            (jsonData["ip"] as? Double)?.toInt() ?: (jsonData["ip"] as? Int) ?: 0
 
                         // Extract the uploader info for database update
                         val uploaderInfo = jsonData["uploader_info"]?.toString() ?: ""
@@ -912,7 +1003,8 @@ class UploadCMPRepository(context: Context) {
                             AppLogger.d("PPRO: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
                             StagingApiClient.updateBaseUrl("http://$ipMill:3000")
 
-                            val response = StagingApiClient.instance.insertESPBKraniTimbangPPRO(apiData)
+                            val response =
+                                StagingApiClient.instance.insertESPBKraniTimbangPPRO(apiData)
                             AppLogger.d("PPRO: API call completed, isSuccessful=${response.isSuccessful}, code=${response.code()}")
 
                             if (response.isSuccessful) {
@@ -960,22 +1052,29 @@ class UploadCMPRepository(context: Context) {
                                     return@withContext Result.success(successResponse)
                                 } else {
                                     // Extract error message
-                                    val rawErrorMessage = responseBody?.message?.toString() ?: "No message provided"
-                                    val extractedMessage = if (rawErrorMessage.contains("message=")) {
-                                        try {
-                                            // Extract the actual error message
-                                            val startIndex = rawErrorMessage.indexOf("message=") + "message=".length
-                                            val endIndex = rawErrorMessage.indexOf(",", startIndex).takeIf { it > 0 }
-                                                ?: rawErrorMessage.indexOf(".", startIndex).takeIf { it > 0 }
-                                                ?: rawErrorMessage.length
+                                    val rawErrorMessage =
+                                        responseBody?.message?.toString() ?: "No message provided"
+                                    val extractedMessage =
+                                        if (rawErrorMessage.contains("message=")) {
+                                            try {
+                                                // Extract the actual error message
+                                                val startIndex =
+                                                    rawErrorMessage.indexOf("message=") + "message=".length
+                                                val endIndex =
+                                                    rawErrorMessage.indexOf(",", startIndex)
+                                                        .takeIf { it > 0 }
+                                                        ?: rawErrorMessage.indexOf(".", startIndex)
+                                                            .takeIf { it > 0 }
+                                                        ?: rawErrorMessage.length
 
-                                            rawErrorMessage.substring(startIndex, endIndex).trim()
-                                        } catch (e: Exception) {
+                                                rawErrorMessage.substring(startIndex, endIndex)
+                                                    .trim()
+                                            } catch (e: Exception) {
+                                                "API Error: ${rawErrorMessage.take(100)}"
+                                            }
+                                        } else {
                                             "API Error: ${rawErrorMessage.take(100)}"
                                         }
-                                    } else {
-                                        "API Error: ${rawErrorMessage.take(100)}"
-                                    }
 
                                     AppLogger.e("PPRO: API Error - $extractedMessage")
 
@@ -1017,7 +1116,8 @@ class UploadCMPRepository(context: Context) {
                                     return@withContext Result.success(errorResponse)
                                 }
                             } else {
-                                val errorMessage = response.errorBody()?.string() ?: "Server error: ${response.code()}"
+                                val errorMessage = response.errorBody()?.string()
+                                    ?: "Server error: ${response.code()}"
                                 AppLogger.e("PPRO: Server Error - $errorMessage")
 
                                 // Update database with error
@@ -1165,10 +1265,8 @@ class UploadCMPRepository(context: Context) {
 
                         return@withContext Result.success(errorResponse)
                     }
-                }
-                else {
+                } else {
                     AppLogger.d("Starting JSON data upload for: $filename")
-
                     try {
                         // Validate that we have data
                         if (data.isBlank()) {
@@ -1199,7 +1297,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using raw JSON body")
 
-                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                        val response = CMPApiClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -1261,7 +1359,8 @@ class UploadCMPRepository(context: Context) {
                                         AppLogger.d("Upload marked as SUCCESS with status: $statusInt")
                                     } else {
                                         // Status is outside valid range, mark as failure
-                                        val errorMessage = responseBody.message ?: "Upload failed with status: $statusInt"
+                                        val errorMessage = responseBody.message
+                                            ?: "Upload failed with status: $statusInt"
                                         onProgressUpdate(100, false, errorMessage)
                                         AppLogger.d("Upload marked as FAILURE: $errorMessage")
                                     }
@@ -1291,7 +1390,8 @@ class UploadCMPRepository(context: Context) {
                             }
                         } else {
                             val errorBody = response.errorBody()?.string()
-                            val errorMsg = "Upload failed - Code: ${response.code()}, Error: $errorBody"
+                            val errorMsg =
+                                "Upload failed - Code: ${response.code()}, Error: $errorBody"
 
                             AppLogger.d("====== ERROR DETAILS ======")
                             AppLogger.d("Upload failed for: $filename")
@@ -1380,74 +1480,87 @@ class UploadCMPRepository(context: Context) {
         )
     }
 
-        suspend fun uploadZipToServer(
-            fileZipPath: String,
-            onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
-        ): Result<UploadWBCMPResponse> {
-            return try {
-                withContext(Dispatchers.IO) {
-                    val file = File(fileZipPath)
-                    if (!file.exists()) {
-                        val errorMsg = "File does not exist: $fileZipPath"
-                        AppLogger.d(errorMsg)
-                        return@withContext Result.failure(Exception(errorMsg))
-                    }
+    suspend fun uploadZipToServer(
+        fileZipPath: String,
+        onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
+    ): Result<UploadWBCMPResponse> {
+        return try {
+            withContext(Dispatchers.IO) {
+                val file = File(fileZipPath)
+                if (!file.exists()) {
+                    val errorMsg = "File does not exist: $fileZipPath"
+                    AppLogger.d(errorMsg)
+                    return@withContext Result.failure(Exception(errorMsg))
+                }
 
-                    val fileSize = file.length()
-                    AppLogger.d("Starting file upload: ${file.name}, Size: ${AppUtils.formatFileSize(fileSize)}")
-                    val progressRequestBody = ProgressRequestBody(file, "application/zip") { progress, bytesUploaded, totalBytes, done ->
-                        AppLogger.d("Upload progress: $progress% (${AppUtils.formatFileSize(bytesUploaded)}/${AppUtils.formatFileSize(totalBytes)})")
+                val fileSize = file.length()
+                AppLogger.d(
+                    "Starting file upload: ${file.name}, Size: ${
+                        AppUtils.formatFileSize(
+                            fileSize
+                        )
+                    }"
+                )
+                val progressRequestBody = ProgressRequestBody(
+                    file,
+                    "application/zip"
+                ) { progress, bytesUploaded, totalBytes, done ->
+                    AppLogger.d(
+                        "Upload progress: $progress% (${
+                            AppUtils.formatFileSize(
+                                bytesUploaded
+                            )
+                        }/${AppUtils.formatFileSize(totalBytes)})"
+                    )
 
-                        // Still call the original callback to maintain compatibility
-                        onProgressUpdate(progress, false, null)
+                    // Still call the original callback to maintain compatibility
+                    onProgressUpdate(progress, false, null)
 
-                        // Additional tracking can be done here, but we're preserving the original callback signature
-                    }
-                    val filePart = MultipartBody.Part.createFormData("zipFile", file.name, progressRequestBody)
+                    // Additional tracking can be done here, but we're preserving the original callback signature
+                }
+                val filePart =
+                    MultipartBody.Part.createFormData("zipFile", file.name, progressRequestBody)
 
-                    AppLogger.d("Sending upload request...")
+                AppLogger.d("Sending upload request...")
 
-                    AppLogger.d("lkasjdflkjasdklfasdf")
+                AppLogger.d("lkasjdflkjasdklfasdf")
 
-                    val response = CMPApiClient.instance.uploadZip(filePart)
+                val response = CMPApiClient.instance.uploadZip(filePart)
 
-                    AppLogger.d(response.toString())
-                    if (response.isSuccessful) {
-                        val responseBody = response.body()
-                        return@withContext if (responseBody != null) {
-                            AppLogger.d("Upload successful: ${file.name}")
-                            AppLogger.d("Response Code: ${response.code()}")
-                            AppLogger.d("Response Headers: ${response.headers()}")
-                            AppLogger.d("Response Body: ${responseBody}")
-
-                            onProgressUpdate(100, true, null)
-                            Result.success(responseBody)
-                        } else {
-                            val errorMsg = "Upload successful but response body is null"
-                            AppLogger.d(errorMsg)
-                            onProgressUpdate(100, false, errorMsg)
-                            Result.failure(Exception(errorMsg))
-                        }
-                    } else {
-                        val errorBody = response.errorBody()?.string()
-                        val errorMsg = "Upload failed - Code: ${response.code()}, Error: $errorBody"
-
-                        AppLogger.d("Upload failed: $errorMsg")
+                AppLogger.d(response.toString())
+                if (response.isSuccessful) {
+                    val responseBody = response.body()
+                    return@withContext if (responseBody != null) {
+                        AppLogger.d("Upload successful: ${file.name}")
+                        AppLogger.d("Response Code: ${response.code()}")
                         AppLogger.d("Response Headers: ${response.headers()}")
+                        AppLogger.d("Response Body: ${responseBody}")
 
+                        onProgressUpdate(100, true, null)
+                        Result.success(responseBody)
+                    } else {
+                        val errorMsg = "Upload successful but response body is null"
+                        AppLogger.d(errorMsg)
                         onProgressUpdate(100, false, errorMsg)
                         Result.failure(Exception(errorMsg))
                     }
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    val errorMsg = "Upload failed - Code: ${response.code()}, Error: $errorBody"
+
+                    AppLogger.d("Upload failed: $errorMsg")
+                    AppLogger.d("Response Headers: ${response.headers()}")
+
+                    onProgressUpdate(100, false, errorMsg)
+                    Result.failure(Exception(errorMsg))
                 }
-            } catch (e: Exception) {
-                val errorMsg = "Error uploading file: ${e.message}"
-                onProgressUpdate(100, false, errorMsg)
-                Result.failure(Exception(errorMsg))
             }
+        } catch (e: Exception) {
+            val errorMsg = "Error uploading file: ${e.message}"
+            onProgressUpdate(100, false, errorMsg)
+            Result.failure(Exception(errorMsg))
         }
-
-
-
+    }
 
 
 }

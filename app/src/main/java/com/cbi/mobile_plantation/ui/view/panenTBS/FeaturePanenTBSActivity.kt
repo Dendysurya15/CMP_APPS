@@ -2174,7 +2174,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     fullPath = "",
                     baseFilename = request.estateAbbr ?: "",
                     data = "",
-                    type = ""
+                    type = "",
+                    databaseTable = ""
                 )
             )
         }
@@ -2274,7 +2275,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             fullPath = "",
                             baseFilename = request.estateAbbr ?: "",
                             data = "",
-                            type = ""
+                            type = "",
+                            databaseTable = ""
                         )
                     )
                 }

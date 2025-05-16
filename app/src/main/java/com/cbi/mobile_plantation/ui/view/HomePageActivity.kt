@@ -1660,7 +1660,7 @@ class HomePageActivity : AppCompatActivity() {
                                     }
 
 
-                                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
+//                                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
                                     if (hektarPanenList.isNotEmpty()) {
                                         val hektarPanenToUpload = hektarPanenList.filter { data ->
                                             data.status_upload == 0
@@ -1884,26 +1884,26 @@ class HomePageActivity : AppCompatActivity() {
                                             // Convert to JSON
                                             hektaranJson = Gson().toJson(finalData)
 
-                                            // Save JSON to a temporary file for inspection - direct approach
-                                            try {
-                                                val tempDir =
-                                                    File(getExternalFilesDir(null), "TEMP").apply {
-                                                        if (!exists()) mkdirs()
-                                                    }
-
-                                                val filename =
-                                                    "hektaran_data_${System.currentTimeMillis()}.json"
-                                                val tempFile = File(tempDir, filename)
-
-                                                FileOutputStream(tempFile).use { fos ->
-                                                    fos.write(hektaranJson.toByteArray())
-                                                }
-
-                                                AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
-                                                e.printStackTrace()
-                                            }
+//                                            // Save JSON to a temporary file for inspection - direct approach
+//                                            try {
+//                                                val tempDir =
+//                                                    File(getExternalFilesDir(null), "TEMP").apply {
+//                                                        if (!exists()) mkdirs()
+//                                                    }
+//
+//                                                val filename =
+//                                                    "hektaran_data_${System.currentTimeMillis()}.json"
+//                                                val tempFile = File(tempDir, filename)
+//
+//                                                FileOutputStream(tempFile).use { fos ->
+//                                                    fos.write(hektaranJson.toByteArray())
+//                                                }
+//
+//                                                AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
+//                                            } catch (e: Exception) {
+//                                                AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
+//                                                e.printStackTrace()
+//                                            }
 
                                             // Extract all IDs for tracking
                                             val hektaranIds =
@@ -2300,7 +2300,7 @@ class HomePageActivity : AppCompatActivity() {
                                             // Convert to JSON
                                             absensiJson = Gson().toJson(finalData)
 
-                                            // Save JSON to a temporary file for inspection
+//                                             Save JSON to a temporary file for inspection
                                             try {
                                                 val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
                                                     if (!exists()) mkdirs()
@@ -2695,7 +2695,8 @@ class HomePageActivity : AppCompatActivity() {
                                 baseFilename = panenFilename,
                                 data = panenData,
                                 type = "json",
-                                tableIds = tableIdsJson
+                                tableIds = tableIdsJson,
+                                databaseTable = AppUtils.DatabaseTables.PANEN
                             )
 
                             uploadItems.add(uploadItem)
@@ -2729,7 +2730,8 @@ class HomePageActivity : AppCompatActivity() {
                             baseFilename = espbFilename!!,
                             data = espbData,
                             type = "json",
-                            tableIds = tableIdsJson
+                            tableIds = tableIdsJson,
+                            databaseTable = AppUtils.DatabaseTables.ESPB
                         )
 
                         uploadItems.add(uploadItem)
@@ -2752,10 +2754,10 @@ class HomePageActivity : AppCompatActivity() {
 
                     if (hektarPanenData != null && hektarPanenData.isNotEmpty()) {
                         val dataSize = hektarPanenData.length.toLong()
-                        AppLogger.d("ESPB data size: $dataSize")
+                        AppLogger.d("Hektar Panen data size: $dataSize")
 
                         val tableIdsJson = JSONObject().apply {
-                            put(AppUtils.DatabaseTables.ESPB, JSONArray(espbIds))
+                            put(AppUtils.DatabaseTables.HEKTAR_PANEN, JSONArray(espbIds))
                         }.toString()
 
                         val uploadItem = UploadCMPItem(
@@ -2765,7 +2767,8 @@ class HomePageActivity : AppCompatActivity() {
                             baseFilename = espbFilename!!,
                             data = hektarPanenData,
                             type = "json",
-                            tableIds = tableIdsJson
+                            tableIds = tableIdsJson,
+                            databaseTable = AppUtils.DatabaseTables.HEKTAR_PANEN
                         )
 
                         uploadItems.add(uploadItem)
@@ -2801,7 +2804,8 @@ class HomePageActivity : AppCompatActivity() {
                             baseFilename = espbFilename!!,
                             data = absensiPanenData,
                             type = "json",
-                            tableIds = tableIdsJson
+                            tableIds = tableIdsJson,
+                            databaseTable = AppUtils.DatabaseTables.ABSENSI
                         )
 
                         uploadItems.add(uploadItem)
@@ -2841,7 +2845,8 @@ class HomePageActivity : AppCompatActivity() {
                             fullPath = "foto_panen",
                             baseFilename = "",
                             data = gson.toJson(fotoPanen),
-                            type = "image"
+                            type = "image",
+                            databaseTable = ""
                         )
 
                         uploadItems.add(uploadItem)
@@ -2880,7 +2885,8 @@ class HomePageActivity : AppCompatActivity() {
                             fullPath = "foto_absensi",
                             baseFilename = "",
                             data = gson.toJson(fotoAbsensi),
-                            type = "image"
+                            type = "image",
+                            databaseTable = ""
                         )
 
                         uploadItems.add(uploadItem)
@@ -3042,7 +3048,8 @@ class HomePageActivity : AppCompatActivity() {
                                             fullPath = failedItem.fullPath,
                                             baseFilename = failedItem.baseFilename,
                                             data = failedImagesJson,
-                                            type = failedItem.type
+                                            type = failedItem.type,
+                                            databaseTable = failedItem.databaseTable
                                         )
 
                                         retryUploadItems.add(newItem)
@@ -3061,7 +3068,8 @@ class HomePageActivity : AppCompatActivity() {
                                             fullPath = failedItem.fullPath,
                                             baseFilename = failedItem.baseFilename,
                                             data = failedItem.data,
-                                            type = failedItem.type
+                                            type = failedItem.type,
+                                            databaseTable = failedItem.databaseTable
                                         )
                                     )
                                 }
@@ -3077,13 +3085,13 @@ class HomePageActivity : AppCompatActivity() {
                                     fullPath = failedItem.fullPath,
                                     baseFilename = failedItem.baseFilename,
                                     data = failedItem.data,
-                                    type = failedItem.type
+                                    type = failedItem.type,
+                                    databaseTable = failedItem.databaseTable
                                 )
                             )
                         }
 
                         else -> {
-                            // Unknown type, add as is
                             retryUploadItems.add(
                                 UploadCMPItem(
                                     id = itemId++,
@@ -3091,7 +3099,8 @@ class HomePageActivity : AppCompatActivity() {
                                     fullPath = failedItem.fullPath,
                                     baseFilename = failedItem.baseFilename,
                                     data = failedItem.data,
-                                    type = failedItem.type
+                                    type = failedItem.type,
+                                    databaseTable = failedItem.databaseTable
                                 )
                             )
                         }
@@ -3401,6 +3410,8 @@ class HomePageActivity : AppCompatActivity() {
                                     if (tableIds != null) {
                                         // Parse the table_ids to determine if it's PANEN or ESPB
                                         val tableIdsJson = JSONObject(tableIds)
+
+                                        AppLogger.d(tableIdsJson.toString())
 
                                         if (tableIdsJson.has(AppUtils.DatabaseTables.PANEN)) {
                                             val panenIdsArray =
@@ -3816,7 +3827,8 @@ class HomePageActivity : AppCompatActivity() {
                     fullPath = "",
                     baseFilename = request.estateAbbr ?: "",
                     data = "",
-                    type = ""
+                    type = "",
+                    databaseTable = ""
                 )
             )
         }
@@ -3916,7 +3928,8 @@ class HomePageActivity : AppCompatActivity() {
                             fullPath = "",
                             baseFilename = request.estateAbbr ?: "",
                             data = "",
-                            type = ""
+                            type = "",
+                            databaseTable = ""
                         )
                     )
                 }
