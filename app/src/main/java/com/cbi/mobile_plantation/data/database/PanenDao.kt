@@ -120,7 +120,7 @@ abstract class PanenDao {
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE status_espb = 0")
+    @Query("SELECT * FROM panen_table WHERE status_espb = 0 and status_scan_mpanen == 0")
     abstract fun getAllActivePanenESPBAll(): List<PanenEntityWithRelations>
 
     @Transaction

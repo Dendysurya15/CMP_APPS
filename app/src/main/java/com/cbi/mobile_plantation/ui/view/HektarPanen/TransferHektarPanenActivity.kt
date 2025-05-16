@@ -667,9 +667,11 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         tvGenQRFull.visibility = View.VISIBLE
 
         btnGenerateQRTPH.setOnClickListener {
+            limit = 40
             generateQRTPH(40)
         }
         btnGenerateQRTPHUnl.setOnClickListener {
+            limit = 0
             generateQRTPH(0)
         }
     }
@@ -946,11 +948,12 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
                 lifecycleScope.launch {
                     try {
+                        val effectiveLimit =
+                            if (limit == 0) mappedData.size else limit
 
                         val jsonData = withContext(Dispatchers.IO) {
                             try {
-                                val effectiveLimit =
-                                    if (limitFun == 0) mappedData.size else limitFun
+
                                 // Take only the required number of items
                                 val limitedData = mappedData.take(effectiveLimit)
                                 formatPanenDataForQR(limitedData)
@@ -971,8 +974,6 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                             }
                         }
 
-                        val effectiveLimit =
-                            if (limit == 0) mappedData.size else limit
                         val limitedData = mappedData.take(effectiveLimit)
                         val processedData =
                             AppUtils.getPanenProcessedData(limitedData, featureName)

@@ -223,7 +223,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                         "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt()
                     )
                 ),
-                type = AppUtils.DatabaseServer.PPRO
+                type = AppUtils.DatabaseServer.PPRO,
+                databaseTable = ""
             )
         }
 
@@ -242,7 +243,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                     "uploaded_at" to currentDate,
                     "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt(),
                 )),
-                type = AppUtils.DatabaseServer.CMP
+                type = AppUtils.DatabaseServer.CMP,
+                databaseTable = ""
             )
         }
 
@@ -395,7 +397,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                     fullPath = failedItem.fullPath,
                                     baseFilename = failedItem.baseFilename,
                                     data = failedItem.data,
-                                    type = AppUtils.DatabaseServer.PPRO
+                                    type = AppUtils.DatabaseServer.PPRO,
+                                    databaseTable = ""
                                 )
                             )
                         }
@@ -409,7 +412,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                     fullPath = failedItem.fullPath,
                                     baseFilename = failedItem.baseFilename,
                                     data = "",
-                                    type = AppUtils.DatabaseServer.CMP
+                                    type = AppUtils.DatabaseServer.CMP,
+                                    databaseTable = ""
                                 )
                             )
                         }
@@ -423,7 +427,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                     fullPath = failedItem.fullPath,
                                     baseFilename = failedItem.baseFilename,
                                     data = "", // For JSON files, path is what matters
-                                    type = "json"
+                                    type = "json",
+                                    databaseTable = ""
                                 )
                             )
                         }
@@ -437,7 +442,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                     fullPath = failedItem.fullPath,
                                     baseFilename = failedItem.baseFilename,
                                     data = failedItem.data,
-                                    type = failedItem.type
+                                    type = failedItem.type,
+                                    databaseTable = ""
                                 )
                             )
                         }

@@ -341,6 +341,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                 val data = item.data
                 val type = item.type
                 val tableIds = item.tableIds
+                val databaseTable = item.databaseTable
 
                 val result = repository.uploadJsonToServerV3(
                     jsonFilePath = jsonFilePath,  // Use the file path directly
@@ -348,6 +349,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                     data = data,
                     type = type,
                     tableIds = tableIds,
+                    databaseTable = databaseTable,
                     onProgressUpdate = { progress, isSuccess, error ->
                         // This callback will be running on the main thread
                         // Update item's progress
