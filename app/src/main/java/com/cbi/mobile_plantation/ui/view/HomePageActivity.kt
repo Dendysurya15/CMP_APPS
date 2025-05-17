@@ -1616,8 +1616,27 @@ class HomePageActivity : AppCompatActivity() {
 
                                                 // Convert to JSON
                                                 val espbJson = Gson().toJson(wrappedData)
-                                                AppLogger.d("espbJson $espbJson")
-
+//                                                AppLogger.d("espbJson $espbJson")
+//
+//                                                try {
+//                                                    val tempDir =
+//                                                        File(getExternalFilesDir(null), "TEMP").apply {
+//                                                            if (!exists()) mkdirs()
+//                                                        }
+//
+//                                                    val filename =
+//                                                        "espb_data_${System.currentTimeMillis()}.json"
+//                                                    val tempFile = File(tempDir, filename)
+//
+//                                                    FileOutputStream(tempFile).use { fos ->
+//                                                        fos.write(espbJson.toByteArray())
+//                                                    }
+//
+//                                                    AppLogger.d("Saved raw espb data to temp file: ${tempFile.absolutePath}")
+//                                                } catch (e: Exception) {
+//                                                    AppLogger.e("Failed to save espb data to temp file: ${e.message}")
+//                                                    e.printStackTrace()
+//                                                }
                                                 AppLogger.d(espbJson.toString())
                                                 // Extract all IDs
                                                 val espbIds = ArrayList<Int>()
@@ -1893,25 +1912,25 @@ class HomePageActivity : AppCompatActivity() {
                                             hektaranJson = Gson().toJson(finalData)
 
                                             // Save JSON to a temporary file for inspection - direct approach
-    //                                            try {
-    //                                                val tempDir =
-    //                                                    File(getExternalFilesDir(null), "TEMP").apply {
-    //                                                        if (!exists()) mkdirs()
-    //                                                    }
-    //
-    //                                                val filename =
-    //                                                    "hektaran_data_${System.currentTimeMillis()}.json"
-    //                                                val tempFile = File(tempDir, filename)
-    //
-    //                                                FileOutputStream(tempFile).use { fos ->
-    //                                                    fos.write(hektaranJson.toByteArray())
-    //                                                }
-    //
-    //                                                AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
-    //                                            } catch (e: Exception) {
-    //                                                AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
-    //                                                e.printStackTrace()
-    //                                            }
+//                                            try {
+//                                                val tempDir =
+//                                                    File(getExternalFilesDir(null), "TEMP").apply {
+//                                                        if (!exists()) mkdirs()
+//                                                    }
+//
+//                                                val filename =
+//                                                    "hektaran_data_${System.currentTimeMillis()}.json"
+//                                                val tempFile = File(tempDir, filename)
+//
+//                                                FileOutputStream(tempFile).use { fos ->
+//                                                    fos.write(hektaranJson.toByteArray())
+//                                                }
+//
+//                                                AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
+//                                            } catch (e: Exception) {
+//                                                AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
+//                                                e.printStackTrace()
+//                                            }
 
                                             // Extract all IDs for tracking
                                             val hektaranIds =
