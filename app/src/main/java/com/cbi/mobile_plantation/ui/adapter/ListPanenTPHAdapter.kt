@@ -93,7 +93,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         Log.d("ListPanenTPHAdapterTest", "extractData: $item")
 
 
-        AppLogger.d(item.toString())
         val panenId = item["id"] as? String ?: "0"
         val tphId = item["tph_id"] as? String ?: "0"
 
@@ -348,7 +347,11 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             binding.td1.visibility = View.VISIBLE
             binding.td2.visibility = View.VISIBLE
             binding.td3.visibility = View.VISIBLE
-            binding.td4.visibility = View.VISIBLE
+            if (featureName == AppUtils.ListFeatureNames.DetailESPB && archiveState ==1){
+                binding.td4.visibility = View.GONE
+            }else{
+                binding.td4.visibility = View.VISIBLE
+            }
 
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 2) {
                 binding.td1.text = data["nama_karyawans"].toString()
@@ -705,13 +708,20 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     binding.flCheckBoxItemTph.visibility = View.VISIBLE
                 }
                 binding.checkBoxPanen.visibility = View.GONE
-                binding.numListTerupload.visibility = View.VISIBLE
-                binding.numListTerupload.text = "${adapterPosition + 1}."
-            } else if (archiveState == 2 && featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                if(archiveState == 1){
+                    binding.flCheckBoxItemTph.visibility = View.GONE
+                }else{
+                    binding.numListTerupload.visibility = View.VISIBLE
+                    binding.numListTerupload.text = "${adapterPosition + 1}."
+                }
+
+            }
+            else if (archiveState == 2 && featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
                 binding.checkBoxPanen.visibility = View.GONE
                 binding.numListTerupload.visibility = View.GONE
                 binding.flCheckBoxItemTph.visibility = View.GONE
-            } else {
+            }
+            else {
                 binding.checkBoxPanen.visibility = View.VISIBLE
                 binding.numListTerupload.visibility = View.GONE
                 binding.checkBoxPanen.setOnCheckedChangeListener(null)
@@ -747,7 +757,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     }
                 }
                 else if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState ==1){
-                    AppLogger.d("masuk sini gesss")
                     if (binding.flCheckBoxItemTph.visibility == View.GONE){
                         binding.flCheckBoxItemTph.visibility = View.VISIBLE
                     }
@@ -880,10 +889,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 }
             }
         }
-
-
-        AppLogger.d("tphList: $tphList")
-        AppLogger.d("result: $result")
         return result.distinct()
     }
 
