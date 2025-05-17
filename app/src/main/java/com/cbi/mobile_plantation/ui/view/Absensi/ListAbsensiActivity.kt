@@ -314,28 +314,22 @@ class ListAbsensiActivity : AppCompatActivity() {
         btnGenerateQRAbsensi.setOnClickListener {
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
-            val generatedDate =
-                getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
+            val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
 
             // Log tanggal
             AppLogger.d("Generated Date: '$generatedDate'")
             AppLogger.d("Today Date: '$todayDate'")
 
-            if (generatedDate.isEmpty()) {
+            if (generatedDate.isEmpty() || generatedDate != todayDate) {
+                // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
+                // Berarti ini adalah generate baru untuk hari ini
                 playSound(R.raw.berhasil_generate_qr)
-                saveGeneratedDate(todayDate)
-                generateData() // Tambahkan ini agar langsung bisa dijalankan
-//                showBottomSheetQR()
-            } else if (generatedDate == todayDate) {
-                // Jika tanggal sama, tampilkan QR
-                showBottomSheetQR()
+                saveGeneratedDate(todayDate)  // Simpan tanggal hari ini
+                generateData()  // Generate data baru
             } else {
-                // Jika tanggal berbeda, tampilkan pesan error
-                Toast.makeText(
-                    this,
-                    "QR hanya bisa digenerate jika tanggal sama!",
-                    Toast.LENGTH_SHORT
-                ).show()
+                // Jika sudah pernah generate di hari yang sama
+                // Tampilkan QR yang sudah ada
+                showBottomSheetQR()
             }
         }
     }
