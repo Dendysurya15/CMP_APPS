@@ -1275,6 +1275,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         totalJjg = totalJjg,
                                         mill_name = millAbbr,
                                         transporter_name = transporterName,
+                                        date_scan = item.date_scan
                                     )
 
                                 }

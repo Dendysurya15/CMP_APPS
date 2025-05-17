@@ -40,5 +40,6 @@ data class ESPBEntity(
     val scan_status: Int=0, // default 0
     val dataIsZipped: Int = 0,
     val ids_to_update: String = "NULL",
-    val status_upload: Int = 0
+    val status_upload: Int = 0,
+    val date_scan: String?
 )

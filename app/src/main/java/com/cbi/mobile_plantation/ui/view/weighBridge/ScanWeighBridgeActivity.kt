@@ -204,7 +204,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     creator_info = globalCreatorInfo,
                                     uploader_info_wb = "", // New field for WB
                                     noESPB = globalNoESPB,
-                                    scan_status = 1, // Default scan_status
+                                    scan_status = 1,
+                                    date_scan = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()) // Current datetime
                                 )
                             }
 
@@ -381,12 +382,12 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                                             val processedEndpoints = mutableSetOf<String>()
 
-// Observe upload progress
+                                            // Observe upload progress
                                             weightBridgeViewModel.uploadProgress.observe(this@ScanWeighBridgeActivity) { progressMap ->
                                                 AppLogger.d("Upload progress: $progressMap")
                                             }
 
-// Observe upload status with endpoint info
+                                            // Observe upload status with endpoint info
                                             weightBridgeViewModel.uploadStatusEndpointMap.observe(
                                                 this@ScanWeighBridgeActivity
                                             ) { statusEndpointMap ->

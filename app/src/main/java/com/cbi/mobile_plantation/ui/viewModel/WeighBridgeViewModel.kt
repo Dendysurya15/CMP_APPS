@@ -298,6 +298,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         uploader_info_wb: String,
         noESPB: String,
         scan_status: Int = 1,
+        date_scan: String? = null, // New parameter with default null
     ): WeighBridgeRepository.SaveResultESPBKrani {
         return try {
             val exists = repository.isNoESPBExists(noESPB)
@@ -331,7 +332,8 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                     uploader_info_wb = uploader_info_wb,
                     noESPB = noESPB,
                     scan_status = scan_status,
-                    dataIsZipped = 0
+                    dataIsZipped = 0,
+                    date_scan = date_scan // Add new parameter to entity
                 )
                 // Insert and get the ID
                 val insertedId = repository.insertESPBDataAndGetId(espbData)

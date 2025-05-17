@@ -52,6 +52,7 @@ data class WBData(
     val totalJjg :Int?,
     val mill_name :String?,
     val transporter_name :String?,
+    val date_scan: String?
 )
 
 class WeighBridgeAdapter(private var items: List<WBData>) :
@@ -73,6 +74,8 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
             .inflate(R.layout.table_item_row, parent, false)
         return ViewHolder(view)
     }
+
+
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
@@ -364,8 +367,13 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
     private fun sortListByDate(list: List<WBData>): List<WBData> {
         return list.sortedByDescending {
             try {
-                // Parse the created_at date string to a Date object
-                dateFormat.parse(it.created_at)?.time ?: 0L
+                // First try to use date_scan if it's available
+                if (!it.date_scan.isNullOrEmpty()) {
+                    dateFormat.parse(it.date_scan)?.time
+                } else {
+                    // Fallback to created_at if date_scan is not available
+                    dateFormat.parse(it.created_at)?.time
+                } ?: 0L
             } catch (e: Exception) {
                 // If parsing fails, return 0 (oldest date)
                 Log.e("WeighBridgeAdapter", "Date parsing error: ${e.message}")
