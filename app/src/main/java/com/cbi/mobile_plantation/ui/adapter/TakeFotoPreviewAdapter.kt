@@ -60,7 +60,8 @@ class TakeFotoPreviewAdapter(
         val estate: String?,
         val afdeling: String?,
         val blok: String?,
-        val tph: String?
+        val tph: String?,
+        val blokBanjir: Int? = null
     )
 
     var onPhotoDeleted: ((String, Int) -> Unit)? = null
@@ -166,35 +167,71 @@ class TakeFotoPreviewAdapter(
             return
         }
 
+
         when (waterMarkFolder) {
             AppUtils.WaterMarkFotoDanFolder.WMPanenTPH -> {
-                if (locationData.estate.isNullOrEmpty() ||
-                    locationData.afdeling.isNullOrEmpty() ||
-                    locationData.blok.isNullOrEmpty() ||
-                    locationData.tph.isNullOrEmpty()) {
-
-                    AppLogger.d("Estate: ${locationData.estate}")
-                    AppLogger.d("Afdeling: ${locationData.afdeling}")
-                    AppLogger.d("Blok: ${locationData.blok}")
-                    AppLogger.d("TPH: ${locationData.tph}")
-                    Toast.makeText(
-                        context,
-                        "Pastikan sudah mengisi Estate, Afdeling dan No TPH terlebih dahulu!",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return
+                // Check each field individually and show specific message
+                when {
+                    locationData.estate.isNullOrEmpty() -> {
+                        AppLogger.d("Estate: ${locationData.estate}")
+                        Toast.makeText(
+                            context,
+                            "Pastikan sudah mengisi Estate terlebih dahulu!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return
+                    }
+                    locationData.afdeling.isNullOrEmpty() -> {
+                        AppLogger.d("Afdeling: ${locationData.afdeling}")
+                        Toast.makeText(
+                            context,
+                            "Pastikan sudah mengisi Afdeling terlebih dahulu!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return
+                    }
+                    // Only check blok if blokBanjir is not 0
+                    locationData.blokBanjir != 0 && locationData.blok.isNullOrEmpty() -> {
+                        AppLogger.d("Blok: ${locationData.blok}")
+                        AppLogger.d("BlokBanjir: ${locationData.blokBanjir}")
+                        Toast.makeText(
+                            context,
+                            "Pastikan sudah mengisi Blok terlebih dahulu!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return
+                    }
+                    locationData.tph.isNullOrEmpty() -> {
+                        AppLogger.d("TPH: ${locationData.tph}")
+                        Toast.makeText(
+                            context,
+                            "Pastikan sudah mengisi No TPH terlebih dahulu!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return
+                    }
                 }
             }
             AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen -> {
-                if (locationData.estate.isNullOrEmpty() || locationData.afdeling.isNullOrEmpty()) {
-                    AppLogger.d("Estate: ${locationData.estate}")
-                    AppLogger.d("Afdeling: ${locationData.afdeling}")
-                    Toast.makeText(
-                        context,
-                        "Pastikan sudah mengisi Estate dan Afdeling terlebih dahulu!",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return
+                when {
+                    locationData.estate.isNullOrEmpty() -> {
+                        AppLogger.d("Estate: ${locationData.estate}")
+                        Toast.makeText(
+                            context,
+                            "Pastikan sudah mengisi Estate terlebih dahulu!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return
+                    }
+                    locationData.afdeling.isNullOrEmpty() -> {
+                        AppLogger.d("Afdeling: ${locationData.afdeling}")
+                        Toast.makeText(
+                            context,
+                            "Pastikan sudah mengisi Afdeling terlebih dahulu!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return
+                    }
                 }
             }
         }

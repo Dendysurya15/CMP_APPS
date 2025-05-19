@@ -1385,6 +1385,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             val shouldLoadKemandoran = selectedKemandoran.isEmpty()
             val shouldLoadKemandoranLain = selectedKemandoranLain.isEmpty()
 
+            AppLogger.d("shouldLoadKemandoranLain $shouldLoadKemandoranLain")
+
             // Always show loading dialog and process data
             loadingDialog.show()
             loadingDialog.setMessage("Sedang memproses data...")
@@ -1400,6 +1402,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 val allKaryawan = panenViewModel.allKaryawanList.value ?: emptyList()
                 AppLogger.d("Reset: Reloaded ${allKaryawan.size} karyawan")
 
+                AppLogger.d("askldjfkajsdflj $allKaryawan")
+                AppLogger.d("presentNikSet $presentNikSet")
                 // Filter the list to only include workers who are present
                 val presentKaryawan = allKaryawan.filter { karyawan ->
                     karyawan.nik != null && presentNikSet.contains(karyawan.nik)
@@ -1416,7 +1420,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 if (shouldLoadKemandoranLain) {
                     // Store all karyawan in the global list
+
+                    AppLogger.d(allKaryawan.toString())
                     karyawanLainList = allKaryawan
+
+                    AppLogger.d("masuk sini bro")
                     AppLogger.d("Assigned allKaryawan to karyawanLainList because selectedKemandoranLain is empty")
                 }
 
@@ -1445,17 +1453,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         if (shouldLoadKemandoranLain) {
                             setupSpinnerView(layoutPemanenLain, karyawanNames)
                             AppLogger.d("Set up spinner for layoutPemanenLain with ${karyawanNames.size} present workers")
-                        }
-                    } else {
-                        // Handle the case where no present workers are found
-                        if (shouldLoadKemandoran) {
-                            setupSpinnerView(layoutPemanen, emptyList())
-                            AppLogger.d("No present workers found for layoutPemanen")
-                        }
-
-                        if (shouldLoadKemandoranLain) {
-                            setupSpinnerView(layoutPemanenLain, emptyList())
-                            AppLogger.d("No present workers found for layoutPemanenLain")
                         }
                     }
                     delay(100)
@@ -4054,15 +4051,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     layoutKemandoran.visibility = View.VISIBLE
                     layoutPemanen.visibility = View.VISIBLE
 
-                    setupSpinnerView(layoutBlok, emptyList())
-                    selectedBlok = ""
-                    selectedBlokIdSpinner = 0
-                    selectedBlokValue = null
-                    setupSpinnerView(layoutNoTPH, emptyList())
-                    selectedTPH = ""
-                    selectedTPHIdSpinner = 0
-                    selectedTPHJenisId = null
-                    selectedTPHValue  = null
+                    if(blokBanjir == 1){
+                        setupSpinnerView(layoutBlok, emptyList())
+                        selectedBlok = ""
+                        selectedBlokIdSpinner = 0
+                        selectedBlokValue = null
+                        setupSpinnerView(layoutNoTPH, emptyList())
+                        selectedTPH = ""
+                        selectedTPHIdSpinner = 0
+                        selectedTPHJenisId = null
+                        selectedTPHValue  = null
+
+                    }
 
                     val switchAsistensi =
                         findViewById<LinearLayout>(R.id.layoutSelAsistensi)
@@ -4921,7 +4921,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             estate = prefManager!!.estateUserLogin,
             afdeling = selectedAfdeling,
             blok = selectedBlok,
-            tph = selectedTPH
+            tph = selectedTPH,
+            blokBanjir = blokBanjir
         )
     }
 
