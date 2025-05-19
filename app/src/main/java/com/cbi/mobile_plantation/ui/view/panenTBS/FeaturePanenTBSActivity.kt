@@ -135,7 +135,8 @@ import java.util.Locale
 import java.util.TimeZone
 
 @Suppress("UNCHECKED_CAST")
-open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.PhotoCallback,
+open class FeaturePanenTBSActivity : AppCompatActivity(),
+    TakeFotoPreviewAdapter.LocationDataProvider, CameraRepository.PhotoCallback,
     ListTPHInsideRadiusAdapter.OnTPHSelectedListener {
     private var isSnackbarShown = false
     private var photoCount = 0
@@ -3034,13 +3035,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         }
     }
 
-    private fun resetTPHSpinner(rootView: View) {
-        val layoutNoTPH = rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
-        setupSpinnerView(layoutNoTPH, emptyList())
-//        tphList = emptyList()
-//        selectedTPH = ""
-//        selectedTPHValue = null
-    }
 
     private fun animateLoadingDots(linearLayout: LinearLayout) {
         val loadingContainer = linearLayout.findViewById<LinearLayout>(R.id.loadingDotsContainer)
@@ -3463,6 +3457,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         var isPrimaryGroupFilled = true
         var isSecondaryGroupFilled = true
 
+        AppLogger.d(blokBanjir.toString())
+        AppLogger.d(selectedTPH.toString())
+
         inputMappings.forEach { (layout, key, inputType) ->
             // Skip validation for kemandoran and pemanen fields initially
             if (layout.id == R.id.layoutKemandoran || layout.id == R.id.layoutPemanen ||
@@ -3644,6 +3641,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             val currentCount = tphData?.count ?: 0
             val jenisTPHId = selectedTPHJenisId ?: 0
 
+            AppLogger.d("jenisTPHId $jenisTPHId")
+
             // Get the default limit from jenisTPHListGlobal
             val defaultLimit = jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
 
@@ -3666,21 +3665,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                         defaultLimit // This should be 7 for jenisTPHId = 2
                     }
                 } else {
-                    // For other jenis_tph_id values
-                    try {
-                        // Try to get the custom limit first
-                        val customLimit = tphData?.limitTPH?.toInt()
-                        if (customLimit != null) {
-                            customLimit
-                        } else {
-                            defaultLimit
-                        }
-                    } catch (e: Exception) {
-                        // If conversion fails, use the default
-                        defaultLimit
-                    }
+
+
+                    AppLogger.d("masuk sini ges")
+                    defaultLimit
                 }
 
+            AppLogger.d("limitValue $limitValue" )
             // Now use the properly converted Int value for comparison
             if (currentCount >= limitValue) {
                 isValid = false
@@ -3832,6 +3823,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     AppLogger.e("Error filtering otherDivisiIds: ${e.message}")
                     emptyList()
                 }
+                selectedTahunTanamValue = ""
+                selectedTahunTanamIdSpinner = 0
+                setupSpinnerView(layoutTahunTanam, emptyList())
+                setupSpinnerView(layoutBlok, emptyList())
+                selectedBlok = ""
+                selectedBlokIdSpinner = 0
+                selectedBlokValue = null
+                setupSpinnerView(layoutNoTPH, emptyList())
+                selectedTPH = ""
+                selectedTPHIdSpinner = 0
+                selectedTPHJenisId = null
+                selectedTPHValue  = null
 
                 lifecycleScope.launch(Dispatchers.IO) {
 
@@ -4009,10 +4012,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 selectedTahunTanamValue = selectedTahunTanam
                 selectedTahunTanamIdSpinner = position
 
-                AppLogger.d(estateId.toString())
-                AppLogger.d(selectedDivisiValue.toString())
-                AppLogger.d(selectedTahunTanamValue.toString())
-                AppLogger.d(blokList.toString())
+                setupSpinnerView(layoutBlok, emptyList())
+                selectedBlok = ""
+                selectedBlokIdSpinner = 0
+                selectedBlokValue = null
+                setupSpinnerView(layoutNoTPH, emptyList())
+                selectedTPH = ""
+                selectedTPHIdSpinner = 0
+                selectedTPHJenisId = null
+                selectedTPHValue  = null
 
                 val filteredBlokCodes = blokList.filter {
                     val estateIdToUse =
@@ -4046,6 +4054,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     layoutKemandoran.visibility = View.VISIBLE
                     layoutPemanen.visibility = View.VISIBLE
 
+                    setupSpinnerView(layoutBlok, emptyList())
+                    selectedBlok = ""
+                    selectedBlokIdSpinner = 0
+                    selectedBlokValue = null
+                    setupSpinnerView(layoutNoTPH, emptyList())
+                    selectedTPH = ""
+                    selectedTPHIdSpinner = 0
+                    selectedTPHJenisId = null
+                    selectedTPHValue  = null
 
                     val switchAsistensi =
                         findViewById<LinearLayout>(R.id.layoutSelAsistensi)
@@ -4093,10 +4110,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                 selectedBlok = selectedItem.toString()
                 selectedBlokIdSpinner = position
 
-                AppLogger.d(selectedDivisiValue.toString())
-                AppLogger.d(selectedTahunTanamValue.toString())
-                AppLogger.d(selectedBlok.toString())
-
                 val selectedFieldId = try {
                     // Determine which estate ID to use
                     val estateIdToUse =
@@ -4126,7 +4139,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     return
                 }
 
+
                 setupSpinnerView(layoutNoTPH, emptyList())
+                selectedTPH = ""
+                selectedTPHIdSpinner = 0
+                selectedTPHJenisId = null
+                selectedTPHValue  = null
 
                 // In the handleItemSelection for R.id.layoutBlok
                 lifecycleScope.launch(Dispatchers.IO) {
@@ -4170,8 +4188,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             // Only include TPH with jenis_tph_id = 1 (normal)
                             jenisId == 1
                         }
-                        AppLogger.d("Filtered normalTphList size: ${normalTphList.size}")
-                        AppLogger.d("panenStoredLocal contents: ")
+
                         panenStoredLocal.forEach { (tphId, data) ->
                             AppLogger.d("TPH ID: $tphId, Count: ${data.count}, JenisTPHId: ${data.jenisTPHId}")
                         }
@@ -4184,35 +4201,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             val defaultLimit =
                                 jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
 
-                            // Calculate the final limit to use
-                            val limit =
-                                if (jenisTPHId == 2 && jenisTPHListGlobal.find { it.id == 2 }?.jenis_tph == "induk") {
-                                    // Special case for jenis_tph = induk (id = 2)
-                                    try {
-                                        val customLimit = tphData?.limitTPH?.toInt()
-                                        if (customLimit != null && customLimit > 3 && customLimit <= 999) {
-                                            // Use the custom limit if it's greater than 3 and up to 999
-                                            customLimit
-                                        } else {
-                                            // Otherwise, use the default limit (7)
-                                            defaultLimit
-                                        }
-                                    } catch (e: Exception) {
-                                        defaultLimit
-                                    }
-                                } else {
-                                    // For other jenis_tph_id values
-                                    try {
-                                        val customLimit = tphData?.limitTPH?.toInt()
-                                        if (customLimit != null) {
-                                            customLimit
-                                        } else {
-                                            defaultLimit
-                                        }
-                                    } catch (e: Exception) {
-                                        defaultLimit
-                                    }
-                                }
+                            // Use the default limit directly
+                            val limit = defaultLimit
 
                             AppLogger.d("TPH ${tph.id} (${tph.nomor}): selectionCount=$selectionCount, jenisTPHId=$jenisTPHId, limit=$limit")
 
@@ -4274,7 +4264,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                     ).show()
                 }
 
-                val selectedTPHId = try {
+                val selectedTPHObject = try {
                     // Determine which estate ID to use
                     val estateIdToUse =
                         if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
@@ -4283,30 +4273,31 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
                             estateId?.toIntOrNull()
                         }
 
-                    AppLogger.d(selectedDivisiValue.toString())
-                    AppLogger.d(selectedBlokValue.toString())
-                    AppLogger.d(selectedTPH)
-                    AppLogger.d(selectedTahunTanamValue.toString())
                     tphList?.find {
                         it.dept == estateIdToUse && // Using conditional estate ID
                                 it.divisi == selectedDivisiValue &&
                                 it.blok == selectedBlokValue &&
                                 it.tahun == selectedTahunTanamValue &&
                                 it.nomor == selectedTPH
-                    }?.id
+                    }
                 } catch (e: Exception) {
-                    AppLogger.e("Error finding selected TPH ID: ${e.message}")
+                    AppLogger.e("Error finding selected TPH: ${e.message}")
                     null
                 }
 
-                AppLogger.d(selectedTPHId.toString())
-                if (selectedTPHId != null) {
+                if (selectedTPHObject != null) {
+                    selectedTPHValue = selectedTPHObject.id
 
-                    selectedTPHValue = selectedTPHId
+                    // Set the selectedTPHJenisId based on the TPH's jenis_tph_id
+                    val tphJenisId = selectedTPHObject.jenis_tph_id?.toIntOrNull() ?: 0
+                    selectedTPHJenisId = jenisTPHListGlobal.find { it.id == tphJenisId }?.id
+
                     AppLogger.d("Selected TPH ID: $selectedTPHValue")
+                    AppLogger.d("Selected TPH Jenis ID: $selectedTPHJenisId")
                 } else {
                     selectedTPHValue = null
-                    AppLogger.e("Selected TPH ID is null, skipping processing.")
+                    selectedTPHJenisId = null
+                    AppLogger.e("Selected TPH object is null, skipping processing.")
                 }
             }
 //
@@ -4925,6 +4916,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
         textView.text = text
     }
 
+    override fun getCurrentLocationData(): TakeFotoPreviewAdapter.LocationData {
+        return TakeFotoPreviewAdapter.LocationData(
+            estate = prefManager!!.estateUserLogin,
+            afdeling = selectedAfdeling,
+            blok = selectedBlok,
+            tph = selectedTPH
+        )
+    }
+
+    override fun getCurrentCoordinates(): Pair<Double?, Double?> {
+        return Pair(lat, lon)
+    }
+
 
     private fun resetAllCounters() {
         val counterMappings = listOf(
@@ -5169,12 +5173,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
     }
 
 
-    override fun onTPHSelected(selectedTPH: ScannedTPHSelectionItem) {
+    override fun onTPHSelected(selectedTPHInLIst: ScannedTPHSelectionItem) {
         val tvErrorScannedNotSelected = findViewById<TextView>(R.id.tvErrorScannedNotSelected)
         tvErrorScannedNotSelected.visibility = View.GONE
 
-        selectedTPHIdByScan = selectedTPH.id
+        selectedTPHIdByScan = selectedTPHInLIst.id
+        selectedBlok = selectedTPHInLIst.blockCode
         selectedTPHValue = selectedTPHIdByScan
+        selectedTPH = selectedTPHInLIst.number
         layoutAncak.visibility = View.VISIBLE
         layoutTipePanen.visibility = View.VISIBLE
         layoutKemandoran.visibility = View.VISIBLE
@@ -5694,14 +5700,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             locationEnable = true
             lat = location.latitude
             lon = location.longitude
-            if (::takeFotoPreviewAdapter.isInitialized) {
-                takeFotoPreviewAdapter.updateCoordinates(lat, lon)
-                takeFotoPreviewAdapter.updateLocationData(
-                    prefManager!!.estateUserLogin,
-                    selectedAfdeling,
-                    selectedBlok,
-                )
-            }
         }
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
@@ -5714,8 +5712,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(), CameraRepository.Photo
             startPeriodicDateTimeChecking()
         }
     }
-
-
 
 
     private fun showSnackbarWithSettings(message: String) {

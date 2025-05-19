@@ -173,7 +173,7 @@ class CameraRepository(
             width
         } else {
             height
-        } / 32f
+        } / 48f
         textPaint.textAlign = Paint.Align.RIGHT
 //        textPaint.typeface = ResourcesCompat.getFont(context, R.font.helvetica)
 
@@ -487,7 +487,7 @@ class CameraRepository(
                                             }
 
 // Create user info line with estate and jabatan
-                                        val userInfo = "${sourceFoto} - ${prefManager!!.nameUserLogin}"
+                                        val userInfo = "${sourceFoto}\n${prefManager!!.nameUserLogin}"
 
 // Line 1: Always "CMP-$featureName"
 // Line 2: Always user info

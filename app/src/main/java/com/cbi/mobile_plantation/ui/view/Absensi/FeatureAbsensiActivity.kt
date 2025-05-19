@@ -95,7 +95,7 @@ interface WorkerRemovalListener {
 
 
 
-open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, CameraRepository.PhotoCallback {
+open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,TakeFotoPreviewAdapter.LocationDataProvider, CameraRepository.PhotoCallback {
 
     private var photoCount = 0
     private val photoFiles = mutableListOf<String>() // Store filenames
@@ -1363,14 +1363,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
             locationEnable = true
             lat = location.latitude
             lon = location.longitude
-            if (::takeFotoPreviewAdapter.isInitialized) {
-                takeFotoPreviewAdapter.updateCoordinates(lat, lon)
-                takeFotoPreviewAdapter.updateLocationData(
-                    prefManager!!.estateUserLogin,
-                    selectedAfdeling,
-                    ""
-                )
-            }
+
         }
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
@@ -1383,6 +1376,19 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener, C
         if (activityInitialized && AppUtils.isDateTimeValid(this)) {
             startPeriodicDateTimeChecking()
         }
+    }
+
+    override fun getCurrentLocationData(): TakeFotoPreviewAdapter.LocationData {
+        return TakeFotoPreviewAdapter.LocationData(
+            estate = prefManager!!.estateUserLogin,
+            afdeling = selectedAfdeling,
+            blok = "",
+            tph = ""
+        )
+    }
+
+    override fun getCurrentCoordinates(): Pair<Double?, Double?> {
+        return Pair(lat, lon)
     }
 
     // Helper function to find ScrollView
