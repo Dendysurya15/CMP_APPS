@@ -2093,7 +2093,8 @@ class FormESPBActivity : AppCompatActivity() {
                     status_mekanisasi = status_mekanisasi,
                     kemandoran_id = kemandoran_id,
                     pemuat_nik = pemuat_nik,
-                    ids_to_update = idsToUpdate.joinToString(",")
+                    ids_to_update = idsToUpdate.joinToString(","),
+                    date_scan = ""
                 )
 
                 // Insert ESPB and get the ID

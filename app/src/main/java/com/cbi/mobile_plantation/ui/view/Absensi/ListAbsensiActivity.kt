@@ -18,12 +18,14 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.view.animation.AnimationUtils
+import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -56,6 +58,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -77,6 +80,7 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.zip.Deflater
@@ -90,6 +94,7 @@ class ListAbsensiActivity : AppCompatActivity() {
     private lateinit var absensiViewModel: AbsensiViewModel
     private lateinit var absensiAdapter: ListAbsensiAdapter
     private var isSettingUpCheckbox = false
+    private lateinit var filterAllData: CheckBox
     private var prefManager: PrefManager? = null
     private var featureName: String? = null
     private var regionalId: String? = null
@@ -100,6 +105,7 @@ class ListAbsensiActivity : AppCompatActivity() {
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
     private var infoApp: String = ""
+    private var globalFormattedDate: String = ""
 
     // Flag to track if we're currently in the process of deleting
     private var isDeleting = false
@@ -121,15 +127,11 @@ class ListAbsensiActivity : AppCompatActivity() {
     private var tvTitlePage: TextView? = null
     private lateinit var tvEmptyStateAbsensi: TextView // Add this
     private var activityInitialized = false
+    private lateinit var dateButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list_absensi)
-
-        // Initialize views
-        recyclerView = findViewById(R.id.rvTableDataAbsensiList)
-        speedDial = findViewById(R.id.dial_listAbsensi)
-        tvTitlePage = findViewById(R.id.tvEmptyStateAbsensiList) // This might be null if you don't have it
     }
 
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
@@ -143,8 +145,79 @@ class ListAbsensiActivity : AppCompatActivity() {
     private fun setupUI() {
         prefManager = PrefManager(this)
         loadingDialog = LoadingDialog(this)
-
         infoApp = AppUtils.getDeviceInfo(this@ListAbsensiActivity).toString()
+
+        globalFormattedDate = AppUtils.currentDate
+        // Initialize views
+        recyclerView = findViewById(R.id.rvTableDataAbsensiList)
+        speedDial = findViewById(R.id.dial_listAbsensi)
+        tvTitlePage = findViewById(R.id.tvEmptyStateAbsensiList) // This might be null if you don't have it
+
+        val backButton = findViewById<ImageView>(R.id.btn_back)
+        backButton.setOnClickListener {
+            onBackPressed()
+        }
+
+        findViewById<LinearLayout>(R.id.calendarContainerAbsensi).visibility = View.VISIBLE
+        dateButton = findViewById(R.id.calendarPickerAbsensi)
+        dateButton.text = AppUtils.getTodaysDate()
+
+        filterAllData = findViewById(R.id.calendarCheckboxAbsensi)
+
+        filterAllData.setOnCheckedChangeListener { _, isChecked ->
+            val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainerAbsensi)
+            val nameFilterDate = findViewById<TextView>(R.id.name_filter_dateAbsensi)
+            if (isChecked) {
+                filterDateContainer.visibility = View.VISIBLE
+                nameFilterDate.text = "Semua Data"
+
+                dateButton.isEnabled = false
+                dateButton.alpha = 0.5f
+
+                if (currentState == 0) {
+                    absensiViewModel.loadHistoryRekapAbsensi(archive = 0)
+                } else if (currentState == 1) {
+                    absensiViewModel.loadHistoryRekapAbsensi(archive = 1)
+                }
+            } else {
+                // For line 136 (use date from date picker)
+                val displayDate = formatGlobalDate(globalFormattedDate)
+
+                nameFilterDate.text = displayDate
+                dateButton.isEnabled = true
+                dateButton.alpha = 1f // Make the button appear darker
+                Log.d("FilterAllData", "Checkbox is UNCHECKED. Button enabled.")
+                if (currentState == 0) {
+                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 0)
+                } else if (currentState == 1) {
+                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 1)
+                }
+            }
+
+            val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_dateAbsensi)
+
+            removeFilterDate.setOnClickListener {
+                if (filterAllData.isChecked) {
+                    filterAllData.isChecked = false
+                }
+
+                filterDateContainer.visibility = View.GONE
+
+                val todayBackendDate = AppUtils.formatDateForBackend(
+                    Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                    Calendar.getInstance().get(Calendar.MONTH) + 1,
+                    Calendar.getInstance().get(Calendar.YEAR)
+                )
+                // Reset the selected date in your utils
+                AppUtils.setSelectedDate(todayBackendDate)
+
+                // Update the dateButton to show today's date
+                val todayDisplayDate = AppUtils.getTodaysDate()
+                dateButton.text = todayDisplayDate
+
+            }
+        }
+
         setupHeader()
         initViewModel()
         setupRecyclerView()
@@ -308,38 +381,30 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
     }
 
-
     private fun setupQRAbsensi() {
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
         btnGenerateQRAbsensi.setOnClickListener {
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
-            val generatedDate =
-                getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
+            val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
 
             // Log tanggal
             AppLogger.d("Generated Date: '$generatedDate'")
             AppLogger.d("Today Date: '$todayDate'")
 
-            if (generatedDate.isEmpty()) {
+            if (generatedDate.isEmpty() || generatedDate != todayDate) {
+                // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
+                // Berarti ini adalah generate baru untuk hari ini
                 playSound(R.raw.berhasil_generate_qr)
-                saveGeneratedDate(todayDate)
-                generateData() // Tambahkan ini agar langsung bisa dijalankan
-//                showBottomSheetQR()
-            } else if (generatedDate == todayDate) {
-                // Jika tanggal sama, tampilkan QR
-                showBottomSheetQR()
+                saveGeneratedDate(todayDate)  // Simpan tanggal hari ini
+                generateData()  // Generate data baru
             } else {
-                // Jika tanggal berbeda, tampilkan pesan error
-                Toast.makeText(
-                    this,
-                    "QR hanya bisa digenerate jika tanggal sama!",
-                    Toast.LENGTH_SHORT
-                ).show()
+                // Jika sudah pernah generate di hari yang sama
+                // Tampilkan QR yang sudah ada
+                showBottomSheetQR()
             }
         }
     }
-
 
     private fun showBottomSheetQR() {
         val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_generate_qr_absen, null)
@@ -1486,7 +1551,7 @@ class ListAbsensiActivity : AppCompatActivity() {
             // Reset visibility states before loading new data
             tvEmptyStateAbsensi.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
-            absensiAdapter.updateArchiveState(0)
+            absensiAdapter.updateArchiveState(currentState)
             if (prefManager!!.jabatanUserLogin == "Kerani Panen") {
                 absensiViewModel.getAllDataAbsensi(1)
             } else {
@@ -1504,7 +1569,7 @@ class ListAbsensiActivity : AppCompatActivity() {
             tvEmptyStateAbsensi.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
             speedDial.visibility = View.GONE
-            absensiAdapter.updateArchiveState(1)
+            absensiAdapter.updateArchiveState(currentState)
             absensiViewModel.loadArchivedAbsensi()
         }
     }
@@ -1671,6 +1736,19 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
     }
 
+    fun formatGlobalDate(dateString: String): String {
+        // Parse the date string in format "YYYY-MM-DD"
+        val parts = dateString.split("-")
+        if (parts.size != 3) return dateString // Return original if format doesn't match
+
+        val year = parts[0].toInt()
+        val month = parts[1].toInt()
+        val day = parts[2].toInt()
+
+        // Return formatted date string using getMonthFormat
+        return "${AppUtils.getMonthFormat(month)} $day $year"
+    }
+
     @SuppressLint("SetTextI18n")
     private fun setupObserveData() {
         val listTgl = findViewById<TextView>(R.id.listTglAbsensi)
@@ -1690,7 +1768,7 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
 
         absensiViewModel.savedDataAbsensiList.observe(this) { data ->
-            if (currentState == 0) {
+            if (currentState == 0 || currentState == 1) {
                 absensiAdapter.updateList(emptyList())
 
                 if (data.isNotEmpty()) {
@@ -1909,6 +1987,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             null
                                         }
 
+                                        AppLogger.d("Kemandoran data for ID ${absensiWithRelations.absensi.id}: ${kemandoranData?.map { it.id }}")
+                                        AppLogger.d("kemandoranData $kemandoranData")
                                         // Process kemandoran kode
                                         val kemandoranNama =
                                             if (kemandoranData != null && kemandoranData.isNotEmpty()) {
@@ -1924,14 +2004,24 @@ class ListAbsensiActivity : AppCompatActivity() {
 
                                         // Update mappedData
                                         mappedData = mappedData + mapOf(
-                                            "id_kemandoran" to rawKemandoran,
+                                            "id_kemandoran" to (rawKemandoran.takeIf { it.isNotEmpty() }
+                                                ?: listOf("-")),
                                             "id" to absensiWithRelations.absensi.id,
-                                            "nama_kemandoran" to (absensiWithRelations.kemandoran?.nama
-                                                ?: "-"),
-                                            "afdeling" to absensiWithRelations.absensi.divisi_abbr,
-                                            "estate" to absensiWithRelations.absensi.dept_abbr,
+                                            "nama_kemandoran" to kemandoranNama,
+                                            "divisi" to absensiWithRelations.absensi.divisi,
+                                            "divisi_abbr" to absensiWithRelations.absensi.divisi_abbr,
+                                            "dept" to absensiWithRelations.absensi.dept,
+                                            "dept_abbr" to absensiWithRelations.absensi.dept_abbr,
                                             "datetime" to (absensiWithRelations.absensi.date_absen
                                                 ?: "-"),
+                                            "created_by" to (absensiWithRelations.absensi.created_by
+                                                ?: "-"),
+                                            "info" to (absensiWithRelations.absensi.info
+                                                ?: "-"),
+                                            "karyawan_msk_nik" to (absensiWithRelations.absensi.karyawan_msk_nik
+                                                ?: ""),
+                                            "karyawan_tdk_msk_nik" to (absensiWithRelations.absensi.karyawan_tdk_msk_nik
+                                                ?: ""),
                                             "karyawan_msk_id" to (absensiWithRelations.absensi.karyawan_msk_id
                                                 ?: ""),
                                             "karyawan_tdk_msk_id" to (absensiWithRelations.absensi.karyawan_tdk_msk_id
@@ -1950,9 +2040,9 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 ?: "",
                                             karyawan_tdk_msk_id = absensiWithRelations.absensi.karyawan_tdk_msk_id
                                                 ?: "",
-                                            karyawan_msk_nama = absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                            karyawan_msk_nama = absensiWithRelations.absensi.karyawan_msk_nama
                                                 ?: "",
-                                            karyawan_tdk_msk_nama = absensiWithRelations.absensi.karyawan_tdk_msk_id
+                                            karyawan_tdk_msk_nama = absensiWithRelations.absensi.karyawan_tdk_msk_nama
                                                 ?: "",
                                             karyawan_msk_nik = absensiWithRelations.absensi.karyawan_msk_nik
                                                 ?: "",
@@ -2160,6 +2250,80 @@ class ListAbsensiActivity : AppCompatActivity() {
                 text = headerNames[i]
             }
         }
+    }
+
+    fun openDatePicker(view: View) {
+        initMaterialDatePicker()
+    }
+
+    private fun initMaterialDatePicker() {
+        val builder = MaterialDatePicker.Builder.datePicker()
+        builder.setTitleText("Pilih Tanggal")
+        builder.setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+
+        val datePicker = builder.build()
+
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = selection
+            val year = calendar.get(Calendar.YEAR)
+            val month = calendar.get(Calendar.MONTH) + 1
+            val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+            val displayDate = AppUtils.makeDateString(day, month, year)
+            dateButton.text = displayDate
+
+            val formattedDate = AppUtils.formatDateForBackend(day, month, year)
+            globalFormattedDate = formattedDate
+            AppUtils.setSelectedDate(formattedDate)
+            processSelectedDate(formattedDate)
+        }
+        datePicker.show(supportFragmentManager, "MATERIAL_DATE_PICKER")
+    }
+
+    private fun processSelectedDate(selectedDate: String) {
+
+        AppLogger.d("cek tgl: ${globalFormattedDate}")
+        AppLogger.d("cek stst: ${currentState}")
+        val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainerAbsensi)
+        val nameFilterDate = findViewById<TextView>(R.id.name_filter_dateAbsensi)
+        val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_dateAbsensi)
+
+        val displayDate = AppUtils.formatSelectedDateForDisplay(selectedDate)
+        nameFilterDate.text = displayDate
+        if (currentState == 0) {
+            absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 0)
+        } else if (currentState == 1) {
+            absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 1)
+        }
+
+        removeFilterDate.setOnClickListener {
+            filterDateContainer.visibility = View.GONE
+//            loadingDialog.show()
+//            loadingDialog.setMessage("Sedang mengambil data...", true)
+            // Get today's date in backend format
+            val todayBackendDate = AppUtils.formatDateForBackend(
+                Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                Calendar.getInstance().get(Calendar.MONTH) + 1,
+                Calendar.getInstance().get(Calendar.YEAR)
+            )
+
+            // Reset the selected date in your utils
+            AppUtils.setSelectedDate(todayBackendDate)
+
+            // Update the dateButton to show today's date
+            val todayDisplayDate = AppUtils.getTodaysDate()
+            dateButton.text = todayDisplayDate
+
+            if (currentState == 0) {
+                absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 0)
+            } else if (currentState == 1) {
+                absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 1)
+            }
+
+        }
+
+        filterDateContainer.visibility = View.VISIBLE
     }
 
     private fun initViewModel() {

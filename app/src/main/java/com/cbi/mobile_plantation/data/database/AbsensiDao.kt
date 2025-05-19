@@ -14,6 +14,7 @@ import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.ui.adapter.AbsensiDataRekap
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.github.junrar.Archive
 
 @Dao
 abstract class AbsensiDao {
@@ -28,6 +29,13 @@ abstract class AbsensiDao {
 
     @Query("SELECT * FROM absensi WHERE status_scan == :status_scan")
     abstract fun getAllData(status_scan:Int): List<AbsensiKemandoranRelations>
+
+    @Query("""
+    SELECT * FROM absensi 
+    WHERE (:date IS NULL OR strftime('%Y-%m-%d', date_absen) = :date)
+    AND archive = :archive
+""")
+    abstract suspend fun getAllRekapAbsensi(date: String? = null, archive: Int): List<AbsensiKemandoranRelations>
 
     @Delete
     abstract fun deleteAll(espb: List<AbsensiModel>)
@@ -96,5 +104,4 @@ abstract class AbsensiDao {
             Result.failure(e)
         }
     }
-
 }

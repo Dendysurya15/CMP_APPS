@@ -173,8 +173,15 @@ class ListTPHInsideRadiusAdapter(
             // Set text and color
             holder.jenisTPHNameTextView.text = spannableJenisTPH
             holder.jenisTPHNameTextView.setTextColor(textColor)
-
         }
+
+        // ALWAYS reset the TextView state first (IMPORTANT for RecyclerView recycling)
+        holder.tphHasBeenSelected.visibility = View.GONE
+        holder.tphHasBeenSelected.text = ""
+
+        // Handle radio button and clickability reset
+        holder.radioButton.isEnabled = true
+        holder.radioButton.alpha = 1.0f
 
         val isCurrentlySelected = tphItem.id == selectedTPHId
         holder.radioButton.isChecked = isCurrentlySelected
@@ -195,7 +202,7 @@ class ListTPHInsideRadiusAdapter(
             } catch (e: Exception) {
                 null
             }
-
+            
             // Calculate the limit to use based on TPH type
             val limit = if (jenisTPHId == 2 && jenisTPHList.find { it.id == 2 }?.jenis_tph == "induk") {
                 // Special case for jenis_tph = induk (id = 2)
@@ -207,12 +214,13 @@ class ListTPHInsideRadiusAdapter(
                     defaultLimit
                 }
             } else {
-                // For other jenis_tph_id values
-                customLimit ?: defaultLimit
+                defaultLimit
             }
 
+            AppLogger.d("limit $limit")
             // Show different messages based on selection count
             if (tphItem.selectionCount >= limit!!) {
+                AppLogger.d("TPH reached maximum selections")
                 // TPH has reached maximum selections
                 holder.tphHasBeenSelected.text =
                     "TPH sudah terpilih ${tphItem.selectionCount} dari $limit kali (maksimal)!"
@@ -223,6 +231,7 @@ class ListTPHInsideRadiusAdapter(
                 holder.radioButton.alpha = 0.5f // Make it look disabled
             } else {
                 // TPH has been selected but can be selected again
+                AppLogger.d("TPH can be selected again")
                 holder.tphHasBeenSelected.text =
                     "TPH sudah terpilih ${tphItem.selectionCount} dari $limit kali!"
                 holder.tphHasBeenSelected.visibility = View.VISIBLE
@@ -231,9 +240,13 @@ class ListTPHInsideRadiusAdapter(
                 holder.radioButton.isEnabled = true
                 holder.radioButton.alpha = 1.0f
             }
+        } else {
+            // IMPORTANT: For items that are NOT already selected, ensure the TextView is hidden
+            holder.tphHasBeenSelected.visibility = View.GONE
+            holder.tphHasBeenSelected.text = ""
         }
 
-        // Reset click listeners for all items
+        // Reset click listeners for all items (moved after visibility handling)
         holder.radioButton.setOnClickListener(null)
         holder.itemView.setOnClickListener(null)
 

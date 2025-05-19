@@ -65,6 +65,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val panenDao = database.panenDao()
     private val absensiDao = database.absensiDao()
     private val blokDao = database.blokDao()
+    private val hektarPanenDao = database.hektarPanenDao()
 
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
@@ -708,6 +709,23 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             AppLogger.d("Updated espb_table status_upload_cmp_wb successfully")
                                                         }
                                                     }
+                                                }
+                                                AppUtils.DatabaseTables.HEKTAR_PANEN -> {
+                                                    when (jabatan) {
+                                                        AppUtils.ListFeatureByRoleUser.MandorPanen -> {
+                                                            hektarPanenDao.updateStatusUploadHektarPanen(idList, statusCode)
+                                                            AppLogger.d("Updated panen_table successfully")
+                                                        }
+                                                    }
+                                                }
+                                                AppUtils.DatabaseTables.ABSENSI -> {
+                                                    when (jabatan) {
+                                                        AppUtils.ListFeatureByRoleUser.MandorPanen -> {
+                                                            absensiDao.updateStatusUploadAbsensiPanen(idList, statusCode)
+                                                            AppLogger.d("Updated panen_table successfully")
+                                                        }
+                                                    }
+
                                                 }
                                                 else -> {
                                                     AppLogger.w("Unknown table name: $tableName")

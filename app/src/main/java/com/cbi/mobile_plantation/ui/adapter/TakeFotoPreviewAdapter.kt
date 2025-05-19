@@ -27,6 +27,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.repository.CameraRepository
+import com.cbi.mobile_plantation.ui.view.Absensi.FeatureAbsensiActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -48,14 +49,19 @@ class TakeFotoPreviewAdapter(
     private val comments = mutableListOf<String>()
     private val listFileFoto = mutableMapOf<String, File>()
     private val activeItems = mutableListOf<Boolean>()
-    private var currentLatitude: Double? = null
-    private var currentLongitude: Double? = null
     private var maxVisibleSlots = 1  // Track how many slots have been visible
 
-    private var estate: String? = null
-    private var afdeling: String? = null
-    private var blok: String? = null
+    interface LocationDataProvider {
+        fun getCurrentLocationData(): LocationData
+        fun getCurrentCoordinates(): Pair<Double?, Double?>
+    }
 
+    data class LocationData(
+        val estate: String?,
+        val afdeling: String?,
+        val blok: String?,
+        val tph: String?
+    )
 
     var onPhotoDeleted: ((String, Int) -> Unit)? = null
 
@@ -80,22 +86,6 @@ class TakeFotoPreviewAdapter(
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.take_and_preview_foto_layout, parent, false)
         return FotoViewHolder(view)
-    }
-
-    fun updateLocationData(
-        estate: String? = null,
-        afdeling: String? = null,
-        blok: String? = null,
-
-    ) {
-        // Only update values that are provided (not null)
-        estate?.let { this.estate = it }
-        afdeling?.let { this.afdeling = it }
-        blok?.let { this.blok = it }
-    }
-    fun updateCoordinates(latitude: Double?, longitude: Double?) {
-        this.currentLatitude = latitude
-        this.currentLongitude = longitude
     }
 
     override fun onBindViewHolder(holder: FotoViewHolder, position: Int) {
@@ -156,10 +146,18 @@ class TakeFotoPreviewAdapter(
         imm.hideSoftInputFromWindow(view.windowToken, 0)
     }
 
+
+
     private fun handleCameraAction(position: Int, holder: FotoViewHolder) {
         hideKeyboardFromView()
 
-        if (currentLatitude == null || currentLongitude == null) {
+        // Cast to the interface - much cleaner!
+        val locationProvider = context as LocationDataProvider
+        val locationData = locationProvider.getCurrentLocationData()
+        val (currentLat, currentLon) = locationProvider.getCurrentCoordinates()
+
+        // Check if GPS coordinates are available
+        if (currentLat == null || currentLon == null) {
             Toast.makeText(
                 context,
                 "Pastikan GPS mendapatkan titik Koordinat!",
@@ -170,21 +168,27 @@ class TakeFotoPreviewAdapter(
 
         when (waterMarkFolder) {
             AppUtils.WaterMarkFotoDanFolder.WMPanenTPH -> {
-                if (estate.isNullOrEmpty() || afdeling.isNullOrEmpty() || blok.isNullOrEmpty()) {
+                if (locationData.estate.isNullOrEmpty() ||
+                    locationData.afdeling.isNullOrEmpty() ||
+                    locationData.blok.isNullOrEmpty() ||
+                    locationData.tph.isNullOrEmpty()) {
+
+                    AppLogger.d("Estate: ${locationData.estate}")
+                    AppLogger.d("Afdeling: ${locationData.afdeling}")
+                    AppLogger.d("Blok: ${locationData.blok}")
+                    AppLogger.d("TPH: ${locationData.tph}")
                     Toast.makeText(
                         context,
-                        "Pastikan sudah mengisi Estate, Afdeling, dan Blok terlebih dahulu!",
+                        "Pastikan sudah mengisi Estate, Afdeling dan No TPH terlebih dahulu!",
                         Toast.LENGTH_SHORT
                     ).show()
                     return
                 }
             }
             AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen -> {
-
-                AppLogger.d(estate.toString())
-                AppLogger.d(afdeling.toString())
-
-                if (estate.isNullOrEmpty() || afdeling.isNullOrEmpty()) {
+                if (locationData.estate.isNullOrEmpty() || locationData.afdeling.isNullOrEmpty()) {
+                    AppLogger.d("Estate: ${locationData.estate}")
+                    AppLogger.d("Afdeling: ${locationData.afdeling}")
                     Toast.makeText(
                         context,
                         "Pastikan sudah mengisi Estate dan Afdeling terlebih dahulu!",
@@ -198,7 +202,7 @@ class TakeFotoPreviewAdapter(
         val uniqueKodeFoto = "${position + 1}"
 
         if (listFileFoto.containsKey(position.toString())) {
-            val sourceFoto = buildSourceFoto(waterMarkFolder)
+            val sourceFoto = buildSourceFoto(waterMarkFolder, locationData)
             val existingFile = listFileFoto[position.toString()]!!
             cameraViewModel.openZoomPhotos(
                 file = existingFile,
@@ -213,8 +217,8 @@ class TakeFotoPreviewAdapter(
                         comments[position],
                         uniqueKodeFoto,
                         waterMarkFolder,
-                        currentLatitude,
-                        currentLongitude,
+                        currentLat,
+                        currentLon,
                         sourceFoto
                     )
                 },
@@ -240,7 +244,7 @@ class TakeFotoPreviewAdapter(
                 }
             )
         } else {
-            val sourceFoto = buildSourceFoto(waterMarkFolder)
+            val sourceFoto = buildSourceFoto(waterMarkFolder, locationData)
             cameraViewModel.takeCameraPhotos(
                 context,
                 uniqueKodeFoto,
@@ -250,28 +254,28 @@ class TakeFotoPreviewAdapter(
                 comments[position],
                 uniqueKodeFoto,
                 waterMarkFolder,
-                currentLatitude,
-                currentLongitude,
+                currentLat,
+                currentLon,
                 sourceFoto
             )
         }
     }
 
-    private fun buildSourceFoto(featureType: String?): String {
+    private fun buildSourceFoto(featureType: String?, locationData: LocationData): String {
         return when (featureType) {
             AppUtils.WaterMarkFotoDanFolder.WMPanenTPH -> {
                 // For TPH feature, we include estate, afdeling, and blok
-                "$estate ${afdeling} ${blok}"
+                "${locationData.estate} ${locationData.afdeling} ${locationData.blok} TPH ${locationData.tph}"
             }
             AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen -> {
-                "$estate ${afdeling}"
+                "${locationData.estate} ${locationData.afdeling}"
             }
             else -> {
                 // Default format - just include what we have
                 val parts = mutableListOf<String>()
-                estate?.let { if (it.isNotEmpty()) parts.add("Estate: $it") }
-                afdeling?.let { if (it.isNotEmpty()) parts.add("Afdeling: $it") }
-                blok?.let { if (it.isNotEmpty()) parts.add("Blok: $it") }
+                locationData.estate?.let { if (it.isNotEmpty()) parts.add("Estate: $it") }
+                locationData.afdeling?.let { if (it.isNotEmpty()) parts.add("Afdeling: $it") }
+                locationData.blok?.let { if (it.isNotEmpty()) parts.add("Blok: $it") }
 
                 parts.joinToString(", ")
             }
