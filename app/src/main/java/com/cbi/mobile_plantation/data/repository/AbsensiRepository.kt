@@ -65,6 +65,15 @@ class AbsensiRepository(context: Context) {
         }
     }
 
+    suspend fun loadHistoryRekapAbsensi(date: String? = null, archive: Int): List<AbsensiKemandoranRelations> {
+        return try {
+            absensiDao.getAllRekapAbsensi(date, archive)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading Rekap Absensi: ${e.message}")
+            emptyList()  // Return empty list if there's an error
+        }
+    }
+
     suspend fun archiveAbsensiById(id: Int) = withContext(Dispatchers.IO) {
         absensiDao.archiveAbsensiByID(id)
     }

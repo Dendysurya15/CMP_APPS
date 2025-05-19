@@ -70,15 +70,21 @@ class ListAbsensiAdapter(private val context: Context,
         val jmlhKaryawanMskDetail = if (item.karyawan_msk_id.isNotEmpty()) item.karyawan_msk_id.split(",").size else 0
         val jmlhKaryawanTdkMskDetail = if (item.karyawan_tdk_msk_id.isNotEmpty()) item.karyawan_tdk_msk_id.split(",").size else 0
 
-        // Handle item clicks for both bottom sheet and selection mode
+        // Handle item clicks differently based on archive state
         holder.itemView.setOnClickListener {
             if (selectionMode) {
                 // When in selection mode, toggle the checkbox
-                holder.checkBox.isChecked = !holder.checkBox.isChecked
-                toggleSelection(item)
+                if (canSelectItem(item)) { // Only allow selection if appropriate for current archive state
+                    holder.checkBox.isChecked = !holder.checkBox.isChecked
+                    toggleSelection(item)
+                }
             } else {
                 // When not in selection mode, show the bottom sheet
                 showBottomSheetDialog(holder, item, jmlhKaryawanMskDetail, jmlhKaryawanTdkMskDetail)
+                AppLogger.d("testTampil${holder}")
+                AppLogger.d("testTampil${item}")
+                AppLogger.d("testTampil${jmlhKaryawanMskDetail}")
+                AppLogger.d("testTampil${jmlhKaryawanTdkMskDetail}")
             }
         }
 
@@ -88,7 +94,15 @@ class ListAbsensiAdapter(private val context: Context,
 //        holder.td1.text = formatToIndonesianDateTime(item.datetime)
         holder.td1.text = item.afdeling
         holder.td2.text = item.kemandoran
-        holder.td3.text = "$jmlhKaryawanMsk orang"
+        // Show the count of employees present (different text in archived state)
+        if (currentArchiveState == 0) { // Before archive
+            holder.td3.text = "$jmlhKaryawanMsk orang"
+        } else { // After archive
+            holder.td3.text = "$jmlhKaryawanMsk orang" // Same display but make sure it's from the right data source
+        }
+
+        // Apply different styling based on archive state
+        applyStateSpecificStyling(holder, item)
 
         // Control checkbox visibility based on selection mode
 //        holder.flCheckBox.visibility = if (selectionMode) View.VISIBLE else View.GONE
@@ -96,9 +110,14 @@ class ListAbsensiAdapter(private val context: Context,
         holder.flCheckBox.visibility = View.VISIBLE // Always visible
         holder.checkBox.isChecked = selectedItems.contains(item)
 
+        // Disable checkbox for items that can't be selected in current state
+        holder.checkBox.isEnabled = canSelectItem(item)
+
         // Handle checkbox clicks
         holder.checkBox.setOnClickListener {
-            toggleSelection(item)
+            if (canSelectItem(item)) {
+                toggleSelection(item)
+            }
         }
 
         // Handle item clicks to toggle selection when in selection mode
@@ -111,13 +130,33 @@ class ListAbsensiAdapter(private val context: Context,
 
         // Allow long click to enter selection mode
         holder.itemView.setOnLongClickListener {
-            if (!selectionMode) {
+            if (!selectionMode && canSelectItem(item)) {
                 enableSelectionMode()
                 toggleSelection(item)
                 holder.checkBox.isChecked = true
+                true
+            } else {
+                false
             }
-            true
         }
+    }
+
+    private fun applyStateSpecificStyling(holder: ListAbsensiViewHolder, item: AbsensiDataRekap) {
+        when (currentArchiveState) {
+            0 -> { // Active items (before archive)
+                holder.itemView.alpha = 1.0f
+                holder.itemView.isEnabled = true
+            }
+            1 -> { // Archived items (after archive)
+                holder.itemView.alpha = 0.7f // Dimmed appearance for archived items
+            }
+        }
+    }
+
+    private fun canSelectItem(item: AbsensiDataRekap): Boolean {
+        // For state 0 (before archive) - allow selection
+        // For state 1 (after archive) - don't allow selection
+        return currentArchiveState == 0
     }
 
     // Create a separate method for showing the bottom sheet dialog
@@ -132,6 +171,10 @@ class ListAbsensiAdapter(private val context: Context,
         view.findViewById<TextView>(R.id.titleDialogDetailTableAbsensi).text =
             "Detail Kehadiran ${userName}"
 
+        // Add archive state information to the bottom sheet
+        val stateText = if (currentArchiveState == 0) "Aktif" else "Diarsipkan"
+        view.findViewById<TextView>(R.id.titleDialogDetailTableAbsensi).append(" ($stateText)")
+
         view.findViewById<android.widget.Button>(R.id.btnCloseDetailTableAbsensi).setOnClickListener {
             bottomSheetDialog.dismiss()
         }
@@ -140,39 +183,18 @@ class ListAbsensiAdapter(private val context: Context,
 
         val maxHeight = (context.resources.displayMetrics.heightPixels * 0.85).toInt()
 
-        // Format karyawan masuk with NIK and name
-        val formattedKaryawanMsk = if (item.karyawan_msk_nama.isNotEmpty() && item.karyawan_msk_nik.isNotEmpty()) {
-            val nikList = item.karyawan_msk_nik.split(",")
-            val namaList = item.karyawan_msk_nama.split(",")
-            val combinedList = mutableListOf<String>()
+        // Format attendance data using a utility function to eliminate code duplication
+        val formattedKaryawanMsk = formatAttendanceData(
+            item.karyawan_msk_nik,
+            item.karyawan_msk_nama,
+            item.karyawan_msk_id
+        )
 
-            // Combine NIK and name with line breaks
-            val minSize = minOf(nikList.size, namaList.size)
-            for (i in 0 until minSize) {
-                combinedList.add("${nikList[i].trim()} - ${namaList[i].trim()}")
-            }
-
-            combinedList.joinToString("\n")
-        } else {
-            item.karyawan_msk_nama
-        }
-
-        // Format karyawan tidak masuk with NIK and name
-        val formattedKaryawanTdkMsk = if (item.karyawan_tdk_msk_nama.isNotEmpty() && item.karyawan_tdk_msk_nik.isNotEmpty()) {
-            val nikList = item.karyawan_tdk_msk_nik.split(",")
-            val namaList = item.karyawan_tdk_msk_nama.split(",")
-            val combinedList = mutableListOf<String>()
-
-            // Combine NIK and name with line breaks
-            val minSize = minOf(nikList.size, namaList.size)
-            for (i in 0 until minSize) {
-                combinedList.add("${nikList[i].trim()} - ${namaList[i].trim()}")
-            }
-
-            combinedList.joinToString("\n")
-        } else {
-            item.karyawan_tdk_msk_nama
-        }
+        val formattedKaryawanTdkMsk = formatAttendanceData(
+            item.karyawan_tdk_msk_nik,
+            item.karyawan_tdk_msk_nama,
+            item.karyawan_tdk_msk_id
+        )
 
         val infoItems = listOf(
             InfoAbsensi.DATE to item.datetime,
@@ -209,6 +231,38 @@ class ListAbsensiAdapter(private val context: Context,
 
                 bottomSheet.layoutParams?.height = maxHeight
             }
+    }
+
+    /**
+     * Helper function to format attendance data consistently
+     * Handles both active and archived states
+     */
+    private fun formatAttendanceData(nik: String, nama: String, id: String): String {
+        // If we have data to process
+        if (id.isNotEmpty()) {
+            val idList = id.split(",").map { it.trim() }
+            val nikList = if (nik.isNotEmpty()) nik.split(",").map { it.trim() } else listOf()
+            val namaList = if (nama.isNotEmpty()) nama.split(",").map { it.trim() } else listOf()
+
+            val combinedList = mutableListOf<String>()
+
+            // Make sure we process entries up to the maximum size of any list
+            val maxEntries = maxOf(idList.size, nikList.size, namaList.size)
+
+            // Create paired display for each entry
+            for (i in 0 until maxEntries) {
+                val currentNik = if (i < nikList.size) nikList[i] else "NIK tidak tersedia"
+                val currentNama = if (i < namaList.size) namaList[i] else "Nama tidak tersedia"
+
+                combinedList.add("$currentNik - $currentNama")
+            }
+
+            return combinedList.joinToString("\n")
+        }
+        // No data available
+        else {
+            return "Tidak ada data"
+        }
     }
 
     private fun setInfoItemValues(view: View, label: String, value: String) {
@@ -248,7 +302,8 @@ class ListAbsensiAdapter(private val context: Context,
 
     fun selectAll() {
         selectedItems.clear()
-        selectedItems.addAll(items)
+        // Only select items that are valid for the current state
+        selectedItems.addAll(items.filter { canSelectItem(it) })
         selectAllState = true
         notifyDataSetChanged()
         onSelectionChangeListener?.invoke(selectedItems.size)
@@ -274,6 +329,8 @@ class ListAbsensiAdapter(private val context: Context,
         items = newList
         selectedItems.clear() // Clear selection on update
         notifyDataSetChanged()
+
+        AppLogger.d("List updated with ${newList.size} items in state: ${if (currentArchiveState == 0) "Active" else "Archived"}")
     }
 
     fun getSelectedItems(): Set<AbsensiDataRekap> {
@@ -310,6 +367,20 @@ class ListAbsensiAdapter(private val context: Context,
         onSelectionChangeListener = listener
     }
 
+    fun updateArchiveState(state: Int) {
+        if (currentArchiveState != state) {
+            currentArchiveState = state
+            clearSelections()
+            notifyDataSetChanged()
+            AppLogger.d("Archive state updated to: ${if (state == 0) "Active" else "Archived"}")
+        }
+    }
+
+    // Get current archive state
+    fun getCurrentArchiveState(): Int {
+        return currentArchiveState
+    }
+
     enum class InfoAbsensi(val id: Int, val label: String) {
         AFDELING(R.id.infoEstAfdAbsensi, "Afdeling"),
         DATE(R.id.infoTglAbsensi, "Tanggal Buat"),
@@ -320,9 +391,4 @@ class ListAbsensiAdapter(private val context: Context,
     }
 
     override fun getItemCount() = items.size
-
-    fun updateArchiveState(state: Int) {
-        currentArchiveState = state
-        notifyDataSetChanged()
-    }
 }

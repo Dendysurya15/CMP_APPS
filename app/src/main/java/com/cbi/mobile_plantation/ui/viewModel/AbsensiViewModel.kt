@@ -69,6 +69,9 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         return repository.isAbsensiExist(dateAbsen, karyawanMskIds)
     }
 
+    private val _savedAbsensiMPanen = MutableLiveData<List<AbsensiKemandoranRelations>>()
+    val savedAbsensiMPanen: LiveData<List<AbsensiKemandoranRelations>> = _savedAbsensiMPanen
+
     private val _updateStatus = MutableLiveData<Boolean>()
     val updateStatus: LiveData<Boolean> get() = _updateStatus
 
@@ -125,6 +128,16 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
         } catch (e: Exception) {
             AppLogger.e("Error loading archive count: ${e.message}")
             _archivedCount.value = 0  // Set to 0 if there's an error
+        }
+    }
+
+    fun loadHistoryRekapAbsensi(date: String? = null, archive: Int) = viewModelScope.launch {
+        try {
+            val list = repository.loadHistoryRekapAbsensi(date, archive)
+            _savedDataAbsensiList.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading rekap Absensi: ${e.message}")
+            _savedDataAbsensiList.value = emptyList()  // Return empty list if there's an error
         }
     }
 
