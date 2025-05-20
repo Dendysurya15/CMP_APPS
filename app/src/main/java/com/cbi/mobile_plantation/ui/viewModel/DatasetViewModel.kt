@@ -29,6 +29,7 @@ import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.data.repository.RestanRepository
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -57,6 +58,7 @@ import java.io.File
 @Suppress("NAME_SHADOWING")
 class DatasetViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: DatasetRepository = DatasetRepository(application)
+    private val restanRepository: RestanRepository = RestanRepository(application)
     private val prefManager = PrefManager(application)
 
     private val database = AppDatabase.getDatabase(application)
@@ -947,13 +949,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                     AppLogger.d("Downloading dataset for ${modifiedRequest.estateAbbr}/ ${modifiedRequest.dataset}")
 
-                    AppLogger.d("modifiedRequest $modifiedRequest")
+
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
-                    } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                    }else if(request.dataset == AppUtils.DatasetNames.sinkronisasiRestan){
+
+                        AppLogger.d("masuk gesssss")
+                        response = restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified ?: "")
                     } else {
                         response = repository.downloadDataset(modifiedRequest)
@@ -966,6 +973,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                         AppLogger.d("lastModifiedSettingsJson $lastModifiedSettingsJson")
 
+
+                        AppLogger.d(contentType.toString())
                         if (contentType?.contains("application/zip") == true) {
                             // Create temp file
                             val tempFile = withContext(Dispatchers.IO) {
@@ -1235,21 +1244,42 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             }
                         }
                         else if (contentType?.contains("application/json") == true) {
+
+                            AppLogger.d("asjdlfkjaslkdfjlskdjflkasjdf")
                             handleJsonResponse(request, itemId, response, statusMap, errorMap, progressMap, lastModified, lastModifiedSettingsJson, isDownloadDataset)
                         }else {
+
+                            AppLogger.d("d asdfasdfasdf")
                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                             errorMap[itemId] = "Unsupported content type: $contentType"
                         }
                     }
                     else {
                         val errorBody = response.errorBody()?.string()
+
+                        AppLogger.d("API Error response: $errorBody")
                         var errorMessage = "API Error: ${response.code()}"
 
                         if (!errorBody.isNullOrEmpty()) {
                             try {
                                 // If error is JSON, parse it
                                 val jsonError = JSONObject(errorBody)
-                                errorMessage = "API Error ${response.code()}: ${jsonError.optString("message", errorBody)}"
+
+                                // Priority order for error messages:
+                                // 1. message field if available
+                                // 2. error field if available
+                                // 3. Fallback to raw error body
+                                errorMessage = when {
+                                    jsonError.has("message") -> "API Error ${response.code()}: ${jsonError.getString("message")}"
+                                    jsonError.has("error") -> "API Error ${response.code()}: ${jsonError.getString("error")}"
+                                    else -> "API Error ${response.code()}: $errorBody"
+                                }
+
+                                // If both message and error are available, combine them for more detail
+                                if (jsonError.has("message") && jsonError.has("error")) {
+                                    errorMessage = "API Error ${response.code()}: ${jsonError.getString("message")} - Details: ${jsonError.getString("error")}"
+                                }
+
                             } catch (e: Exception) {
                                 // If not JSON, use raw error body
                                 errorMessage = "API Error ${response.code()}: $errorBody"
@@ -1301,6 +1331,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         progressMap[itemId] = 25
         _itemProgressMap.postValue(progressMap.toMap())
 
+        AppLogger.d("masuk gak sih")
         val responseBodyString = response.body()?.string() ?: "Empty Response"
         AppLogger.d("Received JSON: $responseBodyString")
 
@@ -1683,9 +1714,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
                     }
-//                    else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
-//                        response = repository.checkStatusUploadCMP(request.data!!)
-//                    }
+                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
+                        response = restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
+                    }
                     else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified!!)
                     } else {
@@ -1923,7 +1954,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     results[request.dataset] =
                                         Resource.Error("ZIP response body is null")
                                 }
-                            } else if (contentType?.contains("application/json") == true) {
+                            }
+                            else if (contentType?.contains("application/json") == true) {
 
                                 Log.d("DownloadResponse", request.lastModified.toString())
                                 val responseBodyString =

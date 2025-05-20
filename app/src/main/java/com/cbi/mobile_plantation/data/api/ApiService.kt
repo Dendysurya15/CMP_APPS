@@ -156,25 +156,11 @@ interface ApiService {
     )
     suspend fun downloadListEstate(@Body body: Map<String, Int>): Response<ResponseBody>
 
-
-//    @FormUrlEncoded
-//    @POST("cmpmain/status")
-//    @Headers(
-//        "Accept: application/json",
-//        "Content-Type: application/x-www-form-urlencoded"
-//    )
-//    suspend fun checkStatusUploadCMP(
-//        @Field("idData") ids: String // Send list as a comma-separated string
-//    ):  Response<ResponseBody>
-//
-//
-//    @GET("cmpmain/upload-status/{trackingId}")
-//    @Headers(
-//        "Accept: application/json"
-//    )
-//    suspend fun checkStatusUploadCMP(
-//        @Path("trackingId") trackingId: String
-//    ): Response<ResponseBody>
+    @POST("cmpmain/getData")
+    @Headers("Content-Type: application/json")
+    suspend fun getDataRaw(
+        @Body jsonRequest: RequestBody
+    ): Response<ResponseBody>
 
     @FormUrlEncoded
     @POST("cmpmain/statusv3")

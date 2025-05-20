@@ -24,6 +24,7 @@ data class User(
     val dept_id : String,
     val dept_abbr : String,
     val dept_nama : String,
+    val divisi : String,
     val create_date: String,
     val update_date: String,
     val kemandoran: String,

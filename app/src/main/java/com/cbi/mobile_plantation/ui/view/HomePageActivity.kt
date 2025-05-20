@@ -4176,6 +4176,7 @@ class HomePageActivity : AppCompatActivity() {
     private fun startDownloads() {
         val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
+        val afdelingIdString = prefManager!!.afdelingIdUserLogin
         val lastModifiedDatasetEstate = prefManager!!.lastModifiedDatasetEstate
         val lastModifiedDatasetTPH = prefManager!!.lastModifiedDatasetTPH
         val lastModifiedDatasetJenisTPH = prefManager!!.lastModifiedDatasetJenisTPH
@@ -4206,6 +4207,7 @@ class HomePageActivity : AppCompatActivity() {
                 getDatasetsToDownload(
                     regionalIdString!!.toInt(),
                     estateId,
+                    afdelingIdString!!,
                     lastModifiedDatasetEstate,
                     lastModifiedDatasetTPH,
                     lastModifiedDatasetJenisTPH,
@@ -4220,6 +4222,7 @@ class HomePageActivity : AppCompatActivity() {
                 getDatasetsToDownload(
                     regionalIdString!!.toInt(),
                     estateId,
+                    afdelingIdString!!,
                     lastModifiedDatasetEstate,
                     lastModifiedDatasetTPH,
                     lastModifiedDatasetJenisTPH,
@@ -4239,6 +4242,8 @@ class HomePageActivity : AppCompatActivity() {
 
             if (filteredRequests.isNotEmpty()) {
                 if (isTriggerButtonSinkronisasiData) {
+
+                    AppLogger.d("masuk sini gak sih ")
                     startDownloadsV2(filteredRequests)
                 } else {
                     dialog.show()
@@ -4257,6 +4262,7 @@ class HomePageActivity : AppCompatActivity() {
     private fun getDatasetsToDownload(
         regionalId: Int,
         estateId: Int,
+        afdelingId: String,
         lastModifiedDatasetEstate: String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetJenisTPH: String?,
@@ -4269,6 +4275,8 @@ class HomePageActivity : AppCompatActivity() {
     ): List<DatasetRequest> {
         val datasets = mutableListOf<DatasetRequest>()
 
+
+        AppLogger.d("afdelingId $afdelingId")
         val jabatan = prefManager!!.jabatanUserLogin
         val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
         val isKeraniTimbang =
@@ -4318,95 +4326,107 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
-        if (isMandorPanen) {
+        // Add sinkronisasiRestan dataset for Mandor1 and Asisten when sync button triggered
+        if (isTriggerButtonSinkronisasiData && (isMandor1 || isAsisten)) {
             datasets.add(
                 DatasetRequest(
-                    regional = regionalUser,
-                    lastModified = lastModifiedDatasetBlok,
-                    dataset = AppUtils.DatasetNames.blok
-                ),
-            )
-        }
-
-        // Add the rest of the datasets as before
-        if (isKeraniTimbang) {
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalUser,
-                    lastModified = lastModifiedDatasetBlok,
-                    dataset = AppUtils.DatasetNames.blok
-                ),
-            )
-            datasets.add(
-                DatasetRequest(
-                    estate = estateId ,
-                    lastModified = lastModifiedDatasetTPH,
-                    dataset = AppUtils.DatasetNames.tph
-                ),
-            )
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalId,
-                    lastModified = lastModifiedDatasetPemanen,
-                    dataset = AppUtils.DatasetNames.pemanen
-                )
-            )
-        } else {
-            datasets.add(
-                DatasetRequest(
+                    afdeling = afdelingId,
                     estate = estateId,
-                    lastModified = lastModifiedDatasetTPH,
-                    dataset = AppUtils.DatasetNames.tph
-                ),
-            )
-
-            datasets.add(
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetPemanen,
-                    dataset = AppUtils.DatasetNames.pemanen
-                ),
-            )
-
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalUser,
-                    lastModified = lastModifiedDatasetEstate,
-                    dataset = AppUtils.DatasetNames.estate
-                ),
-            )
-        }
-
-        datasets.addAll(
-            listOf(
-                DatasetRequest(
-                    regional = regionalId,
                     lastModified = null,
-                    dataset = AppUtils.DatasetNames.mill
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedDatasetJenisTPH,
-                    dataset = AppUtils.DatasetNames.jenisTPH
-                ),
-                DatasetRequest(
-                    regional = regionalId,
-                    lastModified = lastModifiedDatasetKemandoran,
-                    dataset = AppUtils.DatasetNames.kemandoran
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedDatasetTransporter,
-                    dataset = AppUtils.DatasetNames.transporter
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedDatasetKendaraan,
-                    dataset = AppUtils.DatasetNames.kendaraan
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedSettingJSON,
-                    dataset = AppUtils.DatasetNames.settingJSON
+                    dataset = AppUtils.DatasetNames.sinkronisasiRestan
                 )
             )
-        )
+        }
+
+//        if (isMandorPanen) {
+//            datasets.add(
+//                DatasetRequest(
+//                    regional = regionalUser,
+//                    lastModified = lastModifiedDatasetBlok,
+//                    dataset = AppUtils.DatasetNames.blok
+//                ),
+//            )
+//        }
+//
+//        // Add the rest of the datasets as before
+//        if (isKeraniTimbang) {
+//            datasets.add(
+//                DatasetRequest(
+//                    regional = regionalUser,
+//                    lastModified = lastModifiedDatasetBlok,
+//                    dataset = AppUtils.DatasetNames.blok
+//                ),
+//            )
+//            datasets.add(
+//                DatasetRequest(
+//                    estate = estateId ,
+//                    lastModified = lastModifiedDatasetTPH,
+//                    dataset = AppUtils.DatasetNames.tph
+//                ),
+//            )
+//            datasets.add(
+//                DatasetRequest(
+//                    regional = regionalId,
+//                    lastModified = lastModifiedDatasetPemanen,
+//                    dataset = AppUtils.DatasetNames.pemanen
+//                )
+//            )
+//        } else {
+//            datasets.add(
+//                DatasetRequest(
+//                    estate = estateId,
+//                    lastModified = lastModifiedDatasetTPH,
+//                    dataset = AppUtils.DatasetNames.tph
+//                ),
+//            )
+//
+//            datasets.add(
+//                DatasetRequest(
+//                    estate = estateId,
+//                    lastModified = lastModifiedDatasetPemanen,
+//                    dataset = AppUtils.DatasetNames.pemanen
+//                ),
+//            )
+//
+//            datasets.add(
+//                DatasetRequest(
+//                    regional = regionalUser,
+//                    lastModified = lastModifiedDatasetEstate,
+//                    dataset = AppUtils.DatasetNames.estate
+//                ),
+//            )
+//        }
+//
+//        datasets.addAll(
+//            listOf(
+//                DatasetRequest(
+//                    regional = regionalId,
+//                    lastModified = null,
+//                    dataset = AppUtils.DatasetNames.mill
+//                ),
+//                DatasetRequest(
+//                    lastModified = lastModifiedDatasetJenisTPH,
+//                    dataset = AppUtils.DatasetNames.jenisTPH
+//                ),
+//                DatasetRequest(
+//                    regional = regionalId,
+//                    lastModified = lastModifiedDatasetKemandoran,
+//                    dataset = AppUtils.DatasetNames.kemandoran
+//                ),
+//                DatasetRequest(
+//                    lastModified = lastModifiedDatasetTransporter,
+//                    dataset = AppUtils.DatasetNames.transporter
+//                ),
+//                DatasetRequest(
+//                    lastModified = lastModifiedDatasetKendaraan,
+//                    dataset = AppUtils.DatasetNames.kendaraan
+//                ),
+//                DatasetRequest(
+//                    lastModified = lastModifiedSettingJSON,
+//                    dataset = AppUtils.DatasetNames.settingJSON
+//                )
+//            )
+//        )
 
         return datasets
     }

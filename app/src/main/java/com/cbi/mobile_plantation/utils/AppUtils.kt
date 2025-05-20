@@ -247,6 +247,7 @@ object AppUtils {
         const val transporter = "transporter"
         const val kendaraan = "kendaraan"
         const val updateSyncLocalData = "Update & Sinkronisasi Lokal Data"
+        const val sinkronisasiRestan = "Sinkronisasi Data Restan"
         const val settingJSON = "setting.json"
     }
 
