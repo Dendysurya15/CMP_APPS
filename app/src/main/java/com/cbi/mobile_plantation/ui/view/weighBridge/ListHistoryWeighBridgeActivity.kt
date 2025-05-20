@@ -249,7 +249,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             )
         }
 
-        val allUploadItems = cmpItems
+        val allUploadItems = pproItems + cmpItems
         uploadCMPViewModel.resetState()
         loadingDialog.dismiss()
 
