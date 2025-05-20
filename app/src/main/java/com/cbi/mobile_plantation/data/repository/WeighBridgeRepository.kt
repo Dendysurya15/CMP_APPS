@@ -63,6 +63,16 @@ class WeighBridgeRepository(context: Context) {
         return karyawanDao.getPemuatByIdList(idPemuat)
     }
 
+    suspend fun getEspbByNumber(noEspb: String): Result<ESPBEntity?> = withContext(Dispatchers.IO) {
+        try {
+            val espbData = espbDao.getEspbByNumber(noEspb)
+            Result.success(espbData)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
     suspend fun coundESPBUploaded(): Int {
         return espbDao.countESPBUploaded()
     }
@@ -523,7 +533,7 @@ class WeighBridgeRepository(context: Context) {
 
                                 try {
                                     // Use the direct method for uploading JSON data
-                                    val response = CMPApiClient.instance.uploadJsonV3Raw(
+                                    val response = TestingAPIClient.instance.uploadJsonV3Raw(
                                         jsonData = jsonRequestBody
                                     )
 

@@ -4339,6 +4339,13 @@ class HomePageActivity : AppCompatActivity() {
             )
             datasets.add(
                 DatasetRequest(
+                    regional = regionalUser,
+                    lastModified = lastModifiedDatasetTPH,
+                    dataset = AppUtils.DatasetNames.tph
+                ),
+            )
+            datasets.add(
+                DatasetRequest(
                     regional = regionalId,
                     lastModified = lastModifiedDatasetPemanen,
                     dataset = AppUtils.DatasetNames.pemanen
@@ -4419,7 +4426,6 @@ class HomePageActivity : AppCompatActivity() {
             "warning.json",
             R.color.colorRedDark
         ) {
-//            dialog.dismiss()  // Dismiss the download progress dialog
         }
     }
 

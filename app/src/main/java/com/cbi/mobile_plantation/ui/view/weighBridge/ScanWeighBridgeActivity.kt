@@ -13,6 +13,9 @@ import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cbi.markertph.data.model.TPHNewModel
@@ -122,6 +125,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         })
     }
 
+    @SuppressLint("CutPasteId", "SetTextI18n")
     private fun setupQRScanner() {
         barcodeView = findViewById(R.id.barcode_scanner_krani_timbang)
         setMaxBrightness(this@ScanWeighBridgeActivity, false)
@@ -205,7 +209,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     uploader_info_wb = "", // New field for WB
                                     noESPB = globalNoESPB,
                                     scan_status = 1,
-                                    date_scan = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()) // Current datetime
+                                    date_scan = SimpleDateFormat(
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        Locale.getDefault()
+                                    ).format(Date()) // Current datetime
                                 )
                             }
 
@@ -221,7 +228,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     // Check if network is available for upload attempt
                                     if (AppUtils.isNetworkAvailable(this@ScanWeighBridgeActivity)) {
                                         // Try to upload with network connection
-
 
 
                                         var number = 0
@@ -253,7 +259,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         )
 
                                         lifecycleScope.launch {
-                                            val zipDeferred = CompletableDeferred<Pair<Boolean, String?>>()
+                                            val zipDeferred =
+                                                CompletableDeferred<Pair<Boolean, String?>>()
                                             var zipFilePath: String? = null
                                             loadingDialog.setMessage(
                                                 "Sedang membuat file .zip untuk upload",
@@ -304,7 +311,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             // Convert the wrapped data to JSON
                                             val espbJson = Gson().toJson(wrappedEspbData)
 
-                                            val uploadDataList = mutableListOf<Pair<String, List<Map<String, Any>>>>()
+                                            val uploadDataList =
+                                                mutableListOf<Pair<String, List<Map<String, Any>>>>()
                                             val espbDataAsAny = espbData as Map<String, Any>
                                             uploadDataList.add(
                                                 Pair(
@@ -368,7 +376,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 )
                                             }
 
-                                            val itemsToUpload = listOf(itemToUpload, cmpItem)
+                                            val itemsToUpload = listOf(cmpItem)
                                             val globalIdEspb = listOf(savedItemId)
 
                                             loadingDialog.setMessage(
@@ -613,7 +621,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 dataContainer!!.visibility = View.GONE
                 errorText!!.text = errorMessage
                 btnProcess!!.visibility = View.GONE
-                val maxHeight = (resources.displayMetrics.heightPixels * 0.7).toInt()
+                val maxHeight = (resources.displayMetrics.heightPixels * 0.4).toInt()
 
                 bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
                     ?.let { bottomSheet ->
@@ -709,6 +717,11 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         }
     }
 
+    data class QRParseResult(
+        val jsonStr: String,
+        val noEspb: String
+    )
+
     enum class InfoType(val id: Int, val label: String) {
         ESPB(R.id.noEspbTitleScanWB, "e-SPB"),
         DATE(R.id.infoCreatedAt, "Tanggal Buat"),
@@ -724,22 +737,107 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     }
 
     private fun processQRResult(qrResult: String) {
-
         lifecycleScope.launch {
             withContext(Dispatchers.Main) {
                 loadingDialog.show()
-                loadingDialog.setMessage("Loading data")
+                loadingDialog.setMessage("Sedang verifikasi data QR ",true)
                 delay(500)
             }
             try {
-                withContext(Dispatchers.IO) {
-                    val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
-                    AppLogger.d("Raw JSON: $jsonStr")
+
+                val parseResult = withContext(Dispatchers.IO) {
+                    val json = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
+                    AppLogger.d("Raw JSON: $json")
 
                     // Try with manual JSONObject for debugging
-                    val jsonObject = JSONObject(jsonStr)
+                    val jsonObject = JSONObject(json)
                     AppLogger.d("JSON keys: ${jsonObject.keys().asSequence().toList()}")
 
+                    val espbObject = jsonObject.getJSONObject("espb")
+                    val espbNumber = espbObject.getString("no_espb")
+                    AppLogger.d("Extracted no_espb: $espbNumber")
+
+                    // Return structured result
+                    QRParseResult(json!!, espbNumber)
+                }
+
+                withContext(Dispatchers.Main) {
+
+                    // Trigger the check
+                    weightBridgeViewModel.checkEspbExists(parseResult.noEspb)
+                    delay(300)
+                    // Observe the result
+                    weightBridgeViewModel.espbExists.observeOnce(this@ScanWeighBridgeActivity) { existingEspb ->
+                        if (existingEspb != null) {
+                            // Duplicate found - show error
+                            showDuplicateError(parseResult.noEspb, existingEspb.date_scan!!)
+                            loadingDialog.dismiss()
+                        } else {
+                            // No duplicate - continue with processing
+
+
+                            continueQRProcessing(parseResult.jsonStr)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error Processing QR Result: ${e.message}")
+                AppLogger.e("Stack trace: ${e.stackTraceToString()}")
+                withContext(Dispatchers.Main) {
+                    // Convert error to Indonesian
+                    val indonesianErrorMessage = when {
+                        e.message?.contains("No value for espb") == true ->
+                            "QR code ini bukan untuk ESPB. Silakan pindai QR code ESPB yang benar."
+
+                        e.message?.contains("JSONException") == true ->
+                            "Format QR code tidak valid. Mohon pindai ulang dengan QR code yang benar."
+
+                        e.message?.contains("DecryptionException") == true || e.message?.contains("decrypt") == true ->
+                            "Gagal membaca QR code. Pastikan QR code tidak rusak atau buram."
+
+                        e.message?.contains("IOException") == true ->
+                            "Gagal memproses data QR code. Silakan coba lagi."
+
+                        else ->
+                            e.message
+                                ?: "Terjadi kesalahan yang tidak diketahui. Silakan coba lagi."
+                    }
+
+                    showBottomSheetWithData(
+                        parsedData = null,
+                        distinctDeptAbbr = "-",
+                        distinctDivisiAbbr = "-",
+                        formattedBlokList = "-",
+                        pemuat = "-",
+                        totalJjgSum = 0,
+                        millAbbr = "-",
+                        transporterName = "-",
+                        createAtFormatted = "-",
+                        hasError = true,
+                        errorMessage = indonesianErrorMessage
+                    )
+                    loadingDialog.dismiss()
+                }
+            }
+        }
+    }
+
+    fun <T> LiveData<T>.observeOnce(lifecycleOwner: LifecycleOwner, observer: Observer<T>) {
+        observe(lifecycleOwner, object : Observer<T> {
+            override fun onChanged(value: T) {
+                removeObserver(this)
+                observer.onChanged(value)
+            }
+        })
+    }
+    // Separate function for continuing QR processing after duplicate check
+    private fun continueQRProcessing(jsonStr: String) {
+        lifecycleScope.launch {
+            withContext(Dispatchers.Main) {
+                loadingDialog.setMessage("Sedang mempersiapkan data e-SPB ", true)
+            }
+            try {
+                withContext(Dispatchers.IO) {
                     // Then proceed with your Gson parsing
                     val parsedData = Gson().fromJson(jsonStr, wbQRData::class.java)
                     AppLogger.d("Parsed Data: $parsedData")
@@ -763,7 +861,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         // New format: ID,DATE TIME,VALUE1,VALUE2
                                         val id = parts[0]
                                         val time = parts[2]
-                                        val restValues = parts.subList(3, parts.size).joinToString(",")
+                                        val restValues =
+                                            parts.subList(3, parts.size).joinToString(",")
                                         "$id,$date $time,$restValues"
                                     } else {
                                         entry
@@ -771,7 +870,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                 }
 
                                 // Create a "patched" version of the parsed data with the reconstructed tph1
-                                modifiedParsedData =  wbQRData(
+                                modifiedParsedData = wbQRData(
                                     espb = parsedData.espb,
                                     tph0 = parsedData.tph0,
                                     tph1 = reconstructedTph1,
@@ -814,8 +913,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         tphDeferred.await()
                     }
                     val concatenatedIds = idBlokList.joinToString(",")
-                    val pemuatList = modifiedParsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
-                        ?.filter { it.isNotEmpty() } ?: emptyList()
+                    val pemuatList =
+                        modifiedParsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
+                            ?.filter { it.isNotEmpty() } ?: emptyList()
 
                     AppLogger.d("pemuatList $pemuatList")
 
@@ -831,9 +931,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val pemuatData = pemuatDeferred.await()
 
                     AppLogger.d(pemuatData.toString())
-                    val pemuatNama = pemuatData?.mapNotNull {"${it.nik} (${it.nama})"}?.takeIf { it.isNotEmpty() }
+                    val pemuatNama = pemuatData?.mapNotNull { "${it.nik} (${it.nama})" }
+                        ?.takeIf { it.isNotEmpty() }
                         ?.joinToString("\n  ") ?: "-"
-
 
                     AppLogger.d("pemuatNama $pemuatNama")
 
@@ -901,7 +1001,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val millAbbr = millData.firstOrNull()?.let { "${it.abbr} (${it.nama})" } ?: "-"
                     val millIP = millData.firstOrNull()?.let { "${it.ip_address}" } ?: "-"
 
-
                     val transporterName = if (transporterId == 0) {
                         "Internal"
                     } else {
@@ -923,7 +1022,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     // Get the string from pemuat_nik
                     val pemuatNikString = modifiedParsedData?.espb?.pemuat_nik.toString()
 
-// Simple string extraction to get NIK values
+                    // Simple string extraction to get NIK values
                     val nikList = mutableListOf<String>()
                     var currentIndex = 0
 
@@ -995,7 +1094,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error Processing QR Result: ${e.message}")
-                AppLogger.e("Stack trace: ${e.stackTraceToString()}") // Log full stack trace
+                AppLogger.e("Stack trace: ${e.stackTraceToString()}")
                 withContext(Dispatchers.Main) {
                     val errorDetails = "Error: ${e.javaClass.simpleName} - ${e.message}"
                     showBottomSheetWithData(
@@ -1017,8 +1116,27 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     loadingDialog.dismiss()
                 }
             }
-
         }
+    }
+
+    // Add this method to handle duplicate error display
+    private fun showDuplicateError(noEspb: String, createdAt: String) {
+        // Format the created_at date to Indonesian format
+        val formattedDate = formatToIndonesianDate(createdAt)
+
+        showBottomSheetWithData(
+            parsedData = null,
+            distinctDeptAbbr = "-",
+            distinctDivisiAbbr = "-",
+            formattedBlokList = "-",
+            pemuat = "-",
+            totalJjgSum = 0,
+            millAbbr = "-",
+            transporterName = "-",
+            createAtFormatted = "-",
+            hasError = true,
+            errorMessage = "ESPB dengan nomor $noEspb sudah pernah dipindai sebelumnya ($formattedDate)"
+        )
     }
 
     private fun initViewModel() {
@@ -1053,22 +1171,4 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         barcodeView.barcodeView?.cameraInstance?.close() // Release camera
         setMaxBrightness(this@ScanWeighBridgeActivity, false)
     }
-
-//    @Deprecated("Use onBackPressedDispatcher instead")
-//    @SuppressLint("MissingSuperCall")
-//    override fun onBackPressed() {
-//        when {
-//            ::bottomSheetDialog.isInitialized && bottomSheetDialog.isShowing -> {
-//                bottomSheetDialog.dismiss()
-//            }
-//
-//            barcodeView.visibility == View.VISIBLE -> {
-//                pauseScanner()
-//                barcodeView.barcodeView?.cameraInstance?.close()
-//                super.onBackPressed()
-//            }
-//
-//            else -> super.onBackPressed()
-//        }
-//    }
 }

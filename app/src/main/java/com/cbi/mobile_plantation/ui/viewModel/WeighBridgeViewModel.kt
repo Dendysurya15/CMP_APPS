@@ -64,6 +64,10 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     private val _activeESPBByIds = MutableLiveData<List<ESPBEntity>>()
     val activeESPBByIds: LiveData<List<ESPBEntity>> = _activeESPBByIds
 
+    private val _espbExists = MutableLiveData<ESPBEntity?>()
+    val espbExists: LiveData<ESPBEntity?> get() = _espbExists
+
+
     fun updateStatusUploadEspbCmpSp(ids: List<Int>, status: Int) {
         viewModelScope.launch {
             try {
@@ -168,6 +172,20 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                     _error.postValue(exception.message ?: "Failed to load TPH data")
                 }
         }
+    }
+
+    fun checkEspbExists(noEspb: String) {
+        viewModelScope.launch {
+            AppLogger.d("ViewModel: Checking ESPB exists for: $noEspb")
+            val result = repository.getEspbByNumber(noEspb).getOrNull()
+            AppLogger.d("ViewModel: Database result: $result")
+            _espbExists.postValue(result)
+        }
+    }
+
+    // Add method to clear observers
+    fun clearEspbExistsObservers() {
+        _espbExists.value = null
     }
 
 
