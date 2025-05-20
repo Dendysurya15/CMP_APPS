@@ -4339,7 +4339,7 @@ class HomePageActivity : AppCompatActivity() {
             )
             datasets.add(
                 DatasetRequest(
-                    regional = regionalUser,
+                    estate = estateId ,
                     lastModified = lastModifiedDatasetTPH,
                     dataset = AppUtils.DatasetNames.tph
                 ),
