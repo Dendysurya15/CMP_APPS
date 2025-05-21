@@ -27,6 +27,12 @@ abstract class PanenDao {
     @Query("SELECT EXISTS(SELECT 1 FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated)")
     abstract suspend fun exists(tphId: String, dateCreated: String): Boolean
 
+    @Query("SELECT id FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated LIMIT 1")
+    abstract suspend fun getIdByTphIdAndDateCreated(tphId: String, dateCreated: String): Int
+
+    @Query("DELETE FROM panen_table WHERE id = :id")
+    abstract suspend fun deleteById(id: Int)
+
     @Update
     abstract fun update(panen: List<PanenEntity>)
 

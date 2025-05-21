@@ -29,6 +29,7 @@ import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.repository.RestanRepository
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.google.gson.Gson
@@ -49,10 +50,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import retrofit2.Response
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 
 @Suppress("NAME_SHADOWING")
@@ -120,6 +125,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _distinctDeptInfoListCopy = MutableLiveData<List<DepartmentInfo>>()
     val distinctDeptInfoListCopy: LiveData<List<DepartmentInfo>> = _distinctDeptInfoListCopy
+
+    private val _restanPreviewData = MutableLiveData<String>()
+    val restanPreviewData: LiveData<String> = _restanPreviewData
+
 
     sealed class Resource<T>(
         val data: T? = null,
@@ -956,11 +965,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
                     }else if(request.dataset == AppUtils.DatasetNames.sinkronisasiRestan){
-
-                        AppLogger.d("masuk gesssss")
                         response = restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
-                    }
-                    else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                    } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified ?: "")
                     } else {
                         response = repository.downloadDataset(modifiedRequest)
@@ -1244,12 +1250,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             }
                         }
                         else if (contentType?.contains("application/json") == true) {
-
-                            AppLogger.d("asjdlfkjaslkdfjlskdjflkasjdf")
                             handleJsonResponse(request, itemId, response, statusMap, errorMap, progressMap, lastModified, lastModifiedSettingsJson, isDownloadDataset)
                         }else {
-
-                            AppLogger.d("d asdfasdfasdf")
                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                             errorMap[itemId] = "Unsupported content type: $contentType"
                         }
@@ -1312,6 +1314,33 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun getPreviewDataRestanWeek(estate: Int, afdeling: String) {
+        viewModelScope.launch {
+
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    restanRepository.getDataRestan(estate, afdeling)
+                }
+
+                AppLogger.d(response.body().toString())
+                if (response.isSuccessful && response.code() == 200) {
+                    val jsonString = response.body()?.string() ?: ""
+
+                    AppLogger.d(jsonString.toString())
+                    // Process the JSON response to create formatted summary
+                    val formattedData = processPreviewDataRestanUI(jsonString)
+
+                    _restanPreviewData.value = formattedData
+                } else {
+                    _restanPreviewData.value = "Gagal memuat data: ${response.message()}"
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error loading Restan preview: ${e.message}")
+                _restanPreviewData.value = "Error: ${e.message}"
+            }
+        }
+    }
+
     private suspend fun handleJsonResponse(
         request: DatasetRequest,
         itemId: Int,
@@ -1331,7 +1360,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         progressMap[itemId] = 25
         _itemProgressMap.postValue(progressMap.toMap())
 
-        AppLogger.d("masuk gak sih")
         val responseBodyString = response.body()?.string() ?: "Empty Response"
         AppLogger.d("Received JSON: $responseBodyString")
 
@@ -1526,6 +1554,250 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
 
+            AppUtils.DatasetNames.sinkronisasiRestan -> {
+                try {
+                    // We're already at 50% when this code starts
+                    progressMap[itemId] = 60
+                    _itemProgressMap.postValue(progressMap.toMap())
+
+                    // Format the data for display
+                    val formattedRestanData = processPreviewDataRestanUI(responseBodyString)
+                    AppLogger.d("Formatted Restan Data: $formattedRestanData")
+
+                    // Parse the JSON response to extract the restan data
+                    val jsonObject = JSONObject(responseBodyString)
+
+                    if (jsonObject.optBoolean("success", false)) {
+                        val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
+                        val panenList = mutableListOf<PanenEntity>()
+                        val recordsToDelete = mutableListOf<Pair<String, String>>() // Store (tph_id, date_created) pairs for records to delete
+
+                        // Update to 70% before processing records
+                        progressMap[itemId] = 70
+                        _itemProgressMap.postValue(progressMap.toMap())
+
+                        // Process each record from the response
+                        // Process each record from the response
+                        for (i in 0 until dataArray.length()) {
+                            val item = dataArray.getJSONObject(i)
+
+                            // Log the entire item to see its structure
+                            AppLogger.d("Record $i: ${item.toString()}")
+
+                            // Extract required fields
+                            val tphId = item.optString("tph", "")
+                            val createdDate = item.optString("created_date", "")
+                            val statusEspb = item.optInt("status_espb", -1) // Default to -1 to detect if field is missing
+                            val jjgKirim = item.optInt("jjg_kirim", 0)
+
+                            // For spb_kode, check specifically for null vs. empty string
+                            val spbKode: String? = if (item.has("spb_kode") && !item.isNull("spb_kode")) {
+                                item.optString("spb_kode")
+                            } else {
+                                null
+                            }
+
+                            AppLogger.d("Extracted values - tphId: $tphId, createdDate: $createdDate, statusEspb: $statusEspb, spbKode: $spbKode")
+
+                            // Check if values are valid
+                            if (tphId.isEmpty() || createdDate.isEmpty() || statusEspb == -1) {
+                                AppLogger.e("Invalid record data, skipping: tphId=$tphId, date=$createdDate, statusEspb=$statusEspb")
+                                continue
+                            }
+
+                            // Check if this record should be deleted from local DB
+                            if (statusEspb == 1 || statusEspb == 2 || !spbKode.isNullOrEmpty()) {
+                                AppLogger.d("Record added to delete list: statusEspb=$statusEspb, spbKode=$spbKode")
+                                recordsToDelete.add(Pair(tphId.toString(), createdDate))
+                                continue
+                            }
+
+                            // Create the jjg_json string in the format: {"KP":value}
+                            val jjgJson = "{\"KP\":$jjgKirim}"
+
+                            AppLogger.d("Creating entity for insert/update: tphId=$tphId, date=$createdDate, jjgJson=$jjgJson")
+
+                            // Create a PanenEntity with the required fields
+                            val panenEntity = PanenEntity(
+                                tph_id = tphId.toString(),
+                                date_created = createdDate,
+                                created_by = 0,
+                                karyawan_id = "",
+                                kemandoran_id = "",
+                                karyawan_nik = "",
+                                karyawan_nama = "",
+                                jjg_json = jjgJson,
+                                foto = "",
+                                komentar = "",
+                                asistensi = 0,
+                                lat = 0.0,
+                                lon = 0.0,
+                                jenis_panen = 0,
+                                ancak = 0,
+                                info = "",
+                                archive = 0,
+                                status_banjir = 0,
+                                status_espb = 0,
+                                status_restan = 1,
+                                scan_status = 1,
+                                dataIsZipped = 0,
+                                no_espb = spbKode ?: "NULL",
+                                username = "NULL",
+                                status_upload = 0,
+                                status_uploaded_image = "0",
+                                status_pengangkutan = 0,
+                                status_insert_mpanen = 0,
+                                status_scan_mpanen = 0,
+                                jumlah_pemanen = 1,
+                                archive_mpanen = 0
+                            )
+
+                            panenList.add(panenEntity)
+                        }
+
+                        // Update to 80% when processing is complete
+                        progressMap[itemId] = 80
+                        _itemProgressMap.postValue(progressMap.toMap())
+
+                        withContext(Dispatchers.IO) {
+                            try {
+                                // Insert the data into the local database
+                                var successCount = 0
+                                var failCount = 0
+                                var deleteCount = 0
+
+                                if (recordsToDelete.isNotEmpty()) {
+                                    // Improved way to delete records without loading all records
+                                    for (recordToDelete in recordsToDelete) {
+                                        val (tphId, dateCreated) = recordToDelete
+
+                                        // Check if the record exists
+                                        val exists = panenDao.exists(tphId, dateCreated)
+
+                                        if (exists) {
+                                            try {
+                                                // Get the record by TPH ID and date
+                                                // You'll need to add this method to your DAO
+                                                val recordId = panenDao.getIdByTphIdAndDateCreated(tphId, dateCreated)
+
+                                                if (recordId > 0) {
+                                                    // Delete by ID
+                                                    panenDao.deleteById(recordId)
+                                                    deleteCount++
+                                                    AppLogger.d("Deleted record with TPH ID: $tphId, date: $dateCreated")
+                                                }
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error deleting record: ${e.message}")
+                                            }
+                                        }
+                                    }
+
+                                    AppLogger.d("Deleted $deleteCount records with status_espb 1/2 or non-null spb_kode")
+                                }
+
+                                // Now process the records to insert or update
+                                for (panen in panenList) {
+                                    try {
+                                        // Check if record already exists
+                                        val exists = panenDao.exists(panen.tph_id, panen.date_created)
+
+                                        if (!exists) {
+                                            // If it doesn't exist, insert it
+                                            val result = panenDao.insertWithTransaction(panen)
+                                            if (result.isSuccess) {
+                                                successCount++
+                                                AppLogger.d("Inserted new restan record: ${panen.tph_id}, ${panen.date_created}")
+                                            } else {
+                                                failCount++
+                                                AppLogger.e("Failed to insert restan record: ${panen.tph_id}, ${panen.date_created}")
+                                            }
+                                        } else {
+                                            AppLogger.d("Record exists, updating: ${panen.tph_id}, ${panen.date_created}")
+
+                                            try {
+                                                // Get the record ID directly without fetching all records
+                                                val recordId = panenDao.getIdByTphIdAndDateCreated(panen.tph_id, panen.date_created)
+
+                                                if (recordId > 0) {
+                                                    // Create updated record with same ID
+                                                    val updatedRecord = panen.copy(id = recordId)
+
+                                                    // Update the record
+                                                    panenDao.update(listOf(updatedRecord))
+                                                    successCount++
+                                                    AppLogger.d("Updated existing record ID $recordId: ${panen.tph_id}, ${panen.date_created}")
+                                                } else {
+                                                    // This shouldn't happen since exists() returned true, but handle it anyway
+                                                    AppLogger.e("Couldn't find existing record to update: ${panen.tph_id}, ${panen.date_created}")
+                                                    val result = panenDao.insertWithTransaction(panen)
+                                                    if (result.isSuccess) {
+                                                        successCount++
+                                                        AppLogger.d("Inserted as new after update failure: ${panen.tph_id}, ${panen.date_created}")
+                                                    } else {
+                                                        failCount++
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                failCount++
+                                                AppLogger.e("Error updating record: ${e.message}")
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        failCount++
+                                        AppLogger.e("Error processing restan record: ${e.message}")
+                                    }
+                                }
+
+                                AppLogger.d("Restan sync complete. Inserted/Updated: $successCount, Deleted: $deleteCount, Failed: $failCount, Total processed: ${panenList.size + deleteCount}")
+
+                                // Final update - 100%
+                                progressMap[itemId] = 100
+                                _itemProgressMap.postValue(progressMap.toMap())
+
+                                // Set the status based on the result
+                                if (failCount == 0) {
+                                    statusMap[itemId] = if (isDownloadDataset) {
+                                        AppUtils.UploadStatusUtils.DOWNLOADED
+                                    } else {
+                                        AppUtils.UploadStatusUtils.UPDATED
+                                    }
+                                } else if (successCount > 0 || deleteCount > 0) {
+                                    // Partial success
+                                    statusMap[itemId] = AppUtils.UploadStatusUtils.UPDATED
+                                    errorMap[itemId] = "Partial success: $failCount/${panenList.size + deleteCount} records failed"
+                                } else {
+                                    // Complete failure
+                                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                                    errorMap[itemId] = "Failed to process restan data: $failCount/${panenList.size + deleteCount} records failed"
+                                }
+                            } catch (e: Exception) {
+                                progressMap[itemId] = 100  // Still show 100% even on error
+                                _itemProgressMap.postValue(progressMap.toMap())
+
+                                AppLogger.e("Error processing restan data: ${e.message}")
+                                statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                                errorMap[itemId] = "Error processing restan data: ${e.message}"
+                            }
+                        }
+                    } else {
+                        progressMap[itemId] = 100
+                        _itemProgressMap.postValue(progressMap.toMap())
+
+                        statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                        val errorMessage = jsonObject.optString("message", "Unknown error")
+                        errorMap[itemId] = "API Error: $errorMessage"
+                        AppLogger.e("Restan API returned error: $errorMessage")
+                    }
+                } catch (e: Exception) {
+                    progressMap[itemId] = 100  // Still show 100% even on error
+                    _itemProgressMap.postValue(progressMap.toMap())
+
+                    AppLogger.e("Error processing restan data: ${e.message}")
+                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                    errorMap[itemId] = "Error processing restan data: ${e.message}"
+                }
+            }
+
             else -> {
                 progressMap[itemId] = 100  // Still show 100% even on error
                 _itemProgressMap.postValue(progressMap.toMap())
@@ -1533,6 +1805,132 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                 errorMap[itemId] = "Unsupported JSON dataset: ${request.dataset}"
             }
+        }
+    }
+
+    fun processPreviewDataRestanUI(jsonResponse: String): String {
+        try {
+            // Parse the JSON response
+            val jsonObject = JSONObject(jsonResponse)
+
+            // Check if response is successful and contains data
+            if (jsonObject.optBoolean("success", false)) {
+                val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
+
+                // Set up date range
+                val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
+                val calendar = Calendar.getInstance()
+
+                // Yesterday
+                calendar.add(Calendar.DAY_OF_YEAR, -1)
+                val yesterday = inputFormatter.format(calendar.time)
+                val yesterdayDate = calendar.time
+
+                // 7 days ago
+                calendar.add(Calendar.DAY_OF_YEAR, -6)
+                val sevenDaysAgo = inputFormatter.format(calendar.time)
+                val sevenDaysAgoDate = calendar.time
+
+                // Format the date range for display (e.g., "28 April - 5 Mei")
+                val endDateDisplay = displayFormatter.format(yesterdayDate)
+                val startDateDisplay = displayFormatter.format(sevenDaysAgoDate)
+
+                // Create a list of all dates in the range
+                val allDates = mutableListOf<String>()
+                val tempCalendar = Calendar.getInstance()
+                tempCalendar.time = sevenDaysAgoDate
+
+                while (!tempCalendar.time.after(yesterdayDate)) {
+                    allDates.add(inputFormatter.format(tempCalendar.time))
+                    tempCalendar.add(Calendar.DAY_OF_YEAR, 1)
+                }
+
+                // Initialize maps for all dates in range with zeros
+                val jjgKirimByDate = mutableMapOf<String, Int>()
+                val tphCountByDate = mutableMapOf<String, Int>() // Total TPH count (not unique)
+                val recordCountByDate = mutableMapOf<String, Int>() // Track record count by date
+
+                for (date in allDates) {
+                    jjgKirimByDate[date] = 0
+                    tphCountByDate[date] = 0
+                    recordCountByDate[date] = 0
+                }
+
+                // Process each item in the array
+                for (i in 0 until dataArray.length()) {
+                    val item = dataArray.getJSONObject(i)
+
+                    // Check if status_espb is 0 (only process records with status_espb = 0)
+                    val statusEspb = item.optInt("status_espb", -1)
+                    if (statusEspb != 0) {
+                        continue // Skip records with status_espb != 0
+                    }
+
+                    // Extract created_date and format to get just the date part
+                    val createdDateFull = item.optString("created_date", "")
+                    val createdDate = if (createdDateFull.isNotEmpty()) {
+                        createdDateFull.split(" ")[0] // Take only the date part (YYYY-MM-DD)
+                    } else {
+                        continue // Skip if no date
+                    }
+
+                    // Skip data outside our date range
+                    if (!allDates.contains(createdDate)) {
+                        continue
+                    }
+
+                    // Increment record count for this date
+                    recordCountByDate[createdDate] = recordCountByDate.getOrDefault(createdDate, 0) + 1
+
+                    // Get jjg_kirim value
+                    val jjgKirim = item.optInt("jjg_kirim", 0)
+
+                    // Update the total jjg_kirim for this date
+                    jjgKirimByDate[createdDate] = jjgKirimByDate.getOrDefault(createdDate, 0) + jjgKirim
+
+                    // Simply increment the TPH count for this date (no uniqueness check)
+                    // Only count if tph value is greater than 0
+                    val tphId = item.optInt("tph", 0)
+                    if (tphId > 0) {
+                        tphCountByDate[createdDate] = tphCountByDate.getOrDefault(createdDate, 0) + 1
+                    }
+                }
+
+                // Calculate total jjg_kirim for all dates
+                val totalJjgKirim = jjgKirimByDate.values.sum()
+
+                // Build the final string
+                val resultBuilder = StringBuilder()
+                resultBuilder.append("Data Restan dalam 7 hari terakhir ($startDateDisplay - $endDateDisplay):\n")
+
+                // Add each date's transactions with jjg_kirim count, but only if they have data
+                for (date in allDates.sortedDescending()) {
+                    val jjgKirimCount = jjgKirimByDate[date] ?: 0
+                    val tphCount = tphCountByDate[date] ?: 0
+                    val recordCount = recordCountByDate[date] ?: 0
+
+                    // Skip dates with zero records
+                    if (recordCount == 0) {
+                        continue
+                    }
+
+                    // Format date for display (e.g., "5 Mei")
+                    val dateObj = inputFormatter.parse(date)
+                    val dateDisplay = displayFormatter.format(dateObj!!)
+
+                    resultBuilder.append("$dateDisplay: $jjgKirimCount jjg dari $tphCount TPH\n")
+                }
+
+                resultBuilder.append("\nTotal jjg restan: $totalJjgKirim")
+
+                return resultBuilder.toString().trim()
+            } else {
+                return "Failed to process data: Success flag is false"
+            }
+        } catch (e: Exception) {
+            Log.e("RestanDataProcessor", "Error processing data: ${e.message}")
+            return "Error processing data: ${e.message}"
         }
     }
 

@@ -40,12 +40,11 @@ class RestanRepository(
             put("table", "panen")
             put("select", JSONArray().apply {
                 put("tph")
-                put("tph_nomor")
                 put("created_date")
                 put("jjg_kirim")
-                put("tanggal")
-                put("divisi_abbr")
-                put("dept_abbr")
+                put("spb_kode")
+                put("CONCAT('{\"KP\":', jjg_kirim, '}') AS jjg_kirim_original")
+                put("status_espb")
             })
 
             // Build WHERE clause with multiple conditions

@@ -954,20 +954,73 @@ class HomePageActivity : AppCompatActivity() {
                         loadingDialog.show()
                         loadingDialog.setMessage("Sedang mempersiapkan data...")
 
-
                         lifecycleScope.launch {
                             try {
                                 delay(500)
+                                // Start data loading
                                 datasetViewModel.getAllEstates()
 
-                                withTimeout(5000) { // 5 second timeout
+                                val isMandor1 = prefManager!!.jabatanUserLogin!!.contains(AppUtils.ListFeatureByRoleUser.Mandor1, ignoreCase = true)
+                                val isAsisten = prefManager!!.jabatanUserLogin!!.contains(AppUtils.ListFeatureByRoleUser.Asisten, ignoreCase = true)
+
+                                val estateIdString = prefManager!!.estateIdUserLogin!!.toInt()
+                                val afdelingIdString = prefManager!!.afdelingIdUserLogin
+
+                                AppLogger.d(estateIdString.toString())
+                                AppLogger.d(afdelingIdString.toString())
+
+                                // Get restan data only if user is Mandor1 or Asisten
+                                var previewRestanData = ""
+                                if (isMandor1 || isAsisten) {
+                                    // Create a deferred result that will be completed when data is received
+                                    val restanDataDeferred = CompletableDeferred<String>()
+
+                                    // Set up the observer for restanPreviewData
+                                    val restanObserver = Observer<String> { data ->
+                                        if (!restanDataDeferred.isCompleted) {
+                                            restanDataDeferred.complete(data)
+                                        }
+                                    }
+
+                                    // Register the observer
+                                    datasetViewModel.restanPreviewData.observe(this@HomePageActivity, restanObserver)
+
+                                    // Start the API request
+                                    datasetViewModel.getPreviewDataRestanWeek(estateIdString, afdelingIdString!!)
+
+                                    try {
+                                        // Wait for the API response with a timeout
+                                        previewRestanData = withTimeout(15000) {
+                                            restanDataDeferred.await()
+                                        }
+
+                                        AppLogger.d("previewRestanData $previewRestanData")
+
+                                        // Remove the observer to prevent memory leaks
+                                        withContext(Dispatchers.Main) {
+                                            datasetViewModel.restanPreviewData.removeObserver(restanObserver)
+                                        }
+                                    } catch (e: Exception) {
+                                        // Clean up observer in case of timeout or error
+                                        withContext(Dispatchers.Main) {
+                                            datasetViewModel.restanPreviewData.removeObserver(restanObserver)
+                                        }
+                                        AppLogger.e("Error getting restan data: ${e.message}")
+                                        // Don't throw here, we'll continue with empty previewRestanData
+                                    }
+                                } else {
+                                    AppLogger.d("User is not Mandor1 or Asisten, skipping restan data fetch")
+                                }
+
+                                // Wait for estates list with timeout
+                                withTimeout(10000) {
                                     while (datasetViewModel.allEstatesList.value == null) {
                                         delay(100)
                                     }
                                 }
 
                                 withContext(Dispatchers.Main) {
-                                    startDownloads()
+                                    startDownloads(previewRestanData)
                                 }
                             } catch (e: Exception) {
                                 // Handle any errors
@@ -3847,11 +3900,11 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private fun startDownloadsV2(datasetRequests: List<DatasetRequest>) {
+    private fun startDownloadsV2(datasetRequests: List<DatasetRequest>, previewDataRestan : String? = null) {
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
         val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-        titleTV.text = "Sinkronisasi Master Dataset"
+        titleTV.text = "Sinkronisasi Restan & Dataset"
 
 
         val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
@@ -3864,7 +3917,7 @@ class HomePageActivity : AppCompatActivity() {
         val btnRetryDownload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
 
         // Update button text to reflect download operation
-        btnSinkronisasiDataset.text = "Update Dataset"
+        btnSinkronisasiDataset.text = "Sinkronisasi Data"
         btnSinkronisasiDataset.setIconResource(R.drawable.baseline_refresh_24) // Assuming you have this icon
 
         val containerDownloadDataset =
@@ -3886,13 +3939,19 @@ class HomePageActivity : AppCompatActivity() {
             } else {
                 "${request.dataset}"
             }
+            val itemData = if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan && !previewDataRestan.isNullOrEmpty()) {
+                previewDataRestan
+            } else {
+                ""
+            }
+
             downloadItems.add(
                 UploadCMPItem(
                     id = itemId++,
                     title = itemTitle,
                     fullPath = "",
                     baseFilename = request.estateAbbr ?: "",
-                    data = "",
+                    data = itemData,  // Use the data we just determined
                     type = "",
                     databaseTable = ""
                 )
@@ -4034,6 +4093,8 @@ class HomePageActivity : AppCompatActivity() {
 
 
         closeDialogBtn.setOnClickListener {
+
+            refreshPanenCount()
             datasetViewModel.processingComplete.removeObservers(this)
             datasetViewModel.itemProgressMap.removeObservers(this)
             datasetViewModel.completedCount.removeObservers(this)
@@ -4173,7 +4234,7 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private fun startDownloads() {
+    private fun startDownloads(previewDataRestan :String? = null) {
         val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
         val afdelingIdString = prefManager!!.afdelingIdUserLogin
@@ -4244,7 +4305,7 @@ class HomePageActivity : AppCompatActivity() {
                 if (isTriggerButtonSinkronisasiData) {
 
                     AppLogger.d("masuk sini gak sih ")
-                    startDownloadsV2(filteredRequests)
+                    startDownloadsV2(filteredRequests,previewDataRestan)
                 } else {
                     dialog.show()
                     datasetViewModel.downloadMultipleDatasets(filteredRequests)
@@ -4275,8 +4336,6 @@ class HomePageActivity : AppCompatActivity() {
     ): List<DatasetRequest> {
         val datasets = mutableListOf<DatasetRequest>()
 
-
-        AppLogger.d("afdelingId $afdelingId")
         val jabatan = prefManager!!.jabatanUserLogin
         val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
         val isKeraniTimbang =
@@ -4348,7 +4407,6 @@ class HomePageActivity : AppCompatActivity() {
 //            )
 //        }
 //
-//        // Add the rest of the datasets as before
 //        if (isKeraniTimbang) {
 //            datasets.add(
 //                DatasetRequest(
@@ -4429,6 +4487,30 @@ class HomePageActivity : AppCompatActivity() {
 //        )
 
         return datasets
+    }
+
+    private fun refreshPanenCount() {
+        lifecycleScope.launch {
+            try {
+                // Create a deferred result for the count operation
+                val countDeferred = async { panenViewModel.loadPanenCountApproval() }
+                val newCount = countDeferred.await()
+
+                // Update the UI with the new count
+                withContext(Dispatchers.Main) {
+                    featureAdapter.updateCount(
+                        "Rekap panen dan restan",
+                        newCount.toString()
+                    )
+                    featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
+
+                    // Optionally log the updated count
+                    AppLogger.d("Panen count refreshed: $newCount")
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error refreshing panen count: ${e.message}")
+            }
+        }
     }
 
     private fun hasRole(role: String): Boolean {
