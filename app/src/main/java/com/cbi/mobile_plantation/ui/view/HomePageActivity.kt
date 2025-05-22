@@ -171,6 +171,12 @@ class HomePageActivity : AppCompatActivity() {
     private var globalImageUploadError: List<String> = emptyList()
     private var globalImageNameError: List<String> = emptyList()
 
+    // PDF-related variables
+    private lateinit var pdfManager: PDFManager
+    private val pdfFileName = "User_Manual_CMP.pdf"
+    private val pdfUrl = "https://cmp.citraborneo.co.id/apkcmp/MANUALBOOK/User_Manual_CMP.pdf" // Replace with your actual PDF URL
+    private var isPdfDownloaded = false
+    private var isDownloading = false
 
     data class ResponseJsonUpload(
         val trackingId: Int,
@@ -203,29 +209,152 @@ class HomePageActivity : AppCompatActivity() {
         checkDateTimeSettings()
 
         val appVersion = AppUtils.getAppVersion(this)
-        val infoIcon: ImageView = findViewById(R.id.infoPatchNote)
 
-        infoIcon.setOnClickListener {
-            showPatchNoteDialog()
+        // Initialize PDF manager
+        initializePDFManager()
+    }
+
+    private fun initializePDFManager() {
+        pdfManager = PDFManager(this)
+
+        // Check if PDF is already downloaded
+        val pdfFile = pdfManager.getLocalPDFFile(pdfFileName)
+        isPdfDownloaded = pdfFile != null
+
+        // Setup click listener for info icon
+        try {
+            val infoPatchNoteIcon = findViewById<ImageView>(R.id.infoPatchNote)
+            infoPatchNoteIcon?.setOnClickListener {
+                handlePdfViewRequest()
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Info patch note icon not found: ${e.message}")
+        }
+
+        // Automatically start download if not already downloaded
+        // TAPI TIDAK LANGSUNG BUKA PDF SETELAH DOWNLOAD
+        if (!isPdfDownloaded && !isDownloading) {
+            downloadPdfSilently() // Menggunakan method baru yang tidak auto-open
         }
     }
 
-    private fun showPatchNoteDialog() {
-        val version = AppUtils.getAppVersion(this)
+    private fun handlePdfViewRequest() {
+        if (isPdfDownloaded) {
+            // PDF is already downloaded, open it
+            openPdfViewer()
+        } else if (isDownloading) {
+            // PDF is currently downloading
+            Toast.makeText(this, "PDF sedang didownload, mohon tunggu...", Toast.LENGTH_SHORT).show()
+        } else {
+            // Start download and then open after user clicks
+            downloadPdfAndOpen() // Method untuk download + buka
+        }
+    }
 
-        AlertDialog.Builder(this)
-            .setTitle("Update - Versi $version")
-            .setMessage(
-                """
-            • Penambahan TPH Induk & TPH Banjir
-            • Penambahan fitur absensi
-            • Penambahan fitur input hektar panen
-            """.trimIndent()
-            )
-            .setPositiveButton("Tutup") { dialog, _ ->
-                dialog.dismiss()
+    // Method baru untuk download tanpa auto-open (background download)
+    private fun downloadPdfSilently() {
+        if (!AppUtils.isNetworkAvailable(this)) {
+            // Jika tidak ada internet, tidak perlu tampilkan error
+            // Karena ini background download
+            AppLogger.d("No internet connection for background PDF download")
+            return
+        }
+
+        isDownloading = true
+
+        pdfManager.downloadPDF(pdfUrl, pdfFileName, object : PDFManager.DownloadCallback {
+            override fun onDownloadSuccess(file: File) {
+                runOnUiThread {
+                    isDownloading = false
+                    isPdfDownloaded = true
+                    // TIDAK ADA openPdfViewer() di sini
+                    // Hanya log atau notifikasi kecil jika diperlukan
+                    AppLogger.d("PDF downloaded successfully in background")
+
+                    // Optional: Tampilkan toast kecil atau update UI indicator
+                    // Toast.makeText(this@HomePageActivity, "Patch notes siap dibaca", Toast.LENGTH_SHORT).show()
+                }
             }
-            .show()
+
+            override fun onDownloadFailure(message: String) {
+                runOnUiThread {
+                    isDownloading = false
+                    AppLogger.e("Background PDF download failed: $message")
+                    // Tidak perlu tampilkan error dialog untuk background download
+                }
+            }
+
+            override fun onDownloadProgress(progress: Int) {
+                // Untuk background download, tidak perlu update UI progress
+                AppLogger.d("PDF download progress: $progress%")
+            }
+        })
+    }
+
+    // Method untuk download dengan progress dialog dan auto-open setelah selesai
+    private fun downloadPdfAndOpen() {
+        if (!AppUtils.isNetworkAvailable(this)) {
+            AlertDialogUtility.withSingleAction(
+                this@HomePageActivity,
+                stringXML(R.string.al_back),
+                stringXML(R.string.al_no_internet_connection),
+                stringXML(R.string.al_no_internet_connection_description_login),
+                "network_error.json",
+                R.color.colorRedDark
+            ) { }
+            return
+        }
+
+        isDownloading = true
+
+        // Show downloading dialog
+        loadingDialog.show()
+
+        pdfManager.downloadPDF(pdfUrl, pdfFileName, object : PDFManager.DownloadCallback {
+            override fun onDownloadSuccess(file: File) {
+                runOnUiThread {
+                    loadingDialog.dismiss()
+                    isDownloading = false
+                    isPdfDownloaded = true
+                    // BARU BUKA PDF KARENA USER KLIK ICON
+                    openPdfViewer()
+                }
+            }
+
+            override fun onDownloadFailure(message: String) {
+                runOnUiThread {
+                    loadingDialog.dismiss()
+                    isDownloading = false
+
+                    AlertDialogUtility.withSingleAction(
+                        this@HomePageActivity,
+                        stringXML(R.string.al_back),
+                        "Download Failed",
+                        "Failed to download PDF: $message",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) { }
+                }
+            }
+
+            override fun onDownloadProgress(progress: Int) {
+                runOnUiThread {
+                    loadingDialog.setMessage("Downloading patch notes... $progress%")
+                }
+            }
+        })
+    }
+
+    private fun openPdfViewer() {
+        val pdfFile = pdfManager.getLocalPDFFile(pdfFileName)
+        if (pdfFile != null) {
+            val intent = Intent(this, PDFViewerActivity::class.java)
+            intent.putExtra("PDF_PATH", pdfFile.absolutePath)
+            startActivity(intent)
+        } else {
+            Toast.makeText(this, "PDF file not found. Please download again.", Toast.LENGTH_SHORT).show()
+            isPdfDownloaded = false
+        }
     }
 
     private fun fetchDataEachCard() {

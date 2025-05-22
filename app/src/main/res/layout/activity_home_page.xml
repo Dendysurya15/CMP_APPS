@@ -266,7 +266,7 @@
                 android:id="@+id/infoPatchNote"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:contentDescription="Download File"
+                android:contentDescription="PDF Viewer"
                 android:layout_marginStart="10dp"
                 android:src="@drawable/baseline_info_24"/>
         </LinearLayout>
