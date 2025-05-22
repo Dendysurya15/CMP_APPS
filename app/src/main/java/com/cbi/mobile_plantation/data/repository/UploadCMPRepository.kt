@@ -1305,7 +1305,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using raw JSON body")
 
-                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                        val response = CMPApiClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 
