@@ -318,16 +318,16 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
                                 hektarPanenViewModel.loadHektarPanenData(globalFormattedDate, selectedBlokId)
 
                                 lifecycleScope.launch(Dispatchers.IO) {
-                                    val sisaLuasPanen = try {
+                                    val luasPanen = try {
                                         hektarPanenViewModel.getSumLuasPanen(selectedBlokId, globalFormattedDate!!)
                                     } catch (e: Exception) {
                                         Log.d("BlokIds", "Error getting sumLuasPanen: ${e.message}")
                                         0f
                                     }
-                                    Log.d("BlokIds", "Sisa Luas Panen: $sisaLuasPanen")
+                                    Log.d("BlokIds", "Sisa Luas Panen: $luasPanen")
                                     withContext(Dispatchers.Main) {
-                                        val tvSisaLuasPanen = findViewById<TextView>(R.id.tvLuasPanen)
-                                        tvSisaLuasPanen.text = "${sisaLuasPanen}ha"
+                                        val tvLuasPanen = findViewById<TextView>(R.id.tvLuasPanen)
+                                        tvLuasPanen.text = "${luasPanen}ha"
                                     }
                                 }
                                 lifecycleScope.launch(Dispatchers.IO) {
@@ -405,6 +405,16 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
                     e.printStackTrace()
                     Log.e("ListHistoryESPBActivity", "Error updating database: ${e.message}")
                 }
+                val luasPanen = try {
+                    hektarPanenViewModel.getSumLuasPanen(selectedBlokId!!, globalFormattedDate)
+                } catch (e: Exception) {
+                    Log.d("BlokIds", "Error getting sumLuasPanen: ${e.message}")
+                    0f
+                }
+                withContext(Dispatchers.Main) {
+                    val tvLuasPanen = findViewById<TextView>(R.id.tvLuasPanen)
+                    tvLuasPanen.text = "${luasPanen}ha"
+                }
             }
         }
 
@@ -412,7 +422,7 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
         updateRunnables[id] = updateRunnable
 
         // Schedule the update with a delay
-        handler.postDelayed(updateRunnable, 2000) // 500ms debounce delay
+        handler.postDelayed(updateRunnable, 4000)
     }
 
     private fun setupObserveDataDaftarHektarPanen() {
@@ -712,10 +722,7 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
             titleAppNameAndVersionText = titleAppNameAndVersion,
             context = this
         )
-
         setupBlokFilter()
-
-
     }
 
     // Function to get currently selected blok ID (single selection)
@@ -733,7 +740,6 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
 
         return null
     }
-
 
     @SuppressLint("MissingSuperCall")
     override fun onBackPressed() {

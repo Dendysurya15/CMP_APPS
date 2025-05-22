@@ -86,12 +86,12 @@ class ListHektarPanenAdapter(
         holder.et4.setTag(R.id.item_id_tag, item.id) // You'll need to define this ID in res/values/ids.xml
         if (item.luas_panen == 0.0f){
             holder.et4.setText("")
-            holder.td1.setHintTextColor(ContextCompat.getColor(context, R.color.colorRed))
-            holder.td2.setHintTextColor(ContextCompat.getColor(context, R.color.colorRed))
+            holder.td1.setTextColor(ContextCompat.getColor(context, R.color.colorRed))
+            holder.td2.setTextColor(ContextCompat.getColor(context, R.color.colorRed))
         }else{
             holder.et4.setText(item.luas_panen.toString())
-            holder.td1.setHintTextColor(ContextCompat.getColor(context, R.color.black))
-            holder.td2.setHintTextColor(ContextCompat.getColor(context, R.color.black))
+            holder.td1.setTextColor(ContextCompat.getColor(context, R.color.black))
+            holder.td2.setTextColor(ContextCompat.getColor(context, R.color.black))
         }
 
         // Remove existing TextWatcher if there is one
