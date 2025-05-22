@@ -8,6 +8,7 @@ import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionPathModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
@@ -54,6 +55,7 @@ class AppRepository(context: Context) {
     private val kendaraanDao = database.kendaraanDao()
     private val hektarPanenDao = database.hektarPanenDao()
     private val jenisTPHDao = database.jenisTPHDao()
+    private val blokDao = database.blokDao()
 
 
     sealed class SaveResultPanen {

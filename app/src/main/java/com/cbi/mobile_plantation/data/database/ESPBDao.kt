@@ -21,6 +21,10 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table")
     abstract fun getAll(): List<ESPBEntity>
 
+    @Query("SELECT * FROM espb_table WHERE noESPB = :noEspb LIMIT 1")
+    abstract suspend fun getEspbByNumber(noEspb: String): ESPBEntity?
+
+
     //    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
     @Query("SELECT * FROM espb_table where scan_status = 1")
     abstract fun getAllESPBUploaded(): List<ESPBEntity>

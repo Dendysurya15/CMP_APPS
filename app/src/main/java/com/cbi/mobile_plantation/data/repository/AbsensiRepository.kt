@@ -6,6 +6,7 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AbsensiModel
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
@@ -24,6 +25,7 @@ class AbsensiRepository(context: Context) {
     private val absensiDao = database.absensiDao()
     private val karyawanDao = database.karyawanDao()
     private val kemandoranDao = database.kemandoranDao()
+    private val blokDao = database.blokDao()
 
     suspend fun insertAbsensiData(absensiData: AbsensiModel) {
         absensiDao.insertAbsensiData(absensiData)

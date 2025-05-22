@@ -16,6 +16,7 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -23,6 +24,7 @@ data class AbsensiDataRekap(
     val id: Int,
     val afdeling: String,
     val datetime: String,
+    val kemandoran_kode: String,
     val kemandoran: String,
     val karyawan_msk_id: String,
     val karyawan_tdk_msk_id: String,
@@ -67,8 +69,9 @@ class ListAbsensiAdapter(private val context: Context,
         prefManager = PrefManager(context)
         userName = prefManager!!.nameUserLogin
 
-        val jmlhKaryawanMskDetail = if (item.karyawan_msk_id.isNotEmpty()) item.karyawan_msk_id.split(",").size else 0
-        val jmlhKaryawanTdkMskDetail = if (item.karyawan_tdk_msk_id.isNotEmpty()) item.karyawan_tdk_msk_id.split(",").size else 0
+        // Use new JSON-aware counting method
+        val jmlhKaryawanMskDetail = calculateAttendanceCounts(item.karyawan_msk_id)
+        val jmlhKaryawanTdkMskDetail = calculateAttendanceCounts(item.karyawan_tdk_msk_id)
 
         // Handle item clicks differently based on archive state
         holder.itemView.setOnClickListener {
@@ -88,10 +91,10 @@ class ListAbsensiAdapter(private val context: Context,
             }
         }
 
-        val jmlhKaryawanMsk = if (item.karyawan_msk_id.isNotEmpty()) item.karyawan_msk_id.split(",").size else 0
-        val jmlhKaryawanTdkMsk = if (item.karyawan_tdk_msk_id.isNotEmpty()) item.karyawan_tdk_msk_id.split(",").size else 0
+        // Use the same counting method for display
+        val jmlhKaryawanMsk = calculateAttendanceCounts(item.karyawan_msk_id)
+        val jmlhKaryawanTdkMsk = calculateAttendanceCounts(item.karyawan_tdk_msk_id)
 
-//        holder.td1.text = formatToIndonesianDateTime(item.datetime)
         holder.td1.text = item.afdeling
         holder.td2.text = item.kemandoran
         // Show the count of employees present (different text in archived state)
@@ -105,8 +108,6 @@ class ListAbsensiAdapter(private val context: Context,
         applyStateSpecificStyling(holder, item)
 
         // Control checkbox visibility based on selection mode
-//        holder.flCheckBox.visibility = if (selectionMode) View.VISIBLE else View.GONE
-        // In onBindViewHolder
         holder.flCheckBox.visibility = View.VISIBLE // Always visible
         holder.checkBox.isChecked = selectedItems.contains(item)
 
@@ -119,14 +120,6 @@ class ListAbsensiAdapter(private val context: Context,
                 toggleSelection(item)
             }
         }
-
-        // Handle item clicks to toggle selection when in selection mode
-//        holder.itemView.setOnClickListener {
-//            if (selectionMode) {
-//                holder.checkBox.isChecked = !holder.checkBox.isChecked
-//                toggleSelection(item)
-//            }
-//        }
 
         // Allow long click to enter selection mode
         holder.itemView.setOnLongClickListener {
@@ -187,13 +180,17 @@ class ListAbsensiAdapter(private val context: Context,
         val formattedKaryawanMsk = formatAttendanceData(
             item.karyawan_msk_nik,
             item.karyawan_msk_nama,
-            item.karyawan_msk_id
+            item.karyawan_msk_id,
+            item.kemandoran_kode,
+            item.kemandoran
         )
 
         val formattedKaryawanTdkMsk = formatAttendanceData(
             item.karyawan_tdk_msk_nik,
             item.karyawan_tdk_msk_nama,
-            item.karyawan_tdk_msk_id
+            item.karyawan_tdk_msk_id,
+            item.kemandoran_kode,
+            item.kemandoran
         )
 
         val infoItems = listOf(
@@ -233,35 +230,110 @@ class ListAbsensiAdapter(private val context: Context,
             }
     }
 
-    /**
-     * Helper function to format attendance data consistently
-     * Handles both active and archived states
-     */
-    private fun formatAttendanceData(nik: String, nama: String, id: String): String {
-        // If we have data to process
-        if (id.isNotEmpty()) {
-            val idList = id.split(",").map { it.trim() }
-            val nikList = if (nik.isNotEmpty()) nik.split(",").map { it.trim() } else listOf()
-            val namaList = if (nama.isNotEmpty()) nama.split(",").map { it.trim() } else listOf()
+    private fun calculateAttendanceCounts(jsonString: String): Int {
+        return try {
+            if (jsonString.isNotEmpty() && jsonString.startsWith("{")) {
+                val jsonObj = JSONObject(jsonString)
+                var totalCount = 0
 
-            val combinedList = mutableListOf<String>()
+                jsonObj.keys().forEach { kemandoranId ->
+                    val list = jsonObj.optString(kemandoranId, "").split(",").filter { it.isNotEmpty() }
+                    totalCount += list.size
+                }
 
-            // Make sure we process entries up to the maximum size of any list
-            val maxEntries = maxOf(idList.size, nikList.size, namaList.size)
+                totalCount
+            } else {
+                // Fallback for old format or empty data
+                if (jsonString.isNotEmpty()) {
+                    jsonString.split(",").filter { it.isNotEmpty() }.size
+                } else {
+                    0
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error calculating attendance counts: ${e.message}")
+            // Fallback to old method if JSON parsing fails
+            if (jsonString.isNotEmpty()) {
+                jsonString.split(",").filter { it.isNotEmpty() }.size
+            } else {
+                0
+            }
+        }
+    }
 
-            // Create paired display for each entry
-            for (i in 0 until maxEntries) {
-                val currentNik = if (i < nikList.size) nikList[i] else "NIK tidak tersedia"
-                val currentNama = if (i < namaList.size) namaList[i] else "Nama tidak tersedia"
-
-                combinedList.add("$currentNik - $currentNama")
+    private fun formatAttendanceData(
+        nikJson: String,
+        namaJson: String,
+        idJson: String,
+        kemandoranKode: String,
+        kemandoranNames: String
+    ): String {
+        try {
+            // Parse JSON strings
+            val nikJsonObj = if (nikJson.isNotEmpty() && nikJson.startsWith("{")) {
+                JSONObject(nikJson)
+            } else {
+                return "-"  // Return "-" if no data
             }
 
-            return combinedList.joinToString("\n")
-        }
-        // No data available
-        else {
-            return "Tidak ada data"
+            val namaJsonObj = if (namaJson.isNotEmpty() && namaJson.startsWith("{")) {
+                JSONObject(namaJson)
+            } else {
+                return "-"  // Return "-" if no data
+            }
+
+            // Split kemandoran codes and names
+            val kemandoranKodes = kemandoranKode.split(",").map { it.trim() }
+            val kemandoranNameList = kemandoranNames.split("\n").map { it.trim() }
+
+            val result = StringBuilder()
+            var hasAnyData = false  // Track if we have any actual data
+
+            kemandoranKodes.forEachIndexed { index, kode ->
+                try {
+                    // Get NIK and Nama for this kemandoran kode
+                    val nikList = nikJsonObj.optString(kode, "").split(",").filter { it.isNotEmpty() }
+                    val namaList = namaJsonObj.optString(kode, "").split(",").filter { it.isNotEmpty() }
+
+                    // Only add if there's data for this kemandoran
+                    if (nikList.isNotEmpty() && namaList.isNotEmpty()) {
+                        hasAnyData = true  // We found some data
+
+                        // Get kemandoran name (use index if available, otherwise use kode)
+                        val kemandoranName = if (index < kemandoranNameList.size) {
+                            kemandoranNameList[index]
+                        } else {
+                            "Kemandoran $kode"
+                        }
+
+                        result.append("$kemandoranName\n")
+
+                        // Combine NIK and Nama
+                        val minSize = minOf(nikList.size, namaList.size)
+                        for (i in 0 until minSize) {
+                            result.append("• ${nikList[i]} - ${namaList[i]}\n")
+                        }
+
+                        // Add extra space between kemandoran groups (except for the last one)
+                        if (index != kemandoranKodes.size - 1) {
+                            result.append("\n")
+                        }
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error processing kemandoran $kode: ${e.message}")
+                }
+            }
+
+            // Return "-" if no data was found, otherwise return the formatted result
+            return if (hasAnyData) {
+                result.toString().trimEnd()
+            } else {
+                "-"
+            }
+
+        } catch (e: Exception) {
+            AppLogger.e("Error formatting attendance data: ${e.message}")
+            return "-"  // Return "-" on error instead of error message
         }
     }
 

@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.TransporterModel
 
@@ -25,6 +26,9 @@ abstract class KemandoranDao {
         }
         insertAll(kemandoran)
     }
+
+    @Query("SELECT * FROM kemandoran WHERE divisi = :divisiId AND dept = :deptId LIMIT 1")
+    abstract suspend fun getBlokByDivisiAndDept(divisiId: String, deptId: String): KemandoranModel?
 
     @Query(
         """

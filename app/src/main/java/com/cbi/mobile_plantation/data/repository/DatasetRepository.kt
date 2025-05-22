@@ -21,7 +21,6 @@ import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
-import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
@@ -68,6 +67,11 @@ class DatasetRepository(
     suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) = tphDao.updateOrInsertTPH(tph)
 
     suspend fun insertTPH(tph: List<TPHNewModel>) = tphDao.insertTPHAsistensi(tph)
+
+    suspend fun getBlokByDivisiAndDept(divisiId: String, deptId: String): KemandoranModel? {
+        return kemandoranDao.getBlokByDivisiAndDept(divisiId, deptId)
+    }
+
 
     suspend fun getDatasetCount(datasetName: String, deptId: Int? = null): Int {
         return when (datasetName) {

@@ -73,6 +73,39 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    // Fix 1: Update your PrefManager to handle mixed types
+    var afdelingIdUserLogin: String?
+        get() {
+            return try {
+                // Try to get as String first
+                val value = pref.getString("afdelingIdUserLogin", "")
+                if (value != null) return value
+
+                // If that fails, try to get as Int and convert to String
+                val intValue = pref.getInt("afdelingIdUserLogin", 0)
+                return intValue.toString()
+            } catch (e: ClassCastException) {
+                // Handle the case where it's stored as an Int
+                try {
+                    val intValue = pref.getInt("afdelingIdUserLogin", 0)
+                    // Store it back as String for future use
+                    editor.putString("afdelingIdUserLogin", intValue.toString())
+                    editor.apply()
+                    return intValue.toString()
+                } catch (e2: Exception) {
+                    AppLogger.e("Error getting afdelingIdUserLogin: ${e2.message}")
+                    return ""
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error getting afdelingIdUserLogin: ${e.message}")
+                return ""
+            }
+        }
+        set(afdelingIdUserLogin) {
+            editor.putString("afdelingIdUserLogin", afdelingIdUserLogin)
+            editor.apply() // Use apply instead of commit for better performance
+        }
+
     var lastModifiedDatasetEstate: String?
         get() = pref.getString("lastModifiedDatasetEstate", "")
         set(lastModifiedDatasetEstate) {

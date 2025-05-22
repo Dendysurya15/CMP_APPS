@@ -65,6 +65,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -1010,6 +1011,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                     // Wait for the TPH data
                                                     val tphData = tphDeferred.await()
 
+
+                                                    AppLogger.d(tphData.toString())
                                                     mapOf(
                                                         "id" to data.id,
                                                         "regional" to (tphData?.regional ?: ""),
@@ -1051,6 +1054,30 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
                                                     // Convert the wrapped data to JSON
                                                     espbJsonString = Gson().toJson(wrappedEspbData)
+
+
+                                                    try {
+                                                        val tempDir =
+                                                            File(
+                                                                getExternalFilesDir(null),
+                                                                "TEMP"
+                                                            ).apply {
+                                                                if (!exists()) mkdirs()
+                                                            }
+
+                                                        val filename =
+                                                            "espb_wb_data_${System.currentTimeMillis()}.json"
+                                                        val tempFile = File(tempDir, filename)
+
+                                                        FileOutputStream(tempFile).use { fos ->
+                                                            fos.write(espbJsonString.toByteArray())
+                                                        }
+
+                                                        AppLogger.d("Saved raw espb_wb data to temp file: ${tempFile.absolutePath}")
+                                                    } catch (e: Exception) {
+                                                        AppLogger.e("Failed to save espb_wb data to temp file: ${e.message}")
+                                                        e.printStackTrace()
+                                                    }
 
                                                     // Add the JSON string to our data structure instead of file info
                                                     allJsonData.add(
@@ -1160,6 +1187,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                         val filteredData = coroutineScope {
                             globalIdESPBKraniTimbang = data.map { it.id }
                             data.map { item ->
+
+                                AppLogger.d("item $item")
                                 async {
                                     val blokJjgList = item.blok_jjg
                                         .split(";")
@@ -1232,16 +1261,22 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                             ?: "-"
                                     val millIp = millData.firstOrNull().let { it!!.ip_address }
 
-                                    val transporterData = withContext(Dispatchers.IO) {
-                                        try {
-                                            weightBridgeViewModel.getTransporterName(transporterId)
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Error fetching Transporter Data: ${e.message}")
-                                            null
-                                        }
-                                    } ?: emptyList()
+                                    val transporterName = if (transporterId == 0) {
+                                        "Internal"
+                                    } else {
+                                        // Only fetch from database if transporter_id is not 0
+                                        val transporterData = withContext(Dispatchers.IO) {
+                                            try {
+                                                weightBridgeViewModel.getTransporterName(transporterId)
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error fetching Transporter Data: ${e.message}")
+                                                null
+                                            }
+                                        } ?: emptyList()
 
-                                    val transporterName = transporterData.firstOrNull()?.nama ?: "-"
+                                        AppLogger.d(transporterData.toString())
+                                        transporterData.firstOrNull()?.nama ?: "-"
+                                    }
                                     val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
 
 

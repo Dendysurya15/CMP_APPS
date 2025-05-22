@@ -134,7 +134,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-@Suppress("UNCHECKED_CAST")
+@Suppress("UNCHECKED_CAST", "KotlinConstantConditions")
 open class FeaturePanenTBSActivity : AppCompatActivity(),
     TakeFotoPreviewAdapter.LocationDataProvider, CameraRepository.PhotoCallback,
     ListTPHInsideRadiusAdapter.OnTPHSelectedListener {
@@ -242,14 +242,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private var selectedEstateIdSpinner: Int = 0
     private var selectedBlok: String = ""
     private var selectedTPH: String = ""
+    private var selectedTPHBackup: String = ""
     private var selectedKemandoran: String = ""
     private var selectedKemandoranLain: String = ""
     private var selectedPemanen: String = ""
     private var selectedPemanenLain: String = ""
     private var infoApp: String = ""
     private var selectedDivisiValue: Int? = null
+    private var selectedDivisiValueBackup: Int? = null
     private var selectedBlokValue: Int? = null
+    private var selectedBlokValueBackup: Int? = null
     private var selectedTahunTanamValue: String? = null
+    private var selectedTahunTanamValueBackup: String? = null
     private var selectedTPHValue: Int? = null
     private var buahMasak = 0
     private var kirimPabrik = 0
@@ -820,6 +824,92 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 val komentarFotoString = komentarFoto.joinToString(";")
 
 
+                                AppLogger.d("tph id sebelum simpan $selectedTPHValue")
+//                                selectedTPHValue = null
+
+                                // Only check TPH validation if blokBanjir is 1
+                                if (blokBanjir == 1) {
+                                    if (selectedTPHValue == null ||
+                                        selectedTPHValue.toString().isEmpty() ||
+                                        selectedTPHValue.toString().isBlank() ||
+                                        selectedTPHValue.toString() == "null" ||
+                                        selectedTPHValue.toString() == "0"
+                                    ) {
+                                        // Use backup values if main values are null
+                                        val tphToFind = selectedTPH ?: selectedTPHBackup
+                                        val divisiToUse =
+                                            selectedDivisiValue ?: selectedDivisiValueBackup
+                                        val blokToUse = selectedBlokValue ?: selectedBlokValueBackup
+                                        val tahunTanamToUse =
+                                            selectedTahunTanamValue ?: selectedTahunTanamValueBackup
+
+                                        val estateIdToUse =
+                                            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                                                selectedEstate.toIntOrNull()
+                                            } else {
+                                                estateId?.toIntOrNull()
+                                            }
+
+                                        // Find the TPH object from the list using backup values when needed
+                                        val foundTPH = tphList.find {
+                                            it.dept == estateIdToUse && // Using conditional estate ID
+                                                    it.divisi == divisiToUse &&
+                                                    it.blok == blokToUse &&
+                                                    it.tahun == tahunTanamToUse &&
+                                                    it.nomor == tphToFind
+                                        }
+
+                                        // Set selectedTPHValue to the found TPH's ID
+                                        selectedTPHValue = foundTPH?.id
+
+                                        AppLogger.d("tph id ketika trouble setelah simpan $selectedTPHValue")
+
+                                        if (selectedTPHValue == null) {
+                                            AlertDialogUtility.withSingleAction(
+                                                this@FeaturePanenTBSActivity,
+                                                "Kembali",
+                                                "TPH Tidak Ditemukan",
+                                                getString(R.string.al_no_tph_not_found_when_save),
+                                                "warning.json",
+                                                R.color.colorRedDark
+                                            ) {
+                                                layoutTahunTanam.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                                                    View.VISIBLE
+                                                layoutTahunTanam.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                                                    "Silakan melakukan pemilihan ulang!"
+                                                layoutTahunTanam.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                                                    ContextCompat.getColor(
+                                                        this@FeaturePanenTBSActivity,
+                                                        R.color.colorRedDark
+                                                    )
+                                                layoutBlok.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                                                    View.VISIBLE
+                                                layoutBlok.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                                                    "Silakan melakukan pemilihan ulang!"
+                                                layoutBlok.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                                                    ContextCompat.getColor(
+                                                        this@FeaturePanenTBSActivity,
+                                                        R.color.colorRedDark
+                                                    )
+                                                layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                                                    View.VISIBLE
+                                                layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                                                    "Silakan melakukan pemilihan ulang!"
+                                                layoutNoTPH.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                                                    ContextCompat.getColor(
+                                                        this@FeaturePanenTBSActivity,
+                                                        R.color.colorRedDark
+                                                    )
+
+                                                val scPanen = findViewById<ScrollView>(R.id.scPanen)
+                                                scPanen.fullScroll(ScrollView.FOCUS_UP)
+                                            }
+
+                                            return@launch
+                                        }
+                                    }
+                                }
+
                                 val result = withContext(Dispatchers.IO) {
                                     panenViewModel.saveDataPanen(
                                         tph_id = selectedTPHValue?.toString() ?: "",
@@ -1168,6 +1258,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
 
         selectedTPH = ""
+        selectedTPHBackup = ""
         selectedTPHValue = null
 
         val kemandoranNames = kemandoranList.mapNotNull { it.nama }
@@ -1385,6 +1476,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             val shouldLoadKemandoran = selectedKemandoran.isEmpty()
             val shouldLoadKemandoranLain = selectedKemandoranLain.isEmpty()
 
+            AppLogger.d("shouldLoadKemandoranLain $shouldLoadKemandoranLain")
+
             // Always show loading dialog and process data
             loadingDialog.show()
             loadingDialog.setMessage("Sedang memproses data...")
@@ -1400,6 +1493,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 val allKaryawan = panenViewModel.allKaryawanList.value ?: emptyList()
                 AppLogger.d("Reset: Reloaded ${allKaryawan.size} karyawan")
 
+                AppLogger.d("askldjfkajsdflj $allKaryawan")
+                AppLogger.d("presentNikSet $presentNikSet")
                 // Filter the list to only include workers who are present
                 val presentKaryawan = allKaryawan.filter { karyawan ->
                     karyawan.nik != null && presentNikSet.contains(karyawan.nik)
@@ -1416,7 +1511,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 if (shouldLoadKemandoranLain) {
                     // Store all karyawan in the global list
+
+                    AppLogger.d(allKaryawan.toString())
                     karyawanLainList = allKaryawan
+
+                    AppLogger.d("masuk sini bro")
                     AppLogger.d("Assigned allKaryawan to karyawanLainList because selectedKemandoranLain is empty")
                 }
 
@@ -1445,17 +1544,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         if (shouldLoadKemandoranLain) {
                             setupSpinnerView(layoutPemanenLain, karyawanNames)
                             AppLogger.d("Set up spinner for layoutPemanenLain with ${karyawanNames.size} present workers")
-                        }
-                    } else {
-                        // Handle the case where no present workers are found
-                        if (shouldLoadKemandoran) {
-                            setupSpinnerView(layoutPemanen, emptyList())
-                            AppLogger.d("No present workers found for layoutPemanen")
-                        }
-
-                        if (shouldLoadKemandoranLain) {
-                            setupSpinnerView(layoutPemanenLain, emptyList())
-                            AppLogger.d("No present workers found for layoutPemanenLain")
                         }
                     }
                     delay(100)
@@ -3457,9 +3545,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         var isPrimaryGroupFilled = true
         var isSecondaryGroupFilled = true
 
-        AppLogger.d(blokBanjir.toString())
-        AppLogger.d(selectedTPH.toString())
-
         inputMappings.forEach { (layout, key, inputType) ->
             // Skip validation for kemandoran and pemanen fields initially
             if (layout.id == R.id.layoutKemandoran || layout.id == R.id.layoutPemanen ||
@@ -3671,7 +3756,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     defaultLimit
                 }
 
-            AppLogger.d("limitValue $limitValue" )
+            AppLogger.d("limitValue $limitValue")
             // Now use the properly converted Int value for comparison
             if (currentCount >= limitValue) {
                 isValid = false
@@ -3807,6 +3892,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }
 
                 selectedDivisiValue = selectedDivisiId
+                selectedDivisiValueBackup = selectedDivisiId
 
                 val allIdAfdeling = try {
                     divisiList.map { it.divisi }
@@ -3823,18 +3909,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     AppLogger.e("Error filtering otherDivisiIds: ${e.message}")
                     emptyList()
                 }
-                selectedTahunTanamValue = ""
-                selectedTahunTanamIdSpinner = 0
-                setupSpinnerView(layoutTahunTanam, emptyList())
-                setupSpinnerView(layoutBlok, emptyList())
-                selectedBlok = ""
-                selectedBlokIdSpinner = 0
-                selectedBlokValue = null
-                setupSpinnerView(layoutNoTPH, emptyList())
-                selectedTPH = ""
-                selectedTPHIdSpinner = 0
-                selectedTPHJenisId = null
-                selectedTPHValue  = null
+//                selectedTahunTanamValue = ""
+//                selectedTahunTanamIdSpinner = 0
+//                setupSpinnerView(layoutTahunTanam, emptyList())
+//                setupSpinnerView(layoutBlok, emptyList())
+//                selectedBlok = ""
+//                selectedBlokIdSpinner = 0
+//                selectedBlokValue = null
+//                setupSpinnerView(layoutNoTPH, emptyList())
+//                selectedTPH = ""
+//                selectedTPHIdSpinner = 0
+//                selectedTPHJenisId = null
+//                selectedTPHValue = null
 
                 lifecycleScope.launch(Dispatchers.IO) {
 
@@ -4010,17 +4096,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 //                resetTPHSpinner(linearLayout.rootView)
                 val selectedTahunTanam = selectedItem.toString()
                 selectedTahunTanamValue = selectedTahunTanam
+                selectedTahunTanamValueBackup = selectedTahunTanam
                 selectedTahunTanamIdSpinner = position
 
-                setupSpinnerView(layoutBlok, emptyList())
-                selectedBlok = ""
-                selectedBlokIdSpinner = 0
-                selectedBlokValue = null
-                setupSpinnerView(layoutNoTPH, emptyList())
-                selectedTPH = ""
-                selectedTPHIdSpinner = 0
-                selectedTPHJenisId = null
-                selectedTPHValue  = null
+//                setupSpinnerView(layoutBlok, emptyList())
+//                selectedBlok = ""
+//                selectedBlokIdSpinner = 0
+//                selectedBlokValue = null
+//                setupSpinnerView(layoutNoTPH, emptyList())
+//                selectedTPH = ""
+//                selectedTPHIdSpinner = 0
+//                selectedTPHJenisId = null
+//                selectedTPHValue = null
 
                 val filteredBlokCodes = blokList.filter {
                     val estateIdToUse =
@@ -4054,15 +4141,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     layoutKemandoran.visibility = View.VISIBLE
                     layoutPemanen.visibility = View.VISIBLE
 
-                    setupSpinnerView(layoutBlok, emptyList())
-                    selectedBlok = ""
-                    selectedBlokIdSpinner = 0
-                    selectedBlokValue = null
-                    setupSpinnerView(layoutNoTPH, emptyList())
-                    selectedTPH = ""
-                    selectedTPHIdSpinner = 0
-                    selectedTPHJenisId = null
-                    selectedTPHValue  = null
+                    if (blokBanjir == 1) {
+//                        setupSpinnerView(layoutBlok, emptyList())
+//                        selectedBlok = ""
+//                        selectedBlokIdSpinner = 0
+//                        selectedBlokValue = null
+//                        setupSpinnerView(layoutNoTPH, emptyList())
+//                        selectedTPH = ""
+//                        selectedTPHIdSpinner = 0
+//                        selectedTPHJenisId = null
+//                        selectedTPHValue = null
+
+                    }
 
                     val switchAsistensi =
                         findViewById<LinearLayout>(R.id.layoutSelAsistensi)
@@ -4132,6 +4222,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 if (selectedFieldId != null) {
                     selectedBlokValue = selectedFieldId
+                    selectedBlokValueBackup = selectedFieldId
                     AppLogger.d("Selected Blok ID: $selectedBlokValue")
                 } else {
                     selectedBlokValue = null
@@ -4140,11 +4231,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }
 
 
-                setupSpinnerView(layoutNoTPH, emptyList())
-                selectedTPH = ""
-                selectedTPHIdSpinner = 0
-                selectedTPHJenisId = null
-                selectedTPHValue  = null
+                if(blokBanjir == 1){
+                    setupSpinnerView(layoutNoTPH, emptyList())
+                    selectedTPH = ""
+                    selectedTPHIdSpinner = 0
+                    selectedTPHJenisId = null
+                    selectedTPHValue = null
+                }
+
 
                 // In the handleItemSelection for R.id.layoutBlok
                 lifecycleScope.launch(Dispatchers.IO) {
@@ -4251,6 +4345,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 val selectedText = selectedItem.trim()
                 AppLogger.d("selectedText $selectedText")
                 selectedTPH = selectedText.split(" (").firstOrNull()?.trim() ?: selectedText
+                selectedTPHBackup = selectedText.split(" (").firstOrNull()?.trim() ?: selectedText
                 selectedTPHIdSpinner = position
 
                 val selectionCountMatch = Regex("sudah terpilih (\\d+) kali").find(selectedText)
@@ -4921,7 +5016,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             estate = prefManager!!.estateUserLogin,
             afdeling = selectedAfdeling,
             blok = selectedBlok,
-            tph = selectedTPH
+            tph = selectedTPH,
+            blokBanjir = blokBanjir
         )
     }
 

@@ -82,6 +82,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -268,42 +269,56 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                             try {
                                 val result = withContext(Dispatchers.IO) {
                                     val absensiList = absensiAdapter.getItems()
-                                    val (karyawanMasuk, karyawanTidakMasuk) = absensiList.partition { it.isChecked }
 
-                                    val karyawanMskId = karyawanMasuk.joinToString(",") { it.id.toString() }
-                                    val karyawanTdkMskId = karyawanTidakMasuk.joinToString(",") { it.id.toString() }
-                                    val karyawanNikMasuk = karyawanMasuk.joinToString(",") { it.nik }
-                                    val karyawanNikTidakMasuk = karyawanTidakMasuk.joinToString(",") { it.nik }
-                                    val karyawanMskNama = karyawanMasuk.joinToString(",") { it.namaOnly }
-                                    val karyawanTdkMskNama = karyawanTidakMasuk.joinToString(",") { it.namaOnly }
+                                    // Group by kemandoranId first
+                                    val groupedByKemandoran = absensiList.groupBy { it.kemandoranId }
 
-                                    val dateAbsen =
-                                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
-                                            Date()
-                                        )
+                                    // Create JSON objects for each type of data
+                                    val karyawanMskIdJson = JSONObject()
+                                    val karyawanTdkMskIdJson = JSONObject()
+                                    val karyawanNikMasukJson = JSONObject()
+                                    val karyawanNikTidakMasukJson = JSONObject()
+                                    val karyawanMskNamaJson = JSONObject()
+                                    val karyawanTdkMskNamaJson = JSONObject()
 
-                                    val karyawanMskIdList =
-                                        karyawanMskId.split(",") // Konversi ke List<String>
-                                    val isDuplicate = absensiViewModel.isAbsensiExist(
-                                        dateAbsen,
-                                        karyawanMskIdList
-                                    )
+                                    // Process each kemandoran group
+                                    groupedByKemandoran.forEach { (kemandoranId, karyawanList) ->
+                                        val (karyawanMasuk, karyawanTidakMasuk) = karyawanList.partition { it.isChecked }
+
+                                        // Create data for this kemandoran
+                                        val kemandoranIdStr = kemandoranId.toString()
+
+                                        karyawanMskIdJson.put(kemandoranIdStr, karyawanMasuk.joinToString(",") { it.id.toString() })
+                                        karyawanTdkMskIdJson.put(kemandoranIdStr, karyawanTidakMasuk.joinToString(",") { it.id.toString() })
+                                        karyawanNikMasukJson.put(kemandoranIdStr, karyawanMasuk.joinToString(",") { it.nik })
+                                        karyawanNikTidakMasukJson.put(kemandoranIdStr, karyawanTidakMasuk.joinToString(",") { it.nik })
+                                        karyawanMskNamaJson.put(kemandoranIdStr, karyawanMasuk.joinToString(",") { it.namaOnly })
+                                        karyawanTdkMskNamaJson.put(kemandoranIdStr, karyawanTidakMasuk.joinToString(",") { it.namaOnly })
+                                    }
+
+                                    val dateAbsen = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+
+                                    // For duplicate check, you might want to check all kemandoran or specific ones
+                                    // Here's an example checking all present employees across all kemandoran
+                                    val allKaryawanMasuk = absensiList.filter { it.isChecked }
+                                    val allKaryawanMskIdList = allKaryawanMasuk.map { it.id.toString() }
+
+                                    val isDuplicate = absensiViewModel.isAbsensiExist(dateAbsen, allKaryawanMskIdList)
                                     if (isDuplicate) {
                                         return@withContext SaveDataAbsensiState.Error("Data absensi sudah ada untuk sebagian karyawan.")
                                     }
 
-                                    AppLogger.d("Tgl ${dateAbsen} + idKar ${karyawanMskId}")
+                                    AppLogger.d("Tgl ${dateAbsen} + JSON Structure Created")
+                                    AppLogger.d("karyawanMskIdJson: ${karyawanMskIdJson.toString()}")
 
                                     val listKemandoran = (filteredKemandoranId + selectedKemandoranIds + filteredKemandoranIdLain + selectedKemandoranIdsLain)
-                                        .sortedBy { id -> kemandoranList.find { it.id == id }?.divisi_abbr ?: "" } // Urutkan berdasarkan lokasi kerja
-                                        .joinToString(",") // Gabungkan menjadi string
+                                        .sortedBy { id -> kemandoranList.find { it.id == id }?.divisi_abbr ?: "" }
+                                        .joinToString(",")
 
                                     AppLogger.d("Sorted Kemandoran List: $listKemandoran")
 
                                     val photoFilesString = photoFiles.joinToString(";")
                                     val komentarFotoString = komentarFoto.joinToString(";")
-
-                                    AppLogger.d("Tgl ${listKemandoran}")
 
                                     absensiViewModel.saveDataAbsensi(
                                         kemandoran_id = listKemandoran,
@@ -313,12 +328,12 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                         dept_abbr = prefManager!!.estateUserLogin!!,
                                         divisi = selectedDivisiValue.toString(),
                                         divisi_abbr = selectedAfdeling,
-                                        karyawan_msk_id = karyawanMskId,
-                                        karyawan_tdk_msk_id = karyawanTdkMskId,
-                                        karyawan_msk_nik = karyawanNikMasuk,
-                                        karyawan_tdk_msk_nik = karyawanNikTidakMasuk,
-                                        karyawan_msk_nama = karyawanMskNama,
-                                        karyawan_tdk_msk_nama = karyawanTdkMskNama,
+                                        karyawan_msk_id = karyawanMskIdJson.toString(),      // JSON string
+                                        karyawan_tdk_msk_id = karyawanTdkMskIdJson.toString(), // JSON string
+                                        karyawan_msk_nik = karyawanNikMasukJson.toString(),    // JSON string
+                                        karyawan_tdk_msk_nik = karyawanNikTidakMasukJson.toString(), // JSON string
+                                        karyawan_msk_nama = karyawanMskNamaJson.toString(),    // JSON string
+                                        karyawan_tdk_msk_nama = karyawanTdkMskNamaJson.toString(), // JSON string
                                         foto = photoFilesString,
                                         komentar = komentarFotoString,
                                         asistensi = asistensi ?: 0,
@@ -1056,6 +1071,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                     kemandoranId = selectedKemandoranId!!
                                 )
                             }
+
+                            AppLogger.d("absensiList $absensiList")
 
                             withContext(Dispatchers.Main) {
                                 absensiAdapter.updateList(absensiList, append = true, kemandoranName = kemandoranName)

@@ -125,7 +125,12 @@ class UploadProgressCMPDataAdapter(
         when (status) {
             AppUtils.UploadStatusUtils.WAITING -> {
                 stopDotsAnimation(item.id)
-                holder.statusProgress.text = status
+                // Check if this is SinkronisasiData item with data
+                if (item.title.contains(AppUtils.DatasetNames.sinkronisasiRestan) && item.data.isNotEmpty()) {
+                    holder.statusProgress.text = item.data
+                } else {
+                    holder.statusProgress.text = status
+                }
             }
             AppUtils.UploadStatusUtils.UPLOADING -> {
                 startDotsAnimation(item.id, holder)
