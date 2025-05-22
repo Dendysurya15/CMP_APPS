@@ -376,7 +376,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 )
                                             }
 
-                                            val itemsToUpload = listOf(cmpItem)
+                                            val itemsToUpload = listOf(itemToUpload, cmpItem)
                                             val globalIdEspb = listOf(savedItemId)
 
                                             loadingDialog.setMessage(
@@ -848,37 +848,39 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     // Check if we have the new format with tgl field
                     if (parsedData?.tgl != null && !parsedData.tph1.isNullOrEmpty()) {
                         try {
-                            // Get the date from tgl field
-                            val date = parsedData.tgl["0"] ?: ""
+                            // Split tph1 entries
+                            val tph1Entries = parsedData.tph1.split(";")
+                            val reconstructedTph1 = tph1Entries.joinToString(";") { entry ->
+                                val parts = entry.split(",")
+                                if (parts.size >= 3) {
+                                    val id = parts[0]
+                                    val dateIndex = parts[1]
+                                    val time = parts[2]
+                                    val restValues = parts.subList(3, parts.size).joinToString(",")
 
-                            if (date.isNotEmpty()) {
-                                // Split tph1 entries
-                                val tph1Entries = parsedData.tph1.split(";")
-                                val reconstructedTph1 = tph1Entries.joinToString(";") { entry ->
-                                    val parts = entry.split(",")
-                                    if (parts.size >= 3) {
-                                        // Original format: ID,0,TIME,VALUE1,VALUE2
-                                        // New format: ID,DATE TIME,VALUE1,VALUE2
-                                        val id = parts[0]
-                                        val time = parts[2]
-                                        val restValues =
-                                            parts.subList(3, parts.size).joinToString(",")
+                                    // Get the corresponding date from tgl using the dateIndex
+                                    val date = parsedData.tgl[dateIndex] ?: ""
+
+                                    if (date.isNotEmpty()) {
                                         "$id,$date $time,$restValues"
                                     } else {
+                                        // If no matching date found, keep original entry
                                         entry
                                     }
+                                } else {
+                                    entry
                                 }
-
-                                // Create a "patched" version of the parsed data with the reconstructed tph1
-                                modifiedParsedData = wbQRData(
-                                    espb = parsedData.espb,
-                                    tph0 = parsedData.tph0,
-                                    tph1 = reconstructedTph1,
-                                    tgl = parsedData.tgl
-                                )
-
-                                AppLogger.d("Reconstructed tph1: $reconstructedTph1")
                             }
+
+                            // Create a "patched" version of the parsed data with the reconstructed tph1
+                            modifiedParsedData = wbQRData(
+                                espb = parsedData.espb,
+                                tph0 = parsedData.tph0,
+                                tph1 = reconstructedTph1,
+                                tgl = parsedData.tgl
+                            )
+
+                            AppLogger.d("Reconstructed tph1: $reconstructedTph1")
                         } catch (e: Exception) {
                             AppLogger.e("Error reconstructing tph1 dates: ${e.message}")
                             // Continue with original parsedData if reconstruction fails
@@ -1048,7 +1050,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                     // Join all NIK values with commas
                     val nikValues = nikList.joinToString(",")
-
+AppLogger.d("modifiedParsedData?.tph1 ${modifiedParsedData?.tph1}")
                     // Log and store the result
                     AppLogger.d("Extracted NIK values: $nikValues")
                     globalPemuatNik = nikValues
