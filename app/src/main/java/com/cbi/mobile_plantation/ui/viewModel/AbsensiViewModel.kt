@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AbsensiModel
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
@@ -288,6 +289,8 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
     suspend fun getKaryawanByNikList(nikKaryawan: List<String>): List<KaryawanModel> {
         return repository.getKaryawanByNikList(nikKaryawan)
     }
+
+
 
 //    suspend fun saveDataLokalAbsensi(
 //        kemandoran_id: String,

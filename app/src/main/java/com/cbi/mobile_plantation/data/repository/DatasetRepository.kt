@@ -68,6 +68,11 @@ class DatasetRepository(
 
     suspend fun insertTPH(tph: List<TPHNewModel>) = tphDao.insertTPHAsistensi(tph)
 
+    suspend fun getBlokByDivisiAndDept(divisiId: String, deptId: String): KemandoranModel? {
+        return kemandoranDao.getBlokByDivisiAndDept(divisiId, deptId)
+    }
+
+
     suspend fun getDatasetCount(datasetName: String, deptId: Int? = null): Int {
         return when (datasetName) {
             AppUtils.DatasetNames.pemanen -> karyawanDao.getCount()

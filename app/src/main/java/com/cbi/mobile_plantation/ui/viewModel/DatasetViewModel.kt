@@ -197,6 +197,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
+    suspend fun getBlokByDivisiAndDept(divisiId: String, deptId: String): KemandoranModel? {
+        return repository.getBlokByDivisiAndDept(divisiId, deptId)
+    }
+
+
     fun updateOrInsertEstate(estate: List<EstateModel>) =
         viewModelScope.launch(Dispatchers.IO) {
             try {

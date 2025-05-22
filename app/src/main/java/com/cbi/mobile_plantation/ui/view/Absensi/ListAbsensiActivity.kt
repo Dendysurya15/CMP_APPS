@@ -1438,72 +1438,51 @@ class ListAbsensiActivity : AppCompatActivity() {
             }
 
             val allKemandoran = mutableSetOf<String>()
-            val deptSet = mutableSetOf<String>()        // Replace estateSet
-            val deptAbbrSet = mutableSetOf<String>()    // New field for dept_abbr
-            val divisiSet = mutableSetOf<String>()      // Replace afdelingSet
-            val divisiAbbrSet = mutableSetOf<String>()  // New field for divisi_abbr
+            val deptSet = mutableSetOf<String>()
+            val deptAbbrSet = mutableSetOf<String>()
+            val divisiSet = mutableSetOf<String>()
+            val divisiAbbrSet = mutableSetOf<String>()
             val createdBySet = mutableSetOf<String>()
             val datetimeSet = mutableSetOf<String>()
             val karyawanMskSet = mutableSetOf<String>()
             val karyawanTdkMskSet = mutableSetOf<String>()
-            val karyawanMskIdSet = mutableSetOf<String>() // New field for karyawan_msk_id
-            val karyawanTdkMskIdSet = mutableSetOf<String>() // New field for karyawan_tdk_msk_id
+            val karyawanMskIdSet = mutableSetOf<String>()
+            val karyawanTdkMskIdSet = mutableSetOf<String>()
             val infoSet = mutableSetOf<String>()
-
 
             mappedData.forEach { data ->
                 val idKemandoran = data["id_kemandoran"]?.toString()
                     ?: throw IllegalArgumentException("Missing id_kemandoran.")
 
-                // Renamed from estate to dept_abbr, but still read from "estate" in mappedData
                 val deptAbbr = data["dept_abbr"]?.toString()?.trim() ?: ""
-
-                // Renamed from afdeling to divisi_abbr, but still read from "afdeling" in mappedData
                 val divisiAbbr = data["divisi_abbr"]?.toString()?.trim() ?: ""
-
-                // Try to get dept/divisi from mappedData if available, otherwise use abbr values
                 val dept = data["dept"]?.toString()?.trim() ?: deptAbbr
                 val divisi = data["divisi"]?.toString()?.trim() ?: divisiAbbr
-
                 val createdBy = data["created_by"]?.toString() ?: ""
                 val dateAbsen = data["datetime"]?.toString() ?: ""
+                val info = data["info"]?.toString() ?: ""
 
+                // Get JSON strings for karyawan data
                 val karyawanMskNik = data["karyawan_msk_nik"]?.toString() ?: ""
                 val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
-
-                // Try to get karyawan IDs, if not available use NIK values
-                val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: karyawanMskNik
-                val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: karyawanTdkMskNik
-                val info = data["info"]?.toString() ?: ""
+                val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
+                val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
 
                 // Process id_kemandoran
                 idKemandoran.removeSurrounding("[", "]").split(",")
                     .forEach { allKemandoran.add(it.trim()) }
 
-                // Process karyawan_msk_nik
-                karyawanMskNik.split(",").filter { it.isNotEmpty() }
-                    .forEach { karyawanMskSet.add(it.trim()) }
+                // Extract values from JSON strings and concatenate them
+                extractAndAddFromJson(karyawanMskNik, karyawanMskSet)
+                extractAndAddFromJson(karyawanTdkMskNik, karyawanTdkMskSet)
+                extractAndAddFromJson(karyawanMskId, karyawanMskIdSet)
+                extractAndAddFromJson(karyawanTdkMskId, karyawanTdkMskIdSet)
 
-                // Process karyawan_tdk_msk_nik
-                karyawanTdkMskNik.split(",").filter { it.isNotEmpty() }
-                    .forEach { karyawanTdkMskSet.add(it.trim()) }
-
-                // Process karyawan_msk_id
-                karyawanMskId.split(",").filter { it.isNotEmpty() }
-                    .forEach { karyawanMskIdSet.add(it.trim()) }
-
-                // Process karyawan_tdk_msk_id
-                karyawanTdkMskId.split(",").filter { it.isNotEmpty() }
-                    .forEach { karyawanTdkMskIdSet.add(it.trim()) }
-
-                // Add dept and dept_abbr
+                // Add other data
                 if (dept.isNotEmpty()) deptSet.add(dept)
                 if (deptAbbr.isNotEmpty()) deptAbbrSet.add(deptAbbr)
-
-                // Add datetime
                 if (dateAbsen.isNotEmpty()) datetimeSet.add(dateAbsen)
 
-                // Process divisi and divisi_abbr
                 if (divisi.isNotEmpty()) {
                     divisi.split("\n").forEach { divisiSet.add(it.trim()) }
                 }
@@ -1511,13 +1490,11 @@ class ListAbsensiActivity : AppCompatActivity() {
                     divisiAbbr.split("\n").forEach { divisiAbbrSet.add(it.trim()) }
                 }
 
-                // Add created_by
                 if (createdBy.isNotEmpty()) createdBySet.add(createdBy)
-
                 if (info.isNotEmpty()) infoSet.add(info)
             }
 
-            // Final JSON with updated field names
+            // Final JSON with concatenated values (not JSON structure)
             val jsonObject = JSONObject().apply {
                 put("id_kemandoran", JSONArray(allKemandoran))
                 put("datetime", JSONArray(datetimeSet))
@@ -1538,6 +1515,37 @@ class ListAbsensiActivity : AppCompatActivity() {
 
         } catch (e: Exception) {
             throw IllegalArgumentException("formatPanenDataForQR Error: ${e.message}")
+        }
+    }
+
+    // Helper function to extract values from JSON string and add to set
+    private fun extractAndAddFromJson(jsonString: String, targetSet: MutableSet<String>) {
+        try {
+            if (jsonString.isNotEmpty() && jsonString.startsWith("{")) {
+                val jsonObj = JSONObject(jsonString)
+
+                // Extract all values from all kemandoran and concatenate them
+                jsonObj.keys().forEach { kemandoranId ->
+                    val values = jsonObj.optString(kemandoranId, "")
+                    if (values.isNotEmpty()) {
+                        values.split(",").filter { it.trim().isNotEmpty() }
+                            .forEach { targetSet.add(it.trim()) }
+                    }
+                }
+            } else {
+                // Handle old format (comma-separated values)
+                if (jsonString.isNotEmpty()) {
+                    jsonString.split(",").filter { it.trim().isNotEmpty() }
+                        .forEach { targetSet.add(it.trim()) }
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error extracting from JSON: ${e.message}")
+            // Fallback to treat as comma-separated string
+            if (jsonString.isNotEmpty()) {
+                jsonString.split(",").filter { it.trim().isNotEmpty() }
+                    .forEach { targetSet.add(it.trim()) }
+            }
         }
     }
 
@@ -1870,6 +1878,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                     ?: "-",
                                                 datetime = absensiWithRelations.absensi.date_absen
                                                     ?: "-",
+                                                kemandoran_kode = absensiWithRelations.absensi.kemandoran_id,
                                                 kemandoran = kemandoranKode,
                                                 karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id
                                                     ?: "",
@@ -1893,6 +1902,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 id = absensiWithRelations.absensi.id,
                                                 afdeling = "-",
                                                 datetime = "-",
+                                                kemandoran_kode =  "-",
                                                 kemandoran = "-",
                                                 karyawan_msk_id = "",
                                                 karyawan_tdk_msk_id = "",
@@ -2035,6 +2045,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 ?: "-",
                                             datetime = absensiWithRelations.absensi.date_absen
                                                 ?: "-",
+                                            kemandoran_kode =  absensiWithRelations.absensi.kemandoran_id,
                                             kemandoran = kemandoranNama,
                                             karyawan_msk_id = absensiWithRelations.absensi.karyawan_msk_id
                                                 ?: "",
@@ -2057,6 +2068,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             id = absensiWithRelations.absensi.id,
                                             afdeling = "-",
                                             datetime = "-",
+                                            kemandoran_kode = "-",
                                             kemandoran = "-",
                                             karyawan_msk_id = "",
                                             karyawan_tdk_msk_id = "",
