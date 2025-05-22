@@ -970,13 +970,53 @@ class HomePageActivity : AppCompatActivity() {
                                     ignoreCase = true
                                 )
 
+                                var previewRestanData = ""
                                 val estateIdString = prefManager!!.estateIdUserLogin!!.toInt()
                                 val afdelingIdString = prefManager!!.afdelingIdUserLogin
 
+                                // Add debug logging
+                                AppLogger.d("User role: ${prefManager!!.jabatanUserLogin}")
+                                AppLogger.d("afdelingIdString: $afdelingIdString")
+                                AppLogger.d("isMandor1: $isMandor1")
+                                AppLogger.d("isAsisten: $isAsisten")
 
-                                // Get restan data only if user is Mandor1 or Asisten
-                                var previewRestanData = ""
+                                // Validate afdelingId and get valid integer value
+                                var validAfdelingId: Int? = null
+
                                 if (isMandor1 || isAsisten) {
+                                    AppLogger.d("Validation triggered for Mandor Panen or Asisten")
+
+                                    // Check if afdelingId is null or empty
+                                    if (afdelingIdString.isNullOrEmpty()) {
+                                        AppLogger.d("afdelingId is null or empty - blocking user")
+                                        withContext(Dispatchers.Main) {
+                                            previewRestanData = "Error: Afdeling ID tidak boleh kosong untuk ${prefManager!!.jabatanUserLogin}"
+                                        }
+                                    } else {
+                                        // Try to convert afdelingId to integer
+                                        validAfdelingId = try {
+                                            afdelingIdString.toInt()
+                                        } catch (e: NumberFormatException) {
+                                            AppLogger.d("NumberFormatException caught: ${e.message}")
+                                            null
+                                        }
+
+                                        // If conversion failed, set error message
+                                        if (validAfdelingId == null) {
+                                            AppLogger.d("afdelingId is not a valid integer - blocking user")
+                                            withContext(Dispatchers.Main) {
+                                                previewRestanData = "Error: Afdeling ID harus berupa angka yang valid untuk ${prefManager!!.jabatanUserLogin}. Afdeling ID saat ini: '$afdelingIdString'"
+                                            }
+                                        } else {
+                                            AppLogger.d("Afdeling ID validation passed for ${prefManager!!.jabatanUserLogin}: $validAfdelingId")
+                                        }
+                                    }
+                                } else {
+                                    AppLogger.d("Validation skipped - user is not Mandor 1 or Asisten")
+                                }
+
+                                // Only call API if user is Mandor1/Asisten AND afdelingId is valid
+                                if ((isMandor1 || isAsisten) && validAfdelingId != null) {
                                     // Create a deferred result that will be completed when data is received
                                     val restanDataDeferred = CompletableDeferred<String>()
 
@@ -993,10 +1033,10 @@ class HomePageActivity : AppCompatActivity() {
                                         restanObserver
                                     )
 
-                                    // Start the API request
+                                    // Start the API request with validated afdelingId
                                     datasetViewModel.getPreviewDataRestanWeek(
                                         estateIdString,
-                                        afdelingIdString!!
+                                        validAfdelingId.toString()
                                     )
 
                                     try {
@@ -1024,7 +1064,7 @@ class HomePageActivity : AppCompatActivity() {
                                         // Don't throw here, we'll continue with empty previewRestanData
                                     }
                                 } else {
-                                    AppLogger.d("User is not Mandor1 or Asisten, skipping restan data fetch")
+                                    AppLogger.d("Skipping restan data fetch - either user is not Mandor1/Asisten or afdelingId is invalid")
                                 }
 
                                 // Wait for estates list with timeout
@@ -1035,8 +1075,6 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 withContext(Dispatchers.Main) {
-
-                                    AppLogger.d("masuk gessss")
                                     startDownloads(previewRestanData)
                                 }
                             } catch (e: Exception) {
@@ -4062,6 +4100,7 @@ class HomePageActivity : AppCompatActivity() {
         // Create upload items from dataset requests (we'll reuse the existing adapter)
         val downloadItems = mutableListOf<UploadCMPItem>()
 
+        AppLogger.d("previewDataRestan $previewDataRestan")
         var itemId = 0
         datasetRequests.forEach { request ->
             val itemTitle = if (!request.estateAbbr.isNullOrEmpty()) {
@@ -4446,7 +4485,6 @@ class HomePageActivity : AppCompatActivity() {
             if (filteredRequests.isNotEmpty()) {
                 if (isTriggerButtonSinkronisasiData) {
 
-                    AppLogger.d("masuk sini gak sih ")
                     startDownloadsV2(filteredRequests, previewDataRestan)
                 } else {
                     dialog.show()

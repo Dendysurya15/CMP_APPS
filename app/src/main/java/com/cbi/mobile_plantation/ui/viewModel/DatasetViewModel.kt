@@ -913,6 +913,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             for (index in requests.indices) {
                 var request = mutableRequests[index]
                 val itemId = downloadItems[index].id
+
                 AppLogger.d("Processing request $index: estate=${request.estateAbbr}, dataset=${request.dataset}")
 
                 // Use DOWNLOADING status
@@ -929,6 +930,30 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         AppLogger.d("Settings values missing in prefManager, forcing re-download")
                         request = request.copy(lastModified = null)
                         mutableRequests[index] = request
+                    }
+                }
+
+                // Check for sinkronisasiRestan with error data - skip API call if error detected
+                if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
+                    val downloadItem = downloadItems[index]
+                    val itemData = downloadItem.data
+
+                    AppLogger.d("downloadItem.data: $itemData")
+
+                    if (itemData.contains("Error", ignoreCase = true)) {
+                        AppLogger.d("Skipping sinkronisasiRestan API call due to error in data: $itemData")
+
+                        // Set progress to 100% and status to UP_TO_DATE
+                        progressMap[itemId] = 100
+                        statusMap[itemId] = AppUtils.UploadStatusUtils.UPTODATE
+                        errorMap[itemId] = itemData
+
+                        _itemProgressMap.postValue(progressMap.toMap())
+                        _itemStatusMap.postValue(statusMap.toMap())
+                        _itemErrorMap.postValue(errorMap.toMap())
+
+                        incrementCompletedCount()
+                        continue // Skip to next item
                     }
                 }
 

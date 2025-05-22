@@ -11,6 +11,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import java.io.File
 
@@ -165,7 +166,11 @@ class UploadProgressCMPDataAdapter(
                 holder.iconStatus.visibility = View.INVISIBLE
                 holder.loadingCircular.visibility = View.INVISIBLE
                 holder.statusProgress.visibility = View.VISIBLE
-                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
+                if (item.data.contains("Error:", ignoreCase = true)) {
+                    holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.colorRedDark))
+                } else {
+                    holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
+                }
             }
             AppUtils.UploadStatusUtils.UPLOADING -> {
                 holder.iconStatus.visibility = View.INVISIBLE
