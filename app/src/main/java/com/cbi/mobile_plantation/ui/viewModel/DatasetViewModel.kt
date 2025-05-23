@@ -1638,6 +1638,47 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     status0Count++
                                     if (spbKode.isNullOrEmpty()) {
                                         status0WithNullSpb++
+
+                                        // ADD THE ENTITY TO PANEN LIST HERE - Only for status_espb=0 with null spb_kode
+                                        val jjgJson = "{\"KP\":$jjgKirim}"
+                                        AppLogger.d("Creating entity for insert/update: tphId=$tphId, date=$createdDate, jjgJson=$jjgJson")
+
+                                        // Create a PanenEntity with the required fields
+                                        val panenEntity = PanenEntity(
+                                            tph_id = tphId.toString(),
+                                            date_created = createdDate,
+                                            created_by = 0,
+                                            karyawan_id = "",
+                                            kemandoran_id = "",
+                                            karyawan_nik = "",
+                                            karyawan_nama = "",
+                                            jjg_json = jjgJson,
+                                            foto = "",
+                                            komentar = "",
+                                            asistensi = 0,
+                                            lat = 0.0,
+                                            lon = 0.0,
+                                            jenis_panen = 0,
+                                            ancak = 0,
+                                            info = "",
+                                            archive = 0,
+                                            status_banjir = 0,
+                                            status_espb = 0,
+                                            status_restan = 1,
+                                            scan_status = 1,
+                                            dataIsZipped = 0,
+                                            no_espb = spbKode ?: "",
+                                            username = "",
+                                            status_upload = 0,
+                                            status_uploaded_image = "0",
+                                            status_pengangkutan = 0,
+                                            status_insert_mpanen = 0,
+                                            status_scan_mpanen = 0,
+                                            jumlah_pemanen = 0,
+                                            archive_mpanen = 0
+                                        )
+
+                                        panenList.add(panenEntity)
                                     } else {
                                         status0WithNonNullSpb++
                                         // Log some examples
@@ -1746,6 +1787,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 }
 
                                 // STEP 2: Insert or Update records that should be in local DB
+
+                                AppLogger.d("panenList $panenList")
                                 if (panenList.isNotEmpty()) {
                                     AppLogger.d("Processing ${panenList.size} records for insert/update...")
 
@@ -1816,8 +1859,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 progressMap[itemId] = 100
                                 _itemProgressMap.postValue(progressMap.toMap())
 
-                                // Set the status based on the result
-                                if (failCount == 0) {
+                                if (panenList.isEmpty() && recordsToDelete.isEmpty()) {
+                                    // No records to process - everything is up to date
+                                    statusMap[itemId] = AppUtils.UploadStatusUtils.UPTODATE
+                                    AppLogger.d("No records to process - dataset is up to date")
+                                } else if (failCount == 0) {
                                     statusMap[itemId] = if (isDownloadDataset) {
                                         AppUtils.UploadStatusUtils.DOWNLOADED
                                     } else {
@@ -1826,11 +1872,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 } else if (successCount > 0 || deleteCount > 0) {
                                     // Partial success
                                     statusMap[itemId] = AppUtils.UploadStatusUtils.UPDATED
-                                    errorMap[itemId] = "Partial success: $failCount/${panenList.size + deleteCount} records failed"
+                                    errorMap[itemId] = "Partial success: $failCount/${panenList.size + recordsToDelete.size} records failed"
                                 } else {
                                     // Complete failure
                                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
-                                    errorMap[itemId] = "Failed to process restan data: $failCount/${panenList.size + deleteCount} records failed"
+                                    errorMap[itemId] = "Failed to process restan data: $failCount/${panenList.size + recordsToDelete.size} records failed"
                                 }
                             } catch (e: Exception) {
                                 progressMap[itemId] = 100  // Still show 100% even on error
