@@ -626,8 +626,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
                 findViewById<HorizontalScrollView>(R.id.horizontalCardFeature).visibility =
                     View.GONE
-            }
-            else if (featureName == "Rekap panen dan restan") {
+            } else if (featureName == "Rekap panen dan restan") {
 
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
                 findViewById<TextView>(R.id.tv_card_tersimpan).text = "Rekap TPH"
@@ -641,8 +640,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val headerCheckBoxPanen = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
                 headerCheckBoxPanen.visibility = View.GONE
-            }
-            else if (featureName == "Detail eSPB") {
+            } else if (featureName == "Detail eSPB") {
                 val btnEditEspb = findViewById<FloatingActionButton>(R.id.btnEditEspb)
                 btnEditEspb.visibility = View.VISIBLE
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
@@ -837,8 +835,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     }
                 }
 
-            }
-            else {
+            } else {
 
                 val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
@@ -947,7 +944,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
             flCheckBoxTableHeaderLayout.visibility = View.GONE
 
-            if(featureName != AppUtils.ListFeatureNames.DetailESPB){
+            if (featureName != AppUtils.ListFeatureNames.DetailESPB) {
                 speedDial.visibility =
                     if (listAdapter.getSelectedItems().isNotEmpty()) View.VISIBLE else View.GONE
             }
@@ -980,7 +977,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             } else if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                 loadingDialog.setMessage("Loading data per transaksi", true)
                 panenViewModel.getAllPanenWhereESPB(noespb)
-            }else {
+            } else {
 //                flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
 //                headerCheckBox.visibility = View.VISIBLE
                 loadingDialog.setMessage("Loading data tersimpan", true)
@@ -1004,7 +1001,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
                 val standardHeaders = listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
                 updateTableHeaders(standardHeaders)
-            }else if(featureName == AppUtils.ListFeatureNames.DetailESPB){
+            } else if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                 //untuk rekap per blok
                 val rekapHeaders =
                     listOf(
@@ -1021,7 +1018,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             tvEmptyState.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
 
-            if (featureName != AppUtils.ListFeatureNames.DetailESPB){
+            if (featureName != AppUtils.ListFeatureNames.DetailESPB) {
                 speedDial.visibility = View.GONE
             }
 
@@ -1163,7 +1160,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadDataPerBlokDetailESPB(){
+    private fun loadDataPerBlokDetailESPB() {
         espbViewModel.getESPBById(espbId)
 
         espbViewModel.espbEntity.observe(this@ListPanenTBSActivity) { espbWithRelations ->
@@ -2482,9 +2479,201 @@ class ListPanenTBSActivity : AppCompatActivity() {
             counterPerPemanen.text = count.toString()
         }
 
+        panenViewModel.detailESPb.observe(this) { panenList ->
+            listAdapter.updateData(emptyList())
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                loadingDialog.dismiss()
+                lifecycleScope.launch {
+
+                    if (panenList.isNotEmpty()) {
+                        AppLogger.d(panenList.toString())
+
+                        val processedDataList = mutableListOf<Map<String, Any>>()
+                        var incrementalId = 1 // Start from 1
+
+                        // Loop through each ESPB record
+                        for (espbEntity in panenList) {
+                            val tph1Data = espbEntity.tph1
+
+                            if (!tph1Data.isNullOrEmpty()) {
+                                // Split by semicolon to get individual TPH records
+                                val tphRecords = tph1Data.split(";")
+
+                                for (tphRecord in tphRecords) {
+                                    if (tphRecord.isNotEmpty()) {
+                                        // Split each record by comma
+                                        val parts = tphRecord.split(",")
+
+                                        if (parts.size >= 3) { // Changed to >= 3 to ensure we have the third index
+                                            val tphId = parts[0].trim()
+                                            val dateCreated = parts[1].trim()
+                                            val kpValue = parts[2].trim() // Third index for KP value
+
+                                            // Create JSON for jjg_json
+                                            val jjgJson = "{\"KP\": $kpValue}"
+
+                                            try {
+                                                // Convert tphId to Int for the query
+                                                val tphIdInt = tphId.toIntOrNull()
+
+                                                if (tphIdInt != null) {
+                                                    // Fetch TPH and Blok info from database through ViewModel
+                                                    val tphBlokInfo = panenViewModel.getTPHAndBlokInfo(tphIdInt)
+
+                                                    val standardData = mapOf<String, Any>(
+                                                        "id" to incrementalId.toString(), // Incremental ID as string
+                                                        "tph_id" to tphId,
+                                                        "date_created" to dateCreated,
+                                                        "blok_name" to (tphBlokInfo?.blokKode ?: "Unknown"),
+                                                        "nomor" to (tphBlokInfo?.tphNomor ?: "Unknown"),
+                                                        "created_by" to "", // Empty as requested
+                                                        "jjg_json" to jjgJson, // JSON with KP value
+                                                        "foto" to "", // Empty as requested
+                                                        "komentar" to "", // Empty as requested
+                                                        "asistensi" to "", // Empty as requested
+                                                        "lat" to "", // Empty as requested
+                                                        "lon" to "", // Empty as requested
+                                                        "jenis_panen" to "", // Empty as requested
+                                                        "ancak" to "", // Empty as requested
+                                                        "archive" to "", // Empty as requested
+                                                        "nama_estate" to "", // Empty as requested
+                                                        "nama_afdeling" to "", // Empty as requested
+                                                        "blok_banjir" to "", // Empty as requested
+                                                        "tahun_tanam" to "", // Empty as requested
+                                                        "nama_karyawans" to "", // Empty as requested
+                                                        "nama_kemandorans" to "", // Empty as requested
+                                                        "username" to "" // Empty as requested
+                                                    )
+
+                                                    processedDataList.add(standardData)
+                                                    incrementalId++ // Increment for next record
+
+                                                    AppLogger.d("Processed TPH: ID=${incrementalId - 1}, TPH_ID=$tphId, Date=$dateCreated, KP=$kpValue, JSON=$jjgJson, Blok=${tphBlokInfo?.blokKode}, Nomor=${tphBlokInfo?.tphNomor}")
+                                                } else {
+                                                    AppLogger.w("Invalid TPH ID: $tphId")
+                                                }
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error processing TPH record: $tphRecord, Error: ${e.message}")
+                                            }
+                                        } else {
+                                            AppLogger.w("Invalid TPH record format (missing KP value): $tphRecord")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Check current state and process accordingly
+                        if (currentState == 0) {
+                            // State 0: Show individual TPH records
+                            mappedData = processedDataList
+                            listAdapter.updateData(processedDataList)
+                        } else if (currentState == 1) {
+                            // State 1: Merge by blok (similar to your existing merge logic)
+                            val globalMergedBlokMap = mutableMapOf<String, MutableMap<String, Any>>()
+                            val jjgTypes = listOf("KP") // Only KP for restan data
+
+                            for (blokData in processedDataList) {
+                                val blokName = blokData["blok_name"].toString()
+                                val tphId = blokData["tph_id"].toString()
+                                val jjgJson = JSONObject(blokData["jjg_json"].toString())
+
+                                // Extract KP value
+                                val jjgValues = jjgTypes.associateWith { type ->
+                                    jjgJson.optDouble(type, 0.0)
+                                }
+
+                                if (globalMergedBlokMap.containsKey(blokName)) {
+                                    val existingBlokData = globalMergedBlokMap[blokName]!!
+                                    val existingJjgJson = JSONObject(existingBlokData["jjg_json"].toString())
+
+                                    // Update KP value in the existing JSON
+                                    for (type in jjgTypes) {
+                                        val existingValue = existingJjgJson.optDouble(type, 0.0)
+                                        val newValue = jjgValues[type] ?: 0.0
+                                        val totalValue = existingValue + newValue
+                                        existingJjgJson.put(type, totalValue)
+                                    }
+
+                                    // Update the JJG JSON in the existing blok data
+                                    existingBlokData["jjg_json"] = existingJjgJson.toString()
+
+                                    // For restan, use KP as the total
+                                    val newTotalKP = existingJjgJson.optDouble("KP", 0.0)
+                                    existingBlokData["jjg_total"] = if (newTotalKP == newTotalKP.toInt().toDouble()) {
+                                        newTotalKP.toInt().toString()
+                                    } else {
+                                        String.format(Locale.US, "%.1f", newTotalKP)
+                                    }
+
+                                    existingBlokData["jjg_dibayar"] = existingBlokData["jjg_total"].toString() // Fix: Convert to string
+
+                                    val existingTransactions = (existingBlokData["jumlah_transaksi"]?.toString()?.toIntOrNull() ?: 1) + 1
+                                    existingBlokData["jumlah_transaksi"] = existingTransactions.toString()
+
+                                    val tphIds = (existingBlokData["tph_ids"]?.toString() ?: "").split(",")
+                                        .filter { it.isNotEmpty() }.toMutableSet()
+                                    tphIds.add(tphId) // Fix: Changed from tephId to tphId
+                                    existingBlokData["tph_ids"] = tphIds.joinToString(",")
+                                    existingBlokData["tph_count"] = tphIds.size.toString()
+
+                                    existingBlokData["jjg_each_blok"] = "${existingBlokData["jjg_total"]} (${existingBlokData["jjg_dibayar"]})"
+
+                                } else {
+                                    // This is a new blok, create a new entry
+                                    val mutableBlokData = blokData.toMutableMap()
+
+                                    // Format the KP value
+                                    val jjgKP = jjgValues["KP"] ?: 0.0
+                                    val formattedJjgKP = if (jjgKP == jjgKP.toInt().toDouble()) {
+                                        jjgKP.toInt().toString()
+                                    } else {
+                                        String.format(Locale.US, "%.1f", jjgKP)
+                                    }
+
+                                    // Add blok-specific fields
+                                    mutableBlokData["jjg_total"] = formattedJjgKP
+                                    mutableBlokData["jjg_dibayar"] = formattedJjgKP // Same as total for restan
+                                    mutableBlokData["jumlah_transaksi"] = "1"
+                                    mutableBlokData["tph_ids"] = tphId
+                                    mutableBlokData["tph_count"] = "1"
+                                    mutableBlokData["jjg_each_blok"] = "$formattedJjgKP ($formattedJjgKP)"
+
+                                    // Empty worker tracking for restan
+                                    mutableBlokData["nama_karyawans_all"] = ""
+                                    mutableBlokData["karyawan_count"] = "0"
+                                    mutableBlokData["nama_kemandorans_all"] = ""
+
+                                    globalMergedBlokMap[blokName] = mutableBlokData
+                                }
+                            }
+
+                            val finalMergedData = globalMergedBlokMap.values.toList().sortedBy {
+                                it["blok_name"].toString()
+                            }
+
+                            listAdapter.updateData(finalMergedData)
+                        }
+
+                        originalData = emptyList() // Reset original data when new data is loaded
+                        filterSection.visibility = View.GONE // Hide filter section for new data
+
+                    } else {
+                        val emptyStateMessage = "Tidak ada data"
+                        tvEmptyState.text = emptyStateMessage
+                        tvEmptyState.visibility = View.VISIBLE
+                        recyclerView.visibility = View.GONE
+                        blokSection.visibility = View.GONE
+                        totalSection.visibility = View.GONE
+                    }
+                }
+            }, 500)
+        }
+
         panenViewModel.activePanenList.observe(this) { panenList ->
 
-            if (currentState == 0 || currentState ==1 || currentState == 2 || currentState == 3) {
+            if (currentState == 0 || currentState == 1 || currentState == 2 || currentState == 3) {
                 listAdapter.updateData(emptyList())
                 Handler(Looper.getMainLooper()).postDelayed({
                     loadingDialog.dismiss()
@@ -2677,8 +2866,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     allWorkerData.addAll(multiWorkerData)
 
                                     emptyList<Map<String, Any>>()
-                                }
-                                else {
+                                } else {
                                     val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
                                         .map { it.trim() }
                                         .filter { it.isNotEmpty() }
@@ -2903,8 +3091,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     }
 
                                 mappedData = finalMergedData
-                            }
-                            else if ((featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 3) || (featureName == AppUtils.ListFeatureNames.DetailESPB && currentState == 1)) {
+                            } else if ((featureName == AppUtils.ListFeatureNames.RekapHasilPanen && currentState == 3) || (featureName == AppUtils.ListFeatureNames.DetailESPB && currentState == 1)) {
                                 val globalMergedBlokMap =
                                     mutableMapOf<String, MutableMap<String, Any>>()
 
@@ -3095,8 +3282,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
                                 mappedData = finalMergedData
-                            }
-                            else {
+                            } else {
                                 mappedData = allWorkerData
                             }
 
@@ -4039,10 +4225,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val titleTotalJjg: TextView = findViewById(R.id.titleTotalJjg)
         val headers = if (featureName == "Buat eSPB") {
             listOf("BLOK", "NO TPH/JJG", "JAM", "KP")
-        }else if(featureName == "Detail eSPB"){
+        } else if (featureName == "Detail eSPB") {
             listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
-        }
-        else {
+        } else {
             listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
         }
         updateTableHeaders(headers)

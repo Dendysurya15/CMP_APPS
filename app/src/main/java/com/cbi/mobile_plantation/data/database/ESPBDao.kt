@@ -24,6 +24,9 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table WHERE noESPB = :noEspb LIMIT 1")
     abstract suspend fun getEspbByNumber(noEspb: String): ESPBEntity?
 
+    @Transaction
+    @Query("SELECT * FROM espb_table WHERE noESPB = :no_espb")
+    abstract fun getAllPanenWhereESPB(no_espb: String): List<ESPBEntity>
 
     //    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
     @Query("SELECT * FROM espb_table where scan_status = 1")

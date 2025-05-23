@@ -43,7 +43,6 @@ class RestanRepository(
                 put("created_date")
                 put("jjg_kirim")
                 put("spb_kode")
-                put("CONCAT('{\"KP\":', jjg_kirim, '}') AS jjg_kirim_original")
                 put("status_espb")
             })
 

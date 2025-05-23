@@ -947,10 +947,10 @@ class AppRepository(context: Context) {
         panenDao.getAll()
     }
 
-    suspend fun getAllPanenWhereESPB(no_esp: String): Result<List<PanenEntityWithRelations>> =
+    suspend fun getAllPanenWhereESPB(no_esp: String): Result<List<ESPBEntity>> =
         withContext(Dispatchers.IO) {
             try {
-                val data = panenDao.getAllPanenWhereESPB(no_esp)
+                val data = espbDao.getAllPanenWhereESPB(no_esp)
                 Result.success(data)
             } catch (e: Exception) {
                 Result.failure(e)
