@@ -2906,17 +2906,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         defaultLimit
                     }
                 } else {
-                    // For other jenis_tph_id values
-                    try {
-                        val customLimit = tphData?.limitTPH?.toInt()
-                        if (customLimit != null) {
-                            customLimit
-                        } else {
-                            defaultLimit
-                        }
-                    } catch (e: Exception) {
-                        defaultLimit
-                    }
+                    defaultLimit
                 }
 
             // Include if within radius OR is the currently selected TPH
@@ -4231,7 +4221,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }
 
 
-                if(blokBanjir == 1){
+                if (blokBanjir == 1) {
                     setupSpinnerView(layoutNoTPH, emptyList())
                     selectedTPH = ""
                     selectedTPHIdSpinner = 0
