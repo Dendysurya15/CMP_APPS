@@ -50,6 +50,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -311,6 +313,26 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             // Convert the wrapped data to JSON
                                             val espbJson = Gson().toJson(wrappedEspbData)
 
+//                                            try {
+//                                                val tempDir =
+//                                                    File(getExternalFilesDir(null), "TEMP").apply {
+//                                                        if (!exists()) mkdirs()
+//                                                    }
+//
+//                                                val filename =
+//                                                    "espb_scan_wb_data_${System.currentTimeMillis()}.json"
+//                                                val tempFile = File(tempDir, filename)
+//
+//                                                FileOutputStream(tempFile).use { fos ->
+//                                                    fos.write(espbJson.toByteArray())
+//                                                }
+//
+//                                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
+//                                            } catch (e: Exception) {
+//                                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
+//                                                e.printStackTrace()
+//                                            }
+
                                             val uploadDataList =
                                                 mutableListOf<Pair<String, List<Map<String, Any>>>>()
                                             val espbDataAsAny = espbData as Map<String, Any>
@@ -341,6 +363,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                                             val (zipSuccess, zipPath) = zipDeferred.await()
                                             var cmpItem: Map<String, Any>? = null
+
+
 
                                             if (zipSuccess) {
                                                 weightBridgeViewModel.updateDataIsZippedESPB(
@@ -376,6 +400,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 )
                                             }
 
+//                                            val itemsToUpload = listOf(itemToUpload, cmpItem)
                                             val itemsToUpload = listOf(itemToUpload, cmpItem)
                                             val globalIdEspb = listOf(savedItemId)
 
@@ -740,7 +765,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         lifecycleScope.launch {
             withContext(Dispatchers.Main) {
                 loadingDialog.show()
-                loadingDialog.setMessage("Sedang verifikasi data QR ",true)
+                loadingDialog.setMessage("Sedang verifikasi data QR ", true)
                 delay(500)
             }
             try {
@@ -830,6 +855,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             }
         })
     }
+
     // Separate function for continuing QR processing after duplicate check
     private fun continueQRProcessing(jsonStr: String) {
         lifecycleScope.launch {
@@ -1050,7 +1076,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                     // Join all NIK values with commas
                     val nikValues = nikList.joinToString(",")
-AppLogger.d("modifiedParsedData?.tph1 ${modifiedParsedData?.tph1}")
+                    AppLogger.d("modifiedParsedData?.tph1 ${modifiedParsedData?.tph1}")
                     // Log and store the result
                     AppLogger.d("Extracted NIK values: $nikValues")
                     globalPemuatNik = nikValues

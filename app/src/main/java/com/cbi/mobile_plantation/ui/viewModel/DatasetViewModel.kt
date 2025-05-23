@@ -1590,10 +1590,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     progressMap[itemId] = 60
                     _itemProgressMap.postValue(progressMap.toMap())
 
-                    // Format the data for display
-                    val formattedRestanData = processPreviewDataRestanUI(responseBodyString)
-                    AppLogger.d("Formatted Restan Data: $formattedRestanData")
-
                     // Parse the JSON response to extract the restan data
                     val jsonObject = JSONObject(responseBodyString)
 
@@ -1606,18 +1602,27 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         progressMap[itemId] = 70
                         _itemProgressMap.postValue(progressMap.toMap())
 
-                        // Process each record from the response
-                        // Process each record from the response
+                        // Add this debugging code in your processing loop
+// Process each record from the response
+                        var status0Count = 0
+                        var status1Count = 0
+                        var status2Count = 0
+                        var status0WithNullSpb = 0
+                        var status0WithNonNullSpb = 0
+
+// NEW: Check for data inconsistencies
+                        var status1WithNullSpb = 0
+                        var status2WithNullSpb = 0
+                        var status1WithNonNullSpb = 0
+                        var status2WithNonNullSpb = 0
+
                         for (i in 0 until dataArray.length()) {
                             val item = dataArray.getJSONObject(i)
-
-                            // Log the entire item to see its structure
-                            AppLogger.d("Record $i: ${item.toString()}")
 
                             // Extract required fields
                             val tphId = item.optString("tph", "")
                             val createdDate = item.optString("created_date", "")
-                            val statusEspb = item.optInt("status_espb", -1) // Default to -1 to detect if field is missing
+                            val statusEspb = item.optInt("status_espb", -1)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
 
                             // For spb_kode, check specifically for null vs. empty string
@@ -1627,63 +1632,78 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 null
                             }
 
-                            AppLogger.d("Extracted values - tphId: $tphId, createdDate: $createdDate, statusEspb: $statusEspb, spbKode: $spbKode")
-
-                            // Check if values are valid
-                            if (tphId.isEmpty() || createdDate.isEmpty() || statusEspb == -1) {
-                                AppLogger.e("Invalid record data, skipping: tphId=$tphId, date=$createdDate, statusEspb=$statusEspb")
-                                continue
+                            // Count status_espb values and check spb_kode relationship
+                            when (statusEspb) {
+                                0 -> {
+                                    status0Count++
+                                    if (spbKode.isNullOrEmpty()) {
+                                        status0WithNullSpb++
+                                    } else {
+                                        status0WithNonNullSpb++
+                                        // Log some examples
+                                        if (status0WithNonNullSpb <= 3) {
+                                            AppLogger.d("Status_espb=0 with spb_kode: '$spbKode' (tph: $tphId)")
+                                        }
+                                    }
+                                }
+                                1 -> {
+                                    status1Count++
+                                    if (spbKode.isNullOrEmpty()) {
+                                        status1WithNullSpb++
+                                        // This should be rare/impossible - log these cases
+                                        AppLogger.w("⚠️ INCONSISTENCY: Status_espb=1 but spb_kode is NULL/empty (tph: $tphId, date: $createdDate)")
+                                    } else {
+                                        status1WithNonNullSpb++
+                                        // Log some examples
+                                        if (status1WithNonNullSpb <= 3) {
+                                            AppLogger.d("Status_espb=1 with spb_kode: '$spbKode' (tph: $tphId)")
+                                        }
+                                    }
+                                }
+                                2 -> {
+                                    status2Count++
+                                    if (spbKode.isNullOrEmpty()) {
+                                        status2WithNullSpb++
+                                        // This should be rare/impossible - log these cases
+                                        AppLogger.w("⚠️ INCONSISTENCY: Status_espb=2 but spb_kode is NULL/empty (tph: $tphId, date: $createdDate)")
+                                    } else {
+                                        status2WithNonNullSpb++
+                                        // Log some examples
+                                        if (status2WithNonNullSpb <= 3) {
+                                            AppLogger.d("Status_espb=2 with spb_kode: '$spbKode' (tph: $tphId)")
+                                        }
+                                    }
+                                }
                             }
 
-                            // Check if this record should be deleted from local DB
-                            if (statusEspb == 1 || statusEspb == 2 || !spbKode.isNullOrEmpty()) {
-                                AppLogger.d("Record added to delete list: statusEspb=$statusEspb, spbKode=$spbKode")
-                                recordsToDelete.add(Pair(tphId.toString(), createdDate))
-                                continue
-                            }
-
-                            // Create the jjg_json string in the format: {"KP":value}
-                            val jjgJson = "{\"KP\":$jjgKirim}"
-
-                            AppLogger.d("Creating entity for insert/update: tphId=$tphId, date=$createdDate, jjgJson=$jjgJson")
-
-                            // Create a PanenEntity with the required fields
-                            val panenEntity = PanenEntity(
-                                tph_id = tphId.toString(),
-                                date_created = createdDate,
-                                created_by = 0,
-                                karyawan_id = "",
-                                kemandoran_id = "",
-                                karyawan_nik = "",
-                                karyawan_nama = "",
-                                jjg_json = jjgJson,
-                                foto = "",
-                                komentar = "",
-                                asistensi = 0,
-                                lat = 0.0,
-                                lon = 0.0,
-                                jenis_panen = 0,
-                                ancak = 0,
-                                info = "",
-                                archive = 0,
-                                status_banjir = 0,
-                                status_espb = 0,
-                                status_restan = 1,
-                                scan_status = 1,
-                                dataIsZipped = 0,
-                                no_espb = spbKode ?: "NULL",
-                                username = "NULL",
-                                status_upload = 0,
-                                status_uploaded_image = "0",
-                                status_pengangkutan = 0,
-                                status_insert_mpanen = 0,
-                                status_scan_mpanen = 0,
-                                jumlah_pemanen = 1,
-                                archive_mpanen = 0
-                            )
-
-                            panenList.add(panenEntity)
+                            // ... rest of your processing logic
                         }
+
+// Enhanced summary with spb_kode relationship check
+                        AppLogger.d("=== RESTAN PROCESSING SUMMARY ===")
+                        AppLogger.d("Total records processed: ${dataArray.length()}")
+                        AppLogger.d("Status_espb = 0: $status0Count")
+                        AppLogger.d("  - With null/empty spb_kode: $status0WithNullSpb (will INSERT/UPDATE)")
+                        AppLogger.d("  - With non-null spb_kode: $status0WithNonNullSpb (will DELETE)")
+                        AppLogger.d("Status_espb = 1: $status1Count")
+                        AppLogger.d("  - With null/empty spb_kode: $status1WithNullSpb (⚠️ INCONSISTENT)")
+                        AppLogger.d("  - With non-null spb_kode: $status1WithNonNullSpb (normal)")
+                        AppLogger.d("Status_espb = 2: $status2Count")
+                        AppLogger.d("  - With null/empty spb_kode: $status2WithNullSpb (⚠️ INCONSISTENT)")
+                        AppLogger.d("  - With non-null spb_kode: $status2WithNonNullSpb (normal)")
+                        AppLogger.d("Records to INSERT/UPDATE: ${panenList.size}")
+                        AppLogger.d("Records to DELETE: ${recordsToDelete.size}")
+
+// Data consistency check
+                        if (status1WithNullSpb > 0 || status2WithNullSpb > 0) {
+                            AppLogger.e("🚨 DATA INCONSISTENCY DETECTED!")
+                            AppLogger.e("Found ${status1WithNullSpb} records with status_espb=1 but null spb_kode")
+                            AppLogger.e("Found ${status2WithNullSpb} records with status_espb=2 but null spb_kode")
+                            AppLogger.e("This suggests data quality issues in the backend!")
+                        } else {
+                            AppLogger.d("✅ Data consistency check passed - no inconsistencies found")
+                        }
+                        AppLogger.d("==================================")
 
                         // Update to 80% when processing is complete
                         progressMap[itemId] = 80
@@ -1691,30 +1711,30 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                         withContext(Dispatchers.IO) {
                             try {
-                                // Insert the data into the local database
                                 var successCount = 0
                                 var failCount = 0
                                 var deleteCount = 0
 
+                                // STEP 1: Delete records that should be removed from local DB
                                 if (recordsToDelete.isNotEmpty()) {
-                                    // Improved way to delete records without loading all records
+                                    AppLogger.d("Processing ${recordsToDelete.size} records for deletion...")
+
                                     for (recordToDelete in recordsToDelete) {
                                         val (tphId, dateCreated) = recordToDelete
 
-                                        // Check if the record exists
+                                        // Check if the record exists in local DB
                                         val exists = panenDao.exists(tphId, dateCreated)
 
                                         if (exists) {
                                             try {
-                                                // Get the record by TPH ID and date
-                                                // You'll need to add this method to your DAO
+                                                // Get the record ID
                                                 val recordId = panenDao.getIdByTphIdAndDateCreated(tphId, dateCreated)
 
                                                 if (recordId > 0) {
-                                                    // Delete by ID
+                                                    // Delete the record
                                                     panenDao.deleteById(recordId)
                                                     deleteCount++
-                                                    AppLogger.d("Deleted record with TPH ID: $tphId, date: $dateCreated")
+                                                    AppLogger.d("Deleted record: TPH=$tphId, date=$dateCreated")
                                                 }
                                             } catch (e: Exception) {
                                                 AppLogger.e("Error deleting record: ${e.message}")
@@ -1722,63 +1742,75 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                     }
 
-                                    AppLogger.d("Deleted $deleteCount records with status_espb 1/2 or non-null spb_kode")
+                                    AppLogger.d("Deleted $deleteCount records from local DB")
                                 }
 
-                                // Now process the records to insert or update
-                                for (panen in panenList) {
-                                    try {
-                                        // Check if record already exists
-                                        val exists = panenDao.exists(panen.tph_id, panen.date_created)
+                                // STEP 2: Insert or Update records that should be in local DB
+                                if (panenList.isNotEmpty()) {
+                                    AppLogger.d("Processing ${panenList.size} records for insert/update...")
 
-                                        if (!exists) {
-                                            // If it doesn't exist, insert it
-                                            val result = panenDao.insertWithTransaction(panen)
-                                            if (result.isSuccess) {
-                                                successCount++
-                                                AppLogger.d("Inserted new restan record: ${panen.tph_id}, ${panen.date_created}")
-                                            } else {
-                                                failCount++
-                                                AppLogger.e("Failed to insert restan record: ${panen.tph_id}, ${panen.date_created}")
-                                            }
-                                        } else {
-                                            AppLogger.d("Record exists, updating: ${panen.tph_id}, ${panen.date_created}")
+                                    for (panen in panenList) {
+                                        try {
+                                            // Check if record already exists in local DB
+                                            val exists = panenDao.exists(panen.tph_id, panen.date_created)
 
-                                            try {
-                                                // Get the record ID directly without fetching all records
-                                                val recordId = panenDao.getIdByTphIdAndDateCreated(panen.tph_id, panen.date_created)
-
-                                                if (recordId > 0) {
-                                                    // Create updated record with same ID
-                                                    val updatedRecord = panen.copy(id = recordId)
-
-                                                    // Update the record
-                                                    panenDao.update(listOf(updatedRecord))
+                                            if (!exists) {
+                                                // Record doesn't exist -> INSERT
+                                                val result = panenDao.insertWithTransaction(panen)
+                                                if (result.isSuccess) {
                                                     successCount++
-                                                    AppLogger.d("Updated existing record ID $recordId: ${panen.tph_id}, ${panen.date_created}")
+                                                    AppLogger.d("Inserted new restan record: ${panen.tph_id}, ${panen.date_created}")
                                                 } else {
-                                                    // This shouldn't happen since exists() returned true, but handle it anyway
-                                                    AppLogger.e("Couldn't find existing record to update: ${panen.tph_id}, ${panen.date_created}")
-                                                    val result = panenDao.insertWithTransaction(panen)
-                                                    if (result.isSuccess) {
-                                                        successCount++
-                                                        AppLogger.d("Inserted as new after update failure: ${panen.tph_id}, ${panen.date_created}")
-                                                    } else {
-                                                        failCount++
-                                                    }
+                                                    failCount++
+                                                    AppLogger.e("Failed to insert restan record: ${panen.tph_id}, ${panen.date_created}")
                                                 }
-                                            } catch (e: Exception) {
-                                                failCount++
-                                                AppLogger.e("Error updating record: ${e.message}")
+                                            } else {
+                                                // Record exists -> UPDATE
+                                                AppLogger.d("Record exists, updating: ${panen.tph_id}, ${panen.date_created}")
+
+                                                try {
+                                                    // Get the existing record ID
+                                                    val recordId = panenDao.getIdByTphIdAndDateCreated(panen.tph_id, panen.date_created)
+
+                                                    if (recordId > 0) {
+                                                        // Create updated record with same ID
+                                                        val updatedRecord = panen.copy(id = recordId)
+
+                                                        // Update the record
+                                                        panenDao.update(listOf(updatedRecord))
+                                                        successCount++
+                                                        AppLogger.d("Updated existing record ID $recordId: ${panen.tph_id}, ${panen.date_created}")
+                                                    } else {
+                                                        // Fallback: insert as new if we can't find the ID
+                                                        AppLogger.e("Couldn't find existing record to update: ${panen.tph_id}, ${panen.date_created}")
+                                                        val result = panenDao.insertWithTransaction(panen)
+                                                        if (result.isSuccess) {
+                                                            successCount++
+                                                            AppLogger.d("Inserted as new after update failure: ${panen.tph_id}, ${panen.date_created}")
+                                                        } else {
+                                                            failCount++
+                                                        }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    failCount++
+                                                    AppLogger.e("Error updating record: ${e.message}")
+                                                }
                                             }
+                                        } catch (e: Exception) {
+                                            failCount++
+                                            AppLogger.e("Error processing restan record: ${e.message}")
                                         }
-                                    } catch (e: Exception) {
-                                        failCount++
-                                        AppLogger.e("Error processing restan record: ${e.message}")
                                     }
                                 }
 
-                                AppLogger.d("Restan sync complete. Inserted/Updated: $successCount, Deleted: $deleteCount, Failed: $failCount, Total processed: ${panenList.size + deleteCount}")
+                                // Final summary
+                                AppLogger.d("=== RESTAN SYNC COMPLETE ===")
+                                AppLogger.d("Inserted/Updated: $successCount")
+                                AppLogger.d("Deleted: $deleteCount")
+                                AppLogger.d("Failed: $failCount")
+                                AppLogger.d("Total records for insert/update: ${panenList.size}")
+                                AppLogger.d("Total records for delete: ${recordsToDelete.size}")
+                                AppLogger.d("============================")
 
                                 // Final update - 100%
                                 progressMap[itemId] = 100
@@ -1847,6 +1879,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             if (jsonObject.optBoolean("success", false)) {
                 val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
 
+                // NEW: Data consistency check counters
+                var status0Count = 0
+                var status1Count = 0
+                var status2Count = 0
+                var status0WithNullSpb = 0
+                var status0WithNonNullSpb = 0
+                var status1WithNullSpb = 0
+                var status2WithNullSpb = 0
+                var status1WithNonNullSpb = 0
+                var status2WithNonNullSpb = 0
+
                 // Set up date range
                 val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
@@ -1891,14 +1934,73 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 for (i in 0 until dataArray.length()) {
                     val item = dataArray.getJSONObject(i)
 
-                    // Check if status_espb is 0 (only process records with status_espb = 0)
                     val statusEspb = item.optInt("status_espb", -1)
+                    val tphId = item.optString("tph", "")
+                    val createdDateFull = item.optString("created_date", "")
+
+                    // Check spb_kode - same logic as in your insert process
+                    val spbKode: String? = if (item.has("spb_kode") && !item.isNull("spb_kode")) {
+                        item.optString("spb_kode")
+                    } else {
+                        null
+                    }
+
+                    // NEW: Data consistency check for all records
+                    when (statusEspb) {
+                        0 -> {
+                            status0Count++
+                            if (spbKode.isNullOrEmpty()) {
+                                status0WithNullSpb++
+                            } else {
+                                status0WithNonNullSpb++
+                                // Log some examples
+                                if (status0WithNonNullSpb <= 3) {
+                                    AppLogger.d("Status_espb=0 with spb_kode: '$spbKode' (tph: $tphId)")
+                                }
+                            }
+                        }
+                        1 -> {
+                            status1Count++
+                            if (spbKode.isNullOrEmpty()) {
+                                status1WithNullSpb++
+                                // This should be impossible - log these inconsistencies
+                                AppLogger.w("⚠️ INCONSISTENCY: Status_espb=1 but spb_kode is NULL/empty (tph: $tphId, date: $createdDateFull)")
+                            } else {
+                                status1WithNonNullSpb++
+                                // Log some examples
+                                if (status1WithNonNullSpb <= 3) {
+                                    AppLogger.d("Status_espb=1 with spb_kode: '$spbKode' (tph: $tphId)")
+                                }
+                            }
+                        }
+                        2 -> {
+                            status2Count++
+                            if (spbKode.isNullOrEmpty()) {
+                                status2WithNullSpb++
+                                // This should be impossible - log these inconsistencies
+                                AppLogger.w("⚠️ INCONSISTENCY: Status_espb=2 but spb_kode is NULL/empty (tph: $tphId, date: $createdDateFull)")
+                            } else {
+                                status2WithNonNullSpb++
+                                // Log some examples
+                                if (status2WithNonNullSpb <= 3) {
+                                    AppLogger.d("Status_espb=2 with spb_kode: '$spbKode' (tph: $tphId)")
+                                }
+                            }
+                        }
+                    }
+
+                    // EXISTING LOGIC: Only process status_espb = 0 with null/empty spb_kode for preview
                     if (statusEspb != 0) {
                         continue // Skip records with status_espb != 0
                     }
 
+                    // Skip records with non-null/non-empty spb_kode
+                    // Only show records that will actually be inserted (status_espb = 0 AND spb_kode null/empty)
+                    if (!spbKode.isNullOrEmpty()) {
+                        continue // Skip records with spb_kode - these will be deleted, not inserted
+                    }
+
                     // Extract created_date and format to get just the date part
-                    val createdDateFull = item.optString("created_date", "")
                     val createdDate = if (createdDateFull.isNotEmpty()) {
                         createdDateFull.split(" ")[0] // Take only the date part (YYYY-MM-DD)
                     } else {
@@ -1921,11 +2023,36 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                     // Simply increment the TPH count for this date (no uniqueness check)
                     // Only count if tph value is greater than 0
-                    val tphId = item.optInt("tph", 0)
-                    if (tphId > 0) {
+                    val tphIdInt = item.optInt("tph", 0)
+                    if (tphIdInt > 0) {
                         tphCountByDate[createdDate] = tphCountByDate.getOrDefault(createdDate, 0) + 1
                     }
                 }
+
+                // NEW: Log the data consistency check results
+                AppLogger.d("=== PREVIEW DATA CONSISTENCY CHECK ===")
+                AppLogger.d("Total records in response: ${dataArray.length()}")
+                AppLogger.d("Status_espb = 0: $status0Count")
+                AppLogger.d("  - With null/empty spb_kode: $status0WithNullSpb (shown in preview)")
+                AppLogger.d("  - With non-null spb_kode: $status0WithNonNullSpb (hidden from preview)")
+                AppLogger.d("Status_espb = 1: $status1Count")
+                AppLogger.d("  - With null/empty spb_kode: $status1WithNullSpb (⚠️ INCONSISTENT)")
+                AppLogger.d("  - With non-null spb_kode: $status1WithNonNullSpb (expected)")
+                AppLogger.d("Status_espb = 2: $status2Count")
+                AppLogger.d("  - With null/empty spb_kode: $status2WithNullSpb (⚠️ INCONSISTENT)")
+                AppLogger.d("  - With non-null spb_kode: $status2WithNonNullSpb (expected)")
+
+                // Data consistency verdict
+                if (status1WithNullSpb > 0 || status2WithNullSpb > 0) {
+                    AppLogger.e("🚨 DATA INCONSISTENCY DETECTED IN PREVIEW!")
+                    AppLogger.e("Found ${status1WithNullSpb} records with status_espb=1 but null spb_kode")
+                    AppLogger.e("Found ${status2WithNullSpb} records with status_espb=2 but null spb_kode")
+                    AppLogger.e("This indicates backend data quality issues!")
+                } else {
+                    AppLogger.d("✅ Data consistency check PASSED")
+                    AppLogger.d("All status_espb=1&2 records have non-null spb_kode as expected")
+                }
+                AppLogger.d("=====================================")
 
                 // Calculate total jjg_kirim for all dates
                 val totalJjgKirim = jjgKirimByDate.values.sum()
@@ -1935,6 +2062,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 resultBuilder.append("Data Restan dalam 7 hari terakhir ($startDateDisplay - $endDateDisplay):\n")
 
                 // Add each date's transactions with jjg_kirim count, but only if they have data
+                var hasValidData = false
                 for (date in allDates.sortedDescending()) {
                     val jjgKirimCount = jjgKirimByDate[date] ?: 0
                     val tphCount = tphCountByDate[date] ?: 0
@@ -1945,11 +2073,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         continue
                     }
 
+                    hasValidData = true
+
                     // Format date for display (e.g., "5 Mei")
                     val dateObj = inputFormatter.parse(date)
                     val dateDisplay = displayFormatter.format(dateObj!!)
 
                     resultBuilder.append("$dateDisplay: $jjgKirimCount jjg dari $tphCount TPH\n")
+                }
+
+                // If no valid restan data found
+                if (!hasValidData) {
+                    resultBuilder.append("Tidak ada data restan yang valid dalam periode ini.\n")
                 }
 
                 resultBuilder.append("\nTotal jjg restan: $totalJjgKirim")
