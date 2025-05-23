@@ -5889,11 +5889,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         finalLat = latitude
         finalLon = longitude
 
-        photoCount++
-        photoFiles.add(fname)
-        komentarFoto.add(komentar ?: "")
-
-        AppLogger.d("Photo added to activity: $fname, new count: $photoCount")
+        if (position < photoFiles.size) {
+            // Position exists, replace it
+            photoFiles[position] = fname
+            komentarFoto[position] = komentar ?: ""
+        } else {
+            while (photoFiles.size < position) {
+                photoFiles.add("")
+                komentarFoto.add("")
+            }
+            photoFiles.add(fname)
+            komentarFoto.add(komentar ?: "")
+            photoCount++
+        }
 
         val viewHolder =
             recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder
