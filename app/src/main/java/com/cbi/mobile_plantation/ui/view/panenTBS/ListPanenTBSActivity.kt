@@ -48,6 +48,9 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.widget.NestedScrollView
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -57,6 +60,8 @@ import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.ui.adapter.ListPanenTPHAdapter
+import com.cbi.mobile_plantation.ui.adapter.TPHItem
+import com.cbi.mobile_plantation.ui.adapter.detailESPBListTPHAdapter
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.view.espb.FormESPBActivity
 import com.cbi.mobile_plantation.ui.view.ScanQR
@@ -646,7 +651,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
                 ll_detail_espb.visibility = View.VISIBLE
                 espbViewModel.getESPBById(espbId)
-
                 espbViewModel.espbEntity.observe(this@ListPanenTBSActivity) { espbWithRelations ->
                     if (espbWithRelations != null) {
                         try {
@@ -681,6 +685,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             idsToUpdate = espb.ids_to_update
 
 
+                            AppLogger.d("tph1 $tph1")
+                            AppLogger.d("espb.tph1 ${espb.tph1}")
+
                             val idKaryawanStringList = pemuat_id
                                 .toString()                      // ensure it's a string
                                 .split(",")                     // split on comma
@@ -711,6 +718,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
 
 
+                            val btnTambahHapusTPHESPB = findViewById<FloatingActionButton>(R.id.btnTambahHapusTPHESPB)
+
+                            btnTambahHapusTPHESPB.setOnClickListener {
+                                AlertDialogUtility.withTwoActions(
+                                    this@ListPanenTBSActivity,
+                                    "Lanjut",
+                                    "Edit eSPB",
+                                    "Apakah anda yakin ingin Tambah/Hapus TPH di e-SPB ini?",
+                                    "warning.json",
+                                    function = {
+                                        fetchAndMergeTPHData(espb.tph1)
+                                    }
+                                )
+                            }
                             btnEditEspb.setOnClickListener {
                                 AlertDialogUtility.withTwoActions(
                                     this@ListPanenTBSActivity,
@@ -835,6 +856,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     }
                 }
 
+
+                val btnTambahHapusTPHESPB = findViewById<FloatingActionButton>(R.id.btnTambahHapusTPHESPB)
+                btnTambahHapusTPHESPB.visibility = View.VISIBLE
+
+
+
             } else {
 
                 val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
@@ -926,6 +953,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun setupCardListeners() {
         cardTersimpan.setOnClickListener {
+            listAdapter.updateData(emptyList())
             currentState = 0
             setActiveCard(cardTersimpan)
             loadingDialog.show()
@@ -994,6 +1022,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         cardTerscan.setOnClickListener {
+            listAdapter.updateData(emptyList())
             currentState = 1
             setActiveCard(cardTerscan)
             loadingDialog.show()
@@ -1048,7 +1077,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 }
             } else if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                 loadingDialog.setMessage("Loading data per blok", true)
-                AppLogger.d("aklsdjflkjasdf")
                 panenViewModel.getAllPanenWhereESPB(noespb)
             } else {
                 loadingDialog.setMessage("Loading data terscan", true)
@@ -1065,6 +1093,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         cardRekapPerPemanen.setOnClickListener {
+            listAdapter.updateData(emptyList())
             currentState = 2
             setActiveCard(cardRekapPerPemanen)
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
@@ -1122,6 +1151,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         cardRekapPerBlok.setOnClickListener {
+            listAdapter.updateData(emptyList())
             currentState = 3
             setActiveCard(cardRekapPerBlok)
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
@@ -2480,7 +2510,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         panenViewModel.detailESPb.observe(this) { panenList ->
-            listAdapter.updateData(emptyList())
 
             Handler(Looper.getMainLooper()).postDelayed({
                 loadingDialog.dismiss()
@@ -2568,6 +2597,56 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         if (currentState == 0) {
                             // State 0: Show individual TPH records
                             mappedData = processedDataList
+
+                            // Extract data from processedDataList
+                            val distinctBlokNames = processedDataList.map { it["blok_name"].toString() }.distinct()
+                            val blokNamesString = distinctBlokNames.joinToString(", ")
+
+// Count total TPH records (not distinct)
+                            val totalTphCount = processedDataList.size
+
+// Sum all KP values from jjg_json
+                            var totalKpSum = 0.0
+                            for (data in processedDataList) {
+                                try {
+                                    val jjgJson = JSONObject(data["jjg_json"].toString())
+                                    val kpValue = jjgJson.optDouble("KP", 0.0)
+                                    totalKpSum += kpValue
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error parsing jjg_json: ${e.message}")
+                                }
+                            }
+
+// Format the total KP sum
+                            val formattedTotalKp = if (totalKpSum == totalKpSum.toInt().toDouble()) {
+                                totalKpSum.toInt().toString()
+                            } else {
+                                String.format(Locale.US, "%.1f", totalKpSum)
+                            }
+
+// Set the values
+                            blok = if (blokNamesString.isEmpty()) "-" else blokNamesString
+                            listBlok.text = blokNamesString
+                            jjg = formattedTotalKp.toDoubleOrNull()?.toInt() ?: 0
+                            totalJjg.text = formattedTotalKp
+                            tph = totalTphCount
+                            totalTPH.text = totalTphCount.toString()
+
+// Set Blok
+                            val tvBlok = findViewById<View>(R.id.tv_blok)
+                            tvBlok.findViewById<TextView>(R.id.tvTitleEspb).text = "Blok"
+                            tvBlok.findViewById<TextView>(R.id.tvSubTitleEspb).text = blok
+
+// Set jjg (now shows sum of KP values)
+                            val tvJjg = findViewById<View>(R.id.tv_jjg)
+                            tvJjg.findViewById<TextView>(R.id.tvTitleEspb).text = "Janjang"
+                            tvJjg.findViewById<TextView>(R.id.tvSubTitleEspb).text = formattedTotalKp
+
+// Set TPH count (total count, not distinct)
+                            val tvTph = findViewById<View>(R.id.tv_total_tph)
+                            tvTph.findViewById<TextView>(R.id.tvTitleEspb).text = "Jumlah TPH"
+                            tvTph.findViewById<TextView>(R.id.tvSubTitleEspb).text = totalTphCount.toString()
+
                             listAdapter.updateData(processedDataList)
                         } else if (currentState == 1) {
                             // State 1: Merge by blok (similar to your existing merge logic)
@@ -2674,7 +2753,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         panenViewModel.activePanenList.observe(this) { panenList ->
 
             if (currentState == 0 || currentState == 1 || currentState == 2 || currentState == 3) {
-                listAdapter.updateData(emptyList())
+
                 Handler(Looper.getMainLooper()).postDelayed({
                     loadingDialog.dismiss()
 
@@ -3293,30 +3372,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 totalSection.visibility = View.VISIBLE
                             }
 
-                            val blokNames = processedData["blokNames"]?.toString() ?: ""
-                            blok = if (blokNames.isEmpty()) "-" else blokNames
-
-                            listBlok.text = processedData["blokDisplay"]?.toString()
-                            jjg = processedData["totalJjgCount"]?.toString()!!.toInt()
-                            totalJjg.text = jjg.toString()
-                            tph = processedData["tphCount"]?.toString()!!.toInt()
-                            totalTPH.text = tph.toString()
-
-                            // Set Blok
-                            val tvBlok = findViewById<View>(R.id.tv_blok)
-                            tvBlok.findViewById<TextView>(R.id.tvTitleEspb).text = "Blok"
-                            tvBlok.findViewById<TextView>(R.id.tvSubTitleEspb).text = blok
-
-                            // Set jjg
-                            val tvJjg = findViewById<View>(R.id.tv_jjg)
-                            tvJjg.findViewById<TextView>(R.id.tvTitleEspb).text = "Janjang"
-                            tvJjg.findViewById<TextView>(R.id.tvSubTitleEspb).text = jjg.toString()
-
-                            // Set jjg
-                            val tvTph = findViewById<View>(R.id.tv_total_tph)
-                            tvTph.findViewById<TextView>(R.id.tvTitleEspb).text = "Jumlah TPH"
-                            tvTph.findViewById<TextView>(R.id.tvSubTitleEspb).text = tph.toString()
-
                             listAdapter.updateData(mappedData)
                             originalData =
                                 emptyList() // Reset original data when new data is loaded
@@ -3393,7 +3448,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         panenViewModel.archivedPanenList.observe(this) { panenList ->
             if (currentState == 1 || currentState == 2) {
-                listAdapter.updateData(emptyList())
                 btnGenerateQRTPH.visibility = View.GONE
                 btnGenerateQRTPHUnl.visibility = View.GONE
                 tvGenQR60.visibility = View.GONE
@@ -4270,6 +4324,255 @@ class ListPanenTBSActivity : AppCompatActivity() {
             titleTotalJjg.text = "Kirim Pabrik: "
         }
     }
+
+    fun <T> LiveData<T>.observeOnce(lifecycleOwner: LifecycleOwner, observer: Observer<T>) {
+        observe(lifecycleOwner, object : Observer<T> {
+            override fun onChanged(value: T) {
+                removeObserver(this)
+                observer.onChanged(value)
+            }
+        })
+    }
+
+    private fun fetchAndMergeTPHData(espbTph1: String) {
+        AppLogger.d("ESPB TPH1 data: $espbTph1")
+
+        // Parse espb.tph1 to get list of TPH items that should be checked
+        val espbTphList = parseTPH1Data(espbTph1)
+        AppLogger.d("ESPB TPH list: ${espbTphList.size} items")
+      loadingDialog.show()
+        // Fetch all available TPH data
+        panenViewModel.getAllPanenDataDetailESPB(0, 0, 1, null)
+
+        // Observe the data
+        panenViewModel.detailNonESPBTPH.observeOnce(this@ListPanenTBSActivity) { panenWithRelationsList ->
+            loadingDialog.dismiss()
+            if (panenWithRelationsList != null) {
+                AppLogger.d("Fetched ${panenWithRelationsList.size} available TPH items")
+
+                // Convert available TPH data to TPHItem list
+                val availableTphList = panenWithRelationsList.map { panenWithRelations ->
+                    TPHItem(
+                        tphId = panenWithRelations.panen.tph_id.toString(),
+                        dateCreated = panenWithRelations.panen.date_created ?: "",
+                        kpValue = panenWithRelations.tph?.nomor ?: "", // Use tph.nomor as kpValue for display
+                        status = if (panenWithRelations.panen.jjg_json?.isNotEmpty() == true) "1" else "0",
+                        isChecked = false, // Default unchecked, will be updated below
+                        jjgJson = panenWithRelations.panen.jjg_json ?: "",
+                        tphNomor = panenWithRelations.tph?.nomor ?: ""
+                    )
+                }
+
+                // Create a set of TPH IDs from ESPB for quick lookup
+                val espbTphIds = espbTphList.map { it.tphId }.toSet()
+                AppLogger.d("ESPB TPH IDs to be checked: $espbTphIds")
+
+                // Merge the lists: combine available TPH with ESPB TPH
+                val mergedTphList = mergeTPHLists(availableTphList, espbTphList, espbTphIds)
+
+                AppLogger.d("Final merged list: ${mergedTphList.size} items")
+                mergedTphList.forEachIndexed { index, item ->
+                    AppLogger.d("Merged Item $index: TPH ID=${item.tphId}, Checked=${item.isChecked}, Source=${if (item.tphId in espbTphIds) "ESPB" else "Available"}")
+                }
+
+                // Show bottom sheet with merged data
+                showDetailESPBTPHBottomSheet(mergedTphList)
+
+            } else {
+                AppLogger.e("Failed to fetch available TPH data")
+                Toast.makeText(this@ListPanenTBSActivity, "Gagal mengambil data TPH", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+
+    private fun mergeTPHLists(
+        availableTphList: List<TPHItem>,
+        espbTphList: List<TPHItem>,
+        espbTphIds: Set<String>
+    ): List<TPHItem> {
+
+        val mergedList = mutableListOf<TPHItem>()
+
+        AppLogger.d("=== MERGING TPH LISTS ===")
+        AppLogger.d("Available TPH count: ${availableTphList.size}")
+        AppLogger.d("ESPB TPH count: ${espbTphList.size}")
+        AppLogger.d("ESPB TPH IDs: $espbTphIds")
+
+        // First, add all available TPH items and mark as checked if they're in ESPB
+        availableTphList.forEach { availableItem ->
+            val isInEspb = availableItem.tphId in espbTphIds
+
+            // If this item is in ESPB, use the ESPB data for kpValue and status
+            val finalItem = if (isInEspb) {
+                val espbItem = espbTphList.find { it.tphId == availableItem.tphId }
+                if (espbItem != null) {
+                    // Merge: use available item's structure but ESPB's kpValue and status
+                    availableItem.copy(
+                        kpValue = espbItem.kpValue,
+                        status = espbItem.status,
+                        isChecked = true
+                    )
+                } else {
+                    availableItem.copy(isChecked = true)
+                }
+            } else {
+                availableItem.copy(isChecked = false)
+            }
+
+            mergedList.add(finalItem)
+
+            AppLogger.d("Merged item: TPH ${finalItem.tphId}, Checked=${finalItem.isChecked}, KP=${finalItem.kpValue}, Status=${finalItem.status}")
+        }
+
+        // Then, add any ESPB items that are not in the available list
+        // (Items that exist in ESPB but not in current available data)
+        val availableTphIds = availableTphList.map { it.tphId }.toSet()
+
+        espbTphList.forEach { espbItem ->
+            if (espbItem.tphId !in availableTphIds) {
+                AppLogger.d("Adding ESPB-only item: TPH ${espbItem.tphId} (not in available list)")
+                mergedList.add(
+                    espbItem.copy(
+                        isChecked = true,
+                        tphNomor = espbItem.kpValue // Use kpValue as tphNomor if not available
+                    )
+                )
+            }
+        }
+
+        // Sort by TPH ID for consistent display
+        val sortedList = mergedList.sortedBy { it.tphId.toIntOrNull() ?: 0 }
+
+        AppLogger.d("=== MERGE COMPLETE ===")
+        AppLogger.d("Final merged list count: ${sortedList.size}")
+        val checkedCount = sortedList.count { it.isChecked }
+        AppLogger.d("Checked items: $checkedCount, Unchecked items: ${sortedList.size - checkedCount}")
+
+        return sortedList
+    }
+
+
+    // 5. Use your existing parseTPH1Data function (keep it as is)
+    // Updated parseTPH1Data function to match your TPHItem data class
+    private fun parseTPH1Data(tph1Data: String): List<TPHItem> {
+        val tphItemList = mutableListOf<TPHItem>()
+
+        if (!tph1Data.isNullOrEmpty()) {
+            AppLogger.d("Parsing TPH1 data: $tph1Data")
+
+            // Split by semicolon to get individual TPH records
+            val tphRecords = tph1Data.split(";")
+            AppLogger.d("Found ${tphRecords.size} TPH records in ESPB data")
+
+            for (tphRecord in tphRecords) {
+                if (tphRecord.isNotEmpty()) {
+                    // Split each record by comma
+                    val parts = tphRecord.split(",")
+
+                    if (parts.size >= 4) {
+                        val tphId = parts[0].trim()
+                        val dateCreated = parts[1].trim()
+                        val kpValue = parts[2].trim()
+                        val status = parts[3].trim()
+
+                        tphItemList.add(
+                            TPHItem(
+                                tphId = tphId,
+                                dateCreated = dateCreated,
+                                jjgJson = "", // ESPB data doesn't have jjgJson, so empty string
+                                tphNomor = "", // ESPB data doesn't have tphNomor, so empty string
+                                isChecked = false, // Will be set to true during merge
+                                kpValue = kpValue,
+                                status = status
+                            )
+                        )
+
+                        AppLogger.d("Parsed ESPB TPH: ID=$tphId, Date=$dateCreated, KP=$kpValue, Status=$status")
+                    }
+                }
+            }
+        }
+
+        AppLogger.d("Total parsed ESPB TPH items: ${tphItemList.size}")
+        return tphItemList
+    }
+
+
+    private fun processSelectedTPHItems(checkedItems: List<TPHItem>, uncheckedItems: List<TPHItem>) {
+        AppLogger.d("Processing TPH changes:")
+        AppLogger.d("Items to ADD to ESPB (${checkedItems.size}):")
+        checkedItems.forEach { item ->
+            AppLogger.d("  + TPH ID: ${item.tphId}, Nomor: ${item.tphNomor}")
+        }
+
+        AppLogger.d("Items to REMOVE from ESPB (${uncheckedItems.size}):")
+        uncheckedItems.forEach { item ->
+            AppLogger.d("  - TPH ID: ${item.tphId}, Nomor: ${item.tphNomor}")
+        }
+
+        // Your logic to update the ESPB with new TPH selection
+    }
+
+    private fun showDetailESPBTPHBottomSheet(tphItemList: List<TPHItem>) {
+        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_tambah_hapus_tph_detail_epsb, null)
+        val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
+        dialog.setContentView(view)
+
+        // Setup RecyclerView and content FIRST (before configuring behavior)
+        val recyclerView = view.findViewById<RecyclerView>(R.id.recyclerViewTPHListDetailESPB)
+        val btnSave = view.findViewById<Button>(R.id.btnSaveTPH)
+        val btnCancel = view.findViewById<Button>(R.id.btnCancelTPH)
+
+        val adapter = detailESPBListTPHAdapter(tphItemList.toMutableList()) { tphItem, isChecked ->
+            AppLogger.d("TPH ${tphItem.tphId} is ${if (isChecked) "checked" else "unchecked"}")
+        }
+
+        recyclerView?.let { rv ->
+            rv.layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
+            rv.adapter = adapter
+        }
+
+        btnSave?.setOnClickListener {
+            val checkedItems = adapter.getCheckedItems()
+            val allItems = adapter.tphList
+            val uncheckedItems = allItems.filter { !it.isChecked }
+
+            if (checkedItems.isNotEmpty()) {
+                processSelectedTPHItems(checkedItems, uncheckedItems)
+                dialog.dismiss()
+            } else {
+                Toast.makeText(this@ListPanenTBSActivity, "Pilih minimal satu TPH", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+
+        btnCancel?.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        // NOW configure the bottom sheet behavior (EXACT same pattern as your working example)
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.9).toInt() // You can adjust this
+
+        dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            ?.let { bottomSheet ->
+                val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                behavior.apply {
+                    this.peekHeight = maxHeight  // Set the initial height when peeking
+                    this.state = BottomSheetBehavior.STATE_EXPANDED  // Start fully expanded
+                    this.isFitToContents = true  // Content will determine the height (up to maxHeight)
+                    this.isDraggable = false  // Prevent user from dragging the sheet
+                }
+
+                // Set a fixed height for the bottom sheet
+                bottomSheet.layoutParams?.height = maxHeight
+            }
+
+        // Show dialog LAST (same as your working pattern)
+        dialog.show()
+    }
+
 
     private fun updateTableHeaders(headerNames: List<String>) {
         val tableHeader = findViewById<View>(R.id.tableHeader)

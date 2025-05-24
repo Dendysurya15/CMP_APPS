@@ -48,6 +48,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _activePanenList = MutableLiveData<List<PanenEntityWithRelations>>()
     val activePanenList: LiveData<List<PanenEntityWithRelations>> get() = _activePanenList
 
+    private val _detailNonESPBTPH = MutableLiveData<List<PanenEntityWithRelations>>()
+    val detailNonESPBTPH: LiveData<List<PanenEntityWithRelations>> get() = _detailNonESPBTPH
+
     private val _detailESPB = MutableLiveData<List<ESPBEntity>>()
     val detailESPb: LiveData<List<ESPBEntity>> get() = _detailESPB
 
@@ -107,6 +110,16 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
             _activePanenList.value = emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    fun getAllPanenDataDetailESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadESPB(archive, statusEspb, scanStatus, date)
+            _detailNonESPBTPH.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB: ${e.message}")
+            _detailNonESPBTPH.value = emptyList()  // Return empty list if there's an error
         }
     }
 
