@@ -728,6 +728,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "Apakah anda yakin ingin Tambah/Hapus TPH di e-SPB ini?",
                                     "warning.json",
                                     function = {
+                                        loadingDialog.show()
                                         fetchAndMergeTPHData(espb.tph1)
                                     }
                                 )
@@ -4337,53 +4338,81 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private fun fetchAndMergeTPHData(espbTph1: String) {
         AppLogger.d("ESPB TPH1 data: $espbTph1")
 
-        // Parse espb.tph1 to get list of TPH items that should be checked
-        val espbTphList = parseTPH1Data(espbTph1)
-        AppLogger.d("ESPB TPH list: ${espbTphList.size} items")
-      loadingDialog.show()
-        // Fetch all available TPH data
-        panenViewModel.getAllPanenDataDetailESPB(0, 0, 1, null)
+        // Use lifecycleScope to handle suspend function
+        lifecycleScope.launch {
+            try {
+                // Parse espb.tph1 to get list of TPH items that should be checked (NOW SUSPEND)
+                val espbTphList = parseTPH1Data(espbTph1)
+                AppLogger.d("ESPB TPH list: ${espbTphList.size} items")
 
-        // Observe the data
-        panenViewModel.detailNonESPBTPH.observeOnce(this@ListPanenTBSActivity) { panenWithRelationsList ->
-            loadingDialog.dismiss()
-            if (panenWithRelationsList != null) {
-                AppLogger.d("Fetched ${panenWithRelationsList.size} available TPH items")
+                // Fetch all available TPH data
+                panenViewModel.getAllPanenDataDetailESPB(0, 0, 1, null)
 
-                // Convert available TPH data to TPHItem list
-                val availableTphList = panenWithRelationsList.map { panenWithRelations ->
-                    TPHItem(
-                        tphId = panenWithRelations.panen.tph_id.toString(),
-                        dateCreated = panenWithRelations.panen.date_created ?: "",
-                        kpValue = panenWithRelations.tph?.nomor ?: "", // Use tph.nomor as kpValue for display
-                        status = if (panenWithRelations.panen.jjg_json?.isNotEmpty() == true) "1" else "0",
-                        isChecked = false, // Default unchecked, will be updated below
-                        jjgJson = panenWithRelations.panen.jjg_json ?: "",
-                        tphNomor = panenWithRelations.tph?.nomor ?: ""
-                    )
+                // Observe the data (this needs to be back on main thread context)
+                panenViewModel.detailNonESPBTPH.observeOnce(this@ListPanenTBSActivity) { panenWithRelationsList ->
+
+
+                    if (panenWithRelationsList != null) {
+                        AppLogger.d("Fetched ${panenWithRelationsList.size} available TPH items")
+
+
+                        // Convert available TPH data to TPHItem list
+                        val availableTphList = panenWithRelationsList.map { panenWithRelations ->
+
+                            val kpNumber = try {
+                                val jjgJson = panenWithRelations.panen.jjg_json ?: ""
+                                if (jjgJson.startsWith("{") && jjgJson.contains("KP")) {
+                                    // Parse JSON: {"KP": 18} -> "18"
+                                    val gson = Gson()
+                                    val jsonObject = gson.fromJson(jjgJson, JsonObject::class.java)
+                                    jsonObject.get("KP")?.asString ?: jjgJson
+                                } else {
+                                    // If it's not JSON, use as is
+                                    jjgJson
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("Error parsing JJG JSON for TPH ${panenWithRelations.panen.tph_id}: ${e.message}")
+                                panenWithRelations.panen.jjg_json ?: "" // Fallback to original value
+                            }
+
+                            TPHItem(
+                                tphId = panenWithRelations.panen.tph_id.toString(),
+                                dateCreated = panenWithRelations.panen.date_created ?: "",
+                                jjgJson = kpNumber,
+                                tphNomor = panenWithRelations.tph!!.nomor.toString(),
+                                isChecked = false,
+                                blokKode = panenWithRelations.tph!!.blok_kode.toString()
+                            )
+                        }
+
+                        // Create a set of TPH IDs from ESPB for quick lookup
+                        val espbTphIds = espbTphList.map { it.tphId }.toSet()
+                        AppLogger.d("ESPB TPH IDs to be checked: $espbTphIds")
+
+                        // Merge the lists: combine available TPH with ESPB TPH
+                        val mergedTphList = mergeTPHLists(availableTphList, espbTphList, espbTphIds)
+
+                        AppLogger.d("Final merged list: ${mergedTphList.size} items")
+                        mergedTphList.forEachIndexed { index, item ->
+                            AppLogger.d("Merged Item $index: TPH ID=${item.tphId}, Checked=${item.isChecked}, Source=${if (item.tphId in espbTphIds) "ESPB" else "Available"}")
+                        }
+
+                        // Show bottom sheet with merged data
+                        showDetailESPBTPHBottomSheet(mergedTphList)
+
+                    } else {
+                        AppLogger.e("Failed to fetch available TPH data")
+                        Toast.makeText(this@ListPanenTBSActivity, "Gagal mengambil data TPH", Toast.LENGTH_SHORT).show()
+                    }
                 }
 
-                // Create a set of TPH IDs from ESPB for quick lookup
-                val espbTphIds = espbTphList.map { it.tphId }.toSet()
-                AppLogger.d("ESPB TPH IDs to be checked: $espbTphIds")
-
-                // Merge the lists: combine available TPH with ESPB TPH
-                val mergedTphList = mergeTPHLists(availableTphList, espbTphList, espbTphIds)
-
-                AppLogger.d("Final merged list: ${mergedTphList.size} items")
-                mergedTphList.forEachIndexed { index, item ->
-                    AppLogger.d("Merged Item $index: TPH ID=${item.tphId}, Checked=${item.isChecked}, Source=${if (item.tphId in espbTphIds) "ESPB" else "Available"}")
-                }
-
-                // Show bottom sheet with merged data
-                showDetailESPBTPHBottomSheet(mergedTphList)
-
-            } else {
-                AppLogger.e("Failed to fetch available TPH data")
-                Toast.makeText(this@ListPanenTBSActivity, "Gagal mengambil data TPH", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                AppLogger.e("Error in fetchAndMergeTPHData: ${e.message}")
+                Toast.makeText(this@ListPanenTBSActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
+
 
 
     private fun mergeTPHLists(
@@ -4392,70 +4421,59 @@ class ListPanenTBSActivity : AppCompatActivity() {
         espbTphIds: Set<String>
     ): List<TPHItem> {
 
-        val mergedList = mutableListOf<TPHItem>()
+        val checkedItems = mutableListOf<TPHItem>()
+        val uncheckedItems = mutableListOf<TPHItem>()
 
-        AppLogger.d("=== MERGING TPH LISTS ===")
-        AppLogger.d("Available TPH count: ${availableTphList.size}")
-        AppLogger.d("ESPB TPH count: ${espbTphList.size}")
-        AppLogger.d("ESPB TPH IDs: $espbTphIds")
-
-        // First, add all available TPH items and mark as checked if they're in ESPB
+        // Process available items
         availableTphList.forEach { availableItem ->
             val isInEspb = availableItem.tphId in espbTphIds
+            val finalItem = availableItem.copy(
+                isChecked = isInEspb,
+                isFromESPB = isInEspb // Mark if this item came from ESPB
+            )
 
-            // If this item is in ESPB, use the ESPB data for kpValue and status
-            val finalItem = if (isInEspb) {
-                val espbItem = espbTphList.find { it.tphId == availableItem.tphId }
-                if (espbItem != null) {
-                    // Merge: use available item's structure but ESPB's kpValue and status
-                    availableItem.copy(
-                        kpValue = espbItem.kpValue,
-                        status = espbItem.status,
-                        isChecked = true
-                    )
-                } else {
-                    availableItem.copy(isChecked = true)
-                }
+            if (finalItem.isChecked) {
+                checkedItems.add(finalItem)
             } else {
-                availableItem.copy(isChecked = false)
+                uncheckedItems.add(finalItem)
             }
-
-            mergedList.add(finalItem)
-
-            AppLogger.d("Merged item: TPH ${finalItem.tphId}, Checked=${finalItem.isChecked}, KP=${finalItem.kpValue}, Status=${finalItem.status}")
         }
 
-        // Then, add any ESPB items that are not in the available list
-        // (Items that exist in ESPB but not in current available data)
+        // Add ESPB-only items
         val availableTphIds = availableTphList.map { it.tphId }.toSet()
-
         espbTphList.forEach { espbItem ->
             if (espbItem.tphId !in availableTphIds) {
-                AppLogger.d("Adding ESPB-only item: TPH ${espbItem.tphId} (not in available list)")
-                mergedList.add(
-                    espbItem.copy(
-                        isChecked = true,
-                        tphNomor = espbItem.kpValue // Use kpValue as tphNomor if not available
-                    )
+                val espbOnlyItem = espbItem.copy(
+                    isChecked = true,
+                    isFromESPB = true // This is definitely from ESPB
                 )
+                checkedItems.add(espbOnlyItem)
             }
         }
 
-        // Sort by TPH ID for consistent display
-        val sortedList = mergedList.sortedBy { it.tphId.toIntOrNull() ?: 0 }
+        // Sort and combine
+        val sortedCheckedItems = checkedItems.sortedBy {
+            it.tphNomor.toIntOrNull() ?: it.tphId.toIntOrNull() ?: 0
+        }
+        val sortedUncheckedItems = uncheckedItems.sortedBy {
+            it.tphNomor.toIntOrNull() ?: it.tphId.toIntOrNull() ?: 0
+        }
 
-        AppLogger.d("=== MERGE COMPLETE ===")
-        AppLogger.d("Final merged list count: ${sortedList.size}")
-        val checkedCount = sortedList.count { it.isChecked }
-        AppLogger.d("Checked items: $checkedCount, Unchecked items: ${sortedList.size - checkedCount}")
+        val finalList = mutableListOf<TPHItem>()
+        finalList.addAll(sortedCheckedItems)
+        finalList.addAll(sortedUncheckedItems)
 
-        return sortedList
+        AppLogger.d("ESPB items: ${finalList.count { it.isFromESPB }}")
+        AppLogger.d("Available items: ${finalList.count { !it.isFromESPB }}")
+
+        return finalList
     }
+
 
 
     // 5. Use your existing parseTPH1Data function (keep it as is)
     // Updated parseTPH1Data function to match your TPHItem data class
-    private fun parseTPH1Data(tph1Data: String): List<TPHItem> {
+    private suspend fun parseTPH1Data(tph1Data: String): List<TPHItem> {
         val tphItemList = mutableListOf<TPHItem>()
 
         if (!tph1Data.isNullOrEmpty()) {
@@ -4476,15 +4494,34 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val kpValue = parts[2].trim()
                         val status = parts[3].trim()
 
+                        val kpNumber = try {
+                            if (kpValue.startsWith("{") && kpValue.contains("KP")) {
+                                // Parse JSON: {"KP": 18} -> "18"
+                                val gson = Gson()
+                                val jsonObject = gson.fromJson(kpValue, JsonObject::class.java)
+                                jsonObject.get("KP")?.asString ?: kpValue
+                            } else {
+                                // If it's not JSON, use as is
+                                kpValue
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.e("Error parsing KP JSON: ${e.message}")
+                            kpValue // Fallback to original value
+                        }
+
+                        // Use withContext to run on IO dispatcher for database operations
+                        val tphBlokInfo = withContext(Dispatchers.IO) {
+                            panenViewModel.getTPHAndBlokInfo(tphId.toInt())
+                        }
+
                         tphItemList.add(
                             TPHItem(
                                 tphId = tphId,
                                 dateCreated = dateCreated,
-                                jjgJson = "", // ESPB data doesn't have jjgJson, so empty string
-                                tphNomor = "", // ESPB data doesn't have tphNomor, so empty string
+                                jjgJson = kpNumber,
+                                tphNomor = tphBlokInfo?.tphNomor ?: "", // Use data from database if available
                                 isChecked = false, // Will be set to true during merge
-                                kpValue = kpValue,
-                                status = status
+                                blokKode = tphBlokInfo!!.blokKode,
                             )
                         )
 
@@ -4532,6 +4569,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
             rv.layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
             rv.adapter = adapter
         }
+
+        loadingDialog.dismiss()
 
         btnSave?.setOnClickListener {
             val checkedItems = adapter.getCheckedItems()

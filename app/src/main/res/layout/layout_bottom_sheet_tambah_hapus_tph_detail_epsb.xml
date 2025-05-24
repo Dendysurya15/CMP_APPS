@@ -33,17 +33,82 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/titleDialogDetailTableAbsensi" />
 
+    <!-- STICKY TABLE HEADER (outside scroll view) -->
+    <LinearLayout
+        android:id="@+id/stickyTableHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@color/greenDarker"
+        android:padding="8dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/dashedLineAbsensi">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.4"
+            android:text="Pilih"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Blok"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="NO TPH"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="TOTAL JJG"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="JAM"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+
     <!-- Scrollable content area -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollContent"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="0dp"
         android:layout_marginBottom="8dp"
         app:layout_constraintBottom_toTopOf="@+id/buttonContainer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/dashedLineAbsensi">
+        app:layout_constraintTop_toBottomOf="@+id/stickyTableHeader">
 
         <LinearLayout
             android:id="@+id/contentContainer"
@@ -51,67 +116,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Table Header -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:background="@color/bluedarklight"
-                android:padding="8dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.4"
-                    android:text="Pilih"
-                    android:textColor="@color/white"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="TPH ID"
-                    android:textColor="@color/white"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Tanggal"
-                    android:textColor="@color/white"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="KP"
-                    android:textColor="@color/white"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Status"
-                    android:textColor="@color/white"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:textSize="12sp" />
-
-            </LinearLayout>
-
-            <!-- RecyclerView for TPH list -->
+            <!-- RecyclerView for TPH list (header is now sticky above) -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerViewTPHListDetailESPB"
                 android:layout_width="match_parent"
@@ -151,7 +156,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_weight="1"
-            android:backgroundTint="@color/bluedarklight"
+            android:backgroundTint="@color/greenDarker"
             android:fontFamily="@font/manrope_bold"
             android:text="Simpan"
             android:textColor="@color/white"
