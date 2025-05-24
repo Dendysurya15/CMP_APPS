@@ -148,7 +148,7 @@
             android:fontFamily="@font/manrope_bold"
             android:text="Batal"
             android:textColor="@color/white"
-            android:textSize="16sp" />
+            android:textSize="@dimen/m" />
 
         <Button
             android:id="@+id/btnSaveTPH"
@@ -160,7 +160,7 @@
             android:fontFamily="@font/manrope_bold"
             android:text="Simpan"
             android:textColor="@color/white"
-            android:textSize="16sp" />
+            android:textSize="@dimen/m" />
 
     </LinearLayout>
 

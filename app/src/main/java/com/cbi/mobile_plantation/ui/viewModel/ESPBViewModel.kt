@@ -11,8 +11,10 @@ import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.utils.AppLogger
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
 
@@ -77,6 +79,12 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
     fun getESPBById(int: Int){
         viewModelScope.launch {
             _espbEntity.value = repository.getESPBById(int)
+        }
+    }
+
+    suspend fun updateTPH1ByNOESPB(noespb: String, newTph1: String): Int {
+        return withContext(Dispatchers.IO) {
+            repository.updateTPH1ByNOESPB(noespb, newTph1)
         }
     }
 

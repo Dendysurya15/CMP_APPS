@@ -729,7 +729,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "warning.json",
                                     function = {
                                         loadingDialog.show()
-                                        fetchAndMergeTPHData(espb.tph1)
+                                        fetchAndMergeTPHData(tph1)
                                     }
                                 )
                             }
@@ -2516,6 +2516,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 loadingDialog.dismiss()
                 lifecycleScope.launch {
 
+
+                    AppLogger.d("Masuk gess")
                     if (panenList.isNotEmpty()) {
                         AppLogger.d(panenList.toString())
 
@@ -4551,6 +4553,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
         // Your logic to update the ESPB with new TPH selection
     }
 
+    private fun convertTPHItemsToTph1String(tphItems: List<TPHItem>): String {
+        return tphItems.joinToString(";") { item ->
+            "${item.tphId},${item.dateCreated},${item.jjgJson},1" // Status always 1 for selected items
+        }
+    }
+
     private fun showDetailESPBTPHBottomSheet(tphItemList: List<TPHItem>) {
         val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_tambah_hapus_tph_detail_epsb, null)
         val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
@@ -4574,15 +4582,62 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         btnSave?.setOnClickListener {
             val checkedItems = adapter.getCheckedItems()
-            val allItems = adapter.tphList
-            val uncheckedItems = allItems.filter { !it.isChecked }
+            val newTph1String = convertTPHItemsToTph1String(checkedItems)
 
-            if (checkedItems.isNotEmpty()) {
-                processSelectedTPHItems(checkedItems, uncheckedItems)
-                dialog.dismiss()
-            } else {
-                Toast.makeText(this@ListPanenTBSActivity, "Pilih minimal satu TPH", Toast.LENGTH_SHORT).show()
-            }
+            AppLogger.d("Original TPH1: $tph1")
+            AppLogger.d("New TPH1: $newTph1String")
+            AppLogger.d("noespb $noespb")
+            AlertDialogUtility.withTwoActions(
+                this@ListPanenTBSActivity,
+                "Submit",
+                stringXML(R.string.confirmation_dialog_title),
+                stringXML(R.string.al_submit_upload_data_espb_by_krani_timbang),
+                "warning.json",
+                function = {
+                    val checkedItems = adapter.getCheckedItems()
+
+                    if (checkedItems.isNotEmpty()) {
+                        // Convert checked items back to tph1 string format
+                        val newTph1String = convertTPHItemsToTph1String(checkedItems)
+
+                        AppLogger.d("Original TPH1: $tph1")
+                        AppLogger.d("New TPH1: $newTph1String")
+
+                        // Update the ESPB in database
+                        lifecycleScope.launch {
+                            try {
+                                val updateResult = withContext(Dispatchers.IO) {
+                                    espbViewModel.updateTPH1ByNOESPB(noespb, newTph1String)
+                                }
+
+                                if (updateResult > 0) {
+                                    AppLogger.d("TPH1 updated successfully")
+                                    Toast.makeText(this@ListPanenTBSActivity, "TPH berhasil diperbarui", Toast.LENGTH_SHORT).show()
+
+                                    // Update the global tph1 variable
+                                    tph1 = newTph1String
+
+                                    panenViewModel.getAllPanenWhereESPB(noespb)
+                                    delay(100)
+
+                                } else {
+                                    AppLogger.e("Failed to update TPH1")
+                                    Toast.makeText(this@ListPanenTBSActivity, "Gagal memperbarui TPH", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("Error updating TPH1: ${e.message}")
+                                Toast.makeText(this@ListPanenTBSActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+
+                        dialog.dismiss()
+
+                    } else {
+                        Toast.makeText(this@ListPanenTBSActivity, "Pilih minimal satu TPH", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+
         }
 
 
