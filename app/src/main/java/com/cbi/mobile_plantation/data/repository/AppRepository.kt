@@ -1073,8 +1073,8 @@ class AppRepository(context: Context) {
         espbDao.deleteByID(id)
     }
 
-    suspend fun updateTPH1ByNOESPB(noESPB: String, newTph1: String) = withContext(Dispatchers.IO) {
-        espbDao.updateTPH1ByNOESPB(noESPB, newTph1)
+    suspend fun updateTPH1AndBlokJjg(noespb: String, newTph1: String, newBlokJjg: String) = withContext(Dispatchers.IO) {
+        espbDao.updateTPH1AndBlokJjg(noespb, newTph1, newBlokJjg)
     }
 
 

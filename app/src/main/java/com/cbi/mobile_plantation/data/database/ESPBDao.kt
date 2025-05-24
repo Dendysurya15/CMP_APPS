@@ -50,8 +50,9 @@ abstract class ESPBDao {
     @Query("DELETE FROM espb_table WHERE id IN (:id)")
     abstract fun deleteByListID(id: List<Int>): Int
 
-    @Query("UPDATE espb_table SET tph1 = :newTph1 WHERE noESPB = :noESPB")
-    abstract fun updateTPH1ByNOESPB(noESPB: String, newTph1: String): Int
+    @Query("UPDATE espb_table SET tph1 = :newTph1, blok_jjg = :newBlokJjg WHERE noESPB = :noespb")
+    abstract fun updateTPH1AndBlokJjg(noespb: String, newTph1: String, newBlokJjg: String): Int
+
 
 
     @Query("UPDATE espb_table SET archive = 1 WHERE id = :id")

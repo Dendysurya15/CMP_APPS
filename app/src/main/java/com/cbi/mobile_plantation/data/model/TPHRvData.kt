@@ -10,7 +10,8 @@ data class TphRvData(
 
 data class TPHBlokInfo(
     val tphNomor: String,
-    val blokKode: String
+    val blokKode: String,
+    val blokId :String,
 )
 
 data class filterHektarPanenTanggalBlok(

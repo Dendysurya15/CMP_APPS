@@ -4604,16 +4604,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         // Update the ESPB in database
                         lifecycleScope.launch {
                             try {
-                                val updateResult = withContext(Dispatchers.IO) {
-                                    espbViewModel.updateTPH1ByNOESPB(noespb, newTph1String)
-                                }
 
+                                val newBlokJjg = calculateBlokJjgFromTph1(newTph1String)
+                                val updateResult = withContext(Dispatchers.IO) {
+                                    espbViewModel.updateTPH1AndBlokJjg(noespb, newTph1String, newBlokJjg)
+                                }
                                 if (updateResult > 0) {
                                     AppLogger.d("TPH1 updated successfully")
                                     Toast.makeText(this@ListPanenTBSActivity, "TPH berhasil diperbarui", Toast.LENGTH_SHORT).show()
 
                                     // Update the global tph1 variable
                                     tph1 = newTph1String
+                                    blok_jjg = newBlokJjg
 
                                     panenViewModel.getAllPanenWhereESPB(noespb)
                                     delay(100)
@@ -4674,6 +4676,61 @@ class ListPanenTBSActivity : AppCompatActivity() {
             }
         }
     }
+
+    private suspend fun calculateBlokJjgFromTph1(tph1String: String): String {
+        return try {
+            AppLogger.d("=== CALCULATING BLOK_JJG ===")
+            AppLogger.d("Input TPH1: $tph1String")
+
+            // Extract TPH records with JJG values
+            val tphRecords = mutableListOf<Triple<String, String, Int>>() // tphId, blokId, jjgValue
+
+            if (tph1String.isNotEmpty()) {
+                tph1String.split(";").forEach { record ->
+                    if (record.isNotEmpty()) {
+                        val parts = record.split(",")
+                        if (parts.size >= 3) {
+                            val tphId = parts[0].trim()
+                            val jjgValue = parts[2].trim().toIntOrNull() ?: 0
+
+                            // Get blok info for this TPH ID
+                            val tphBlokInfo = withContext(Dispatchers.IO) {
+                                panenViewModel.getTPHAndBlokInfo(tphId.toInt())
+                            }
+
+                            if (tphBlokInfo != null) {
+                                tphRecords.add(Triple(tphId, tphBlokInfo.blokId, jjgValue))
+                                AppLogger.d("TPH $tphId -> Blok ${tphBlokInfo.blokId} -> JJG $jjgValue")
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Group by blokId and sum JJG values
+            val blokJjgMap = tphRecords
+                .groupBy { it.second } // Group by blokId
+                .mapValues { entry ->
+                    entry.value.sumOf { it.third } // Sum JJG values
+                }
+
+            AppLogger.d("Grouped blok sums: $blokJjgMap")
+
+            // Create blok_jjg string: "blokId,totalJJG;blokId,totalJJG"
+            val blokJjgString = blokJjgMap
+                .map { (blokId, totalJjg) -> "$blokId,$totalJjg" }
+                .joinToString(";")
+
+            AppLogger.d("Final blok_jjg: $blokJjgString")
+            return blokJjgString
+
+        } catch (e: Exception) {
+            AppLogger.e("Error calculating blok_jjg: ${e.message}")
+            e.printStackTrace()
+            return ""
+        }
+    }
+
 
 
     private fun updateTableHeaders(headerNames: List<String>) {

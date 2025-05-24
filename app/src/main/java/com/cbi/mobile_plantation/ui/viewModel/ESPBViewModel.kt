@@ -82,9 +82,9 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         }
     }
 
-    suspend fun updateTPH1ByNOESPB(noespb: String, newTph1: String): Int {
+    suspend fun updateTPH1AndBlokJjg(noespb: String, newTph1: String, newBlokJjg: String): Int {
         return withContext(Dispatchers.IO) {
-            repository.updateTPH1ByNOESPB(noespb, newTph1)
+            repository.updateTPH1AndBlokJjg(noespb, newTph1, newBlokJjg)
         }
     }
 
