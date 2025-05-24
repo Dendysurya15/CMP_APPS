@@ -4578,8 +4578,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
             rv.adapter = adapter
         }
 
-        loadingDialog.dismiss()
-
         btnSave?.setOnClickListener {
             val checkedItems = adapter.getCheckedItems()
             val newTph1String = convertTPHItemsToTph1String(checkedItems)
@@ -4665,6 +4663,16 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         // Show dialog LAST (same as your working pattern)
         dialog.show()
+
+        adapter.isLoadingComplete.observe(this@ListPanenTBSActivity) { isComplete ->
+            if (isComplete) {
+                AppLogger.d("✅ Adapter loading complete - dismissing loading dialog")
+                loadingDialog?.dismiss()
+
+                // Remove observer to prevent multiple calls
+                adapter.isLoadingComplete.removeObservers(this@ListPanenTBSActivity)
+            }
+        }
     }
 
 

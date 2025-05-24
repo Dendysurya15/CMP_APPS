@@ -9,6 +9,8 @@ import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -32,6 +34,13 @@ class detailESPBListTPHAdapter(
     private val onItemChecked: (TPHItem, Boolean) -> Unit
 ) : RecyclerView.Adapter<detailESPBListTPHAdapter.TPHViewHolder>() {
 
+    // LiveData to track when all items are bound
+    private val _isLoadingComplete = MutableLiveData<Boolean>()
+    val isLoadingComplete: LiveData<Boolean> = _isLoadingComplete
+
+    private var boundItemsCount = 0
+    private val totalItemCount get() = itemCount
+
     inner class TPHViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val checkBox: CheckBox = itemView.findViewById(R.id.checkBoxPanen)
         val tvBlokName: TextView = itemView.findViewById(R.id.td1)
@@ -43,14 +52,16 @@ class detailESPBListTPHAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TPHViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.table_item_row, parent, false)
-        AppLogger.d("Creating ViewHolder for position")
         return TPHViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: TPHViewHolder, position: Int) {
         val tphItem = tphList[position]
 
-        AppLogger.d("Binding item at position $position: $tphItem")
+        // Reduced logging for performance
+        if (position % 10 == 0 || position == 0) {
+            AppLogger.d("Binding item at position $position")
+        }
 
         // Show relevant views and hide checkbox frame number
         holder.itemView.findViewById<TextView>(R.id.numListTerupload).visibility = View.GONE
@@ -60,29 +71,26 @@ class detailESPBListTPHAdapter(
         holder.tvTotalJjg.visibility = View.VISIBLE
         holder.tvJam.visibility = View.VISIBLE
 
-        holder.tvBlokName.text = tphItem.blokKode
         // Set data
         holder.checkBox.isChecked = tphItem.isChecked
 
-        // Or find it by traversing the view hierarchy
-        val rowLinearLayout = (holder.itemView as ViewGroup).getChildAt(0) as LinearLayout
+        // Get the row container for background color
+        val rowContainer = (holder.itemView as ViewGroup).getChildAt(0) as LinearLayout
 
+        holder.tvBlokName.text = tphItem.blokKode
         if (tphItem.isFromESPB) {
-            // Set background on the LinearLayout that has the border_bottom_light
-            rowLinearLayout.setBackgroundColor(ContextCompat.getColor(holder.itemView.context, R.color.graylight))
+            rowContainer.setBackgroundColor(ContextCompat.getColor(holder.itemView.context, R.color.graylight))
         } else {
-            // Reset to the original border drawable
-            rowLinearLayout.setBackgroundResource(R.drawable.border_bottom_light)
+            rowContainer.setBackgroundResource(R.drawable.border_bottom_light)
         }
 
         holder.tvNomorTPH.text = tphItem.tphNomor
         holder.tvTotalJjg.text = tphItem.jjgJson
 
-        // Format date to Indonesian format
+        // Format date
         try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
             val outputFormat = SimpleDateFormat("dd MMM yy\nHH:mm", Locale("id", "ID"))
-
             val date = inputFormat.parse(tphItem.dateCreated)
             holder.tvJam.text = if (date != null) {
                 outputFormat.format(date)
@@ -93,28 +101,38 @@ class detailESPBListTPHAdapter(
             holder.tvJam.text = tphItem.dateCreated
         }
 
-        AppLogger.d("Data set for position $position - TPH ID: ${tphItem.tphId}, isFromESPB: ${tphItem.isFromESPB}")
-
         // Handle checkbox click
         holder.checkBox.setOnClickListener {
             tphItem.isChecked = holder.checkBox.isChecked
             onItemChecked(tphItem, tphItem.isChecked)
-
-            // Log when ESPB item is unchecked
-            if (tphItem.isFromESPB && !tphItem.isChecked) {
-                AppLogger.d("ESPB item ${tphItem.tphId} was unchecked!")
-            }
         }
 
-        // Handle row click to toggle checkbox
         holder.itemView.setOnClickListener {
             holder.checkBox.performClick()
+        }
+
+        // *** TRACK BINDING PROGRESS ***
+        boundItemsCount++
+
+        // Check if all items are bound
+        if (boundItemsCount >= totalItemCount) {
+            AppLogger.d("All items bound ($boundItemsCount/$totalItemCount) - posting loading complete")
+            _isLoadingComplete.postValue(true)
+        }
+
+        // Log progress for large lists
+        if (position % 10 == 0 || position == totalItemCount - 1) {
+            AppLogger.d("Binding progress: ${boundItemsCount}/$totalItemCount")
         }
     }
 
     override fun getItemCount(): Int = tphList.size
 
     fun updateData(newList: List<TPHItem>) {
+        // Reset counter when data changes
+        boundItemsCount = 0
+        _isLoadingComplete.postValue(false)
+
         tphList.clear()
         tphList.addAll(newList)
         notifyDataSetChanged()
@@ -130,5 +148,11 @@ class detailESPBListTPHAdapter(
 
     fun getAvailableItems(): List<TPHItem> {
         return tphList.filter { !it.isFromESPB }
+    }
+
+    // Reset loading state manually if needed
+    fun resetLoadingState() {
+        boundItemsCount = 0
+        _isLoadingComplete.postValue(false)
     }
 }
