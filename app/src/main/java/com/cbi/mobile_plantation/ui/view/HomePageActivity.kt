@@ -224,7 +224,7 @@ class HomePageActivity : AppCompatActivity() {
 
         // Setup click listener for info icon
         try {
-            val infoPatchNoteIcon = findViewById<ImageView>(R.id.infoPatchNote)
+            val infoPatchNoteIcon = findViewById<TextView>(R.id.infoPatchNote)
             infoPatchNoteIcon?.setOnClickListener {
                 handlePdfViewRequest()
             }

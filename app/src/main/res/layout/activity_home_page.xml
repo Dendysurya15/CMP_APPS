@@ -262,13 +262,25 @@
                 android:layout_height="0dp"
                 android:layout_weight="1" />
 
-            <ImageView
+            <TextView
+                android:layout_width="wrap_content"
                 android:id="@+id/infoPatchNote"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:contentDescription="PDF Viewer"
-                android:layout_marginStart="10dp"
-                android:src="@drawable/baseline_info_24"/>
+                android:layout_height="wrap_content"
+                android:drawableStart="@drawable/ic_info_outline_white_24dp"
+                android:drawablePadding="5dp"
+                android:drawableTint="@color/anotherYellow"
+                android:fontFamily="@font/manrope_bold"
+                android:text="Info Update"
+                android:textColor="@color/anotherYellow"
+                android:textSize="@dimen/m" />
+
+<!--            <ImageView-->
+
+<!--                android:layout_width="40dp"-->
+<!--                android:layout_height="40dp"-->
+<!--                android:contentDescription="PDF Viewer"-->
+<!--                android:layout_marginStart="10dp"-->
+<!--                android:src="@drawable/baseline_info_24"/>-->
         </LinearLayout>
 
 <!--        <ProgressBar-->
