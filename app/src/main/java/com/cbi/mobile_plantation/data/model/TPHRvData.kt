@@ -5,12 +5,14 @@ data class TphRvData(
     val noTPH: String,
     val time: String,
     val jjg: String,
-    val username: String
+    val username: String,
+    val kemandoran_id: String
 )
 
 data class TPHBlokInfo(
     val tphNomor: String,
-    val blokKode: String
+    val blokKode: String,
+    val blokId :String,
 )
 
 data class filterHektarPanenTanggalBlok(

@@ -8,10 +8,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.markertph.data.model.JenisTPHModel
+import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
+import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +47,12 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _activePanenList = MutableLiveData<List<PanenEntityWithRelations>>()
     val activePanenList: LiveData<List<PanenEntityWithRelations>> get() = _activePanenList
+
+    private val _detailNonESPBTPH = MutableLiveData<List<PanenEntityWithRelations>>()
+    val detailNonESPBTPH: LiveData<List<PanenEntityWithRelations>> get() = _detailNonESPBTPH
+
+    private val _detailESPB = MutableLiveData<List<ESPBEntity>>()
+    val detailESPb: LiveData<List<ESPBEntity>> get() = _detailESPB
 
     private val _deleteItemsResult = MutableLiveData<Boolean>()
     val deleteItemsResult: LiveData<Boolean> = _deleteItemsResult
@@ -102,6 +110,16 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
             _activePanenList.value = emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    fun getAllPanenDataDetailESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadESPB(archive, statusEspb, scanStatus, date)
+            _detailNonESPBTPH.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading ESPB: ${e.message}")
+            _detailNonESPBTPH.value = emptyList()  // Return empty list if there's an error
         }
     }
 
@@ -308,12 +326,16 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.getAllPanenWhereESPB(no_espb)
                 .onSuccess { panenList ->
-                    _activePanenList.postValue(panenList)
+                    _detailESPB.postValue(panenList)
                 }
                 .onFailure { exception ->
                     _error.postValue(exception.message ?: "Failed to load data")
                 }
         }
+    }
+
+    suspend fun getTPHAndBlokInfo(id: Int): TPHBlokInfo? {
+        return repository.getTPHAndBlokInfo(id)
     }
 
     fun loadActivePanenRestan(status: Int = 0) {

@@ -1290,6 +1290,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 put("username", username)
                 put("tgl", tglJson)
                 put("nik", nikJson)
+                put("kemandoran_id", prefManager!!.kemandoranUserLogin)
             }.toString()
 
             Log.d("formatPanenDataForQR", "json: $json")

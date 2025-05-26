@@ -498,20 +498,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 // Complete the deferred with the filtered karyawan
                                 karyawanDeferred.complete(presentKaryawan)
                             } else {
-                                // No presentNikSet, use original behavior
-                                // Store all karyawan in both global lists
-                                karyawanList = allKaryawan
-                                karyawanLainList = allKaryawan
 
-                                AppLogger.d("Present NIK set is empty, using all ${allKaryawan.size} karyawan")
-
-                                if (allKaryawan.isNotEmpty()) {
-                                    val sampleSize = minOf(3, allKaryawan.size)
-                                    val sample = allKaryawan.take(sampleSize)
-                                    AppLogger.d("Sample karyawan: $sample")
-                                }
-
-                                // Complete the deferred with all karyawan
+                                karyawanList = emptyList()
+                                karyawanLainList = emptyList()
                                 karyawanDeferred.complete(allKaryawan)
                             }
                         }
@@ -2023,6 +2012,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 layoutView.visibility = View.GONE
                             } else {
                                 setupSpinnerView(layoutView, emptyList())
+                                val pemanenSpinner =
+                                    layoutView.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
                             }
                         }
 
@@ -2036,7 +2028,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 // Initially hidden - will be shown when needed
                                 layoutView.visibility = View.GONE
                             } else {
+
                                 setupSpinnerView(layoutView, emptyList())
+                                val pemanenSpinner =
+                                    layoutView.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
                             }
                         }
 
@@ -2906,17 +2902,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         defaultLimit
                     }
                 } else {
-                    // For other jenis_tph_id values
-                    try {
-                        val customLimit = tphData?.limitTPH?.toInt()
-                        if (customLimit != null) {
-                            customLimit
-                        } else {
-                            defaultLimit
-                        }
-                    } catch (e: Exception) {
-                        defaultLimit
-                    }
+                    defaultLimit
                 }
 
             // Include if within radius OR is the currently selected TPH
@@ -3073,42 +3059,27 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     }
                 }
             } else {
-                // No presentNikSet, use original behavior
-                // Store all karyawan in the global lists
-                karyawanList = allKaryawan
-                karyawanLainList = allKaryawan
 
-                AppLogger.d("Present NIK set is empty, using all ${allKaryawan.size} karyawan")
-
-                val karyawanNames = allKaryawan
-                    .sortedBy { it.nama }
-                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
                 withContext(Dispatchers.Main) {
                     val layoutPemanen = rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
                     layoutPemanen.visibility = View.VISIBLE
 
-                    if (karyawanNames.isNotEmpty()) {
-                        setupSpinnerView(layoutPemanen, karyawanNames)
-                    } else {
-                        setupSpinnerView(layoutPemanen, emptyList())
-                        val pemanenSpinner =
-                            layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                        pemanenSpinner.setHint("Tidak Ada Karyawan")
-                    }
+
+                    setupSpinnerView(layoutPemanen, emptyList())
+                    val pemanenSpinner =
+                        layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                    pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
+
 
                     val layoutPemanenLain =
                         rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
-                    if (layoutPemanenLain != null) {
-                        if (karyawanNames.isNotEmpty()) {
-                            setupSpinnerView(layoutPemanenLain, karyawanNames)
-                        } else {
-                            setupSpinnerView(layoutPemanenLain, emptyList())
-                            val pemanenLainSpinner =
-                                layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                            pemanenLainSpinner.setHint("Tidak Ada Karyawan")
-                        }
-                    }
+                    setupSpinnerView(layoutPemanenLain, emptyList())
+                    val pemanenLainSpinner =
+                        layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                    pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
+
+
                 }
             }
         } catch (e: Exception) {
@@ -4231,7 +4202,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }
 
 
-                if(blokBanjir == 1){
+                if (blokBanjir == 1) {
                     setupSpinnerView(layoutNoTPH, emptyList())
                     selectedTPH = ""
                     selectedTPHIdSpinner = 0
@@ -4513,28 +4484,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     }
                                 }
                             } else {
-                                // No presentNikSet, use original behavior - show all karyawan
-                                AppLogger.d("Present NIK set is empty, showing all ${karyawanList.size} karyawan")
+                                setupSpinnerView(layoutPemanen, emptyList())
+                                val pemanenSpinner =
+                                    layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
 
-                                val karyawanNames = karyawanList
-                                    .sortedBy { it.nama }
-                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
-
-                                withContext(Dispatchers.Main) {
-                                    val layoutPemanen =
-                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
-                                    layoutPemanen.visibility = View.VISIBLE
-
-                                    if (karyawanNames.isNotEmpty()) {
-                                        setupSpinnerView(layoutPemanen, karyawanNames)
-                                    } else {
-                                        // Set empty and update hint
-                                        setupSpinnerView(layoutPemanen, emptyList())
-                                        val pemanenSpinner =
-                                            layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                                        pemanenSpinner.setHint("Tidak Ada Karyawan")
-                                    }
-                                }
                             }
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching karyawan data: ${e.message}")
@@ -4741,28 +4695,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         }
                                     }
                                 } else {
-                                    // No presentNikSet, use original behavior - show all karyawan
-                                    AppLogger.d("Present NIK set is empty, showing all ${karyawanLainList.size} karyawan")
 
-                                    val karyawanNames = karyawanLainList
-                                        .sortedBy { it.nama }
-                                        .map { "${it.nama} - ${it.nik ?: "N/A"}" }
-
-                                    withContext(Dispatchers.Main) {
-                                        val layoutPemanen =
-                                            linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
-                                        layoutPemanen.visibility = View.VISIBLE
-
-                                        if (karyawanNames.isNotEmpty()) {
-                                            setupSpinnerView(layoutPemanen, karyawanNames)
-                                        } else {
-                                            setupSpinnerView(layoutPemanen, emptyList())
-                                            // Set hint directly
-                                            val pemanenSpinner =
-                                                layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                                            pemanenSpinner.setHint("Tidak Ada Karyawan")
-                                        }
-                                    }
+                                    AppLogger.d("loh masuk sini ges")
+                                    setupSpinnerView(layoutPemanenLain, emptyList())
+                                    // Set hint directly
+                                    val pemanenSpinner =
+                                        layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                    pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
                                 }
                             } catch (e: Exception) {
                                 AppLogger.e("Error reloading all karyawan lain: ${e.message}")
@@ -4831,32 +4770,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     }
                                 }
                             } else {
-                                // No presentNikSet, use original behavior - show all karyawan
-                                AppLogger.d("Present NIK set is empty, showing all ${karyawanLainList.size} karyawan")
 
-                                val namaKaryawanKemandoranLain = karyawanLainList
-                                    .sortedBy { it.nama } // Sort by name alphabetically
-                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
-                                withContext(Dispatchers.Main) {
-                                    val layoutPemanenLain =
-                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                                setupSpinnerView(
+                                    layoutPemanenLain,
+                                    emptyList()
+                                )
+                                val pemanenLainSpinner =
+                                    layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
 
-                                    if (namaKaryawanKemandoranLain.isNotEmpty()) {
-                                        setupSpinnerView(
-                                            layoutPemanenLain,
-                                            namaKaryawanKemandoranLain
-                                        )
-                                    } else {
-                                        setupSpinnerView(
-                                            layoutPemanenLain,
-                                            emptyList()
-                                        )
-                                        val pemanenLainSpinner =
-                                            layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                                        pemanenLainSpinner.setHint("Tidak Ada Karyawan")
-                                    }
-                                }
                             }
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching kemandoran lain data: ${e.message}")
@@ -5889,11 +5812,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         finalLat = latitude
         finalLon = longitude
 
-        photoCount++
-        photoFiles.add(fname)
-        komentarFoto.add(komentar ?: "")
-
-        AppLogger.d("Photo added to activity: $fname, new count: $photoCount")
+        if (position < photoFiles.size) {
+            // Position exists, replace it
+            photoFiles[position] = fname
+            komentarFoto[position] = komentar ?: ""
+        } else {
+            while (photoFiles.size < position) {
+                photoFiles.add("")
+                komentarFoto.add("")
+            }
+            photoFiles.add(fname)
+            komentarFoto.add(komentar ?: "")
+            photoCount++
+        }
 
         val viewHolder =
             recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder

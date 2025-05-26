@@ -24,6 +24,9 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table WHERE noESPB = :noEspb LIMIT 1")
     abstract suspend fun getEspbByNumber(noEspb: String): ESPBEntity?
 
+    @Transaction
+    @Query("SELECT * FROM espb_table WHERE noESPB = :no_espb")
+    abstract fun getAllPanenWhereESPB(no_espb: String): List<ESPBEntity>
 
     //    @Query("SELECT * FROM espb_table WHERE  DATE(created_at) = DATE('now', 'localtime')")
     @Query("SELECT * FROM espb_table where scan_status = 1")
@@ -46,6 +49,11 @@ abstract class ESPBDao {
 
     @Query("DELETE FROM espb_table WHERE id IN (:id)")
     abstract fun deleteByListID(id: List<Int>): Int
+
+    @Query("UPDATE espb_table SET tph1 = :newTph1, blok_jjg = :newBlokJjg WHERE noESPB = :noespb")
+    abstract fun updateTPH1AndBlokJjg(noespb: String, newTph1: String, newBlokJjg: String): Int
+
+
 
     @Query("UPDATE espb_table SET archive = 1 WHERE id = :id")
     abstract fun archiveByID(id: Int): Int

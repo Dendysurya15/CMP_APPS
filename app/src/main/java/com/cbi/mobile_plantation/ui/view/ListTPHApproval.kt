@@ -537,6 +537,7 @@ class ListTPHApproval : AppCompatActivity() {
                 AppLogger.d(jsonString.toString())
                 val jsonObject = JSONObject(jsonString)
                 val tph0String = jsonObject.getString("tph_0")
+                val kemandoranId = jsonObject.getString("kemandoran_id")
                 val usernameString = try {
                     jsonObject.getString("username")
                 } catch (e: Exception) {
@@ -610,8 +611,8 @@ class ListTPHApproval : AppCompatActivity() {
                             "Processing idtph: $idtph, dateIndex: $dateIndex, time: $time, jjg: $jjg"
                         )
 
-                        var displayData = TphRvData("NULL", "NULL", "NULL", "NULL", "NULL")
-                        var saveDataHasilPanen = TphRvData("NULL", "NULL", "NULL", "NULL", "NULL")
+                        var displayData = TphRvData("NULL", "NULL", "NULL", "NULL", "NULL", "NULL")
+                        var saveDataHasilPanen = TphRvData("NULL", "NULL", "NULL", "NULL", "NULL", "NULL")
 
                         if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
                             idtph = parts[0].toInt()
@@ -646,7 +647,8 @@ class ListTPHApproval : AppCompatActivity() {
                                 noTPH = noTph.toString(),
                                 time = time,  // Just show the time part for display
                                 jjg = jjg.toString(),
-                                username = usernameString
+                                username = usernameString,
+                                ""
                             )
                             // Create save data with original values
                             saveDataHasilPanen = TphRvData(
@@ -654,7 +656,8 @@ class ListTPHApproval : AppCompatActivity() {
                                 noTPH = idtph.toString(),
                                 time = fullDateTime, // Reconstructed full datetime
                                 jjg = jjg.toString(),
-                                username = usernameString
+                                username = usernameString,
+                                ""
                             )
                         } else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
                             // Extract the values from parts first
@@ -721,7 +724,8 @@ class ListTPHApproval : AppCompatActivity() {
                                 noTPH = karyawan, // Use karyawan name for display
                                 time = time,
                                 jjg = jjg.toString(),
-                                username = usernameString
+                                username = usernameString,
+                                ""
                             )
                             // 2. Create separate PanenEntity for each NIK
                             val kP = parts[4].toInt() + parts[5].toInt() + parts[7].toInt() + parts[8].toInt()
@@ -744,7 +748,7 @@ class ListTPHApproval : AppCompatActivity() {
                                 dataIsZipped = 0,
                                 created_by = 0,
                                 karyawan_id = "NULL",
-                                kemandoran_id = "NULL",
+                                kemandoran_id = kemandoranId,
                                 karyawan_nama = "NULL",
                                 jumlah_pemanen = if (nik.contains(",")) nik.split(",").size else 1,
                                 status_scan_mpanen = 1

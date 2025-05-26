@@ -44,6 +44,24 @@ class HektarPanenViewModel(private val repository: AppRepository) : ViewModel() 
         return nama!!
     }
 
+    private val _hektarPanenTodayList = MutableLiveData<List<HektarPanenEntity>>()
+    val hektarPanenTodayList: LiveData<List<HektarPanenEntity>> = _hektarPanenTodayList
+
+    private val _error = MutableLiveData<String>()
+    val error: LiveData<String> = _error
+
+    fun getAllHektarPanen() {
+        viewModelScope.launch {
+            repository.getAllHektarPanen()
+                .onSuccess { hektarPanenList ->
+                    _hektarPanenTodayList.value = hektarPanenList
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load hektar panen data")
+                }
+        }
+    }
+
     private val _historyHektarPanen = MutableLiveData<List<HektarPanenEntity>>()
     val historyHektarPanen : LiveData<List<HektarPanenEntity>> = _historyHektarPanen
 

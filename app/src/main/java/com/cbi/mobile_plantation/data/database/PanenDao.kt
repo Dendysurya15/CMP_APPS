@@ -137,9 +137,6 @@ abstract class PanenDao {
     @Query("SELECT * FROM panen_table WHERE status_espb = :status")
     abstract fun getAllAPanenRestan(status: Int = 0): List<PanenEntityWithRelations>
 
-    @Transaction
-    @Query("SELECT * FROM panen_table WHERE no_espb = :no_espb")
-    abstract fun getAllPanenWhereESPB(no_espb: String): List<PanenEntityWithRelations>
     // Add this to your PanenDao
     @Query("UPDATE panen_table SET status_espb = :status, no_espb = :no_espb WHERE id IN (:ids)")
     abstract suspend fun updateESPBStatusByIds(ids: List<Int>, status: Int, no_espb: String): Int

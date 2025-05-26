@@ -1471,9 +1471,19 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
 
         adapter?.addPhotoFile("$position", photoFile)
 
-        photoCount++
-        photoFiles.add(fname)
-        komentarFoto.add(komentar!!)
+        if (position < photoFiles.size) {
+            // Position exists, replace it
+            photoFiles[position] = fname
+            komentarFoto[position] = komentar ?: ""
+        } else {
+            while (photoFiles.size < position) {
+                photoFiles.add("")
+                komentarFoto.add("")
+            }
+            photoFiles.add(fname)
+            komentarFoto.add(komentar ?: "")
+            photoCount++
+        }
 
         finalLat = latitude
         finalLon = longitude

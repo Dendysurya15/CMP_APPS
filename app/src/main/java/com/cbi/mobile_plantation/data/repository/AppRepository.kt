@@ -285,7 +285,6 @@ class AppRepository(context: Context) {
                         )
 
                         if (hektarPanen == null) {
-
 // Get the TPH model
                             val tphModel = tphDao.getTPHByBlockId(blokId)
 
@@ -842,6 +841,16 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getAllHektarPanen(): Result<List<HektarPanenEntity>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = hektarPanenDao.getAll()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
     suspend fun updateDataIsZippedPanen(ids: List<Int>, status: Int) {
         panenDao.updateDataIsZippedPanen(ids, status)
     }
@@ -948,10 +957,10 @@ class AppRepository(context: Context) {
         panenDao.getAll()
     }
 
-    suspend fun getAllPanenWhereESPB(no_esp: String): Result<List<PanenEntityWithRelations>> =
+    suspend fun getAllPanenWhereESPB(no_esp: String): Result<List<ESPBEntity>> =
         withContext(Dispatchers.IO) {
             try {
-                val data = panenDao.getAllPanenWhereESPB(no_esp)
+                val data = espbDao.getAllPanenWhereESPB(no_esp)
                 Result.success(data)
             } catch (e: Exception) {
                 Result.failure(e)
@@ -1073,6 +1082,11 @@ class AppRepository(context: Context) {
     suspend fun deleteESPBById(id: Int) = withContext(Dispatchers.IO) {
         espbDao.deleteByID(id)
     }
+
+    suspend fun updateTPH1AndBlokJjg(noespb: String, newTph1: String, newBlokJjg: String) = withContext(Dispatchers.IO) {
+        espbDao.updateTPH1AndBlokJjg(noespb, newTph1, newBlokJjg)
+    }
+
 
     suspend fun deleteESPBByIds(ids: List<Int>) = withContext(Dispatchers.IO) {
         espbDao.deleteByListID(ids)

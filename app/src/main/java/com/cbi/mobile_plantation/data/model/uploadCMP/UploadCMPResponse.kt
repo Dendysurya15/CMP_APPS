@@ -87,3 +87,15 @@ data class UploadResults(
     val errors: Int,
     val skipped: Int
 )
+
+
+data class CheckDuplicateResponse(
+    @SerializedName("status") val status: String,
+    @SerializedName("processed") val processed: Int,
+    @SerializedName("duplicates") val duplicates: List<DuplicateData>?
+)
+
+data class DuplicateData(
+    @SerializedName("id_tph") val idTph: Int,
+    @SerializedName("datetime") val datetime: String
+)

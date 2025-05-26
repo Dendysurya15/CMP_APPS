@@ -24,6 +24,7 @@ import com.cbi.mobile_plantation.data.model.weighBridge.wbQRData
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
+import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 
 import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
@@ -67,6 +68,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
     private lateinit var loadingDialog: LoadingDialog
     private lateinit var datasetViewModel: DatasetViewModel
+    private lateinit var panenViewModel: PanenViewModel
     var globalBlokJjg: String = ""
     var globalBlokPPROJjg: String = ""
     var globalRegional: String = ""
@@ -168,446 +170,600 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         val btnSaveUploadESPB = bottomSheetView.findViewById<Button>(R.id.btnSaveUploadeSPB)
 
         btnSaveUploadESPB.setOnClickListener {
+
+            // Set up observer for duplicate check result FIRST
+            weightBridgeViewModel.tphDuplicateResult.observeOnce(this@ScanWeighBridgeActivity) { duplicateResponse ->
+                if (duplicateResponse?.status == "success" && !duplicateResponse.duplicates.isNullOrEmpty()) {
+                    lifecycleScope.launch {
+                        try {
+                            loadingDialog.show()
+                            loadingDialog.setMessage("Mengambil detail data duplikat...", true)
+
+                            val duplicateDetails = mutableListOf<String>()
+                            val combinationCounts = mutableMapOf<String, Int>()
+
+                            for (duplicate in duplicateResponse.duplicates) {
+                                try {
+                                    val tphBlokInfo =
+                                        panenViewModel.getTPHAndBlokInfo(duplicate.idTph)
+                                    if (tphBlokInfo != null) {
+                                        val combinationKey =
+                                            "${tphBlokInfo.blokKode}-${tphBlokInfo.tphNomor}"
+                                        combinationCounts[combinationKey] =
+                                            (combinationCounts[combinationKey] ?: 0) + 1
+                                        AppLogger.d("Combination: $combinationKey, Count: ${combinationCounts[combinationKey]}")
+                                    }
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error in first pass: ${e.message}")
+                                }
+                            }
+
+                            AppLogger.d("Final combination counts: $combinationCounts")
+
+// Second pass - format the details
+                            for (duplicate in duplicateResponse.duplicates) {
+                                try {
+                                    val tphBlokInfo =
+                                        panenViewModel.getTPHAndBlokInfo(duplicate.idTph)
+                                    if (tphBlokInfo != null) {
+                                        val combinationKey =
+                                            "${tphBlokInfo.blokKode}-${tphBlokInfo.tphNomor}"
+                                        val count = combinationCounts[combinationKey] ?: 1
+
+                                        AppLogger.d("Processing: $combinationKey, Count: $count")
+
+                                        // Format the datetime to Indonesian format
+                                        val formattedDate = try {
+                                            val originalDate = SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
+                                            ).parse(duplicate.datetime)
+                                            val indonesianDateFormat = SimpleDateFormat(
+                                                "d MMMM yyyy HH:mm:ss",
+                                                Locale("id", "ID")
+                                            )
+                                            indonesianDateFormat.format(originalDate!!)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Date parsing error: ${e.message}")
+                                            duplicate.datetime // Fallback to original if parsing fails
+                                        }
+
+                                        val formattedDetail = if (count > 1) {
+                                            // Same blokKode and nomor appears multiple times - show date
+                                            AppLogger.d("Showing date for $combinationKey")
+                                            "• ${tphBlokInfo.blokKode} - Nomor ${tphBlokInfo.tphNomor} ($formattedDate)"
+                                        } else {
+                                            // Unique blokKode and nomor - don't show date
+                                            AppLogger.d("Not showing date for $combinationKey")
+                                            "• ${tphBlokInfo.blokKode} - Nomor ${tphBlokInfo.tphNomor}"
+                                        }
+
+                                        AppLogger.d("Formatted detail: $formattedDetail")
+                                        duplicateDetails.add(formattedDetail)
+                                    } else {
+                                        AppLogger.d("TPH info is null for ID: ${duplicate.idTph}")
+                                        // Fallback if TPH info not found
+                                        val formattedDetail =
+                                            "• ID TPH ${duplicate.idTph} (${duplicate.datetime})"
+                                        duplicateDetails.add(formattedDetail)
+                                    }
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error fetching TPH info for ID ${duplicate.idTph}: ${e.message}")
+                                    val formattedDetail =
+                                        "• ID TPH ${duplicate.idTph} (${duplicate.datetime})"
+                                    duplicateDetails.add(formattedDetail)
+                                }
+                            }
+
+                            AppLogger.d("Final duplicate details: $duplicateDetails")
+                            val duplicateListText = duplicateDetails.joinToString("\n")
+                            loadingDialog.dismiss()
+
+                            val duplicateCount = duplicateResponse.duplicates.size
+
+                            val errorMessage =
+                                "Ditemukan $duplicateCount data duplikat yang sudah ada di sistem/PC:\n\n$duplicateListText\n\nLaporkan informasi ini kepada Mandor1 atau Asisten"
+
+                            AlertDialogUtility.withTwoActions(
+                                this@ScanWeighBridgeActivity,
+                                "Lanjut Simpan & Upload E-SPB",
+                                "Peringatan Data Duplikat",
+                                errorMessage,
+                                "warning.json",
+                                function = {
+                                    saveAndUplaodESPB()
+                                    btnSaveUploadESPB.isEnabled = true
+                                },
+                                cancelFunction = {
+                                    // Re-enable button and resume scanning
+                                    btnSaveUploadESPB.isEnabled = true
+                                    isScanning = true
+                                    resumeScanner()
+                                }
+                            )
+                            AppLogger.d("Duplicates found - blocking save with detailed info")
+
+                        } catch (e: Exception) {
+                            loadingDialog.dismiss()
+                            AppLogger.e("Error processing duplicate details: ${e.message}")
+
+                            // Fallback to simple duplicate message
+                            val duplicateCount = duplicateResponse.duplicates.size
+                            val firstDuplicate = duplicateResponse.duplicates.first()
+
+                            AlertDialogUtility.withSingleAction(
+                                this@ScanWeighBridgeActivity,
+                                "Data Duplikat Ditemukan",
+                                "Peringatan",
+                                "Ditemukan $duplicateCount data duplikat.\n\nDuplikat terakhir: ${firstDuplicate.datetime}\n\nData tidak dapat disimpan karena sudah ada di sistem.",
+                                "warning.json"
+                            ) {
+                                btnSaveUploadESPB.isEnabled = true
+                                isScanning = true
+                                resumeScanner()
+                            }
+                        }
+                    }
+                } else {
+                    // No duplicates - proceed with original save logic
+                    AppLogger.d("No duplicates - allowing save")
+
+                    // Always allow saving to local database regardless of network connection
+                    AlertDialogUtility.withTwoActions(
+                        this,
+                        "Simpan Data",
+                        getString(R.string.confirmation_dialog_title),
+                        getString(R.string.al_submit_upload_data_espb_by_krani_timbang),
+                        "warning.json",
+                        function = {
+                            saveAndUplaodESPB()
+                            btnSaveUploadESPB.isEnabled = true
+                        },
+                        cancelFunction = {
+                            btnSaveUploadESPB.isEnabled = true
+                            isScanning = true
+                            resumeScanner()
+                        }
+                    )
+                }
+            }
+
+            // Disable button and pause scanning
             btnSaveUploadESPB.isEnabled = false
             isScanning = false
             pauseScanner()
 
-            // Always allow saving to local database regardless of network connection
-            AlertDialogUtility.withTwoActions(
-                this,
-                "Simpan Data",
-                getString(R.string.confirmation_dialog_title),
-                getString(R.string.al_submit_upload_data_espb_by_krani_timbang),
-                "warning.json",
-                function = {
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        loadingDialog.show()
-                        loadingDialog.setMessage(
-                            "Sedang menyimpan e-SPB ke local database",
-                            true
-                        )
-                        try {
-                            val result = withContext(Dispatchers.IO) {
-                                weightBridgeViewModel.saveDataLocalKraniTimbangESPB(
-                                    blok_jjg = globalBlokJjg,
-                                    created_by_id = globalCreatedById ?: 0,
-                                    created_at = globalCreatedAt,
-                                    nopol = globalNopol,
-                                    driver = globalDriver,
-                                    transporter_id = globalTransporterId ?: 0,
-                                    pemuat_id = globalPemuatId,
-                                    kemandoran_id = globalKemandoranId,
-                                    pemuat_nik = globalPemuatNik,
-                                    mill_id = globalMillId!!,
-                                    archive = 0,
-                                    tph0 = globalTph0,
-                                    tph1 = globalTph1,
-                                    update_info_sp = "", // Changed from update_info
-                                    uploaded_by_id_wb = 0, // New field for WB
-                                    uploaded_at_wb = "",   // New field for WB
-                                    status_upload_cmp_wb = 0, // New field for WB
-                                    status_upload_ppro_wb = 0, // New field for WB
-                                    creator_info = globalCreatorInfo,
-                                    uploader_info_wb = "", // New field for WB
-                                    noESPB = globalNoESPB,
-                                    scan_status = 1,
-                                    date_scan = SimpleDateFormat(
-                                        "yyyy-MM-dd HH:mm:ss",
-                                        Locale.getDefault()
-                                    ).format(Date()) // Current datetime
-                                )
-                            }
-
-                            when (result) {
-                                is WeighBridgeRepository.SaveResultESPBKrani.Success -> {
-                                    loadingDialog.setMessage(
-                                        "Berhasil simpan data e-SPB ke local",
-                                    )
-
-                                    playSound(R.raw.berhasil_simpan)
-                                    val savedItemId = result.id
-
-                                    // Check if network is available for upload attempt
-                                    if (AppUtils.isNetworkAvailable(this@ScanWeighBridgeActivity)) {
-                                        // Try to upload with network connection
-
-
-                                        var number = 0
-                                        // Data for PPRO Staging
-                                        val itemToUpload = mapOf(
-                                            "num" to number++,
-                                            "ip" to globalIpMill,
-                                            "id" to savedItemId,
-                                            "endpoint" to "PPRO",
-                                            "uploader_info" to globalCreatorInfo,
-                                            "uploaded_at" to SimpleDateFormat(
-                                                "yyyy-MM-dd HH:mm:ss",
-                                                Locale.getDefault()
-                                            ).format(Date()),
-                                            "uploaded_by_id" to (globalCreatedById ?: 0),
-                                            "dept_ppro" to globalDeptPPRO,
-                                            "divisi_ppro" to globalDivisiPPRO,
-                                            "commodity" to "2",
-                                            "blok_jjg" to globalBlokPPROJjg,
-                                            "nopol" to globalNopol,
-                                            "driver" to globalDriver,
-                                            "pemuat_id" to globalPemuatId.toString(),
-                                            "transporter_id" to (globalTransporterId
-                                                ?: 0).toString(),
-                                            "mill_id" to globalMillId.toString(),
-                                            "created_by_id" to (globalCreatedById ?: 0).toString(),
-                                            "created_at" to globalCreatedAt,
-                                            "no_espb" to globalNoESPB
-                                        )
-
-                                        lifecycleScope.launch {
-                                            val zipDeferred =
-                                                CompletableDeferred<Pair<Boolean, String?>>()
-                                            var zipFilePath: String? = null
-                                            loadingDialog.setMessage(
-                                                "Sedang membuat file .zip untuk upload",
-                                                true
-                                            )
-// For CMP data
-                                            var number = 0
-
-                                            val espbData = mapOf(
-                                                "num" to number++,
-                                                "ip" to globalIpMill,
-                                                "id" to savedItemId,
-                                                "regional" to globalRegional,
-                                                "wilayah" to globalWilayah,
-                                                "company" to globalCompany,
-                                                "dept" to globalDept,
-                                                "divisi" to globalDivisi,
-                                                "blok_id" to globalBlokId,
-                                                "blok_jjg" to globalBlokJjg,
-                                                "jjg" to globalTotalJjg,
-                                                "created_by_id" to (globalCreatedById ?: 0),
-                                                "created_at" to globalCreatedAt,
-                                                "pemuat_id" to globalPemuatId,
-                                                "kemandoran_id" to globalKemandoranId,
-                                                "pemuat_nik" to globalPemuatNik,
-                                                "nopol" to globalNopol,
-                                                "driver" to globalDriver,
-                                                "updated_nama" to prefManager!!.nameUserLogin.toString(),
-                                                "transporter_id" to (globalTransporterId ?: 0),
-                                                "mill_id" to globalMillId,
-                                                "creator_info" to globalCreatorInfo,
-                                                "no_espb" to globalNoESPB,
-                                                "tph0" to globalTph0,
-                                                "tph1" to globalTph1,
-                                                "update_info_sp" to globalUpdateInfoSP,
-                                                "app_version" to AppUtils.getDeviceInfo(this@ScanWeighBridgeActivity)
-                                                    .toString(),
-                                                "jabatan" to prefManager!!.jabatanUserLogin
-                                            )
-
-                                            val espbDataList = listOf(espbData)
-
-                                            // Wrap the data in a structure as requested
-                                            val wrappedEspbData = mapOf(
-                                                AppUtils.DatabaseTables.ESPB to espbDataList
-                                            )
-
-                                            // Convert the wrapped data to JSON
-                                            val espbJson = Gson().toJson(wrappedEspbData)
-
-//                                            try {
-//                                                val tempDir =
-//                                                    File(getExternalFilesDir(null), "TEMP").apply {
-//                                                        if (!exists()) mkdirs()
-//                                                    }
-//
-//                                                val filename =
-//                                                    "espb_scan_wb_data_${System.currentTimeMillis()}.json"
-//                                                val tempFile = File(tempDir, filename)
-//
-//                                                FileOutputStream(tempFile).use { fos ->
-//                                                    fos.write(espbJson.toByteArray())
-//                                                }
-//
-//                                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
-//                                            } catch (e: Exception) {
-//                                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
-//                                                e.printStackTrace()
-//                                            }
-
-                                            val uploadDataList =
-                                                mutableListOf<Pair<String, List<Map<String, Any>>>>()
-                                            val espbDataAsAny = espbData as Map<String, Any>
-                                            uploadDataList.add(
-                                                Pair(
-                                                    AppUtils.DatabaseTables.ESPB,
-                                                    listOf(espbDataAsAny)
-                                                )
-                                            )
-
-                                            AppUtils.createAndSaveZipUploadCMPSingle(
-                                                this@ScanWeighBridgeActivity,
-                                                uploadDataList,
-                                                (globalCreatedById ?: 0).toString()
-                                            ) { success, fileName, fullPath, zipFile ->
-                                                if (success) {
-                                                    zipFilePath = fullPath
-                                                    AppLogger.d("sukses membuat zip $fileName")
-                                                    zipDeferred.complete(Pair(true, fullPath))
-                                                } else {
-                                                    loadingDialog.addStatusMessage(
-                                                        "Gagal membuat file ZIP",
-                                                        LoadingDialog.StatusType.ERROR
-                                                    )
-                                                    zipDeferred.complete(Pair(false, null))
-                                                }
-                                            }
-
-                                            val (zipSuccess, zipPath) = zipDeferred.await()
-                                            var cmpItem: Map<String, Any>? = null
-
-
-
-                                            if (zipSuccess) {
-                                                weightBridgeViewModel.updateDataIsZippedESPB(
-                                                    listOf(savedItemId),
-                                                    1
-                                                )
-                                                cmpItem = mapOf(
-                                                    "num" to number++,
-                                                    "ip" to globalIpMill,
-                                                    "id" to savedItemId,
-                                                    "endpoint" to "CMP",
-                                                    "uploader_info" to globalCreatorInfo,
-                                                    "uploaded_at" to SimpleDateFormat(
-                                                        "yyyy-MM-dd HH:mm:ss",
-                                                        Locale.getDefault()
-                                                    ).format(Date()),
-                                                    "uploaded_by_id" to (globalCreatedById ?: 0),
-                                                    "data" to espbJson  // Changed from "file" to "data" and using the JSON string directly
-                                                )
-                                            } else {
-                                                cmpItem = mapOf(
-                                                    "num" to number++,
-                                                    "ip" to globalIpMill,
-                                                    "id" to savedItemId,
-                                                    "endpoint" to "CMP",
-                                                    "uploader_info" to globalCreatorInfo,
-                                                    "uploaded_at" to SimpleDateFormat(
-                                                        "yyyy-MM-dd HH:mm:ss",
-                                                        Locale.getDefault()
-                                                    ).format(Date()),
-                                                    "uploaded_by_id" to (globalCreatedById ?: 0),
-                                                    "data" to espbJson  // Changed from "file" to "data" and using the JSON string directly
-                                                )
-                                            }
-
-//                                            val itemsToUpload = listOf(itemToUpload, cmpItem)
-                                            val itemsToUpload = listOf(itemToUpload, cmpItem)
-                                            val globalIdEspb = listOf(savedItemId)
-
-                                            loadingDialog.setMessage(
-                                                "Sedang mengupload data ke server, harap tunggu",
-                                                true
-                                            )
-                                            weightBridgeViewModel.uploadESPBKraniTimbang(
-                                                itemsToUpload,
-                                                globalIdEspb
-                                            )
-
-                                            val processedEndpoints = mutableSetOf<String>()
-
-                                            // Observe upload progress
-                                            weightBridgeViewModel.uploadProgress.observe(this@ScanWeighBridgeActivity) { progressMap ->
-                                                AppLogger.d("Upload progress: $progressMap")
-                                            }
-
-                                            // Observe upload status with endpoint info
-                                            weightBridgeViewModel.uploadStatusEndpointMap.observe(
-                                                this@ScanWeighBridgeActivity
-                                            ) { statusEndpointMap ->
-                                                statusEndpointMap.forEach { (id, info) ->
-                                                    val endpointKey = info.endpoint
-
-                                                    // Only add a message if we haven't processed this endpoint for this ID yet
-                                                    if (!processedEndpoints.contains(endpointKey) && info.status == "Success") {
-                                                        processedEndpoints.add(endpointKey)
-                                                        loadingDialog.addStatusMessage(
-                                                            "${info.endpoint} berhasil diupload",
-                                                            LoadingDialog.StatusType.SUCCESS
-                                                        )
-                                                    } else if (!processedEndpoints.contains(
-                                                            endpointKey
-                                                        ) && info.status == "Failed"
-                                                    ) {
-                                                        processedEndpoints.add(endpointKey)
-                                                        loadingDialog.addStatusMessage(
-                                                            "${info.endpoint} gagal diupload",
-                                                            LoadingDialog.StatusType.ERROR
-                                                        )
-                                                    }
-                                                }
-
-                                                val allComplete =
-                                                    statusEndpointMap.values.all { it.status == "Success" || it.status == "Failed" }
-                                                if (allComplete) {
-                                                    loadingDialog.setMessage("Semua data telah diupload")
-                                                    Handler(Looper.getMainLooper()).postDelayed({
-                                                        val allSuccessful =
-                                                            statusEndpointMap.values.all { it.status == "Success" }
-                                                        if (allSuccessful) {
-                                                            AlertDialogUtility.withSingleAction(
-                                                                this@ScanWeighBridgeActivity,
-                                                                stringXML(R.string.al_back),
-                                                                stringXML(R.string.al_success_save_local),
-                                                                stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang) +
-                                                                        "\nBerhasil mengupload data ke server.",
-                                                                "success.json",
-                                                                R.color.greendarkerbutton
-                                                            ) {
-                                                                val intent = Intent(
-                                                                    this@ScanWeighBridgeActivity,
-                                                                    HomePageActivity::class.java
-                                                                )
-                                                                intent.flags =
-                                                                    Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                                                                startActivity(intent)
-                                                                finish()
-                                                            }
-                                                        } else {
-                                                            val failedCount =
-                                                                statusEndpointMap.values.count { it.status == "Failed" }
-
-                                                            AlertDialogUtility.withSingleAction(
-                                                                this@ScanWeighBridgeActivity,
-                                                                stringXML(R.string.al_back),
-                                                                stringXML(R.string.al_success_save_local),
-                                                                stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang) +
-                                                                        "\nData tersimpan lokal tetapi ada $failedCount data yang gagal upload!.Lakukan upload ulang pada menu Rekap Scan Timbangan Mill",
-                                                                "warning.json",
-                                                                R.color.orangeButton
-                                                            ) {
-                                                                val intent = Intent(
-                                                                    this@ScanWeighBridgeActivity,
-                                                                    HomePageActivity::class.java
-                                                                )
-                                                                intent.flags =
-                                                                    Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                                                                startActivity(intent)
-                                                                finish()
-                                                            }
-                                                        }
-
-                                                        // Finally dismiss the loading dialog
-                                                        loadingDialog.dismiss()
-                                                    }, 3000)
-                                                }
-                                            }
-
-                                            // Observe errors to add detailed messages
-                                            weightBridgeViewModel.uploadErrorMap.observe(this@ScanWeighBridgeActivity) { errorMap ->
-                                                if (errorMap.isNotEmpty()) {
-                                                    errorMap.forEach { (id, errorMsg) ->
-                                                        // Find the corresponding endpoint
-                                                        val endpoint =
-                                                            weightBridgeViewModel.uploadStatusEndpointMap.value?.get(
-                                                                id
-                                                            )?.endpoint ?: "Unknown"
-
-                                                        // Add error message to loading dialog
-                                                        val endpointErrorKey = "error_${endpoint}"
-                                                        if (!processedEndpoints.contains(
-                                                                endpointErrorKey
-                                                            )
-                                                        ) {
-                                                            processedEndpoints.add(endpointErrorKey)
-                                                            loadingDialog.addStatusMessage(
-                                                                "$endpoint: ${errorMsg.take(1000)}${if (errorMsg.length > 1000) "..." else ""}",
-                                                                LoadingDialog.StatusType.ERROR,
-                                                                showIcon = false  // Don't show the icon
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        // No network available, just show success for local save
-                                        loadingDialog.dismiss()
-                                        AlertDialogUtility.withSingleAction(
-                                            this@ScanWeighBridgeActivity,
-                                            stringXML(R.string.al_back),
-                                            stringXML(R.string.al_success_save_local),
-                                            stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang) +
-                                                    "\nData tersimpan di lokal namun tidak dapat diupload karena tidak ada koneksi. " +
-                                                    "Lakukan upload ulang pada menu Rekap Scan Timbangan Mill saat koneksi tersedia.",
-                                            "warning.json",
-                                            R.color.orangeButton
-                                        ) {
-                                            val intent = Intent(
-                                                this@ScanWeighBridgeActivity,
-                                                HomePageActivity::class.java
-                                            )
-                                            intent.flags =
-                                                Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                                            startActivity(intent)
-                                            finish()
-                                        }
-                                    }
-                                }
-
-                                is WeighBridgeRepository.SaveResultESPBKrani.AlreadyExists -> {
-                                    loadingDialog.dismiss()
-                                    AlertDialogUtility.withSingleAction(
-                                        this@ScanWeighBridgeActivity,
-                                        stringXML(R.string.al_back),
-                                        stringXML(R.string.al_failed_save_local),
-                                        "Data dengan nomor e-SPB ${globalNoESPB} sudah tersimpan sebelumnya.",
-                                        "warning.json",
-                                        R.color.orangeButton
-                                    ) {}
-                                }
-
-                                is WeighBridgeRepository.SaveResultESPBKrani.Error -> {
-                                    loadingDialog.dismiss()
-                                    AlertDialogUtility.withSingleAction(
-                                        this@ScanWeighBridgeActivity,
-                                        stringXML(R.string.al_back),
-                                        stringXML(R.string.al_failed_save_local),
-                                        "${stringXML(R.string.al_failed_save_local_krani_timbang)} : ${result.exception.message}",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) {}
-                                }
-                            }
-                        } catch (e: Exception) {
-                            loadingDialog.dismiss()
-                            AppLogger.d("Unexpected error: ${e.message}")
-
-                            AlertDialogUtility.withSingleAction(
-                                this@ScanWeighBridgeActivity,
-                                stringXML(R.string.al_back),
-                                stringXML(R.string.al_failed_save_local),
-                                "${stringXML(R.string.al_failed_save_local_krani_timbang)} : ${e.message}",
-                                "warning.json",
-                                R.color.colorRedDark
-                            ) {}
-                        }
-                    }
-                    btnSaveUploadESPB.isEnabled = true
-                },
-                cancelFunction = {
-                    btnSaveUploadESPB.isEnabled = true
-                }
-            )
+            // The observer is already set up above, so the duplicate check result
+            // from earlier scan will trigger the appropriate action
         }
+
         bottomSheetView.findViewById<Button>(R.id.btnScanAgain)?.setOnClickListener {
             bottomSheetDialog.dismiss()
         }
+
         bottomSheetDialog.setOnDismissListener {
             if (barcodeView.visibility == View.VISIBLE && !isScanning) {
                 resumeScanner()
             }
         }
 
+    }
+
+    private fun saveAndUplaodESPB() {
+        lifecycleScope.launch(Dispatchers.Main) {
+            loadingDialog.show()
+            loadingDialog.setMessage(
+                "Sedang menyimpan e-SPB ke local database",
+                true
+            )
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    weightBridgeViewModel.saveDataLocalKraniTimbangESPB(
+                        blok_jjg = globalBlokJjg,
+                        created_by_id = globalCreatedById ?: 0,
+                        created_at = globalCreatedAt,
+                        nopol = globalNopol,
+                        driver = globalDriver,
+                        transporter_id = globalTransporterId ?: 0,
+                        pemuat_id = globalPemuatId,
+                        kemandoran_id = globalKemandoranId,
+                        pemuat_nik = globalPemuatNik,
+                        mill_id = globalMillId!!,
+                        archive = 0,
+                        tph0 = globalTph0,
+                        tph1 = globalTph1,
+                        update_info_sp = "", // Changed from update_info
+                        uploaded_by_id_wb = 0, // New field for WB
+                        uploaded_at_wb = "",   // New field for WB
+                        status_upload_cmp_wb = 0, // New field for WB
+                        status_upload_ppro_wb = 0, // New field for WB
+                        creator_info = globalCreatorInfo,
+                        uploader_info_wb = "", // New field for WB
+                        noESPB = globalNoESPB,
+                        scan_status = 1,
+                        date_scan = SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm:ss",
+                            Locale.getDefault()
+                        ).format(Date()) // Current datetime
+                    )
+                }
+
+                when (result) {
+                    is WeighBridgeRepository.SaveResultESPBKrani.Success -> {
+                        loadingDialog.setMessage(
+                            "Berhasil simpan data e-SPB ke local",
+                        )
+
+                        playSound(R.raw.berhasil_simpan)
+                        val savedItemId = result.id
+
+                        // Check if network is available for upload attempt
+                        if (AppUtils.isNetworkAvailable(this@ScanWeighBridgeActivity)) {
+                            // Try to upload with network connection
+
+                            var number = 0
+                            // Data for PPRO Staging
+                            val itemToUpload = mapOf(
+                                "num" to number++,
+                                "ip" to globalIpMill,
+                                "id" to savedItemId,
+                                "endpoint" to "PPRO",
+                                "uploader_info" to globalCreatorInfo,
+                                "uploaded_at" to SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                ).format(Date()),
+                                "uploaded_by_id" to (globalCreatedById ?: 0),
+                                "dept_ppro" to globalDeptPPRO,
+                                "divisi_ppro" to globalDivisiPPRO,
+                                "commodity" to "2",
+                                "blok_jjg" to globalBlokPPROJjg,
+                                "nopol" to globalNopol,
+                                "driver" to globalDriver,
+                                "pemuat_id" to globalPemuatId.toString(),
+                                "transporter_id" to (globalTransporterId
+                                    ?: 0).toString(),
+                                "mill_id" to globalMillId.toString(),
+                                "created_by_id" to (globalCreatedById
+                                    ?: 0).toString(),
+                                "created_at" to globalCreatedAt,
+                                "no_espb" to globalNoESPB
+                            )
+
+                            lifecycleScope.launch {
+                                val zipDeferred =
+                                    CompletableDeferred<Pair<Boolean, String?>>()
+                                var zipFilePath: String? = null
+                                loadingDialog.setMessage(
+                                    "Sedang membuat file .zip untuk upload",
+                                    true
+                                )
+// For CMP data
+                                var number = 0
+
+                                val espbData = mapOf(
+                                    "num" to number++,
+                                    "ip" to globalIpMill,
+                                    "id" to savedItemId,
+                                    "regional" to globalRegional,
+                                    "wilayah" to globalWilayah,
+                                    "company" to globalCompany,
+                                    "dept" to globalDept,
+                                    "divisi" to globalDivisi,
+                                    "blok_id" to globalBlokId,
+                                    "blok_jjg" to globalBlokJjg,
+                                    "jjg" to globalTotalJjg,
+                                    "created_by_id" to (globalCreatedById ?: 0),
+                                    "created_at" to globalCreatedAt,
+                                    "pemuat_id" to globalPemuatId,
+                                    "kemandoran_id" to globalKemandoranId,
+                                    "pemuat_nik" to globalPemuatNik,
+                                    "nopol" to globalNopol,
+                                    "driver" to globalDriver,
+                                    "updated_nama" to prefManager!!.nameUserLogin.toString(),
+                                    "transporter_id" to (globalTransporterId
+                                        ?: 0),
+                                    "mill_id" to globalMillId,
+                                    "creator_info" to globalCreatorInfo,
+                                    "no_espb" to globalNoESPB,
+                                    "tph0" to globalTph0,
+                                    "tph1" to globalTph1,
+                                    "update_info_sp" to globalUpdateInfoSP,
+                                    "app_version" to AppUtils.getDeviceInfo(this@ScanWeighBridgeActivity)
+                                        .toString(),
+                                    "jabatan" to prefManager!!.jabatanUserLogin
+                                )
+
+                                val espbDataList = listOf(espbData)
+
+                                // Wrap the data in a structure as requested
+                                val wrappedEspbData = mapOf(
+                                    AppUtils.DatabaseTables.ESPB to espbDataList
+                                )
+
+                                // Convert the wrapped data to JSON
+                                val espbJson = Gson().toJson(wrappedEspbData)
+
+                                val uploadDataList =
+                                    mutableListOf<Pair<String, List<Map<String, Any>>>>()
+                                val espbDataAsAny = espbData as Map<String, Any>
+                                uploadDataList.add(
+                                    Pair(
+                                        AppUtils.DatabaseTables.ESPB,
+                                        listOf(espbDataAsAny)
+                                    )
+                                )
+
+                                AppUtils.createAndSaveZipUploadCMPSingle(
+                                    this@ScanWeighBridgeActivity,
+                                    uploadDataList,
+                                    (globalCreatedById ?: 0).toString()
+                                ) { success, fileName, fullPath, zipFile ->
+                                    if (success) {
+                                        zipFilePath = fullPath
+                                        AppLogger.d("sukses membuat zip $fileName")
+                                        zipDeferred.complete(
+                                            Pair(
+                                                true,
+                                                fullPath
+                                            )
+                                        )
+                                    } else {
+                                        loadingDialog.addStatusMessage(
+                                            "Gagal membuat file ZIP",
+                                            LoadingDialog.StatusType.ERROR
+                                        )
+                                        zipDeferred.complete(Pair(false, null))
+                                    }
+                                }
+
+                                val (zipSuccess, zipPath) = zipDeferred.await()
+                                var cmpItem: Map<String, Any>? = null
+
+                                if (zipSuccess) {
+                                    weightBridgeViewModel.updateDataIsZippedESPB(
+                                        listOf(savedItemId),
+                                        1
+                                    )
+                                    cmpItem = mapOf(
+                                        "num" to number++,
+                                        "ip" to globalIpMill,
+                                        "id" to savedItemId,
+                                        "endpoint" to "CMP",
+                                        "uploader_info" to globalCreatorInfo,
+                                        "uploaded_at" to SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss",
+                                            Locale.getDefault()
+                                        ).format(Date()),
+                                        "uploaded_by_id" to (globalCreatedById
+                                            ?: 0),
+                                        "data" to espbJson  // Changed from "file" to "data" and using the JSON string directly
+                                    )
+                                } else {
+                                    cmpItem = mapOf(
+                                        "num" to number++,
+                                        "ip" to globalIpMill,
+                                        "id" to savedItemId,
+                                        "endpoint" to "CMP",
+                                        "uploader_info" to globalCreatorInfo,
+                                        "uploaded_at" to SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss",
+                                            Locale.getDefault()
+                                        ).format(Date()),
+                                        "uploaded_by_id" to (globalCreatedById
+                                            ?: 0),
+                                        "data" to espbJson  // Changed from "file" to "data" and using the JSON string directly
+                                    )
+                                }
+
+                                val itemsToUpload = listOf(itemToUpload, cmpItem)
+                                val globalIdEspb = listOf(savedItemId)
+
+                                loadingDialog.setMessage(
+                                    "Sedang mengupload data ke server, harap tunggu",
+                                    true
+                                )
+                                weightBridgeViewModel.uploadESPBKraniTimbang(
+                                    itemsToUpload,
+                                    globalIdEspb
+                                )
+
+                                val processedEndpoints = mutableSetOf<String>()
+
+                                // Observe upload progress
+                                weightBridgeViewModel.uploadProgress.observe(
+                                    this@ScanWeighBridgeActivity
+                                ) { progressMap ->
+                                    AppLogger.d("Upload progress: $progressMap")
+                                }
+
+                                // Observe upload status with endpoint info
+                                weightBridgeViewModel.uploadStatusEndpointMap.observe(
+                                    this@ScanWeighBridgeActivity
+                                ) { statusEndpointMap ->
+                                    statusEndpointMap.forEach { (id, info) ->
+                                        val endpointKey = info.endpoint
+
+                                        // Only add a message if we haven't processed this endpoint for this ID yet
+                                        if (!processedEndpoints.contains(
+                                                endpointKey
+                                            ) && info.status == "Success"
+                                        ) {
+                                            processedEndpoints.add(endpointKey)
+                                            loadingDialog.addStatusMessage(
+                                                "${info.endpoint} berhasil diupload",
+                                                LoadingDialog.StatusType.SUCCESS
+                                            )
+                                        } else if (!processedEndpoints.contains(
+                                                endpointKey
+                                            ) && info.status == "Failed"
+                                        ) {
+                                            processedEndpoints.add(endpointKey)
+                                            loadingDialog.addStatusMessage(
+                                                "${info.endpoint} gagal diupload",
+                                                LoadingDialog.StatusType.ERROR
+                                            )
+                                        }
+                                    }
+
+                                    val allComplete =
+                                        statusEndpointMap.values.all { it.status == "Success" || it.status == "Failed" }
+                                    if (allComplete) {
+                                        loadingDialog.setMessage("Semua data telah diupload")
+                                        Handler(Looper.getMainLooper()).postDelayed(
+                                            {
+                                                val allSuccessful =
+                                                    statusEndpointMap.values.all { it.status == "Success" }
+                                                if (allSuccessful) {
+                                                    AlertDialogUtility.withSingleAction(
+                                                        this@ScanWeighBridgeActivity,
+                                                        stringXML(R.string.al_back),
+                                                        stringXML(R.string.al_success_save_local),
+                                                        stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang) +
+                                                                "\nBerhasil mengupload data ke server.",
+                                                        "success.json",
+                                                        R.color.greendarkerbutton
+                                                    ) {
+                                                        val intent = Intent(
+                                                            this@ScanWeighBridgeActivity,
+                                                            HomePageActivity::class.java
+                                                        )
+                                                        intent.flags =
+                                                            Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                                        startActivity(intent)
+                                                        finish()
+                                                    }
+                                                } else {
+                                                    val failedCount =
+                                                        statusEndpointMap.values.count { it.status == "Failed" }
+
+                                                    AlertDialogUtility.withSingleAction(
+                                                        this@ScanWeighBridgeActivity,
+                                                        stringXML(R.string.al_back),
+                                                        stringXML(R.string.al_success_save_local),
+                                                        stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang) +
+                                                                "\nData tersimpan lokal tetapi ada $failedCount data yang gagal upload!.Lakukan upload ulang pada menu Rekap Scan Timbangan Mill",
+                                                        "warning.json",
+                                                        R.color.orangeButton
+                                                    ) {
+                                                        val intent = Intent(
+                                                            this@ScanWeighBridgeActivity,
+                                                            HomePageActivity::class.java
+                                                        )
+                                                        intent.flags =
+                                                            Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                                        startActivity(intent)
+                                                        finish()
+                                                    }
+                                                }
+
+                                                // Finally dismiss the loading dialog
+                                                loadingDialog.dismiss()
+                                            },
+                                            3000
+                                        )
+                                    }
+                                }
+
+                                // Observe errors to add detailed messages
+                                weightBridgeViewModel.uploadErrorMap.observe(
+                                    this@ScanWeighBridgeActivity
+                                ) { errorMap ->
+                                    if (errorMap.isNotEmpty()) {
+                                        errorMap.forEach { (id, errorMsg) ->
+                                            // Find the corresponding endpoint
+                                            val endpoint =
+                                                weightBridgeViewModel.uploadStatusEndpointMap.value?.get(
+                                                    id
+                                                )?.endpoint ?: "Unknown"
+
+                                            // Add error message to loading dialog
+                                            val endpointErrorKey =
+                                                "error_${endpoint}"
+                                            if (!processedEndpoints.contains(
+                                                    endpointErrorKey
+                                                )
+                                            ) {
+                                                processedEndpoints.add(
+                                                    endpointErrorKey
+                                                )
+                                                loadingDialog.addStatusMessage(
+                                                    "$endpoint: ${
+                                                        errorMsg.take(
+                                                            1000
+                                                        )
+                                                    }${if (errorMsg.length > 1000) "..." else ""}",
+                                                    LoadingDialog.StatusType.ERROR,
+                                                    showIcon = false  // Don't show the icon
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            // No network available, just show success for local save
+                            loadingDialog.dismiss()
+                            AlertDialogUtility.withSingleAction(
+                                this@ScanWeighBridgeActivity,
+                                stringXML(R.string.al_back),
+                                stringXML(R.string.al_success_save_local),
+                                stringXML(R.string.al_description_success_save_local_and_espb_krani_timbang) +
+                                        "\nData tersimpan di lokal namun tidak dapat diupload karena tidak ada koneksi. " +
+                                        "Lakukan upload ulang pada menu Rekap Scan Timbangan Mill saat koneksi tersedia.",
+                                "warning.json",
+                                R.color.orangeButton
+                            ) {
+                                val intent = Intent(
+                                    this@ScanWeighBridgeActivity,
+                                    HomePageActivity::class.java
+                                )
+                                intent.flags =
+                                    Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                startActivity(intent)
+                                finish()
+                            }
+                        }
+                    }
+
+                    is WeighBridgeRepository.SaveResultESPBKrani.AlreadyExists -> {
+                        loadingDialog.dismiss()
+                        AlertDialogUtility.withSingleAction(
+                            this@ScanWeighBridgeActivity,
+                            stringXML(R.string.al_back),
+                            stringXML(R.string.al_failed_save_local),
+                            "Data dengan nomor e-SPB ${globalNoESPB} sudah tersimpan sebelumnya.",
+                            "warning.json",
+                            R.color.orangeButton
+                        ) {}
+                    }
+
+                    is WeighBridgeRepository.SaveResultESPBKrani.Error -> {
+                        loadingDialog.dismiss()
+                        AlertDialogUtility.withSingleAction(
+                            this@ScanWeighBridgeActivity,
+                            stringXML(R.string.al_back),
+                            stringXML(R.string.al_failed_save_local),
+                            "${stringXML(R.string.al_failed_save_local_krani_timbang)} : ${result.exception.message}",
+                            "warning.json",
+                            R.color.colorRedDark
+                        ) {}
+                    }
+                }
+            } catch (e: Exception) {
+                loadingDialog.dismiss()
+                AppLogger.d("Unexpected error: ${e.message}")
+
+                AlertDialogUtility.withSingleAction(
+                    this@ScanWeighBridgeActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_failed_save_local),
+                    "${stringXML(R.string.al_failed_save_local_krani_timbang)} : ${e.message}",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {}
+            }
+        }
     }
 
     @SuppressLint("SetTextI18n")
@@ -773,6 +929,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 val parseResult = withContext(Dispatchers.IO) {
                     val json = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
                     AppLogger.d("Raw JSON: $json")
+
+                    if (json.isNullOrEmpty()) {
+                        throw Exception("QR code tidak dapat dibaca atau format tidak valid")
+                    }
 
                     // Try with manual JSONObject for debugging
                     val jsonObject = JSONObject(json)
@@ -1105,7 +1265,55 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalUpdateInfoSP = modifiedParsedData?.espb?.update_info_sp ?: "-"
                     globalIpMill = millIP
 
+                    val espbData = mapOf(
+                        "num" to 1, // Using 1 as default since we don't have number++ here
+                        "ip" to globalIpMill,
+                        "id" to 0, // Using 0 as default since we don't have savedItemId here
+                        "regional" to globalRegional,
+                        "wilayah" to globalWilayah,
+                        "company" to globalCompany,
+                        "dept" to globalDept,
+                        "divisi" to globalDivisi,
+                        "blok_id" to globalBlokId,
+                        "blok_jjg" to globalBlokJjg,
+                        "jjg" to globalTotalJjg,
+                        "created_by_id" to (globalCreatedById ?: 0),
+                        "created_at" to globalCreatedAt,
+                        "pemuat_id" to globalPemuatId,
+                        "kemandoran_id" to globalKemandoranId,
+                        "pemuat_nik" to globalPemuatNik,
+                        "nopol" to globalNopol,
+                        "driver" to globalDriver,
+                        "updated_nama" to prefManager!!.nameUserLogin.toString(),
+                        "transporter_id" to (globalTransporterId ?: 0),
+                        "mill_id" to globalMillId,
+                        "creator_info" to globalCreatorInfo,
+                        "no_espb" to globalNoESPB,
+                        "tph0" to globalTph0,
+                        "tph1" to globalTph1,
+                        "update_info_sp" to globalUpdateInfoSP,
+                        "app_version" to AppUtils.getDeviceInfo(this@ScanWeighBridgeActivity)
+                            .toString(),
+                        "jabatan" to prefManager!!.jabatanUserLogin
+                    )
+
+                    val espbDataList = listOf(espbData)
+
+                    // Wrap the data in a structure as requested
+                    val wrappedEspbData = mapOf(
+                        AppUtils.DatabaseTables.ESPB to espbDataList
+                    )
+
+                    val espbJson = Gson().toJson(wrappedEspbData)
+                    weightBridgeViewModel.checkTPHDuplicates(millIP, espbJson)
+
+                    delay(100)
+
+
+
                     withContext(Dispatchers.Main) {
+
+
                         showBottomSheetWithData(
                             parsedData = modifiedParsedData,
                             distinctDeptAbbr = deptAbbr,
@@ -1172,6 +1380,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         weightBridgeViewModel = ViewModelProvider(this, factory)[WeighBridgeViewModel::class.java]
         val factory2 = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory2)[DatasetViewModel::class.java]
+        val factory3 = PanenViewModel.PanenViewModelFactory(application)
+        panenViewModel = ViewModelProvider(this, factory3)[PanenViewModel::class.java]
     }
 
 
