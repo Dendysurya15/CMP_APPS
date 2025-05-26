@@ -343,8 +343,10 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                 val tableIds = item.tableIds
                 val databaseTable = item.databaseTable
 
+                // In your uploadMultipleJsonsV3 function, replace the onProgressUpdate callback for image uploads:
+
                 val result = repository.uploadJsonToServerV3(
-                    jsonFilePath = jsonFilePath,  // Use the file path directly
+                    jsonFilePath = jsonFilePath,
                     filename = filename,
                     data = data,
                     type = type,
@@ -355,21 +357,56 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                         // Update item's progress
                         updateItemProgress(item.id, progress)
 
-                        // Determine status
-                        val status = when {
-                            !isSuccess && !error.isNullOrEmpty() -> AppUtils.UploadStatusUtils.FAILED
-                            isSuccess -> AppUtils.UploadStatusUtils.SUCCESS
-                            else -> AppUtils.UploadStatusUtils.UPLOADING
+                        // FOR IMAGE UPLOADS: Only update status when progress reaches 100%
+                        if (type == "image") {
+                            if (progress >= 100) {
+                                // Final status update - only when completely done
+                                val finalStatus = if (isSuccess) {
+                                    AppUtils.UploadStatusUtils.SUCCESS
+                                } else {
+                                    AppUtils.UploadStatusUtils.FAILED
+                                }
+                                updateItemStatus(item.id, finalStatus)
+                                updateItemError(item.id, error) // Final error message with all details
+
+                                // Also update the original LiveData for current item
+                                _uploadProgressCMP.value = progress
+                                _uploadStatusCMP.value = finalStatus
+                                _uploadErrorCMP.value = error
+
+                                AppLogger.d("Final status update for image item ${item.id}: $finalStatus")
+                                if (error != null) {
+                                    AppLogger.d("Final error for image item ${item.id}: $error")
+                                }
+                            } else {
+                                // For intermediate progress (1-99%), keep status as UPLOADING
+                                updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
+                                updateItemError(item.id, error) // Keep intermediate error messages for display
+
+                                // Also update the original LiveData for current item
+                                _uploadProgressCMP.value = progress
+                                _uploadStatusCMP.value = AppUtils.UploadStatusUtils.UPLOADING
+                                _uploadErrorCMP.value = error
+
+                                AppLogger.d("Intermediate progress for image item ${item.id}: $progress% - Status: UPLOADING - Message: $error")
+                            }
+                        } else {
+                            // FOR NON-IMAGE UPLOADS: Keep original logic
+                            val status = when {
+                                !isSuccess && !error.isNullOrEmpty() -> AppUtils.UploadStatusUtils.FAILED
+                                isSuccess -> AppUtils.UploadStatusUtils.SUCCESS
+                                else -> AppUtils.UploadStatusUtils.UPLOADING
+                            }
+
+                            // Update item's status and error
+                            updateItemStatus(item.id, status)
+                            updateItemError(item.id, error)
+
+                            // Also update the original LiveData for current item
+                            _uploadProgressCMP.value = progress
+                            _uploadStatusCMP.value = status
+                            _uploadErrorCMP.value = error
                         }
-
-                        // Update item's status and error
-                        updateItemStatus(item.id, status)
-                        updateItemError(item.id, error)
-
-                        // Also update the original LiveData for current item
-                        _uploadProgressCMP.value = progress
-                        _uploadStatusCMP.value = status
-                        _uploadErrorCMP.value = error
                     }
                 )
 

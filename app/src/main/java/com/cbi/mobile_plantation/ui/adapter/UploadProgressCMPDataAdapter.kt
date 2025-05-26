@@ -134,8 +134,26 @@ class UploadProgressCMPDataAdapter(
                 }
             }
             AppUtils.UploadStatusUtils.UPLOADING -> {
-                startDotsAnimation(item.id, holder)
+                // Show error message if available while uploading
+                if (!errorMessage.isNullOrEmpty()) {
+                    // Show "Sedang Upload" + error message
+                    startDotsAnimation(item.id, holder) // Keep the animation running
+                    holder.statusProgress.text = "Sedang Upload - $errorMessage"
+
+                    // Set red color for error messages
+                    if (errorMessage.contains("✗") || errorMessage.contains("error") || errorMessage.contains("failed")) {
+                        holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.colorRedDark))
+                    } else {
+                        // Green color for success messages
+                        holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+                    }
+                } else {
+                    // No error message, show normal uploading with dots
+                    startDotsAnimation(item.id, holder)
+                    holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
+                }
             }
+
             AppUtils.UploadStatusUtils.DOWNLOADING -> {
                 startDotsAnimation(item.id, holder)
             }
@@ -176,7 +194,7 @@ class UploadProgressCMPDataAdapter(
                 holder.iconStatus.visibility = View.INVISIBLE
                 holder.loadingCircular.visibility = View.VISIBLE
                 holder.statusProgress.visibility = View.VISIBLE
-                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
+
             }
             AppUtils.UploadStatusUtils.DOWNLOADING -> {
                 holder.iconStatus.visibility = View.INVISIBLE
@@ -253,6 +271,7 @@ class UploadProgressCMPDataAdapter(
     private fun updateStatusWithDots(id: Int, holder: UploadViewHolder) {
         val dotCount = dotCountMap[id] ?: 0
         val currentStatus = uploadStatusMap[id] ?: AppUtils.UploadStatusUtils.WAITING
+        val errorMessage = uploadErrorMap[id]
 
         val dots = when (dotCount) {
             0 -> ""
@@ -263,8 +282,20 @@ class UploadProgressCMPDataAdapter(
             else -> "....."
         }
 
-        // Use the current status (could be UPLOADING or DOWNLOADING) with dots
-        holder.statusProgress.text = "$currentStatus$dots"
+        // Show status with dots, and error message if available
+        if (!errorMessage.isNullOrEmpty()) {
+            holder.statusProgress.text = "$currentStatus$dots\n$errorMessage"
+            // Set color based on error type
+            if (errorMessage.contains("✗") || errorMessage.contains("error") || errorMessage.contains("failed")) {
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.colorRedDark))
+            } else {
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+            }
+        } else {
+            holder.statusProgress.text = "$currentStatus$dots"
+            // Normal uploading - black color
+            holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
+        }
     }
 
 

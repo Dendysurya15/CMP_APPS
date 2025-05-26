@@ -864,7 +864,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
             } else {
-
+                counterPerPemanen.visibility = View.GONE
                 val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
                 headerCheckBox.visibility = View.GONE
@@ -954,6 +954,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun setupCardListeners() {
         cardTersimpan.setOnClickListener {
+            counterPerPemanen.visibility = View.GONE
             listAdapter.updateData(emptyList())
             currentState = 0
             setActiveCard(cardTersimpan)
@@ -1098,6 +1099,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             currentState = 2
             setActiveCard(cardRekapPerPemanen)
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+                counterPerPemanen.visibility = View.GONE
                 val rekapHeaders =
                     listOf(
                         "NAMA\nPEMANEN",

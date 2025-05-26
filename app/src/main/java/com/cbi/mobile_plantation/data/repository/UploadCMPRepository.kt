@@ -328,13 +328,9 @@ class UploadCMPRepository(context: Context) {
 
                         AppLogger.d("Total images to upload: ${imageList.size}")
 
-                        // Calculate progress steps
-                        val progressPerImage = 90 / imageList.size // Reserve 10% for initial setup
-                        var currentProgress = 10  // Start at 10%
-
-//                        withContext(Dispatchers.Main) {
-//                            onProgressUpdate(currentProgress, false, "Found ${imageList.size} images to process")
-//                        }
+                        // Calculate progress steps - each image gets equal weight
+                        val progressPerImage = 90.0 / imageList.size // Reserve 10% for initial setup
+                        var currentProgress = 10.0  // Start at 10%
 
                         // Validate all files exist first
                         val validImageFiles = mutableListOf<ImageFileInfo>()
@@ -363,6 +359,12 @@ class UploadCMPRepository(context: Context) {
                                 failedFiles.add(imageName)
                                 AppLogger.e("✗ File not found: $imageName")
 
+                                // Update progress for missing file
+                                currentProgress += progressPerImage
+                                withContext(Dispatchers.Main) {
+                                    onProgressUpdate(currentProgress.toInt(), false, "✗ File not found: $imageName")
+                                }
+
                                 // Update status to error for file not found
                                 if (tableId != -1) {
                                     val errorJson = JsonObject().apply {
@@ -378,7 +380,6 @@ class UploadCMPRepository(context: Context) {
                                                 errorJson
                                             )
                                         }
-
                                         AppUtils.DatabaseTables.ABSENSI -> {
                                             absensiDao.updateStatusUploadedImage(
                                                 listOf(tableId),
@@ -421,13 +422,7 @@ class UploadCMPRepository(context: Context) {
                             AppLogger.d("File size: ${fileInfo.file.length()} bytes")
                             AppLogger.d("Table ID: ${fileInfo.tableId}")
 
-//                            withContext(Dispatchers.Main) {
-//                                onProgressUpdate(currentProgress, false, "Uploading ${imageName} (${index + 1}/${validImageFiles.size})")
-//                            }
-
                             try {
-
-
                                 // Create the multipart data for single image
                                 val photoRequestBody = RequestBody.create(
                                     "image/*".toMediaTypeOrNull(),
@@ -450,14 +445,13 @@ class UploadCMPRepository(context: Context) {
                                     datasetType
                                 )
 
-
                                 val basePathRequestBody = RequestBody.create(
                                     "text/plain".toMediaTypeOrNull(),
                                     fileInfo.basePath,
                                 )
 
                                 // Make the API call for single image
-                                val response = TestingAPIClient.instance.uploadPhotos(
+                                val response = CMPApiClient.instance.uploadPhotos(
                                     photos = listOf(photoPart),
                                     datasetType = datasetTypeRequestBody,
                                     path = basePathRequestBody
@@ -488,27 +482,22 @@ class UploadCMPRepository(context: Context) {
                                             when (fileInfo.databaseTable) {
                                                 AppUtils.DatabaseTables.PANEN -> {
                                                     panenDao.updateStatusUploadedImage(
-                                                        listOf(
-                                                            tableIdInt
-                                                        ), "200"
+                                                        listOf(tableIdInt), "200"
                                                     )
                                                 }
-
                                                 AppUtils.DatabaseTables.ABSENSI -> {
                                                     absensiDao.updateStatusUploadedImage(
-                                                        listOf(
-                                                            tableIdInt
-                                                        ), "200"
+                                                        listOf(tableIdInt), "200"
                                                     )
                                                 }
                                             }
-//                                            AppLogger.d("Updated status_uploaded_image for table ID $tableIdInt to 200")
                                         }
 
+                                        // Update progress for successful upload
                                         currentProgress += progressPerImage
-//                                        withContext(Dispatchers.Main) {
-//                                            onProgressUpdate(currentProgress, false, "✓ ${imageName} uploaded successfully")
-//                                        }
+                                        withContext(Dispatchers.Main) {
+                                            onProgressUpdate(currentProgress.toInt(), false, "✓ ${fileInfo.imageName} uploaded successfully")
+                                        }
                                     } else {
                                         AppLogger.e("Null response body for: ${fileInfo.imageName}")
                                         failureCount++
@@ -523,26 +512,25 @@ class UploadCMPRepository(context: Context) {
                                             when (fileInfo.databaseTable) {
                                                 AppUtils.DatabaseTables.PANEN -> {
                                                     panenDao.updateStatusUploadedImage(
-                                                        listOf(
-                                                            tableIdInt
-                                                        ), errorJson
+                                                        listOf(tableIdInt), errorJson
                                                     )
                                                 }
-
                                                 AppUtils.DatabaseTables.ABSENSI -> {
                                                     absensiDao.updateStatusUploadedImage(
-                                                        listOf(
-                                                            tableIdInt
-                                                        ), errorJson
+                                                        listOf(tableIdInt), errorJson
                                                     )
                                                 }
                                             }
                                         }
 
+                                        failedImagePaths.add(fileInfo.file.absolutePath)
+                                        failedImageNames.add(fileInfo.imageName)
+
+                                        // Update progress for failed upload
                                         currentProgress += progressPerImage
-//                                        withContext(Dispatchers.Main) {
-//                                            onProgressUpdate(currentProgress, false, "✗ ${imageName} failed - null response")
-//                                        }
+                                        withContext(Dispatchers.Main) {
+                                            onProgressUpdate(currentProgress.toInt(), false, "✗ ${fileInfo.imageName} failed - null response")
+                                        }
                                     }
                                 } else {
                                     val errorBody = response.errorBody()?.string()
@@ -563,32 +551,31 @@ class UploadCMPRepository(context: Context) {
                                                     errorJson
                                                 )
                                             }
-
                                             AppUtils.DatabaseTables.ABSENSI -> {
                                                 absensiDao.updateStatusUploadedImage(
-                                                    listOf(
-                                                        tableIdInt
-                                                    ), errorJson
+                                                    listOf(tableIdInt), errorJson
                                                 )
                                             }
-                                            // Add other cases if needed
                                         }
-                                    }
-
-                                    currentProgress += progressPerImage
-                                    withContext(Dispatchers.Main) {
-                                        onProgressUpdate(
-                                            currentProgress,
-                                            false,
-                                            "✗ ${fileInfo.imageName} failed - ${response.code()}"
-                                        )
                                     }
 
                                     failedImagePaths.add(fileInfo.file.absolutePath)
                                     failedImageNames.add(fileInfo.imageName)
+
+                                    // Update progress for failed upload
+                                    currentProgress += progressPerImage
+
+                                    AppLogger.d("currentProgress $currentProgress")
+                                    withContext(Dispatchers.Main) {
+                                        onProgressUpdate(
+                                            currentProgress.toInt(),
+                                            false,
+                                            "✗ ${fileInfo.imageName} failed - ${response.code()}"
+                                        )
+                                    }
                                 }
                             } catch (e: Exception) {
-                                AppLogger.e("Exception uploading${fileInfo.imageName}: ${e.message}")
+                                AppLogger.e("Exception uploading ${fileInfo.imageName}: ${e.message}")
                                 failureCount++
 
                                 // Update status with exception
@@ -606,31 +593,31 @@ class UploadCMPRepository(context: Context) {
                                                 errorJson
                                             )
                                         }
-
                                         AppUtils.DatabaseTables.ABSENSI -> {
                                             absensiDao.updateStatusUploadedImage(
                                                 listOf(tableIdInt),
                                                 errorJson
                                             )
                                         }
-                                        // Add other cases if needed
                                     }
                                 }
 
+                                failedImagePaths.add(fileInfo.file.absolutePath)
+                                failedImageNames.add(fileInfo.imageName)
+
+                                // Update progress for exception
                                 currentProgress += progressPerImage
                                 withContext(Dispatchers.Main) {
                                     onProgressUpdate(
-                                        currentProgress,
+                                        currentProgress.toInt(),
                                         false,
                                         "✗ ${fileInfo.imageName} error - ${e.message}"
                                     )
                                 }
-                                failedImagePaths.add(fileInfo.file.absolutePath)
-                                failedImageNames.add(fileInfo.imageName)
                             }
                         }
 
-                        // Final update with complete status - THIS SHOULD BE CALLED ONCE AFTER THE LOOP
+                        // Final update with complete status - only called once after ALL uploads are done
                         val isSuccess = failureCount == 0
                         val finalMessage = if (isSuccess) {
                             "All $successCount images uploaded successfully"
@@ -643,6 +630,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("Uploaded files: ${uploadResults.size}")
                         AppLogger.d("isSuccess: $isSuccess")
 
+                        // Final progress update to 100% - only when ALL images are processed
                         withContext(Dispatchers.Main) {
                             onProgressUpdate(100, isSuccess, if (isSuccess) null else finalMessage)
                         }
@@ -661,7 +649,6 @@ class UploadCMPRepository(context: Context) {
                         )
 
                         Result.success(uploadV3Response)
-
 
                     } catch (e: Exception) {
                         val errorMsg = "Error processing images: ${e.message}"
@@ -725,7 +712,7 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         AppLogger.d("CMP: Making API call to upload JSON file")
-                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                        val response = CMPApiClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -1305,7 +1292,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using raw JSON body")
 
-                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                        val response = CMPApiClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 

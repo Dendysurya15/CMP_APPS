@@ -72,6 +72,7 @@ object AppUtils {
         const val UPTODATE = "tidak ada pembaruan yang diperlukan!"
         const val UPDATED = "berhasil diperbarui"
         const val FAILED = "Gagal Upload!"
+        const val ERROR = "ERROR!"
     }
 
 
