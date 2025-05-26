@@ -537,11 +537,16 @@ class ListTPHApproval : AppCompatActivity() {
                 AppLogger.d(jsonString.toString())
                 val jsonObject = JSONObject(jsonString)
                 val tph0String = jsonObject.getString("tph_0")
-                val kemandoranId = jsonObject.getString("kemandoran_id")
                 val usernameString = try {
                     jsonObject.getString("username")
                 } catch (e: Exception) {
                     AppLogger.d("Username tidak ditemukan: $e")
+                    "NULL"
+                }
+                val kemandoranId = try {
+                    jsonObject.getString("kemandoran_id")
+                } catch (e: Exception) {
+                    AppLogger.d("kemandoran_id tidak ditemukan: $e")
                     "NULL"
                 }
 

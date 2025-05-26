@@ -105,6 +105,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
     private var estateId: String? = null
     private var estateName: String? = null
     private var userName: String? = null
+    private var kemandoranUserLogin: String? = null
     private var userId: Int? = null
     private var jabatanUser: String? = null
     private var afdelingUser: String? = null
@@ -624,6 +625,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         userName = prefManager!!.nameUserLogin
         userId = prefManager!!.idUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
+        kemandoranUserLogin = prefManager!!.kemandoranUserLogin
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
         featureName = intent.getStringExtra("FEATURE_NAME").toString()
@@ -1290,7 +1292,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 put("username", username)
                 put("tgl", tglJson)
                 put("nik", nikJson)
-                put("kemandoran_id", prefManager!!.kemandoranUserLogin)
+                put("kemandoran_id", kemandoranUserLogin)
             }.toString()
 
             Log.d("formatPanenDataForQR", "json: $json")

@@ -81,6 +81,10 @@ class AppRepository(context: Context) {
                 val duplicates = mutableListOf<PanenEntity>()
                 val hektarPanenDao = database.hektarPanenDao()
 
+                val kemandoranId = tphDataList.first().kemandoran_id
+                val kemandoranNama = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt()).nama
+                val kemandoranKode = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt()).kode
+
                 // Step 1: First, save all PanenEntity records to the panen table
                 for (tphData in tphDataList) {
                     // Check if this specific item is a duplicate
@@ -443,52 +447,12 @@ class AppRepository(context: Context) {
                                 "NULL"
                             }
 
-                            // Get karyawan model to extract kemandoran details
-                            val karyawanModel = try {
-                                karyawanDao.getAllKaryawan().find { it.nik == nik }
-                            } catch (e: Exception) {
-                                Log.e("AppRepository", "Error getting karyawan model: ${e.message}")
-                                null
-                            }
-
                             // Extract kemandoran details
                             val kemandoranId = try {
-                                karyawanModel?.kemandoran_id?.toString() ?: "0"
+                                tphDataList.first().kemandoran_id
                             } catch (e: Exception) {
                                 Log.e("AppRepository", "Error getting kemandoran_id: ${e.message}")
                                 "0"
-                            }
-
-                            // Get karyawan model to extract kemandoran details
-                            val kemandoranData = try {
-                                kemandoranDao.getKemandoranByTheId(kemandoranId.toInt())
-                            } catch (e: Exception) {
-                                Log.e("AppRepository", "Error getting karyawan model: ${e.message}")
-                                null
-                            }
-
-                            // Extract blok_nama with error handling
-                            val kemandoranNama = try {
-                                kemandoranData!!.nama
-                            } catch (e: Exception) {
-                                Log.e("AppRepository", "Error getting blok_nama: ${e.message}")
-                                "NULL"
-                            }
-
-//                            // Extract blok_nama with error handling
-//                            val kemandoranPpro = try {
-//                                kemandoranData!!.nama
-//                            } catch (e: Exception) {
-//                                Log.e("AppRepository", "Error getting blok_nama: ${e.message}")
-//                                "NULL"
-//                            }
-
-                            // Extract blok_nama with error handling
-                            val kemandoranKode = try {
-                                kemandoranData!!.kode
-                            } catch (e: Exception) {
-                                Log.e("AppRepository", "Error getting blok_nama: ${e.message}")
-                                "NULL"
                             }
 
                             // Create the HektarPanenEntity
@@ -498,7 +462,6 @@ class AppRepository(context: Context) {
                                 pemanen_nama = pemanen!!,
                                 kemandoran_id = kemandoranId,
                                 kemandoran_nama = kemandoranNama!!,
-//                                kemandoran_ppro = kemandoranPpro!!,
                                 kemandoran_kode = kemandoranKode!!,
                                 blok = blokId,
                                 luas_blok = luasArea,

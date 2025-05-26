@@ -100,7 +100,4 @@ abstract class KemandoranDao {
         status_absen: String,
         idKemandoran: String,
     ): Int
-
-
-
 }
