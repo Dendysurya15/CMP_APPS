@@ -1235,459 +1235,550 @@ class HomePageActivity : AppCompatActivity() {
                 if (feature.displayType == DisplayType.ICON) {
                     if (AppUtils.isNetworkAvailable(this)) {
 
-                        lifecycleScope.launch {
-                            loadingDialog.show()
-                            loadingDialog.setMessage("Sedang mengupdate data...")
 
-                            uploadCMPData = emptyList()
-                            uploadCMPViewModel.getAllIdsAndFilenames()
-                            delay(500)
+                        val isMandorPanen = prefManager!!.jabatanUserLogin!!.contains(
+                            AppUtils.ListFeatureByRoleUser.MandorPanen,
+                            ignoreCase = true
+                        )
 
-                            val dataDeferred = CompletableDeferred<List<Pair<String, String>>>()
-                            uploadCMPViewModel.allIdsAndFilenames.observe(this@HomePageActivity) { data ->
-                                dataDeferred.complete(data ?: emptyList()) // Ensure it's never null
-                            }
-                            val data = dataDeferred.await()
+                        if(isMandorPanen){
+                            val indonesianDateFormat = SimpleDateFormat("d MMMM yyyy", Locale("id", "ID"))
 
-                            //kode khusus untuk update UploadCMP sebelum melakukan upload
-                            uploadCMPData = data
-                            if (uploadCMPData.isNotEmpty()) {
-                                AppLogger.d("Starting update for ${uploadCMPData.size} items")
-                                val updateSuccessful =
-                                    datasetViewModel.updateLocalUploadCMP(
-                                        uploadCMPData,
-                                        prefManager!!.jabatanUserLogin!!
-                                    ).await()
-                                AppLogger.d("Update status: $updateSuccessful, now proceeding to file check")
-                            } else {
-                                AppLogger.d("No data to update")
-
-                            }
-
-
-                            val featuresToFetch = listOf(
-                                AppUtils.DatabaseTables.ESPB,
-                                AppUtils.DatabaseTables.PANEN
-                            )
-                            val combinedUploadData = mutableMapOf<String, Any>()
                             lifecycleScope.launch {
-                                val panenDeferred =
-                                    CompletableDeferred<List<PanenEntityWithRelations>>()
-                                val espbDeferred = CompletableDeferred<List<ESPBEntity>>()
-                                val absensiDeferred =
-                                    CompletableDeferred<List<AbsensiKemandoranRelations>>()
-                                val hektarPanenDeferred =
-                                    CompletableDeferred<List<HektarPanenEntity>>()
-                                val zipDeferred = CompletableDeferred<Boolean>()
-
-                                panenViewModel.loadActivePanenESPBAll()
+                                hektarPanenViewModel.getAllHektarPanen()
                                 delay(100)
-                                panenViewModel.activePanenList.observeOnce(this@HomePageActivity) { list ->
-                                    Log.d("UploadCheck", "Panen Data Size: ${list.size}")
-                                    panenDeferred.complete(
-                                        list ?: emptyList()
-                                    ) // Ensure it's never null
+
+                                val dataDeferred = CompletableDeferred<List<HektarPanenEntity>>()
+                                hektarPanenViewModel.hektarPanenTodayList.observe(this@HomePageActivity) { hektarPanenList ->
+                                    dataDeferred.complete(hektarPanenList ?: emptyList())
                                 }
+                                val hektarPanenData = dataDeferred.await()
 
-                                // Load ESPB Data
-                                weightBridgeViewModel.fetchActiveESPBAll()
-                                delay(100)
-                                weightBridgeViewModel.activeESPBUploadCMP.observeOnce(this@HomePageActivity) { list ->
-                                    Log.d("UploadCheck", "ESPB Data Received: ${list.size}")
-                                    espbDeferred.complete(
-                                        list ?: emptyList()
-                                    ) // Ensure it's never null
-                                }
+                                Log.d("HektarPanen", "all data count: ${hektarPanenData.size}")
 
-                                // Load absensi
-                                absensiViewModel.getAllData(0)
-                                delay(100)
-                                absensiViewModel.savedDataAbsensiList.observeOnce(this@HomePageActivity) { list ->
-                                    Log.d("UploadCheck", "Absensi Data Received: ${list.size}")
-                                    absensiDeferred.complete(
-                                        list ?: emptyList()
-                                    ) // Ensure it's never null
-                                }
+                                // Get data with luas_panen = 0 and get distinct dates only
+                                val zeroLuasPanenData = hektarPanenData.filter { it.luas_panen == 0f }
 
-                                hektarPanenViewModel.loadHektarPanenData()
-                                delay(100)
-                                hektarPanenViewModel.historyHektarPanen.observeOnce(this@HomePageActivity) { list ->
-                                    Log.d("UploadCheck", "Absensi Data Received: ${list.size}")
-                                    hektarPanenDeferred.complete(
-                                        list ?: emptyList()
-                                    ) // Ensure it's never null
-                                }
+                                if (zeroLuasPanenData.isNotEmpty()) {
+                                    // Found data with luas_panen = 0, don't run upload flow
+                                    Log.d("HektarPanen", "Cannot upload: Some data has luas_panen = 0")
 
-
-                                var unzippedPanenData: List<Map<String, Any>> = emptyList()
-                                var unzippedESPBData: List<Map<String, Any>> = emptyList()
-                                var unzippedHektaranData: List<Map<String, Any>> = emptyList()
-                                var unzippedAbsensiData: List<Map<String, Any>> = emptyList()
-
-                                var mappedPanenData: List<Map<String, Any>> = emptyList()
-                                var mappedESPBData: List<Map<String, Any>> = emptyList()
-                                var mappedHektaranData: List<Map<String, Any>> = emptyList()
-                                var mappedAbsensiData: List<Map<String, Any>> = emptyList()
-
-                                var allPhotosPanen = mutableListOf<Map<String, String>>()
-                                var allPhotosAbsensi = mutableListOf<Map<String, String>>()
-                                var hektaranJson = ""
-                                var absensiJson = ""
-                                try {
-                                    val panenList = panenDeferred.await()
-                                    val espbList = espbDeferred.await()
-                                    val absensiList = absensiDeferred.await()
-                                    val hektarPanenList = hektarPanenDeferred.await()
-
-                                    // Prepare to search for photo files in CMP directories
-                                    val picturesDirs = listOf(
-                                        getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                                        File(getExternalFilesDir(null)?.parent ?: "", "Pictures")
-                                    ).filterNotNull()
-
-                                    // Find all CMP directories upfront
-                                    val cmpDirectories = mutableListOf<File>()
-                                    for (picturesDir in picturesDirs) {
-                                        if (!picturesDir.exists() || !picturesDir.isDirectory) {
-                                            AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
-                                            continue
-                                        }
-
-                                        val dirs = picturesDir.listFiles { file ->
-                                            file.isDirectory && file.name.startsWith("CMP")
-                                        } ?: emptyArray()
-
-                                        cmpDirectories.addAll(dirs)
-                                    }
-
-                                    if (panenList.isNotEmpty()) {
-
-                                        val uniquePhotos =
-                                            mutableMapOf<String, Map<String, String>>()
-
-                                        // Prepare to search for photo files in CMP directories
-                                        val picturesDirs = listOf(
-                                            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                                            File(
-                                                getExternalFilesDir(null)?.parent ?: "",
-                                                "Pictures"
-                                            )
-                                        ).filterNotNull()
-
-                                        // Find all CMP directories upfront
-                                        val cmpDirectories = mutableListOf<File>()
-                                        for (picturesDir in picturesDirs) {
-                                            if (!picturesDir.exists() || !picturesDir.isDirectory) {
-                                                AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
-                                                continue
-                                            }
-
-                                            // Look specifically for CMP-PANEN TPH directory
-                                            val cmpPanenDir = File(picturesDir, "CMP-PANEN TPH")
-                                            if (cmpPanenDir.exists() && cmpPanenDir.isDirectory) {
-                                                cmpDirectories.add(cmpPanenDir)
-                                            }
-
-                                            // Also check for any other CMP directories
-                                            val otherCmpDirs = picturesDir.listFiles { file ->
-                                                file.isDirectory && file.name.startsWith("CMP") && file.name != "CMP-PANEN TPH"
-                                            } ?: emptyArray()
-
-                                            cmpDirectories.addAll(otherCmpDirs)
-                                        }
-
-                                        AppLogger.d("Found ${cmpDirectories.size} CMP directories")
-
-                                        mappedPanenData = panenList.map { panenWithRelations ->
-
-                                            val photoNames =
-                                                panenWithRelations.panen.foto?.split(";")
-                                                    ?: listOf()
-
-                                            // Process each photo in the semicolon-separated list
-                                            for (photoName in photoNames) {
-                                                val trimmedName = photoName.trim()
-                                                if (trimmedName.isEmpty()) continue
-
-                                                if (trimmedName in uniquePhotos) continue
-
-                                                val uploadStatusImage =
-                                                    panenWithRelations.panen.status_uploaded_image
-
-                                                // Skip only if status is 200 (fully uploaded)
-                                                if (uploadStatusImage == "200") {
-                                                    AppLogger.d("Skipping photo $trimmedName - record ${panenWithRelations.panen.id} fully uploaded (status 200)")
-                                                    continue
-                                                }
-
-                                                var photoFound = false
-
-                                                for (cmpDir in cmpDirectories) {
-                                                    val photoFile = File(cmpDir, trimmedName)
-
-                                                    if (photoFile.exists() && photoFile.isFile) {
-                                                        // Add to uniquePhotos if:
-                                                        // 1. status is 0 (not uploaded yet)
-                                                        // 2. status is error JSON and this photo is in the error array
-                                                        var shouldAdd = false
-
-                                                        if (uploadStatusImage == "0") {
-                                                            // Default status - hasn't been uploaded yet
-                                                            shouldAdd = true
-                                                            AppLogger.d("Photo $trimmedName hasn't been uploaded (status 0)")
-                                                        } else if (uploadStatusImage.startsWith("{")) {
-                                                            try {
-                                                                // Using Gson to parse the JSON
-                                                                val errorJson = Gson().fromJson(
-                                                                    uploadStatusImage,
-                                                                    JsonObject::class.java
-                                                                )
-                                                                val errorArray =
-                                                                    errorJson?.get("error")?.asJsonArray
-
-                                                                errorArray?.forEach { errorItem ->
-                                                                    if (errorItem.asString == trimmedName) {
-                                                                        shouldAdd = true
-                                                                        AppLogger.d("Photo $trimmedName is marked as error in record ${panenWithRelations.panen.id}")
-                                                                    }
-                                                                }
-                                                            } catch (e: Exception) {
-                                                                AppLogger.e("Error parsing upload status JSON: ${e.message}")
-                                                            }
-                                                        }
-
-                                                        val createdDate =
-                                                            panenWithRelations.panen.date_created
-                                                                ?: ""
-                                                        val formattedDate = try {
-                                                            val dateFormat = SimpleDateFormat(
-                                                                "yyyy-MM-dd HH:mm:ss",
-                                                                Locale.getDefault()
-                                                            )
-                                                            val date = dateFormat.parse(createdDate)
-                                                            val outputFormat = SimpleDateFormat(
-                                                                "yyyy/MM/dd/",
-                                                                Locale.getDefault()
-                                                            )
-                                                            outputFormat.format(date ?: Date())
-                                                        } catch (e: Exception) {
-                                                            AppLogger.e("Error formatting date: ${e.message}")
-                                                            // Default to current date if parsing fails
-                                                            val outputFormat = SimpleDateFormat(
-                                                                "yyyy/MM/dd/",
-                                                                Locale.getDefault()
-                                                            )
-                                                            outputFormat.format(Date())
-                                                        }
-
-                                                        // Create the base path by appending the estate code
-                                                        val basePathImage =
-                                                            formattedDate + prefManager!!.estateUserLogin
-
-                                                        if (shouldAdd) {
-                                                            uniquePhotos[trimmedName] = mapOf(
-                                                                "name" to trimmedName,
-                                                                "path" to photoFile.absolutePath,
-                                                                "size" to photoFile.length()
-                                                                    .toString(),
-                                                                "table_ids" to panenWithRelations.panen.id.toString(),
-                                                                "base_path" to basePathImage,
-                                                                "database" to AppUtils.DatabaseTables.PANEN
-                                                            )
-                                                            AppLogger.d("Added photo for upload: $trimmedName at ${photoFile.absolutePath}")
-                                                        } else {
-                                                            AppLogger.d("Skipping photo $trimmedName - no upload needed")
-                                                        }
-
-                                                        photoFound = true
-                                                        break
+                                    // Extract distinct dates from date_created_panen and format to Indonesian
+                                    val distinctDates = zeroLuasPanenData
+                                        .flatMap { entity ->
+                                            // Split by semicolon and extract date part from each datetime
+                                            entity.date_created_panen.split(";")
+                                                .map { datetime ->
+                                                    val dateString = datetime.trim().split(" ")[0] // Get "2025-05-13"
+                                                    try {
+                                                        // Parse the date and format to Indonesian
+                                                        val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(dateString)
+                                                        indonesianDateFormat.format(date!!)
+                                                    } catch (e: Exception) {
+                                                        dateString // Fallback to original if parsing fails
                                                     }
                                                 }
+                                        }
+                                        .distinct() // Remove duplicates
+                                        .joinToString(", ")
 
-                                                if (!photoFound) {
-                                                    AppLogger.w("Photo not found: $trimmedName")
-                                                }
-                                            }
+                                    // Create message with distinct dates only
+                                    val detailMessage = "Terdapat data dengan luas panen 0 pada tanggal:\n\n$distinctDates\n\nMohon lengkapi luasan Hektar Panen terlebih dahulu."
 
-                                            //handle kemandoran_field
-                                            val kemandoranId =
-                                                prefManager!!.kemandoranUserLogin.toString()
-                                            val kemandoranKode =
-                                                prefManager!!.kemandoranKodeUserLogin.toString()
-                                            val kemandoranNama =
-                                                prefManager!!.kemandoranNamaUserLogin.toString()
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Hektar Panen Tidak Lengkap",
+                                        detailMessage,
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing or navigate to edit screen
+                                    }
+                                } else {
+                                    // All luas_panen values are > 0, proceed with upload
+                                    Log.d("HektarPanen", "All data valid, proceeding with upload")
+                                    runUploadDataFlow()
+                                }
+                            }
+                        }else{
+                            runUploadDataFlow()
+                        }
 
-                                            val pemanen = mutableListOf<Map<String, String>>()
-                                            val nikList =
-                                                panenWithRelations.panen.karyawan_nik?.split(",")
-                                                    ?: listOf()
-                                            val namaList =
-                                                panenWithRelations.panen.karyawan_nama?.split(",")
-                                                    ?: listOf()
-
-                                            for (i in nikList.indices) {
-                                                if (i < namaList.size) {
-                                                    pemanen.add(
-                                                        mapOf(
-                                                            "nik" to nikList[i].trim(),
-                                                            "nama" to namaList[i].trim()
-                                                        )
-                                                    )
-                                                } else {
-                                                    // In case there are more NIKs than names
-                                                    pemanen.add(
-                                                        mapOf(
-                                                            "nik" to nikList[i].trim(),
-                                                            "nama" to ""
-                                                        )
-                                                    )
-                                                }
-                                            }
-
-                                            val kemandoranJsonMap = mutableMapOf<String, Any>()
-                                            kemandoranJsonMap["id"] =
-                                                kemandoranId.toIntOrNull() ?: 0
-                                            kemandoranJsonMap["kode"] = kemandoranKode
-                                            kemandoranJsonMap["nama"] = kemandoranNama
-                                            kemandoranJsonMap["pemanen"] = pemanen
-
-                                            val kemandoranJson = listOf(kemandoranJsonMap)
-                                            val kemandoranJsonString = Gson().toJson(kemandoranJson)
-                                            val jumlahPemanen = pemanen.size
+                    } else {
+                        AlertDialogUtility.withSingleAction(
+                            this@HomePageActivity,
+                            stringXML(R.string.al_back),
+                            stringXML(R.string.al_no_internet_connection),
+                            stringXML(R.string.al_no_internet_connection_description_login),
+                            "network_error.json",
+                            R.color.colorRedDark
+                        ) {
+                            // Do nothing
+                        }
+                    }
 
 
-                                            val createdDate =
-                                                panenWithRelations.panen.date_created ?: ""
-                                            val formattedDate = try {
-                                                val dateFormat = SimpleDateFormat(
-                                                    "yyyy-MM-dd HH:mm:ss",
-                                                    Locale.getDefault()
+                }
+            }
+        }
+    }
+
+
+    private fun runUploadDataFlow(){
+        lifecycleScope.launch {
+            loadingDialog.show()
+            loadingDialog.setMessage("Sedang mengupdate data...")
+
+            uploadCMPData = emptyList()
+            uploadCMPViewModel.getAllIdsAndFilenames()
+            delay(500)
+
+            val dataDeferred = CompletableDeferred<List<Pair<String, String>>>()
+            uploadCMPViewModel.allIdsAndFilenames.observe(this@HomePageActivity) { data ->
+                dataDeferred.complete(data ?: emptyList()) // Ensure it's never null
+            }
+            val data = dataDeferred.await()
+
+            //kode khusus untuk update UploadCMP sebelum melakukan upload
+            uploadCMPData = data
+            if (uploadCMPData.isNotEmpty()) {
+                AppLogger.d("Starting update for ${uploadCMPData.size} items")
+                val updateSuccessful =
+                    datasetViewModel.updateLocalUploadCMP(
+                        uploadCMPData,
+                        prefManager!!.jabatanUserLogin!!
+                    ).await()
+                AppLogger.d("Update status: $updateSuccessful, now proceeding to file check")
+            } else {
+                AppLogger.d("No data to update")
+
+            }
+
+
+            val featuresToFetch = listOf(
+                AppUtils.DatabaseTables.ESPB,
+                AppUtils.DatabaseTables.PANEN
+            )
+            val combinedUploadData = mutableMapOf<String, Any>()
+            lifecycleScope.launch {
+                val panenDeferred =
+                    CompletableDeferred<List<PanenEntityWithRelations>>()
+                val espbDeferred = CompletableDeferred<List<ESPBEntity>>()
+                val absensiDeferred =
+                    CompletableDeferred<List<AbsensiKemandoranRelations>>()
+                val hektarPanenDeferred =
+                    CompletableDeferred<List<HektarPanenEntity>>()
+                val zipDeferred = CompletableDeferred<Boolean>()
+
+                panenViewModel.loadActivePanenESPBAll()
+                delay(100)
+                panenViewModel.activePanenList.observeOnce(this@HomePageActivity) { list ->
+                    Log.d("UploadCheck", "Panen Data Size: ${list.size}")
+                    panenDeferred.complete(
+                        list ?: emptyList()
+                    ) // Ensure it's never null
+                }
+
+                // Load ESPB Data
+                weightBridgeViewModel.fetchActiveESPBAll()
+                delay(100)
+                weightBridgeViewModel.activeESPBUploadCMP.observeOnce(this@HomePageActivity) { list ->
+                    Log.d("UploadCheck", "ESPB Data Received: ${list.size}")
+                    espbDeferred.complete(
+                        list ?: emptyList()
+                    ) // Ensure it's never null
+                }
+
+                // Load absensi
+                absensiViewModel.getAllData(0)
+                delay(100)
+                absensiViewModel.savedDataAbsensiList.observeOnce(this@HomePageActivity) { list ->
+                    Log.d("UploadCheck", "Absensi Data Received: ${list.size}")
+                    absensiDeferred.complete(
+                        list ?: emptyList()
+                    ) // Ensure it's never null
+                }
+
+                hektarPanenViewModel.loadHektarPanenData()
+                delay(100)
+                hektarPanenViewModel.historyHektarPanen.observeOnce(this@HomePageActivity) { list ->
+                    Log.d("UploadCheck", "Absensi Data Received: ${list.size}")
+                    hektarPanenDeferred.complete(
+                        list ?: emptyList()
+                    ) // Ensure it's never null
+                }
+
+
+                var unzippedPanenData: List<Map<String, Any>> = emptyList()
+                var unzippedESPBData: List<Map<String, Any>> = emptyList()
+                var unzippedHektaranData: List<Map<String, Any>> = emptyList()
+                var unzippedAbsensiData: List<Map<String, Any>> = emptyList()
+
+                var mappedPanenData: List<Map<String, Any>> = emptyList()
+                var mappedESPBData: List<Map<String, Any>> = emptyList()
+                var mappedHektaranData: List<Map<String, Any>> = emptyList()
+                var mappedAbsensiData: List<Map<String, Any>> = emptyList()
+
+                var allPhotosPanen = mutableListOf<Map<String, String>>()
+                var allPhotosAbsensi = mutableListOf<Map<String, String>>()
+                var hektaranJson = ""
+                var absensiJson = ""
+                try {
+                    val panenList = panenDeferred.await()
+                    val espbList = espbDeferred.await()
+                    val absensiList = absensiDeferred.await()
+                    val hektarPanenList = hektarPanenDeferred.await()
+
+                    // Prepare to search for photo files in CMP directories
+                    val picturesDirs = listOf(
+                        getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                        File(getExternalFilesDir(null)?.parent ?: "", "Pictures")
+                    ).filterNotNull()
+
+                    // Find all CMP directories upfront
+                    val cmpDirectories = mutableListOf<File>()
+                    for (picturesDir in picturesDirs) {
+                        if (!picturesDir.exists() || !picturesDir.isDirectory) {
+                            AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
+                            continue
+                        }
+
+                        val dirs = picturesDir.listFiles { file ->
+                            file.isDirectory && file.name.startsWith("CMP")
+                        } ?: emptyArray()
+
+                        cmpDirectories.addAll(dirs)
+                    }
+
+                    if (panenList.isNotEmpty()) {
+
+                        val uniquePhotos =
+                            mutableMapOf<String, Map<String, String>>()
+
+                        // Prepare to search for photo files in CMP directories
+                        val picturesDirs = listOf(
+                            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                            File(
+                                getExternalFilesDir(null)?.parent ?: "",
+                                "Pictures"
+                            )
+                        ).filterNotNull()
+
+                        // Find all CMP directories upfront
+                        val cmpDirectories = mutableListOf<File>()
+                        for (picturesDir in picturesDirs) {
+                            if (!picturesDir.exists() || !picturesDir.isDirectory) {
+                                AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
+                                continue
+                            }
+
+                            // Look specifically for CMP-PANEN TPH directory
+                            val cmpPanenDir = File(picturesDir, "CMP-PANEN TPH")
+                            if (cmpPanenDir.exists() && cmpPanenDir.isDirectory) {
+                                cmpDirectories.add(cmpPanenDir)
+                            }
+
+                            // Also check for any other CMP directories
+                            val otherCmpDirs = picturesDir.listFiles { file ->
+                                file.isDirectory && file.name.startsWith("CMP") && file.name != "CMP-PANEN TPH"
+                            } ?: emptyArray()
+
+                            cmpDirectories.addAll(otherCmpDirs)
+                        }
+
+                        AppLogger.d("Found ${cmpDirectories.size} CMP directories")
+
+                        mappedPanenData = panenList.map { panenWithRelations ->
+
+                            val photoNames =
+                                panenWithRelations.panen.foto?.split(";")
+                                    ?: listOf()
+
+                            // Process each photo in the semicolon-separated list
+                            for (photoName in photoNames) {
+                                val trimmedName = photoName.trim()
+                                if (trimmedName.isEmpty()) continue
+
+                                if (trimmedName in uniquePhotos) continue
+
+                                val uploadStatusImage =
+                                    panenWithRelations.panen.status_uploaded_image
+
+                                // Skip only if status is 200 (fully uploaded)
+                                if (uploadStatusImage == "200") {
+                                    AppLogger.d("Skipping photo $trimmedName - record ${panenWithRelations.panen.id} fully uploaded (status 200)")
+                                    continue
+                                }
+
+                                var photoFound = false
+
+                                for (cmpDir in cmpDirectories) {
+                                    val photoFile = File(cmpDir, trimmedName)
+
+                                    if (photoFile.exists() && photoFile.isFile) {
+                                        // Add to uniquePhotos if:
+                                        // 1. status is 0 (not uploaded yet)
+                                        // 2. status is error JSON and this photo is in the error array
+                                        var shouldAdd = false
+
+                                        if (uploadStatusImage == "0") {
+                                            // Default status - hasn't been uploaded yet
+                                            shouldAdd = true
+                                            AppLogger.d("Photo $trimmedName hasn't been uploaded (status 0)")
+                                        } else if (uploadStatusImage.startsWith("{")) {
+                                            try {
+                                                // Using Gson to parse the JSON
+                                                val errorJson = Gson().fromJson(
+                                                    uploadStatusImage,
+                                                    JsonObject::class.java
                                                 )
-                                                val date = dateFormat.parse(createdDate)
-                                                val outputFormat = SimpleDateFormat(
-                                                    "yyyy/MM/dd",
-                                                    Locale.getDefault()
-                                                )
-                                                outputFormat.format(date ?: Date())
+                                                val errorArray =
+                                                    errorJson?.get("error")?.asJsonArray
+
+                                                errorArray?.forEach { errorItem ->
+                                                    if (errorItem.asString == trimmedName) {
+                                                        shouldAdd = true
+                                                        AppLogger.d("Photo $trimmedName is marked as error in record ${panenWithRelations.panen.id}")
+                                                    }
+                                                }
                                             } catch (e: Exception) {
-                                                AppLogger.e("Error formatting date: ${e.message}")
-                                                // Default to current date if parsing fails
-                                                val outputFormat = SimpleDateFormat(
-                                                    "yyyy/MM/dd",
-                                                    Locale.getDefault()
-                                                )
-                                                outputFormat.format(Date())
+                                                AppLogger.e("Error parsing upload status JSON: ${e.message}")
                                             }
+                                        }
 
-                                            // handle foto dengan path tanggal
-                                            val basePath =
-                                                "$formattedDate/${prefManager!!.estateUserLogin}/"
-
-                                            // Process the photo filenames to prepend the base path
-                                            val originalFotoString =
-                                                panenWithRelations.panen.foto ?: ""
-                                            val modifiedFotoString =
-                                                if (originalFotoString.contains(";")) {
-                                                    // Multiple photos - split, modify each one, and rejoin
-                                                    originalFotoString.split(";")
-                                                        .map { photoName -> "$basePath${photoName.trim()}" }
-                                                        .joinToString(";")
-                                                } else if (originalFotoString.isNotEmpty()) {
-                                                    // Single photo - just prepend the base path
-                                                    "$basePath$originalFotoString"
-                                                } else {
-                                                    // No photos
-                                                    ""
-                                                }
-
-                                            mapOf(
-                                                "id" to panenWithRelations.panen.id,
-                                                "tanggal" to panenWithRelations.panen.date_created,
-                                                "jjg_json" to panenWithRelations.panen.jjg_json,
-                                                "tipe" to panenWithRelations.panen.jenis_panen,
-                                                "created_by" to prefManager!!.idUserLogin.toString(),
-                                                "created_name" to prefManager!!.nameUserLogin.toString(),
-                                                "created_date" to panenWithRelations.panen.date_created,
-                                                "jabatan" to prefManager!!.jabatanUserLogin.toString(),
-                                                "status_pengangkutan" to panenWithRelations.panen.status_pengangkutan,
-                                                "regional" to panenWithRelations.tph?.regional.toString(),
-                                                "wilayah" to panenWithRelations.tph?.wilayah.toString(),
-                                                "company" to panenWithRelations.tph?.company.toString(),
-                                                "company_abbr" to panenWithRelations.tph?.company_abbr.toString(),
-                                                "company_nama" to panenWithRelations.tph?.company_nama.toString(),
-                                                "dept" to panenWithRelations.tph?.dept.toString(),
-                                                "dept_ppro" to panenWithRelations.tph?.dept_ppro.toString(),
-                                                "dept_abbr" to panenWithRelations.tph?.dept_abbr.toString(),
-                                                "dept_nama" to panenWithRelations.tph?.dept_nama.toString(),
-                                                "divisi" to panenWithRelations.tph?.divisi.toString(),
-                                                "divisi_abbr" to panenWithRelations.tph?.divisi_abbr.toString(),
-                                                "divisi_ppro" to panenWithRelations.tph?.divisi_ppro.toString(),
-                                                "divisi_nama" to panenWithRelations.tph?.divisi_nama.toString(),
-                                                "blok" to panenWithRelations.tph?.blok.toString(),
-                                                "blok_ppro" to panenWithRelations.tph?.blok_ppro.toString(),
-                                                "blok_kode" to panenWithRelations.tph?.blok_kode.toString(),
-                                                "blok_nama" to panenWithRelations.tph?.blok_nama.toString(),
-                                                "tph" to (panenWithRelations.tph?.id ?: 0) as Int,
-                                                "tph_nomor" to (panenWithRelations.tph?.nomor
-                                                    ?: ""),
-                                                "ancak" to panenWithRelations.panen.ancak,
-                                                "asistensi" to if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2,
-                                                "kemandoran_id" to panenWithRelations.panen.kemandoran_id,
-                                                "karyawan_id" to panenWithRelations.panen.karyawan_id,
-                                                "karyawan_nik" to panenWithRelations.panen.karyawan_nik,
-                                                "foto" to modifiedFotoString,
-                                                "komentar" to panenWithRelations.panen.komentar,
-                                                "lat" to panenWithRelations.panen.lat,
-                                                "lon" to panenWithRelations.panen.lon,
-                                                "status_banjir" to panenWithRelations.panen.status_banjir,
-                                                "status_pengangkutan" to panenWithRelations.panen.status_pengangkutan,
-                                                "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
-                                                    .toString(),
-                                                "kemandoran_user" to kemandoranNama,
-                                                "kemandoran_user_kode" to kemandoranKode,
-                                                "kemandoran_user_id" to kemandoranId,
-                                                "kemandoran" to kemandoranJsonString,
-                                                "jumlah_pemanen" to jumlahPemanen,
-                                                "restan" to 0,
-                                                "status_espb" to 0
+                                        val createdDate =
+                                            panenWithRelations.panen.date_created
+                                                ?: ""
+                                        val formattedDate = try {
+                                            val dateFormat = SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
                                             )
+                                            val date = dateFormat.parse(createdDate)
+                                            val outputFormat = SimpleDateFormat(
+                                                "yyyy/MM/dd/",
+                                                Locale.getDefault()
+                                            )
+                                            outputFormat.format(date ?: Date())
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error formatting date: ${e.message}")
+                                            // Default to current date if parsing fails
+                                            val outputFormat = SimpleDateFormat(
+                                                "yyyy/MM/dd/",
+                                                Locale.getDefault()
+                                            )
+                                            outputFormat.format(Date())
                                         }
 
-                                        // First, filter the mapped panen data to only include items with status_upload == 0
-                                        val panenDataToUpload = mappedPanenData.filter { panenMap ->
-                                            val id = panenMap["id"] as? Int ?: 0
-                                            val original = panenList.find { it.panen.id == id }
+                                        // Create the base path by appending the estate code
+                                        val basePathImage =
+                                            formattedDate + prefManager!!.estateUserLogin
 
-                                            // Only include if status_upload == 0
-                                            original?.panen?.status_upload == 0
+                                        if (shouldAdd) {
+                                            uniquePhotos[trimmedName] = mapOf(
+                                                "name" to trimmedName,
+                                                "path" to photoFile.absolutePath,
+                                                "size" to photoFile.length()
+                                                    .toString(),
+                                                "table_ids" to panenWithRelations.panen.id.toString(),
+                                                "base_path" to basePathImage,
+                                                "database" to AppUtils.DatabaseTables.PANEN
+                                            )
+                                            AppLogger.d("Added photo for upload: $trimmedName at ${photoFile.absolutePath}")
+                                        } else {
+                                            AppLogger.d("Skipping photo $trimmedName - no upload needed")
                                         }
 
+                                        photoFound = true
+                                        break
+                                    }
+                                }
 
-                                        // Only create the panen JSON file if there's data to upload
-                                        if (panenDataToUpload.isNotEmpty()) {
-                                            // Split into batches of 50
-                                            val panenBatches = panenDataToUpload.chunked(50)
-                                            val panenBatchMap = mutableMapOf<String, Any>()
+                                if (!photoFound) {
+                                    AppLogger.w("Photo not found: $trimmedName")
+                                }
+                            }
 
-                                            panenBatches.forEachIndexed { batchIndex, batch ->
-                                                // Create a wrapper with the table name for this batch
-                                                val wrappedBatch = mapOf(
-                                                    AppUtils.DatabaseTables.PANEN to batch
-                                                )
+                            //handle kemandoran_field
+                            val kemandoranId =
+                                prefManager!!.kemandoranUserLogin.toString()
+                            val kemandoranKode =
+                                prefManager!!.kemandoranKodeUserLogin.toString()
+                            val kemandoranNama =
+                                prefManager!!.kemandoranNamaUserLogin.toString()
 
-                                                // Convert the wrapped batch to JSON
-                                                val batchJson = Gson().toJson(wrappedBatch)
-                                                val batchKey = "batch_${batchIndex + 1}"
+                            val pemanen = mutableListOf<Map<String, String>>()
+                            val nikList =
+                                panenWithRelations.panen.karyawan_nik?.split(",")
+                                    ?: listOf()
+                            val namaList =
+                                panenWithRelations.panen.karyawan_nama?.split(",")
+                                    ?: listOf()
 
-                                                // Store the IDs for this batch
-                                                val batchIds = batch.mapNotNull { it["id"] as? Int }
+                            for (i in nikList.indices) {
+                                if (i < namaList.size) {
+                                    pemanen.add(
+                                        mapOf(
+                                            "nik" to nikList[i].trim(),
+                                            "nama" to namaList[i].trim()
+                                        )
+                                    )
+                                } else {
+                                    // In case there are more NIKs than names
+                                    pemanen.add(
+                                        mapOf(
+                                            "nik" to nikList[i].trim(),
+                                            "nama" to ""
+                                        )
+                                    )
+                                }
+                            }
 
-                                                // Create filename - remove batch reference if only one batch exists
-                                                val filename = if (panenBatches.size == 1) {
-                                                    "Data Panen ${prefManager!!.estateUserLogin}"
-                                                } else {
-                                                    "Data Panen ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
-                                                }
+                            val kemandoranJsonMap = mutableMapOf<String, Any>()
+                            kemandoranJsonMap["id"] =
+                                kemandoranId.toIntOrNull() ?: 0
+                            kemandoranJsonMap["kode"] = kemandoranKode
+                            kemandoranJsonMap["nama"] = kemandoranNama
+                            kemandoranJsonMap["pemanen"] = pemanen
+
+                            val kemandoranJson = listOf(kemandoranJsonMap)
+                            val kemandoranJsonString = Gson().toJson(kemandoranJson)
+                            val jumlahPemanen = pemanen.size
+
+
+                            val createdDate =
+                                panenWithRelations.panen.date_created ?: ""
+                            val formattedDate = try {
+                                val dateFormat = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                )
+                                val date = dateFormat.parse(createdDate)
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(date ?: Date())
+                            } catch (e: Exception) {
+                                AppLogger.e("Error formatting date: ${e.message}")
+                                // Default to current date if parsing fails
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(Date())
+                            }
+
+                            // handle foto dengan path tanggal
+                            val basePath =
+                                "$formattedDate/${prefManager!!.estateUserLogin}/"
+
+                            // Process the photo filenames to prepend the base path
+                            val originalFotoString =
+                                panenWithRelations.panen.foto ?: ""
+                            val modifiedFotoString =
+                                if (originalFotoString.contains(";")) {
+                                    // Multiple photos - split, modify each one, and rejoin
+                                    originalFotoString.split(";")
+                                        .map { photoName -> "$basePath${photoName.trim()}" }
+                                        .joinToString(";")
+                                } else if (originalFotoString.isNotEmpty()) {
+                                    // Single photo - just prepend the base path
+                                    "$basePath$originalFotoString"
+                                } else {
+                                    // No photos
+                                    ""
+                                }
+
+                            mapOf(
+                                "id" to panenWithRelations.panen.id,
+                                "tanggal" to panenWithRelations.panen.date_created,
+                                "jjg_json" to panenWithRelations.panen.jjg_json,
+                                "tipe" to panenWithRelations.panen.jenis_panen,
+                                "created_by" to prefManager!!.idUserLogin.toString(),
+                                "created_name" to prefManager!!.nameUserLogin.toString(),
+                                "created_date" to panenWithRelations.panen.date_created,
+                                "jabatan" to prefManager!!.jabatanUserLogin.toString(),
+                                "status_pengangkutan" to panenWithRelations.panen.status_pengangkutan,
+                                "regional" to panenWithRelations.tph?.regional.toString(),
+                                "wilayah" to panenWithRelations.tph?.wilayah.toString(),
+                                "company" to panenWithRelations.tph?.company.toString(),
+                                "company_abbr" to panenWithRelations.tph?.company_abbr.toString(),
+                                "company_nama" to panenWithRelations.tph?.company_nama.toString(),
+                                "dept" to panenWithRelations.tph?.dept.toString(),
+                                "dept_ppro" to panenWithRelations.tph?.dept_ppro.toString(),
+                                "dept_abbr" to panenWithRelations.tph?.dept_abbr.toString(),
+                                "dept_nama" to panenWithRelations.tph?.dept_nama.toString(),
+                                "divisi" to panenWithRelations.tph?.divisi.toString(),
+                                "divisi_abbr" to panenWithRelations.tph?.divisi_abbr.toString(),
+                                "divisi_ppro" to panenWithRelations.tph?.divisi_ppro.toString(),
+                                "divisi_nama" to panenWithRelations.tph?.divisi_nama.toString(),
+                                "blok" to panenWithRelations.tph?.blok.toString(),
+                                "blok_ppro" to panenWithRelations.tph?.blok_ppro.toString(),
+                                "blok_kode" to panenWithRelations.tph?.blok_kode.toString(),
+                                "blok_nama" to panenWithRelations.tph?.blok_nama.toString(),
+                                "tph" to (panenWithRelations.tph?.id ?: 0) as Int,
+                                "tph_nomor" to (panenWithRelations.tph?.nomor
+                                    ?: ""),
+                                "ancak" to panenWithRelations.panen.ancak,
+                                "asistensi" to if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2,
+                                "kemandoran_id" to panenWithRelations.panen.kemandoran_id,
+                                "karyawan_id" to panenWithRelations.panen.karyawan_id,
+                                "karyawan_nik" to panenWithRelations.panen.karyawan_nik,
+                                "foto" to modifiedFotoString,
+                                "komentar" to panenWithRelations.panen.komentar,
+                                "lat" to panenWithRelations.panen.lat,
+                                "lon" to panenWithRelations.panen.lon,
+                                "status_banjir" to panenWithRelations.panen.status_banjir,
+                                "status_pengangkutan" to panenWithRelations.panen.status_pengangkutan,
+                                "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
+                                    .toString(),
+                                "kemandoran_user" to kemandoranNama,
+                                "kemandoran_user_kode" to kemandoranKode,
+                                "kemandoran_user_id" to kemandoranId,
+                                "kemandoran" to kemandoranJsonString,
+                                "jumlah_pemanen" to jumlahPemanen,
+                                "restan" to 0,
+                                "status_espb" to 0
+                            )
+                        }
+
+                        // First, filter the mapped panen data to only include items with status_upload == 0
+                        val panenDataToUpload = mappedPanenData.filter { panenMap ->
+                            val id = panenMap["id"] as? Int ?: 0
+                            val original = panenList.find { it.panen.id == id }
+
+                            // Only include if status_upload == 0
+                            original?.panen?.status_upload == 0
+                        }
+
+
+                        // Only create the panen JSON file if there's data to upload
+                        if (panenDataToUpload.isNotEmpty()) {
+                            // Split into batches of 50
+                            val panenBatches = panenDataToUpload.chunked(50)
+                            val panenBatchMap = mutableMapOf<String, Any>()
+
+                            panenBatches.forEachIndexed { batchIndex, batch ->
+                                // Create a wrapper with the table name for this batch
+                                val wrappedBatch = mapOf(
+                                    AppUtils.DatabaseTables.PANEN to batch
+                                )
+
+                                // Convert the wrapped batch to JSON
+                                val batchJson = Gson().toJson(wrappedBatch)
+                                val batchKey = "batch_${batchIndex + 1}"
+
+                                // Store the IDs for this batch
+                                val batchIds = batch.mapNotNull { it["id"] as? Int }
+
+                                // Create filename - remove batch reference if only one batch exists
+                                val filename = if (panenBatches.size == 1) {
+                                    "Data Panen ${prefManager!!.estateUserLogin}"
+                                } else {
+                                    "Data Panen ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
+                                }
 
 //                                                try {
 //                                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
@@ -1708,167 +1799,167 @@ class HomePageActivity : AppCompatActivity() {
 //                                                }
 
 
-                                                panenBatchMap[batchKey] = mapOf(
-                                                    "data" to batchJson,
-                                                    "filename" to filename,
-                                                    "ids" to batchIds
-                                                )
+                                panenBatchMap[batchKey] = mapOf(
+                                    "data" to batchJson,
+                                    "filename" to filename,
+                                    "ids" to batchIds
+                                )
+                            }
+
+
+                            if (panenBatchMap.isNotEmpty()) {
+                                combinedUploadData[AppUtils.DatabaseTables.PANEN] =
+                                    panenBatchMap
+                            }
+                        }
+
+
+
+
+                        allPhotosPanen = uniquePhotos.values.toMutableList()
+                        if (allPhotosPanen.isNotEmpty()) {
+                            AppLogger.d("Adding ${allPhotosPanen.size} unique photos to upload data")
+                            combinedUploadData["foto_panen"] = allPhotosPanen
+
+                        } else {
+                            AppLogger.w("No photos found to upload")
+                        }
+
+                        unzippedPanenData = mappedPanenData.filter { item ->
+                            // Get the ID
+                            val id = item["id"] as? Int ?: 0
+
+                            // Check if this item has dataIsZipped = 0 in the original data
+                            val original = panenList.find { it.panen.id == id }
+                            val isZipped = original?.panen?.dataIsZipped ?: 0
+
+                            // Only include items that are not yet zipped
+                            isZipped == 0
+                        }
+                    }
+
+                    if (espbList.isNotEmpty()) {
+                        val espbDataToUpload = espbList.filter { data ->
+                            data.status_upload_cmp_sp == 0
+                        }
+
+                        if (espbDataToUpload.isNotEmpty()) {
+                            mappedESPBData = espbDataToUpload.map { data ->
+                                val blokJjgList =
+                                    data.blok_jjg.split(";").mapNotNull {
+                                        it.split(",").takeIf { it.size == 2 }
+                                            ?.let { (id, jjg) ->
+                                                id.toIntOrNull()
+                                                    ?.let { it to jjg.toIntOrNull() }
                                             }
-
-
-                                            if (panenBatchMap.isNotEmpty()) {
-                                                combinedUploadData[AppUtils.DatabaseTables.PANEN] =
-                                                    panenBatchMap
-                                            }
-                                        }
-
-
-
-
-                                        allPhotosPanen = uniquePhotos.values.toMutableList()
-                                        if (allPhotosPanen.isNotEmpty()) {
-                                            AppLogger.d("Adding ${allPhotosPanen.size} unique photos to upload data")
-                                            combinedUploadData["foto_panen"] = allPhotosPanen
-
-                                        } else {
-                                            AppLogger.w("No photos found to upload")
-                                        }
-
-                                        unzippedPanenData = mappedPanenData.filter { item ->
-                                            // Get the ID
-                                            val id = item["id"] as? Int ?: 0
-
-                                            // Check if this item has dataIsZipped = 0 in the original data
-                                            val original = panenList.find { it.panen.id == id }
-                                            val isZipped = original?.panen?.dataIsZipped ?: 0
-
-                                            // Only include items that are not yet zipped
-                                            isZipped == 0
-                                        }
                                     }
+                                val idBlokList = blokJjgList.map { it.first }
+                                val totalJjg =
+                                    blokJjgList.mapNotNull { it.second }.sum()
+                                val concatenatedIds =
+                                    idBlokList.joinToString(",").trimEnd(',')
+                                val firstBlockId = idBlokList.firstOrNull()
 
-                                    if (espbList.isNotEmpty()) {
-                                        val espbDataToUpload = espbList.filter { data ->
-                                            data.status_upload_cmp_sp == 0
-                                        }
-
-                                        if (espbDataToUpload.isNotEmpty()) {
-                                            mappedESPBData = espbDataToUpload.map { data ->
-                                                val blokJjgList =
-                                                    data.blok_jjg.split(";").mapNotNull {
-                                                        it.split(",").takeIf { it.size == 2 }
-                                                            ?.let { (id, jjg) ->
-                                                                id.toIntOrNull()
-                                                                    ?.let { it to jjg.toIntOrNull() }
-                                                            }
-                                                    }
-                                                val idBlokList = blokJjgList.map { it.first }
-                                                val totalJjg =
-                                                    blokJjgList.mapNotNull { it.second }.sum()
-                                                val concatenatedIds =
-                                                    idBlokList.joinToString(",").trimEnd(',')
-                                                val firstBlockId = idBlokList.firstOrNull()
-
-                                                // Create a CompletableDeferred to handle the async operation
-                                                val tphDeferred =
-                                                    CompletableDeferred<TPHNewModel?>()
+                                // Create a CompletableDeferred to handle the async operation
+                                val tphDeferred =
+                                    CompletableDeferred<TPHNewModel?>()
 
 
-                                                AppLogger.d("firstBlockId $firstBlockId")
-                                                // Fetch the TPH data if we have a block ID
-                                                firstBlockId?.let { blockId ->
-                                                    weightBridgeViewModel.fetchTPHByBlockId(blockId)
+                                AppLogger.d("firstBlockId $firstBlockId")
+                                // Fetch the TPH data if we have a block ID
+                                firstBlockId?.let { blockId ->
+                                    weightBridgeViewModel.fetchTPHByBlockId(blockId)
 
-                                                    // Set up a one-time observer for the LiveData
-                                                    weightBridgeViewModel.tphData.observeOnce(this@HomePageActivity) { tphModel ->
-                                                        tphDeferred.complete(tphModel)
-                                                    }
-                                                }
-                                                    ?: tphDeferred.complete(null) // Complete with null if no block ID
+                                    // Set up a one-time observer for the LiveData
+                                    weightBridgeViewModel.tphData.observeOnce(this@HomePageActivity) { tphModel ->
+                                        tphDeferred.complete(tphModel)
+                                    }
+                                }
+                                    ?: tphDeferred.complete(null) // Complete with null if no block ID
 
-                                                // Wait for the TPH data
-                                                val tphData = tphDeferred.await()
+                                // Wait for the TPH data
+                                val tphData = tphDeferred.await()
 
 
-                                                AppLogger.d("tphData $tphData")
+                                AppLogger.d("tphData $tphData")
 
-                                                val pemuatNikString = data.pemuat_nik
+                                val pemuatNikString = data.pemuat_nik
 
-                                                val nikList = mutableListOf<String>()
-                                                var currentIndex = 0
+                                val nikList = mutableListOf<String>()
+                                var currentIndex = 0
 
-                                                while (true) {
-                                                    // Find next occurrence of "nik="
-                                                    val nikIndex = pemuatNikString.indexOf(
-                                                        "nik=",
-                                                        currentIndex
-                                                    )
-                                                    if (nikIndex == -1) break // No more NIKs found
+                                while (true) {
+                                    // Find next occurrence of "nik="
+                                    val nikIndex = pemuatNikString.indexOf(
+                                        "nik=",
+                                        currentIndex
+                                    )
+                                    if (nikIndex == -1) break // No more NIKs found
 
-                                                    // Move position after "nik="
-                                                    currentIndex = nikIndex + 4
+                                    // Move position after "nik="
+                                    currentIndex = nikIndex + 4
 
-                                                    // Find comma after the NIK value
-                                                    val commaIndex =
-                                                        pemuatNikString.indexOf(",", currentIndex)
-                                                    if (commaIndex == -1) break // Unexpected format
+                                    // Find comma after the NIK value
+                                    val commaIndex =
+                                        pemuatNikString.indexOf(",", currentIndex)
+                                    if (commaIndex == -1) break // Unexpected format
 
-                                                    // Extract the NIK value
-                                                    val nikValue = pemuatNikString.substring(
-                                                        currentIndex,
-                                                        commaIndex
-                                                    )
-                                                    nikList.add(nikValue)
+                                    // Extract the NIK value
+                                    val nikValue = pemuatNikString.substring(
+                                        currentIndex,
+                                        commaIndex
+                                    )
+                                    nikList.add(nikValue)
 
-                                                    // Move position for next search
-                                                    currentIndex = commaIndex + 1
-                                                }
+                                    // Move position for next search
+                                    currentIndex = commaIndex + 1
+                                }
 
-                                                val nikValues = nikList.joinToString(",")
+                                val nikValues = nikList.joinToString(",")
 
-                                                mapOf(
-                                                    "id" to data.id,
-                                                    "regional" to (tphData?.regional ?: ""),
-                                                    "wilayah" to (tphData?.wilayah ?: ""),
-                                                    "company" to (tphData?.company ?: ""),
-                                                    "dept" to (tphData?.dept ?: ""),
-                                                    "divisi" to (tphData?.divisi ?: ""),
-                                                    "blok_id" to concatenatedIds,
-                                                    "blok_jjg" to data.blok_jjg,
-                                                    "jjg" to totalJjg,
-                                                    "created_by_id" to data.created_by_id,
-                                                    "created_at" to data.created_at,
-                                                    "pemuat_id" to data.pemuat_id,
-                                                    "kemandoran_id" to data.kemandoran_id,
-                                                    "pemuat_nik" to nikValues,
-                                                    "nopol" to data.nopol,
-                                                    "driver" to data.driver,
-                                                    "updated_nama" to prefManager!!.nameUserLogin.toString(),
-                                                    "transporter_id" to data.transporter_id,
-                                                    "mill_id" to data.mill_id,
-                                                    "creator_info" to data.creator_info,
-                                                    "no_espb" to data.noESPB,
-                                                    "tph0" to data.tph0,
-                                                    "tph1" to data.tph1,
-                                                    "update_info_sp" to data.update_info_sp,
-                                                    "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
-                                                        .toString(),
-                                                    "jabatan" to prefManager!!.jabatanUserLogin.toString(),
-                                                )
-                                            }
+                                mapOf(
+                                    "id" to data.id,
+                                    "regional" to (tphData?.regional ?: ""),
+                                    "wilayah" to (tphData?.wilayah ?: ""),
+                                    "company" to (tphData?.company ?: ""),
+                                    "dept" to (tphData?.dept ?: ""),
+                                    "divisi" to (tphData?.divisi ?: ""),
+                                    "blok_id" to concatenatedIds,
+                                    "blok_jjg" to data.blok_jjg,
+                                    "jjg" to totalJjg,
+                                    "created_by_id" to data.created_by_id,
+                                    "created_at" to data.created_at,
+                                    "pemuat_id" to data.pemuat_id,
+                                    "kemandoran_id" to data.kemandoran_id,
+                                    "pemuat_nik" to nikValues,
+                                    "nopol" to data.nopol,
+                                    "driver" to data.driver,
+                                    "updated_nama" to prefManager!!.nameUserLogin.toString(),
+                                    "transporter_id" to data.transporter_id,
+                                    "mill_id" to data.mill_id,
+                                    "creator_info" to data.creator_info,
+                                    "no_espb" to data.noESPB,
+                                    "tph0" to data.tph0,
+                                    "tph1" to data.tph1,
+                                    "update_info_sp" to data.update_info_sp,
+                                    "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
+                                        .toString(),
+                                    "jabatan" to prefManager!!.jabatanUserLogin.toString(),
+                                )
+                            }
 
 
 
 
-                                            if (espbDataToUpload.isNotEmpty()) {
-                                                // Create a wrapper with the table name
-                                                val wrappedData = mapOf(
-                                                    AppUtils.DatabaseTables.ESPB to mappedESPBData
-                                                )
+                            if (espbDataToUpload.isNotEmpty()) {
+                                // Create a wrapper with the table name
+                                val wrappedData = mapOf(
+                                    AppUtils.DatabaseTables.ESPB to mappedESPBData
+                                )
 
 
-                                                // Convert to JSON
-                                                val espbJson = Gson().toJson(wrappedData)
+                                // Convert to JSON
+                                val espbJson = Gson().toJson(wrappedData)
 //                                                AppLogger.d("espbJson $espbJson")
 //
 //                                                try {
@@ -1890,271 +1981,271 @@ class HomePageActivity : AppCompatActivity() {
 //                                                    AppLogger.e("Failed to save espb data to temp file: ${e.message}")
 //                                                    e.printStackTrace()
 //                                                }
-                                                AppLogger.d(espbJson.toString())
-                                                // Extract all IDs
-                                                val espbIds = ArrayList<Int>()
-                                                for (item in mappedESPBData) {
-                                                    try {
-                                                        val jsonObj =
-                                                            JSONObject(Gson().toJson(item))
-                                                        val id = jsonObj.optInt("id", 0)
-                                                        if (id > 0) {
-                                                            espbIds.add(id)
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        AppLogger.e("Error extracting ESPB ID: ${e.message}")
-                                                    }
+                                AppLogger.d(espbJson.toString())
+                                // Extract all IDs
+                                val espbIds = ArrayList<Int>()
+                                for (item in mappedESPBData) {
+                                    try {
+                                        val jsonObj =
+                                            JSONObject(Gson().toJson(item))
+                                        val id = jsonObj.optInt("id", 0)
+                                        if (id > 0) {
+                                            espbIds.add(id)
+                                        }
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error extracting ESPB ID: ${e.message}")
+                                    }
+                                }
+
+                                // Store as a single entry
+                                combinedUploadData[AppUtils.DatabaseTables.ESPB] =
+                                    mapOf(
+                                        "data" to espbJson,
+                                        "filename" to "espb_data.json",
+                                        "ids" to espbIds
+                                    )
+                            }
+
+
+                            unzippedESPBData = mappedESPBData.filter { item ->
+                                // Get the ID
+                                val id = item["id"] as? Int ?: 0
+
+                                // Check if this item has dataIsZipped = 0 in the original data
+                                val original = espbList.find { it.id == id }
+                                val isZipped = original?.dataIsZipped ?: 0
+
+                                // Only include items that are not yet zipped
+                                isZipped == 0
+                            }
+                        } else {
+                            AppLogger.d("No ESPB data with status_upload == 0 to upload")
+                            // Initialize empty arrays if no data to upload
+                            mappedESPBData = emptyList()
+                            globalESPBIds = emptyList()
+                            unzippedESPBData = emptyList()
+                        }
+                    }
+//                                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
+                    if (hektarPanenList.isNotEmpty()) {
+                        val hektarPanenToUpload = hektarPanenList.filter { data ->
+                            data.status_upload == 0
+                        }
+
+                        if (hektarPanenToUpload.isNotEmpty()) {
+                            // Process data for HEKTARAN (summary by blok)
+                            val groupedByBlok =
+                                hektarPanenToUpload.groupBy { it.blok }
+
+                            // Create a list to hold our restructured data (with nested children)
+                            val restructuredData =
+                                groupedByBlok.map { (blokId, dataList) ->
+                                    // Get first item to extract common properties
+                                    val firstItem = dataList.first()
+
+                                    // Calculate luasan_panen sum for this blok
+                                    val totalLuasanPanen =
+                                        dataList.sumOf { it.luas_panen.toDouble() }
+                                            .toFloat()
+
+                                    // Count distinct pemanen_nama
+                                    val distinctPemanen =
+                                        dataList.map { it.pemanen_nama }
+                                            .distinct().size
+
+                                    // Create a structure for this blok with its child details
+                                    val blokData = mutableMapOf<String, Any>(
+
+                                        "tanggal" to run {
+                                            val firstDateCreatedPanen = dataList.firstOrNull()?.date_created_panen?.split(";")?.firstOrNull() ?: ""
+                                            if (firstDateCreatedPanen.isNotEmpty()) {
+                                                try {
+                                                    val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                                    val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                                    val date = inputFormat.parse(firstDateCreatedPanen)
+                                                    date?.let { outputFormat.format(it) } ?: firstDateCreatedPanen
+                                                } catch (e: Exception) {
+                                                    firstDateCreatedPanen
                                                 }
-
-                                                // Store as a single entry
-                                                combinedUploadData[AppUtils.DatabaseTables.ESPB] =
-                                                    mapOf(
-                                                        "data" to espbJson,
-                                                        "filename" to "espb_data.json",
-                                                        "ids" to espbIds
-                                                    )
+                                            } else {
+                                                firstItem.date_created ?: ""
                                             }
+                                        },
+                                        "regional" to (firstItem.regional ?: ""),
+                                        "wilayah" to (firstItem.wilayah ?: ""),
+                                        "company" to (firstItem.company ?: 0),
+                                        "company_abbr" to (firstItem.company_abbr
+                                            ?: ""),
+                                        "company_nama" to (firstItem.company_nama
+                                            ?: ""),
+                                        "dept" to (firstItem.dept ?: 0),
+                                        "dept_ppro" to (firstItem.dept_ppro ?: 0),
+                                        "dept_abbr" to (firstItem.dept_abbr ?: ""),
+                                        "dept_nama" to (firstItem.dept_nama ?: ""),
+                                        "divisi" to (firstItem.divisi ?: 0),
+                                        "divisi_abbr" to (firstItem.divisi_abbr
+                                            ?: ""),
+                                        "divisi_nama" to (firstItem.divisi_nama
+                                            ?: ""),
+                                        "blok" to (blokId ?: 0),
+                                        "blok_ppro" to (firstItem.blok_ppro ?: 0),
+                                        "blok_kode" to (firstItem.blok_kode ?: 0),
+                                        "blok_nama" to (firstItem.blok_nama ?: ""),
+                                        "luasan_blok" to (firstItem.luas_blok
+                                            ?: ""), // Empty for now as requested
+                                        "luasan_panen" to totalLuasanPanen,
+                                        "jumlah_pemanen" to distinctPemanen,
+                                        "created_name" to "",
+                                        "created_by" to (firstItem.created_by
+                                            ?: ""),
+                                        "created_date" to (firstItem.date_created
+                                            ?: ""),
+                                        "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
+                                    )
 
+                                    // Process detail records for this blok
+                                    val detailRecords =
+                                        mutableListOf<Map<String, Any>>()
 
-                                            unzippedESPBData = mappedESPBData.filter { item ->
-                                                // Get the ID
-                                                val id = item["id"] as? Int ?: 0
+                                    // Process all data items for this blok
+                                    for (data in dataList) {
+                                        // Split all arrays
+                                        val tphIdsList = data.tph_ids.split(";")
+                                        val totalJjgList = data.total_jjg_arr.split(";")
+                                        val unripeList = data.unripe_arr.split(";")
+                                        val overripeList = data.overripe_arr.split(";")
+                                        val emptyBunchList = data.empty_bunch_arr.split(";")
+                                        val abnormalList = data.abnormal_arr.split(";")
+                                        val ripeList = data.ripe_arr.split(";")
+                                        val kirimList = data.kirim_pabrik_arr.split(";")
+                                        val dibayarList = data.dibayar_arr.split(";")
+                                        val dateCreatedPanenList = data.date_created_panen.split(";")
+                                        AppLogger.d(totalJjgList.toString())
 
-                                                // Check if this item has dataIsZipped = 0 in the original data
-                                                val original = espbList.find { it.id == id }
-                                                val isZipped = original?.dataIsZipped ?: 0
+                                        // Get kemandoran data (keeping your existing code)
+                                        val kemandoranDeferred = CompletableDeferred<List<KemandoranModel>>()
+                                        val kemandoranIds = listOf(data.kemandoran_id ?: "")
 
-                                                // Only include items that are not yet zipped
-                                                isZipped == 0
+                                        if (kemandoranIds.first().isNotEmpty()) {
+                                            lifecycleScope.launch(Dispatchers.IO) {
+                                                try {
+                                                    val kemandoranList = absensiViewModel.getKemandoranById(kemandoranIds)
+                                                    kemandoranDeferred.complete(kemandoranList)
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error fetching kemandoran data: ${e.message}")
+                                                    kemandoranDeferred.complete(emptyList())
+                                                }
                                             }
                                         } else {
-                                            AppLogger.d("No ESPB data with status_upload == 0 to upload")
-                                            // Initialize empty arrays if no data to upload
-                                            mappedESPBData = emptyList()
-                                            globalESPBIds = emptyList()
-                                            unzippedESPBData = emptyList()
-                                        }
-                                    }
-//                                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
-                                    if (hektarPanenList.isNotEmpty()) {
-                                        val hektarPanenToUpload = hektarPanenList.filter { data ->
-                                            data.status_upload == 0
+                                            kemandoranDeferred.complete(emptyList())
                                         }
 
-                                        if (hektarPanenToUpload.isNotEmpty()) {
-                                            // Process data for HEKTARAN (summary by blok)
-                                            val groupedByBlok =
-                                                hektarPanenToUpload.groupBy { it.blok }
+                                        val kemandoranList = try {
+                                            kemandoranDeferred.await()
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error waiting for kemandoran data: ${e.message}")
+                                            emptyList()
+                                        }
 
-                                            // Create a list to hold our restructured data (with nested children)
-                                            val restructuredData =
-                                                groupedByBlok.map { (blokId, dataList) ->
-                                                    // Get first item to extract common properties
-                                                    val firstItem = dataList.first()
+                                        val kemandoranPpro = if (kemandoranList.isNotEmpty()) {
+                                            kemandoranList.first().kemandoran_ppro ?: ""
+                                        } else {
+                                            ""
+                                        }
 
-                                                    // Calculate luasan_panen sum for this blok
-                                                    val totalLuasanPanen =
-                                                        dataList.sumOf { it.luas_panen.toDouble() }
-                                                            .toFloat()
+                                        val kemandoranKode = if (kemandoranList.isNotEmpty()) {
+                                            kemandoranList.first().kode ?: ""
+                                        } else {
+                                            ""
+                                        }
 
-                                                    // Count distinct pemanen_nama
-                                                    val distinctPemanen =
-                                                        dataList.map { it.pemanen_nama }
-                                                            .distinct().size
+                                        // Initialize totals for THIS data item
+                                        var totalJjgPanen = 0.0
+                                        var totalJjgMentah = 0.0
+                                        var totalJjgLewatMasak = 0.0
+                                        var totalJjgKosong = 0.0
+                                        var totalJjgAbnormal = 0.0
+                                        var totalJjgMasak = 0.0
+                                        var totalJjgKirim = 0.0
+                                        var totalJjgBayar = 0.0
+                                        val dateCreatedArray = mutableListOf<String>()
+                                        val tphArray = mutableListOf<String>()  // Add TPH array
+                                        val entryCount = tphIdsList.size
 
-                                                    // Create a structure for this blok with its child details
-                                                    val blokData = mutableMapOf<String, Any>(
-
-                                                        "tanggal" to run {
-                                                            val firstDateCreatedPanen = dataList.firstOrNull()?.date_created_panen?.split(";")?.firstOrNull() ?: ""
-                                                            if (firstDateCreatedPanen.isNotEmpty()) {
-                                                                try {
-                                                                    val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                                                                    val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                                                                    val date = inputFormat.parse(firstDateCreatedPanen)
-                                                                    date?.let { outputFormat.format(it) } ?: firstDateCreatedPanen
-                                                                } catch (e: Exception) {
-                                                                    firstDateCreatedPanen
-                                                                }
-                                                            } else {
-                                                                firstItem.date_created ?: ""
-                                                            }
-                                                        },
-                                                        "regional" to (firstItem.regional ?: ""),
-                                                        "wilayah" to (firstItem.wilayah ?: ""),
-                                                        "company" to (firstItem.company ?: 0),
-                                                        "company_abbr" to (firstItem.company_abbr
-                                                            ?: ""),
-                                                        "company_nama" to (firstItem.company_nama
-                                                            ?: ""),
-                                                        "dept" to (firstItem.dept ?: 0),
-                                                        "dept_ppro" to (firstItem.dept_ppro ?: 0),
-                                                        "dept_abbr" to (firstItem.dept_abbr ?: ""),
-                                                        "dept_nama" to (firstItem.dept_nama ?: ""),
-                                                        "divisi" to (firstItem.divisi ?: 0),
-                                                        "divisi_abbr" to (firstItem.divisi_abbr
-                                                            ?: ""),
-                                                        "divisi_nama" to (firstItem.divisi_nama
-                                                            ?: ""),
-                                                        "blok" to (blokId ?: 0),
-                                                        "blok_ppro" to (firstItem.blok_ppro ?: 0),
-                                                        "blok_kode" to (firstItem.blok_kode ?: 0),
-                                                        "blok_nama" to (firstItem.blok_nama ?: ""),
-                                                        "luasan_blok" to (firstItem.luas_blok
-                                                            ?: ""), // Empty for now as requested
-                                                        "luasan_panen" to totalLuasanPanen,
-                                                        "jumlah_pemanen" to distinctPemanen,
-                                                        "created_name" to "",
-                                                        "created_by" to (firstItem.created_by
-                                                            ?: ""),
-                                                        "created_date" to (firstItem.date_created
-                                                            ?: ""),
-                                                        "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
-                                                    )
-
-                                                    // Process detail records for this blok
-                                                    val detailRecords =
-                                                        mutableListOf<Map<String, Any>>()
-
-                                                    // Process all data items for this blok
-                                                    for (data in dataList) {
-                                                        // Split all arrays
-                                                        val tphIdsList = data.tph_ids.split(";")
-                                                        val totalJjgList = data.total_jjg_arr.split(";")
-                                                        val unripeList = data.unripe_arr.split(";")
-                                                        val overripeList = data.overripe_arr.split(";")
-                                                        val emptyBunchList = data.empty_bunch_arr.split(";")
-                                                        val abnormalList = data.abnormal_arr.split(";")
-                                                        val ripeList = data.ripe_arr.split(";")
-                                                        val kirimList = data.kirim_pabrik_arr.split(";")
-                                                        val dibayarList = data.dibayar_arr.split(";")
-                                                        val dateCreatedPanenList = data.date_created_panen.split(";")
-                                                        AppLogger.d(totalJjgList.toString())
-
-                                                        // Get kemandoran data (keeping your existing code)
-                                                        val kemandoranDeferred = CompletableDeferred<List<KemandoranModel>>()
-                                                        val kemandoranIds = listOf(data.kemandoran_id ?: "")
-
-                                                        if (kemandoranIds.first().isNotEmpty()) {
-                                                            lifecycleScope.launch(Dispatchers.IO) {
-                                                                try {
-                                                                    val kemandoranList = absensiViewModel.getKemandoranById(kemandoranIds)
-                                                                    kemandoranDeferred.complete(kemandoranList)
-                                                                } catch (e: Exception) {
-                                                                    AppLogger.e("Error fetching kemandoran data: ${e.message}")
-                                                                    kemandoranDeferred.complete(emptyList())
-                                                                }
-                                                            }
-                                                        } else {
-                                                            kemandoranDeferred.complete(emptyList())
-                                                        }
-
-                                                        val kemandoranList = try {
-                                                            kemandoranDeferred.await()
-                                                        } catch (e: Exception) {
-                                                            AppLogger.e("Error waiting for kemandoran data: ${e.message}")
-                                                            emptyList()
-                                                        }
-
-                                                        val kemandoranPpro = if (kemandoranList.isNotEmpty()) {
-                                                            kemandoranList.first().kemandoran_ppro ?: ""
-                                                        } else {
-                                                            ""
-                                                        }
-
-                                                        val kemandoranKode = if (kemandoranList.isNotEmpty()) {
-                                                            kemandoranList.first().kode ?: ""
-                                                        } else {
-                                                            ""
-                                                        }
-
-                                                        // Initialize totals for THIS data item
-                                                        var totalJjgPanen = 0.0
-                                                        var totalJjgMentah = 0.0
-                                                        var totalJjgLewatMasak = 0.0
-                                                        var totalJjgKosong = 0.0
-                                                        var totalJjgAbnormal = 0.0
-                                                        var totalJjgMasak = 0.0
-                                                        var totalJjgKirim = 0.0
-                                                        var totalJjgBayar = 0.0
-                                                        val dateCreatedArray = mutableListOf<String>()
-                                                        val tphArray = mutableListOf<String>()  // Add TPH array
-                                                        val entryCount = tphIdsList.size
-
-                                                        // Sum all JJG values for this data item
-                                                        for (i in 0 until entryCount) {
-                                                            if (i < tphIdsList.size && tphIdsList[i].isNotEmpty()) {
-                                                                // Sum all JJG values
-                                                                totalJjgPanen += (if (i < totalJjgList.size) totalJjgList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                                totalJjgMentah += (if (i < unripeList.size) unripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                                totalJjgLewatMasak += (if (i < overripeList.size) overripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                                totalJjgKosong += (if (i < emptyBunchList.size) emptyBunchList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                                totalJjgAbnormal += (if (i < abnormalList.size) abnormalList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                                totalJjgMasak += (if (i < ripeList.size) ripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                                totalJjgKirim += (if (i < kirimList.size) kirimList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                                totalJjgBayar += (if (i < dibayarList.size) dibayarList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                                tphArray.add(tphIdsList[i])
-                                                                // Collect date_created values
-                                                                val dateCreated = if (i < dateCreatedPanenList.size) dateCreatedPanenList[i] else data.date_created
-                                                                if (dateCreated != null && dateCreated.isNotEmpty()) {
-                                                                    dateCreatedArray.add(dateCreated)
-                                                                }
-                                                            }
-                                                        }
-
-                                                        // Debug log to see what values we're getting
-                                                        AppLogger.d("Data item: ${data.nik}, Total JJG Panen: $totalJjgPanen")
-                                                        AppLogger.d("Original arrays - totalJjgList: $totalJjgList")
-                                                        AppLogger.d("Original arrays - unripeList: $unripeList")
-
-                                                        // Create single entry with summed values for this data item
-                                                        detailRecords.add(
-                                                            mapOf<String, Any>(
-                                                                "tipe" to "",
-                                                                "blok" to (data.blok ?: 0),
-                                                                "kemandoran_id" to (data.kemandoran_id ?: ""),
-                                                                "kemandoran_nama" to (data.kemandoran_nama ?: ""),
-                                                                "kemandoran_ppro" to kemandoranPpro,
-                                                                "kemandoran_kode" to kemandoranKode,
-                                                                "pemanen_nik" to (data.nik ?: ""),
-                                                                "pemanen_nama" to (data.pemanen_nama ?: ""),
-                                                                "tph" to Gson().toJson(tphArray),
-                                                                "ancak" to "",
-                                                                "jjg_panen" to totalJjgPanen.toString(),
-                                                                "jjg_masak" to totalJjgMasak.toString(),
-                                                                "jjg_mentah" to totalJjgMentah.toString(),
-                                                                "jjg_lewat_masak" to totalJjgLewatMasak.toString(),
-                                                                "jjg_kosong" to totalJjgKosong.toString(),
-                                                                "jjg_abnormal" to totalJjgAbnormal.toString(),
-                                                                "jjg_serangan_tikus" to "0",
-                                                                "jjg_panjang" to "0",
-                                                                "jjg_tidak_vcut" to "0",
-                                                                "jjg_kirim" to totalJjgKirim.toString(),
-                                                                "jjg_bayar" to totalJjgBayar.toString(),
-                                                                "luasan" to data.luas_panen,
-                                                                "date_panen" to Gson().toJson(dateCreatedArray),
-                                                                "status" to 1,
-                                                            )
-                                                        )
-                                                    }
-
-                                                    // Add the detail records as a child element to the blok data
-                                                    blokData[AppUtils.DatabaseTables.HEKTARAN_DETAIL] =
-                                                        detailRecords
-
-                                                    // Return the complete blok structure with child details
-                                                    blokData
+                                        // Sum all JJG values for this data item
+                                        for (i in 0 until entryCount) {
+                                            if (i < tphIdsList.size && tphIdsList[i].isNotEmpty()) {
+                                                // Sum all JJG values
+                                                totalJjgPanen += (if (i < totalJjgList.size) totalJjgList[i].toDoubleOrNull() ?: 0.0 else 0.0)
+                                                totalJjgMentah += (if (i < unripeList.size) unripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
+                                                totalJjgLewatMasak += (if (i < overripeList.size) overripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
+                                                totalJjgKosong += (if (i < emptyBunchList.size) emptyBunchList[i].toDoubleOrNull() ?: 0.0 else 0.0)
+                                                totalJjgAbnormal += (if (i < abnormalList.size) abnormalList[i].toDoubleOrNull() ?: 0.0 else 0.0)
+                                                totalJjgMasak += (if (i < ripeList.size) ripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
+                                                totalJjgKirim += (if (i < kirimList.size) kirimList[i].toDoubleOrNull() ?: 0.0 else 0.0)
+                                                totalJjgBayar += (if (i < dibayarList.size) dibayarList[i].toDoubleOrNull() ?: 0.0 else 0.0)
+                                                tphArray.add(tphIdsList[i])
+                                                // Collect date_created values
+                                                val dateCreated = if (i < dateCreatedPanenList.size) dateCreatedPanenList[i] else data.date_created
+                                                if (dateCreated != null && dateCreated.isNotEmpty()) {
+                                                    dateCreatedArray.add(dateCreated)
                                                 }
+                                            }
+                                        }
 
-                                            // Create the final structure with only "hektaran" as the root element
-                                            val finalData = mapOf<String, Any>(
-                                                AppUtils.DatabaseTables.HEKTARAN to restructuredData
+                                        // Debug log to see what values we're getting
+                                        AppLogger.d("Data item: ${data.nik}, Total JJG Panen: $totalJjgPanen")
+                                        AppLogger.d("Original arrays - totalJjgList: $totalJjgList")
+                                        AppLogger.d("Original arrays - unripeList: $unripeList")
+
+                                        // Create single entry with summed values for this data item
+                                        detailRecords.add(
+                                            mapOf<String, Any>(
+                                                "tipe" to "",
+                                                "blok" to (data.blok ?: 0),
+                                                "kemandoran_id" to (data.kemandoran_id ?: ""),
+                                                "kemandoran_nama" to (data.kemandoran_nama ?: ""),
+                                                "kemandoran_ppro" to kemandoranPpro,
+                                                "kemandoran_kode" to kemandoranKode,
+                                                "pemanen_nik" to (data.nik ?: ""),
+                                                "pemanen_nama" to (data.pemanen_nama ?: ""),
+                                                "tph" to Gson().toJson(tphArray),
+                                                "ancak" to "",
+                                                "jjg_panen" to totalJjgPanen.toString(),
+                                                "jjg_masak" to totalJjgMasak.toString(),
+                                                "jjg_mentah" to totalJjgMentah.toString(),
+                                                "jjg_lewat_masak" to totalJjgLewatMasak.toString(),
+                                                "jjg_kosong" to totalJjgKosong.toString(),
+                                                "jjg_abnormal" to totalJjgAbnormal.toString(),
+                                                "jjg_serangan_tikus" to "0",
+                                                "jjg_panjang" to "0",
+                                                "jjg_tidak_vcut" to "0",
+                                                "jjg_kirim" to totalJjgKirim.toString(),
+                                                "jjg_bayar" to totalJjgBayar.toString(),
+                                                "luasan" to data.luas_panen,
+                                                "date_panen" to Gson().toJson(dateCreatedArray),
+                                                "status" to 1,
                                             )
+                                        )
+                                    }
 
-                                            // Convert to JSON
-                                            hektaranJson = Gson().toJson(finalData)
+                                    // Add the detail records as a child element to the blok data
+                                    blokData[AppUtils.DatabaseTables.HEKTARAN_DETAIL] =
+                                        detailRecords
 
-                                            // Save JSON to a temporary file for inspection - direct approach
+                                    // Return the complete blok structure with child details
+                                    blokData
+                                }
+
+                            // Create the final structure with only "hektaran" as the root element
+                            val finalData = mapOf<String, Any>(
+                                AppUtils.DatabaseTables.HEKTARAN to restructuredData
+                            )
+
+                            // Convert to JSON
+                            hektaranJson = Gson().toJson(finalData)
+
+                            // Save JSON to a temporary file for inspection - direct approach
 //                                            try {
 //                                                val tempDir =
 //                                                    File(getExternalFilesDir(null), "TEMP").apply {
@@ -2175,541 +2266,541 @@ class HomePageActivity : AppCompatActivity() {
 //                                                e.printStackTrace()
 //                                            }
 
-                                            // Extract all IDs for tracking
-                                            val hektaranIds =
-                                                hektarPanenToUpload.mapNotNull { it.id }
+                            // Extract all IDs for tracking
+                            val hektaranIds =
+                                hektarPanenToUpload.mapNotNull { it.id }
 
-                                            // Store as a single entry
-                                            combinedUploadData[AppUtils.DatabaseTables.HEKTAR_PANEN] =
-                                                mapOf(
-                                                    "data" to hektaranJson,
-                                                    "filename" to "hektaran_data.json",
-                                                    "ids" to hektaranIds
-                                                )
+                            // Store as a single entry
+                            combinedUploadData[AppUtils.DatabaseTables.HEKTAR_PANEN] =
+                                mapOf(
+                                    "data" to hektaranJson,
+                                    "filename" to "hektaran_data.json",
+                                    "ids" to hektaranIds
+                                )
 
-                                            unzippedHektaranData = restructuredData.filter { item ->
-                                                // Get the blok value from the current item
-                                                val blok = item["blok"] as? Int ?: 0
+                            unzippedHektaranData = restructuredData.filter { item ->
+                                // Get the blok value from the current item
+                                val blok = item["blok"] as? Int ?: 0
 
-                                                // Find data items with this blok that have dataIsZipped = 0
-                                                val notYetZipped = hektarPanenList.any {
-                                                    it.blok == blok && it.status_upload == 0 && it.dataIsZipped == 0
+                                // Find data items with this blok that have dataIsZipped = 0
+                                val notYetZipped = hektarPanenList.any {
+                                    it.blok == blok && it.status_upload == 0 && it.dataIsZipped == 0
+                                }
+
+                                notYetZipped
+                            }
+
+                            globalHektaranIds = hektaranIds
+
+                        } else {
+                            mappedHektaranData = emptyList()
+                            globalHektaranIds = emptyList()
+                            unzippedHektaranData = emptyList()
+                        }
+                    }
+
+//                                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
+                    if (absensiList.isNotEmpty()) {
+                        // First, process photos/images regardless of status_upload
+                        val absensiWithPendingImages = absensiList.filter { data ->
+                            val uploadStatusImage =
+                                data.absensi.status_uploaded_image
+                            val photoName = data.absensi.foto.trim()
+
+                            photoName.isNotEmpty() && (uploadStatusImage == "0" ||
+                                    (uploadStatusImage.startsWith("{") && try {
+                                        val errorJson = Gson().fromJson(
+                                            uploadStatusImage,
+                                            JsonObject::class.java
+                                        )
+                                        val errorArray =
+                                            errorJson?.get("error")?.asJsonArray
+                                        errorArray?.any { it.asString == photoName }
+                                            ?: false
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error parsing upload status JSON: ${e.message}")
+                                        false
+                                    }))
+                        }
+
+                        val uniquePhotos =
+                            mutableMapOf<String, Map<String, String>>()
+
+                        // Prepare to search for photo files in CMP directories
+                        val picturesDirs = listOf(
+                            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                            File(
+                                getExternalFilesDir(null)?.parent ?: "",
+                                "Pictures"
+                            )
+                        ).filterNotNull()
+
+                        val cmpDirectories = mutableListOf<File>()
+                        for (picturesDir in picturesDirs) {
+                            if (!picturesDir.exists() || !picturesDir.isDirectory) {
+                                AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
+                                continue
+                            }
+
+                            // Look specifically for CMP-ABSENSI directory
+                            val cmpAbsensiDir = File(
+                                picturesDir,
+                                AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
+                            )
+                            if (cmpAbsensiDir.exists() && cmpAbsensiDir.isDirectory) {
+                                cmpDirectories.add(cmpAbsensiDir)
+                            }
+
+                            // Also check for any other CMP directories
+                            val otherCmpDirs = picturesDir.listFiles { file ->
+                                file.isDirectory && file.name.startsWith("CMP") && file.name != AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
+                            } ?: emptyArray()
+
+                            cmpDirectories.addAll(otherCmpDirs)
+                        }
+
+                        // Process photos for absensi with pending images
+                        if (absensiWithPendingImages.isNotEmpty()) {
+                            for (absensiRelation in absensiWithPendingImages) {
+                                val absensi = absensiRelation.absensi
+
+                                // Process photo for upload
+                                val photoName = absensi.foto.trim()
+                                if (photoName.isNotEmpty() && photoName !in uniquePhotos) {
+                                    val uploadStatusImage =
+                                        absensi.status_uploaded_image
+
+                                    // Determine if photo needs uploading
+                                    var shouldAddPhoto = false
+
+                                    if (uploadStatusImage == "0") {
+                                        // Default status - hasn't been uploaded yet
+                                        shouldAddPhoto = true
+                                        AppLogger.d("Photo $photoName hasn't been uploaded (status 0)")
+                                    } else if (uploadStatusImage.startsWith("{")) {
+                                        try {
+                                            // Using Gson to parse the JSON
+                                            val errorJson = Gson().fromJson(
+                                                uploadStatusImage,
+                                                JsonObject::class.java
+                                            )
+                                            val errorArray =
+                                                errorJson?.get("error")?.asJsonArray
+
+                                            errorArray?.forEach { errorItem ->
+                                                if (errorItem.asString == photoName) {
+                                                    shouldAddPhoto = true
+                                                    AppLogger.d("Photo $photoName is marked as error in record ${absensi.id}")
                                                 }
-
-                                                notYetZipped
                                             }
-
-                                            globalHektaranIds = hektaranIds
-
-                                        } else {
-                                            mappedHektaranData = emptyList()
-                                            globalHektaranIds = emptyList()
-                                            unzippedHektaranData = emptyList()
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error parsing upload status JSON: ${e.message}")
                                         }
                                     }
 
-//                                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
-                                    if (absensiList.isNotEmpty()) {
-                                        // First, process photos/images regardless of status_upload
-                                        val absensiWithPendingImages = absensiList.filter { data ->
-                                            val uploadStatusImage =
-                                                data.absensi.status_uploaded_image
-                                            val photoName = data.absensi.foto.trim()
+                                    // Only process the photo if it needs uploading
+                                    if (shouldAddPhoto) {
+                                        var photoFound = false
 
-                                            photoName.isNotEmpty() && (uploadStatusImage == "0" ||
-                                                    (uploadStatusImage.startsWith("{") && try {
-                                                        val errorJson = Gson().fromJson(
-                                                            uploadStatusImage,
-                                                            JsonObject::class.java
-                                                        )
-                                                        val errorArray =
-                                                            errorJson?.get("error")?.asJsonArray
-                                                        errorArray?.any { it.asString == photoName }
-                                                            ?: false
-                                                    } catch (e: Exception) {
-                                                        AppLogger.e("Error parsing upload status JSON: ${e.message}")
-                                                        false
-                                                    }))
-                                        }
+                                        for (cmpDir in cmpDirectories) {
+                                            val photoFile = File(cmpDir, photoName)
 
-                                        val uniquePhotos =
-                                            mutableMapOf<String, Map<String, String>>()
-
-                                        // Prepare to search for photo files in CMP directories
-                                        val picturesDirs = listOf(
-                                            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                                            File(
-                                                getExternalFilesDir(null)?.parent ?: "",
-                                                "Pictures"
-                                            )
-                                        ).filterNotNull()
-
-                                        val cmpDirectories = mutableListOf<File>()
-                                        for (picturesDir in picturesDirs) {
-                                            if (!picturesDir.exists() || !picturesDir.isDirectory) {
-                                                AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
-                                                continue
-                                            }
-
-                                            // Look specifically for CMP-ABSENSI directory
-                                            val cmpAbsensiDir = File(
-                                                picturesDir,
-                                                AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
-                                            )
-                                            if (cmpAbsensiDir.exists() && cmpAbsensiDir.isDirectory) {
-                                                cmpDirectories.add(cmpAbsensiDir)
-                                            }
-
-                                            // Also check for any other CMP directories
-                                            val otherCmpDirs = picturesDir.listFiles { file ->
-                                                file.isDirectory && file.name.startsWith("CMP") && file.name != AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
-                                            } ?: emptyArray()
-
-                                            cmpDirectories.addAll(otherCmpDirs)
-                                        }
-
-                                        // Process photos for absensi with pending images
-                                        if (absensiWithPendingImages.isNotEmpty()) {
-                                            for (absensiRelation in absensiWithPendingImages) {
-                                                val absensi = absensiRelation.absensi
-
-                                                // Process photo for upload
-                                                val photoName = absensi.foto.trim()
-                                                if (photoName.isNotEmpty() && photoName !in uniquePhotos) {
-                                                    val uploadStatusImage =
-                                                        absensi.status_uploaded_image
-
-                                                    // Determine if photo needs uploading
-                                                    var shouldAddPhoto = false
-
-                                                    if (uploadStatusImage == "0") {
-                                                        // Default status - hasn't been uploaded yet
-                                                        shouldAddPhoto = true
-                                                        AppLogger.d("Photo $photoName hasn't been uploaded (status 0)")
-                                                    } else if (uploadStatusImage.startsWith("{")) {
-                                                        try {
-                                                            // Using Gson to parse the JSON
-                                                            val errorJson = Gson().fromJson(
-                                                                uploadStatusImage,
-                                                                JsonObject::class.java
-                                                            )
-                                                            val errorArray =
-                                                                errorJson?.get("error")?.asJsonArray
-
-                                                            errorArray?.forEach { errorItem ->
-                                                                if (errorItem.asString == photoName) {
-                                                                    shouldAddPhoto = true
-                                                                    AppLogger.d("Photo $photoName is marked as error in record ${absensi.id}")
-                                                                }
-                                                            }
-                                                        } catch (e: Exception) {
-                                                            AppLogger.e("Error parsing upload status JSON: ${e.message}")
-                                                        }
-                                                    }
-
-                                                    // Only process the photo if it needs uploading
-                                                    if (shouldAddPhoto) {
-                                                        var photoFound = false
-
-                                                        for (cmpDir in cmpDirectories) {
-                                                            val photoFile = File(cmpDir, photoName)
-
-                                                            if (photoFile.exists() && photoFile.isFile) {
-                                                                val createdDate =
-                                                                    absensi.date_absen ?: ""
-                                                                val formattedDate = try {
-                                                                    val dateFormat =
-                                                                        SimpleDateFormat(
-                                                                            "yyyy-MM-dd HH:mm:ss",
-                                                                            Locale.getDefault()
-                                                                        )
-                                                                    val date =
-                                                                        dateFormat.parse(createdDate)
-                                                                    val outputFormat =
-                                                                        SimpleDateFormat(
-                                                                            "yyyy/MM/dd/",
-                                                                            Locale.getDefault()
-                                                                        )
-                                                                    outputFormat.format(
-                                                                        date ?: Date()
-                                                                    )
-                                                                } catch (e: Exception) {
-                                                                    AppLogger.e("Error formatting date: ${e.message}")
-                                                                    // Default to current date if parsing fails
-                                                                    val outputFormat =
-                                                                        SimpleDateFormat(
-                                                                            "yyyy/MM/dd/",
-                                                                            Locale.getDefault()
-                                                                        )
-                                                                    outputFormat.format(Date())
-                                                                }
-
-                                                                // Create the base path by appending the estate code or other identifier
-                                                                val basePathImage =
-                                                                    formattedDate + prefManager!!.estateUserLogin
-
-                                                                uniquePhotos[photoName] = mapOf(
-                                                                    "name" to photoName,
-                                                                    "path" to photoFile.absolutePath,
-                                                                    "size" to photoFile.length()
-                                                                        .toString(),
-                                                                    "table_ids" to absensi.id.toString(),
-                                                                    "base_path" to basePathImage,
-                                                                    "database" to AppUtils.DatabaseTables.ABSENSI
-                                                                )
-
-                                                                AppLogger.d("Added absensi photo for upload: $photoName at ${photoFile.absolutePath}")
-                                                                photoFound = true
-                                                                break
-                                                            }
-                                                        }
-
-                                                        if (!photoFound) {
-                                                            AppLogger.w("Absensi photo not found: $photoName")
-                                                        }
-                                                    } else {
-                                                        AppLogger.d("Skipping photo upload for $photoName - already uploaded (status: $uploadStatusImage)")
-                                                    }
-                                                }
-                                            }
-
-                                            // Add photos to the combined upload data if we found any
-                                            allPhotosAbsensi = uniquePhotos.values.toMutableList()
-                                            if (allPhotosAbsensi.isNotEmpty()) {
-                                                AppLogger.d("Adding ${allPhotosAbsensi.size} absensi photos to upload data")
-                                                combinedUploadData["foto_absensi"] =
-                                                    allPhotosAbsensi
-                                            } else {
-                                                AppLogger.w("No absensi photos found to upload")
-                                            }
-                                        }
-
-                                        // Now process data with status_upload == 0, completely separate from the photo logic
-                                        val absensiToUpload = absensiList.filter { data ->
-                                            data.absensi.status_upload == 0
-                                        }
-
-                                        if (absensiToUpload.isNotEmpty()) {
-                                            // Create a mutable list to hold our restructured data
-                                            val restructuredData = mutableListOf<Map<String, Any>>()
-
-                                            // Process each absensi record
-                                            for (absensiRelation in absensiToUpload) {
-                                                val absensi = absensiRelation.absensi
-
-                                                // Split the kemandoran_id string into individual IDs
-                                                val kemandoranIds = absensi.kemandoran_id.split(",")
-                                                    .filter { it.isNotEmpty() }.map { it.trim() }
-
-                                                // Create a deferred to fetch all kemandoran data in one go
-                                                val kemandoranDeferred =
-                                                    CompletableDeferred<List<KemandoranModel>>()
-
-                                                // Fetch kemandoran data from database
-                                                lifecycleScope.launch(Dispatchers.IO) {
-                                                    try {
-                                                        val kemandoranList =
-                                                            absensiViewModel.getKemandoranById(
-                                                                kemandoranIds
-                                                            )
-                                                        kemandoranDeferred.complete(kemandoranList)
-                                                    } catch (e: Exception) {
-                                                        AppLogger.e("Error fetching kemandoran data: ${e.message}")
-                                                        kemandoranDeferred.complete(emptyList())
-                                                    }
-                                                }
-
-                                                // Wait for the kemandoran data
-                                                val kemandoranList = try {
-                                                    kemandoranDeferred.await()
-                                                } catch (e: Exception) {
-                                                    AppLogger.e("Error waiting for kemandoran data: ${e.message}")
-                                                    emptyList()
-                                                }
-
-                                                // Create a map of ID to KemandoranModel for easy lookup
-                                                val kemandoranMap =
-                                                    kemandoranList.associateBy { it.id.toString() }
-
-                                                // Collect all NIKs from present and absent employees
-                                                val allNiks = mutableListOf<String>()
-
-                                                // Add present employee NIKs
-                                                allNiks.addAll(
-                                                    absensi.karyawan_msk_nik.split(",")
-                                                        .filter { it.isNotEmpty() }
-                                                        .map { it.trim() }
-                                                )
-
-                                                // Add absent employee NIKs
-                                                allNiks.addAll(
-                                                    absensi.karyawan_tdk_msk_nik.split(",")
-                                                        .filter { it.isNotEmpty() }
-                                                        .map { it.trim() }
-                                                )
-
-                                                // Create a deferred to fetch all employee data
-                                                val karyawanDeferred =
-                                                    CompletableDeferred<List<KaryawanModel>>()
-
-                                                // Fetch employee data from database
-                                                lifecycleScope.launch(Dispatchers.IO) {
-                                                    try {
-                                                        val karyawanList =
-                                                            absensiViewModel.getKaryawanByNikList(
-                                                                allNiks
-                                                            )
-                                                        karyawanDeferred.complete(karyawanList)
-                                                    } catch (e: Exception) {
-                                                        AppLogger.e("Error fetching karyawan data: ${e.message}")
-                                                        karyawanDeferred.complete(emptyList())
-                                                    }
-                                                }
-
-                                                // Wait for the employee data
-                                                val karyawanList = try {
-                                                    karyawanDeferred.await()
-                                                } catch (e: Exception) {
-                                                    AppLogger.e("Error waiting for karyawan data: ${e.message}")
-                                                    emptyList()
-                                                }
-
-
-                                                val kemandoranNamaDeferred =
-                                                    CompletableDeferred<KemandoranModel?>()
-
-// Fetch blok data from database using absensi fields
-                                                lifecycleScope.launch(Dispatchers.IO) {
-                                                    try {
-                                                        val blokData =
-                                                            datasetViewModel.getBlokByDivisiAndDept(
-                                                                absensi.divisi,
-                                                                absensi.dept
-                                                            )
-                                                        kemandoranNamaDeferred.complete(blokData)
-                                                    } catch (e: Exception) {
-                                                        AppLogger.e("Error fetching blok data: ${e.message}")
-                                                        kemandoranNamaDeferred.complete(null)
-                                                    }
-                                                }
-
-// Wait for the blok data
-                                                val blokData = try {
-                                                    kemandoranNamaDeferred.await()
-                                                } catch (e: Exception) {
-                                                    AppLogger.e("Error waiting for blok data: ${e.message}")
-                                                    null
-                                                }
-
-                                                // Create a map of NIK to KaryawanModel for easy lookup
-                                                val karyawanMap =
-                                                    karyawanList.associateBy { it.nik }
-
-                                                // Process each kemandoran ID separately to create individual records
-                                                for (singleKemandoranId in kemandoranIds) {
-                                                    // Get the related kemandoran model for this ID
-                                                    val kemandoran =
-                                                        kemandoranMap[singleKemandoranId]
-
-                                                    val dateStr = try {
-                                                        val fullDate = absensi.date_absen ?: ""
-                                                        if (fullDate.isNotEmpty()) {
-                                                            val inputFormat = SimpleDateFormat(
-                                                                "yyyy-MM-dd HH:mm:ss",
-                                                                Locale.getDefault()
-                                                            )
-                                                            val outputFormat = SimpleDateFormat(
-                                                                "yyyy-MM-dd",
-                                                                Locale.getDefault()
-                                                            )
-                                                            val date = inputFormat.parse(fullDate)
-                                                            date?.let { outputFormat.format(it) }
-                                                                ?: fullDate
-                                                        } else {
-                                                            ""
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        // If parsing fails, use the original string
-                                                        AppLogger.e("Error parsing date: ${e.message}")
-                                                        absensi.date_absen ?: ""
-                                                    }
-
-                                                    val formattedDatePath = try {
-                                                        val dateFormat = SimpleDateFormat(
+                                            if (photoFile.exists() && photoFile.isFile) {
+                                                val createdDate =
+                                                    absensi.date_absen ?: ""
+                                                val formattedDate = try {
+                                                    val dateFormat =
+                                                        SimpleDateFormat(
                                                             "yyyy-MM-dd HH:mm:ss",
                                                             Locale.getDefault()
                                                         )
-                                                        val date = dateFormat.parse(
-                                                            absensi.date_absen ?: ""
-                                                        )
-                                                        val outputFormat = SimpleDateFormat(
-                                                            "yyyy/MM/dd",
+                                                    val date =
+                                                        dateFormat.parse(createdDate)
+                                                    val outputFormat =
+                                                        SimpleDateFormat(
+                                                            "yyyy/MM/dd/",
                                                             Locale.getDefault()
                                                         )
-                                                        outputFormat.format(date ?: Date())
-                                                    } catch (e: Exception) {
-                                                        AppLogger.e("Error formatting date for path: ${e.message}")
-                                                        // Default to current date if parsing fails
-                                                        val outputFormat = SimpleDateFormat(
-                                                            "yyyy/MM/dd",
-                                                            Locale.getDefault()
-                                                        )
-                                                        outputFormat.format(Date())
-                                                    }
-
-                                                    // Create base path for photo, exactly like in panenList
-                                                    val basePath =
-                                                        "$formattedDatePath/${prefManager!!.estateUserLogin}/"
-
-                                                    // Process the photo filenames to prepend the base path, exactly like in panenList
-                                                    val originalFotoString = absensi.foto ?: ""
-                                                    val modifiedFotoString =
-                                                        if (originalFotoString.contains(";")) {
-                                                            // Multiple photos - split, modify each one, and rejoin
-                                                            originalFotoString.split(";")
-                                                                .map { photoName -> "$basePath${photoName.trim()}" }
-                                                                .joinToString(";")
-                                                        } else if (originalFotoString.isNotEmpty()) {
-                                                            // Single photo - just prepend the base path
-                                                            "$basePath$originalFotoString"
-                                                        } else {
-                                                            // No photos
-                                                            ""
-                                                        }
-
-                                                    // Create structure for this absensi record
-                                                    val absensiData = mutableMapOf<String, Any>(
-                                                        "kemandoran_id" to singleKemandoranId,
-                                                        "date" to dateStr,
-                                                        "tanggal" to (absensi.date_absen ?: ""),
-                                                        "company" to (blokData?.company ?: 0),
-                                                        "company_ppro" to (blokData?.company_ppro
-                                                            ?: 0),
-                                                        "company_abbr" to (blokData?.company_abbr
-                                                            ?: ""),
-                                                        "company_nama" to (blokData?.company_nama
-                                                            ?: ""), // Not available in BlokModel
-                                                        "dept" to (absensi.dept ?: 0),
-                                                        "dept_ppro" to (blokData?.dept_ppro ?: 0),
-                                                        "dept_abbr" to (absensi.dept_abbr ?: ""),
-                                                        "dept_nama" to (blokData?.dept_nama
-                                                            ?: ""), // Not available in BlokModel
-                                                        "divisi" to (absensi.divisi ?: 0),
-                                                        "divisi_ppro" to (blokData?.divisi_ppro
-                                                            ?: 0),
-                                                        "divisi_abbr" to (absensi.divisi_abbr
-                                                            ?: ""),
-                                                        "divisi_nama" to (blokData?.divisi_nama
-                                                            ?: ""),
-                                                        "kemandoran_ppro" to (kemandoran?.kemandoran_ppro
-                                                            ?: ""),
-                                                        "kemandoran_kode" to (kemandoran?.kode
-                                                            ?: ""),
-                                                        "kemandoran_nama" to (kemandoran?.nama
-                                                            ?: ""),
-                                                        "foto" to modifiedFotoString,
-                                                        "komentar" to (absensi.komentar ?: ""),
-                                                        "created_by" to (absensi.created_by),
-                                                        "created_name" to "",
-                                                        "created_date" to (absensi.date_absen ?: "")
+                                                    outputFormat.format(
+                                                        date ?: Date()
                                                     )
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error formatting date: ${e.message}")
+                                                    // Default to current date if parsing fails
+                                                    val outputFormat =
+                                                        SimpleDateFormat(
+                                                            "yyyy/MM/dd/",
+                                                            Locale.getDefault()
+                                                        )
+                                                    outputFormat.format(Date())
+                                                }
 
-                                                    val detailRecords =
-                                                        mutableListOf<Map<String, Any>>()
+                                                // Create the base path by appending the estate code or other identifier
+                                                val basePathImage =
+                                                    formattedDate + prefManager!!.estateUserLogin
+
+                                                uniquePhotos[photoName] = mapOf(
+                                                    "name" to photoName,
+                                                    "path" to photoFile.absolutePath,
+                                                    "size" to photoFile.length()
+                                                        .toString(),
+                                                    "table_ids" to absensi.id.toString(),
+                                                    "base_path" to basePathImage,
+                                                    "database" to AppUtils.DatabaseTables.ABSENSI
+                                                )
+
+                                                AppLogger.d("Added absensi photo for upload: $photoName at ${photoFile.absolutePath}")
+                                                photoFound = true
+                                                break
+                                            }
+                                        }
+
+                                        if (!photoFound) {
+                                            AppLogger.w("Absensi photo not found: $photoName")
+                                        }
+                                    } else {
+                                        AppLogger.d("Skipping photo upload for $photoName - already uploaded (status: $uploadStatusImage)")
+                                    }
+                                }
+                            }
+
+                            // Add photos to the combined upload data if we found any
+                            allPhotosAbsensi = uniquePhotos.values.toMutableList()
+                            if (allPhotosAbsensi.isNotEmpty()) {
+                                AppLogger.d("Adding ${allPhotosAbsensi.size} absensi photos to upload data")
+                                combinedUploadData["foto_absensi"] =
+                                    allPhotosAbsensi
+                            } else {
+                                AppLogger.w("No absensi photos found to upload")
+                            }
+                        }
+
+                        // Now process data with status_upload == 0, completely separate from the photo logic
+                        val absensiToUpload = absensiList.filter { data ->
+                            data.absensi.status_upload == 0
+                        }
+
+                        if (absensiToUpload.isNotEmpty()) {
+                            // Create a mutable list to hold our restructured data
+                            val restructuredData = mutableListOf<Map<String, Any>>()
+
+                            // Process each absensi record
+                            for (absensiRelation in absensiToUpload) {
+                                val absensi = absensiRelation.absensi
+
+                                // Split the kemandoran_id string into individual IDs
+                                val kemandoranIds = absensi.kemandoran_id.split(",")
+                                    .filter { it.isNotEmpty() }.map { it.trim() }
+
+                                // Create a deferred to fetch all kemandoran data in one go
+                                val kemandoranDeferred =
+                                    CompletableDeferred<List<KemandoranModel>>()
+
+                                // Fetch kemandoran data from database
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    try {
+                                        val kemandoranList =
+                                            absensiViewModel.getKemandoranById(
+                                                kemandoranIds
+                                            )
+                                        kemandoranDeferred.complete(kemandoranList)
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error fetching kemandoran data: ${e.message}")
+                                        kemandoranDeferred.complete(emptyList())
+                                    }
+                                }
+
+                                // Wait for the kemandoran data
+                                val kemandoranList = try {
+                                    kemandoranDeferred.await()
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error waiting for kemandoran data: ${e.message}")
+                                    emptyList()
+                                }
+
+                                // Create a map of ID to KemandoranModel for easy lookup
+                                val kemandoranMap =
+                                    kemandoranList.associateBy { it.id.toString() }
+
+                                // Collect all NIKs from present and absent employees
+                                val allNiks = mutableListOf<String>()
+
+                                // Add present employee NIKs
+                                allNiks.addAll(
+                                    absensi.karyawan_msk_nik.split(",")
+                                        .filter { it.isNotEmpty() }
+                                        .map { it.trim() }
+                                )
+
+                                // Add absent employee NIKs
+                                allNiks.addAll(
+                                    absensi.karyawan_tdk_msk_nik.split(",")
+                                        .filter { it.isNotEmpty() }
+                                        .map { it.trim() }
+                                )
+
+                                // Create a deferred to fetch all employee data
+                                val karyawanDeferred =
+                                    CompletableDeferred<List<KaryawanModel>>()
+
+                                // Fetch employee data from database
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    try {
+                                        val karyawanList =
+                                            absensiViewModel.getKaryawanByNikList(
+                                                allNiks
+                                            )
+                                        karyawanDeferred.complete(karyawanList)
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error fetching karyawan data: ${e.message}")
+                                        karyawanDeferred.complete(emptyList())
+                                    }
+                                }
+
+                                // Wait for the employee data
+                                val karyawanList = try {
+                                    karyawanDeferred.await()
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error waiting for karyawan data: ${e.message}")
+                                    emptyList()
+                                }
+
+
+                                val kemandoranNamaDeferred =
+                                    CompletableDeferred<KemandoranModel?>()
+
+// Fetch blok data from database using absensi fields
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    try {
+                                        val blokData =
+                                            datasetViewModel.getBlokByDivisiAndDept(
+                                                absensi.divisi,
+                                                absensi.dept
+                                            )
+                                        kemandoranNamaDeferred.complete(blokData)
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error fetching blok data: ${e.message}")
+                                        kemandoranNamaDeferred.complete(null)
+                                    }
+                                }
+
+// Wait for the blok data
+                                val blokData = try {
+                                    kemandoranNamaDeferred.await()
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error waiting for blok data: ${e.message}")
+                                    null
+                                }
+
+                                // Create a map of NIK to KaryawanModel for easy lookup
+                                val karyawanMap =
+                                    karyawanList.associateBy { it.nik }
+
+                                // Process each kemandoran ID separately to create individual records
+                                for (singleKemandoranId in kemandoranIds) {
+                                    // Get the related kemandoran model for this ID
+                                    val kemandoran =
+                                        kemandoranMap[singleKemandoranId]
+
+                                    val dateStr = try {
+                                        val fullDate = absensi.date_absen ?: ""
+                                        if (fullDate.isNotEmpty()) {
+                                            val inputFormat = SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
+                                            )
+                                            val outputFormat = SimpleDateFormat(
+                                                "yyyy-MM-dd",
+                                                Locale.getDefault()
+                                            )
+                                            val date = inputFormat.parse(fullDate)
+                                            date?.let { outputFormat.format(it) }
+                                                ?: fullDate
+                                        } else {
+                                            ""
+                                        }
+                                    } catch (e: Exception) {
+                                        // If parsing fails, use the original string
+                                        AppLogger.e("Error parsing date: ${e.message}")
+                                        absensi.date_absen ?: ""
+                                    }
+
+                                    val formattedDatePath = try {
+                                        val dateFormat = SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss",
+                                            Locale.getDefault()
+                                        )
+                                        val date = dateFormat.parse(
+                                            absensi.date_absen ?: ""
+                                        )
+                                        val outputFormat = SimpleDateFormat(
+                                            "yyyy/MM/dd",
+                                            Locale.getDefault()
+                                        )
+                                        outputFormat.format(date ?: Date())
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error formatting date for path: ${e.message}")
+                                        // Default to current date if parsing fails
+                                        val outputFormat = SimpleDateFormat(
+                                            "yyyy/MM/dd",
+                                            Locale.getDefault()
+                                        )
+                                        outputFormat.format(Date())
+                                    }
+
+                                    // Create base path for photo, exactly like in panenList
+                                    val basePath =
+                                        "$formattedDatePath/${prefManager!!.estateUserLogin}/"
+
+                                    // Process the photo filenames to prepend the base path, exactly like in panenList
+                                    val originalFotoString = absensi.foto ?: ""
+                                    val modifiedFotoString =
+                                        if (originalFotoString.contains(";")) {
+                                            // Multiple photos - split, modify each one, and rejoin
+                                            originalFotoString.split(";")
+                                                .map { photoName -> "$basePath${photoName.trim()}" }
+                                                .joinToString(";")
+                                        } else if (originalFotoString.isNotEmpty()) {
+                                            // Single photo - just prepend the base path
+                                            "$basePath$originalFotoString"
+                                        } else {
+                                            // No photos
+                                            ""
+                                        }
+
+                                    // Create structure for this absensi record
+                                    val absensiData = mutableMapOf<String, Any>(
+                                        "kemandoran_id" to singleKemandoranId,
+                                        "date" to dateStr,
+                                        "tanggal" to (absensi.date_absen ?: ""),
+                                        "company" to (blokData?.company ?: 0),
+                                        "company_ppro" to (blokData?.company_ppro
+                                            ?: 0),
+                                        "company_abbr" to (blokData?.company_abbr
+                                            ?: ""),
+                                        "company_nama" to (blokData?.company_nama
+                                            ?: ""), // Not available in BlokModel
+                                        "dept" to (absensi.dept ?: 0),
+                                        "dept_ppro" to (blokData?.dept_ppro ?: 0),
+                                        "dept_abbr" to (absensi.dept_abbr ?: ""),
+                                        "dept_nama" to (blokData?.dept_nama
+                                            ?: ""), // Not available in BlokModel
+                                        "divisi" to (absensi.divisi ?: 0),
+                                        "divisi_ppro" to (blokData?.divisi_ppro
+                                            ?: 0),
+                                        "divisi_abbr" to (absensi.divisi_abbr
+                                            ?: ""),
+                                        "divisi_nama" to (blokData?.divisi_nama
+                                            ?: ""),
+                                        "kemandoran_ppro" to (kemandoran?.kemandoran_ppro
+                                            ?: ""),
+                                        "kemandoran_kode" to (kemandoran?.kode
+                                            ?: ""),
+                                        "kemandoran_nama" to (kemandoran?.nama
+                                            ?: ""),
+                                        "foto" to modifiedFotoString,
+                                        "komentar" to (absensi.komentar ?: ""),
+                                        "created_by" to (absensi.created_by),
+                                        "created_name" to "",
+                                        "created_date" to (absensi.date_absen ?: "")
+                                    )
+
+                                    val detailRecords =
+                                        mutableListOf<Map<String, Any>>()
 
 // Extract employees for this specific kemandoran ID from JSON
-                                                    val presentEmployeeNiks =
-                                                        extractEmployeesFromJson(
-                                                            absensi.karyawan_msk_nik,
-                                                            singleKemandoranId
-                                                        )
-                                                    val presentEmployeeIds =
-                                                        extractEmployeesFromJson(
-                                                            absensi.karyawan_msk_id,
-                                                            singleKemandoranId
-                                                        )
-                                                    val presentEmployeeNames =
-                                                        extractEmployeesFromJson(
-                                                            absensi.karyawan_msk_nama,
-                                                            singleKemandoranId
-                                                        )
+                                    val presentEmployeeNiks =
+                                        extractEmployeesFromJson(
+                                            absensi.karyawan_msk_nik,
+                                            singleKemandoranId
+                                        )
+                                    val presentEmployeeIds =
+                                        extractEmployeesFromJson(
+                                            absensi.karyawan_msk_id,
+                                            singleKemandoranId
+                                        )
+                                    val presentEmployeeNames =
+                                        extractEmployeesFromJson(
+                                            absensi.karyawan_msk_nama,
+                                            singleKemandoranId
+                                        )
 
-                                                    val absentEmployeeNiks =
-                                                        extractEmployeesFromJson(
-                                                            absensi.karyawan_tdk_msk_nik,
-                                                            singleKemandoranId
-                                                        )
-                                                    val absentEmployeeIds =
-                                                        extractEmployeesFromJson(
-                                                            absensi.karyawan_tdk_msk_id,
-                                                            singleKemandoranId
-                                                        )
-                                                    val absentEmployeeNames =
-                                                        extractEmployeesFromJson(
-                                                            absensi.karyawan_tdk_msk_nama,
-                                                            singleKemandoranId
-                                                        )
+                                    val absentEmployeeNiks =
+                                        extractEmployeesFromJson(
+                                            absensi.karyawan_tdk_msk_nik,
+                                            singleKemandoranId
+                                        )
+                                    val absentEmployeeIds =
+                                        extractEmployeesFromJson(
+                                            absensi.karyawan_tdk_msk_id,
+                                            singleKemandoranId
+                                        )
+                                    val absentEmployeeNames =
+                                        extractEmployeesFromJson(
+                                            absensi.karyawan_tdk_msk_nama,
+                                            singleKemandoranId
+                                        )
 
 //                                                    AppLogger.d("Processing kemandoran $singleKemandoranId:")
 //                                                    AppLogger.d("Present employees: $presentEmployeeNiks")
 //                                                    AppLogger.d("Absent employees: $absentEmployeeNiks")
 
 // Process employees who are present for this kemandoran
-                                                    presentEmployeeNiks.forEachIndexed { index, nik ->
-                                                        // Try to get employee data from database map first, then fallback to JSON data
-                                                        val karyawan = karyawanMap[nik]
-                                                        val employeeName = karyawan?.nama
-                                                            ?: (if (index < presentEmployeeNames.size) presentEmployeeNames[index] else "")
+                                    presentEmployeeNiks.forEachIndexed { index, nik ->
+                                        // Try to get employee data from database map first, then fallback to JSON data
+                                        val karyawan = karyawanMap[nik]
+                                        val employeeName = karyawan?.nama
+                                            ?: (if (index < presentEmployeeNames.size) presentEmployeeNames[index] else "")
 
-                                                        detailRecords.add(
-                                                            mapOf(
-                                                                "nik" to nik,
-                                                                "nama" to employeeName,
-                                                                "status_kehadiran" to 1, // 1 = present
-                                                                "date_created" to (absensi.date_absen
-                                                                    ?: "")
-                                                            )
-                                                        )
-                                                    }
+                                        detailRecords.add(
+                                            mapOf(
+                                                "nik" to nik,
+                                                "nama" to employeeName,
+                                                "status_kehadiran" to 1, // 1 = present
+                                                "date_created" to (absensi.date_absen
+                                                    ?: "")
+                                            )
+                                        )
+                                    }
 
 // Process employees who are absent for this kemandoran
-                                                    absentEmployeeNiks.forEachIndexed { index, nik ->
-                                                        // Try to get employee data from database map first, then fallback to JSON data
-                                                        val karyawan = karyawanMap[nik]
-                                                        val employeeName = karyawan?.nama
-                                                            ?: (if (index < absentEmployeeNames.size) absentEmployeeNames[index] else "")
+                                    absentEmployeeNiks.forEachIndexed { index, nik ->
+                                        // Try to get employee data from database map first, then fallback to JSON data
+                                        val karyawan = karyawanMap[nik]
+                                        val employeeName = karyawan?.nama
+                                            ?: (if (index < absentEmployeeNames.size) absentEmployeeNames[index] else "")
 
-                                                        detailRecords.add(
-                                                            mapOf(
-                                                                "nik" to nik,
-                                                                "nama" to employeeName,
-                                                                "status_kehadiran" to 0, // 0 = absent
-                                                                "date_created" to (absensi.date_absen
-                                                                    ?: "")
-                                                            )
-                                                        )
-                                                    }
+                                        detailRecords.add(
+                                            mapOf(
+                                                "nik" to nik,
+                                                "nama" to employeeName,
+                                                "status_kehadiran" to 0, // 0 = absent
+                                                "date_created" to (absensi.date_absen
+                                                    ?: "")
+                                            )
+                                        )
+                                    }
 
-                                                    AppLogger.d("Created ${detailRecords.size} detail records for kemandoran $singleKemandoranId")
+                                    AppLogger.d("Created ${detailRecords.size} detail records for kemandoran $singleKemandoranId")
 
 // Add the detail records as a child element to the absensi data
-                                                    absensiData[AppUtils.DatabaseTables.ABSENSI_DETAIL] =
-                                                        detailRecords
+                                    absensiData[AppUtils.DatabaseTables.ABSENSI_DETAIL] =
+                                        detailRecords
 
 // Add this complete record to our restructured data
-                                                    restructuredData.add(absensiData)
-                                                }
-                                            }
+                                    restructuredData.add(absensiData)
+                                }
+                            }
 
-                                            // Create the final structure with only "absensi" as the root element
-                                            val finalData = mapOf<String, Any>(
-                                                AppUtils.DatabaseTables.ABSENSI to restructuredData
-                                            )
+                            // Create the final structure with only "absensi" as the root element
+                            val finalData = mapOf<String, Any>(
+                                AppUtils.DatabaseTables.ABSENSI to restructuredData
+                            )
 
-                                            // Convert to JSON
-                                            absensiJson = Gson().toJson(finalData)
+                            // Convert to JSON
+                            absensiJson = Gson().toJson(finalData)
 
-                                            // Save JSON to a temporary file for inspection
+                            // Save JSON to a temporary file for inspection
 //                                            try {
 //                                                val tempDir =
 //                                                    File(getExternalFilesDir(null), "TEMP").apply {
@@ -2730,219 +2821,202 @@ class HomePageActivity : AppCompatActivity() {
 //                                                e.printStackTrace()
 //                                            }
 
-                                            AppLogger.d(absensiJson)
+                            AppLogger.d(absensiJson)
 
-                                            // Extract all IDs for tracking
-                                            val absensiIds = absensiToUpload.map { it.absensi.id }
+                            // Extract all IDs for tracking
+                            val absensiIds = absensiToUpload.map { it.absensi.id }
 
-                                            // Store as a single entry
-                                            combinedUploadData[AppUtils.DatabaseTables.ABSENSI] =
-                                                mapOf(
-                                                    "data" to absensiJson,
-                                                    "filename" to "absensi_data.json",
-                                                    "ids" to absensiIds
-                                                )
+                            // Store as a single entry
+                            combinedUploadData[AppUtils.DatabaseTables.ABSENSI] =
+                                mapOf(
+                                    "data" to absensiJson,
+                                    "filename" to "absensi_data.json",
+                                    "ids" to absensiIds
+                                )
 
-                                            // Keep track of which records have been processed for zipping
-                                            unzippedAbsensiData = restructuredData.filter { item ->
-                                                // Get the kemandoran_id from the current item
-                                                val singleKemandoranId =
-                                                    item["kemandoran_id"] as? String ?: ""
+                            // Keep track of which records have been processed for zipping
+                            unzippedAbsensiData = restructuredData.filter { item ->
+                                // Get the kemandoran_id from the current item
+                                val singleKemandoranId =
+                                    item["kemandoran_id"] as? String ?: ""
 
-                                                // Find data items with this kemandoran_id that have dataIsZipped = 0
-                                                val notYetZipped =
-                                                    absensiList.any { absensiRelation ->
-                                                        val kemandoranIds =
-                                                            absensiRelation.absensi.kemandoran_id.split(
-                                                                ","
-                                                            )
-                                                        singleKemandoranId in kemandoranIds &&
-                                                                absensiRelation.absensi.status_upload == 0 &&
-                                                                absensiRelation.absensi.dataIsZipped == 0
-                                                    }
-
-                                                notYetZipped
-                                            }
-
-                                            globalAbsensiIds = absensiIds
-                                        } else {
-                                            // If no data to upload, still set these variables
-                                            mappedAbsensiData = emptyList()
-                                            globalAbsensiIds = emptyList()
-                                            unzippedAbsensiData = emptyList()
-                                        }
+                                // Find data items with this kemandoran_id that have dataIsZipped = 0
+                                val notYetZipped =
+                                    absensiList.any { absensiRelation ->
+                                        val kemandoranIds =
+                                            absensiRelation.absensi.kemandoran_id.split(
+                                                ","
+                                            )
+                                        singleKemandoranId in kemandoranIds &&
+                                                absensiRelation.absensi.status_upload == 0 &&
+                                                absensiRelation.absensi.dataIsZipped == 0
                                     }
 
-                                } catch (e: Exception) {
-                                    Log.e("UploadCheck", "❌ Error: ${e.message}")
-                                } finally {
-
-                                    // Create the upload data list with only the unzipped items
-                                    val uploadDataList =
-                                        mutableListOf<Pair<String, List<Map<String, Any>>>>()
-
-                                    // Use the filtered data for zip creation
-                                    if (unzippedPanenData.isNotEmpty()) {
-                                        uploadDataList.add(AppUtils.DatabaseTables.PANEN to unzippedPanenData)
-                                    }
-                                    if (unzippedESPBData.isNotEmpty()) {
-                                        uploadDataList.add(AppUtils.DatabaseTables.ESPB to unzippedESPBData)
-                                    }
-
-                                    if (uploadDataList.isNotEmpty()) {
-
-                                        lifecycleScope.launch(Dispatchers.IO) {
-                                            AppUtils.createAndSaveZipUploadCMPSingle(
-                                                this@HomePageActivity,
-                                                uploadDataList,
-                                                prefManager!!.idUserLogin.toString()
-                                            ) { success, fileName, fullPath, zipFile ->
-                                                if (success) {
-                                                    lifecycleScope.launch(Dispatchers.IO) {
-                                                        featuresToFetch.forEach { feature ->
-                                                            val ids = when (feature) {
-                                                                AppUtils.DatabaseTables.ESPB -> globalESPBIds
-                                                                AppUtils.DatabaseTables.PANEN -> globalPanenIds
-                                                                else -> emptyList()
-                                                            }
-
-                                                            if (ids.isNotEmpty()) {
-                                                                archiveUpdateActions[feature]?.invoke(
-                                                                    ids
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                    zipDeferred.complete(true)
-                                                } else {
-                                                    Log.e("UploadCheck", "❌ ZIP creation failed")
-                                                    zipDeferred.complete(false)
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        zipDeferred.complete(false)
-                                    }
-
-                                    if (hektaranJson.isNotEmpty() && unzippedHektaranData.isNotEmpty()) {
-                                        lifecycleScope.launch(Dispatchers.IO) {
-                                            AppUtils.createAndSaveZipUpload(
-                                                this@HomePageActivity,
-                                                hektaranJson,
-                                                prefManager!!.idUserLogin.toString(),
-                                                AppUtils.DatabaseTables.HEKTARAN,
-                                            ) { success, fileName, fullPath, zipFile ->
-                                                if (success) {
-                                                    AppLogger.d("Successfully created hektaran ZIP: $fileName")
-                                                    AppLogger.d("ZIP file path: $fullPath")
-
-                                                    // Update database to mark as zipped
-                                                    lifecycleScope.launch(Dispatchers.IO) {
-                                                        archiveUpdateActions[AppUtils.DatabaseTables.HEKTAR_PANEN]?.invoke(
-                                                            globalHektaranIds
-                                                        )
-                                                    }
-
-                                                    zipDeferred.complete(true)
-                                                } else {
-                                                    AppLogger.e("Failed to create hektaran ZIP: $fileName")
-                                                    zipDeferred.complete(false)
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        zipDeferred.complete(false)
-                                    }
-
-                                    if (absensiJson.isNotEmpty() && unzippedAbsensiData.isNotEmpty()) {
-                                        lifecycleScope.launch(Dispatchers.IO) {
-                                            AppUtils.createAndSaveZipUpload(
-                                                this@HomePageActivity,
-                                                absensiJson,
-                                                prefManager!!.idUserLogin.toString(),
-                                                AppUtils.DatabaseTables.ABSENSI,
-                                                allPhotosAbsensi,
-                                            ) { success, fileName, fullPath, zipFile ->
-                                                if (success) {
-                                                    AppLogger.d("Successfully created absensi ZIP: $fileName")
-                                                    AppLogger.d("ZIP file path: $fullPath")
-
-                                                    lifecycleScope.launch(Dispatchers.IO) {
-                                                        archiveUpdateActions[AppUtils.DatabaseTables.ABSENSI]?.invoke(
-                                                            globalAbsensiIds
-                                                        )
-                                                    }
-
-                                                    zipDeferred.complete(true)
-                                                } else {
-                                                    AppLogger.e("Failed to create absensi ZIP: $fileName")
-                                                    zipDeferred.complete(false)
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        zipDeferred.complete(false)
-                                    }
-
-                                    loadingDialog.dismiss()
-                                }
-
-                                val zipSuccess = zipDeferred.await()
-                                val updatedPanenList = panenDeferred.await()
-                                val updatedESPBList = espbDeferred.await()
-                                val updatedHektarPanenList = hektarPanenDeferred.await()
-                                val updatedAbsensiList = absensiDeferred.await()
-
-                                val panenToUpload = updatedPanenList.filter {
-                                    it.panen.status_upload == 0
-                                }
-                                val espbToUpload = updatedESPBList.filter {
-                                    it.status_upload_cmp_sp == 0
-                                }
-                                val hektarPanenToUpload = updatedHektarPanenList.filter {
-                                    it.status_upload == 0
-                                }
-                                val absensiPanenToUpload = updatedAbsensiList.filter {
-                                    it.absensi.status_upload == 0
-                                }
-
-                                val hasPhotosPanenToUpload = allPhotosPanen.isNotEmpty()
-                                val hasPhotosAbsensiToUpload = allPhotosAbsensi.isNotEmpty()
-                                val hasItemsToUpload =
-                                    panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosPanenToUpload || hektarPanenToUpload.isNotEmpty() || absensiPanenToUpload.isNotEmpty() || hasPhotosAbsensiToUpload
-
-                                if (hasItemsToUpload) {
-                                    val uploadDataJson = Gson().toJson(combinedUploadData)
-                                    setupDialogUpload(uploadDataJson)
-                                } else {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@HomePageActivity,
-                                        stringXML(R.string.al_back),
-                                        stringXML(R.string.al_no_data_for_upload_cmp),
-                                        stringXML(R.string.al_no_data_for_upload_cmp_description),
-                                        "success.json",
-                                        R.color.greendarkerbutton
-                                    ) { }
-                                }
+                                notYetZipped
                             }
 
-                        }
-                    } else {
-                        AlertDialogUtility.withSingleAction(
-                            this@HomePageActivity,
-                            stringXML(R.string.al_back),
-                            stringXML(R.string.al_no_internet_connection),
-                            stringXML(R.string.al_no_internet_connection_description_login),
-                            "network_error.json",
-                            R.color.colorRedDark
-                        ) {
-                            // Do nothing
+                            globalAbsensiIds = absensiIds
+                        } else {
+                            // If no data to upload, still set these variables
+                            mappedAbsensiData = emptyList()
+                            globalAbsensiIds = emptyList()
+                            unzippedAbsensiData = emptyList()
                         }
                     }
 
+                } catch (e: Exception) {
+                    Log.e("UploadCheck", "❌ Error: ${e.message}")
+                } finally {
 
+                    // Create the upload data list with only the unzipped items
+                    val uploadDataList =
+                        mutableListOf<Pair<String, List<Map<String, Any>>>>()
+
+                    // Use the filtered data for zip creation
+                    if (unzippedPanenData.isNotEmpty()) {
+                        uploadDataList.add(AppUtils.DatabaseTables.PANEN to unzippedPanenData)
+                    }
+                    if (unzippedESPBData.isNotEmpty()) {
+                        uploadDataList.add(AppUtils.DatabaseTables.ESPB to unzippedESPBData)
+                    }
+
+                    if (uploadDataList.isNotEmpty()) {
+
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            AppUtils.createAndSaveZipUploadCMPSingle(
+                                this@HomePageActivity,
+                                uploadDataList,
+                                prefManager!!.idUserLogin.toString()
+                            ) { success, fileName, fullPath, zipFile ->
+                                if (success) {
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        featuresToFetch.forEach { feature ->
+                                            val ids = when (feature) {
+                                                AppUtils.DatabaseTables.ESPB -> globalESPBIds
+                                                AppUtils.DatabaseTables.PANEN -> globalPanenIds
+                                                else -> emptyList()
+                                            }
+
+                                            if (ids.isNotEmpty()) {
+                                                archiveUpdateActions[feature]?.invoke(
+                                                    ids
+                                                )
+                                            }
+                                        }
+                                    }
+                                    zipDeferred.complete(true)
+                                } else {
+                                    Log.e("UploadCheck", "❌ ZIP creation failed")
+                                    zipDeferred.complete(false)
+                                }
+                            }
+                        }
+                    } else {
+                        zipDeferred.complete(false)
+                    }
+
+                    if (hektaranJson.isNotEmpty() && unzippedHektaranData.isNotEmpty()) {
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            AppUtils.createAndSaveZipUpload(
+                                this@HomePageActivity,
+                                hektaranJson,
+                                prefManager!!.idUserLogin.toString(),
+                                AppUtils.DatabaseTables.HEKTARAN,
+                            ) { success, fileName, fullPath, zipFile ->
+                                if (success) {
+                                    AppLogger.d("Successfully created hektaran ZIP: $fileName")
+                                    AppLogger.d("ZIP file path: $fullPath")
+
+                                    // Update database to mark as zipped
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        archiveUpdateActions[AppUtils.DatabaseTables.HEKTAR_PANEN]?.invoke(
+                                            globalHektaranIds
+                                        )
+                                    }
+
+                                    zipDeferred.complete(true)
+                                } else {
+                                    AppLogger.e("Failed to create hektaran ZIP: $fileName")
+                                    zipDeferred.complete(false)
+                                }
+                            }
+                        }
+                    } else {
+                        zipDeferred.complete(false)
+                    }
+
+                    if (absensiJson.isNotEmpty() && unzippedAbsensiData.isNotEmpty()) {
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            AppUtils.createAndSaveZipUpload(
+                                this@HomePageActivity,
+                                absensiJson,
+                                prefManager!!.idUserLogin.toString(),
+                                AppUtils.DatabaseTables.ABSENSI,
+                                allPhotosAbsensi,
+                            ) { success, fileName, fullPath, zipFile ->
+                                if (success) {
+                                    AppLogger.d("Successfully created absensi ZIP: $fileName")
+                                    AppLogger.d("ZIP file path: $fullPath")
+
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        archiveUpdateActions[AppUtils.DatabaseTables.ABSENSI]?.invoke(
+                                            globalAbsensiIds
+                                        )
+                                    }
+
+                                    zipDeferred.complete(true)
+                                } else {
+                                    AppLogger.e("Failed to create absensi ZIP: $fileName")
+                                    zipDeferred.complete(false)
+                                }
+                            }
+                        }
+                    } else {
+                        zipDeferred.complete(false)
+                    }
+
+                    loadingDialog.dismiss()
+                }
+
+                val zipSuccess = zipDeferred.await()
+                val updatedPanenList = panenDeferred.await()
+                val updatedESPBList = espbDeferred.await()
+                val updatedHektarPanenList = hektarPanenDeferred.await()
+                val updatedAbsensiList = absensiDeferred.await()
+
+                val panenToUpload = updatedPanenList.filter {
+                    it.panen.status_upload == 0
+                }
+                val espbToUpload = updatedESPBList.filter {
+                    it.status_upload_cmp_sp == 0
+                }
+                val hektarPanenToUpload = updatedHektarPanenList.filter {
+                    it.status_upload == 0
+                }
+                val absensiPanenToUpload = updatedAbsensiList.filter {
+                    it.absensi.status_upload == 0
+                }
+
+                val hasPhotosPanenToUpload = allPhotosPanen.isNotEmpty()
+                val hasPhotosAbsensiToUpload = allPhotosAbsensi.isNotEmpty()
+                val hasItemsToUpload =
+                    panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosPanenToUpload || hektarPanenToUpload.isNotEmpty() || absensiPanenToUpload.isNotEmpty() || hasPhotosAbsensiToUpload
+
+                if (hasItemsToUpload) {
+                    val uploadDataJson = Gson().toJson(combinedUploadData)
+                    setupDialogUpload(uploadDataJson)
+                } else {
+                    AlertDialogUtility.withSingleAction(
+                        this@HomePageActivity,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_no_data_for_upload_cmp),
+                        stringXML(R.string.al_no_data_for_upload_cmp_description),
+                        "success.json",
+                        R.color.greendarkerbutton
+                    ) { }
                 }
             }
+
         }
     }
 

@@ -841,6 +841,16 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getAllHektarPanen(): Result<List<HektarPanenEntity>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = hektarPanenDao.getAll()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
     suspend fun updateDataIsZippedPanen(ids: List<Int>, status: Int) {
         panenDao.updateDataIsZippedPanen(ids, status)
     }
