@@ -3375,6 +3375,30 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 totalSection.visibility = View.VISIBLE
                             }
 
+                            val blokNames = processedData["blokNames"]?.toString() ?: ""
+                            blok = if (blokNames.isEmpty()) "-" else blokNames
+
+                            listBlok.text = processedData["blokDisplay"]?.toString()
+                            jjg = processedData["totalJjgCount"]?.toString()!!.toInt()
+                            totalJjg.text = jjg.toString()
+                            tph = processedData["tphCount"]?.toString()!!.toInt()
+                            totalTPH.text = tph.toString()
+
+                            // Set Blok
+                            val tvBlok = findViewById<View>(R.id.tv_blok)
+                            tvBlok.findViewById<TextView>(R.id.tvTitleEspb).text = "Blok"
+                            tvBlok.findViewById<TextView>(R.id.tvSubTitleEspb).text = blok
+
+                            // Set jjg
+                            val tvJjg = findViewById<View>(R.id.tv_jjg)
+                            tvJjg.findViewById<TextView>(R.id.tvTitleEspb).text = "Janjang"
+                            tvJjg.findViewById<TextView>(R.id.tvSubTitleEspb).text = jjg.toString()
+
+                            // Set jjg
+                            val tvTph = findViewById<View>(R.id.tv_total_tph)
+                            tvTph.findViewById<TextView>(R.id.tvTitleEspb).text = "Jumlah TPH"
+                            tvTph.findViewById<TextView>(R.id.tvSubTitleEspb).text = tph.toString()
+
                             listAdapter.updateData(mappedData)
                             originalData =
                                 emptyList() // Reset original data when new data is loaded

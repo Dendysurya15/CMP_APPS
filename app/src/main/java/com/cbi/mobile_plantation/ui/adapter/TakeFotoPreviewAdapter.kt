@@ -534,27 +534,15 @@ class TakeFotoPreviewAdapter(
     }
 
     fun resetAllSections() {
-        // Track the current state before reset
-        val previousMaxVisible = maxVisibleSlots
-
         // Clear all stored data
         listFileFoto.clear()
         comments.clear()
         activeItems.clear()
 
-        // If we once had all slots visible, keep them all visible
-        if (previousMaxVisible >= maxCount) {
-            for (i in 0 until maxCount) {
-                activeItems.add(true)
-                comments.add("")
-            }
-            maxVisibleSlots = maxCount
-        } else {
-            // Otherwise reset to initial state (one empty section)
-            activeItems.add(true)
-            comments.add("")
-            maxVisibleSlots = 1
-        }
+        // Always reset to initial state (one empty section) regardless of previous state
+        activeItems.add(true)
+        comments.add("")
+        maxVisibleSlots = 1
 
         // Notify adapter to refresh
         notifyDataSetChanged()

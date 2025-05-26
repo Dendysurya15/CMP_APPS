@@ -29,30 +29,23 @@ class PhotoAttachmentAdapterDetailTable(
         return PhotoViewHolder(view)
     }
 
-    override fun getItemCount(): Int {
-        return 3
-    }
 
     override fun onBindViewHolder(holder: PhotoViewHolder, position: Int) {
         // Hide comment sections
         holder.titleComment?.visibility = View.GONE
         holder.etPhotoComment?.visibility = View.GONE
 
-        // Calculate a more precise width that accounts for margins and spacing
+        // Set fixed item width for horizontal scrolling
         val layoutParams = holder.itemView.layoutParams
         if (layoutParams != null) {
             val displayMetrics = holder.itemView.context.resources.displayMetrics
-            val screenWidth = displayMetrics.widthPixels
 
-            // Account for container padding/margins
-            val containerPadding = (32 * displayMetrics.density).toInt()
-            val availableWidth = screenWidth - containerPadding
-
-            // Divide by 3 exactly and account for item margins
-            val itemMargin = (10 * displayMetrics.density).toInt()
-            val itemWidth = (availableWidth / 3) - itemMargin
+            // Set fixed width for each item (adjust as needed)
+            val itemWidth = (120 * displayMetrics.density).toInt() // 120dp width
+            val itemHeight = (200 * displayMetrics.density).toInt() // 200dp height
 
             layoutParams.width = itemWidth
+            layoutParams.height = itemHeight
             holder.itemView.layoutParams = layoutParams
         }
 
@@ -77,8 +70,11 @@ class PhotoAttachmentAdapterDetailTable(
             }
         } else {
             holder.imageView.setImageResource(R.drawable.no_image_svgrepo_com)
-
             holder.imageView.setOnClickListener(null) // Remove click listener
         }
+    }
+
+    override fun getItemCount(): Int {
+        return photos.size // Return actual photo count, not fixed 5
     }
 }

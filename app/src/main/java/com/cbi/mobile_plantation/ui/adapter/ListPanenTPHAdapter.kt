@@ -550,18 +550,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         val recyclerView = view.findViewById<RecyclerView>(R.id.rvPhotoAttachments)
 
                         if (recyclerView != null) {
-
-                            val recyclerView =
-                                view.findViewById<RecyclerView>(R.id.rvPhotoAttachments)
-
-                            // Disable scrolling with custom layout manager
-                            val nonScrollLayoutManager =
-                                object : LinearLayoutManager(context, HORIZONTAL, false) {
-                                    override fun canScrollHorizontally(): Boolean {
-                                        return false // Disable horizontal scrolling
-                                    }
-                                }
-                            recyclerView.layoutManager = nonScrollLayoutManager
+                            // Enable horizontal scrolling with custom layout manager
+                            val scrollableLayoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+                            recyclerView.layoutManager = scrollableLayoutManager
 
                             // Add item decoration for even spacing
                             val itemSpacing = (8 * context.resources.displayMetrics.density).toInt()
@@ -577,31 +568,25 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                                 }
                             })
 
-                            // Disable overscroll effect
-                            recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
+                            // Enable overscroll effect for better UX
+                            recyclerView.overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
 
                             val photoUrls = getPhotoUrlsFromItem(data, context)
 
-                            // Create adapter - always shows 3 items
-                            val photoAdapter =
-                                PhotoAttachmentAdapterDetailTable(photoUrls) { position ->
-                                    // Handle photo click - show fullscreen
-                                    if (position < photoUrls.size) {
-                                        // Check if file exists before showing
-                                        val photoFile = File(photoUrls[position])
-                                        if (photoFile.exists()) {
-                                            // Show fullscreen photo
-                                            showFullscreenImage(context, photoFile)
-                                        } else {
-                                            Toast.makeText(
-                                                context,
-                                                "Photo file not found",
-                                                Toast.LENGTH_SHORT
-                                            )
-                                                .show()
-                                        }
+                            // Create adapter - shows up to 5 items
+                            val photoAdapter = PhotoAttachmentAdapterDetailTable(photoUrls) { position ->
+                                // Handle photo click - show fullscreen
+                                if (position < photoUrls.size) {
+                                    // Check if file exists before showing
+                                    val photoFile = File(photoUrls[position])
+                                    if (photoFile.exists()) {
+                                        // Show fullscreen photo
+                                        showFullscreenImage(context, photoFile)
+                                    } else {
+                                        Toast.makeText(context, "Photo file not found", Toast.LENGTH_SHORT).show()
                                     }
                                 }
+                            }
 
                             // Set the adapter
                             recyclerView.adapter = photoAdapter
@@ -838,7 +823,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
             // Create full file paths (up to maximum 3)
             return photoFileNames
-                .take(3) // Limit to maximum 3 photos
+                .take(5) // Limit to maximum 3 photos
                 .map { fileName ->
                     "$rootApp/$fileName" // Full path to the photo file
                 }

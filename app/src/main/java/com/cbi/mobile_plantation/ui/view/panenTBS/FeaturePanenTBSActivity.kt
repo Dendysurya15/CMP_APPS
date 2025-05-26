@@ -811,6 +811,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     .joinToString(",")
                                 val photoFilesString = photoFiles.joinToString(";")
                                 val komentarFotoString = komentarFoto.joinToString(";")
+                                    .takeIf { it.isNotBlank() && it != ";" && !it.matches(Regex("^;+$")) }
 
 
                                 AppLogger.d("tph id sebelum simpan $selectedTPHValue")
@@ -913,7 +914,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         karyawan_nama = uniqueNamaPemanen,
                                         jjg_json = jjg_json,
                                         foto = photoFilesString,
-                                        komentar = komentarFotoString,
+                                        komentar = komentarFotoString ?: "",
                                         asistensi = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 2 else (asistensi
                                             ?: 0),
                                         lat = finalLat ?: 0.0,
@@ -1459,88 +1460,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         resetAllCounters()
 
         lifecycleScope.launch {
-            val layoutPemanen = findViewById<LinearLayout>(R.id.layoutPemanen)
-            val layoutPemanenLain = findViewById<LinearLayout>(R.id.layoutPemanenLain)
 
-            val shouldLoadKemandoran = selectedKemandoran.isEmpty()
-            val shouldLoadKemandoranLain = selectedKemandoranLain.isEmpty()
-
-            AppLogger.d("shouldLoadKemandoranLain $shouldLoadKemandoranLain")
-
-            // Always show loading dialog and process data
             loadingDialog.show()
             loadingDialog.setMessage("Sedang memproses data...")
             delay(1500)
 
             try {
-                // Always reload all karyawan
-                withContext(Dispatchers.IO) {
-                    panenViewModel.getAllKaryawan()
-                    delay(100)
-                }
 
-                val allKaryawan = panenViewModel.allKaryawanList.value ?: emptyList()
-                AppLogger.d("Reset: Reloaded ${allKaryawan.size} karyawan")
+                delay(100)
 
-                AppLogger.d("askldjfkajsdflj $allKaryawan")
-                AppLogger.d("presentNikSet $presentNikSet")
-                // Filter the list to only include workers who are present
-                val presentKaryawan = allKaryawan.filter { karyawan ->
-                    karyawan.nik != null && presentNikSet.contains(karyawan.nik)
-                }
-
-                AppLogger.d("Reset: Found ${presentKaryawan.size} present karyawan out of ${allKaryawan.size} total")
-
-                // Conditionally assign to lists based on what needs loading
-                if (shouldLoadKemandoran) {
-                    // Store all karyawan in the global list
-                    karyawanList = allKaryawan
-                    AppLogger.d("Assigned allKaryawan to karyawanList because selectedKemandoran is empty")
-                }
-
-                if (shouldLoadKemandoranLain) {
-                    // Store all karyawan in the global list
-
-                    AppLogger.d(allKaryawan.toString())
-                    karyawanLainList = allKaryawan
-
-                    AppLogger.d("masuk sini bro")
-                    AppLogger.d("Assigned allKaryawan to karyawanLainList because selectedKemandoranLain is empty")
-                }
-
-                withContext(Dispatchers.Main) {
-                    // Set up spinner views for the layouts that need it
-                    if (presentKaryawan.isNotEmpty()) {
-                        val karyawanNames = presentKaryawan
-                            .sortedBy { it.nama }
-                            .map { "${it.nama} - ${it.nik ?: "N/A"}" }
-
-                        // Only set up spinners for layouts that need it
-                        if (shouldLoadKemandoran) {
-                            setupSpinnerView(layoutPemanen, karyawanNames)
-                            AppLogger.d("Set up spinner for layoutPemanen with ${karyawanNames.size} present workers")
-
-                            // Only handle visibility for this case
-                            if (blokBanjir != 0) {
-                                layoutPemanen.visibility = View.VISIBLE
-                            } else {
-                                layoutKemandoran.visibility = View.GONE
-                                layoutPemanen.visibility = View.GONE
-                                layoutSelAsistensi.visibility = View.GONE
-                            }
-                        }
-
-                        if (shouldLoadKemandoranLain) {
-                            setupSpinnerView(layoutPemanenLain, karyawanNames)
-                            AppLogger.d("Set up spinner for layoutPemanenLain with ${karyawanNames.size} present workers")
-                        }
-                    }
-                    delay(100)
-
-                    // Now scroll to top AFTER all data loading and UI setup is complete
-                    val scPanen = findViewById<ScrollView>(R.id.scPanen)
-                    scPanen.fullScroll(ScrollView.FOCUS_UP)
-                }
+                // Now scroll to top AFTER all data loading and UI setup is complete
+                val scPanen = findViewById<ScrollView>(R.id.scPanen)
+                scPanen.fullScroll(ScrollView.FOCUS_UP)
             } catch (e: Exception) {
                 AppLogger.e("Error reloading karyawan in reset: ${e.message}")
                 withContext(Dispatchers.Main) {
