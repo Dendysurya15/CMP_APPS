@@ -508,7 +508,7 @@ class HomePageActivity : AppCompatActivity() {
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
                 featureName = AppUtils.ListFeatureNames.RekapHasilPanen,
-                featureNameBackgroundColor = R.color.greenBorder,
+                featureNameBackgroundColor = R.color.yellowbutton,
                 iconResource = null,
                 count = countPanenTPH.toString(),
                 functionDescription = "Rekapitulasi panen TBS dan transfer data ke supervisi",
@@ -707,7 +707,7 @@ class HomePageActivity : AppCompatActivity() {
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 ).filterNotNull()
 
@@ -907,9 +907,101 @@ class HomePageActivity : AppCompatActivity() {
         when (feature.featureName) {
             AppUtils.ListFeatureNames.PanenTBS -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, FeaturePanenTBSActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
+
+                            absensiViewModel.loadActiveAbsensi()
+                            delay(100)
+
+                            withContext(Dispatchers.Main) {
+                                absensiViewModel.activeAbsensiList.observe(this@HomePageActivity) { absensiWithRelations ->
+                                    val absensiData = absensiWithRelations ?: emptyList()
+
+                                    absensiDeferred.complete(absensiData)
+                                }
+                            }
+
+                            // Wait for absensi data
+                            val absensiData = absensiDeferred.await()
+
+                            // Extract all NIKs of present karyawan from all absensi entries
+                            val presentNikSet = mutableSetOf<String>()
+                            absensiData.forEach { absensiRelation ->
+                                val absensi = absensiRelation.absensi
+                                // Split the comma-separated NIK string and add each NIK to the set
+                                val niks = absensi.karyawan_msk_nik.split(",")
+                                presentNikSet.addAll(niks.filter {
+                                    it.isNotEmpty() && it.trim().isNotEmpty()
+                                })
+                            }
+
+                            val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
+
+                            panenViewModel.getAllKaryawan()
+                            delay(100)
+
+                            withContext(Dispatchers.Main) {
+                                panenViewModel.allKaryawanList.observe(this@HomePageActivity) { list ->
+                                    val allKaryawan = list ?: emptyList()
+
+                                    // Only filter if presentNikSet has values
+                                    val presentKaryawan = if (presentNikSet.isNotEmpty()) {
+                                        // Filter to get only present karyawan
+                                        allKaryawan.filter { karyawan ->
+                                            karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+                                        }
+                                    } else {
+                                        emptyList()
+                                    }
+
+                                    AppLogger.d("Total karyawan: ${allKaryawan.size}")
+                                    AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
+
+                                    // Complete the deferred with the filtered karyawan
+                                    karyawanDeferred.complete(presentKaryawan)
+                                }
+                            }
+
+                            // Wait for karyawan data
+                            val presentKaryawan = karyawanDeferred.await()
+
+                            // Check if presentKaryawan is empty
+                            if (presentKaryawan.isEmpty()) {
+                                // Show alert if no present karyawan found
+                                AlertDialogUtility.withSingleAction(
+                                    this@HomePageActivity,
+                                    "Kembali",
+                                    "Data Karyawan Tidak Hadir",
+                                    "Tidak ditemukan data kehadiran karyawan untuk hari ini.\nSilakan melakukan scan QR Absensi dari Mandor Panen.",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ){
+
+                                // Do nothing on click
+                                }
+                            } else {
+                                // Present karyawan found, proceed to activity
+                                val intent = Intent(this@HomePageActivity, FeaturePanenTBSActivity::class.java)
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error checking present karyawan: ${e.message}")
+                            // Show error alert
+                            AlertDialogUtility.withSingleAction(
+                                this@HomePageActivity,
+                                "Kembali",
+                                "Terjadi Kesalahan",
+                                "Gagal memuat data karyawan hadir. Silakan coba lagi sinkronisasi.",
+                                "error.json",
+                                R.color.colorRedDark
+                            ) {
+                                // Do nothing on click
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1010,17 +1102,6 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.ScanAbsensiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-//                    AlertDialogUtility.withSingleAction(
-//                        this@HomePageActivity,
-//                        stringXML(R.string.al_back),
-//                        stringXML(R.string.al_features_still_in_development),
-//                        stringXML(R.string.al_desc_features_still_in_development),
-//                        "warning.json",
-//                        R.color.yellowbutton
-//                    ) {
-//
-//                    }
-
                     val intent = Intent(this, ScanAbsensiActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
