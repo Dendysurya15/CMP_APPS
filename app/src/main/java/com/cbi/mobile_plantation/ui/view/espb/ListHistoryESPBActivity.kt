@@ -31,6 +31,7 @@ import com.cbi.mobile_plantation.ui.viewModel.HektarPanenViewModel
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
+import com.cbi.mobile_plantation.utils.MathFun
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.google.android.material.chip.Chip
@@ -389,14 +390,15 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
             // Execute database update in a coroutine
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val result = hektarPanenViewModel.updateLuasPanen(id, newValue)
+                    val newValueDec = MathFun().round(newValue,2)
+                    val result = hektarPanenViewModel.updateLuasPanen(id, newValueDec!!)
 
                     // Update UI on main thread
                     withContext(Dispatchers.Main) {
                         if (result > 0) {
                             Log.d("ListHistoryESPBActivity", "Database updated successfully for id: $id")
                             // Update adapter's data structure
-                            adapterHektarPanen.updateItemLuasPanen(id, newValue)
+                            adapterHektarPanen.updateItemLuasPanen(id, newValueDec)
                         } else {
                             Log.d("ListHistoryESPBActivity", "Database update failed for id: $id")
                         }

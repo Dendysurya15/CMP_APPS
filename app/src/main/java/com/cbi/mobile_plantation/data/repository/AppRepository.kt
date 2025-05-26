@@ -19,6 +19,7 @@ import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.mobile_plantation.data.model.TphRvData
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.MathFun
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -223,52 +224,52 @@ class AppRepository(context: Context) {
                             try {
                                 val jjgJson = JSONObject(entity.jjg_json)
                                 totalJjg.add(
-                                    roundToOneDecimal(
+                                    MathFun().round(
                                         jjgJson.optInt("TO", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat()
-                                    )
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                    ).toString()
                                 )
                                 unripe.add(
-                                    roundToOneDecimal(
+                                    MathFun().round(
                                         jjgJson.optInt("UN", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat()
-                                    )
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                    ).toString()
                                 )
                                 overripe.add(
-                                    roundToOneDecimal(
+                                    MathFun().round(
                                         jjgJson.optInt("OV", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat()
-                                    )
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                    ).toString()
                                 )
                                 emptyBunch.add(
-                                    roundToOneDecimal(
+                                    MathFun().round(
                                         jjgJson.optInt("EM", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat()
-                                    )
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                    ).toString()
                                 )
                                 abnormal.add(
-                                    roundToOneDecimal(
+                                    MathFun().round(
                                         jjgJson.optInt("AB", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat()
-                                    )
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                    ).toString()
                                 )
                                 ripe.add(
-                                    roundToOneDecimal(
+                                    MathFun().round(
                                         jjgJson.optInt("RI", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat()
-                                    )
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                    ).toString()
                                 )
                                 kirimPabrik.add(
-                                    roundToOneDecimal(
+                                    MathFun().round(
                                         jjgJson.optInt("KP", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat()
-                                    )
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                    ).toString()
                                 )
                                 dibayar.add(
-                                    roundToOneDecimal(
+                                    MathFun().round(
                                         jjgJson.optInt("PA", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat()
-                                    )
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                    ).toString()
                                 )
                                 tphIds.add(entity.tph_id)
                                 dateCreatedPanen.add(entity.date_created)
@@ -1292,13 +1293,6 @@ class AppRepository(context: Context) {
 
     suspend fun getInspectionPathWithTphAndCount(pathId: String): PathWithInspectionTphRelations {
         return inspectionPathDao.getInspectionPathWithTphAndCount(pathId)
-    }
-
-    // Add this helper function at the top of your AppRepository class
-    private fun roundToOneDecimal(value: Float): String {
-        return BigDecimal(value.toDouble())
-            .setScale(2, RoundingMode.HALF_EVEN)
-            .toString()
     }
 
 }
