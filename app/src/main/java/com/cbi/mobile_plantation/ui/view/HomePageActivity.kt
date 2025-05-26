@@ -589,7 +589,7 @@ class HomePageActivity : AppCompatActivity() {
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
                 featureName = AppUtils.ListFeatureNames.RekapESPBTimbanganMill,
-                featureNameBackgroundColor = R.color.yellowBorder,
+                featureNameBackgroundColor = R.color.colorRedDark,
                 iconResource = R.drawable.cbi,
                 functionDescription = "Rekapitulasi eSPB yang telah discan",
                 displayType = DisplayType.COUNT,

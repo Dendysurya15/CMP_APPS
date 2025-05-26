@@ -284,7 +284,6 @@ class AppRepository(context: Context) {
                         )
 
                         if (hektarPanen == null) {
-
 // Get the TPH model
                             val tphModel = tphDao.getTPHByBlockId(blokId)
 

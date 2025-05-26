@@ -5,7 +5,8 @@ data class TphRvData(
     val noTPH: String,
     val time: String,
     val jjg: String,
-    val username: String
+    val username: String,
+    val kemandoran_id: String
 )
 
 data class TPHBlokInfo(

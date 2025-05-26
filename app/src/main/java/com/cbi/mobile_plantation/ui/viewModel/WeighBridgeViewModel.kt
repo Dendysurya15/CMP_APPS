@@ -14,8 +14,12 @@ import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
+import com.cbi.mobile_plantation.data.network.StagingApiClient
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 
 sealed class SaveDataESPBKraniTimbangState {
     object Loading : SaveDataESPBKraniTimbangState()
@@ -132,6 +136,47 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
             }
 
             _uploadResult.value = result ?: Result.failure(Exception("Unknown error occurred"))
+        }
+    }
+
+    private val _tphDuplicateResult = MutableLiveData<CheckDuplicateResponse?>()
+
+    // Public LiveData for observing from Activity
+    val tphDuplicateResult: LiveData<CheckDuplicateResponse?> = _tphDuplicateResult
+
+    fun checkTPHDuplicates(millIP: String, espbJson: String) {
+        viewModelScope.launch {
+            try {
+                AppLogger.d("ViewModel: Checking ESPB duplicates via API with mill IP: $millIP")
+
+                // Update base URL with mill IP
+//                StagingApiClient.updateBaseUrl("http://$millIP:8000")
+                StagingApiClient.updateBaseUrl("http://10.9.116.175:8000")
+
+                // Create request body with raw JSON
+                val requestBody = espbJson.toRequestBody("application/json".toMediaTypeOrNull())
+                val response = StagingApiClient.instance.checkTPHDuplicates(requestBody)
+
+                if (response.isSuccessful) {
+                    val result = response.body()
+                    AppLogger.d("ViewModel: API response: $result")
+                    _tphDuplicateResult.postValue(result)
+                } else {
+                    AppLogger.e("ViewModel: API error: ${response.code()} - ${response.message()}")
+                    _tphDuplicateResult.postValue(CheckDuplicateResponse(
+                        status = "error",
+                        processed = 0,
+                        duplicates = emptyList()
+                    ))
+                }
+            } catch (e: Exception) {
+                AppLogger.e("ViewModel: Exception checking duplicates: ${e.message}")
+                _tphDuplicateResult.postValue(CheckDuplicateResponse(
+                    status = "error",
+                    processed = 0,
+                    duplicates = emptyList()
+                ))
+            }
         }
     }
 
