@@ -879,7 +879,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                     }
 
 // Remove successfully processed items from mappedData
-                                    mappedData = mappedData.filter { it !in itemsToRemove }.toMutableList()
+//                                    mappedData = mappedData.filter { it !in itemsToRemove }.toMutableList()
 
                                     // Show results
                                     withContext(Dispatchers.Main) {
