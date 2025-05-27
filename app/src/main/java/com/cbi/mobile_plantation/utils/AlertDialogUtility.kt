@@ -116,8 +116,9 @@ class AlertDialogUtility {
             alertText: String,
             animAsset: String,
             buttonColor: Int? = null,
+            cancelText: String = "Batal", // New parameter with default value
             function: () -> Unit,
-            cancelFunction: (() -> Unit)? = null // Add cancel callback
+            cancelFunction: (() -> Unit)? = null
         ) {
             if (context is Activity && !context.isFinishing) {
                 val rootView = context.findViewById<View>(android.R.id.content)
@@ -127,7 +128,7 @@ class AlertDialogUtility {
                     LayoutInflater.from(context).inflate(R.layout.confirmation_dialog, parentLayout)
 
                 val builder: AlertDialog.Builder =
-                    AlertDialog.Builder(context).setView(layoutBuilder).setCancelable(false)
+                    AlertDialog.Builder(context).setView(layoutBuilder).setCancelable(cancelText != "Batal") // Only cancelable if NOT default text
                 val alertDialog: AlertDialog = builder.create()
 
                 val tvTitleDialog = layoutBuilder.findViewById<TextView>(R.id.tvTitleDialog)
@@ -169,9 +170,18 @@ class AlertDialogUtility {
                 }
 
                 val mbCancelDialog = layoutBuilder.findViewById<MaterialButton>(R.id.mbCancelDialog)
+                mbCancelDialog.text = cancelText // Set the custom cancel text
                 mbCancelDialog.setOnClickListener {
                     alertDialog.dismiss()
                     cancelFunction?.invoke() // Call cancel function if provided
+                }
+
+                // Only handle outside click if using custom cancel text (NOT default "Batal")
+                if (cancelText != "Batal") {
+                    alertDialog.setOnCancelListener {
+                        // When clicking outside with custom cancel text, just dismiss without calling cancelFunction
+                        // This provides a true "cancel/dismiss" option
+                    }
                 }
 
                 if (alertDialog.window != null) {

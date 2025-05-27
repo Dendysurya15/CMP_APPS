@@ -31,4 +31,22 @@
         <item name="android:color">@android:color/transparent</item>
     </style>
 
+    <!-- Add these styles to your res/values/styles.xml file -->
+
+    <style name="BottomLeftRoundedButton" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">0dp</item>
+        <item name="cornerSizeTopRight">0dp</item>
+        <item name="cornerSizeBottomLeft">16dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
+    </style>
+
+    <style name="BottomRightRoundedButton" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">0dp</item>
+        <item name="cornerSizeTopRight">0dp</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+        <item name="cornerSizeBottomRight">16dp</item>
+    </style>
+
 </resources>

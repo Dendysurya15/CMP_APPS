@@ -1192,7 +1192,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val transporterName = if (transporterId == 0) {
                         "Internal"
                     } else {
-                        // Otherwise get transporter name from API
+                        // Otherwise get transporter name from APIger
                         val transporterDeferred = async {
                             try {
                                 weightBridgeViewModel.getTransporterName(transporterId)
