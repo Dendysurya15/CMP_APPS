@@ -319,6 +319,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
 
                                     val photoFilesString = photoFiles.joinToString(";")
                                     val komentarFotoString = komentarFoto.joinToString(";")
+                                        .takeIf { it.isNotBlank() && it != ";" && !it.matches(Regex("^;+$")) }
 
                                     absensiViewModel.saveDataAbsensi(
                                         kemandoran_id = listKemandoran,
@@ -335,7 +336,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                         karyawan_msk_nama = karyawanMskNamaJson.toString(),    // JSON string
                                         karyawan_tdk_msk_nama = karyawanTdkMskNamaJson.toString(), // JSON string
                                         foto = photoFilesString,
-                                        komentar = komentarFotoString,
+                                        komentar = komentarFotoString ?: "",
                                         asistensi = asistensi ?: 0,
                                         lat = lat ?: 0.0,
                                         lon = lon ?: 0.0,

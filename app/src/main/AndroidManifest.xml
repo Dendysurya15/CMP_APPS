@@ -43,10 +43,10 @@
         android:theme="@style/Theme.Cmp_project"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
-        <activity
-            android:name=".ui.view.PDFViewerActivity"
-            android:exported="false"
-            android:label="PDF Viewer"/>
+<!--        <activity-->
+<!--            android:name=".ui.view.PDFViewerActivity"-->
+<!--            android:exported="false"-->
+<!--            android:label="PDF Viewer"/>-->
         <activity
             android:name=".ui.view.Absensi.ScanAbsensiActivity"
             android:exported="false" /> <!-- <activity -->

@@ -94,6 +94,8 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
+import com.rajat.pdfviewer.PdfViewerActivity
+import com.rajat.pdfviewer.util.saveTo
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -109,6 +111,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.FileReader
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -173,7 +176,7 @@ class HomePageActivity : AppCompatActivity() {
     private var globalImageNameError: List<String> = emptyList()
 
     // PDF-related variables
-    private lateinit var pdfManager: PDFManager
+//    private lateinit var pdfManager: PDFManager
     private val pdfFileName = "User_Manual_CMP.pdf"
     private val pdfUrl = "https://cmp.citraborneo.co.id/apkcmp/MANUALBOOK/User_Manual_CMP.pdf" // Replace with your actual PDF URL
     private var isPdfDownloaded = false
@@ -215,11 +218,10 @@ class HomePageActivity : AppCompatActivity() {
         initializePDFManager()
     }
 
-    private fun initializePDFManager() {
-        pdfManager = PDFManager(this)
 
-        // Check if PDF is already downloaded
-        val pdfFile = pdfManager.getLocalPDFFile(pdfFileName)
+    private fun initializePDFManager() {
+        // Check if PDF is already downloaded locally
+        val pdfFile = getLocalPDFFile(pdfFileName)
         isPdfDownloaded = pdfFile != null
 
         // Setup click listener for info icon
@@ -233,9 +235,8 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         // Automatically start download if not already downloaded
-        // TAPI TIDAK LANGSUNG BUKA PDF SETELAH DOWNLOAD
         if (!isPdfDownloaded && !isDownloading) {
-            downloadPdfSilently() // Menggunakan method baru yang tidak auto-open
+            downloadPdfSilently()
         }
     }
 
@@ -248,7 +249,7 @@ class HomePageActivity : AppCompatActivity() {
             Toast.makeText(this, "PDF sedang didownload, mohon tunggu...", Toast.LENGTH_SHORT).show()
         } else {
             // Start download and then open after user clicks
-            downloadPdfAndOpen() // Method untuk download + buka
+            downloadPdfAndOpen()
         }
     }
 
@@ -263,33 +264,39 @@ class HomePageActivity : AppCompatActivity() {
 
         isDownloading = true
 
-        pdfManager.downloadPDF(pdfUrl, pdfFileName, object : PDFManager.DownloadCallback {
-            override fun onDownloadSuccess(file: File) {
+        Thread {
+            try {
+                val connection = URL(pdfUrl).openConnection()
+                connection.connect()
+
+                val inputStream = connection.getInputStream()
+                val file = File(filesDir, pdfFileName)
+                val outputStream = FileOutputStream(file)
+
+                // Simple copy
+                inputStream.copyTo(outputStream)
+
+                outputStream.close()
+                inputStream.close()
+
                 runOnUiThread {
                     isDownloading = false
-                    isPdfDownloaded = true
-                    // TIDAK ADA openPdfViewer() di sini
-                    // Hanya log atau notifikasi kecil jika diperlukan
-                    AppLogger.d("PDF downloaded successfully in background")
-
-                    // Optional: Tampilkan toast kecil atau update UI indicator
-                    // Toast.makeText(this@HomePageActivity, "Patch notes siap dibaca", Toast.LENGTH_SHORT).show()
+                    if (file.exists() && file.length() > 0) {
+                        isPdfDownloaded = true
+                        AppLogger.d("PDF downloaded successfully in background")
+                        // Optional: Toast.makeText(this@HomePageActivity, "Patch notes siap dibaca", Toast.LENGTH_SHORT).show()
+                    } else {
+                        AppLogger.e("Background PDF download failed: File is empty")
+                    }
                 }
-            }
 
-            override fun onDownloadFailure(message: String) {
+            } catch (e: Exception) {
                 runOnUiThread {
                     isDownloading = false
-                    AppLogger.e("Background PDF download failed: $message")
-                    // Tidak perlu tampilkan error dialog untuk background download
+                    AppLogger.e("Background PDF download failed: ${e.message}")
                 }
             }
-
-            override fun onDownloadProgress(progress: Int) {
-                // Untuk background download, tidak perlu update UI progress
-                AppLogger.d("PDF download progress: $progress%")
-            }
-        })
+        }.start()
     }
 
     // Method untuk download dengan progress dialog dan auto-open setelah selesai
@@ -307,56 +314,97 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         isDownloading = true
-
-        // Show downloading dialog
         loadingDialog.show()
 
-        pdfManager.downloadPDF(pdfUrl, pdfFileName, object : PDFManager.DownloadCallback {
-            override fun onDownloadSuccess(file: File) {
+        Thread {
+            try {
+                val connection = URL(pdfUrl).openConnection()
+                connection.connect()
+
+                val inputStream = connection.getInputStream()
+                val file = File(filesDir, pdfFileName)
+                val outputStream = FileOutputStream(file)
+
+                // Simple copy
+                inputStream.copyTo(outputStream)
+
+                outputStream.close()
+                inputStream.close()
+
                 runOnUiThread {
                     loadingDialog.dismiss()
                     isDownloading = false
-                    isPdfDownloaded = true
-                    // BARU BUKA PDF KARENA USER KLIK ICON
-                    openPdfViewer()
+                    if (file.exists() && file.length() > 0) {
+                        isPdfDownloaded = true
+                        openPdfViewer()
+                    } else {
+                        AlertDialogUtility.withSingleAction(
+                            this@HomePageActivity,
+                            stringXML(R.string.al_back),
+                            "Download Failed",
+                            "Downloaded file is empty or corrupted",
+                            "warning.json",
+                            R.color.colorRedDark
+                        ) { }
+                    }
                 }
-            }
 
-            override fun onDownloadFailure(message: String) {
+            } catch (e: Exception) {
                 runOnUiThread {
                     loadingDialog.dismiss()
                     isDownloading = false
-
                     AlertDialogUtility.withSingleAction(
                         this@HomePageActivity,
                         stringXML(R.string.al_back),
                         "Download Failed",
-                        "Failed to download PDF: $message",
+                        "Failed to download PDF: ${e.message}",
                         "warning.json",
                         R.color.colorRedDark
                     ) { }
                 }
             }
-
-            override fun onDownloadProgress(progress: Int) {
-                runOnUiThread {
-                    loadingDialog.setMessage("Downloading patch notes... $progress%")
-                }
-            }
-        })
+        }.start()
     }
 
+
+    // Updated openPdfViewer method using afreakyelf library
     private fun openPdfViewer() {
-        val pdfFile = pdfManager.getLocalPDFFile(pdfFileName)
+        val pdfFile = getLocalPDFFile(pdfFileName)
         if (pdfFile != null) {
-            val intent = Intent(this, PDFViewerActivity::class.java)
-            intent.putExtra("PDF_PATH", pdfFile.absolutePath)
-            startActivity(intent)
+            // Using afreakyelf PDF Viewer
+            startActivity(
+                PdfViewerActivity.launchPdfFromPath(
+                    context = this,
+                    path = pdfFile.absolutePath,
+                    pdfTitle = "User Manual CMP",
+                    saveTo = saveTo.ASK_EVERYTIME,
+
+                )
+            )
         } else {
             Toast.makeText(this, "PDF file not found. Please download again.", Toast.LENGTH_SHORT).show()
             isPdfDownloaded = false
         }
     }
+
+    // Helper method to get local PDF file
+    private fun getLocalPDFFile(fileName: String): File? {
+        val file = File(filesDir, fileName)
+        return if (file.exists() && file.length() > 0) file else null
+    }
+
+    // Helper method to show download error
+    private fun showDownloadError(message: String) {
+        AlertDialogUtility.withSingleAction(
+            this@HomePageActivity,
+            stringXML(R.string.al_back),
+            "Download Failed",
+            message,
+            "warning.json",
+            R.color.colorRedDark
+        ) { }
+    }
+
 
     private fun fetchDataEachCard() {
 
