@@ -7,9 +7,12 @@
     android:layout_height="match_parent">
 
     <androidx.cardview.widget.CardView
-        android:layout_width="320dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:maxHeight="400dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:maxWidth="320dp"
+        android:maxHeight="350dp"
         app:cardBackgroundColor="@color/white"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
@@ -21,7 +24,8 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:clipToPadding="false">
 
             <!-- Main Content Container -->
             <LinearLayout
@@ -82,19 +86,18 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Bottom Buttons -->
+            <!-- Bottom Buttons - Stick to Bottom -->
             <LinearLayout
                 android:id="@+id/llButtonDialog"
                 android:layout_width="match_parent"
-                android:layout_height="60dp"
+                android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:visibility="visible">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/mbCancelDialog"
                     android:layout_width="0dp"
-                    android:layout_height="70dp"
-                    android:layout_gravity="center_vertical"
+                    android:layout_height="60dp"
                     android:layout_weight="1"
                     android:backgroundTint="@color/graylight"
                     android:fontFamily="@font/manrope_semibold"
@@ -102,21 +105,36 @@
                     android:textAllCaps="false"
                     android:textColor="@color/black"
                     android:textSize="@dimen/m"
+                    android:gravity="center"
+                    android:maxLines="3"
+                    android:lineSpacingExtra="2dp"
                     app:cornerRadius="0dp"
-                    app:rippleColor="@color/graylightDarker" />
+                    app:shapeAppearanceOverlay="@style/BottomLeftRoundedButton"
+                    app:rippleColor="@color/graylightDarker"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/mbSuccessDialog"
                     android:layout_width="0dp"
-                    android:layout_height="70dp"
-                    android:layout_gravity="center_vertical"
+                    android:layout_height="60dp"
                     android:layout_weight="1"
                     android:backgroundTint="@color/greenDefault"
                     android:fontFamily="@font/manrope_semibold"
                     android:textAllCaps="false"
                     android:textColor="@color/white"
                     android:textSize="@dimen/m"
-                    app:cornerRadius="0dp" />
+                    android:gravity="center"
+                    android:maxLines="3"
+                    android:lineSpacingExtra="2dp"
+                    app:cornerRadius="0dp"
+                    app:shapeAppearanceOverlay="@style/BottomRightRoundedButton"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp" />
 
             </LinearLayout>
 

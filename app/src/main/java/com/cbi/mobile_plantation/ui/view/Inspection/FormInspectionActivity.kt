@@ -1442,9 +1442,11 @@ class FormInspectionActivity : AppCompatActivity(), CameraRepository.PhotoCallba
                 InputType.SPINNER -> {
                     when (layoutView.id) {
                         R.id.lyEstInspect -> {
-                            val namaEstate = listOf(prefManager!!.estateUserLengkapLogin ?: "")
-                            setupSpinnerView(layoutView, namaEstate)
-                            findViewById<MaterialSpinner>(R.id.spPanenTBS).selectedIndex = 0
+                            val namaEstate = prefManager!!.estateUserLengkapLogin
+                            setupSpinnerView(layoutView, emptyList())
+                            val pemanenSpinner =
+                                layoutView.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                            pemanenSpinner.setHint(namaEstate)
                         }
 
                         R.id.lyAfdInspect -> {

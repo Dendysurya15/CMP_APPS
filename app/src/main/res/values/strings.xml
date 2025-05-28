@@ -20,6 +20,7 @@
     <string name="al_confirm_feature">Apakah Anda yakin untuk keluar dari Menu ini?</string>
     <string name="al_confirm_delete_photo">Apakah Anda yakin untuk menghapus foto ini?</string>
     <string name="al_confirm_asistensi">Menu ini digunakan untuk input panen asistensi ke estate lain, Pastikan pilihan anda benar!</string>
+    <string name="al_confirm_download_data_panen_case_inspection">Apakah Anda yakin untuk mengunduh data panen H+1 hingga H+7?</string>
     <string name="al_confirm_upload">Apakah anda yakin untuk upload data CMP?</string>
     <string name="al_confirm_sinkronisasi_master_dataset">Apakah anda yakin untuk melakukan sinkronisasi master dataset?</string>
     <string name="al_confirm_generate_qr">Apakah anda yakin untuk Generate data menjadi QR?</string>

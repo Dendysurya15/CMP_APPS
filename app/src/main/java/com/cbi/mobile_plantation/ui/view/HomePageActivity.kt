@@ -94,6 +94,8 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
+import com.rajat.pdfviewer.PdfViewerActivity
+import com.rajat.pdfviewer.util.saveTo
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -109,6 +111,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.FileReader
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -137,6 +140,7 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var hektarPanenViewModel: HektarPanenViewModel
 
     private var isTriggerButtonSinkronisasiData: Boolean = false
+    private var isTriggerFeatureInspection: Boolean = false
     private lateinit var dialog: Dialog
     private var countAbsensi: Int = 0  // Global variable for count
     private var countPanenTPH: Int = 0  // Global variable for count
@@ -146,8 +150,6 @@ class HomePageActivity : AppCompatActivity() {
     private var countHektarZero: Int = 0  // Global variable for count
     private var countScanMpanen: Int = 0  // Global variable for count
     private var countInspection: String = ""
-    private val _globalLastModifiedTPH = MutableLiveData<String>()
-    private val globalLastModifiedTPH: LiveData<String> get() = _globalLastModifiedTPH
 
     private val _globalLastSync = MutableLiveData<String>()
     private val globalLastSync: LiveData<String> get() = _globalLastSync
@@ -173,9 +175,10 @@ class HomePageActivity : AppCompatActivity() {
     private var globalImageNameError: List<String> = emptyList()
 
     // PDF-related variables
-    private lateinit var pdfManager: PDFManager
+//    private lateinit var pdfManager: PDFManager
     private val pdfFileName = "User_Manual_CMP.pdf"
-    private val pdfUrl = "https://cmp.citraborneo.co.id/apkcmp/MANUALBOOK/User_Manual_CMP.pdf" // Replace with your actual PDF URL
+    private val pdfUrl =
+        "https://cmp.citraborneo.co.id/apkcmp/MANUALBOOK/User_Manual_CMP.pdf" // Replace with your actual PDF URL
     private var isPdfDownloaded = false
     private var isDownloading = false
 
@@ -215,11 +218,10 @@ class HomePageActivity : AppCompatActivity() {
         initializePDFManager()
     }
 
-    private fun initializePDFManager() {
-        pdfManager = PDFManager(this)
 
-        // Check if PDF is already downloaded
-        val pdfFile = pdfManager.getLocalPDFFile(pdfFileName)
+    private fun initializePDFManager() {
+        // Check if PDF is already downloaded locally
+        val pdfFile = getLocalPDFFile(pdfFileName)
         isPdfDownloaded = pdfFile != null
 
         // Setup click listener for info icon
@@ -233,9 +235,8 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         // Automatically start download if not already downloaded
-        // TAPI TIDAK LANGSUNG BUKA PDF SETELAH DOWNLOAD
         if (!isPdfDownloaded && !isDownloading) {
-            downloadPdfSilently() // Menggunakan method baru yang tidak auto-open
+            downloadPdfSilently()
         }
     }
 
@@ -245,10 +246,11 @@ class HomePageActivity : AppCompatActivity() {
             openPdfViewer()
         } else if (isDownloading) {
             // PDF is currently downloading
-            Toast.makeText(this, "PDF sedang didownload, mohon tunggu...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "PDF sedang didownload, mohon tunggu...", Toast.LENGTH_SHORT)
+                .show()
         } else {
             // Start download and then open after user clicks
-            downloadPdfAndOpen() // Method untuk download + buka
+            downloadPdfAndOpen()
         }
     }
 
@@ -263,33 +265,39 @@ class HomePageActivity : AppCompatActivity() {
 
         isDownloading = true
 
-        pdfManager.downloadPDF(pdfUrl, pdfFileName, object : PDFManager.DownloadCallback {
-            override fun onDownloadSuccess(file: File) {
+        Thread {
+            try {
+                val connection = URL(pdfUrl).openConnection()
+                connection.connect()
+
+                val inputStream = connection.getInputStream()
+                val file = File(filesDir, pdfFileName)
+                val outputStream = FileOutputStream(file)
+
+                // Simple copy
+                inputStream.copyTo(outputStream)
+
+                outputStream.close()
+                inputStream.close()
+
                 runOnUiThread {
                     isDownloading = false
-                    isPdfDownloaded = true
-                    // TIDAK ADA openPdfViewer() di sini
-                    // Hanya log atau notifikasi kecil jika diperlukan
-                    AppLogger.d("PDF downloaded successfully in background")
-
-                    // Optional: Tampilkan toast kecil atau update UI indicator
-                    // Toast.makeText(this@HomePageActivity, "Patch notes siap dibaca", Toast.LENGTH_SHORT).show()
+                    if (file.exists() && file.length() > 0) {
+                        isPdfDownloaded = true
+                        AppLogger.d("PDF downloaded successfully in background")
+                        // Optional: Toast.makeText(this@HomePageActivity, "Patch notes siap dibaca", Toast.LENGTH_SHORT).show()
+                    } else {
+                        AppLogger.e("Background PDF download failed: File is empty")
+                    }
                 }
-            }
 
-            override fun onDownloadFailure(message: String) {
+            } catch (e: Exception) {
                 runOnUiThread {
                     isDownloading = false
-                    AppLogger.e("Background PDF download failed: $message")
-                    // Tidak perlu tampilkan error dialog untuk background download
+                    AppLogger.e("Background PDF download failed: ${e.message}")
                 }
             }
-
-            override fun onDownloadProgress(progress: Int) {
-                // Untuk background download, tidak perlu update UI progress
-                AppLogger.d("PDF download progress: $progress%")
-            }
-        })
+        }.start()
     }
 
     // Method untuk download dengan progress dialog dan auto-open setelah selesai
@@ -307,56 +315,98 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         isDownloading = true
-
-        // Show downloading dialog
         loadingDialog.show()
 
-        pdfManager.downloadPDF(pdfUrl, pdfFileName, object : PDFManager.DownloadCallback {
-            override fun onDownloadSuccess(file: File) {
+        Thread {
+            try {
+                val connection = URL(pdfUrl).openConnection()
+                connection.connect()
+
+                val inputStream = connection.getInputStream()
+                val file = File(filesDir, pdfFileName)
+                val outputStream = FileOutputStream(file)
+
+                // Simple copy
+                inputStream.copyTo(outputStream)
+
+                outputStream.close()
+                inputStream.close()
+
                 runOnUiThread {
                     loadingDialog.dismiss()
                     isDownloading = false
-                    isPdfDownloaded = true
-                    // BARU BUKA PDF KARENA USER KLIK ICON
-                    openPdfViewer()
+                    if (file.exists() && file.length() > 0) {
+                        isPdfDownloaded = true
+                        openPdfViewer()
+                    } else {
+                        AlertDialogUtility.withSingleAction(
+                            this@HomePageActivity,
+                            stringXML(R.string.al_back),
+                            "Download Failed",
+                            "Downloaded file is empty or corrupted",
+                            "warning.json",
+                            R.color.colorRedDark
+                        ) { }
+                    }
                 }
-            }
 
-            override fun onDownloadFailure(message: String) {
+            } catch (e: Exception) {
                 runOnUiThread {
                     loadingDialog.dismiss()
                     isDownloading = false
-
                     AlertDialogUtility.withSingleAction(
                         this@HomePageActivity,
                         stringXML(R.string.al_back),
                         "Download Failed",
-                        "Failed to download PDF: $message",
+                        "Failed to download PDF: ${e.message}",
                         "warning.json",
                         R.color.colorRedDark
                     ) { }
                 }
             }
-
-            override fun onDownloadProgress(progress: Int) {
-                runOnUiThread {
-                    loadingDialog.setMessage("Downloading patch notes... $progress%")
-                }
-            }
-        })
+        }.start()
     }
 
+
+    // Updated openPdfViewer method using afreakyelf library
     private fun openPdfViewer() {
-        val pdfFile = pdfManager.getLocalPDFFile(pdfFileName)
+        val pdfFile = getLocalPDFFile(pdfFileName)
         if (pdfFile != null) {
-            val intent = Intent(this, PDFViewerActivity::class.java)
-            intent.putExtra("PDF_PATH", pdfFile.absolutePath)
-            startActivity(intent)
+            // Using afreakyelf PDF Viewer
+            startActivity(
+                PdfViewerActivity.launchPdfFromPath(
+                    context = this,
+                    path = pdfFile.absolutePath,
+                    pdfTitle = "User Manual CMP",
+                    saveTo = saveTo.ASK_EVERYTIME,
+
+                    )
+            )
         } else {
-            Toast.makeText(this, "PDF file not found. Please download again.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "PDF file not found. Please download again.", Toast.LENGTH_SHORT)
+                .show()
             isPdfDownloaded = false
         }
     }
+
+    // Helper method to get local PDF file
+    private fun getLocalPDFFile(fileName: String): File? {
+        val file = File(filesDir, fileName)
+        return if (file.exists() && file.length() > 0) file else null
+    }
+
+    // Helper method to show download error
+    private fun showDownloadError(message: String) {
+        AlertDialogUtility.withSingleAction(
+            this@HomePageActivity,
+            stringXML(R.string.al_back),
+            "Download Failed",
+            message,
+            "warning.json",
+            R.color.colorRedDark
+        ) { }
+    }
+
 
     private fun fetchDataEachCard() {
 
@@ -909,7 +959,8 @@ class HomePageActivity : AppCompatActivity() {
                 if (feature.displayType == DisplayType.ICON) {
                     lifecycleScope.launch {
                         try {
-                            val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
+                            val absensiDeferred =
+                                CompletableDeferred<List<AbsensiKemandoranRelations>>()
 
                             absensiViewModel.loadActiveAbsensi()
                             delay(100)
@@ -976,13 +1027,16 @@ class HomePageActivity : AppCompatActivity() {
                                     "Tidak ditemukan data kehadiran karyawan untuk hari ini.\nSilakan melakukan scan QR Absensi dari Mandor Panen.",
                                     "warning.json",
                                     R.color.colorRedDark
-                                ){
+                                ) {
 
-                                // Do nothing on click
+                                    // Do nothing on click
                                 }
                             } else {
                                 // Present karyawan found, proceed to activity
-                                val intent = Intent(this@HomePageActivity, FeaturePanenTBSActivity::class.java)
+                                val intent = Intent(
+                                    this@HomePageActivity,
+                                    FeaturePanenTBSActivity::class.java
+                                )
                                 intent.putExtra("FEATURE_NAME", feature.featureName)
                                 startActivity(intent)
                             }
@@ -1070,9 +1124,146 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.InspeksiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, FormInspectionActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    AlertDialogUtility.withTwoActions(
+                        this,
+                        "Unduh/Perbarui Data Panen",
+                        getString(R.string.confirmation_dialog_title),
+                        getString(R.string.al_confirm_download_data_panen_case_inspection),
+                        "warning.json",
+                        ContextCompat.getColor(this, R.color.bluedarklight),
+                        cancelText = "Lanjutkan Isi Form Inspeksi",
+                        function = {
+                            isTriggerFeatureInspection = true
+                            loadingDialog.show()
+                            loadingDialog.setMessage("Sedang mempersiapkan data...")
+                            lifecycleScope.launch {
+                                try {
+                                    delay(500)
+
+                                    val isMandor1 = prefManager!!.jabatanUserLogin!!.contains(
+                                        AppUtils.ListFeatureByRoleUser.Mandor1,
+                                        ignoreCase = true
+                                    )
+                                    val isAsisten = prefManager!!.jabatanUserLogin!!.contains(
+                                        AppUtils.ListFeatureByRoleUser.Asisten,
+                                        ignoreCase = true
+                                    )
+
+                                    var previewDataPanenInspeksi = ""
+                                    val estateIdString = prefManager!!.estateIdUserLogin!!.toInt()
+                                    val afdelingIdString = prefManager!!.afdelingIdUserLogin
+
+                                    // Validate afdelingId and get valid integer value
+                                    var validAfdelingId: Int? = null
+
+                                    if (isMandor1 || isAsisten) {
+                                        AppLogger.d("Validation triggered for Mandor Panen or Asisten")
+
+                                        // Check if afdelingId is null or empty
+                                        if (afdelingIdString.isNullOrEmpty()) {
+                                            AppLogger.d("afdelingId is null or empty - blocking user")
+                                            withContext(Dispatchers.Main) {
+                                                previewDataPanenInspeksi =
+                                                    "Error: Afdeling ID tidak boleh kosong untuk ${prefManager!!.jabatanUserLogin}"
+                                            }
+                                        } else {
+                                            // Try to convert afdelingId to integer
+                                            validAfdelingId = try {
+                                                afdelingIdString.toInt()
+                                            } catch (e: NumberFormatException) {
+                                                AppLogger.d("NumberFormatException caught: ${e.message}")
+                                                null
+                                            }
+
+                                            // If conversion failed, set error message
+                                            if (validAfdelingId == null) {
+                                                AppLogger.d("afdelingId is not a valid integer - blocking user")
+                                                withContext(Dispatchers.Main) {
+                                                    previewDataPanenInspeksi =
+                                                        "Error: Afdeling ID harus berupa angka yang valid untuk ${prefManager!!.jabatanUserLogin}. Afdeling ID saat ini: '$afdelingIdString'"
+                                                }
+                                            } else {
+                                                AppLogger.d("Afdeling ID validation passed for ${prefManager!!.jabatanUserLogin}: $validAfdelingId")
+                                            }
+                                        }
+                                    } else {
+                                        AppLogger.d("Validation skipped - user is not Mandor 1 or Asisten")
+                                    }
+
+                                    // Only call API if user is Mandor1/Asisten AND afdelingId is valid
+                                    if ((isMandor1 || isAsisten) && validAfdelingId != null) {
+                                        // Create a deferred result that will be completed when data is received
+                                        val dataPanenInspeksiDeffered =
+                                            CompletableDeferred<String>()
+
+                                        // Set up the observer for restanPreviewData
+                                        val dataPanenObserver = Observer<String> { data ->
+                                            if (!dataPanenInspeksiDeffered.isCompleted) {
+                                                dataPanenInspeksiDeffered.complete(data)
+                                            }
+                                        }
+
+                                        // Register the observer
+                                        datasetViewModel.dataPanenInspeksiPreview.observe(
+                                            this@HomePageActivity,
+                                            dataPanenObserver
+                                        )
+
+                                        // Start the API request with validated afdelingId
+                                        datasetViewModel.getPreviewDataPanenInspeksiWeek(
+                                            estateIdString,
+                                            validAfdelingId.toString()
+                                        )
+
+                                        try {
+                                            // Wait for the API response with a timeout
+                                            previewDataPanenInspeksi = withTimeout(15000) {
+                                                dataPanenInspeksiDeffered.await()
+                                            }
+
+                                            AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
+
+                                            // Remove the observer to prevent memory leaks
+                                            withContext(Dispatchers.Main) {
+                                                datasetViewModel.dataPanenInspeksiPreview.removeObserver(
+                                                    dataPanenObserver
+                                                )
+                                            }
+                                        } catch (e: Exception) {
+                                            // Clean up observer in case of timeout or error
+                                            withContext(Dispatchers.Main) {
+                                                datasetViewModel.dataPanenInspeksiPreview.removeObserver(
+                                                    dataPanenObserver
+                                                )
+                                            }
+                                            AppLogger.e("Error getting restan data: ${e.message}")
+                                            // Don't throw here, we'll continue with empty previewDataPanenInspeksi
+                                        }
+                                    } else {
+                                        AppLogger.d("Skipping restan data fetch - either user is not Mandor1/Asisten or afdelingId is invalid")
+                                    }
+
+                                    loadingDialog.dismiss()
+                                    withContext(Dispatchers.Main) {
+                                        startDownloads(previewDataPanenInspeksi, "Unduh Data Panen")
+                                    }
+                                } catch (e: Exception) {
+                                    // Handle any errors
+                                    AppLogger.d("Loading estates failed: ${e.message}")
+                                    withContext(Dispatchers.Main) {
+                                        loadingDialog.dismiss()
+                                        showErrorDialog("Error loading estates data: ${e.message}")
+                                    }
+                                }
+                            }
+                        },
+                        cancelFunction = {
+                            val intent = Intent(this, FormInspectionActivity::class.java)
+                            intent.putExtra("FEATURE_NAME", feature.featureName)
+                            startActivity(intent)
+                        }
+                    )
+
                 }
             }
 
@@ -1200,7 +1391,8 @@ class HomePageActivity : AppCompatActivity() {
                                     if (afdelingIdString.isNullOrEmpty()) {
                                         AppLogger.d("afdelingId is null or empty - blocking user")
                                         withContext(Dispatchers.Main) {
-                                            previewRestanData = "Error: Afdeling ID tidak boleh kosong untuk ${prefManager!!.jabatanUserLogin}"
+                                            previewRestanData =
+                                                "Error: Afdeling ID tidak boleh kosong untuk ${prefManager!!.jabatanUserLogin}"
                                         }
                                     } else {
                                         // Try to convert afdelingId to integer
@@ -1215,7 +1407,8 @@ class HomePageActivity : AppCompatActivity() {
                                         if (validAfdelingId == null) {
                                             AppLogger.d("afdelingId is not a valid integer - blocking user")
                                             withContext(Dispatchers.Main) {
-                                                previewRestanData = "Error: Afdeling ID harus berupa angka yang valid untuk ${prefManager!!.jabatanUserLogin}. Afdeling ID saat ini: '$afdelingIdString'"
+                                                previewRestanData =
+                                                    "Error: Afdeling ID harus berupa angka yang valid untuk ${prefManager!!.jabatanUserLogin}. Afdeling ID saat ini: '$afdelingIdString'"
                                             }
                                         } else {
                                             AppLogger.d("Afdeling ID validation passed for ${prefManager!!.jabatanUserLogin}: $validAfdelingId")
@@ -1322,8 +1515,9 @@ class HomePageActivity : AppCompatActivity() {
                             ignoreCase = true
                         )
 
-                        if(isMandorPanen){
-                            val indonesianDateFormat = SimpleDateFormat("d MMMM yyyy", Locale("id", "ID"))
+                        if (isMandorPanen) {
+                            val indonesianDateFormat =
+                                SimpleDateFormat("d MMMM yyyy", Locale("id", "ID"))
 
                             lifecycleScope.launch {
                                 hektarPanenViewModel.getAllHektarPanen()
@@ -1338,11 +1532,15 @@ class HomePageActivity : AppCompatActivity() {
                                 Log.d("HektarPanen", "all data count: ${hektarPanenData.size}")
 
                                 // Get data with luas_panen = 0 and get distinct dates only
-                                val zeroLuasPanenData = hektarPanenData.filter { it.luas_panen == 0f }
+                                val zeroLuasPanenData =
+                                    hektarPanenData.filter { it.luas_panen == 0f }
 
                                 if (zeroLuasPanenData.isNotEmpty()) {
                                     // Found data with luas_panen = 0, don't run upload flow
-                                    Log.d("HektarPanen", "Cannot upload: Some data has luas_panen = 0")
+                                    Log.d(
+                                        "HektarPanen",
+                                        "Cannot upload: Some data has luas_panen = 0"
+                                    )
 
                                     // Extract distinct dates from date_created_panen and format to Indonesian
                                     val distinctDates = zeroLuasPanenData
@@ -1350,10 +1548,14 @@ class HomePageActivity : AppCompatActivity() {
                                             // Split by semicolon and extract date part from each datetime
                                             entity.date_created_panen.split(";")
                                                 .map { datetime ->
-                                                    val dateString = datetime.trim().split(" ")[0] // Get "2025-05-13"
+                                                    val dateString = datetime.trim()
+                                                        .split(" ")[0] // Get "2025-05-13"
                                                     try {
                                                         // Parse the date and format to Indonesian
-                                                        val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(dateString)
+                                                        val date = SimpleDateFormat(
+                                                            "yyyy-MM-dd",
+                                                            Locale.getDefault()
+                                                        ).parse(dateString)
                                                         indonesianDateFormat.format(date!!)
                                                     } catch (e: Exception) {
                                                         dateString // Fallback to original if parsing fails
@@ -1364,7 +1566,8 @@ class HomePageActivity : AppCompatActivity() {
                                         .joinToString(", ")
 
                                     // Create message with distinct dates only
-                                    val detailMessage = "Terdapat data dengan luas panen 0 pada tanggal:\n\n$distinctDates\n\nMohon lengkapi luasan Hektar Panen terlebih dahulu."
+                                    val detailMessage =
+                                        "Terdapat data dengan luas panen 0 pada tanggal:\n\n$distinctDates\n\nMohon lengkapi luasan Hektar Panen terlebih dahulu."
 
                                     AlertDialogUtility.withSingleAction(
                                         this@HomePageActivity,
@@ -1382,7 +1585,7 @@ class HomePageActivity : AppCompatActivity() {
                                     runUploadDataFlow()
                                 }
                             }
-                        }else{
+                        } else {
                             runUploadDataFlow()
                         }
 
@@ -1406,7 +1609,7 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
-    private fun runUploadDataFlow(){
+    private fun runUploadDataFlow() {
         lifecycleScope.launch {
             loadingDialog.show()
             loadingDialog.setMessage("Sedang mengupdate data...")
@@ -2138,13 +2341,23 @@ class HomePageActivity : AppCompatActivity() {
                                     val blokData = mutableMapOf<String, Any>(
 
                                         "tanggal" to run {
-                                            val firstDateCreatedPanen = dataList.firstOrNull()?.date_created_panen?.split(";")?.firstOrNull() ?: ""
+                                            val firstDateCreatedPanen =
+                                                dataList.firstOrNull()?.date_created_panen?.split(";")
+                                                    ?.firstOrNull() ?: ""
                                             if (firstDateCreatedPanen.isNotEmpty()) {
                                                 try {
-                                                    val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                                                    val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                                                    val date = inputFormat.parse(firstDateCreatedPanen)
-                                                    date?.let { outputFormat.format(it) } ?: firstDateCreatedPanen
+                                                    val inputFormat = SimpleDateFormat(
+                                                        "yyyy-MM-dd HH:mm:ss",
+                                                        Locale.getDefault()
+                                                    )
+                                                    val outputFormat = SimpleDateFormat(
+                                                        "yyyy-MM-dd",
+                                                        Locale.getDefault()
+                                                    )
+                                                    val date =
+                                                        inputFormat.parse(firstDateCreatedPanen)
+                                                    date?.let { outputFormat.format(it) }
+                                                        ?: firstDateCreatedPanen
                                                 } catch (e: Exception) {
                                                     firstDateCreatedPanen
                                                 }
@@ -2181,7 +2394,8 @@ class HomePageActivity : AppCompatActivity() {
                                             ?: ""),
                                         "created_date" to (firstItem.date_created
                                             ?: ""),
-                                        "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
+                                        "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
+                                            .toString(),
                                     )
 
                                     // Process detail records for this blok
@@ -2200,17 +2414,22 @@ class HomePageActivity : AppCompatActivity() {
                                         val ripeList = data.ripe_arr.split(";")
                                         val kirimList = data.kirim_pabrik_arr.split(";")
                                         val dibayarList = data.dibayar_arr.split(";")
-                                        val dateCreatedPanenList = data.date_created_panen.split(";")
+                                        val dateCreatedPanenList =
+                                            data.date_created_panen.split(";")
                                         AppLogger.d(totalJjgList.toString())
 
                                         // Get kemandoran data (keeping your existing code)
-                                        val kemandoranDeferred = CompletableDeferred<List<KemandoranModel>>()
+                                        val kemandoranDeferred =
+                                            CompletableDeferred<List<KemandoranModel>>()
                                         val kemandoranIds = listOf(data.kemandoran_id ?: "")
 
                                         if (kemandoranIds.first().isNotEmpty()) {
                                             lifecycleScope.launch(Dispatchers.IO) {
                                                 try {
-                                                    val kemandoranList = absensiViewModel.getKemandoranById(kemandoranIds)
+                                                    val kemandoranList =
+                                                        absensiViewModel.getKemandoranById(
+                                                            kemandoranIds
+                                                        )
                                                     kemandoranDeferred.complete(kemandoranList)
                                                 } catch (e: Exception) {
                                                     AppLogger.e("Error fetching kemandoran data: ${e.message}")
@@ -2257,17 +2476,26 @@ class HomePageActivity : AppCompatActivity() {
                                         for (i in 0 until entryCount) {
                                             if (i < tphIdsList.size && tphIdsList[i].isNotEmpty()) {
                                                 // Sum all JJG values
-                                                totalJjgPanen += (if (i < totalJjgList.size) totalJjgList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                totalJjgMentah += (if (i < unripeList.size) unripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                totalJjgLewatMasak += (if (i < overripeList.size) overripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                totalJjgKosong += (if (i < emptyBunchList.size) emptyBunchList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                totalJjgAbnormal += (if (i < abnormalList.size) abnormalList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                totalJjgMasak += (if (i < ripeList.size) ripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                totalJjgKirim += (if (i < kirimList.size) kirimList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                                totalJjgBayar += (if (i < dibayarList.size) dibayarList[i].toDoubleOrNull() ?: 0.0 else 0.0)
+                                                totalJjgPanen += (if (i < totalJjgList.size) totalJjgList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgMentah += (if (i < unripeList.size) unripeList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgLewatMasak += (if (i < overripeList.size) overripeList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgKosong += (if (i < emptyBunchList.size) emptyBunchList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgAbnormal += (if (i < abnormalList.size) abnormalList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgMasak += (if (i < ripeList.size) ripeList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgKirim += (if (i < kirimList.size) kirimList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgBayar += (if (i < dibayarList.size) dibayarList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
                                                 tphArray.add(tphIdsList[i])
                                                 // Collect date_created values
-                                                val dateCreated = if (i < dateCreatedPanenList.size) dateCreatedPanenList[i] else data.date_created
+                                                val dateCreated =
+                                                    if (i < dateCreatedPanenList.size) dateCreatedPanenList[i] else data.date_created
                                                 if (dateCreated != null && dateCreated.isNotEmpty()) {
                                                     dateCreatedArray.add(dateCreated)
                                                 }
@@ -4351,12 +4579,13 @@ class HomePageActivity : AppCompatActivity() {
 
     private fun startDownloadsV2(
         datasetRequests: List<DatasetRequest>,
-        previewDataRestan: String? = null
+        previewData: String? = null,
+        titleDialog:String? = "Sinkronisasi Restan & Dataset"
     ) {
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
         val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-        titleTV.text = "Sinkronisasi Restan & Dataset"
+        titleTV.text = titleDialog
 
 
         val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
@@ -4384,7 +4613,7 @@ class HomePageActivity : AppCompatActivity() {
         // Create upload items from dataset requests (we'll reuse the existing adapter)
         val downloadItems = mutableListOf<UploadCMPItem>()
 
-        AppLogger.d("previewDataRestan $previewDataRestan")
+        AppLogger.d("previewData $previewData")
         var itemId = 0
         datasetRequests.forEach { request ->
             val itemTitle = if (!request.estateAbbr.isNullOrEmpty()) {
@@ -4393,8 +4622,8 @@ class HomePageActivity : AppCompatActivity() {
                 "${request.dataset}"
             }
             val itemData =
-                if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan && !previewDataRestan.isNullOrEmpty()) {
-                    previewDataRestan
+                if ((request.dataset == AppUtils.DatasetNames.sinkronisasiRestan || request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) && !previewData.isNullOrEmpty()) {
+                    previewData
                 } else {
                     ""
                 }
@@ -4556,6 +4785,8 @@ class HomePageActivity : AppCompatActivity() {
             datasetViewModel.itemErrorMap.removeObservers(this)
 
             datasetViewModel.resetState()
+
+            isTriggerFeatureInspection = false
             dialog.dismiss()
         }
 
@@ -4699,7 +4930,7 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private fun startDownloads(previewDataRestan: String? = null) {
+    private fun startDownloads(previewData: String? = null, titleDialog : String?= null) {
         val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
         val afdelingIdString = prefManager!!.afdelingIdUserLogin
@@ -4767,9 +4998,8 @@ class HomePageActivity : AppCompatActivity() {
             }
 
             if (filteredRequests.isNotEmpty()) {
-                if (isTriggerButtonSinkronisasiData) {
-
-                    startDownloadsV2(filteredRequests, previewDataRestan)
+                if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection) {
+                    startDownloadsV2(filteredRequests, previewData, titleDialog)
                 } else {
                     dialog.show()
                     datasetViewModel.downloadMultipleDatasets(filteredRequests)
@@ -4847,6 +5077,20 @@ class HomePageActivity : AppCompatActivity() {
             } else {
                 AppLogger.d("No estate timestamps found to process")
             }
+        }
+
+
+        if (isTriggerFeatureInspection && (isMandor1 || isAsisten)) {
+            AppLogger.d("kalsjdflkajslf")
+            AppLogger.d(isTriggerFeatureInspection.toString())
+            datasets.add(
+                DatasetRequest(
+                    afdeling = afdelingId,
+                    estate = estateId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
+                )
+            )
         }
 
         // Add sinkronisasiRestan dataset for Mandor1 and Asisten when sync button triggered
