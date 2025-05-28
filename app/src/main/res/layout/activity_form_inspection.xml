@@ -223,7 +223,7 @@
                         android:fontFamily="@font/manrope_medium"
                         android:gravity="left"
                         android:textColor="@color/black"
-                        android:textSize="18sp"
+                        android:textSize="@dimen/m"
                         android:visibility="gone"
                         app:layout_constraintTop_toBottomOf="@+id/titleAfterScanQR"
                         tools:ignore="MissingConstraints" />
@@ -269,6 +269,10 @@
             </androidx.core.widget.NestedScrollView>
 
             <include
+                android:id="@+id/lyPemanen1Inspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
                 android:id="@+id/lyJalurInspect"
                 layout="@layout/pertanyaan_spinner_layout" />
 
@@ -280,13 +284,11 @@
                 android:id="@+id/lyBuahTglInspect"
                 layout="@layout/pane_number_layout" />
 
-            <include
-                android:id="@+id/lyMandor1Inspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyMandor1Inspect"-->
+<!--                layout="@layout/pertanyaan_spinner_layout" />-->
 
-            <include
-                android:id="@+id/lyPemanen1Inspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+
 
             <LinearLayout
                 android:id="@+id/layoutSelAsistensi"
