@@ -630,6 +630,14 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return repository.getLatLonDivisi(idEstate, idDivisi)
     }
 
+    suspend fun getLatLonDivisiByTPHIds(
+        idEstate: Int,
+        idDivisi: Int,
+        tphIds: List<Int>
+    ): List<TPHNewModel> {
+        return repository.getLatLonDivisiByTPHIds(idEstate, idDivisi, tphIds)
+    }
+
     private val _isCompleted = MutableLiveData<Boolean>(false)
     val isCompleted: LiveData<Boolean> = _isCompleted
 
@@ -2057,7 +2065,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 archive = 0,
                                 status_banjir = 0,
                                 status_espb = 0,
-                                status_restan = 0, // Changed to 0 since this is regular panen data
+                                status_restan = 0,
                                 scan_status = 0,
                                 dataIsZipped = 0,
                                 no_espb = "",

@@ -1130,8 +1130,8 @@ class HomePageActivity : AppCompatActivity() {
                         getString(R.string.confirmation_dialog_title),
                         getString(R.string.al_confirm_download_data_panen_case_inspection),
                         "warning.json",
-                        ContextCompat.getColor(this, R.color.bluedarklight),
-                        cancelText = "Lanjutkan Isi Form Inspeksi",
+                        ContextCompat.getColor(this, R.color.greenDarker),
+                        cancelText = "Lanjutkan Form Inspeksi",
                         function = {
                             isTriggerFeatureInspection = true
                             loadingDialog.show()
@@ -2246,25 +2246,25 @@ class HomePageActivity : AppCompatActivity() {
                                 val espbJson = Gson().toJson(wrappedData)
 //                                                AppLogger.d("espbJson $espbJson")
 //
-//                                                try {
-//                                                    val tempDir =
-//                                                        File(getExternalFilesDir(null), "TEMP").apply {
-//                                                            if (!exists()) mkdirs()
-//                                                        }
-//
-//                                                    val filename =
-//                                                        "espb_data_${System.currentTimeMillis()}.json"
-//                                                    val tempFile = File(tempDir, filename)
-//
-//                                                    FileOutputStream(tempFile).use { fos ->
-//                                                        fos.write(espbJson.toByteArray())
-//                                                    }
-//
-//                                                    AppLogger.d("Saved raw espb data to temp file: ${tempFile.absolutePath}")
-//                                                } catch (e: Exception) {
-//                                                    AppLogger.e("Failed to save espb data to temp file: ${e.message}")
-//                                                    e.printStackTrace()
-//                                                }
+                                                try {
+                                                    val tempDir =
+                                                        File(getExternalFilesDir(null), "TEMP").apply {
+                                                            if (!exists()) mkdirs()
+                                                        }
+
+                                                    val filename =
+                                                        "espb_data_${System.currentTimeMillis()}.json"
+                                                    val tempFile = File(tempDir, filename)
+
+                                                    FileOutputStream(tempFile).use { fos ->
+                                                        fos.write(espbJson.toByteArray())
+                                                    }
+
+                                                    AppLogger.d("Saved raw espb data to temp file: ${tempFile.absolutePath}")
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Failed to save espb data to temp file: ${e.message}")
+                                                    e.printStackTrace()
+                                                }
                                 AppLogger.d(espbJson.toString())
                                 // Extract all IDs
                                 val espbIds = ArrayList<Int>()

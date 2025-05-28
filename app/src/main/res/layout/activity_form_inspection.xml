@@ -71,25 +71,202 @@
                 android:id="@+id/lyAfdInspect"
                 layout="@layout/pertanyaan_spinner_layout" />
 
-            <include
-                android:id="@+id/lyTtInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/alertCardScanRadius"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
 
-            <include
-                android:id="@+id/lyBlokInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="@color/bgLightYellow"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:strokeColor="@color/borderYellow"
+                app:strokeWidth="2dp">
 
-            <include
-                android:id="@+id/lyAncakInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
 
-            <include
-                android:id="@+id/lyNoTphInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+                    <ImageView
+                        android:id="@+id/errorIcon"
+                        android:layout_width="30dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginEnd="8dp"
+                        android:src="@drawable/circle_exclamation_solid"
+                        android:tint="@color/anotherYellow"
+                        tools:ignore="UseAppTint" />
 
-            <include
-                android:id="@+id/lyStatusPanenInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+                    <TextView
+                        android:id="@+id/alertTvScannedRadius"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_bold"
+                        android:textColor="@color/grayDefault"
+                        android:textSize="17sp" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:orientation="horizontal"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnScanTPHRadius"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:backgroundTint="@color/bluedarklight"
+                    android:fontFamily="@font/manrope_bold"
+                    android:text="Refresh TPH"
+                    android:textColor="@color/white"
+                    android:textAllCaps="false"
+                    android:textSize="@dimen/m"
+                    android:visibility="gone"
+                    app:cornerRadius="8dp"
+                    app:icon="@drawable/baseline_refresh_24"
+                    app:iconGravity="textEnd"
+                    app:iconTint="@color/white"
+                    app:iconPadding="8dp" />
+
+                <ProgressBar
+                    android:id="@+id/progressBarScanTPHManual"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginLeft="10dp"
+                    android:layout_gravity="center"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutAutoScan"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:fontFamily="@font/manrope_semibold"
+                    android:gravity="center|left"
+                    android:text="Auto-Refresh (setiap 5 detik)"
+                    android:textColor="@color/black"
+                    android:textSize="@dimen/m" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchAutoScan"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    app:thumbTint="@color/switch_thumb_selector"
+                    app:trackTint="@color/switch_track_selector" />
+
+            </LinearLayout>
+
+            <androidx.core.widget.NestedScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fillViewport="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:orientation="vertical"
+                    >
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="10dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_height="wrap_content">
+                        <TextView
+                            android:id="@+id/titleScannedTPHInsideRadius"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/manrope_extrabold"
+                            android:gravity="left"
+                            android:text="Daftar Lokasi TPH"
+                            android:textSize="20sp"
+                            android:textColor="@color/black"
+                            android:visibility="gone"
+                            app:layout_constraintTop_toBottomOf="@+id/dashedLine"
+                            tools:ignore="MissingConstraints" />
+                        <ProgressBar
+                            android:id="@+id/progressBarScanTPHAuto"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginLeft="10dp"
+                            android:layout_gravity="center"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+
+                    <TextView
+                        android:id="@+id/descScannedTPHInsideRadius"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:gravity="left"
+                        android:textColor="@color/black"
+                        android:textSize="18sp"
+                        android:visibility="gone"
+                        app:layout_constraintTop_toBottomOf="@+id/titleAfterScanQR"
+                        tools:ignore="MissingConstraints" />
+
+                    <TextView
+                        android:id="@+id/emptyScanTPHInsideRadius"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="10dp"
+                        android:text="@string/no_detect_tph"
+                        android:textSize="18sp"
+                        android:fontFamily="@font/manrope_bold"
+                        android:layout_marginLeft="5dp"
+                        android:textColor="@color/black"
+                        android:textStyle="italic"
+                        android:visibility="gone"
+                        />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/tphScannedResultRecyclerView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone"
+                        android:layout_marginVertical="10dp"
+                        android:nestedScrollingEnabled="true"
+                        android:overScrollMode="always"
+                        android:clipToPadding="false"
+                        android:padding="0dp" />
+
+                    <TextView
+                        android:id="@+id/tvErrorScannedNotSelected"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="5dp"
+                        android:text="Nomor TPH harus dipilih!"
+                        android:textColor="@color/colorRedDark"
+                        android:fontFamily="@font/manrope_bold"
+                        android:textSize="17sp"
+                        android:visibility="gone"
+                        tools:ignore="HardcodedText,RtlSymmetry" />
+
+                </LinearLayout>
+            </androidx.core.widget.NestedScrollView>
 
             <include
                 android:id="@+id/lyJalurInspect"

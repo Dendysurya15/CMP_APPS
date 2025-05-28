@@ -130,6 +130,18 @@ class DatasetRepository(
         return tphDao.getLatLonByDivisi(idEstate, idDivisi)
     }
 
+    suspend fun getLatLonDivisiByTPHIds(
+        idEstate: Int,
+        idDivisi: Int,
+        tphIds: List<Int>
+    ): List<TPHNewModel> {
+        return if (tphIds.isEmpty()) {
+            emptyList()
+        } else {
+            tphDao.getLatLonByDivisiAndTPHIds(idEstate, idDivisi, tphIds)
+        }
+    }
+
     suspend fun getKemandoranList(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
         return kemandoranDao.getKemandoranByCriteria(idEstate, idDivisiArray)
     }

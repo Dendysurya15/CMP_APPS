@@ -484,6 +484,26 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                 // Convert the wrapped data to JSON
                                 val espbJson = Gson().toJson(wrappedEspbData)
 
+                                try {
+                                    val tempDir =
+                                        File(getExternalFilesDir(null), "TEMP").apply {
+                                            if (!exists()) mkdirs()
+                                        }
+
+                                    val filename =
+                                        "espb_data_${System.currentTimeMillis()}.json"
+                                    val tempFile = File(tempDir, filename)
+
+                                    FileOutputStream(tempFile).use { fos ->
+                                        fos.write(espbJson.toByteArray())
+                                    }
+
+                                    AppLogger.d("Saved raw espb data to temp file: ${tempFile.absolutePath}")
+                                } catch (e: Exception) {
+                                    AppLogger.e("Failed to save espb data to temp file: ${e.message}")
+                                    e.printStackTrace()
+                                }
+
                                 val uploadDataList =
                                     mutableListOf<Pair<String, List<Map<String, Any>>>>()
                                 val espbDataAsAny = espbData as Map<String, Any>

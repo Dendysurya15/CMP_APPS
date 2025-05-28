@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionPathModel
+import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -22,6 +23,12 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _inspectionPaths = MutableLiveData<List<PathWithInspectionTphRelations>>()
     val inspectionPaths: LiveData<List<PathWithInspectionTphRelations>> = _inspectionPaths
+
+    private val _InsepctionList = MutableLiveData<List<InspectionModel>>()
+    val inspectionList: LiveData<List<InspectionModel>> get() = _InsepctionList
+
+    private val _error = MutableLiveData<String>()
+    val error: LiveData<String> = _error
 
     fun loadInspectionPaths(archive: Int = 0) {
         viewModelScope.launch {
@@ -59,6 +66,20 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
             }
         }
     }
+
+
+    fun getTPHHasBeenInspect() {
+        viewModelScope.launch {
+            repository.getTPHHasBeenInspect()
+                .onSuccess { inspecationList ->
+                    _InsepctionList.value = inspecationList // ✅ Immediate emission like StateFlow
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
 
     suspend fun deleteInspectionDatas(ids: List<String>): Result<Boolean> {
         return withContext(Dispatchers.IO) {

@@ -342,7 +342,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
         radiusMinimum = prefManager!!.radiusMinimum
-//        radiusMinimum = 100F
         boundaryAccuracy = prefManager!!.boundaryAccuracy
 
         initViewModel()

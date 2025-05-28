@@ -134,6 +134,10 @@ abstract class PanenDao {
     abstract fun getAllTPHHasBeenSelected(): List<PanenEntityWithRelations>
 
     @Transaction
+    @Query("SELECT * FROM panen_table WHERE scan_status = 0 and status_restan = 0")
+    abstract fun getAllPanenForInspection(): List<PanenEntityWithRelations>
+
+    @Transaction
     @Query("SELECT * FROM panen_table WHERE status_espb = :status")
     abstract fun getAllAPanenRestan(status: Int = 0): List<PanenEntityWithRelations>
 

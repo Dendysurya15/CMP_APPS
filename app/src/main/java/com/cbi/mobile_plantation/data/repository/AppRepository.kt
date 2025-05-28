@@ -970,6 +970,25 @@ class AppRepository(context: Context) {
             }
         }
 
+    suspend fun getTPHHasBeenInspect(): Result<List<InspectionModel>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = inspectionDao.getTPHHasBeenInspect()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getAllPanenForInspection(): Result<List<PanenEntityWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = panenDao.getAllPanenForInspection()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 
     suspend fun getActivePanenRestan(status: Int = 0): Result<List<PanenEntityWithRelations>> =
         withContext(Dispatchers.IO) {

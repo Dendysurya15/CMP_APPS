@@ -11,5 +11,6 @@ data class ScannedTPHSelectionItem(
     val canBeSelectedAgain: Boolean,
     val isWithinRange: Boolean,
     val jenisTPHId: String,
-    val customLimit: String? = null  // Add this property
+    val customLimit: String? = null,  // Add this property
+    val newFeature: String = ""
 )
