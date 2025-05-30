@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 
 class FormAncakViewModel : ViewModel() {
@@ -116,6 +117,36 @@ class FormAncakViewModel : ViewModel() {
             _fieldValidationError.value = errorMap
 
             return ValidationResult(false, R.id.lyExistsTreeInspect, errorMessage)
+        }
+
+        if (data?.priority == 0) {
+            val errorMessage = "Prioritas wajib diisi!"
+            _fieldValidationError.value = mapOf(R.id.lyPrioritasInspect to errorMessage)
+            return ValidationResult(false, R.id.lyPrioritasInspect, errorMessage)
+        }
+
+        if (data?.harvestTree == 0) {
+            val errorMessage = "Pokok dipanen wajib diisi!"
+            _fieldValidationError.value = mapOf(R.id.lyHarvestTreeInspect to errorMessage)
+            return ValidationResult(false, R.id.lyHarvestTreeInspect, errorMessage)
+        }
+
+        if (data?.neatPelepah == 0) {
+            val errorMessage = "Susunan pelepah wajib diisi!"
+            _fieldValidationError.value = mapOf(R.id.lyNeatPelepahInspect to errorMessage)
+            return ValidationResult(false, R.id.lyNeatPelepahInspect, errorMessage)
+        }
+
+        if (data?.pelepahSengkleh == 0) {
+            val errorMessage = "Pelepah sengkleh wajib diisi!"
+            _fieldValidationError.value = mapOf(R.id.lyPelepahSengklehInspect to errorMessage)
+            return ValidationResult(false, R.id.lyPelepahSengklehInspect, errorMessage)
+        }
+
+        if (data?.pruning == 0) {
+            val errorMessage = "Kondisi pruning wajib diisi!"
+            _fieldValidationError.value = mapOf(R.id.lyPruningInspect to errorMessage)
+            return ValidationResult(false, R.id.lyPruningInspect, errorMessage)
         }
 
         if (inspectionType != null && inspectionType == 2 && data?.emptyTree == 1 && data.jjgAkp <= 0) {
