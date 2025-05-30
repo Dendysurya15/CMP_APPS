@@ -200,7 +200,7 @@
                             android:layout_height="wrap_content"
                             android:fontFamily="@font/manrope_extrabold"
                             android:gravity="left"
-                            android:text="Daftar Lokasi TPH"
+                            android:text="Daftar Lokasi TPH Terdekat"
                             android:textSize="20sp"
                             android:textColor="@color/black"
                             android:visibility="gone"
@@ -268,9 +268,52 @@
                 </LinearLayout>
             </androidx.core.widget.NestedScrollView>
 
-            <include
-                android:id="@+id/lyPemanen1Inspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyPemanen1Inspect"-->
+<!--                layout="@layout/pertanyaan_spinner_layout" />-->
+
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="10dp"
+                android:layout_gravity="center_vertical"
+                android:layout_height="wrap_content">
+                <TextView
+                    android:id="@+id/titlePemanenInspeksi"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/manrope_extrabold"
+                    android:gravity="left"
+                    android:text="Daftar Pemanen"
+                    android:textSize="20sp"
+                    android:textColor="@color/black"
+                    android:visibility="gone"
+                    app:layout_constraintTop_toBottomOf="@+id/dashedLine"
+                    tools:ignore="MissingConstraints" />
+
+            </LinearLayout>
+
+
+            <TextView
+                android:id="@+id/descPemanenInspeksi"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/manrope_medium"
+                android:gravity="left"
+                android:textColor="@color/black"
+                android:textSize="@dimen/m"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@+id/titleAfterScanQR"
+                tools:ignore="MissingConstraints" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvSelectedPemanenInspection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/top_margin"
+                android:overScrollMode="never"
+                android:visibility="gone"/>
 
             <include
                 android:id="@+id/lyJalurInspect"
@@ -290,31 +333,31 @@
 
 
 
-            <LinearLayout
-                android:id="@+id/layoutSelAsistensi"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:orientation="horizontal">
+<!--            <LinearLayout-->
+<!--                android:id="@+id/layoutSelAsistensi"-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:layout_marginTop="10dp"-->
+<!--                android:orientation="horizontal">-->
 
-                <TextView
-                    android:layout_width="130dp"
-                    android:layout_height="match_parent"
-                    android:fontFamily="@font/manrope_semibold"
-                    android:gravity="center|left"
-                    android:text="Pemanen Dari Kemandoran Lain"
-                    android:textColor="@color/black"
-                    android:textSize="18dp"
-                    tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+<!--                <TextView-->
+<!--                    android:layout_width="130dp"-->
+<!--                    android:layout_height="match_parent"-->
+<!--                    android:fontFamily="@font/manrope_semibold"-->
+<!--                    android:gravity="center|left"-->
+<!--                    android:text="Pemanen Dari Kemandoran Lain"-->
+<!--                    android:textColor="@color/black"-->
+<!--                    android:textSize="18dp"-->
+<!--                    tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />-->
 
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/smAnotherKemandoran"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:thumbTint="@color/switch_thumb_selector"
-                    app:trackTint="@color/switch_track_selector" />
+<!--                <com.google.android.material.switchmaterial.SwitchMaterial-->
+<!--                    android:id="@+id/smAnotherKemandoran"-->
+<!--                    android:layout_width="match_parent"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    app:thumbTint="@color/switch_thumb_selector"-->
+<!--                    app:trackTint="@color/switch_track_selector" />-->
 
-            </LinearLayout>
+<!--            </LinearLayout>-->
 
             <include
                 android:id="@+id/lyMandor2Inspect"

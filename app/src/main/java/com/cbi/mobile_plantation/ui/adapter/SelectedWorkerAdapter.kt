@@ -17,6 +17,12 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
     private val selectedWorkers = mutableListOf<Worker>()
     private val allWorkers = mutableListOf<Worker>()  // Keep track of all workers
     private var isEnabled = true  // Track if the adapter is enabled or disabled
+    private var displayMode = DisplayMode.EDITABLE  // Default is EDITABLE - no changes needed in other activities
+
+    enum class DisplayMode {
+        EDITABLE,    // Show remove buttons (DEFAULT)
+        DISPLAY_ONLY // Hide remove buttons
+    }
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val workerName: TextView = view.findViewById(R.id.worker_name)
@@ -34,13 +40,33 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
         val worker = selectedWorkers[position]
         holder.workerName.text = worker.name.uppercase() // Display name
 
-        // Apply disabled state to the remove button if needed
-        holder.removeButton.isEnabled = isEnabled
-        holder.removeButton.alpha = if (isEnabled) 1.0f else 0.5f
+        // Handle display mode
+        when (displayMode) {
+            DisplayMode.DISPLAY_ONLY -> {
+                // Hide remove button completely
+                holder.removeButton.visibility = View.GONE
+                // Adjust text view margins to fill the space
+                val layoutParams = holder.workerName.layoutParams as ViewGroup.MarginLayoutParams
+                layoutParams.marginEnd = 0
+                holder.workerName.layoutParams = layoutParams
+            }
+            DisplayMode.EDITABLE -> {
+                // Show remove button (DEFAULT BEHAVIOR)
+                holder.removeButton.visibility = View.VISIBLE
+                // Restore original margins
+                val layoutParams = holder.workerName.layoutParams as ViewGroup.MarginLayoutParams
+                layoutParams.marginEnd = holder.context.resources.getDimensionPixelSize(R.dimen.m) // or your original margin
+                holder.workerName.layoutParams = layoutParams
 
-        holder.removeButton.setOnClickListener {
-            if (isEnabled) {  // Only allow removal if enabled
-                removeWorker(position, holder.context)
+                // Apply disabled state to the remove button if needed
+                holder.removeButton.isEnabled = isEnabled
+                holder.removeButton.alpha = if (isEnabled) 1.0f else 0.5f
+
+                holder.removeButton.setOnClickListener {
+                    if (isEnabled) {  // Only allow removal if enabled
+                        removeWorker(position, holder.context)
+                    }
+                }
             }
         }
     }
@@ -86,6 +112,26 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
             this.isEnabled = enabled
             notifyDataSetChanged() // Refresh all items to update their visual state
         }
+    }
+
+    /**
+     * Set display mode for the adapter
+     * EDITABLE: Shows remove buttons (DEFAULT - no changes needed in existing activities)
+     * DISPLAY_ONLY: Hides remove buttons, shows names only
+     */
+    fun setDisplayMode(mode: DisplayMode) {
+        if (this.displayMode != mode) {
+            this.displayMode = mode
+            notifyDataSetChanged() // Refresh all items to update their visual state
+        }
+    }
+
+    /**
+     * Convenience function to set display-only mode
+     * Only call this in activities where you want to hide remove buttons
+     */
+    fun setDisplayOnly(displayOnly: Boolean) {
+        setDisplayMode(if (displayOnly) DisplayMode.DISPLAY_ONLY else DisplayMode.EDITABLE)
     }
 }
 
