@@ -10,14 +10,14 @@ class FormAncakViewModel : ViewModel() {
     data class PageData(
         val emptyTree: Int = 0,
         val jjgAkp: Int = 0,
-        val priority: Int = 2,
+        val priority: Int = 0,
         val harvestTree: Int = 0,
-        val ratAttack: Int = 2,
-        val ganoderma: Int = 2,
-        val neatPelepah: Int = 1,
-        val pelepahSengkleh: Int = 2,
-        val pruning: Int = 1,
-        val kentosan: Int = 2,
+        val ratAttack: Int = 0,
+        val ganoderma: Int = 0,
+        val neatPelepah: Int = 0,
+        val pelepahSengkleh: Int = 0,
+        val pruning: Int = 0,
+        val kentosan: Int = 0,
         val ripe: Int = 0,
         val buahM1: Int = 0,
         val buahM2: Int = 0,
@@ -109,7 +109,7 @@ class FormAncakViewModel : ViewModel() {
         val data = _formData.value?.get(pageNumber)
 
         if (data?.emptyTree == 0) {
-            val nameMessage = if (inspectionType != null && inspectionType == 1) "Titik kosong" else "Pokok dipanen"
+            val nameMessage = if (inspectionType != null && inspectionType == 1) "Temuan" else "Pokok dipanen"
             val errorMessage = "$nameMessage wajib diisi!"
 
             val errorMap = mapOf(R.id.lyExistsTreeInspect to errorMessage)

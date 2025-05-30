@@ -33,6 +33,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.Normalizer.Form
 
 class MainActivity : AppCompatActivity() {
     private var showingSplash = true
@@ -129,7 +130,7 @@ class MainActivity : AppCompatActivity() {
         if (!showingSplash) return
         showingSplash = false
 
-        startActivity(Intent(this, HomePageActivity::class.java))
+        startActivity(Intent(this, FormInspectionActivity::class.java))
         finish()
     }
 

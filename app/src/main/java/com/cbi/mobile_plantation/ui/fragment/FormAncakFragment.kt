@@ -23,6 +23,7 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
 import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel
 import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel.PageData
+import com.cbi.mobile_plantation.utils.AppLogger
 import com.google.android.flexbox.FlexboxLayout
 import com.google.android.material.card.MaterialCardView
 
@@ -39,13 +40,18 @@ class FormAncakFragment : Fragment() {
     private val errorViewsMap = mutableMapOf<Int, TextView>()
 
     private val listRadioItems: Map<String, Map<String, String>> = mapOf(
+        "YesOrNoOrTitikKosong" to mapOf(
+            "1" to "Ya",
+            "2" to "Tidak",
+            "3" to "Titik Kosong"
+        ),
         "YesOrNo" to mapOf(
             "1" to "Ya",
             "2" to "Tidak"
         ),
         "HighOrLow" to mapOf(
-            "1" to "High",
-            "2" to "Low"
+            "1" to "Tinggi",
+            "2" to "Rendah"
         ),
         "ExistsOrNot" to mapOf(
             "1" to "Ada",
@@ -121,8 +127,9 @@ class FormAncakFragment : Fragment() {
 
         val itemListMapping = mapOf(
             R.id.lyPrioritasInspect to "HighOrLow",
-            R.id.lyRatAttackInspect to "ExistsOrNot",
-            R.id.lyGanoInspect to "ExistsOrNot",
+            R.id.lyExistsTreeInspect to "YesOrNoOrTitikKosong",
+//            R.id.lyRatAttackInspect to "ExistsOrNot",
+//            R.id.lyGanoInspect to "ExistsOrNot",
             R.id.lyNeatPelepahInspect to "NeatOrNot",
             R.id.lyPelepahSengklehInspect to "PelepahType",
             R.id.lyPruningInspect to "PruningType",
@@ -131,7 +138,7 @@ class FormAncakFragment : Fragment() {
         val inputMappings: List<InputMapping> = listOf(
             InputMapping(
                 R.id.lyExistsTreeInspect,
-                "Titik Kosong?",
+                "Terdapat Temuan?",
                 InputType.RADIO,
                 { currentData, value -> currentData.copy(emptyTree = value) },
                 { it.emptyTree }
@@ -157,20 +164,20 @@ class FormAncakFragment : Fragment() {
                 { currentData, value -> currentData.copy(harvestTree = value) },
                 { it.harvestTree }
             ),
-            InputMapping(
-                R.id.lyRatAttackInspect,
-                "Serangan Tikus?",
-                InputType.RADIO,
-                { currentData, value -> currentData.copy(ratAttack = value) },
-                { it.ratAttack }
-            ),
-            InputMapping(
-                R.id.lyGanoInspect,
-                "Ganoderma?",
-                InputType.RADIO,
-                { currentData, value -> currentData.copy(ganoderma = value) },
-                { it.ganoderma }
-            ),
+//            InputMapping(
+//                R.id.lyRatAttackInspect,
+//                "Serangan Tikus?",
+//                InputType.RADIO,
+//                { currentData, value -> currentData.copy(ratAttack = value) },
+//                { it.ratAttack }
+//            ),
+//            InputMapping(
+//                R.id.lyGanoInspect,
+//                "Ganoderma?",
+//                InputType.RADIO,
+//                { currentData, value -> currentData.copy(ganoderma = value) },
+//                { it.ganoderma }
+//            ),
             InputMapping(
                 R.id.lyNeatPelepahInspect,
                 "Susunan Pelepah?",
@@ -192,13 +199,13 @@ class FormAncakFragment : Fragment() {
                 { currentData, value -> currentData.copy(pruning = value) },
                 { it.pruning }
             ),
-            InputMapping(
-                R.id.lyKentosanInspect,
-                "Kentosan?",
-                InputType.RADIO,
-                { currentData, value -> currentData.copy(kentosan = value) },
-                { it.kentosan }
-            ),
+//            InputMapping(
+//                R.id.lyKentosanInspect,
+//                "Kentosan?",
+//                InputType.RADIO,
+//                { currentData, value -> currentData.copy(kentosan = value) },
+//                { it.kentosan }
+//            ),
             InputMapping(
                 R.id.lyBuahRipeInspect,
                 "Buah Masak Tinggal di Pokok (S)",
@@ -220,13 +227,13 @@ class FormAncakFragment : Fragment() {
                 { currentData, value -> currentData.copy(buahM2 = value) },
                 { it.buahM2 }
             ),
-            InputMapping(
-                R.id.lyBuahM3Inspect,
-                "Buah Matahari (M3)",
-                InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(buahM3 = value) },
-                { it.buahM3 }
-            ),
+//            InputMapping(
+//                R.id.lyBuahM3Inspect,
+//                "Buah Matahari (M3)",
+//                InputType.EDITTEXT,
+//                { currentData, value -> currentData.copy(buahM3 = value) },
+//                { it.buahM3 }
+//            ),
             InputMapping(
                 R.id.lyBrdKtpInspect,
                 "Brondolan Tidak dikutip",
@@ -370,7 +377,7 @@ class FormAncakFragment : Fragment() {
 
         if (layoutId == R.id.lyExistsTreeInspect) {
             viewModel.isInspection.observe(viewLifecycleOwner) { isInspection ->
-                titleTextView.text = if (isInspection) "Titik Kosong?" else "Pokok Dipanen?"
+                titleTextView.text = if (isInspection) "Terdapat Temuan?" else "Pokok Dipanen?"
 
                 val currentData = viewModel.getPageData(pageNumber)
                 if (currentData != null) {
@@ -410,6 +417,7 @@ class FormAncakFragment : Fragment() {
                 }
 
                 setOnClickListener {
+
                     clearValidationErrors()
 
                     lastSelectedRadioButton?.isChecked = false
@@ -509,7 +517,7 @@ class FormAncakFragment : Fragment() {
 
         val isInspection = viewModel.isInspection.value ?: true
         if (isInspection) {
-            detailFormLayout?.visibility = if (selectedValue == 2) View.VISIBLE else View.GONE
+            detailFormLayout?.visibility = if (selectedValue == 1) View.VISIBLE else View.GONE
             jjgPanenLayout?.visibility = View.GONE
         } else {
             detailFormLayout?.visibility = View.GONE

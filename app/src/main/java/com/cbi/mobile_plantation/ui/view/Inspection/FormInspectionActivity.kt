@@ -729,6 +729,18 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         formAncakViewModel.formData.observe(this) { formData ->
             updatePhotoBadgeVisibility()
+
+            val currentPage = formAncakViewModel.currentPage.value ?: 1
+            val pageData = formData[currentPage]
+            val emptyTreeValue = pageData?.emptyTree ?: 0
+            val inspectionType = selectedInspeksiValue.toInt()
+
+            // Show/hide photo FAB based on conditions
+            fabPhotoFormAncak.visibility = if (inspectionType == 1 && emptyTreeValue == 1) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
         }
 
         formAncakViewModel.fieldValidationError.observe(this) { errorMap ->
@@ -758,10 +770,12 @@ open class FormInspectionActivity : AppCompatActivity(),
             val emptyTreeValue = pageData?.emptyTree ?: 0
             val photoValue = pageData?.photo ?: ""
 
+            AppLogger.d(formData.toString())
+
             when {
-                selectedInspeksiValue.toInt() == 1 && emptyTreeValue == 2 && photoValue.isEmpty() -> {
+                selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty() -> {
                     vibrate(500)
-                    showViewPhotoBottomSheet()
+//                    showViewPhotoBottomSheet()
                     AlertDialogUtility.withSingleAction(
                         this,
                         stringXML(R.string.al_back),
@@ -776,6 +790,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 else -> {
                     val validationResult =
                         formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
+
                     if (validationResult.isValid && nextPage <= totalPages) {
                         lifecycleScope.launch {
                             withContext(Dispatchers.Main) {
@@ -1566,8 +1581,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             lifecycleScope.launch {
-                fabPhotoFormAncak.visibility =
-                    if (selectedInspeksiValue.toInt() == 1) View.VISIBLE else View.GONE
 
                 when (item.itemId) {
                     R.id.navMenuBlokInspect -> {
@@ -2568,7 +2581,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             try {
                 val matchingPanenList = tphList.filter { panenWithRelations ->
                     val tphId = panenWithRelations.tph?.id
-                    AppLogger.d("Checking TPH ID: $tphId against selected: ${selectedTPHInLIst.id}")
+//                    AppLogger.d("Checking TPH ID: $tphId against selected: ${selectedTPHInLIst.id}")
                     tphId == selectedTPHInLIst.id
                 }
 
@@ -3070,133 +3083,131 @@ open class FormInspectionActivity : AppCompatActivity(),
         val missingFields = mutableListOf<String>()
         val errorMessages = mutableListOf<String>()
 
-        if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
-            isValid = false
-            errorMessages.add(stringXML(R.string.al_location_description_failed))
-            missingFields.add("Location")
-        }
-
-        inputMappings.forEach { (layout, key, inputType) ->
-            if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
-
-                val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
-                val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
-
-                val isEmpty = when (inputType) {
-                    InputType.SPINNER -> {
-                        when (layout.id) {
-                            R.id.lyAfdInspect -> selectedAfdeling.isEmpty()
-                            R.id.lyJalurInspect -> selectedJalurMasuk.isEmpty()
-                            else -> spinner.selectedIndex == -1
-                        }
-                    }
-
-                    InputType.EDITTEXT -> {
-                        when (layout.id) {
-                            R.id.lyBaris1Inspect -> br1Value.trim().isEmpty()
-                            R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim()
-                                .isEmpty() else false
-
-                            else -> editText.text.toString().trim().isEmpty()
-                        }
-                    }
-
-                    InputType.RADIO -> {
-                        when (layout.id) {
-                            R.id.lyInspectionType -> selectedInspeksiValue.isEmpty()
-                            R.id.lyConditionType -> selectedKondisiValue.isEmpty()
-                            else -> false
-                        }
-                    }
-
-                }
-
-                if (isEmpty) {
-                    tvError.visibility = View.VISIBLE
-                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-                    missingFields.add(key)
-                    isValid = false
-                } else {
-                    tvError.visibility = View.GONE
-                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
-                }
-            }
-        }
-
-
-        if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
-            if (isTriggeredBtnScanned) {
-                // Button was triggered - show appropriate message based on search results
-                if (isEmptyScannedTPH) {
-                    // Search was done but no TPH found
-                    tvErrorScannedNotSelected.text = stringXML(R.string.al_no_tph_detected_trigger_submit)
-                    tvErrorScannedNotSelected.visibility = View.VISIBLE
-                    errorMessages.add(stringXML(R.string.al_no_tph_detected_trigger_submit))
-                } else {
-                    // Search was done and TPH found, but user hasn't selected one
-                    tvErrorScannedNotSelected.text = "Silakan untuk memilih TPH yang ingin diperiksa!"
-                    tvErrorScannedNotSelected.visibility = View.VISIBLE
-                    errorMessages.add("Silakan untuk memilih TPH yang ingin diperiksa!")
-                }
-            } else {
-                // Button not triggered yet - ask user to search first
-                tvErrorScannedNotSelected.text = "Silakan tekan tombol scan untuk mencari TPH"
-                tvErrorScannedNotSelected.visibility = View.VISIBLE
-                errorMessages.add("Silakan tekan tombol scan untuk mencari TPH")
-            }
-        } else {
-            // TPH is selected or no afdeling selected - hide error
-            tvErrorScannedNotSelected.visibility = View.GONE
-        }
-
-
-        AppLogger.d(selectedKondisiValue)
-        // NEW: Simple validation - br1 and br2 cannot be the same when kondisi == 0
-        if (selectedKondisiValue.toInt() == 1) {
-            val br1Int = br1Value.trim().toIntOrNull() ?: 0
-            val br2Int = br2Value.trim().toIntOrNull() ?: 0
-
-            AppLogger.d(br1Int.toString())
-            AppLogger.d(br2Int.toString())
-            if (br1Int == br2Int) {
-                val layoutBaris2 = findViewById<LinearLayout>(R.id.lyBaris2Inspect)
-                val tvErrorBaris2 = layoutBaris2.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                val mcvBaris2 = layoutBaris2.findViewById<MaterialCardView>(R.id.MCVSpinner)
-
-                tvErrorBaris2.text = "Baris pertama dan Baris kedua tidak boleh sama"
-                tvErrorBaris2.visibility = View.VISIBLE
-                mcvBaris2.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-                errorMessages.add("Baris pertama dan Baris kedua tidak boleh sama")
-                isValid = false
-            }
-        }
-
-        if (!isValid) {
-            vibrate(500)
-            val combinedErrorMessage = buildString {
-                val allMessages = mutableListOf<String>()
-                if (missingFields.isNotEmpty()) {
-                    allMessages.add(stringXML(R.string.al_pls_complete_data))
-                }
-
-                allMessages.addAll(errorMessages)
-                allMessages.forEachIndexed { index, message ->
-                    append("${index + 1}. $message")
-                    if (index < allMessages.size - 1) append("\n")
-                }
-            }
-
-            AlertDialogUtility.withSingleAction(
-                this,
-                stringXML(R.string.al_back),
-                stringXML(R.string.al_data_not_completed),
-                combinedErrorMessage,
-                "warning.json",
-                R.color.colorRedDark
-            ) {}
-        }
+//        if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
+//            isValid = false
+//            errorMessages.add(stringXML(R.string.al_location_description_failed))
+//            missingFields.add("Location")
+//        }
+//
+//        inputMappings.forEach { (layout, key, inputType) ->
+//            if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
+//
+//                val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+//                val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
+//                val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+//                val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
+//
+//                val isEmpty = when (inputType) {
+//                    InputType.SPINNER -> {
+//                        when (layout.id) {
+//                            R.id.lyAfdInspect -> selectedAfdeling.isEmpty()
+//                            R.id.lyJalurInspect -> selectedJalurMasuk.isEmpty()
+//                            else -> spinner.selectedIndex == -1
+//                        }
+//                    }
+//
+//                    InputType.EDITTEXT -> {
+//                        when (layout.id) {
+//                            R.id.lyBaris1Inspect -> br1Value.trim().isEmpty()
+//                            R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim()
+//                                .isEmpty() else false
+//
+//                            else -> editText.text.toString().trim().isEmpty()
+//                        }
+//                    }
+//
+//                    InputType.RADIO -> {
+//                        when (layout.id) {
+//                            R.id.lyInspectionType -> selectedInspeksiValue.isEmpty()
+//                            R.id.lyConditionType -> selectedKondisiValue.isEmpty()
+//                            else -> false
+//                        }
+//                    }
+//
+//                }
+//
+//                if (isEmpty) {
+//                    tvError.visibility = View.VISIBLE
+//                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+//                    missingFields.add(key)
+//                    isValid = false
+//                } else {
+//                    tvError.visibility = View.GONE
+//                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+//                }
+//            }
+//        }
+//
+//
+//        if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
+//            if (isTriggeredBtnScanned) {
+//                // Button was triggered - show appropriate message based on search results
+//                if (isEmptyScannedTPH) {
+//                    // Search was done but no TPH found
+//                    tvErrorScannedNotSelected.text = stringXML(R.string.al_no_tph_detected_trigger_submit)
+//                    tvErrorScannedNotSelected.visibility = View.VISIBLE
+//                    errorMessages.add(stringXML(R.string.al_no_tph_detected_trigger_submit))
+//                } else {
+//                    // Search was done and TPH found, but user hasn't selected one
+//                    tvErrorScannedNotSelected.text = "Silakan untuk memilih TPH yang ingin diperiksa!"
+//                    tvErrorScannedNotSelected.visibility = View.VISIBLE
+//                    errorMessages.add("Silakan untuk memilih TPH yang ingin diperiksa!")
+//                }
+//            } else {
+//                // Button not triggered yet - ask user to search first
+//                tvErrorScannedNotSelected.text = "Silakan tekan tombol scan untuk mencari TPH"
+//                tvErrorScannedNotSelected.visibility = View.VISIBLE
+//                errorMessages.add("Silakan tekan tombol scan untuk mencari TPH")
+//            }
+//        } else {
+//            // TPH is selected or no afdeling selected - hide error
+//            tvErrorScannedNotSelected.visibility = View.GONE
+//        }
+//
+//        // NEW: Simple validation - br1 and br2 cannot be the same when kondisi == 0
+//        if (selectedKondisiValue.toInt() == 1 && br1Value.trim().isNotEmpty() && br2Value.trim().isNotEmpty()) {
+//            val br1Int = br1Value.trim().toIntOrNull() ?: 0
+//            val br2Int = br2Value.trim().toIntOrNull() ?: 0
+//
+//            AppLogger.d(br1Int.toString())
+//            AppLogger.d(br2Int.toString())
+//            if (br1Int == br2Int) {
+//                val layoutBaris2 = findViewById<LinearLayout>(R.id.lyBaris2Inspect)
+//                val tvErrorBaris2 = layoutBaris2.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+//                val mcvBaris2 = layoutBaris2.findViewById<MaterialCardView>(R.id.MCVSpinner)
+//
+//                tvErrorBaris2.text = "Baris pertama dan Baris kedua tidak boleh sama"
+//                tvErrorBaris2.visibility = View.VISIBLE
+//                mcvBaris2.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+//                errorMessages.add("Baris pertama dan Baris kedua tidak boleh sama")
+//                isValid = false
+//            }
+//        }
+//
+//        if (!isValid) {
+//            vibrate(500)
+//            val combinedErrorMessage = buildString {
+//                val allMessages = mutableListOf<String>()
+//                if (missingFields.isNotEmpty()) {
+//                    allMessages.add(stringXML(R.string.al_pls_complete_data))
+//                }
+//
+//                allMessages.addAll(errorMessages)
+//                allMessages.forEachIndexed { index, message ->
+//                    append("${index + 1}. $message")
+//                    if (index < allMessages.size - 1) append("\n")
+//                }
+//            }
+//
+//            AlertDialogUtility.withSingleAction(
+//                this,
+//                stringXML(R.string.al_back),
+//                stringXML(R.string.al_data_not_completed),
+//                combinedErrorMessage,
+//                "warning.json",
+//                R.color.colorRedDark
+//            ) {}
+//        }
 
         return isValid
     }
