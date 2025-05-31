@@ -110,42 +110,70 @@ class FormAncakViewModel : ViewModel() {
         val data = _formData.value?.get(pageNumber)
         val errors = mutableMapOf<Int, String>()
 
+        AppLogger.d("=== VIEWMODEL VALIDATION ===")
+        AppLogger.d("inspectionType: $inspectionType")
+        AppLogger.d("pageNumber: $pageNumber")
+        AppLogger.d("data: $data")
+        AppLogger.d("emptyTree: ${data?.emptyTree}")
+
+        // STEP 1: Check if emptyTree is selected
         if (data?.emptyTree == 0) {
             val nameMessage = if (inspectionType == 1) "Temuan" else "Pokok dipanen"
             errors[R.id.lyExistsTreeInspect] = "$nameMessage wajib diisi!"
+            AppLogger.d("VALIDATION FAILED: emptyTree == 0")
+
+            _fieldValidationError.value = errors
+            return ValidationResult(false, R.id.lyExistsTreeInspect, "$nameMessage wajib diisi!")
         }
 
-        if (data?.priority == 0) {
-            errors[R.id.lyPrioritasInspect] = "Prioritas wajib diisi!"
+        // STEP 2: Only validate other fields if emptyTree == 1 (Ya/Ada Pohon)
+        if (data?.emptyTree == 1) {
+            AppLogger.d("emptyTree == 1, validating other fields...")
+
+            if (data?.priority == 0) {
+                errors[R.id.lyPrioritasInspect] = "Prioritas wajib diisi!"
+                AppLogger.d("VALIDATION FAILED: priority == 0")
+            }
+
+            if (data?.harvestTree == 0) {
+                errors[R.id.lyHarvestTreeInspect] = "Pokok dipanen wajib diisi!"
+                AppLogger.d("VALIDATION FAILED: harvestTree == 0")
+            }
+
+            if (data?.neatPelepah == 0) {
+                errors[R.id.lyNeatPelepahInspect] = "Susunan pelepah wajib diisi!"
+                AppLogger.d("VALIDATION FAILED: neatPelepah == 0")
+            }
+
+            if (data?.pelepahSengkleh == 0) {
+                errors[R.id.lyPelepahSengklehInspect] = "Pelepah sengkleh wajib diisi!"
+                AppLogger.d("VALIDATION FAILED: pelepahSengkleh == 0")
+            }
+
+            if (data?.pruning == 0) {
+                errors[R.id.lyPruningInspect] = "Kondisi pruning wajib diisi!"
+                AppLogger.d("VALIDATION FAILED: pruning == 0")
+            }
+
+            if (inspectionType == 2 && data.jjgAkp <= 0) {
+                errors[R.id.lyJjgPanenAKPInspect] = "Janjang panen harus lebih dari 0!"
+                AppLogger.d("VALIDATION FAILED: jjgAkp <= 0")
+            }
+        } else {
+            AppLogger.d("emptyTree == ${data?.emptyTree} (Tidak/Titik Kosong), skipping field validation")
         }
 
-        if (data?.harvestTree == 0) {
-            errors[R.id.lyHarvestTreeInspect] = "Pokok dipanen wajib diisi!"
-        }
-
-        if (data?.neatPelepah == 0) {
-            errors[R.id.lyNeatPelepahInspect] = "Susunan pelepah wajib diisi!"
-        }
-
-        if (data?.pelepahSengkleh == 0) {
-            errors[R.id.lyPelepahSengklehInspect] = "Pelepah sengkleh wajib diisi!"
-        }
-
-        if (data?.pruning == 0) {
-            errors[R.id.lyPruningInspect] = "Kondisi pruning wajib diisi!"
-        }
-
-        if (inspectionType == 2 && data?.emptyTree == 1 && data.jjgAkp <= 0) {
-            errors[R.id.lyJjgPanenAKPInspect] = "Janjang panen harus lebih dari 0!"
-        }
+        AppLogger.d("Total errors found: ${errors.size}")
+        AppLogger.d("Errors: $errors")
 
         return if (errors.isEmpty()) {
             _fieldValidationError.value = emptyMap()
+            AppLogger.d("VALIDATION SUCCESS: No errors")
             ValidationResult(true)
         } else {
             _fieldValidationError.value = errors
-            // Return the *first* error as main info (optional)
             val first = errors.entries.first()
+            AppLogger.d("VALIDATION FAILED: ${first.value}")
             ValidationResult(false, first.key, first.value)
         }
     }

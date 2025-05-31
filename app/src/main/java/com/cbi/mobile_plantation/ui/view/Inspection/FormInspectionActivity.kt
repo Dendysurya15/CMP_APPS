@@ -762,14 +762,32 @@ open class FormInspectionActivity : AppCompatActivity(),
         fabNextFormAncak.setOnClickListener {
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val nextPage = currentPage + 1
-            val totalPages =
-                formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+            val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
             val pageData = formData[currentPage]
             val photoValue = pageData?.photo ?: ""
             val emptyTreeValue = pageData?.emptyTree ?: 0
 
+            // DETAILED LOGGING
+            AppLogger.d("=== NEXT BUTTON DEBUG ===")
+            AppLogger.d("currentPage: $currentPage")
+            AppLogger.d("nextPage: $nextPage")
+            AppLogger.d("totalPages: $totalPages")
+            AppLogger.d("selectedInspeksiValue: ${selectedInspeksiValue.toInt()}")
+            AppLogger.d("emptyTreeValue: $emptyTreeValue")
+            AppLogger.d("photoValue: '$photoValue'")
+            AppLogger.d("photoValue.isEmpty(): ${photoValue.isEmpty()}")
+            AppLogger.d("pageData: $pageData")
+
+            // PHOTO VALIDATION CHECK
+            AppLogger.d("=== PHOTO VALIDATION CHECK ===")
+            AppLogger.d("selectedInspeksiValue.toInt() == 1: ${selectedInspeksiValue.toInt() == 1}")
+            AppLogger.d("emptyTreeValue == 1: ${emptyTreeValue == 1}")
+            AppLogger.d("photoValue.isEmpty(): ${photoValue.isEmpty()}")
+            AppLogger.d("All conditions: ${selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty()}")
+
             if (selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty()) {
+                AppLogger.d("BLOCKED: Photo validation - inspection=1, emptyTree=1, photo empty")
                 vibrate(500)
                 showViewPhotoBottomSheet()
                 AlertDialogUtility.withSingleAction(
@@ -783,12 +801,28 @@ open class FormInspectionActivity : AppCompatActivity(),
                 return@setOnClickListener
             }
 
-            val validationResult =
-                formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
+            AppLogger.d("=== CALLING VIEWMODEL VALIDATION ===")
+            val validationResult = formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
+
+            AppLogger.d("=== VALIDATION RESULT ===")
+            AppLogger.d("ValidationResult.isValid: ${validationResult.isValid}")
+            AppLogger.d("ValidationResult.fieldId: ${validationResult.fieldId}")
+
 
             if (!validationResult.isValid) {
+                AppLogger.d("BLOCKED: ViewModel validation failed")
                 vibrate(500)
-                // Optionally scroll to the error field
+
+                // Show alert with validation message
+                AlertDialogUtility.withSingleAction(
+                    this,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_data_not_completed),
+                    "Mohon diisi data yang diperlukan!",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {}
+
                 return@setOnClickListener
             }
 
@@ -806,13 +840,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 val pageChangeCallback = createPageChangeCallback()
                                 vpFormAncak.registerOnPageChangeCallback(pageChangeCallback)
 
-                                if (currentPage % 10 == 0 && !trackingLocation.containsKey(
-                                        currentPage.toString()
-                                    )
-                                ) {
+                                if (currentPage % 10 == 0 && !trackingLocation.containsKey(currentPage.toString())) {
                                     isTenthTrees = true
-                                    trackingLocation[currentPage.toString()] =
-                                        Location(lat ?: 0.0, lon ?: 0.0)
+                                    trackingLocation[currentPage.toString()] = Location(lat ?: 0.0, lon ?: 0.0)
                                 } else if (isTenthTrees) {
                                     isTenthTrees = false
                                 }
@@ -823,9 +853,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     if (loadingDialog.isShowing) {
                                         scrollToTopOfFormAncak()
                                         loadingDialog.dismiss()
-                                        vpFormAncak.unregisterOnPageChangeCallback(
-                                            pageChangeCallback
-                                        )
+                                        vpFormAncak.unregisterOnPageChangeCallback(pageChangeCallback)
                                     }
                                 }, 500)
                             }
@@ -1821,6 +1849,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
         val formData = formAncakViewModel.formData.value ?: mutableMapOf()
 
+
+        AppLogger.d("formData $formData")
         totalPokokInspection = (1..totalPages).count { (formData[it]?.emptyTree ?: 0) > 0 }
 
         val data = listOf(
