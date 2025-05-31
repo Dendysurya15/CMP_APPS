@@ -764,77 +764,72 @@ open class FormInspectionActivity : AppCompatActivity(),
             val nextPage = currentPage + 1
             val totalPages =
                 formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
-
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
             val pageData = formData[currentPage]
-            val emptyTreeValue = pageData?.emptyTree ?: 0
             val photoValue = pageData?.photo ?: ""
+            val emptyTreeValue = pageData?.emptyTree ?: 0
 
-            AppLogger.d(formData.toString())
+            if (selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty()) {
+                vibrate(500)
+                showViewPhotoBottomSheet()
+                AlertDialogUtility.withSingleAction(
+                    this,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_data_not_completed),
+                    "Mohon dapat mengambil foto temuan terlebih dahulu!",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {}
+                return@setOnClickListener
+            }
 
-            when {
-                selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty() -> {
-                    vibrate(500)
-//                    showViewPhotoBottomSheet()
-                    AlertDialogUtility.withSingleAction(
-                        this,
-                        stringXML(R.string.al_back),
-                        stringXML(R.string.al_data_not_completed),
-                        "Mohon dapat mengambil foto temuan terlebih dahulu!",
-                        "warning.json",
-                        R.color.colorRedDark
-                    ) {}
-                    return@setOnClickListener
-                }
+            val validationResult =
+                formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
 
-                else -> {
-                    val validationResult =
-                        formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
+            if (!validationResult.isValid) {
+                vibrate(500)
+                // Optionally scroll to the error field
+                return@setOnClickListener
+            }
 
-                    if (validationResult.isValid && nextPage <= totalPages) {
-                        lifecycleScope.launch {
-                            withContext(Dispatchers.Main) {
-                                loadingDialog.show()
-                                loadingDialog.setMessage("Loading data...")
+            if (nextPage <= totalPages) {
+                lifecycleScope.launch {
+                    withContext(Dispatchers.Main) {
+                        loadingDialog.show()
+                        loadingDialog.setMessage("Loading data...")
 
-                                vpFormAncak.post {
-                                    vpFormAncak.setCurrentItem(nextPage - 1, false)
-                                    vpFormAncak.setCurrentItem(currentPage - 1, false)
+                        vpFormAncak.post {
+                            vpFormAncak.setCurrentItem(nextPage - 1, false)
+                            vpFormAncak.setCurrentItem(currentPage - 1, false)
 
-                                    Handler(Looper.getMainLooper()).post {
-                                        val pageChangeCallback = createPageChangeCallback()
-                                        vpFormAncak.registerOnPageChangeCallback(pageChangeCallback)
+                            Handler(Looper.getMainLooper()).post {
+                                val pageChangeCallback = createPageChangeCallback()
+                                vpFormAncak.registerOnPageChangeCallback(pageChangeCallback)
 
-                                        // Get the current location from user each 10 tree
-                                        if (currentPage % 10 == 0 && !trackingLocation.containsKey(
-                                                currentPage.toString()
-                                            )
-                                        ) {
-                                            isTenthTrees = true
-                                            trackingLocation[currentPage.toString()] =
-                                                Location(lat ?: 0.0, lon ?: 0.0)
-                                        } else if (isTenthTrees) {
-                                            isTenthTrees = false
-                                        }
-
-                                        formAncakViewModel.nextPage()
-
-                                        Handler(Looper.getMainLooper()).postDelayed({
-                                            if (loadingDialog.isShowing) {
-                                                scrollToTopOfFormAncak()
-                                                loadingDialog.dismiss()
-                                                vpFormAncak.unregisterOnPageChangeCallback(
-                                                    pageChangeCallback
-                                                )
-                                            }
-                                        }, 500)
-                                    }
+                                if (currentPage % 10 == 0 && !trackingLocation.containsKey(
+                                        currentPage.toString()
+                                    )
+                                ) {
+                                    isTenthTrees = true
+                                    trackingLocation[currentPage.toString()] =
+                                        Location(lat ?: 0.0, lon ?: 0.0)
+                                } else if (isTenthTrees) {
+                                    isTenthTrees = false
                                 }
+
+                                formAncakViewModel.nextPage()
+
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    if (loadingDialog.isShowing) {
+                                        scrollToTopOfFormAncak()
+                                        loadingDialog.dismiss()
+                                        vpFormAncak.unregisterOnPageChangeCallback(
+                                            pageChangeCallback
+                                        )
+                                    }
+                                }, 500)
                             }
                         }
-                    } else {
-                        vibrate(500)
-                        return@setOnClickListener
                     }
                 }
             }
@@ -876,13 +871,13 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         fabPhotoFormAncak.setOnClickListener {
-            val validationResult =
-                formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
-            if (validationResult.isValid) {
-                showViewPhotoBottomSheet()
-            } else {
-                vibrate(500)
-            }
+//            val validationResult =
+//                formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
+//            if (validationResult.isValid) {
+            showViewPhotoBottomSheet()
+//            } else {
+//                vibrate(500)
+//            }
         }
 
         fabSaveFormAncak.setOnClickListener {

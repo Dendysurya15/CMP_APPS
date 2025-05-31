@@ -108,59 +108,48 @@ class FormAncakViewModel : ViewModel() {
         ensurePageDataExists(pageNumber)
 
         val data = _formData.value?.get(pageNumber)
+        val errors = mutableMapOf<Int, String>()
 
         if (data?.emptyTree == 0) {
-            val nameMessage = if (inspectionType != null && inspectionType == 1) "Temuan" else "Pokok dipanen"
-            val errorMessage = "$nameMessage wajib diisi!"
-
-            val errorMap = mapOf(R.id.lyExistsTreeInspect to errorMessage)
-            _fieldValidationError.value = errorMap
-
-            return ValidationResult(false, R.id.lyExistsTreeInspect, errorMessage)
+            val nameMessage = if (inspectionType == 1) "Temuan" else "Pokok dipanen"
+            errors[R.id.lyExistsTreeInspect] = "$nameMessage wajib diisi!"
         }
 
         if (data?.priority == 0) {
-            val errorMessage = "Prioritas wajib diisi!"
-            _fieldValidationError.value = mapOf(R.id.lyPrioritasInspect to errorMessage)
-            return ValidationResult(false, R.id.lyPrioritasInspect, errorMessage)
+            errors[R.id.lyPrioritasInspect] = "Prioritas wajib diisi!"
         }
 
         if (data?.harvestTree == 0) {
-            val errorMessage = "Pokok dipanen wajib diisi!"
-            _fieldValidationError.value = mapOf(R.id.lyHarvestTreeInspect to errorMessage)
-            return ValidationResult(false, R.id.lyHarvestTreeInspect, errorMessage)
+            errors[R.id.lyHarvestTreeInspect] = "Pokok dipanen wajib diisi!"
         }
 
         if (data?.neatPelepah == 0) {
-            val errorMessage = "Susunan pelepah wajib diisi!"
-            _fieldValidationError.value = mapOf(R.id.lyNeatPelepahInspect to errorMessage)
-            return ValidationResult(false, R.id.lyNeatPelepahInspect, errorMessage)
+            errors[R.id.lyNeatPelepahInspect] = "Susunan pelepah wajib diisi!"
         }
 
         if (data?.pelepahSengkleh == 0) {
-            val errorMessage = "Pelepah sengkleh wajib diisi!"
-            _fieldValidationError.value = mapOf(R.id.lyPelepahSengklehInspect to errorMessage)
-            return ValidationResult(false, R.id.lyPelepahSengklehInspect, errorMessage)
+            errors[R.id.lyPelepahSengklehInspect] = "Pelepah sengkleh wajib diisi!"
         }
 
         if (data?.pruning == 0) {
-            val errorMessage = "Kondisi pruning wajib diisi!"
-            _fieldValidationError.value = mapOf(R.id.lyPruningInspect to errorMessage)
-            return ValidationResult(false, R.id.lyPruningInspect, errorMessage)
+            errors[R.id.lyPruningInspect] = "Kondisi pruning wajib diisi!"
         }
 
-        if (inspectionType != null && inspectionType == 2 && data?.emptyTree == 1 && data.jjgAkp <= 0) {
-            val errorMessage = "Janjang panen harus lebih dari 0!"
-
-            val errorMap = mapOf(R.id.lyJjgPanenAKPInspect to errorMessage)
-            _fieldValidationError.value = errorMap
-
-            return ValidationResult(false, R.id.lyJjgPanenAKPInspect, errorMessage)
+        if (inspectionType == 2 && data?.emptyTree == 1 && data.jjgAkp <= 0) {
+            errors[R.id.lyJjgPanenAKPInspect] = "Janjang panen harus lebih dari 0!"
         }
 
-        _fieldValidationError.value = emptyMap()
-        return ValidationResult(true)
+        return if (errors.isEmpty()) {
+            _fieldValidationError.value = emptyMap()
+            ValidationResult(true)
+        } else {
+            _fieldValidationError.value = errors
+            // Return the *first* error as main info (optional)
+            val first = errors.entries.first()
+            ValidationResult(false, first.key, first.value)
+        }
     }
+
 
     fun clearValidation() {
         _fieldValidationError.value = emptyMap()
