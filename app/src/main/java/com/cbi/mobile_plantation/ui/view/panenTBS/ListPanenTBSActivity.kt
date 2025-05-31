@@ -1483,15 +1483,22 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     fun convertToFormattedString(input: String, tphFilter: String): String {
         try {
-            // Parse TPH filter string into a list of IDs
-            val tphIds = tphFilter
-                .trim()
-                .removeSurrounding("{", "}")
-                .substringAfter("\"tph\":\"")  // Get content after "tph":"
-                .substringBefore("\"")         // Get content before the closing quote
-                .split(";")
-                .map { it.trim() }
-                .toSet()
+            // Check if tphFilter exists and is not empty
+            val hasTphFilter = tphFilter.isNotBlank()
+
+            // Parse TPH filter string into a list of IDs if it exists
+            val tphIds = if (hasTphFilter) {
+                tphFilter
+                    .trim()
+                    .removeSurrounding("{", "}")
+                    .substringAfter("\"tph\":\"")  // Get content after "tph":"
+                    .substringBefore("\"")         // Get content before the closing quote
+                    .split(";")
+                    .map { it.trim() }
+                    .toSet()
+            } else {
+                emptySet()
+            }
 
             Log.d("ListPanenTBSActivityESPB", "tphIds: $tphIds")
 
@@ -1503,6 +1510,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
             return objects
                 .filter { objStr ->
+                    // If no filter exists, include all objects
+                    if (!hasTphFilter) return@filter true
+
                     // Extract tph_id from each object and check if it's in our filter list
                     val cleanObj = objStr.trim()
                         .removePrefix("{")
@@ -1528,8 +1538,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     // Extract jjg_json value
                     val jjgJson = map["jjg_json"]?.trim() ?: "{}"
 
+                    // Check if tphFilter exists and matches current tph_id
+                    val lastValue = if (hasTphFilter && tphIds.contains(map["tph_id"])) {
+                        "0"  // Change to 0 if filter exists and matches
+                    } else {
+                        "1"  // Keep as 1 if no filter or no match
+                    }
+
                     // Construct the formatted string
-                    "${map["tph_id"]},${map["date_created"]},${jjgJson},1"
+                    "${map["tph_id"]},${map["date_created"]},${jjgJson},${lastValue}"
                 }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -1600,7 +1617,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         Log.d("ListPanenTBSActivityESPB", "tph1IdPanen:$tph1IdPanen")
 
 
-        //get automatically selected items (preselected)
+        //get automatically selected items
         val preSelectedItems = listAdapter.getPreSelectedItems()
         Log.d("ListPanenTBSActivityESPB", "preSelectedItems:$preSelectedItems")
 
@@ -1630,20 +1647,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         val allItems = listAdapter.getCurrentData()
         Log.d("ListPanenTBSActivityESPB", "listTPHDriver: $listTPHDriver")
-
-        // Process manually selected items (with status 1)
-        val tph1ManuallySelected = convertToFormattedString(
+        val tph1NO = convertToFormattedString(
             selectedItems2.toString(),
             listTPHDriver
         ).replace("{\"KP\": ", "").replace("},", ",")
-        Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsNO: $tph1ManuallySelected")
-
-        // Process pre-selected items (with status 0)
-        val tph1PreSelected = convertToFormattedString(
-            preSelectedItems.toString(),
-            0  // Use 0 for preselected items
-        ).replace("{\"KP\": ", "").replace("},", ",")
-        Log.d("ListPanenTBSActivityESPB", "formatted preSelectedItems: $tph1PreSelected")
+        Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsNO: $tph1NO")
 
         //get item which is not selected
         val tph0before =
@@ -1653,19 +1661,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         val set1 = tph1AD0.toEntries()
         val set2 = tph1AD2.toEntries()
-        val setManuallySelected = tph1ManuallySelected.toEntries()
-        val setPreSelected = tph1PreSelected.toEntries()
+        val set3 = tph1NO.toEntries()
         val set4 = tph0before.toEntries()
 
-        // Calculate string5 = string4 - string1 - manually selected - preselected
-        val newTph0 = (set4 - set1 - setManuallySelected - setPreSelected).toString()
-            .replace("[", "").replace("]", "").replace(", ", ";")
+        // Calculate string5 = string4 - string1 - string3
+        val newTph0 = (set4 - set1 - set3).toString().replace("[", "").replace("]", "")
+            .replace(", ", ";")
         Log.d("ListPanenTBSActivityESPB", "New tph0: $newTph0")
 
-         // Calculate new tph1 = manually selected (status 1) + preselected (status 0) + existing selected
-        val newTph1Combined = (set2 + setManuallySelected + setPreSelected).toString()
-            .replace("[", "").replace("]", "").replace(", ", ";")
-        Log.d("ListPanenTBSActivityESPB", "New tph1 combined: $newTph1Combined")
+        // Calculate string6 = string2 + string3
+        val newTph1 =
+            (set2 + set3).toString().replace("[", "").replace("]", "").replace(", ", ";")
+        Log.d("ListPanenTBSActivityESPB", "New tph1: $newTph1")
 
         // Combine with existing data if it exists
         if (tph0.isNotEmpty() && newTph0.isNotEmpty()) {
@@ -1674,19 +1681,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
             tph0 = newTph0
         }
 
-        if (tph1.isNotEmpty() && newTph1Combined.isNotEmpty()) {
-            tph1 = "$tph1;$newTph1Combined"
-        } else if (newTph1Combined.isNotEmpty()) {
-            tph1 = newTph1Combined
+        if (tph1.isNotEmpty() && newTph1.isNotEmpty()) {
+            tph1 = "$newTph1"
+        } else if (newTph1.isNotEmpty()) {
+            tph1 = newTph1
         }
 
         // Remove any duplicate entries from tph0 and tph1
         tph0 = removeDuplicateEntries(tph0)
-        tph1 = removeDuplicateEntries(tph1)
+        tph1 = removeDuplicateEntries(tph1, true)
 
         Log.d("ListPanenTBSActivityESPB", "Final tph0: $tph0")
         Log.d("ListPanenTBSActivityESPB", "Final tph1: $tph1")
         Log.d("ListPanenTBSActivityESPB", "Final tph1IdPanen: $tph1IdPanen")
+
     }
 
     private fun setupButtonGenerateQR() {
@@ -4830,15 +4838,37 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
     // Add a helper function to remove duplicate entries
-    private fun removeDuplicateEntries(entries: String): String {
+    private fun removeDuplicateEntries(entries: String, prioritizePreselected: Boolean = true): String {
         if (entries.isEmpty()) return ""
 
-        val uniqueEntries = entries.split(";")
-            .filter { it.isNotEmpty() }
-            .distinct()
-            .joinToString(";")
+        val entryList = entries.split(";").filter { it.isNotEmpty() }
+        val uniqueMap = mutableMapOf<String, String>()
 
-        return uniqueEntries
+        for (entry in entryList) {
+            val parts = entry.split(",")
+            if (parts.size >= 4) {
+                // Create key from all parts except the last one (status)
+                val key = parts.dropLast(1).joinToString(",")
+                val status = parts.last()
+
+                if (prioritizePreselected) {
+                    // If we don't have this key yet, or if current entry has status 0 (preselected), use it
+                    if (!uniqueMap.containsKey(key) || status == "0") {
+                        uniqueMap[key] = entry
+                    }
+                } else {
+                    // If we don't have this key yet, or if current entry has status 1 (manually selected), use it
+                    if (!uniqueMap.containsKey(key) || status == "1") {
+                        uniqueMap[key] = entry
+                    }
+                }
+            } else {
+                // If entry doesn't have expected format, keep it as is
+                uniqueMap[entry] = entry
+            }
+        }
+
+        return uniqueMap.values.joinToString(";")
     }
 
 }
