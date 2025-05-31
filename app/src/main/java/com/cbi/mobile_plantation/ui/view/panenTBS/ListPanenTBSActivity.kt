@@ -1600,7 +1600,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         Log.d("ListPanenTBSActivityESPB", "tph1IdPanen:$tph1IdPanen")
 
 
-        //get automatically selected items
+        //get automatically selected items (preselected)
         val preSelectedItems = listAdapter.getPreSelectedItems()
         Log.d("ListPanenTBSActivityESPB", "preSelectedItems:$preSelectedItems")
 
@@ -1630,11 +1630,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         val allItems = listAdapter.getCurrentData()
         Log.d("ListPanenTBSActivityESPB", "listTPHDriver: $listTPHDriver")
-        val tph1NO = convertToFormattedString(
+
+        // Process manually selected items (with status 1)
+        val tph1ManuallySelected = convertToFormattedString(
             selectedItems2.toString(),
             listTPHDriver
         ).replace("{\"KP\": ", "").replace("},", ",")
-        Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsNO: $tph1NO")
+        Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsNO: $tph1ManuallySelected")
+
+        // Process pre-selected items (with status 0)
+        val tph1PreSelected = convertToFormattedString(
+            preSelectedItems.toString(),
+            0  // Use 0 for preselected items
+        ).replace("{\"KP\": ", "").replace("},", ",")
+        Log.d("ListPanenTBSActivityESPB", "formatted preSelectedItems: $tph1PreSelected")
 
         //get item which is not selected
         val tph0before =
@@ -1644,18 +1653,19 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         val set1 = tph1AD0.toEntries()
         val set2 = tph1AD2.toEntries()
-        val set3 = tph1NO.toEntries()
+        val setManuallySelected = tph1ManuallySelected.toEntries()
+        val setPreSelected = tph1PreSelected.toEntries()
         val set4 = tph0before.toEntries()
 
-        // Calculate string5 = string4 - string1 - string3
-        val newTph0 = (set4 - set1 - set3).toString().replace("[", "").replace("]", "")
-            .replace(", ", ";")
+        // Calculate string5 = string4 - string1 - manually selected - preselected
+        val newTph0 = (set4 - set1 - setManuallySelected - setPreSelected).toString()
+            .replace("[", "").replace("]", "").replace(", ", ";")
         Log.d("ListPanenTBSActivityESPB", "New tph0: $newTph0")
 
-        // Calculate string6 = string2 + string3
-        val newTph1 =
-            (set2 + set3).toString().replace("[", "").replace("]", "").replace(", ", ";")
-        Log.d("ListPanenTBSActivityESPB", "New tph1: $newTph1")
+         // Calculate new tph1 = manually selected (status 1) + preselected (status 0) + existing selected
+        val newTph1Combined = (set2 + setManuallySelected + setPreSelected).toString()
+            .replace("[", "").replace("]", "").replace(", ", ";")
+        Log.d("ListPanenTBSActivityESPB", "New tph1 combined: $newTph1Combined")
 
         // Combine with existing data if it exists
         if (tph0.isNotEmpty() && newTph0.isNotEmpty()) {
@@ -1664,10 +1674,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             tph0 = newTph0
         }
 
-        if (tph1.isNotEmpty() && newTph1.isNotEmpty()) {
-            tph1 = "$tph1;$newTph1"
-        } else if (newTph1.isNotEmpty()) {
-            tph1 = newTph1
+        if (tph1.isNotEmpty() && newTph1Combined.isNotEmpty()) {
+            tph1 = "$tph1;$newTph1Combined"
+        } else if (newTph1Combined.isNotEmpty()) {
+            tph1 = newTph1Combined
         }
 
         // Remove any duplicate entries from tph0 and tph1
@@ -1677,7 +1687,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         Log.d("ListPanenTBSActivityESPB", "Final tph0: $tph0")
         Log.d("ListPanenTBSActivityESPB", "Final tph1: $tph1")
         Log.d("ListPanenTBSActivityESPB", "Final tph1IdPanen: $tph1IdPanen")
-
     }
 
     private fun setupButtonGenerateQR() {
@@ -1700,6 +1709,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     ) {
                     }
                 } else {
+
+
                     AlertDialogUtility.withTwoActions(
                         this,
                         "LANJUT",
