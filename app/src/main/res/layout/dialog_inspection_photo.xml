@@ -29,7 +29,8 @@
                 android:layout_weight="1"
                 android:fontFamily="@font/manrope_bold"
                 android:gravity="center|start"
-                android:text="Lampiran Foto"
+                android:layout_marginBottom="15dp"
+                android:id="@+id/titlePhotoTemuan"
                 android:textColor="@color/black"
                 android:textSize="20dp" />
 
@@ -58,52 +59,52 @@
 <!--            android:visibility="visible"-->
 <!--            />-->
 
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/alertCardScanRadius"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+<!--        <com.google.android.material.card.MaterialCardView-->
+<!--            android:id="@+id/alertCardScanRadius"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
 
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp"
-            android:visibility="visible"
-            app:cardBackgroundColor="@color/bgLightYellow"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="0dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:strokeColor="@color/borderYellow"
-            app:strokeWidth="2dp">
+<!--            android:layout_marginTop="16dp"-->
+<!--            android:layout_marginBottom="16dp"-->
+<!--            android:visibility="visible"-->
+<!--            app:cardBackgroundColor="@color/bgLightYellow"-->
+<!--            app:cardCornerRadius="12dp"-->
+<!--            app:cardElevation="0dp"-->
+<!--            app:layout_constraintBottom_toBottomOf="parent"-->
+<!--            app:layout_constraintEnd_toEndOf="parent"-->
+<!--            app:layout_constraintStart_toStartOf="parent"-->
+<!--            app:layout_constraintTop_toTopOf="parent"-->
+<!--            app:strokeColor="@color/borderYellow"-->
+<!--            app:strokeWidth="2dp">-->
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="16dp">
+<!--            <LinearLayout-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:gravity="center_vertical"-->
+<!--                android:orientation="horizontal"-->
+<!--                android:padding="16dp">-->
 
-                <ImageView
-                    android:id="@+id/errorIcon"
-                    android:layout_width="30dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginEnd="8dp"
-                    android:src="@drawable/circle_exclamation_solid"
-                    android:tint="@color/anotherYellow"
-                    tools:ignore="UseAppTint" />
+<!--                <ImageView-->
+<!--                    android:id="@+id/errorIcon"-->
+<!--                    android:layout_width="30dp"-->
+<!--                    android:layout_height="match_parent"-->
+<!--                    android:layout_marginEnd="8dp"-->
+<!--                    android:src="@drawable/circle_exclamation_solid"-->
+<!--                    android:tint="@color/anotherYellow"-->
+<!--                    tools:ignore="UseAppTint" />-->
 
-                <TextView
-                    android:id="@+id/alertTvScannedRadius"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/manrope_bold"
-                    android:textColor="@color/grayDefault"
-                    android:text="@string/alert_take_foto_for_inspection"
-                    android:textSize="@dimen/m" />
+<!--                <TextView-->
+<!--                    android:id="@+id/alertTvScannedRadius"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:fontFamily="@font/manrope_bold"-->
+<!--                    android:textColor="@color/grayDefault"-->
+<!--                    android:text="@string/alert_take_foto_for_inspection"-->
+<!--                    android:textSize="@dimen/m" />-->
 
-            </LinearLayout>
+<!--            </LinearLayout>-->
 
-        </com.google.android.material.card.MaterialCardView>
+<!--        </com.google.android.material.card.MaterialCardView>-->
 
         <include
            android:id="@+id/incLytPhotosInspect"

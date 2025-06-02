@@ -220,33 +220,33 @@
                 android:id="@+id/lyBrdKtpInspect"
                 layout="@layout/pane_number_layout" />
 
-            <include
-                android:id="@+id/lyBrdInInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyBrdInInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
-            <include
-                android:id="@+id/lyBrdOutInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyBrdOutInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
-            <include
-                android:id="@+id/lyPasarPikulInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyPasarPikulInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
-            <include
-                android:id="@+id/lyKetiakInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyKetiakInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
-            <include
-                android:id="@+id/lyParitInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyParitInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
-            <include
-                android:id="@+id/lyBrdSegarInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyBrdSegarInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
-            <include
-                android:id="@+id/lyBrdBusukInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyBrdBusukInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
         </LinearLayout>
     </LinearLayout>

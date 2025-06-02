@@ -3960,7 +3960,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     AppUtils.getPanenProcessedData(limitedData, featureName)
 
                 tvUserName.text =
-                    "Hasil QR dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
+                    "Hasil QR ${featureName} dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
                 if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                     val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
                     val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)

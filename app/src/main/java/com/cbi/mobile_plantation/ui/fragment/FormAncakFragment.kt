@@ -241,55 +241,55 @@ class FormAncakFragment : Fragment() {
                 { currentData, value -> currentData.copy(brdKtp = value) },
                 { it.brdKtp }
             ),
-            InputMapping(
-                R.id.lyBrdInInspect,
-                "Brondolan di dalam piringan (butir)",
-                InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(brdIn = value) },
-                { it.brdIn }
-            ),
-            InputMapping(
-                R.id.lyBrdOutInspect,
-                "Brondolan di luar piringan (butir)",
-                InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(brdOut = value) },
-                { it.brdOut }
-            ),
-            InputMapping(
-                R.id.lyPasarPikulInspect,
-                "Pasar Pikul",
-                InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(pasarPikul = value) },
-                { it.pasarPikul }
-            ),
-            InputMapping(
-                R.id.lyKetiakInspect,
-                "Ketiak",
-                InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(ketiak = value) },
-                { it.ketiak }
-            ),
-            InputMapping(
-                R.id.lyParitInspect,
-                "Parit",
-                InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(parit = value) },
-                { it.parit }
-            ),
-            InputMapping(
-                R.id.lyBrdSegarInspect,
-                "Brondolan Segar",
-                InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(brdSegar = value) },
-                { it.brdSegar }
-            ),
-            InputMapping(
-                R.id.lyBrdBusukInspect,
-                "Brondolan Busuk",
-                InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(brdBusuk = value) },
-                { it.brdBusuk }
-            ),
+//            InputMapping(
+//                R.id.lyBrdInInspect,
+//                "Brondolan di dalam piringan (butir)",
+//                InputType.EDITTEXT,
+//                { currentData, value -> currentData.copy(brdIn = value) },
+//                { it.brdIn }
+//            ),
+//            InputMapping(
+//                R.id.lyBrdOutInspect,
+//                "Brondolan di luar piringan (butir)",
+//                InputType.EDITTEXT,
+//                { currentData, value -> currentData.copy(brdOut = value) },
+//                { it.brdOut }
+//            ),
+//            InputMapping(
+//                R.id.lyPasarPikulInspect,
+//                "Pasar Pikul",
+//                InputType.EDITTEXT,
+//                { currentData, value -> currentData.copy(pasarPikul = value) },
+//                { it.pasarPikul }
+//            ),
+//            InputMapping(
+//                R.id.lyKetiakInspect,
+//                "Ketiak",
+//                InputType.EDITTEXT,
+//                { currentData, value -> currentData.copy(ketiak = value) },
+//                { it.ketiak }
+//            ),
+//            InputMapping(
+//                R.id.lyParitInspect,
+//                "Parit",
+//                InputType.EDITTEXT,
+//                { currentData, value -> currentData.copy(parit = value) },
+//                { it.parit }
+//            ),
+//            InputMapping(
+//                R.id.lyBrdSegarInspect,
+//                "Brondolan Segar",
+//                InputType.EDITTEXT,
+//                { currentData, value -> currentData.copy(brdSegar = value) },
+//                { it.brdSegar }
+//            ),
+//            InputMapping(
+//                R.id.lyBrdBusukInspect,
+//                "Brondolan Busuk",
+//                InputType.EDITTEXT,
+//                { currentData, value -> currentData.copy(brdBusuk = value) },
+//                { it.brdBusuk }
+//            ),
         )
 
         inputMappings.forEach { (layoutId, label, inputType, dataField, currentValue) ->

@@ -148,6 +148,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var userName: String? = null
     private var userId: Int? = null
     private var jabatanUser: String? = null
+    private var photoInTPH: String? = null
+    private var komentarInTPH: String? = null
     private var infoApp: String = ""
     private var jenisTPHListGlobal: List<JenisTPHModel> = emptyList()
     private var lat: Double? = null
@@ -243,6 +245,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var selectedPemanenLain: String = ""
     private var selectedKondisiValue: String = ""
 
+    private var isInTPH: Boolean = true
     private var ancakValue: String = ""
     private var br1Value: String = ""
     private var br2Value: String = ""
@@ -264,12 +267,14 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private lateinit var infoBlokView: ScrollView
     private lateinit var formInspectionView: ConstraintLayout
+
     private lateinit var summaryView: ConstraintLayout
     private lateinit var bottomNavInspect: BottomNavigationView
     private lateinit var vpFormAncak: ViewPager2
     private lateinit var fabPrevFormAncak: FloatingActionButton
     private lateinit var fabNextFormAncak: FloatingActionButton
     private lateinit var fabPhotoFormAncak: FloatingActionButton
+    private lateinit var fabPhotoInfoBlok: FloatingActionButton
     private lateinit var fabSaveFormAncak: FloatingActionButton
     private var activityInitialized = false
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
@@ -530,7 +535,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                             shouldReopenBottomSheet = false
                             bottomNavInspect.visibility = View.VISIBLE
                             Handler(Looper.getMainLooper()).postDelayed({
-                                showViewPhotoBottomSheet()
+                                showViewPhotoBottomSheet(null, isInTPH)
                             }, 100)
                         }
                     }
@@ -727,6 +732,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             }, 300)
         }
 
+
         formAncakViewModel.formData.observe(this) { formData ->
             updatePhotoBadgeVisibility()
 
@@ -768,28 +774,11 @@ open class FormInspectionActivity : AppCompatActivity(),
             val photoValue = pageData?.photo ?: ""
             val emptyTreeValue = pageData?.emptyTree ?: 0
 
-            // DETAILED LOGGING
-            AppLogger.d("=== NEXT BUTTON DEBUG ===")
-            AppLogger.d("currentPage: $currentPage")
-            AppLogger.d("nextPage: $nextPage")
-            AppLogger.d("totalPages: $totalPages")
-            AppLogger.d("selectedInspeksiValue: ${selectedInspeksiValue.toInt()}")
-            AppLogger.d("emptyTreeValue: $emptyTreeValue")
-            AppLogger.d("photoValue: '$photoValue'")
-            AppLogger.d("photoValue.isEmpty(): ${photoValue.isEmpty()}")
-            AppLogger.d("pageData: $pageData")
-
-            // PHOTO VALIDATION CHECK
-            AppLogger.d("=== PHOTO VALIDATION CHECK ===")
-            AppLogger.d("selectedInspeksiValue.toInt() == 1: ${selectedInspeksiValue.toInt() == 1}")
-            AppLogger.d("emptyTreeValue == 1: ${emptyTreeValue == 1}")
-            AppLogger.d("photoValue.isEmpty(): ${photoValue.isEmpty()}")
-            AppLogger.d("All conditions: ${selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty()}")
 
             if (selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty()) {
                 AppLogger.d("BLOCKED: Photo validation - inspection=1, emptyTree=1, photo empty")
                 vibrate(500)
-                showViewPhotoBottomSheet()
+                showViewPhotoBottomSheet(null, isInTPH)
                 AlertDialogUtility.withSingleAction(
                     this,
                     stringXML(R.string.al_back),
@@ -801,16 +790,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                 return@setOnClickListener
             }
 
-            AppLogger.d("=== CALLING VIEWMODEL VALIDATION ===")
             val validationResult = formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
 
-            AppLogger.d("=== VALIDATION RESULT ===")
-            AppLogger.d("ValidationResult.isValid: ${validationResult.isValid}")
-            AppLogger.d("ValidationResult.fieldId: ${validationResult.fieldId}")
-
-
             if (!validationResult.isValid) {
-                AppLogger.d("BLOCKED: ViewModel validation failed")
                 vibrate(500)
 
                 // Show alert with validation message
@@ -902,10 +884,14 @@ open class FormInspectionActivity : AppCompatActivity(),
 //            val validationResult =
 //                formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
 //            if (validationResult.isValid) {
-            showViewPhotoBottomSheet()
+            showViewPhotoBottomSheet(null, isInTPH)
 //            } else {
 //                vibrate(500)
 //            }
+        }
+
+        fabPhotoInfoBlok.setOnClickListener{
+            showViewPhotoBottomSheet(null, isInTPH)
         }
 
         fabSaveFormAncak.setOnClickListener {
@@ -922,6 +908,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 return@setOnClickListener
             }
 
+            AppLogger.d(trackingLocation.toString())
             AlertDialogUtility.withTwoActions(
                 this,
                 "Simpan Data",
@@ -1191,7 +1178,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     @SuppressLint("SetTextI18n", "InflateParams")
-    private fun showViewPhotoBottomSheet(fileName: String? = null) {
+    private fun showViewPhotoBottomSheet(fileName: String? = null, isInTPH: Boolean?=  null) {
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
@@ -1212,10 +1199,26 @@ open class FormInspectionActivity : AppCompatActivity(),
         val tvPhotoComment = incLytPhotosInspect.findViewById<TextView>(R.id.tvPhotoComment)
         val etPhotoComment = incLytPhotosInspect.findViewById<EditText>(R.id.etPhotoComment)
 
+
+        if(isInTPH == true){
+            val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
+            titlePhotoTemuan.text = "Lampiran Foto di TPH"
+            updatePhotoBadgeVisibility()
+        }else{
+            val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
+            titlePhotoTemuan.text = "Lampiran Foto Temuan"
+        }
+
+        val photoToShow = if (isInTPH == true) photoInTPH else currentData.photo
+
         tvPhotoComment.visibility = View.GONE
 
-        ibDeletePhotoInspect.visibility =
+        ibDeletePhotoInspect.visibility = if (isInTPH == true) {
+            AppLogger.d("photoInTPH $photoInTPH")
+            if (!photoInTPH.isNullOrEmpty()) View.VISIBLE else View.GONE
+        } else {
             if (currentData.photo != null || currentData.comment != null) View.VISIBLE else View.GONE
+        }
         ibDeletePhotoInspect.setOnClickListener {
             AlertDialogUtility.withTwoActions(
                 this,
@@ -1230,49 +1233,44 @@ open class FormInspectionActivity : AppCompatActivity(),
                     etPhotoComment.setText("")
                     etPhotoComment.clearFocus()
 
-                    formAncakViewModel.savePageData(
-                        currentPage,
-                        currentData.copy(
-                            photo = null,
-                            comment = null,
-                            latIssue = null,
-                            lonIssue = null
+                    if (isInTPH == true) {
+                        // Clear TPH photo
+                        photoInTPH = null
+                    } else {
+                        // Clear form data photo
+                        formAncakViewModel.savePageData(
+                            currentPage,
+                            currentData.copy(
+                                photo = null,
+                                comment = null,
+                                latIssue = null,
+                                lonIssue = null
+                            )
                         )
-                    )
+                    }
 
                     updatePhotoBadgeVisibility()
                 }
             )
         }
 
-        etPhotoComment.visibility = View.VISIBLE
-        etPhotoComment.setText(currentData.comment)
-        etPhotoComment.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(
-                s: CharSequence?,
-                start: Int,
-                count: Int,
-                after: Int
-            ) {
-            }
+        if (isInTPH == true) {
 
-            override fun onTextChanged(
-                s: CharSequence?,
-                start: Int,
-                before: Int,
-                count: Int
-            ) {
-            }
+        } else {
+            etPhotoComment.setText(currentData.comment)
+            etPhotoComment.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    formAncakViewModel.savePageData(
+                        currentPage,
+                        currentData.copy(comment = s?.toString() ?: "")
+                    )
+                }
+            })
+        }
 
-            override fun afterTextChanged(s: Editable?) {
-                formAncakViewModel.savePageData(
-                    currentPage,
-                    currentData.copy(comment = s?.toString() ?: "")
-                )
-            }
-        })
-
-        var resultFileName = currentData.photo ?: ""
+        var resultFileName = photoToShow ?: ""
         if (fileName != null) {
             resultFileName = fileName
         }
@@ -1317,13 +1315,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         currentData.copy(photo = "")
                                     )
                                     Handler(Looper.getMainLooper()).postDelayed({
-                                        showViewPhotoBottomSheet()
+                                        showViewPhotoBottomSheet(null, isInTPH)
                                     }, 100)
                                 },
                                 onClosePhoto = {
                                     bottomNavInspect.visibility = View.VISIBLE
                                     Handler(Looper.getMainLooper()).postDelayed({
-                                        showViewPhotoBottomSheet()
+                                        showViewPhotoBottomSheet(null, isInTPH)
                                     }, 100)
                                 }
                             )
@@ -1481,6 +1479,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         fabPrevFormAncak = findViewById(R.id.fabPrevFormInspect)
         fabNextFormAncak = findViewById(R.id.fabNextFormInspect)
         fabPhotoFormAncak = findViewById(R.id.fabPhotoFormInspect)
+        fabPhotoInfoBlok = findViewById(R.id.fabPhotoInfoBlok)
+
         fabSaveFormAncak = findViewById(R.id.fabSaveFormInspect)
 
         fabSaveFormAncak.backgroundTintList =
@@ -1576,7 +1576,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     if (inspectionType == 1 && emptyTreeValue == 2 && photoValue.isEmpty()) {
                         vibrate(500)
 
-                        showViewPhotoBottomSheet()
+                        showViewPhotoBottomSheet(null, isInTPH)
                         AlertDialogUtility.withSingleAction(
                             this,
                             stringXML(R.string.al_back),
@@ -1609,9 +1609,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                     R.id.navMenuBlokInspect -> {
                         withContext(Dispatchers.Main) {
                             infoBlokView.visibility = View.VISIBLE
+                            fabPhotoInfoBlok.visibility = View.VISIBLE
                             formInspectionView.visibility = View.GONE
                             summaryView.visibility = View.GONE
-
+                            isInTPH = true
                             delay(200)
                             loadingDialog.dismiss()
                         }
@@ -1619,6 +1620,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     R.id.navMenuAncakInspect -> {
                         withContext(Dispatchers.Main) {
+                            isInTPH = false
                             if (!trackingLocation.containsKey("start")) {
                                 trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
                             }
@@ -1630,7 +1632,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 selectedBlok
                             )
                             formAncakViewModel.updateTypeInspection(selectedInspeksiValue.toInt() == 1)
-
+                            fabPhotoInfoBlok.visibility = View.GONE
                             infoBlokView.visibility = View.GONE
                             summaryView.visibility = View.GONE
                             formInspectionView.post {
@@ -1646,8 +1648,9 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     R.id.navMenuSummaryInspect -> {
                         withContext(Dispatchers.Main) {
+                            isInTPH = false
                             setupSummaryPage()
-
+                            fabPhotoInfoBlok.visibility = View.GONE
                             infoBlokView.visibility = View.GONE
                             formInspectionView.visibility = View.GONE
                             summaryView.post {
@@ -1791,12 +1794,28 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun updatePhotoBadgeVisibility() {
+        AppLogger.d("masuk gak gess")
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
 
+        // Badge for Form Data Section (fabPhotoFormInspect)
         val badgePhotoInspect = findViewById<View>(R.id.badgePhotoInspect)
-        badgePhotoInspect.visibility = if (currentData.photo != null) {
+        val hasFormPhoto = currentData.photo != null
+
+        AppLogger.d("hasFormPhoto $hasFormPhoto")
+        badgePhotoInspect.visibility = if (hasFormPhoto) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+
+        // Badge for Info Blok Section (fabPhotoInfoBlok)
+        val badgePhotoInfoBlok = findViewById<View>(R.id.badgePhotoInfoBlok)
+        val hasTPHPhoto = !photoInTPH.isNullOrEmpty()
+
+        AppLogger.d("hasTPHPhoto $hasTPHPhoto")
+        badgePhotoInfoBlok.visibility = if (hasTPHPhoto) {
             View.VISIBLE
         } else {
             View.GONE
@@ -1854,7 +1873,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         totalPokokInspection = (1..totalPages).count { (formData[it]?.emptyTree ?: 0) > 0 }
 
         val data = listOf(
-            SummaryItem("Jumlah Pokok", totalPokokInspection.toString()),
+            SummaryItem("Total Pokok Diperiksa", totalPokokInspection.toString()),
+            SummaryItem("Total Pokok Diperiksa", ""),
         )
 
         for (item in data) {
@@ -2277,296 +2297,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 selectedJalurMasuk = selectedKey ?: ""
             }
 
-//            R.id.lyMandor1Inspect -> {
-//                selectedPemanenAdapter.clearAllWorkers()
-//                selectedKemandoran = selectedItem
-//
-//                val filteredKemandoranId: Int? = try {
-//                    kemandoranList.find {
-//                        it.dept == estateId?.toIntOrNull() && // Avoids force unwrap (!!)
-//                                it.divisi == selectedDivisiValue &&
-//                                it.nama == selectedKemandoran
-//                    }?.id
-//                } catch (e: Exception) {
-//                    AppLogger.e("Error finding Kemandoran ID: ${e.message}")
-//                    null
-//                }
-//
-//                if (filteredKemandoranId != null) {
-//                    lifecycleScope.launch(Dispatchers.IO) {
-//                        withContext(Dispatchers.Main) {
-//                            animateLoadingDots(linearLayout)
-//                            delay(1000) // 1 second delay
-//                        }
-//
-//                        try {
-//                            val karyawanDeferred = async {
-//                                datasetViewModel.getKaryawanList(filteredKemandoranId)
-//                            }
-//
-//                            karyawanList = karyawanDeferred.await()
-//                            val karyawanNames = karyawanList
-//                                .sortedBy { it.nama } // Sort by name alphabetically
-//                                .map { "${it.nama} - ${it.nik}" }
-//
-//                            withContext(Dispatchers.Main) {
-//                                val layoutPemanen =
-//                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.lyPemanen1Inspect)
-//                                if (karyawanNames.isNotEmpty()) {
-//                                    setupSpinnerView(layoutPemanen, karyawanNames)
-//                                } else {
-//                                    setupSpinnerView(layoutPemanen, emptyList())
-//                                }
-//                            }
-//
-//                        } catch (e: Exception) {
-//                            AppLogger.e("Error fetching afdeling data: ${e.message}")
-//                            withContext(Dispatchers.Main) {
-//                                Toast.makeText(
-//                                    this@FormInspectionActivity,
-//                                    "Error loading afdeling data: ${e.message}",
-//                                    Toast.LENGTH_LONG
-//                                ).show()
-//                            }
-//                        } finally {
-//                            withContext(Dispatchers.Main) {
-//                                hideLoadingDots(linearLayout)
-//                            }
-//                        }
-//                    }
-//                } else {
-//                    AppLogger.e("Filtered Kemandoran ID is null, skipping data fetch.")
-//                }
-//            }
-
-//            R.id.lyPemanen1Inspect -> {
-//                selectedPemanen = selectedItem.toString()
-//                AppLogger.d("Selected Pemanen: $selectedPemanen")
-//                AppLogger.d("Selected TPH ID: $selectedTPHIdByScan")
-//
-//                // Extract NIK and Name from the formatted selection (e.g., "L92832 - Ahmad")
-//                val dashIndex = selectedPemanen.indexOf(" - ")
-//                val selectedNik = if (dashIndex != -1) {
-//                    selectedPemanen.substring(0, dashIndex).trim()
-//                } else {
-//                    ""
-//                }
-//
-//                val selectedName = if (dashIndex != -1) {
-//                    selectedPemanen.substring(dashIndex + 3).trim()
-//                } else {
-//                    selectedPemanen.trim()
-//                }
-//
-//                AppLogger.d("Extracted NIK: '$selectedNik'")
-//                AppLogger.d("Extracted Name: '$selectedName'")
-//
-//                // Find all matching panen records for the selected TPH
-//                val matchingPanenList = tphList.filter { panenWithRelations ->
-//                    val tphId = panenWithRelations.tph?.id
-//                    tphId == selectedTPHIdByScan
-//                }
-//
-//                AppLogger.d("Found ${matchingPanenList.size} matching panen records for TPH ID: $selectedTPHIdByScan")
-//
-//                // Find the selected employee from the matching panen records
-//                var selectedEmployee: PanenEntity? = null
-//
-//                // First, try to find by NIK match
-//                if (selectedNik.isNotEmpty()) {
-//                    for (panenWithRelations in matchingPanenList) {
-//                        val panenEntity = panenWithRelations.panen ?: continue
-//                        val karyawanNik = panenEntity.karyawan_nik
-//
-//                        if (karyawanNik == selectedNik) {
-//                            selectedEmployee = panenEntity
-//                            AppLogger.d("Found matching employee by NIK: ${panenEntity.karyawan_nik}")
-//                            break
-//                        }
-//                    }
-//                }
-//
-//                // If not found by NIK, try to find by name match
-//                if (selectedEmployee == null) {
-//                    for (panenWithRelations in matchingPanenList) {
-//                        val panenEntity = panenWithRelations.panen ?: continue
-//                        val karyawanNama = panenEntity.karyawan_nama
-//
-//                        if (!karyawanNama.isNullOrBlank()) {
-//                            // Split karyawan_nama by comma and check each name
-//                            val names = karyawanNama.split(",").map { it.trim() }
-//
-//                            if (names.any { it.equals(selectedName, ignoreCase = true) }) {
-//                                selectedEmployee = panenEntity
-//                                AppLogger.d("Found matching employee by name: ${panenEntity.karyawan_nama}")
-//                                break
-//                            }
-//                        }
-//                    }
-//                }
-//
-//                // If still not found, try partial match on name
-//                if (selectedEmployee == null) {
-//                    for (panenWithRelations in matchingPanenList) {
-//                        val panenEntity = panenWithRelations.panen ?: continue
-//                        val karyawanNama = panenEntity.karyawan_nama
-//
-//                        if (!karyawanNama.isNullOrBlank()) {
-//                            val names = karyawanNama.split(",").map { it.trim() }
-//
-//                            if (names.any { it.contains(selectedName, ignoreCase = true) }) {
-//                                selectedEmployee = panenEntity
-//                                AppLogger.d("Found matching employee by partial match: ${panenEntity.karyawan_nama}")
-//                                break
-//                            }
-//                        }
-//                    }
-//                }
-//
-//                if (selectedEmployee != null) {
-//                    AppLogger.d("Selected Employee Found:")
-//                    AppLogger.d("- Karyawan ID: ${selectedEmployee.karyawan_id}")
-//                    AppLogger.d("- Karyawan NIK: ${selectedEmployee.karyawan_nik}")
-//                    AppLogger.d("- Karyawan Nama: ${selectedEmployee.karyawan_nama}")
-//                    AppLogger.d("- Kemandoran ID: ${selectedEmployee.kemandoran_id}")
-//
-//                    // Build the maps using the selected employee data
-//                    karyawanIdMap.clear()
-//                    kemandoranIdMap.clear()
-//
-//                    // Add the selected employee to the maps using different key formats
-//                    // Use the original formatted selection as key
-//                    karyawanIdMap[selectedPemanen] = selectedEmployee.karyawan_id.toIntOrNull() ?: 0
-//                    kemandoranIdMap[selectedPemanen] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
-//
-//                    // Also add by NIK as key
-//                    if (selectedNik.isNotEmpty()) {
-//                        karyawanIdMap[selectedNik] = selectedEmployee.karyawan_id.toIntOrNull() ?: 0
-//                        kemandoranIdMap[selectedNik] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
-//                    }
-//
-//                    // Also add by name as key
-//                    if (selectedName.isNotEmpty()) {
-//                        karyawanIdMap[selectedName] = selectedEmployee.karyawan_id.toIntOrNull() ?: 0
-//                        kemandoranIdMap[selectedName] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
-//                    }
-//
-//                    // Create Worker and add to adapter
-//                    val workerId = selectedEmployee.karyawan_id
-//                    val worker = Worker(workerId, selectedPemanen)
-//                    selectedPemanenAdapter.addWorker(worker)
-//
-//                    val availableWorkers = selectedPemanenAdapter.getAvailableWorkers()
-//
-//                    if (availableWorkers.isNotEmpty()) {
-//                        setupSpinnerView(
-//                            linearLayout,
-//                            availableWorkers.map { it.name }
-//                        )
-//                    }
-//
-//                    AppLogger.d("Selected Worker: $selectedPemanen, Karyawan ID: $workerId")
-//                    AppLogger.d("Available workers count: ${availableWorkers.size}")
-//
-//                } else {
-//                    AppLogger.e("Error: Could not find worker with NIK '$selectedNik' or name '$selectedName' in TPH ID: $selectedTPHIdByScan")
-//                    AppLogger.d("Available records in matching TPH:")
-//
-//                    matchingPanenList.forEach { panenWithRelations ->
-//                        val panenEntity = panenWithRelations.panen
-//                        if (panenEntity != null) {
-//                            AppLogger.d("- NIK: '${panenEntity.karyawan_nik}', Names: '${panenEntity.karyawan_nama}'")
-//                        }
-//                    }
-//                }
-//            }
-//
-//            R.id.lyMandor2Inspect -> {
-//                selectedPemanenLainAdapter.clearAllWorkers()
-//                selectedKemandoranLain = selectedItem
-//
-//                val selectedIdKemandoranLain: Int? = try {
-//                    kemandoranLainList.find {
-//                        it.nama == selectedKemandoranLain
-//                    }?.id
-//                } catch (e: Exception) {
-//                    null
-//                }
-//
-//                if (selectedIdKemandoranLain != null) {
-//                    lifecycleScope.launch(Dispatchers.IO) {
-//                        withContext(Dispatchers.Main) {
-//                            animateLoadingDots(linearLayout)
-//                            delay(1000) // 1 second delay
-//                        }
-//
-//                        try {
-//                            val karyawanDeferred = async {
-//                                datasetViewModel.getKaryawanList(selectedIdKemandoranLain)
-//                            }
-//
-//                            karyawanLainList = karyawanDeferred.await()
-//                            val namaKaryawanKemandoranLain =
-//                                karyawanLainList.sortedBy { it.nama } // Sort by name alphabetically
-//                                    .map { "${it.nama} - ${it.nik}" }
-//
-//                            withContext(Dispatchers.Main) {
-//                                val layoutPemanenLain =
-//                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.lyPemanen2Inspect)
-//                                if (namaKaryawanKemandoranLain.isNotEmpty()) {
-//                                    setupSpinnerView(
-//                                        layoutPemanenLain,
-//                                        namaKaryawanKemandoranLain
-//                                    )
-//                                } else {
-//                                    setupSpinnerView(layoutPemanenLain, emptyList())
-//                                }
-//                            }
-//                        } catch (e: Exception) {
-//                            withContext(Dispatchers.Main) {
-//                                Toast.makeText(
-//                                    this@FormInspectionActivity,
-//                                    "Error loading kemandoran lain data: ${e.message}",
-//                                    Toast.LENGTH_LONG
-//                                ).show()
-//                            }
-//                        } finally {
-//                            withContext(Dispatchers.Main) {
-//                                hideLoadingDots(linearLayout)
-//                            }
-//                        }
-//                    }
-//                } else {
-//                    AppLogger.e("Selected ID Kemandoran Lain is null, skipping data fetch.")
-//                }
-//            }
-//
-//            R.id.lyPemanen2Inspect -> {
-//                selectedPemanenLain = selectedItem
-//
-//                val selectedNamaPemanenLain = selectedPemanenLain.substringBefore(" - ").trim()
-//                val karyawanLainNikMap =
-//                    karyawanLainList.associateBy({ it.nama!!.trim() }, { it.nik!! })
-//                karyawanLainList.forEach {
-//                    it.nama?.trim()?.let { nama ->
-//                        karyawanLainIdMap[nama] = it.id!!
-//                        kemandoranLainIdMap[nama] = it.kemandoran_id!!
-//                    }
-//                }
-//
-//                val selectedPemanenLainId = karyawanLainNikMap[selectedNamaPemanenLain]
-//                if (selectedPemanenLainId != null) {
-//                    val worker = Worker(selectedPemanenLainId.toString(), selectedPemanenLain)
-//                    selectedPemanenLainAdapter.addWorker(worker)
-//
-//                    val availableWorkers = selectedPemanenLainAdapter.getAvailableWorkers()
-//                    if (availableWorkers.isNotEmpty()) {
-//                        setupSpinnerView(
-//                            linearLayout,
-//                            availableWorkers.map { it.name })
-//                    }
-//                }
-//            }
         }
     }
 
@@ -3318,13 +3048,24 @@ open class FormInspectionActivity : AppCompatActivity(),
             val currentData =
                 formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
 
-            formAncakViewModel.savePageData(
-                currentPage,
-                currentData.copy(photo = fname, latIssue = lat, lonIssue = lon)
-            )
+
+
+            AppLogger.d("fname $fname")
+            if (isInTPH){
+                photoInTPH = fname
+                AppLogger.d("photoInTPH hbis taken foto $photoInTPH")
+
+//                komentarInTPH = komentar
+            }else{
+                formAncakViewModel.savePageData(
+                    currentPage,
+                    currentData.copy(photo = fname, latIssue = lat, lonIssue = lon)
+                )
+            }
+
 
             Handler(Looper.getMainLooper()).postDelayed({
-                showViewPhotoBottomSheet(fname)
+                showViewPhotoBottomSheet(fname, isInTPH)
             }, 100)
         }
     }
