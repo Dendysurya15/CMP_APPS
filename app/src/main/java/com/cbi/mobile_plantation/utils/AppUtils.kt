@@ -162,7 +162,7 @@ object AppUtils {
         const val PANEN = "panen_table"
         const val JENIS_TPH = "jenis_tph"
         const val INSPEKSI = "inspeksi"
-        const val INSPEKSI_PATH = "inspeksi_path"
+        const val INSPEKSI_DETAIL= "inspeksi_detail"
         const val ESPB = "espb_table"
         const val ABSENSI = "absensi"
         const val AFDELING = "afdeling"

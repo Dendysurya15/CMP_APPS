@@ -12,7 +12,6 @@ import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
-import android.location.Location
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
@@ -66,14 +65,13 @@ import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
 import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.InspectionModel
-import com.cbi.mobile_plantation.data.model.InspectionPathModel
+import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.ui.fragment.FormAncakFragment
 import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
 import com.cbi.mobile_plantation.utils.SoftKeyboardStateWatcher
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
-import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
@@ -766,14 +764,13 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun setupPressedFAB() {
         fabNextFormAncak.setOnClickListener {
-            val currentPage = formAncakViewModel.currentPage.value ?: 1
-            val nextPage = currentPage + 1
-            val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+            val currentPokok = formAncakViewModel.currentPage.value ?: 1
+            val nextPokok = currentPokok + 1
+            val totalPokok = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
-            val pageData = formData[currentPage]
-            val photoValue = pageData?.photo ?: ""
-            val emptyTreeValue = pageData?.emptyTree ?: 0
-
+            val pokokData = formData[currentPokok]
+            val photoValue = pokokData?.photo ?: ""
+            val emptyTreeValue = pokokData?.emptyTree ?: 0
 
             if (selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty()) {
                 AppLogger.d("BLOCKED: Photo validation - inspection=1, emptyTree=1, photo empty")
@@ -794,8 +791,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             if (!validationResult.isValid) {
                 vibrate(500)
-
-                // Show alert with validation message
                 AlertDialogUtility.withSingleAction(
                     this,
                     stringXML(R.string.al_back),
@@ -804,27 +799,47 @@ open class FormInspectionActivity : AppCompatActivity(),
                     "warning.json",
                     R.color.colorRedDark
                 ) {}
-
                 return@setOnClickListener
             }
 
-            if (nextPage <= totalPages) {
+            pokokData?.let {
+                val shouldTrackIssue = formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(currentPokok, lat, lon)
+                val issueKey = currentPokok.toString()
+
+                if (shouldTrackIssue) {
+                    // Add/update issue location for this pokok
+                    trackingLocation[issueKey] = Location(lat ?: 0.0, lon ?: 0.0)
+                    AppLogger.d("Adding issue location for pokok $currentPokok: lat=$lat, lon=$lon")
+                } else {
+                    // Remove issue location for this pokok if it exists
+                    if (trackingLocation.containsKey(issueKey)) {
+                        trackingLocation.remove(issueKey)
+                        AppLogger.d("Removing issue location for pokok $currentPokok")
+                    }else{
+
+                    }
+                }
+            }
+
+            if (nextPokok <= totalPokok) {
                 lifecycleScope.launch {
                     withContext(Dispatchers.Main) {
                         loadingDialog.show()
                         loadingDialog.setMessage("Loading data...")
 
                         vpFormAncak.post {
-                            vpFormAncak.setCurrentItem(nextPage - 1, false)
-                            vpFormAncak.setCurrentItem(currentPage - 1, false)
+                            vpFormAncak.setCurrentItem(nextPokok - 1, false)
+                            vpFormAncak.setCurrentItem(currentPokok - 1, false)
 
                             Handler(Looper.getMainLooper()).post {
                                 val pageChangeCallback = createPageChangeCallback()
                                 vpFormAncak.registerOnPageChangeCallback(pageChangeCallback)
 
-                                if (currentPage % 10 == 0 && !trackingLocation.containsKey(currentPage.toString())) {
+                                // Handle 10th pokok tracking
+                                if (currentPokok % 10 == 0 && !trackingLocation.containsKey(currentPokok.toString())) {
                                     isTenthTrees = true
-                                    trackingLocation[currentPage.toString()] = Location(lat ?: 0.0, lon ?: 0.0)
+                                    trackingLocation[currentPokok.toString()] = Location(lat ?: 0.0, lon ?: 0.0)
+                                    AppLogger.d("Adding 10th pokok location for pokok $currentPokok: lat=$lat, lon=$lon")
                                 } else if (isTenthTrees) {
                                     isTenthTrees = false
                                 }
@@ -843,6 +858,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
                 }
             }
+
+            AppLogger.d(trackingLocation.toString())
         }
 
         fabPrevFormAncak.setOnClickListener {
@@ -890,7 +907,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 //            }
         }
 
-        fabPhotoInfoBlok.setOnClickListener{
+        fabPhotoInfoBlok.setOnClickListener {
             showViewPhotoBottomSheet(null, isInTPH)
         }
 
@@ -967,6 +984,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                             val formattedTracking =
                                 trackingLocation.values.joinToString("#") { "${it.lat},${it.lon}" }
 
+
+                            AppLogger.d(formattedTracking.toString())
+
                             val datetimeCreated = SimpleDateFormat(
                                 "yyyy-MM-dd HH:mm:ss",
                                 Locale.getDefault()
@@ -988,151 +1008,151 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     if (isInspection) emptyTreeValue == 1 else emptyTreeValue == 2
 
                                 if (emptyTreeValue > 0 && !isEmpty) {
-                                    val inspection = InspectionModel(
-                                        id_path = uniquePathId,
-                                        tph_id = selectedTPHValue ?: 0,
-                                        ancak = ancakValue.toInt(),
-                                        status_panen = selectedStatusPanen.toInt(),
-                                        jalur_masuk = selectedJalurMasuk,
-                                        brd_tinggal = jumBrdTglPath,
-                                        buah_tinggal = jumBuahTglPath,
-                                        jenis_inspeksi = selectedInspeksiValue.toInt(),
-                                        kemandoran_id = uniqueKemandoranId,
-                                        karyawan_id = uniqueIdKaryawan,
-                                        karyawan_nik = uniqueNikPemanen,
-                                        asistensi = asistensi,
-                                        jenis_kondisi = selectedKondisiValue.toInt(),
-                                        baris1 = br1Value.toInt(),
-                                        baris2 = if (selectedKondisiValue.toInt() == 1) br2Value.toInt() else null,
-                                        no_pokok = page,
-                                        jml_pokok = totalPokokInspection,
-                                        titik_kosong = emptyTreeValue,
-                                        jjg_akp = if (isInspection) null else (pageData?.jjgAkp
-                                            ?: 0),
-                                        prioritas = if (isInspection) (pageData?.priority
-                                            ?: 0) else null,
-                                        pokok_panen = if (isInspection) (pageData?.harvestTree
-                                            ?: 0) else null,
-                                        serangan_tikus = if (isInspection) (pageData?.ratAttack
-                                            ?: 0) else null,
-                                        ganoderma = if (isInspection) (pageData?.ganoderma
-                                            ?: 0) else null,
-                                        susunan_pelepah = if (isInspection) (pageData?.neatPelepah
-                                            ?: 0) else null,
-                                        pelepah_sengkleh = if (isInspection) (pageData?.pelepahSengkleh
-                                            ?: 0) else null,
-                                        kondisi_pruning = if (isInspection) (pageData?.pruning
-                                            ?: 0) else null,
-                                        kentosan = if (isInspection) (pageData?.kentosan
-                                            ?: 0) else null,
-                                        buah_masak = if (isInspection) (pageData?.ripe
-                                            ?: 0) else null,
-                                        buah_mentah = if (isInspection) (pageData?.buahM1
-                                            ?: 0) else null,
-                                        buah_matang = if (isInspection) (pageData?.buahM2
-                                            ?: 0) else null,
-                                        buah_matahari = if (isInspection) (pageData?.buahM3
-                                            ?: 0) else null,
-                                        brd_tidak_dikutip = if (isInspection) (pageData?.brdKtp
-                                            ?: 0) else null,
-                                        brd_dlm_piringan = if (isInspection) (pageData?.brdIn
-                                            ?: 0) else null,
-                                        brd_luar_piringan = if (isInspection) (pageData?.brdOut
-                                            ?: 0) else null,
-                                        brd_pasar_pikul = if (isInspection) (pageData?.pasarPikul
-                                            ?: 0) else null,
-                                        brd_ketiak = if (isInspection) (pageData?.ketiak
-                                            ?: 0) else null,
-                                        brd_parit = if (isInspection) (pageData?.parit
-                                            ?: 0) else null,
-                                        brd_segar = if (isInspection) (pageData?.brdSegar
-                                            ?: 0) else null,
-                                        brd_busuk = if (isInspection) (pageData?.brdBusuk
-                                            ?: 0) else null,
-                                        foto = if (isInspection) pageData?.photo else null,
-                                        komentar = if (isInspection) pageData?.comment else null,
-                                        info = infoApp,
-                                        created_by = userId ?: 0,
-                                        created_date = datetimeCreated,
-                                    )
-                                    inspectionDataList.add(inspection)
+//                                    val inspection = InspectionModel(
+//                                        id_path = uniquePathId,
+//                                        tph_id = selectedTPHValue ?: 0,
+//                                        ancak = ancakValue.toInt(),
+//                                        status_panen = selectedStatusPanen.toInt(),
+//                                        jalur_masuk = selectedJalurMasuk,
+//                                        brd_tinggal = jumBrdTglPath,
+//                                        buah_tinggal = jumBuahTglPath,
+//                                        jenis_inspeksi = selectedInspeksiValue.toInt(),
+//                                        kemandoran_id = uniqueKemandoranId,
+//                                        karyawan_id = uniqueIdKaryawan,
+//                                        karyawan_nik = uniqueNikPemanen,
+//                                        asistensi = asistensi,
+//                                        jenis_kondisi = selectedKondisiValue.toInt(),
+//                                        baris1 = br1Value.toInt(),
+//                                        baris2 = if (selectedKondisiValue.toInt() == 1) br2Value.toInt() else null,
+//                                        no_pokok = page,
+//                                        jml_pokok = totalPokokInspection,
+//                                        titik_kosong = emptyTreeValue,
+//                                        jjg_akp = if (isInspection) null else (pageData?.jjgAkp
+//                                            ?: 0),
+//                                        prioritas = if (isInspection) (pageData?.priority
+//                                            ?: 0) else null,
+//                                        pokok_panen = if (isInspection) (pageData?.harvestTree
+//                                            ?: 0) else null,
+//                                        serangan_tikus = if (isInspection) (pageData?.ratAttack
+//                                            ?: 0) else null,
+//                                        ganoderma = if (isInspection) (pageData?.ganoderma
+//                                            ?: 0) else null,
+//                                        susunan_pelepah = if (isInspection) (pageData?.neatPelepah
+//                                            ?: 0) else null,
+//                                        pelepah_sengkleh = if (isInspection) (pageData?.pelepahSengkleh
+//                                            ?: 0) else null,
+//                                        kondisi_pruning = if (isInspection) (pageData?.pruning
+//                                            ?: 0) else null,
+//                                        kentosan = if (isInspection) (pageData?.kentosan
+//                                            ?: 0) else null,
+//                                        buah_masak = if (isInspection) (pageData?.ripe
+//                                            ?: 0) else null,
+//                                        buah_mentah = if (isInspection) (pageData?.buahM1
+//                                            ?: 0) else null,
+//                                        buah_matang = if (isInspection) (pageData?.buahM2
+//                                            ?: 0) else null,
+//                                        buah_matahari = if (isInspection) (pageData?.buahM3
+//                                            ?: 0) else null,
+//                                        brd_tidak_dikutip = if (isInspection) (pageData?.brdKtp
+//                                            ?: 0) else null,
+//                                        brd_dlm_piringan = if (isInspection) (pageData?.brdIn
+//                                            ?: 0) else null,
+//                                        brd_luar_piringan = if (isInspection) (pageData?.brdOut
+//                                            ?: 0) else null,
+//                                        brd_pasar_pikul = if (isInspection) (pageData?.pasarPikul
+//                                            ?: 0) else null,
+//                                        brd_ketiak = if (isInspection) (pageData?.ketiak
+//                                            ?: 0) else null,
+//                                        brd_parit = if (isInspection) (pageData?.parit
+//                                            ?: 0) else null,
+//                                        brd_segar = if (isInspection) (pageData?.brdSegar
+//                                            ?: 0) else null,
+//                                        brd_busuk = if (isInspection) (pageData?.brdBusuk
+//                                            ?: 0) else null,
+//                                        foto = if (isInspection) pageData?.photo else null,
+//                                        komentar = if (isInspection) pageData?.comment else null,
+//                                        info = infoApp,
+//                                        created_by = userId ?: 0,
+//                                        created_date = datetimeCreated,
+//                                    )
+//                                    inspectionDataList.add(inspection)
                                 }
                             }
 
-                            if (inspectionDataList.isNotEmpty()) {
-                                val pathData = InspectionPathModel(
-                                    id = uniquePathId,
-                                    tracking_path = formattedTracking
-                                )
-
-                                val pathInsertSuccess = withContext(Dispatchers.IO) {
-                                    try {
-                                        val insertedPathId =
-                                            inspectionViewModel.insertPathDataSync(pathData)
-                                        insertedPathId != null
-                                    } catch (e: Exception) {
-                                        AppLogger.d("Error inserting path: ${e.message}")
-                                        false
-                                    }
-                                }
-
-                                if (!pathInsertSuccess) {
-                                    val deleteResult =
-                                        inspectionViewModel.deleteInspectionDatas(
-                                            listOf(
-                                                uniquePathId
-                                            )
-                                        )
-                                    deleteResult.onFailure { error ->
-                                        AppLogger.d("Failed to delete data path: $error")
-                                    }
-                                    throw Exception("Failed to insert path data")
-                                }
-
-                                val inspectionInsertSuccess = withContext(Dispatchers.IO) {
-                                    try {
-                                        val insertedInspectionIds =
-                                            inspectionViewModel.insertInspectionDataSync(
-                                                inspectionDataList
-                                            )
-                                        insertedInspectionIds.isNotEmpty()
-                                    } catch (e: Exception) {
-                                        AppLogger.d("Error inserting inspection: ${e.message}")
-                                        false
-                                    }
-                                }
-
-                                if (!inspectionInsertSuccess) {
-                                    val deleteResult =
-                                        inspectionViewModel.deleteInspectionDatas(
-                                            listOf(
-                                                uniquePathId
-                                            )
-                                        )
-                                    deleteResult.onFailure { error ->
-                                        AppLogger.d("Failed to delete data inspection: $error")
-                                    }
-                                    throw Exception("Failed to insert inspection data")
-                                }
-
-                                AlertDialogUtility.withSingleAction(
-                                    this@FormInspectionActivity,
-                                    stringXML(R.string.al_back),
-                                    stringXML(R.string.al_success_save_local),
-                                    stringXML(R.string.al_description_success_save_local),
-                                    "success.json",
-                                    R.color.greenDefault
-                                ) {
-                                    val intent = Intent(
-                                        this@FormInspectionActivity,
-                                        HomePageActivity::class.java
-                                    )
-                                    startActivity(intent)
-                                    finishAffinity()
-                                }
-                            } else {
-                                throw Exception("Failed to add list inspection data")
-                            }
+//                            if (inspectionDataList.isNotEmpty()) {
+//                                val pathData = InspectionDetailModel(
+//                                    id = uniquePathId,
+//                                    tracking_path = formattedTracking
+//                                )
+//
+//                                val pathInsertSuccess = withContext(Dispatchers.IO) {
+//                                    try {
+//                                        val insertedPathId =
+//                                            inspectionViewModel.insertPathDataSync(pathData)
+//                                        insertedPathId != null
+//                                    } catch (e: Exception) {
+//                                        AppLogger.d("Error inserting path: ${e.message}")
+//                                        false
+//                                    }
+//                                }
+//
+//                                if (!pathInsertSuccess) {
+//                                    val deleteResult =
+//                                        inspectionViewModel.deleteInspectionDatas(
+//                                            listOf(
+//                                                uniquePathId
+//                                            )
+//                                        )
+//                                    deleteResult.onFailure { error ->
+//                                        AppLogger.d("Failed to delete data path: $error")
+//                                    }
+//                                    throw Exception("Failed to insert path data")
+//                                }
+//
+//                                val inspectionInsertSuccess = withContext(Dispatchers.IO) {
+//                                    try {
+//                                        val insertedInspectionIds =
+//                                            inspectionViewModel.insertInspectionDataSync(
+//                                                inspectionDataList
+//                                            )
+//                                        insertedInspectionIds.isNotEmpty()
+//                                    } catch (e: Exception) {
+//                                        AppLogger.d("Error inserting inspection: ${e.message}")
+//                                        false
+//                                    }
+//                                }
+//
+//                                if (!inspectionInsertSuccess) {
+//                                    val deleteResult =
+//                                        inspectionViewModel.deleteInspectionDatas(
+//                                            listOf(
+//                                                uniquePathId
+//                                            )
+//                                        )
+//                                    deleteResult.onFailure { error ->
+//                                        AppLogger.d("Failed to delete data inspection: $error")
+//                                    }
+//                                    throw Exception("Failed to insert inspection data")
+//                                }
+//
+//                                AlertDialogUtility.withSingleAction(
+//                                    this@FormInspectionActivity,
+//                                    stringXML(R.string.al_back),
+//                                    stringXML(R.string.al_success_save_local),
+//                                    stringXML(R.string.al_description_success_save_local),
+//                                    "success.json",
+//                                    R.color.greenDefault
+//                                ) {
+//                                    val intent = Intent(
+//                                        this@FormInspectionActivity,
+//                                        HomePageActivity::class.java
+//                                    )
+//                                    startActivity(intent)
+//                                    finishAffinity()
+//                                }
+//                            } else {
+//                                throw Exception("Failed to add list inspection data")
+//                            }
                         } catch (e: Exception) {
                             AppLogger.d("Unexpected error: ${e.message}")
                             AlertDialogUtility.withSingleAction(
@@ -1178,7 +1198,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     @SuppressLint("SetTextI18n", "InflateParams")
-    private fun showViewPhotoBottomSheet(fileName: String? = null, isInTPH: Boolean?=  null) {
+    private fun showViewPhotoBottomSheet(fileName: String? = null, isInTPH: Boolean? = null) {
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
@@ -1200,11 +1220,11 @@ open class FormInspectionActivity : AppCompatActivity(),
         val etPhotoComment = incLytPhotosInspect.findViewById<EditText>(R.id.etPhotoComment)
 
 
-        if(isInTPH == true){
+        if (isInTPH == true) {
             val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
             titlePhotoTemuan.text = "Lampiran Foto di TPH"
             updatePhotoBadgeVisibility()
-        }else{
+        } else {
             val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
             titlePhotoTemuan.text = "Lampiran Foto Temuan"
         }
@@ -1243,8 +1263,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                             currentData.copy(
                                 photo = null,
                                 comment = null,
-                                latIssue = null,
-                                lonIssue = null
                             )
                         )
                     }
@@ -1259,7 +1277,14 @@ open class FormInspectionActivity : AppCompatActivity(),
         } else {
             etPhotoComment.setText(currentData.comment)
             etPhotoComment.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun beforeTextChanged(
+                    s: CharSequence?,
+                    start: Int,
+                    count: Int,
+                    after: Int
+                ) {
+                }
+
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: Editable?) {
                     formAncakViewModel.savePageData(
@@ -1794,7 +1819,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun updatePhotoBadgeVisibility() {
-        AppLogger.d("masuk gak gess")
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
@@ -1803,7 +1827,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         val badgePhotoInspect = findViewById<View>(R.id.badgePhotoInspect)
         val hasFormPhoto = currentData.photo != null
 
-        AppLogger.d("hasFormPhoto $hasFormPhoto")
         badgePhotoInspect.visibility = if (hasFormPhoto) {
             View.VISIBLE
         } else {
@@ -1814,7 +1837,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         val badgePhotoInfoBlok = findViewById<View>(R.id.badgePhotoInfoBlok)
         val hasTPHPhoto = !photoInTPH.isNullOrEmpty()
 
-        AppLogger.d("hasTPHPhoto $hasTPHPhoto")
         badgePhotoInfoBlok.visibility = if (hasTPHPhoto) {
             View.VISIBLE
         } else {
@@ -3048,18 +3070,12 @@ open class FormInspectionActivity : AppCompatActivity(),
             val currentData =
                 formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
 
-
-
-            AppLogger.d("fname $fname")
-            if (isInTPH){
+            if (isInTPH) {
                 photoInTPH = fname
-                AppLogger.d("photoInTPH hbis taken foto $photoInTPH")
-
-//                komentarInTPH = komentar
-            }else{
+            } else {
                 formAncakViewModel.savePageData(
                     currentPage,
-                    currentData.copy(photo = fname, latIssue = lat, lonIssue = lon)
+                    currentData.copy(photo = fname)
                 )
             }
 

@@ -13,24 +13,13 @@ class FormAncakViewModel : ViewModel() {
         val jjgAkp: Int = 0,
         val priority: Int = 0,
         val harvestTree: Int = 0,
-        val ratAttack: Int = 0,
-        val ganoderma: Int = 0,
         val neatPelepah: Int = 0,
         val pelepahSengkleh: Int = 0,
         val pruning: Int = 0,
-        val kentosan: Int = 0,
         val ripe: Int = 0,
         val buahM1: Int = 0,
         val buahM2: Int = 0,
-        val buahM3: Int = 0,
         val brdKtp: Int = 0,
-        val brdIn: Int = 0,
-        val brdOut: Int = 0,
-        val pasarPikul: Int = 0,
-        val ketiak: Int = 0,
-        val parit: Int = 0,
-        val brdSegar: Int = 0,
-        val brdBusuk: Int = 0,
         val photo: String? = null,
         val comment: String? = null,
         val latIssue: Double? = null,
@@ -103,6 +92,49 @@ class FormAncakViewModel : ViewModel() {
         _isInspection.value = newValue
     }
 
+    fun shouldSetLatLonIssue(pageData: PageData): Boolean {
+        // First condition: emptyTree must be 1
+        if (pageData.emptyTree != 1) {
+            return false
+        }
+
+        // Second condition: Check ripe, buahM1, buahM2
+        val hasRipeFruit = pageData.ripe > 0 || pageData.buahM1 > 0 || pageData.buahM2 > 0
+
+        if (hasRipeFruit) {
+            // If any of ripe, buahM1, buahM2 is not 0, then set lat/lon
+            return true
+        } else {
+            // If all are 0, then brdKtp must be > 50
+            return pageData.brdKtp > 50
+        }
+    }
+
+
+    // Better approach - return boolean to indicate tracking status
+    fun updatePokokDataWithLocationAndGetTrackingStatus(pokokNumber: Int, lat: Double?, lon: Double?): Boolean {
+        val currentData = getPageData(pokokNumber) ?: PageData()
+
+        if (shouldSetLatLonIssue(currentData)) {
+            // Conditions are met: Set the lat/lon issue for this pokok
+            val updatedData = currentData.copy(
+                latIssue = lat,
+                lonIssue = lon
+            )
+            savePageData(pokokNumber, updatedData)
+            return true // Should track this location
+        } else {
+            // Conditions are NOT met: Clear the lat/lon issue (set to null)
+            val updatedData = currentData.copy(
+                latIssue = null,
+                lonIssue = null
+            )
+            savePageData(pokokNumber, updatedData)
+            return false // Should remove tracking for this location
+        }
+    }
+
+
     fun validateCurrentPage(inspectionType: Int? = null): ValidationResult {
         val pageNumber = _currentPage.value ?: 1
         ensurePageDataExists(pageNumber)
@@ -110,7 +142,6 @@ class FormAncakViewModel : ViewModel() {
         val data = _formData.value?.get(pageNumber)
         val errors = mutableMapOf<Int, String>()
 
-        AppLogger.d("=== VIEWMODEL VALIDATION ===")
         AppLogger.d("inspectionType: $inspectionType")
         AppLogger.d("pageNumber: $pageNumber")
         AppLogger.d("data: $data")

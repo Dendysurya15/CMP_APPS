@@ -505,22 +505,22 @@ class HomePageActivity : AppCompatActivity() {
                         featureAdapter.hideLoadingForFeature("Rekap absensi panen")
                     }
                 }
-                try {
-                    val countDeferred = async { inspectionViewModel.getInspectionCount(0) }
-                    countInspection = countDeferred.await().toString()
-                    withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount(
-                            AppUtils.ListFeatureNames.RekapInspeksiPanen,
-                            countInspection
-                        )
-                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapInspeksiPanen)
-                    }
-                } catch (e: Exception) {
-                    AppLogger.e("Error fetching data: ${e.message}")
-                    withContext(Dispatchers.Main) {
-                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapInspeksiPanen)
-                    }
-                }
+//                try {
+//                    val countDeferred = async { inspectionViewModel.getInspectionCount(0) }
+//                    countInspection = countDeferred.await().toString()
+//                    withContext(Dispatchers.Main) {
+//                        featureAdapter.updateCount(
+//                            AppUtils.ListFeatureNames.RekapInspeksiPanen,
+//                            countInspection
+//                        )
+//                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapInspeksiPanen)
+//                    }
+//                } catch (e: Exception) {
+//                    AppLogger.e("Error fetching data: ${e.message}")
+//                    withContext(Dispatchers.Main) {
+//                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapInspeksiPanen)
+//                    }
+//                }
                 try {
                     val countDeferred = async { panenViewModel.getCountScanMPanen(0) }
                     countScanMpanen = countDeferred.await()
