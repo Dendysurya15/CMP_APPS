@@ -1,16 +1,21 @@
 package com.cbi.mobile_plantation.ui.viewModel
 
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.google.gson.Gson
 
-class FormAncakViewModel : ViewModel() {
+class FormAncakViewModel(private val application: Application) : AndroidViewModel(application) {
     data class PageData(
+        val pokokNumber: Int = 0,
         val emptyTree: Int = 0,
-        val jjgAkp: Int = 0,
         val priority: Int = 0,
         val harvestTree: Int = 0,
         val neatPelepah: Int = 0,
@@ -56,11 +61,84 @@ class FormAncakViewModel : ViewModel() {
     private val _fieldValidationError = MutableLiveData<Map<Int, String>>(emptyMap())
     val fieldValidationError: LiveData<Map<Int, String>> = _fieldValidationError
 
+    // SharedPreferences for data persistence
+    private val sharedPreferences = application.getSharedPreferences("form_ancak_data", Context.MODE_PRIVATE)
+    private val gson = Gson()
+
+    init {
+        // Load existing data from SharedPreferences on initialization
+        loadAllPagesFromSharedPreferences()
+    }
+
+    private fun getPageKey(pageNumber: Int): String {
+        return "page_data_$pageNumber"
+    }
+
+    private fun loadAllPagesFromSharedPreferences() {
+        val currentData = mutableMapOf<Int, PageData>()
+
+        // Load data for all possible pages
+        for (i in 1..AppUtils.TOTAL_MAX_TREES_INSPECTION) {
+            val pageKey = getPageKey(i)
+            val jsonData = sharedPreferences.getString(pageKey, null)
+
+            if (!jsonData.isNullOrEmpty()) {
+                try {
+                    val pageData = gson.fromJson(jsonData, PageData::class.java)
+                    currentData[i] = pageData
+                } catch (e: Exception) {
+                    AppLogger.e("Error loading page $i data: ${e.message}")
+                    // If there's an error, create default data with correct pokokNumber
+                    currentData[i] = PageData(pokokNumber = i)
+                }
+            }
+        }
+
+        _formData.value = currentData
+    }
+
+    private fun savePageToSharedPreferences(pageNumber: Int, data: PageData) {
+        val pageKey = getPageKey(pageNumber)
+        val jsonData = gson.toJson(data)
+
+        sharedPreferences.edit()
+            .putString(pageKey, jsonData)
+            .apply()
+    }
+
+    private fun loadPageFromSharedPreferences(pageNumber: Int): PageData? {
+        val pageKey = getPageKey(pageNumber)
+        val jsonData = sharedPreferences.getString(pageKey, null)
+
+        return if (!jsonData.isNullOrEmpty()) {
+            try {
+                gson.fromJson(jsonData, PageData::class.java)
+            } catch (e: Exception) {
+                AppLogger.e("Error loading page $pageNumber data: ${e.message}")
+                null
+            }
+        } else {
+            null
+        }
+    }
+
     private fun ensurePageDataExists(pageNumber: Int) {
         val currentData = _formData.value ?: mutableMapOf()
         if (!currentData.containsKey(pageNumber)) {
-            currentData[pageNumber] = PageData()
+            // Try to load from SharedPreferences first
+            val savedData = loadPageFromSharedPreferences(pageNumber)
+            val pageData = savedData ?: PageData(pokokNumber = pageNumber)
+
+            currentData[pageNumber] = pageData
             _formData.value = currentData
+
+
+            AppLogger.d("current data ${currentData[pageNumber]}")
+
+            // If we created new default data, save it
+            if (savedData == null) {
+                savePageToSharedPreferences(pageNumber, pageData)
+            }
         }
     }
 
@@ -73,23 +151,41 @@ class FormAncakViewModel : ViewModel() {
     }
 
     fun getPageData(pageNumber: Int): PageData? {
+        ensurePageDataExists(pageNumber)
         return _formData.value?.get(pageNumber)
     }
 
     fun savePageData(pageNumber: Int, data: PageData) {
         val currentData = _formData.value ?: mutableMapOf()
-        currentData[pageNumber] = data
+        // Ensure pokokNumber is set correctly when saving
+        val updatedData = data.copy(pokokNumber = pageNumber)
+        currentData[pageNumber] = updatedData
         _formData.value = currentData
+
+        // Save to SharedPreferences immediately
+        savePageToSharedPreferences(pageNumber, updatedData)
     }
 
     fun updateInfoFormAncak(estate: String, afdeling: String, blok: String) {
         _estName.value = estate
         _afdName.value = afdeling
         _blokName.value = blok
+
+        // Save form info to SharedPreferences
+        sharedPreferences.edit()
+            .putString("form_estate", estate)
+            .putString("form_afdeling", afdeling)
+            .putString("form_blok", blok)
+            .apply()
     }
 
     fun updateTypeInspection(newValue: Boolean) {
         _isInspection.value = newValue
+
+        // Save inspection type to SharedPreferences
+        sharedPreferences.edit()
+            .putBoolean("form_is_inspection", newValue)
+            .apply()
     }
 
     fun shouldSetLatLonIssue(pageData: PageData): Boolean {
@@ -109,7 +205,6 @@ class FormAncakViewModel : ViewModel() {
             return pageData.brdKtp > 50
         }
     }
-
 
     // Better approach - return boolean to indicate tracking status
     fun updatePokokDataWithLocationAndGetTrackingStatus(pokokNumber: Int, lat: Double?, lon: Double?): Boolean {
@@ -133,7 +228,6 @@ class FormAncakViewModel : ViewModel() {
             return false // Should remove tracking for this location
         }
     }
-
 
     fun validateCurrentPage(inspectionType: Int? = null): ValidationResult {
         val pageNumber = _currentPage.value ?: 1
@@ -186,10 +280,6 @@ class FormAncakViewModel : ViewModel() {
                 AppLogger.d("VALIDATION FAILED: pruning == 0")
             }
 
-            if (inspectionType == 2 && data.jjgAkp <= 0) {
-                errors[R.id.lyJjgPanenAKPInspect] = "Janjang panen harus lebih dari 0!"
-                AppLogger.d("VALIDATION FAILED: jjgAkp <= 0")
-            }
         } else {
             AppLogger.d("emptyTree == ${data?.emptyTree} (Tidak/Titik Kosong), skipping field validation")
         }
@@ -209,8 +299,62 @@ class FormAncakViewModel : ViewModel() {
         }
     }
 
-
     fun clearValidation() {
         _fieldValidationError.value = emptyMap()
+    }
+
+    fun clearAllData() {
+        // Clear in-memory data
+        _formData.value = mutableMapOf()
+
+        // Clear SharedPreferences data
+        val editor = sharedPreferences.edit()
+        for (i in 1..AppUtils.TOTAL_MAX_TREES_INSPECTION) {
+            editor.remove(getPageKey(i))
+        }
+        editor.remove("form_estate")
+        editor.remove("form_afdeling")
+        editor.remove("form_blok")
+        editor.remove("form_is_inspection")
+        editor.apply()
+    }
+
+    fun clearSharedPreferences() {
+        // Clear all SharedPreferences data for this form
+        val editor = sharedPreferences.edit()
+        editor.clear()
+        editor.apply()
+
+        // Also clear in-memory data
+        _formData.value = mutableMapOf()
+        _estName.value = "-"
+        _afdName.value = "-"
+        _blokName.value = "-"
+        _isInspection.value = true
+        _currentPage.value = 1
+    }
+
+    fun loadFormInfo() {
+        // Load form info from SharedPreferences
+        val estate = sharedPreferences.getString("form_estate", "-") ?: "-"
+        val afdeling = sharedPreferences.getString("form_afdeling", "-") ?: "-"
+        val blok = sharedPreferences.getString("form_blok", "-") ?: "-"
+        val isInspection = sharedPreferences.getBoolean("form_is_inspection", true)
+
+        _estName.value = estate
+        _afdName.value = afdeling
+        _blokName.value = blok
+        _isInspection.value = isInspection
+    }
+
+    // Factory class for ViewModel creation
+    class Factory(private val application: Application) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(FormAncakViewModel::class.java)) {
+                return FormAncakViewModel(application) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class")
+        }
     }
 }

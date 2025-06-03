@@ -38,7 +38,8 @@ class FormAncakFragment : Fragment() {
 
     private lateinit var viewModel: FormAncakViewModel
     private val errorViewsMap = mutableMapOf<Int, TextView>()
-
+    private var isFragmentInitializing = false // Add this flag
+    private var isUpdatingData = false
     private val listRadioItems: Map<String, Map<String, String>> = mapOf(
         "YesOrNoOrTitikKosong" to mapOf(
             "1" to "Ya",
@@ -80,6 +81,7 @@ class FormAncakFragment : Fragment() {
         private const val ARG_PAGE_NUMBER = "page_number"
 
         fun newInstance(pageNumber: Int): FormAncakFragment {
+            AppLogger.d("🔵 NEW INSTANCE CREATED for pageNumber: $pageNumber")
             return FormAncakFragment().apply {
                 arguments = Bundle().apply {
                     putInt(ARG_PAGE_NUMBER, pageNumber)
@@ -101,15 +103,37 @@ class FormAncakFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+
         return inflater.inflate(R.layout.fragment_form_ancak, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 🚀 Set initialization flag FIRST
+        isFragmentInitializing = true
+        AppLogger.d("🚀 Fragment initialization START for page $pageNumber")
+
+        // Setup page number
         val tvNoPokok = view.findViewById<TextView>(R.id.tvNoPokokInspect)
         tvNoPokok.text = pageNumber.toString()
 
+        // Setup title observers
+        setupTitleObservers(view)
+
+        // Setup all inputs
+        setupAllInputs()
+
+        // ⏰ Enable TextWatchers AFTER all setup is complete
+        view.post {
+            view.postDelayed({
+                isFragmentInitializing = false
+                AppLogger.d("✅ Fragment initialization COMPLETE for page $pageNumber - TextWatchers ENABLED")
+            }, 100) // Small delay to ensure all setText() calls are finished
+        }
+    }
+
+    private fun setupTitleObservers(view: View) {
         val tvTitleEst = view.findViewById<TextView>(R.id.tvTitleEstFormInspect)
         viewModel.estName.observe(viewLifecycleOwner) { est ->
             tvTitleEst.text = est ?: "-"
@@ -124,12 +148,12 @@ class FormAncakFragment : Fragment() {
         viewModel.blokName.observe(viewLifecycleOwner) { blok ->
             tvTitleBlok.text = blok ?: "-"
         }
+    }
 
+    private fun setupAllInputs() {
         val itemListMapping = mapOf(
             R.id.lyPrioritasInspect to "HighOrLow",
             R.id.lyExistsTreeInspect to "YesOrNoOrTitikKosong",
-//            R.id.lyRatAttackInspect to "ExistsOrNot",
-//            R.id.lyGanoInspect to "ExistsOrNot",
             R.id.lyNeatPelepahInspect to "NeatOrNot",
             R.id.lyPelepahSengklehInspect to "PelepahType",
             R.id.lyPruningInspect to "PruningType",
@@ -142,13 +166,6 @@ class FormAncakFragment : Fragment() {
                 InputType.RADIO,
                 { currentData, value -> currentData.copy(emptyTree = value) },
                 { it.emptyTree }
-            ),
-            InputMapping(
-                R.id.lyJjgPanenAKPInspect,
-                "Janjang Panen",
-                InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(jjgAkp = value) },
-                { it.jjgAkp }
             ),
             InputMapping(
                 R.id.lyPrioritasInspect,
@@ -164,20 +181,6 @@ class FormAncakFragment : Fragment() {
                 { currentData, value -> currentData.copy(harvestTree = value) },
                 { it.harvestTree }
             ),
-//            InputMapping(
-//                R.id.lyRatAttackInspect,
-//                "Serangan Tikus?",
-//                InputType.RADIO,
-//                { currentData, value -> currentData.copy(ratAttack = value) },
-//                { it.ratAttack }
-//            ),
-//            InputMapping(
-//                R.id.lyGanoInspect,
-//                "Ganoderma?",
-//                InputType.RADIO,
-//                { currentData, value -> currentData.copy(ganoderma = value) },
-//                { it.ganoderma }
-//            ),
             InputMapping(
                 R.id.lyNeatPelepahInspect,
                 "Susunan Pelepah?",
@@ -199,13 +202,6 @@ class FormAncakFragment : Fragment() {
                 { currentData, value -> currentData.copy(pruning = value) },
                 { it.pruning }
             ),
-//            InputMapping(
-//                R.id.lyKentosanInspect,
-//                "Kentosan?",
-//                InputType.RADIO,
-//                { currentData, value -> currentData.copy(kentosan = value) },
-//                { it.kentosan }
-//            ),
             InputMapping(
                 R.id.lyBuahRipeInspect,
                 "Buah Masak Tinggal di Pokok (S)",
@@ -227,13 +223,6 @@ class FormAncakFragment : Fragment() {
                 { currentData, value -> currentData.copy(buahM2 = value) },
                 { it.buahM2 }
             ),
-//            InputMapping(
-//                R.id.lyBuahM3Inspect,
-//                "Buah Matahari (M3)",
-//                InputType.EDITTEXT,
-//                { currentData, value -> currentData.copy(buahM3 = value) },
-//                { it.buahM3 }
-//            ),
             InputMapping(
                 R.id.lyBrdKtpInspect,
                 "Brondolan Tidak dikutip",
@@ -241,78 +230,36 @@ class FormAncakFragment : Fragment() {
                 { currentData, value -> currentData.copy(brdKtp = value) },
                 { it.brdKtp }
             ),
-//            InputMapping(
-//                R.id.lyBrdInInspect,
-//                "Brondolan di dalam piringan (butir)",
-//                InputType.EDITTEXT,
-//                { currentData, value -> currentData.copy(brdIn = value) },
-//                { it.brdIn }
-//            ),
-//            InputMapping(
-//                R.id.lyBrdOutInspect,
-//                "Brondolan di luar piringan (butir)",
-//                InputType.EDITTEXT,
-//                { currentData, value -> currentData.copy(brdOut = value) },
-//                { it.brdOut }
-//            ),
-//            InputMapping(
-//                R.id.lyPasarPikulInspect,
-//                "Pasar Pikul",
-//                InputType.EDITTEXT,
-//                { currentData, value -> currentData.copy(pasarPikul = value) },
-//                { it.pasarPikul }
-//            ),
-//            InputMapping(
-//                R.id.lyKetiakInspect,
-//                "Ketiak",
-//                InputType.EDITTEXT,
-//                { currentData, value -> currentData.copy(ketiak = value) },
-//                { it.ketiak }
-//            ),
-//            InputMapping(
-//                R.id.lyParitInspect,
-//                "Parit",
-//                InputType.EDITTEXT,
-//                { currentData, value -> currentData.copy(parit = value) },
-//                { it.parit }
-//            ),
-//            InputMapping(
-//                R.id.lyBrdSegarInspect,
-//                "Brondolan Segar",
-//                InputType.EDITTEXT,
-//                { currentData, value -> currentData.copy(brdSegar = value) },
-//                { it.brdSegar }
-//            ),
-//            InputMapping(
-//                R.id.lyBrdBusukInspect,
-//                "Brondolan Busuk",
-//                InputType.EDITTEXT,
-//                { currentData, value -> currentData.copy(brdBusuk = value) },
-//                { it.brdBusuk }
-//            ),
         )
 
+        val currentPageData =
+            viewModel.getPageData(pageNumber) ?: PageData(pokokNumber = pageNumber)
+        AppLogger.d("📋 Setting up inputs for page $pageNumber with data: $currentPageData")
+
         inputMappings.forEach { (layoutId, label, inputType, dataField, currentValue) ->
+            val valueForThisPage = currentValue(currentPageData)
+
             when (inputType) {
                 InputType.RADIO -> setupRadioGroup(
                     layoutId = layoutId,
                     titleText = label,
                     itemList = listRadioItems[itemListMapping[layoutId] ?: "YesOrNo"] ?: emptyMap(),
                     dataField = dataField,
-                    currentValue = currentValue,
+                    currentValue = valueForThisPage
                 )
 
                 InputType.EDITTEXT -> setupNumericInput(
                     layoutId = layoutId,
                     titleText = label,
                     dataField = dataField,
-                    currentValue = currentValue,
+                    currentValue = valueForThisPage
                 )
 
                 else -> {}
             }
         }
     }
+
 
     fun scrollToTop() {
         view?.findViewById<ScrollView>(R.id.svMainFormAncakInspect)?.smoothScrollTo(0, 0)
@@ -366,7 +313,7 @@ class FormAncakFragment : Fragment() {
         titleText: String,
         itemList: Map<String, String>,
         dataField: (PageData, Int) -> PageData,
-        currentValue: (PageData) -> Int
+        currentValue: Int
     ) {
         val layoutView = view?.findViewById<View>(layoutId) ?: return
         val titleTextView = layoutView.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
@@ -380,6 +327,7 @@ class FormAncakFragment : Fragment() {
                 titleTextView.text = if (isInspection) "Terdapat Temuan?" else "Pokok Dipanen?"
 
                 val currentData = viewModel.getPageData(pageNumber)
+
                 if (currentData != null) {
                     updateDependentLayoutVisibility(currentData.emptyTree)
                 }
@@ -393,8 +341,8 @@ class FormAncakFragment : Fragment() {
 
         var lastSelectedRadioButton: RadioButton? = null
 
-        val savedData = viewModel.getPageData(pageNumber) ?: PageData()
-        val fieldValue = currentValue(savedData)
+        val pageData = viewModel.getPageData(pageNumber) ?: return
+        val fieldValue = currentValue
 
         itemList.forEach { (id, label) ->
             val idValue = id.toInt()
@@ -411,22 +359,25 @@ class FormAncakFragment : Fragment() {
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
 
+                // Restore saved state
                 isChecked = idValue == fieldValue
                 if (isChecked) {
                     lastSelectedRadioButton = this
+
                 }
 
                 setOnClickListener {
-
                     clearValidationErrors()
 
                     lastSelectedRadioButton?.isChecked = false
                     isChecked = true
                     lastSelectedRadioButton = this
 
-                    val currentData = viewModel.getPageData(pageNumber) ?: PageData()
+                    val currentData =
+                        viewModel.getPageData(pageNumber) ?: PageData(pokokNumber = pageNumber)
                     val updatedData = dataField(currentData, idValue)
                     viewModel.savePageData(pageNumber, updatedData)
+
 
                     if (layoutId == R.id.lyExistsTreeInspect) {
                         updateDependentLayoutVisibility(idValue)
@@ -436,14 +387,31 @@ class FormAncakFragment : Fragment() {
 
             fblRadioComponents.addView(radioButton)
         }
+
+        // Trigger dependent layout visibility for the first field
+        if (layoutId == R.id.lyExistsTreeInspect) {
+            updateDependentLayoutVisibility(fieldValue)
+        }
     }
 
-    @SuppressLint("ClickableViewAccessibility")
+    fun updatePageData() {
+        isUpdatingData = true  // 🚨 Disable TextWatchers
+        AppLogger.d("🔄 Updating existing fragment for page $pageNumber")
+
+        setupAllInputs()  // Re-setup all inputs with fresh data
+
+        // Re-enable TextWatchers after a short delay
+        view?.post {
+            isUpdatingData = false
+            AppLogger.d("✅ Data update complete for page $pageNumber - TextWatchers re-enabled")
+        }
+    }
+
     private fun setupNumericInput(
         layoutId: Int,
         titleText: String,
         dataField: (PageData, Int) -> PageData,
-        currentValue: (PageData) -> Int,
+        currentValue: Int,
         minValue: Int = 0,
         maxValue: Int? = null
     ) {
@@ -455,11 +423,28 @@ class FormAncakFragment : Fragment() {
 
         titleTextView.text = titleText
 
-        val savedData = viewModel.getPageData(pageNumber) ?: PageData()
-        val value = currentValue(savedData)
+        AppLogger.d("titleText $titleText")
+        AppLogger.d("currentValue $currentValue")
+        val pageData = viewModel.getPageData(pageNumber) ?: return
+        val value = currentValue
 
-        editText.setText(value.toString())
+        val currentText = editText.text.toString()
+        AppLogger.d("📝 Current text before setup: '$currentText'")
 
+        editText.setText(currentValue.toString())  // ✅ KEEP THIS
+        AppLogger.d("✅ Set to: $currentValue")
+
+        // Verify it was set correctly
+        val newText = editText.text.toString()
+        AppLogger.d("🔍 Text after setup: '$newText'")
+
+        if (newText != currentValue.toString()) {
+            AppLogger.d("🚨 VALUE MISMATCH! Expected: $currentValue, Got: $newText")
+        }
+
+
+
+        // Plus button setup
         handleLongPress(editText, btnPlus, dataField, minValue, maxValue)
         btnPlus.setOnClickListener {
             val currentVal = editText.text.toString().toIntOrNull() ?: 0
@@ -472,6 +457,7 @@ class FormAncakFragment : Fragment() {
             saveNumericValue(newValue, dataField)
         }
 
+        // Minus button setup
         handleLongPress(editText, btnMinus, dataField, minValue, maxValue, false)
         btnMinus.setOnClickListener {
             val currentVal = editText.text.toString().toIntOrNull() ?: 0
@@ -480,15 +466,22 @@ class FormAncakFragment : Fragment() {
             saveNumericValue(newValue, dataField)
         }
 
+        // 🚨 ADD TEXTWATCHER WITH INITIALIZATION CHECK
         editText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
             override fun afterTextChanged(s: Editable?) {
+                // 🛡️ GUARD: Skip if fragment is still initializing
+                if (isFragmentInitializing || isUpdatingData) {
+                    AppLogger.d("⏭️ SKIPPING TextWatcher for $titleText - initializing: $isFragmentInitializing, updating: $isUpdatingData")
+                    return
+                }
+
                 if (!s.isNullOrBlank()) {
                     try {
                         val enteredValue = s.toString().toInt()
+                        AppLogger.d("🔥 TextWatcher: $titleText = $enteredValue")
 
                         val validatedValue = when {
                             enteredValue < minValue -> minValue
@@ -502,6 +495,7 @@ class FormAncakFragment : Fragment() {
                         }
 
                         saveNumericValue(validatedValue, dataField)
+                        AppLogger.d("💾 Saved: $titleText = $validatedValue")
                     } catch (e: NumberFormatException) {
                         editText.setText(minValue.toString())
                         saveNumericValue(minValue, dataField)
@@ -509,6 +503,20 @@ class FormAncakFragment : Fragment() {
                 }
             }
         })
+
+        AppLogger.d("📌 TextWatcher added for $titleText")
+    }
+
+    private fun saveNumericValue(value: Int, dataField: (PageData, Int) -> PageData) {
+        val currentData = viewModel.getPageData(pageNumber) ?: PageData(pokokNumber = pageNumber)
+
+        AppLogger.d("💾 saveNumericValue: page $pageNumber, value $value")
+        AppLogger.d("📊 Current data: $currentData")
+
+        val updatedData = dataField(currentData, value)
+        viewModel.savePageData(pageNumber, updatedData)
+
+        AppLogger.d("✅ Updated data: $updatedData")
     }
 
     private fun updateDependentLayoutVisibility(selectedValue: Int) {
@@ -576,11 +584,11 @@ class FormAncakFragment : Fragment() {
         }
     }
 
-    private fun saveNumericValue(value: Int, dataField: (PageData, Int) -> PageData) {
-        val currentData = viewModel.getPageData(pageNumber) ?: PageData()
-        val updatedData = dataField(currentData, value)
-        viewModel.savePageData(pageNumber, updatedData)
-    }
+//    private fun saveNumericValue(value: Int, dataField: (PageData, Int) -> PageData) {
+//        val currentData = viewModel.getPageData(pageNumber) ?: PageData()
+//        val updatedData = dataField(currentData, value)
+//        viewModel.savePageData(pageNumber, updatedData)
+//    }
 
     override fun onPause() {
         super.onPause()

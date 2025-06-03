@@ -628,6 +628,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     override fun onDestroy() {
         locationViewModel.stopLocationUpdates()
+        formAncakViewModel.clearSharedPreferences()
         keyboardWatcher.unregister()
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         super.onDestroy()
@@ -670,11 +671,9 @@ open class FormInspectionActivity : AppCompatActivity(),
             adapter = formAncakPagerAdapter
             isUserInputEnabled = false
             setPageTransformer(createPageTransformer())
+            offscreenPageLimit = 1
         }
 
-        Handler(Looper.getMainLooper()).post {
-            preloadAllPages()
-        }
     }
 
     private fun createPageTransformer(): ViewPager2.PageTransformer {
@@ -689,29 +688,38 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    private fun preloadAllPages() {
-        val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
-        for (i in 0 until totalPages) {
-            vpFormAncak.setCurrentItem(i, false)
-        }
+    private fun updateFragmentIfExists(pageNumber: Int) {
+        // Get existing fragment from your ViewPager
+        val fragment = supportFragmentManager.findFragmentByTag("f${pageNumber - 1}") // ViewPager uses 0-based index
 
-        vpFormAncak.setCurrentItem(0, false)
-        vpFormAncak.requestLayout()
-        vpFormAncak.invalidate()
+        if (fragment is FormAncakFragment) {
+            AppLogger.d("🔄 Found existing fragment for page $pageNumber, updating data")
+            fragment.updatePageData()
+        } else {
+            AppLogger.d("🆕 No existing fragment for page $pageNumber (will create new)")
+        }
     }
 
     private fun observeViewModel() {
         formAncakViewModel.currentPage.observe(this) { page ->
+            AppLogger.d("📈 ViewModel page changed to: $page")
             val pageIndex = page - 1
 
             if (vpFormAncak.currentItem != pageIndex) {
+                AppLogger.d("🔄 Setting ViewPager to page: $pageIndex")
                 vpFormAncak.setCurrentItem(pageIndex, true)
             }
 
-            val currentPage = formAncakViewModel.currentPage.value ?: 1
-            val totalPages =
-                formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+            val allData = formAncakViewModel.formData.value
+            allData?.forEach { (pageNum, data) ->
+                AppLogger.d("📦 STORED PageData -> Page: $pageNum -> $data")
+            }
 
+            val currentPage = formAncakViewModel.currentPage.value ?: 1
+            val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+
+
+            updateFragmentIfExists(page)
             Handler(Looper.getMainLooper()).postDelayed({
                 fabPrevFormAncak.isEnabled = if (currentPage <= 1) false else true
                 fabPrevFormAncak.backgroundTintList = ColorStateList.valueOf(
@@ -730,7 +738,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             }, 300)
         }
 
-
         formAncakViewModel.formData.observe(this) { formData ->
             updatePhotoBadgeVisibility()
 
@@ -748,8 +755,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         formAncakViewModel.fieldValidationError.observe(this) { errorMap ->
-            val currentFragment =
-                supportFragmentManager.findFragmentByTag("f${vpFormAncak.currentItem}")
+            val currentFragment = supportFragmentManager.findFragmentByTag("f${vpFormAncak.currentItem}")
             if (currentFragment is FormAncakFragment) {
                 if (errorMap.isNotEmpty()) {
                     errorMap.forEach { (fieldId, errorMessage) ->
@@ -772,20 +778,20 @@ open class FormInspectionActivity : AppCompatActivity(),
             val photoValue = pokokData?.photo ?: ""
             val emptyTreeValue = pokokData?.emptyTree ?: 0
 
-            if (selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty()) {
-                AppLogger.d("BLOCKED: Photo validation - inspection=1, emptyTree=1, photo empty")
-                vibrate(500)
-                showViewPhotoBottomSheet(null, isInTPH)
-                AlertDialogUtility.withSingleAction(
-                    this,
-                    stringXML(R.string.al_back),
-                    stringXML(R.string.al_data_not_completed),
-                    "Mohon dapat mengambil foto temuan terlebih dahulu!",
-                    "warning.json",
-                    R.color.colorRedDark
-                ) {}
-                return@setOnClickListener
-            }
+//            if (selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty()) {
+//                AppLogger.d("BLOCKED: Photo validation - inspection=1, emptyTree=1, photo empty")
+//                vibrate(500)
+//                showViewPhotoBottomSheet(null, isInTPH)
+//                AlertDialogUtility.withSingleAction(
+//                    this,
+//                    stringXML(R.string.al_back),
+//                    stringXML(R.string.al_data_not_completed),
+//                    "Mohon dapat mengambil foto temuan terlebih dahulu!",
+//                    "warning.json",
+//                    R.color.colorRedDark
+//                ) {}
+//                return@setOnClickListener
+//            }
 
             val validationResult = formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
 
@@ -807,11 +813,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val issueKey = currentPokok.toString()
 
                 if (shouldTrackIssue) {
-                    // Add/update issue location for this pokok
                     trackingLocation[issueKey] = Location(lat ?: 0.0, lon ?: 0.0)
                     AppLogger.d("Adding issue location for pokok $currentPokok: lat=$lat, lon=$lon")
                 } else {
-                    // Remove issue location for this pokok if it exists
                     if (trackingLocation.containsKey(issueKey)) {
                         trackingLocation.remove(issueKey)
                         AppLogger.d("Removing issue location for pokok $currentPokok")
@@ -821,40 +825,33 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
             }
 
+
+
             if (nextPokok <= totalPokok) {
                 lifecycleScope.launch {
                     withContext(Dispatchers.Main) {
                         loadingDialog.show()
                         loadingDialog.setMessage("Loading data...")
 
-                        vpFormAncak.post {
-                            vpFormAncak.setCurrentItem(nextPokok - 1, false)
-                            vpFormAncak.setCurrentItem(currentPokok - 1, false)
-
-                            Handler(Looper.getMainLooper()).post {
-                                val pageChangeCallback = createPageChangeCallback()
-                                vpFormAncak.registerOnPageChangeCallback(pageChangeCallback)
-
-                                // Handle 10th pokok tracking
-                                if (currentPokok % 10 == 0 && !trackingLocation.containsKey(currentPokok.toString())) {
-                                    isTenthTrees = true
-                                    trackingLocation[currentPokok.toString()] = Location(lat ?: 0.0, lon ?: 0.0)
-                                    AppLogger.d("Adding 10th pokok location for pokok $currentPokok: lat=$lat, lon=$lon")
-                                } else if (isTenthTrees) {
-                                    isTenthTrees = false
-                                }
-
-                                formAncakViewModel.nextPage()
-
-                                Handler(Looper.getMainLooper()).postDelayed({
-                                    if (loadingDialog.isShowing) {
-                                        scrollToTopOfFormAncak()
-                                        loadingDialog.dismiss()
-                                        vpFormAncak.unregisterOnPageChangeCallback(pageChangeCallback)
-                                    }
-                                }, 500)
-                            }
+                        // Handle 10th pokok tracking
+                        if (currentPokok % 10 == 0 && !trackingLocation.containsKey(currentPokok.toString())) {
+                            isTenthTrees = true
+                            trackingLocation[currentPokok.toString()] = Location(lat ?: 0.0, lon ?: 0.0)
+                            AppLogger.d("Adding 10th pokok location for pokok $currentPokok: lat=$lat, lon=$lon")
+                        } else if (isTenthTrees) {
+                            isTenthTrees = false
                         }
+
+                        // Navigate to next page
+                        formAncakViewModel.nextPage()
+
+                        // Small delay for smooth transition
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            if (loadingDialog.isShowing) {
+                                scrollToTopOfFormAncak()
+                                loadingDialog.dismiss()
+                            }
+                        }, 300)
                     }
                 }
             }
@@ -863,6 +860,9 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         fabPrevFormAncak.setOnClickListener {
+            // Force save current page data before navigation
+
+
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val prevPage = currentPage - 1
 
@@ -872,26 +872,14 @@ open class FormInspectionActivity : AppCompatActivity(),
                         loadingDialog.show()
                         loadingDialog.setMessage("Loading data...")
 
-                        vpFormAncak.post {
-                            vpFormAncak.setCurrentItem(prevPage - 1, false)
-                            vpFormAncak.setCurrentItem(currentPage - 1, false)
+                        // Navigate to previous page
+                        formAncakViewModel.previousPage()
 
-                            Handler(Looper.getMainLooper()).post {
-                                val pageChangeCallback = createPageChangeCallback()
-                                vpFormAncak.registerOnPageChangeCallback(pageChangeCallback)
-
-                                formAncakViewModel.previousPage()
-
-                                Handler(Looper.getMainLooper()).postDelayed({
-                                    if (loadingDialog.isShowing) {
-                                        loadingDialog.dismiss()
-                                        vpFormAncak.unregisterOnPageChangeCallback(
-                                            pageChangeCallback
-                                        )
-                                    }
-                                }, 500)
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            if (loadingDialog.isShowing) {
+                                loadingDialog.dismiss()
                             }
-                        }
+                        }, 300)
                     }
                 }
             }
@@ -925,7 +913,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 return@setOnClickListener
             }
 
-            AppLogger.d(trackingLocation.toString())
             AlertDialogUtility.withTwoActions(
                 this,
                 "Simpan Data",
@@ -2702,158 +2689,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         spinner.visibility = View.VISIBLE
     }
 
-    @SuppressLint("InflateParams")
-    private fun showPopupSearchDropdown(
-        spinner: MaterialSpinner,
-        data: List<String>,
-        editText: EditText,
-        linearLayout: LinearLayout,
-    ) {
-        val popupView =
-            LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
-        val listView = popupView.findViewById<ListView>(R.id.listViewChoices)
-        val editTextSearch = popupView.findViewById<EditText>(R.id.searchEditText)
 
-        val scrollView = findScrollView(linearLayout)
-        val rootView = linearLayout.rootView
-
-        // Create PopupWindow first
-        val popupWindow = PopupWindow(
-            popupView,
-            spinner.width,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            true
-        ).apply {
-            isFocusable = true
-            isOutsideTouchable = true
-            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
-            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        }
-
-        var keyboardHeight = 0
-        val rootViewLayout = rootView.viewTreeObserver
-        val layoutListener = ViewTreeObserver.OnGlobalLayoutListener {
-            val rect = Rect()
-            rootView.getWindowVisibleDisplayFrame(rect)
-            val screenHeight = rootView.height
-
-            // Get keyboard height
-            val newKeyboardHeight = screenHeight - rect.bottom
-
-            if (newKeyboardHeight != keyboardHeight) {
-                keyboardHeight = newKeyboardHeight
-                if (keyboardHeight > 0) {
-                    val spinnerLocation = IntArray(2)
-                    spinner.getLocationOnScreen(spinnerLocation)
-
-                    if (spinnerLocation[1] + spinner.height + popupWindow.height > rect.bottom) {
-                        val scrollAmount = spinnerLocation[1] - 400
-                        scrollView?.smoothScrollBy(0, scrollAmount)
-                    }
-                }
-            }
-        }
-
-        rootViewLayout.addOnGlobalLayoutListener(layoutListener)
-
-        popupWindow.setOnDismissListener {
-            rootViewLayout.removeOnGlobalLayoutListener(layoutListener)
-        }
-
-        var filteredData = data
-        val adapter = object : ArrayAdapter<String>(
-            spinner.context,
-            android.R.layout.simple_list_item_1,
-            filteredData
-        ) {
-            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                val view = super.getView(position, convertView, parent)
-                val textView = view.findViewById<TextView>(android.R.id.text1)
-                textView.setTextColor(Color.BLACK)
-                return view
-            }
-        }
-        listView.adapter = adapter
-
-        editTextSearch.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) {
-                val titleSearch = popupView.findViewById<TextView>(R.id.titleSearchDropdown)
-
-                filteredData = if (!s.isNullOrEmpty()) {
-                    titleSearch.visibility = View.VISIBLE
-                    data.filter { it.contains(s, ignoreCase = true) }
-                } else {
-                    titleSearch.visibility = View.GONE
-                    data
-                }
-
-                val filteredAdapter = object : ArrayAdapter<String>(
-                    spinner.context,
-                    android.R.layout.simple_list_item_1,
-                    if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                        listOf("Data tidak tersedia!")
-                    } else {
-                        filteredData
-                    }
-                ) {
-                    override fun getView(
-                        position: Int,
-                        convertView: View?,
-                        parent: ViewGroup
-                    ): View {
-                        val view = super.getView(position, convertView, parent)
-                        val textView = view.findViewById<TextView>(android.R.id.text1)
-
-                        if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                            textView.setTextColor(
-                                ContextCompat.getColor(
-                                    context,
-                                    R.color.colorRedDark
-                                )
-                            )
-                            textView.setTypeface(textView.typeface, Typeface.ITALIC)
-                            view.isEnabled = false
-                        } else {
-                            textView.setTextColor(Color.BLACK)
-                            textView.setTypeface(textView.typeface, Typeface.NORMAL)
-                            view.isEnabled = true
-                        }
-                        return view
-                    }
-
-                    override fun isEnabled(position: Int): Boolean {
-                        return filteredData.isNotEmpty()
-                    }
-                }
-                listView.adapter = filteredAdapter
-            }
-
-            override fun beforeTextChanged(
-                s: CharSequence?,
-                start: Int,
-                count: Int,
-                after: Int
-            ) {
-            }
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        })
-
-        listView.setOnItemClickListener { _, _, position, _ ->
-            val selectedItem = filteredData[position]
-            spinner.text = selectedItem
-            editText.setText(selectedItem)
-            handleItemSelection(linearLayout, position, selectedItem)
-            popupWindow.dismiss()
-        }
-
-        popupWindow.showAsDropDown(spinner)
-
-        editTextSearch.requestFocus()
-        val imm =
-            spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
-    }
 
     private fun validateAndShowErrors(): Boolean {
         var isValid = true

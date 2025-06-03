@@ -212,10 +212,6 @@
                 android:id="@+id/lyBuahM2Inspect"
                 layout="@layout/pane_number_layout" />
 
-<!--            <include-->
-<!--                android:id="@+id/lyBuahM3Inspect"-->
-<!--                layout="@layout/pane_number_layout" />-->
-
             <include
                 android:id="@+id/lyBrdKtpInspect"
                 layout="@layout/pane_number_layout" />
