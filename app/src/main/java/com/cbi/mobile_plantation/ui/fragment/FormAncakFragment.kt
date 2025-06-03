@@ -81,7 +81,6 @@ class FormAncakFragment : Fragment() {
         private const val ARG_PAGE_NUMBER = "page_number"
 
         fun newInstance(pageNumber: Int): FormAncakFragment {
-            AppLogger.d("🔵 NEW INSTANCE CREATED for pageNumber: $pageNumber")
             return FormAncakFragment().apply {
                 arguments = Bundle().apply {
                     putInt(ARG_PAGE_NUMBER, pageNumber)
@@ -112,7 +111,6 @@ class FormAncakFragment : Fragment() {
 
         // 🚀 Set initialization flag FIRST
         isFragmentInitializing = true
-        AppLogger.d("🚀 Fragment initialization START for page $pageNumber")
 
         // Setup page number
         val tvNoPokok = view.findViewById<TextView>(R.id.tvNoPokokInspect)
@@ -121,15 +119,13 @@ class FormAncakFragment : Fragment() {
         // Setup title observers
         setupTitleObservers(view)
 
-        // Setup all inputs
         setupAllInputs()
 
         // ⏰ Enable TextWatchers AFTER all setup is complete
         view.post {
             view.postDelayed({
                 isFragmentInitializing = false
-                AppLogger.d("✅ Fragment initialization COMPLETE for page $pageNumber - TextWatchers ENABLED")
-            }, 100) // Small delay to ensure all setText() calls are finished
+            }, 300)
         }
     }
 
@@ -234,7 +230,6 @@ class FormAncakFragment : Fragment() {
 
         val currentPageData =
             viewModel.getPageData(pageNumber) ?: PageData(pokokNumber = pageNumber)
-        AppLogger.d("📋 Setting up inputs for page $pageNumber with data: $currentPageData")
 
         inputMappings.forEach { (layoutId, label, inputType, dataField, currentValue) ->
             val valueForThisPage = currentValue(currentPageData)
@@ -396,14 +391,12 @@ class FormAncakFragment : Fragment() {
 
     fun updatePageData() {
         isUpdatingData = true  // 🚨 Disable TextWatchers
-        AppLogger.d("🔄 Updating existing fragment for page $pageNumber")
 
         setupAllInputs()  // Re-setup all inputs with fresh data
 
         // Re-enable TextWatchers after a short delay
         view?.post {
             isUpdatingData = false
-            AppLogger.d("✅ Data update complete for page $pageNumber - TextWatchers re-enabled")
         }
     }
 
@@ -422,27 +415,7 @@ class FormAncakFragment : Fragment() {
         val btnPlus = layoutView.findViewById<CardView>(R.id.btInc)
 
         titleTextView.text = titleText
-
-        AppLogger.d("titleText $titleText")
-        AppLogger.d("currentValue $currentValue")
-        val pageData = viewModel.getPageData(pageNumber) ?: return
-        val value = currentValue
-
-        val currentText = editText.text.toString()
-        AppLogger.d("📝 Current text before setup: '$currentText'")
-
         editText.setText(currentValue.toString())  // ✅ KEEP THIS
-        AppLogger.d("✅ Set to: $currentValue")
-
-        // Verify it was set correctly
-        val newText = editText.text.toString()
-        AppLogger.d("🔍 Text after setup: '$newText'")
-
-        if (newText != currentValue.toString()) {
-            AppLogger.d("🚨 VALUE MISMATCH! Expected: $currentValue, Got: $newText")
-        }
-
-
 
         // Plus button setup
         handleLongPress(editText, btnPlus, dataField, minValue, maxValue)
@@ -474,14 +447,12 @@ class FormAncakFragment : Fragment() {
             override fun afterTextChanged(s: Editable?) {
                 // 🛡️ GUARD: Skip if fragment is still initializing
                 if (isFragmentInitializing || isUpdatingData) {
-                    AppLogger.d("⏭️ SKIPPING TextWatcher for $titleText - initializing: $isFragmentInitializing, updating: $isUpdatingData")
                     return
                 }
 
                 if (!s.isNullOrBlank()) {
                     try {
                         val enteredValue = s.toString().toInt()
-                        AppLogger.d("🔥 TextWatcher: $titleText = $enteredValue")
 
                         val validatedValue = when {
                             enteredValue < minValue -> minValue
@@ -495,7 +466,6 @@ class FormAncakFragment : Fragment() {
                         }
 
                         saveNumericValue(validatedValue, dataField)
-                        AppLogger.d("💾 Saved: $titleText = $validatedValue")
                     } catch (e: NumberFormatException) {
                         editText.setText(minValue.toString())
                         saveNumericValue(minValue, dataField)
@@ -504,19 +474,12 @@ class FormAncakFragment : Fragment() {
             }
         })
 
-        AppLogger.d("📌 TextWatcher added for $titleText")
     }
 
     private fun saveNumericValue(value: Int, dataField: (PageData, Int) -> PageData) {
         val currentData = viewModel.getPageData(pageNumber) ?: PageData(pokokNumber = pageNumber)
-
-        AppLogger.d("💾 saveNumericValue: page $pageNumber, value $value")
-        AppLogger.d("📊 Current data: $currentData")
-
         val updatedData = dataField(currentData, value)
         viewModel.savePageData(pageNumber, updatedData)
-
-        AppLogger.d("✅ Updated data: $updatedData")
     }
 
     private fun updateDependentLayoutVisibility(selectedValue: Int) {
@@ -583,12 +546,6 @@ class FormAncakFragment : Fragment() {
             false
         }
     }
-
-//    private fun saveNumericValue(value: Int, dataField: (PageData, Int) -> PageData) {
-//        val currentData = viewModel.getPageData(pageNumber) ?: PageData()
-//        val updatedData = dataField(currentData, value)
-//        viewModel.savePageData(pageNumber, updatedData)
-//    }
 
     override fun onPause() {
         super.onPause()

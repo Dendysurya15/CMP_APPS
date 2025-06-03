@@ -628,7 +628,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     override fun onDestroy() {
         locationViewModel.stopLocationUpdates()
-        formAncakViewModel.clearSharedPreferences()
         keyboardWatcher.unregister()
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         super.onDestroy()
@@ -702,7 +701,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun observeViewModel() {
         formAncakViewModel.currentPage.observe(this) { page ->
-            AppLogger.d("📈 ViewModel page changed to: $page")
+
             val pageIndex = page - 1
 
             if (vpFormAncak.currentItem != pageIndex) {
@@ -710,16 +709,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                 vpFormAncak.setCurrentItem(pageIndex, true)
             }
 
-            val allData = formAncakViewModel.formData.value
-            allData?.forEach { (pageNum, data) ->
-                AppLogger.d("📦 STORED PageData -> Page: $pageNum -> $data")
-            }
-
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
 
 
-            updateFragmentIfExists(page)
+
             Handler(Looper.getMainLooper()).postDelayed({
                 fabPrevFormAncak.isEnabled = if (currentPage <= 1) false else true
                 fabPrevFormAncak.backgroundTintList = ColorStateList.valueOf(
@@ -735,6 +729,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         if (currentPage >= totalPages) R.color.greytext else R.color.greenDefault
                     )
                 )
+                updateFragmentIfExists(page)
             }, 300)
         }
 
@@ -1879,11 +1874,13 @@ open class FormInspectionActivity : AppCompatActivity(),
 
 
         AppLogger.d("formData $formData")
-        totalPokokInspection = (1..totalPages).count { (formData[it]?.emptyTree ?: 0) > 0 }
+        totalPokokInspection = (1..totalPages).count { pageNumber ->
+            val emptyTreeValue = formData[pageNumber]?.emptyTree ?: 0
+            emptyTreeValue == 1 || emptyTreeValue == 2
+        }
 
         val data = listOf(
             SummaryItem("Total Pokok Diperiksa", totalPokokInspection.toString()),
-            SummaryItem("Total Pokok Diperiksa", ""),
         )
 
         for (item in data) {
