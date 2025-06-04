@@ -825,7 +825,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                     takeQRCodeScreenshot(view)
 
                                     // Take only the required number of items
-                                    val limitedData = mappedData.take(effectiveLimit).toMutableList()
+                                    val limitedData =
+                                        mappedData.take(effectiveLimit).toMutableList()
                                     val itemsToRemove = mutableListOf<Map<String, Any?>>()
 
                                     limitedData.forEach { item ->
@@ -1001,7 +1002,12 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                         // Switch to the main thread for UI updates
                         withContext(Dispatchers.Main) {
                             try {
-                                generateHighQualityQRCode(encodedData, qrCodeImageView)
+                                ListPanenTBSActivity().generateHighQualityQRCode(
+                                    encodedData,
+                                    qrCodeImageView,
+                                    this@TransferHektarPanenActivity,
+                                    showLogo = false
+                                )
                                 val fadeOut =
                                     ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
                                         .apply {
@@ -1371,55 +1377,6 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         }
     }
 
-    fun generateHighQualityQRCode(
-        content: String,
-        imageView: ImageView,
-        sizePx: Int = 1000
-    ) {
-        try {
-            // Create encoding hints for better quality
-            val hints = hashMapOf<EncodeHintType, Any>().apply {
-                put(
-                    EncodeHintType.ERROR_CORRECTION,
-                    ErrorCorrectionLevel.M
-                ) // Change to M for balance
-                put(EncodeHintType.MARGIN, 1) // Smaller margin
-                put(EncodeHintType.CHARACTER_SET, "UTF-8")
-                // Remove fixed QR version to allow automatic scaling
-            }
-
-            // Create QR code writer with hints
-            val writer = QRCodeWriter()
-            val bitMatrix = writer.encode(
-                content,
-                BarcodeFormat.QR_CODE,
-                sizePx,
-                sizePx,
-                hints
-            )
-
-            // Create bitmap with appropriate size
-            val width = bitMatrix.width
-            val height = bitMatrix.height
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-
-            // Fill the bitmap
-            for (x in 0 until width) {
-                for (y in 0 until height) {
-                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
-                }
-            }
-
-            // Set the bitmap to ImageView with high quality scaling
-            imageView.apply {
-                setImageBitmap(bitmap)
-                scaleType = ImageView.ScaleType.FIT_CENTER
-            }
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
 
     private fun showQrCodeFullScreen(qrDrawable: Drawable?, bottomSheetView: View) {
         if (qrDrawable == null) return
@@ -1471,7 +1428,12 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         fotoLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.white))
 
         val closeCardLinearLayout = closeZoomCard.getChildAt(0) as LinearLayout
-        closeCardLinearLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
+        closeCardLinearLayout.setBackgroundColor(
+            ContextCompat.getColor(
+                context,
+                R.color.greenDarker
+            )
+        )
 
         // Change the text color to white
         tvCardCloseButton.setTextColor(ContextCompat.getColor(context, R.color.white))
@@ -1629,9 +1591,9 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                     AppUtils.WaterMarkFotoDanFolder.WMESPB
                 } else if (featureName == AppUtils.ListFeatureNames.AbsensiPanen) {
                     AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
-                }else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                     AppUtils.WaterMarkFotoDanFolder.WMRekapPanenDanRestan
-                }else if(featureName == AppUtils.ListFeatureNames.DetailESPB){
+                } else if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                     AppUtils.WaterMarkFotoDanFolder.WMESPB
                 } else {
                     AppUtils.WaterMarkFotoDanFolder.WMPanenTPH

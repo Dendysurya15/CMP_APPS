@@ -48,7 +48,7 @@
                     android:layout_marginBottom="10dp"
                     android:fontFamily="@font/manrope_extrabold"
                     android:gravity="center"
-                    android:textSize="25sp"
+                    android:textSize="@dimen/xl"
                     android:textColor="@color/black"
                     android:visibility="visible" />
 

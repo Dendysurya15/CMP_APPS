@@ -912,10 +912,11 @@ class FormESPBActivity : AppCompatActivity() {
                         AppLogger.d("json $json")
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
 
-                        ListPanenTBSActivity().generateHighQualityQRCode(
-                            encodedData!!,
-                            qrCodeImageView
-                        )
+
+
+                        ListPanenTBSActivity().generateHighQualityQRCode(encodedData!!, qrCodeImageView,
+                            this@FormESPBActivity,
+                            showLogo = true)
                         setMaxBrightness(this, true)
                         playSound(R.raw.berhasil_generate_qr)
 

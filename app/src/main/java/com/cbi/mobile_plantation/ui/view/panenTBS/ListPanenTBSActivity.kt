@@ -7,6 +7,7 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -15,6 +16,7 @@ import android.database.sqlite.SQLiteException
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
@@ -2131,7 +2133,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         totalTPH.text = processedData["tphCount"].toString()
                         withContext(Dispatchers.Main) {
                             try {
-                                generateHighQualityQRCode(encodedData, qrCodeImageView)
+                                generateHighQualityQRCode(encodedData, qrCodeImageView,
+                                    this@ListPanenTBSActivity,
+                                    showLogo = true)
                                 val fadeOut =
                                     ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
                                         .apply {
@@ -3781,18 +3785,32 @@ class ListPanenTBSActivity : AppCompatActivity() {
     fun generateHighQualityQRCode(
         content: String,
         imageView: ImageView,
-        sizePx: Int = 1000
+        context: Context,
+        sizePx: Int = 1000,
+        foregroundColorRes: Int? = R.color.black, // Optional: use custom color or default
+        backgroundColorRes: Int? = R.color.white, // Optional: use custom color or default
+        showLogo: Boolean = false, // Toggle to show/hide logo (default: no logo)
+        logoRes: Int = R.drawable.cbi, // Default logo resource
+        logoSizeRatio: Float = 0.12f // Logo size as ratio of QR code (12% by default)
     ) {
         try {
+            // Get colors from colors.xml or use defaults
+            val foregroundColor = foregroundColorRes?.let {
+                ContextCompat.getColor(context, it)
+            } ?: Color.BLACK // Default black if not specified
+
+            val backgroundColor = backgroundColorRes?.let {
+                ContextCompat.getColor(context, it)
+            } ?: Color.WHITE // Default white if not specified
+
             // Create encoding hints for better quality
             val hints = hashMapOf<EncodeHintType, Any>().apply {
                 put(
                     EncodeHintType.ERROR_CORRECTION,
-                    ErrorCorrectionLevel.M
-                ) // Change to M for balance
-                put(EncodeHintType.MARGIN, 1) // Smaller margin
+                    ErrorCorrectionLevel.H // Use HIGH error correction for logo overlay
+                )
+                put(EncodeHintType.MARGIN, 1)
                 put(EncodeHintType.CHARACTER_SET, "UTF-8")
-                // Remove fixed QR version to allow automatic scaling
             }
 
             // Create QR code writer with hints
@@ -3810,23 +3828,85 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val height = bitMatrix.height
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
 
-            // Fill the bitmap
+            // Fill the bitmap with colors from colors.xml
             for (x in 0 until width) {
                 for (y in 0 until height) {
-                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
+                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) foregroundColor else backgroundColor)
                 }
             }
 
-            // Set the bitmap to ImageView with high quality scaling
-            imageView.apply {
-                setImageBitmap(bitmap)
-                scaleType = ImageView.ScaleType.FIT_CENTER
+            // Add logo if enabled
+            if (showLogo) {
+                val finalBitmap = addLogoToQRCode(bitmap, context, logoRes, logoSizeRatio)
+
+                // Set the bitmap to ImageView with high quality scaling
+                imageView.apply {
+                    setImageBitmap(finalBitmap)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                }
+            } else {
+                // No logo, just set the QR code
+                imageView.apply {
+                    setImageBitmap(bitmap)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                }
             }
 
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
+
+    private fun addLogoToQRCode(
+        qrBitmap: Bitmap,
+        context: Context,
+        logoRes: Int,
+        logoSizeRatio: Float
+    ): Bitmap {
+        try {
+            // Create a mutable copy of the QR code bitmap
+            val combinedBitmap = qrBitmap.copy(Bitmap.Config.ARGB_8888, true)
+            val canvas = Canvas(combinedBitmap)
+
+            // Load and resize logo
+            val logoDrawable = ContextCompat.getDrawable(context, logoRes)
+            logoDrawable?.let { drawable ->
+
+                // Calculate logo size
+                val qrSize = qrBitmap.width
+                val logoSize = (qrSize * logoSizeRatio).toInt()
+
+                // Calculate center position
+                val left = (qrSize - logoSize) / 2
+                val top = (qrSize - logoSize) / 2
+                val right = left + logoSize
+                val bottom = top + logoSize
+
+                // Create white background circle for logo (optional)
+                val paint = Paint().apply {
+                    color = Color.WHITE
+                    isAntiAlias = true
+                }
+                val radius = logoSize / 2f
+                val centerX = qrSize / 2f
+                val centerY = qrSize / 2f
+                canvas.drawCircle(centerX, centerY, radius + 6, paint)
+
+                // Draw logo
+                drawable.setBounds(left, top, right, bottom)
+                drawable.draw(canvas)
+            }
+
+            return combinedBitmap
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return qrBitmap // Return original if logo addition fails
+        }
+    }
+
+
+
 
     private val STORAGE_PERMISSION_CODE = 101
     private val REQUIRED_PERMISSIONS = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

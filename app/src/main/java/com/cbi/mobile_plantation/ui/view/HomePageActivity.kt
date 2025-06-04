@@ -2559,25 +2559,25 @@ class HomePageActivity : AppCompatActivity() {
                             hektaranJson = Gson().toJson(finalData)
 
                             // Save JSON to a temporary file for inspection - direct approach
-//                                            try {
-//                                                val tempDir =
-//                                                    File(getExternalFilesDir(null), "TEMP").apply {
-//                                                        if (!exists()) mkdirs()
-//                                                    }
+//                            try {
+//                                val tempDir =
+//                                    File(getExternalFilesDir(null), "TEMP").apply {
+//                                        if (!exists()) mkdirs()
+//                                    }
 //
-//                                                val filename =
-//                                                    "hektaran_data_${System.currentTimeMillis()}.json"
-//                                                val tempFile = File(tempDir, filename)
+//                                val filename =
+//                                    "hektaran_data_${System.currentTimeMillis()}.json"
+//                                val tempFile = File(tempDir, filename)
 //
-//                                                FileOutputStream(tempFile).use { fos ->
-//                                                    fos.write(hektaranJson.toByteArray())
-//                                                }
+//                                FileOutputStream(tempFile).use { fos ->
+//                                    fos.write(hektaranJson.toByteArray())
+//                                }
 //
-//                                                AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
-//                                            } catch (e: Exception) {
-//                                                AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
-//                                                e.printStackTrace()
-//                                            }
+//                                AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
+//                            } catch (e: Exception) {
+//                                AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
+//                                e.printStackTrace()
+//                            }
 
                             // Extract all IDs for tracking
                             val hektaranIds =
