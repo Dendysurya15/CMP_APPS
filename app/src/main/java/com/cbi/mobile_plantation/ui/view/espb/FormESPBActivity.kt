@@ -448,7 +448,7 @@ class FormESPBActivity : AppCompatActivity() {
                     val selectedTransporter = item.toString()
 
                     selectedTransporterId = try {
-                        transporterList.find { it.nama == selectedTransporter }?.id!!
+                        transporterList.find { it.nama == selectedTransporter }?.kode!!.toInt()
                     } catch (e: Exception) {
                         AppLogger.e("Error finding selectedTransporterId: ${e.message}")
                         0
@@ -457,6 +457,8 @@ class FormESPBActivity : AppCompatActivity() {
                         "FormESPBActivityTransporter",
                         "selectedTransporterId: $selectedTransporterId"
                     )
+
+                    AppLogger.d("select4edTransposertId $selectedTransporterId")
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error fetching transporter data: ${e.message}")
@@ -633,6 +635,8 @@ class FormESPBActivity : AppCompatActivity() {
             } else {
                 selectedTransporterId
             }
+
+            AppLogger.d("transporter_id $transporter_id")
             val creatorInfo = createCreatorInfo(
                 appVersion = appVersion,
                 osVersion = osVersion,
@@ -1700,7 +1704,7 @@ class FormESPBActivity : AppCompatActivity() {
 
             R.id.formEspbTransporter -> {
                 selectedTransporterId = try {
-                    transporterList.find { it.nama == selectedItem }?.id!!
+                    transporterList.find { it.nama == selectedItem }?.kode!!.toInt()
                 } catch (e: Exception) {
                     AppLogger.e("Error finding selectedTransporterId: ${e.message}")
                     0

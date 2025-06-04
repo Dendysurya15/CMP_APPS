@@ -1626,15 +1626,13 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 } else if (featureName == AppUtils.ListFeatureNames.TransferHektarPanen) {
                     AppUtils.WaterMarkFotoDanFolder.WMTransferHektarPanen
                 } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
-//                    AppUtils.WaterMarkFotoDanFolder.WMESPB
-                    "E-SPB"
+                    AppUtils.WaterMarkFotoDanFolder.WMESPB
                 } else if (featureName == AppUtils.ListFeatureNames.AbsensiPanen) {
                     AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
                 }else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                     AppUtils.WaterMarkFotoDanFolder.WMRekapPanenDanRestan
                 }else if(featureName == AppUtils.ListFeatureNames.DetailESPB){
-//                    AppUtils.WaterMarkFotoDanFolder.WMESPB
-                    "E-SPB"
+                    AppUtils.WaterMarkFotoDanFolder.WMESPB
                 } else {
                     AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
                 }
