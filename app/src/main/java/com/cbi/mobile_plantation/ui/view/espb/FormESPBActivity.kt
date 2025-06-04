@@ -448,7 +448,7 @@ class FormESPBActivity : AppCompatActivity() {
                     val selectedTransporter = item.toString()
 
                     selectedTransporterId = try {
-                        transporterList.find { it.nama == selectedTransporter }?.id!!
+                        transporterList.find { it.nama == selectedTransporter }?.kode!!.toInt()
                     } catch (e: Exception) {
                         AppLogger.e("Error finding selectedTransporterId: ${e.message}")
                         0

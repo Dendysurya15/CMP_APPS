@@ -22,6 +22,7 @@ import android.text.Editable
 import android.text.Html
 import android.text.Spannable
 import android.text.SpannableString
+import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
@@ -56,6 +57,8 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
+import androidx.core.text.bold
+import androidx.core.text.buildSpannedString
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
@@ -154,6 +157,9 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var lon: Double? = null
     private var currentAccuracy: Float = 0F
     private var selectedTPHIdByScan: Int? = null
+    private var selectedTPHNomorByScan: Int? = null
+    private var selectedAncakByScan: String? = null
+    private var selectedTanggalPanenByScan: String? = null
     private lateinit var titleScannedTPHInsideRadius: TextView
     private lateinit var descScannedTPHInsideRadius: TextView
     private lateinit var emptyScannedTPHInsideRadius: TextView
@@ -234,24 +240,17 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var selectedBlokValue: Int? = null
     private var selectedTPH: String = ""
     private var selectedTPHValue: Int? = null
-    private var selectedStatusPanen: String = ""
     private var selectedJalurMasuk: String = ""
     private var selectedInspeksiValue: String = ""
-    private var selectedKemandoran: String = ""
-    private var selectedPemanen: String = ""
-    private var selectedKemandoranLain: String = ""
-    private var selectedPemanenLain: String = ""
     private var selectedKondisiValue: String = ""
 
     private var isInTPH: Boolean = true
-    private var ancakValue: String = ""
     private var br1Value: String = ""
     private var br2Value: String = ""
 
     private lateinit var selectedPemanenAdapter: SelectedWorkerAdapter
     private lateinit var selectedPemanenLainAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
-    private lateinit var rvSelectedPemanenLain: RecyclerView
 
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var panenViewModel: PanenViewModel
@@ -318,6 +317,9 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (autoScanEnabled) {
             btnScanTPHRadius.visibility = View.GONE
             selectedTPHIdByScan = null
+            selectedTPHNomorByScan = null
+            selectedAncakByScan = null
+            selectedTanggalPanenByScan = null
             selectedTPHValue = null
         } else {
             btnScanTPHRadius.visibility = View.VISIBLE
@@ -689,7 +691,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun updateFragmentIfExists(pageNumber: Int) {
         // Get existing fragment from your ViewPager
-        val fragment = supportFragmentManager.findFragmentByTag("f${pageNumber - 1}") // ViewPager uses 0-based index
+        val fragment =
+            supportFragmentManager.findFragmentByTag("f${pageNumber - 1}") // ViewPager uses 0-based index
 
         if (fragment is FormAncakFragment) {
             AppLogger.d("🔄 Found existing fragment for page $pageNumber, updating data")
@@ -710,7 +713,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             val currentPage = formAncakViewModel.currentPage.value ?: 1
-            val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+            val totalPages =
+                formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
 
 
 
@@ -750,7 +754,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         formAncakViewModel.fieldValidationError.observe(this) { errorMap ->
-            val currentFragment = supportFragmentManager.findFragmentByTag("f${vpFormAncak.currentItem}")
+            val currentFragment =
+                supportFragmentManager.findFragmentByTag("f${vpFormAncak.currentItem}")
             if (currentFragment is FormAncakFragment) {
                 if (errorMap.isNotEmpty()) {
                     errorMap.forEach { (fieldId, errorMessage) ->
@@ -767,7 +772,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         fabNextFormAncak.setOnClickListener {
             val currentPokok = formAncakViewModel.currentPage.value ?: 1
             val nextPokok = currentPokok + 1
-            val totalPokok = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+            val totalPokok =
+                formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
             val pokokData = formData[currentPokok]
             val photoValue = pokokData?.photo ?: ""
@@ -788,7 +794,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 //                return@setOnClickListener
 //            }
 
-            val validationResult = formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
+            val validationResult =
+                formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
 
             if (!validationResult.isValid) {
                 vibrate(500)
@@ -804,7 +811,12 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             pokokData?.let {
-                val shouldTrackIssue = formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(currentPokok, lat, lon)
+                val shouldTrackIssue =
+                    formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
+                        currentPokok,
+                        lat,
+                        lon
+                    )
                 val issueKey = currentPokok.toString()
 
                 if (shouldTrackIssue) {
@@ -814,7 +826,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     if (trackingLocation.containsKey(issueKey)) {
                         trackingLocation.remove(issueKey)
                         AppLogger.d("Removing issue location for pokok $currentPokok")
-                    }else{
+                    } else {
 
                     }
                 }
@@ -831,7 +843,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                         // Handle 10th pokok tracking
                         if (currentPokok % 10 == 0 && !trackingLocation.containsKey(currentPokok.toString())) {
                             isTenthTrees = true
-                            trackingLocation[currentPokok.toString()] = Location(lat ?: 0.0, lon ?: 0.0)
+                            trackingLocation[currentPokok.toString()] =
+                                Location(lat ?: 0.0, lon ?: 0.0)
                             AppLogger.d("Adding 10th pokok location for pokok $currentPokok: lat=$lat, lon=$lon")
                         } else if (isTenthTrees) {
                             isTenthTrees = false
@@ -1538,6 +1551,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                     function = {
                         isTriggeredBtnScanned = true
                         selectedTPHIdByScan = null
+                        selectedTPHNomorByScan = null
+                        selectedAncakByScan = null
+                        selectedTanggalPanenByScan = null
                         selectedTPHValue = null
                         progressBarScanTPHManual.visibility = View.VISIBLE
                         Handler(Looper.getMainLooper()).postDelayed({
@@ -1550,6 +1566,9 @@ open class FormInspectionActivity : AppCompatActivity(),
             } else {
                 isTriggeredBtnScanned = true
                 selectedTPHIdByScan = null
+                selectedTPHNomorByScan = null
+                selectedAncakByScan = null
+                selectedTanggalPanenByScan = null
                 selectedTPHValue = null
                 progressBarScanTPHManual.visibility = View.VISIBLE
                 Handler(Looper.getMainLooper()).postDelayed({
@@ -1826,6 +1845,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun setupSummaryPage() {
         fun createTextView(
             text: String,
@@ -1861,17 +1881,59 @@ open class FormInspectionActivity : AppCompatActivity(),
                 floatArrayOf(0f, 0f, 20f, 20f, 20f, 20f, 0f, 0f)
             }
 
-
             textView.background = shape
             return textView
         }
 
-        val tableLayout = findViewById<TableLayout>(R.id.tblLytSummaryInspect)
-        tableLayout.removeAllViews()
+        // Testing data
+        selectedAfdeling = "AFD-OC"
+        selectedTPHNomorByScan = 287
+        selectedAncakByScan = "23"
+        selectedTanggalPanenByScan = "20 Mei 2030 08:09:10"
+        jumBuahTglPath = 10
+        jumBrdTglPath = 40
+
+        // Setup header information
+        val desTPHEstateAfd = findViewById<TextView>(R.id.desTPHEstateAfd)
+        desTPHEstateAfd.text = "${prefManager!!.estateUserLogin} ${selectedAfdeling}"
+
+        val desTPH = findViewById<TextView>(R.id.desTPH)
+        val spannable = SpannableStringBuilder()
+
+        spannable.append("TPH ")
+        val tphStart = spannable.length
+        spannable.append(selectedTPHNomorByScan.toString())
+        spannable.setSpan(
+            StyleSpan(Typeface.BOLD),
+            tphStart,
+            spannable.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
+        spannable.append(" ,Ancak ")
+        val ancakStart = spannable.length
+        spannable.append(selectedAncakByScan)
+        spannable.setSpan(
+            StyleSpan(Typeface.BOLD),
+            ancakStart,
+            spannable.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
+        spannable.append("\nTanggal Panen ")
+        val tanggalStart = spannable.length
+        spannable.append(selectedTanggalPanenByScan)
+        spannable.setSpan(
+            StyleSpan(Typeface.BOLD),
+            tanggalStart,
+            spannable.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
+        desTPH.text = spannable
 
         val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
         val formData = formAncakViewModel.formData.value ?: mutableMapOf()
-
 
         AppLogger.d("formData $formData")
         totalPokokInspection = (1..totalPages).count { pageNumber ->
@@ -1879,20 +1941,66 @@ open class FormInspectionActivity : AppCompatActivity(),
             emptyTreeValue == 1 || emptyTreeValue == 2
         }
 
-        val data = listOf(
-            SummaryItem("Total Pokok Diperiksa", totalPokokInspection.toString()),
+        // Get container for dynamic cards
+        val containerTemuanCards = findViewById<LinearLayout>(R.id.containerTemuanCards)
+        containerTemuanCards.removeAllViews()
+
+        // Dynamic temuan data - you can add/remove as needed
+        val temuanDataList = mutableListOf<Pair<String, List<SummaryItem>>>()
+
+        // Add your temuan cards dynamically
+        temuanDataList.add(
+            Pair(
+                "Temuan di TPH", listOf(
+                    SummaryItem("Brondolan Tinggal", jumBrdTglPath.toString()),
+                    SummaryItem("Buah Tinggal", jumBuahTglPath.toString())
+                )
+            ),
+
+            )
+
+        temuanDataList.add(
+            Pair(
+                "Temuan di Path/Pokok", listOf(
+                    SummaryItem("Total Pokok Inspeksi", totalPokokInspection.toString()),
+                    SummaryItem("Total Buah Masak Tinggal di Pokok", totalPokokInspection.toString()),
+                    SummaryItem("Total Buah Mentah disembunyikan (M1)", jumBuahTglPath.toString()),
+                    SummaryItem("Total Buah Matang Tidak dikeluarkan (M2)", jumBuahTglPath.toString()),
+                    SummaryItem("Total Brondolan Tidak dikutip", jumBrdTglPath.toString()),
+                )
+            ),
         )
 
-        for (item in data) {
-            val tableRow = TableRow(this)
 
-            val titleTextView = createTextView(item.title, Gravity.START, 2f, true)
-            tableRow.addView(titleTextView)
 
-            val valueTextView = createTextView(item.value, Gravity.CENTER, 1f)
-            tableRow.addView(valueTextView)
+        for ((temuanName, data) in temuanDataList) {
+            // Inflate the included layout
+            val inflater = LayoutInflater.from(this)
+            val cardView =
+                inflater.inflate(R.layout.layout_card_temuan, containerTemuanCards, false)
 
-            tableLayout.addView(tableRow)
+            // Set the temuan name
+            val nameTemuan = cardView.findViewById<TextView>(R.id.name_temuan)
+            nameTemuan.text = temuanName
+
+            // Get the table layout from the included layout
+            val tableLayout = cardView.findViewById<TableLayout>(R.id.tblLytSummary)
+            tableLayout.removeAllViews()
+
+            // Populate the table with data
+            for (item in data) {
+                val tableRow = TableRow(this)
+
+                val titleTextView = createTextView(item.title, Gravity.START, 2f, true)
+                tableRow.addView(titleTextView)
+
+                val valueTextView = createTextView(item.value, Gravity.CENTER, 1f)
+                tableRow.addView(valueTextView)
+
+                tableLayout.addView(tableRow)
+            }
+
+            containerTemuanCards.addView(cardView)
         }
     }
 
@@ -2336,6 +2444,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         selectedPemanenAdapter.setDisplayOnly(true)
 
         selectedTPHIdByScan = selectedTPHInLIst.id
+        selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
 
         // Add a small delay to allow UI to update and prevent rapid clicking
         Handler(Looper.getMainLooper()).postDelayed({
@@ -2500,6 +2609,9 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 // Set the description text with bold ancak and Indonesian date
                 val ancakText = if (ancakValue.isNotBlank()) ancakValue else "tidak diketahui"
+
+                selectedAncakByScan = ancakText
+                selectedTanggalPanenByScan = indonesianDate
                 val descriptionText =
                     "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$indonesianDate</b> oleh :"
                 descPemanenInspeksi.text =
@@ -2685,7 +2797,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         loadingContainer.visibility = View.GONE
         spinner.visibility = View.VISIBLE
     }
-
 
 
     private fun validateAndShowErrors(): Boolean {

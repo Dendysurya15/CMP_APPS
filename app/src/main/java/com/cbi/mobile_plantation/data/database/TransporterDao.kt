@@ -31,7 +31,7 @@ abstract class TransporterDao {
     @Query(
         """
     SELECT * FROM transporter 
-    WHERE id = :idTransporter
+    WHERE kode = :idTransporter
     """
     )
     abstract fun getTransporterById(
