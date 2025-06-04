@@ -122,7 +122,6 @@
         android:layout_marginTop="15dp"
         android:fontFamily="@font/manrope_extrabold"
         android:gravity="center"
-        android:text="Hasil Generate QR TPH"
         android:textSize="25sp"
 
         android:textColor="@color/black"

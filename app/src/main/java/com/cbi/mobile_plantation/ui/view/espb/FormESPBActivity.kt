@@ -1111,6 +1111,14 @@ class FormESPBActivity : AppCompatActivity() {
                 val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
                 val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
 
+
+                val tvTitleQRGenerate: TextView =
+                    screenshotLayout.findViewById(R.id.textTitleQRGenerate)
+                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
+                tvTitleQRGenerate.text = "Hasil QR $capitalizedFeatureName"
+
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
@@ -1287,7 +1295,10 @@ class FormESPBActivity : AppCompatActivity() {
         fotoLayout.setBackgroundColor(ContextCompat.getColor(this, R.color.white))
 
         // Set close button background color to green
-        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(this, R.color.greenDarker))
+        val closeCardLinearLayout = closeZoomCard.getChildAt(0) as LinearLayout
+
+// Set the LinearLayout background to green instead of the card
+        closeCardLinearLayout.setBackgroundColor(ContextCompat.getColor(this, R.color.greenDarker))
 
         // Change the text color to white
         tvCardCloseButton.setTextColor(ContextCompat.getColor(this, R.color.white))

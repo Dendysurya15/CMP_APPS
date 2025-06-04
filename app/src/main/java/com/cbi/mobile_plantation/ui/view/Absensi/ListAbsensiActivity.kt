@@ -420,7 +420,10 @@ class ListAbsensiActivity : AppCompatActivity() {
         val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
         val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
         val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
-        tvTitleQRGenerate.text = "Generate QR Absensi"
+        val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+            word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        }
+        tvTitleQRGenerate.text = "Generate QR $capitalizedFeatureName"
         val dashedLine: View = view.findViewById(R.id.dashedLine)
         val loadingContainer: LinearLayout =
             view.findViewById(R.id.loadingDotsContainerBottomSheet)
@@ -860,6 +863,13 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val tvUserName = screenshotLayout.findViewById<TextView>(R.id.tvUserName)
                 val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
                 val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
+
+                val tvTitleQRGenerate: TextView =
+                    screenshotLayout.findViewById(R.id.textTitleQRGenerate)
+                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
+                tvTitleQRGenerate.text = "Hasil QR $capitalizedFeatureName"
 
                 // Check that we found the essential views
                 if (tvUserName == null) AppLogger.e("tvUserName not found")
@@ -1343,8 +1353,8 @@ class ListAbsensiActivity : AppCompatActivity() {
         // Set background color of the layout to white using your color resource
         fotoLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.white))
 
-        // Set close button background color to green using your color resource
-        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
+        val closeCardLinearLayout = closeZoomCard.getChildAt(0) as LinearLayout
+        closeCardLinearLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
 
         // Change the text color to white
         tvCardCloseButton.setTextColor(ContextCompat.getColor(context, R.color.white))

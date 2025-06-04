@@ -697,11 +697,14 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 dialog.setContentView(view)
                 // Get references to views
                 val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
-//                        val qrCodeImageView: com.github.chrisbanes.photoview.PhotoView = view.findViewById(R.id.qrCodeImageView)
                 val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
                 val tvTitleQRGenerate: TextView =
                     view.findViewById(R.id.textTitleQRGenerate)
                 tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
+                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
+                tvTitleQRGenerate.text = "Hasil QR $capitalizedFeatureName"
                 val dashedLine: View = view.findViewById(R.id.dashedLine)
                 val loadingContainer: LinearLayout =
                     view.findViewById(R.id.loadingDotsContainerBottomSheet)
@@ -1467,8 +1470,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         // Set background color of the layout to white using your color resource
         fotoLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.white))
 
-        // Set close button background color to green using your color resource
-        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
+        val closeCardLinearLayout = closeZoomCard.getChildAt(0) as LinearLayout
+        closeCardLinearLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
 
         // Change the text color to white
         tvCardCloseButton.setTextColor(ContextCompat.getColor(context, R.color.white))
@@ -1521,6 +1524,14 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 val tvUserName = screenshotLayout.findViewById<TextView>(R.id.tvUserName)
                 val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
                 val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
+
+
+                val tvTitleQRGenerate: TextView =
+                    screenshotLayout.findViewById(R.id.textTitleQRGenerate)
+                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
+                tvTitleQRGenerate.text = "Hasil QR $capitalizedFeatureName"
 
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
@@ -1610,12 +1621,22 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
                 val screenshotFileName = "Panen_QR_$date"
 
-
-
-                val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen)
+                val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
                     AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
-                else
+                } else if (featureName == AppUtils.ListFeatureNames.TransferHektarPanen) {
+                    AppUtils.WaterMarkFotoDanFolder.WMTransferHektarPanen
+                } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
                     AppUtils.WaterMarkFotoDanFolder.WMESPB
+                } else if (featureName == AppUtils.ListFeatureNames.AbsensiPanen) {
+                    AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
+                }else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                    AppUtils.WaterMarkFotoDanFolder.WMRekapPanenDanRestan
+                }else if(featureName == AppUtils.ListFeatureNames.DetailESPB){
+                    AppUtils.WaterMarkFotoDanFolder.WMESPB
+                }
+                else {
+                    AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
+                }
                 val screenshotFile = ScreenshotUtil.takeScreenshot(
                     screenshotLayout,
                     screenshotFileName,

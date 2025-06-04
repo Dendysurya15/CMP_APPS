@@ -5,6 +5,8 @@
     android:layout_height="wrap_content"
     android:background="@android:color/white">
 
+
+
     <!-- Background logo with opacity -->
     <FrameLayout
         android:layout_width="match_parent"
@@ -19,7 +21,7 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:alpha="0.95"
+            android:alpha="0.9"
             android:background="@android:color/white" />
     </FrameLayout>
 
@@ -36,14 +38,34 @@
             android:layout_gravity="center"
             android:layout_marginBottom="16dp">
 
-            <!-- Regular ImageView for QR code -->
-            <ImageView
-                android:id="@+id/qrCodeImageView"
+
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_gravity="center"
-                android:adjustViewBounds="true"
-                android:scaleType="fitCenter" />
+                android:layout_height="280dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginBottom="16dp">
+
+                <TextView
+                    android:id="@+id/textTitleQRGenerate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:fontFamily="@font/manrope_extrabold"
+                    android:gravity="center"
+                    android:textSize="25sp"
+                    android:textColor="@color/black"
+                    android:visibility="visible" />
+
+                <ImageView
+                    android:id="@+id/qrCodeImageView"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:adjustViewBounds="true"
+                    android:scaleType="fitCenter" />
+            </LinearLayout>
+
         </FrameLayout>
 
         <!-- User information section -->

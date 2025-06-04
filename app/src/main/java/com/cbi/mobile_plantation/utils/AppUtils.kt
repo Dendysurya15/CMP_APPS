@@ -226,6 +226,8 @@ object AppUtils {
         const val WMInspeksi = "INSPEKSI"
         const val WMAbsensiPanen = "ABSENSI PANEN"
         const val WMESPB = "E-SPB"
+        const val WMTransferHektarPanen = "TRANSFER HEKTAR PANEN"
+        const val WMRekapPanenDanRestan = "REKAP PANEN DAN RESTAN"
     }
 
 
