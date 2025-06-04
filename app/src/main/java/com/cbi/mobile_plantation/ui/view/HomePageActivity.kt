@@ -368,7 +368,6 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
-    // Updated openPdfViewer method using afreakyelf library
     private fun openPdfViewer() {
         val pdfFile = getLocalPDFFile(pdfFileName)
         if (pdfFile != null) {
@@ -1896,9 +1895,14 @@ class HomePageActivity : AppCompatActivity() {
                             val nikList =
                                 panenWithRelations.panen.karyawan_nik?.split(",")
                                     ?: listOf()
+
+
+                            AppLogger.d(panenWithRelations.panen.karyawan_nama.toString())
                             val namaList =
                                 panenWithRelations.panen.karyawan_nama?.split(",")
                                     ?: listOf()
+
+                            AppLogger.d(namaList.toString())
 
                             for (i in nikList.indices) {
                                 if (i < namaList.size) {
@@ -2064,23 +2068,23 @@ class HomePageActivity : AppCompatActivity() {
                                     "Data Panen ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
                                 }
 
-//                                                try {
-//                                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-//                                                        if (!exists()) mkdirs()
-//                                                    }
-//
-//                                                    val filename = "panen_data_${System.currentTimeMillis()}.json"
-//                                                    val tempFile = File(tempDir, filename)
-//
-//                                                    FileOutputStream(tempFile).use { fos ->
-//                                                        fos.write(batchJson.toByteArray())
-//                                                    }
-//
-//                                                    AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
-//                                                } catch (e: Exception) {
-//                                                    AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
-//                                                    e.printStackTrace()
-//                                                }
+                                try {
+                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+                                        if (!exists()) mkdirs()
+                                    }
+
+                                    val filename = "panen_data_${System.currentTimeMillis()}.json"
+                                    val tempFile = File(tempDir, filename)
+
+                                    FileOutputStream(tempFile).use { fos ->
+                                        fos.write(batchJson.toByteArray())
+                                    }
+
+                                    AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
+                                } catch (e: Exception) {
+                                    AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
+                                    e.printStackTrace()
+                                }
 
 
                                 panenBatchMap[batchKey] = mapOf(
