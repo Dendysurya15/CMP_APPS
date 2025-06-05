@@ -3,11 +3,14 @@ package com.cbi.mobile_plantation.ui.view.Inspection
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
@@ -56,6 +59,7 @@ import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.ColorUtils
 import androidx.core.text.bold
 import androidx.core.text.buildSpannedString
@@ -1861,7 +1865,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                 setTextColor(Color.BLACK)
                 textSize = 15f
                 this.gravity = gravity or Gravity.CENTER_VERTICAL
-                setTypeface(null, if (isTitle) Typeface.NORMAL else Typeface.BOLD)
+                // Use Manrope font
+                typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
                 maxLines = Int.MAX_VALUE
                 ellipsize = null
                 isSingleLine = false
@@ -2027,7 +2032,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
                 }
                 "Path / Pokok" -> {
-                    tvCardDetailInspeksi.text = "Detail Temuan"
+                    tvCardDetailInspeksi.text = "Detail Temuan Path"
                     if (photoCount > 0) {
                         photoCard.visibility = View.VISIBLE
                     } else {
@@ -2053,6 +2058,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
             }
 
+            // Add click listener for detail card
+            detailCard.setOnClickListener {
+                showDetailBottomSheet(temuanName)
+            }
+
             // Build the summary table
             val summaryContainer = cardView.findViewById<LinearLayout>(R.id.tblLytSummary)
             summaryContainer.removeAllViews()
@@ -2071,6 +2081,324 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             containerTemuanCards.addView(cardView)
         }
+    }
+
+    // Bottom sheet function
+    private fun showDetailBottomSheet(temuanType: String) {
+        val bottomSheetDialog = BottomSheetDialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.layout_detail_inspeksi, null)
+
+        val tvTitle = view.findViewById<TextView>(R.id.tvDetailTitle)
+        val ivImage = view.findViewById<ImageView>(R.id.ivDetailImage)
+        val llContainer = view.findViewById<LinearLayout>(R.id.llDetailContainer)
+        val btnClose = view.findViewById<MaterialButton>(R.id.btnCloseDetail)
+
+        // Set title (normal - no click listener)
+        tvTitle.text = "Detail $temuanType"
+
+        // Handle content based on temuan type
+        when (temuanType) {
+            "Temuan di TPH" -> {
+                setupTPHDetail(ivImage, llContainer, bottomSheetDialog)
+            }
+            "Path / Pokok" -> {
+                setupPathDetail(ivImage, llContainer, bottomSheetDialog)
+            }
+        }
+
+        // Close button
+        btnClose.setOnClickListener {
+            bottomSheetDialog.dismiss()
+        }
+
+        bottomSheetDialog.setContentView(view)
+        bottomSheetDialog.show()
+    }
+
+
+    private fun setupTPHDetail(imageView: ImageView, container: LinearLayout, bottomSheetDialog: BottomSheetDialog? = null) {
+        // Show image for TPH
+        if (!photoInTPH.isNullOrEmpty()) {
+            imageView.visibility = View.VISIBLE
+
+            // Build the correct file path
+            val rootApp = File(
+                getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksi}"
+            ).toString()
+
+            val fullImagePath = File(rootApp, photoInTPH).absolutePath
+
+            AppLogger.d("TPH Photo Details:")
+            AppLogger.d("photoInTPH: $photoInTPH")
+            AppLogger.d("rootApp: $rootApp")
+            AppLogger.d("fullImagePath: $fullImagePath")
+
+            val file = File(fullImagePath)
+            AppLogger.d("File exists: ${file.exists()}")
+
+            if (file.exists()) {
+                try {
+                    val bitmap = BitmapFactory.decodeFile(fullImagePath)
+                    if (bitmap != null) {
+                        imageView.setImageBitmap(bitmap)
+                        AppLogger.d("Image loaded successfully")
+
+                        // Add click listener to IMAGE for full screen view
+                        imageView.setOnClickListener {
+                            bottomSheetDialog?.dismiss() // Close bottom sheet first
+                            showFullScreenPhoto(fullImagePath, "Detail Temuan di TPH")
+                        }
+                    } else {
+                        AppLogger.e("Failed to decode bitmap from file")
+                        imageView.visibility = View.GONE
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error loading image: ${e.message}")
+                    imageView.visibility = View.GONE
+                }
+            } else {
+                AppLogger.e("Image file not found at: $fullImagePath")
+                imageView.visibility = View.GONE
+            }
+        } else {
+            AppLogger.d("photoInTPH is null or empty")
+            imageView.visibility = View.GONE
+        }
+
+        // Hide container for TPH (no additional content needed)
+        container.visibility = View.GONE
+    }
+
+
+    private fun showFullScreenPhoto(imagePath: String, title: String) {
+        AppLogger.d("showFullScreenPhoto called with: $imagePath, $title")
+
+        // Create full screen dialog
+        val dialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+
+        // Inflate your existing camera_edit layout
+        val view = LayoutInflater.from(this).inflate(R.layout.camera_edit, null)
+        dialog.setContentView(view)
+
+        // Find components in the inflated layout
+        val fotoZoom = view.findViewById<com.github.chrisbanes.photoview.PhotoView>(R.id.fotoZoom)
+        val cardCloseZoom = view.findViewById<MaterialCardView>(R.id.cardCloseZoom)
+        val cardChangePhoto = view.findViewById<MaterialCardView>(R.id.cardChangePhoto)
+        val cardDeletePhoto = view.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
+        val clZoomLayout = view.findViewById<ConstraintLayout>(R.id.clZoomLayout)
+
+        AppLogger.d("Dialog components found: fotoZoom=${fotoZoom != null}, cardCloseZoom=${cardCloseZoom != null}")
+
+        // Make sure the zoom layout is visible
+        clZoomLayout?.visibility = View.VISIBLE
+
+        // Load image into PhotoView
+        val file = File(imagePath)
+        if (file.exists()) {
+            try {
+                val bitmap = BitmapFactory.decodeFile(imagePath)
+                if (bitmap != null) {
+                    fotoZoom?.setImageBitmap(bitmap)
+                    AppLogger.d("Full screen photo loaded successfully in dialog: $title")
+                } else {
+                    AppLogger.e("Failed to decode bitmap for full screen")
+                    return
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error loading full screen photo: ${e.message}")
+                return
+            }
+        } else {
+            AppLogger.e("Image file not found for full screen: $imagePath")
+            return
+        }
+
+        // Hide change and delete buttons for view-only mode
+        cardChangePhoto?.visibility = View.GONE
+        cardDeletePhoto?.visibility = View.GONE
+
+        // Set up close button
+        cardCloseZoom?.setOnClickListener {
+            AppLogger.d("Close button clicked")
+            dialog.dismiss()
+        }
+
+        // Optional: Close on photo tap
+        fotoZoom?.setOnClickListener {
+            AppLogger.d("Photo tapped - closing dialog")
+            dialog.dismiss()
+        }
+
+        // Show dialog
+        try {
+            dialog.show()
+            AppLogger.d("Full screen dialog shown successfully")
+        } catch (e: Exception) {
+            AppLogger.e("Error showing full screen dialog: ${e.message}")
+        }
+    }
+
+    // Setup Path detail (show detailed list)
+    private fun setupPathDetail(imageView: ImageView, container: LinearLayout, bottomSheetDialog: BottomSheetDialog? = null) {
+        // Hide image for Path
+        imageView.visibility = View.GONE
+
+        // Show container for Path
+        container.visibility = View.VISIBLE
+        container.removeAllViews()
+
+        // Get form data
+        val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+
+        // Create detail items for each page with temuan
+        formData.forEach { (pageNumber, pageData) ->
+            if (pageData.emptyTree == 1 || pageData.emptyTree == 2) {
+                val detailCard = createPathDetailCard(pageNumber, pageData, bottomSheetDialog)
+                container.addView(detailCard)
+            }
+        }
+
+        // If no items, show empty message
+        if (container.childCount == 0) {
+            val emptyText = TextView(this).apply {
+                text = "Tidak ada data temuan"
+                textSize = 16f
+                typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
+                gravity = Gravity.CENTER
+                setPadding(32, 32, 32, 32)
+            }
+            container.addView(emptyText)
+        }
+    }
+
+    // Create detail card for each path page
+    private fun createPathDetailCard(pageNumber: Int, pageData: FormAncakViewModel.PageData, bottomSheetDialog: BottomSheetDialog? = null): View {
+        val card = MaterialCardView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 8, 0, 8)
+            }
+            radius = 12f
+            cardElevation = 4f
+            setCardBackgroundColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.white))
+        }
+
+        val contentLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 16, 16, 16)
+        }
+
+        // Title
+        val titleText = TextView(this).apply {
+            text = "Pokok $pageNumber"
+            textSize = 16f
+            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_bold)
+            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.black))
+            setPadding(0, 0, 0, 8)
+        }
+        contentLayout.addView(titleText)
+
+        // Details based on pageData values (only show non-zero values)
+        if (pageData.ripe > 0) {
+            contentLayout.addView(createDetailRow("Buah Masak Tinggal", pageData.ripe.toString()))
+        }
+        if (pageData.buahM1 > 0) {
+            contentLayout.addView(createDetailRow("Buah M1", pageData.buahM1.toString()))
+        }
+        if (pageData.buahM2 > 0) {
+            contentLayout.addView(createDetailRow("Buah M2", pageData.buahM2.toString()))
+        }
+        if (pageData.brdKtp > 0) {
+            contentLayout.addView(createDetailRow("Brondolan", pageData.brdKtp.toString()))
+        }
+
+        // Photo if available
+        if (!pageData.photo.isNullOrEmpty()) {
+            val imageView = ImageView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    200
+                ).apply {
+                    setMargins(0, 8, 0, 0)
+                }
+                scaleType = ImageView.ScaleType.CENTER_CROP
+
+                // Build correct path for pageData photo
+                val rootApp = File(
+                    getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                    "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksi}"
+                ).toString()
+
+                val fullImagePath = File(rootApp, pageData.photo).absolutePath
+
+                AppLogger.d("Path Photo - pageNumber: $pageNumber")
+                AppLogger.d("pageData.photo: ${pageData.photo}")
+                AppLogger.d("fullImagePath: $fullImagePath")
+
+                val file = File(fullImagePath)
+                if (file.exists()) {
+                    try {
+                        val bitmap = BitmapFactory.decodeFile(fullImagePath)
+                        if (bitmap != null) {
+                            setImageBitmap(bitmap)
+                            AppLogger.d("Path image loaded successfully for pokok $pageNumber")
+
+                            // Add click listener to IMAGE for full screen
+                            setOnClickListener {
+                                bottomSheetDialog?.dismiss() // Close bottom sheet first
+                                showFullScreenPhoto(fullImagePath, "Pokok $pageNumber")
+                            }
+                        } else {
+                            AppLogger.e("Failed to decode bitmap for pokok $pageNumber")
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error loading path image for pokok $pageNumber: ${e.message}")
+                    }
+                } else {
+                    AppLogger.e("Path image file not found: $fullImagePath")
+                }
+            }
+            contentLayout.addView(imageView)
+        }
+
+        card.addView(contentLayout)
+        return card
+    }
+
+    // Helper to create detail rows
+    private fun createDetailRow(label: String, value: String): View {
+        val rowLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            setPadding(0, 4, 0, 4)
+        }
+
+        val labelText = TextView(this).apply {
+            text = "$label:"
+            textSize = 14f
+            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
+            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.black))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val valueText = TextView(this).apply {
+            text = value
+            textSize = 14f
+            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_bold)
+            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.greenDarker))
+            gravity = Gravity.END
+        }
+
+        rowLayout.addView(labelText)
+        rowLayout.addView(valueText)
+
+        return rowLayout
     }
 
     @SuppressLint("ClickableViewAccessibility")
