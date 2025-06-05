@@ -124,7 +124,7 @@
             android:orientation="vertical" />
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardCloseZoom"
+            android:id="@+id/cardDetailInspeksi"
             android:layout_width="match_parent"
             android:layout_weight="1"
             android:layout_marginTop="8dp"
@@ -153,9 +153,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="10dp"
-                    android:id="@+id/tvCardCloseButton"
+                    android:id="@+id/tvCardDetailInspeksi"
                     android:fontFamily="@font/manrope_bold"
-                    android:text="Detail Temuan"
                     android:textColor="@color/white"
                     android:textSize="@dimen/m" />
 

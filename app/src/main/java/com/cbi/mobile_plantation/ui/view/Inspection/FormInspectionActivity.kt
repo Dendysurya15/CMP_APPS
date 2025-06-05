@@ -121,6 +121,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.w3c.dom.Text
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -779,20 +780,20 @@ open class FormInspectionActivity : AppCompatActivity(),
             val photoValue = pokokData?.photo ?: ""
             val emptyTreeValue = pokokData?.emptyTree ?: 0
 
-//            if (selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty()) {
-//                AppLogger.d("BLOCKED: Photo validation - inspection=1, emptyTree=1, photo empty")
-//                vibrate(500)
-//                showViewPhotoBottomSheet(null, isInTPH)
-//                AlertDialogUtility.withSingleAction(
-//                    this,
-//                    stringXML(R.string.al_back),
-//                    stringXML(R.string.al_data_not_completed),
-//                    "Mohon dapat mengambil foto temuan terlebih dahulu!",
-//                    "warning.json",
-//                    R.color.colorRedDark
-//                ) {}
-//                return@setOnClickListener
-//            }
+            if (selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty()) {
+                AppLogger.d("BLOCKED: Photo validation - inspection=1, emptyTree=1, photo empty")
+                vibrate(500)
+                showViewPhotoBottomSheet(null, isInTPH)
+                AlertDialogUtility.withSingleAction(
+                    this,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_data_not_completed),
+                    "Mohon dapat mengambil foto temuan terlebih dahulu!",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {}
+                return@setOnClickListener
+            }
 
             val validationResult =
                 formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
@@ -1878,25 +1879,55 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
 
-        // Helper function to get photo count
         fun getPhotoCountForTemuan(temuanName: String): Int {
             return when (temuanName) {
                 "Temuan di TPH" -> {
-                    0
+                    if (photoInTPH.isNullOrEmpty()) 0 else 1
                 }
                 "Path / Pokok" -> {
-                    5
+                    val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+                    formData.values.count { pageData ->
+                        pageData.emptyTree == 1 && !pageData.photo.isNullOrEmpty()
+                    }
                 }
                 else -> 0
             }
         }
 
-        selectedAfdeling = "AFD-OC"
-        selectedTPHNomorByScan = 287
-        selectedAncakByScan = "23"
-        selectedTanggalPanenByScan = "20 Mei 2030 08:09:10"
-        jumBuahTglPath = 10
-        jumBrdTglPath = 40
+        fun getTemuanCountForPath(): Int {
+            val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+            return formData.values.count { pageData ->
+                pageData.emptyTree == 1
+            }
+        }
+
+        fun getPathTotals(): Map<String, Int> {
+            val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+
+            var totalRipe = 0
+            var totalM1 = 0
+            var totalM2 = 0
+            var totalBrondolan = 0
+
+            formData.values.forEach { pageData ->
+                // Only count values where emptyTree = 1
+                if (pageData.emptyTree == 1) {
+                    totalRipe += pageData.ripe
+                    totalM1 += pageData.buahM1
+                    totalM2 += pageData.buahM2
+                    totalBrondolan += pageData.brdKtp
+                }
+            }
+
+            return mapOf(
+                "ripe" to totalRipe,
+                "m1" to totalM1,
+                "m2" to totalM2,
+                "brondolan" to totalBrondolan
+            )
+        }
+
+        val pathTotals = getPathTotals()
 
         // Setup header information
         val desTPHEstateAfd = findViewById<TextView>(R.id.desTPHEstateAfd)
@@ -1907,20 +1938,33 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         spannable.append("TPH ")
         val tphStart = spannable.length
-        spannable.append(selectedTPHNomorByScan.toString())
+        spannable.append(selectedTPHNomorByScan?.toString() ?: "")
         spannable.setSpan(StyleSpan(Typeface.BOLD), tphStart, spannable.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
         spannable.append(" ,Ancak ")
         val ancakStart = spannable.length
-        spannable.append(selectedAncakByScan)
+        spannable.append(selectedAncakByScan ?: "")
         spannable.setSpan(StyleSpan(Typeface.BOLD), ancakStart, spannable.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
         spannable.append("\nTanggal Panen ")
         val tanggalStart = spannable.length
-        spannable.append(selectedTanggalPanenByScan)
+        spannable.append(selectedTanggalPanenByScan ?: "")
         spannable.setSpan(StyleSpan(Typeface.BOLD), tanggalStart, spannable.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
         desTPH.text = spannable
+
+        val desJalurMasuk = findViewById<TextView>(R.id.desJalurMasuk)
+        desJalurMasuk.text = "Jalur Masuk: ${selectedJalurMasuk}"
+
+        val desJenisKondisi = findViewById<TextView>(R.id.desJenisKondisi)
+        desJenisKondisi.text = "Jenis Kondisi: ${selectedKondisiValue}"
+
+        val desBr1 = findViewById<TextView>(R.id.desBr1)
+        desBr1.text = "Baris Pertama: ${br1Value}"
+
+        val desBr2 = findViewById<TextView>(R.id.desBr2)
+        desBr2.text = "Baris Kedua: ${br2Value}"
+        desBr2.visibility = if (selectedKondisiValue.toInt() == 2) View.GONE else View.VISIBLE
 
         val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
         val formData = formAncakViewModel.formData.value ?: mutableMapOf()
@@ -1943,10 +1987,10 @@ open class FormInspectionActivity : AppCompatActivity(),
             ),
             "Path / Pokok" to listOf(
                 SummaryItem("Total Pokok Inspeksi", totalPokokInspection.toString()),
-                SummaryItem("Total Buah Masak Tinggal di Pokok", totalPokokInspection.toString()),
-                SummaryItem("Total Buah Mentah disembunyikan (M1)", jumBuahTglPath.toString()),
-                SummaryItem("Total Buah Matang Tidak dikeluarkan (M2)", jumBuahTglPath.toString()),
-                SummaryItem("Total Brondolan Tidak dikutip", jumBrdTglPath.toString())
+                SummaryItem("Total Buah Masak Tinggal di Pokok", pathTotals["ripe"].toString()),
+                SummaryItem("Total Buah Mentah disembunyikan (M1)", pathTotals["m1"].toString()),
+                SummaryItem("Total Buah Matang Tidak dikeluarkan (M2)", pathTotals["m2"].toString()),
+                SummaryItem("Total Brondolan Tidak dikutip", pathTotals["brondolan"].toString())
             )
         )
 
@@ -1956,7 +2000,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             // Set the temuan name
             cardView.findViewById<TextView>(R.id.name_temuan).text = temuanName
 
-            // Get the photo and issues count cards
+            val detailCard = cardView.findViewById<MaterialCardView>(R.id.cardDetailInspeksi)
+            val tvCardDetailInspeksi = cardView.findViewById<TextView>(R.id.tvCardDetailInspeksi)
             val photoCard = cardView.findViewById<MaterialCardView>(R.id.photoCard)
             val issuesCard = cardView.findViewById<MaterialCardView>(R.id.issuesCard)
 
@@ -1970,24 +2015,34 @@ open class FormInspectionActivity : AppCompatActivity(),
             // Handle card visibility based on temuan type and counts
             when (temuanName) {
                 "Temuan di TPH" -> {
-                    // Always hide issues card for TPH (never has temuan)
+                    tvCardDetailInspeksi.text = "Detail Foto"
                     issuesCard.visibility = View.GONE
 
-                    // Show/hide photo card based on photo count
+                    if (photoCount > 0) {
+                        detailCard.visibility = View.VISIBLE
+                        photoCard.visibility = View.VISIBLE
+                    } else {
+                        photoCard.visibility = View.GONE
+                        detailCard.visibility = View.GONE
+                    }
+                }
+                "Path / Pokok" -> {
+                    tvCardDetailInspeksi.text = "Detail Temuan"
                     if (photoCount > 0) {
                         photoCard.visibility = View.VISIBLE
                     } else {
                         photoCard.visibility = View.GONE
                     }
-                }
-                "Path / Pokok" -> {
-                    // Always show photo card for Path
-                    photoCard.visibility = View.VISIBLE
 
-                    // Always show issues card for Path and set count
-                    issuesCard.visibility = View.VISIBLE
-                    val issuesCount = data.size // Count of issues from data
-                    countIssues.text = "$issuesCount Temuan"
+                    val issuesCount = getTemuanCountForPath()
+                    if (issuesCount > 0) {
+                        detailCard.visibility = View.VISIBLE
+                        issuesCard.visibility = View.VISIBLE
+                        countIssues.text = "$issuesCount Temuan"
+                    } else {
+                        detailCard.visibility = View.GONE
+                        issuesCard.visibility = View.GONE
+                    }
                 }
                 else -> {
                     // Default behavior for other types
@@ -2421,7 +2476,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             R.id.lyJalurInspect -> {
                 val mapData = listRadioItems["EntryPath"] ?: emptyMap()
-                val selectedKey = mapData.entries.find { it.value == selectedItem }?.key
+                val selectedKey = mapData.entries.find { it.value == selectedItem }?.value
                 selectedJalurMasuk = selectedKey ?: ""
             }
 
@@ -2818,11 +2873,21 @@ open class FormInspectionActivity : AppCompatActivity(),
         val missingFields = mutableListOf<String>()
         val errorMessages = mutableListOf<String>()
 
+        val requiresPhotos = jumBuahTglPath > 0 || jumBrdTglPath > 50
+
+        if (requiresPhotos && photoInTPH == null) {
+            isValid = false
+            showViewPhotoBottomSheet(null, isInTPH)
+            errorMessages.add("Foto di TPH wajib")
+            missingFields.add("Foto TPH")
+        }
+
 //        if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
 //            isValid = false
 //            errorMessages.add(stringXML(R.string.al_location_description_failed))
 //            missingFields.add("Location")
 //        }
+//
 //
 //        inputMappings.forEach { (layout, key, inputType) ->
 //            if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
@@ -2919,30 +2984,30 @@ open class FormInspectionActivity : AppCompatActivity(),
 //            }
 //        }
 //
-//        if (!isValid) {
-//            vibrate(500)
-//            val combinedErrorMessage = buildString {
-//                val allMessages = mutableListOf<String>()
-//                if (missingFields.isNotEmpty()) {
-//                    allMessages.add(stringXML(R.string.al_pls_complete_data))
-//                }
-//
-//                allMessages.addAll(errorMessages)
-//                allMessages.forEachIndexed { index, message ->
-//                    append("${index + 1}. $message")
-//                    if (index < allMessages.size - 1) append("\n")
-//                }
-//            }
-//
-//            AlertDialogUtility.withSingleAction(
-//                this,
-//                stringXML(R.string.al_back),
-//                stringXML(R.string.al_data_not_completed),
-//                combinedErrorMessage,
-//                "warning.json",
-//                R.color.colorRedDark
-//            ) {}
-//        }
+        if (!isValid) {
+            vibrate(500)
+            val combinedErrorMessage = buildString {
+                val allMessages = mutableListOf<String>()
+                if (missingFields.isNotEmpty()) {
+                    allMessages.add(stringXML(R.string.al_pls_complete_data))
+                }
+
+                allMessages.addAll(errorMessages)
+                allMessages.forEachIndexed { index, message ->
+                    append("${index + 1}. $message")
+                    if (index < allMessages.size - 1) append("\n")
+                }
+            }
+
+            AlertDialogUtility.withSingleAction(
+                this,
+                stringXML(R.string.al_back),
+                stringXML(R.string.al_data_not_completed),
+                combinedErrorMessage,
+                "warning.json",
+                R.color.colorRedDark
+            ) {}
+        }
 
         return isValid
     }

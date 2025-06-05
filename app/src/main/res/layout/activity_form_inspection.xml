@@ -19,7 +19,6 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <!-- Information Blok Section -->
-    <!-- Information Blok Section -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -520,6 +519,44 @@
 
                 <TextView
                     android:id="@+id/desTPH"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/manrope_semibold"
+                    android:gravity="left"
+                    android:textColor="@color/black"
+                    android:textSize="@dimen/m"
+                    tools:ignore="MissingConstraints" />
+
+                <TextView
+                    android:id="@+id/desJalurMasuk"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/manrope_semibold"
+                    android:gravity="left"
+                    android:textColor="@color/black"
+                    android:textSize="@dimen/m"
+                    tools:ignore="MissingConstraints" />
+
+                <TextView
+                    android:id="@+id/desJenisKondisi"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/manrope_semibold"
+                    android:gravity="left"
+                    android:textColor="@color/black"
+                    android:textSize="@dimen/m"
+                    tools:ignore="MissingConstraints" />
+                <TextView
+                    android:id="@+id/desBr1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/manrope_semibold"
+                    android:gravity="left"
+                    android:textColor="@color/black"
+                    android:textSize="@dimen/m"
+                    tools:ignore="MissingConstraints" />
+                <TextView
+                    android:id="@+id/desBr2"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/manrope_semibold"
