@@ -1847,45 +1847,50 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     @SuppressLint("SetTextI18n")
     private fun setupSummaryPage() {
-        fun createTextView(
+
+        fun createRowTextView(
             text: String,
             gravity: Int,
             weight: Float,
             isTitle: Boolean = false
         ): TextView {
-            val textView = TextView(this)
-            textView.text = text
-            textView.setPadding(32, 32, 32, 32)
-            textView.setTextColor(Color.BLACK)
-            textView.textSize = 18f
-            textView.gravity = gravity
-            textView.setTypeface(null, if (isTitle) Typeface.NORMAL else Typeface.BOLD)
+            return TextView(this).apply {
+                this.text = text
+                setPadding(32, 32, 32, 32)
+                setTextColor(Color.BLACK)
+                textSize = 15f
+                this.gravity = gravity or Gravity.CENTER_VERTICAL
+                setTypeface(null, if (isTitle) Typeface.NORMAL else Typeface.BOLD)
+                maxLines = Int.MAX_VALUE
+                ellipsize = null
+                isSingleLine = false
 
-            val params = TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, weight)
-            params.setMargins(5, 5, 5, 5)
-            textView.layoutParams = params
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, weight).apply {
+                    setMargins(5, 5, 5, 5)
+                }
 
-            val shape = GradientDrawable()
-            shape.shape = GradientDrawable.RECTANGLE
-            shape.setColor(
-                ColorUtils.setAlphaComponent(
-                    ContextCompat.getColor(
-                        this,
-                        R.color.greenDarker
-                    ), (0.2 * 255).toInt()
-                )
-            )
-            shape.cornerRadii = if (isTitle) {
-                floatArrayOf(20f, 20f, 0f, 0f, 0f, 0f, 20f, 20f)
-            } else {
-                floatArrayOf(0f, 0f, 20f, 20f, 20f, 20f, 0f, 0f)
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(ColorUtils.setAlphaComponent(ContextCompat.getColor(this@FormInspectionActivity, R.color.graydarker), (0.2 * 255).toInt()))
+                    cornerRadii = if (isTitle) floatArrayOf(20f, 20f, 0f, 0f, 0f, 0f, 20f, 20f)
+                    else floatArrayOf(0f, 0f, 20f, 20f, 20f, 20f, 0f, 0f)
+                }
             }
-
-            textView.background = shape
-            return textView
         }
 
-        // Testing data
+        // Helper function to get photo count
+        fun getPhotoCountForTemuan(temuanName: String): Int {
+            return when (temuanName) {
+                "Temuan di TPH" -> {
+                    0
+                }
+                "Path / Pokok" -> {
+                    5
+                }
+                else -> 0
+            }
+        }
+
         selectedAfdeling = "AFD-OC"
         selectedTPHNomorByScan = 287
         selectedAncakByScan = "23"
@@ -1903,32 +1908,17 @@ open class FormInspectionActivity : AppCompatActivity(),
         spannable.append("TPH ")
         val tphStart = spannable.length
         spannable.append(selectedTPHNomorByScan.toString())
-        spannable.setSpan(
-            StyleSpan(Typeface.BOLD),
-            tphStart,
-            spannable.length,
-            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
+        spannable.setSpan(StyleSpan(Typeface.BOLD), tphStart, spannable.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
         spannable.append(" ,Ancak ")
         val ancakStart = spannable.length
         spannable.append(selectedAncakByScan)
-        spannable.setSpan(
-            StyleSpan(Typeface.BOLD),
-            ancakStart,
-            spannable.length,
-            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
+        spannable.setSpan(StyleSpan(Typeface.BOLD), ancakStart, spannable.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
         spannable.append("\nTanggal Panen ")
         val tanggalStart = spannable.length
         spannable.append(selectedTanggalPanenByScan)
-        spannable.setSpan(
-            StyleSpan(Typeface.BOLD),
-            tanggalStart,
-            spannable.length,
-            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
+        spannable.setSpan(StyleSpan(Typeface.BOLD), tanggalStart, spannable.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
         desTPH.text = spannable
 
@@ -1945,59 +1935,83 @@ open class FormInspectionActivity : AppCompatActivity(),
         val containerTemuanCards = findViewById<LinearLayout>(R.id.containerTemuanCards)
         containerTemuanCards.removeAllViews()
 
-        // Dynamic temuan data - you can add/remove as needed
-        val temuanDataList = mutableListOf<Pair<String, List<SummaryItem>>>()
-
-        // Add your temuan cards dynamically
-        temuanDataList.add(
-            Pair(
-                "Temuan di TPH", listOf(
-                    SummaryItem("Brondolan Tinggal", jumBrdTglPath.toString()),
-                    SummaryItem("Buah Tinggal", jumBuahTglPath.toString())
-                )
+        // Dynamic temuan data
+        val temuanDataList = listOf(
+            "Temuan di TPH" to listOf(
+                SummaryItem("Brondolan Tinggal", jumBrdTglPath.toString()),
+                SummaryItem("Buah Tinggal", jumBuahTglPath.toString())
             ),
-
+            "Path / Pokok" to listOf(
+                SummaryItem("Total Pokok Inspeksi", totalPokokInspection.toString()),
+                SummaryItem("Total Buah Masak Tinggal di Pokok", totalPokokInspection.toString()),
+                SummaryItem("Total Buah Mentah disembunyikan (M1)", jumBuahTglPath.toString()),
+                SummaryItem("Total Buah Matang Tidak dikeluarkan (M2)", jumBuahTglPath.toString()),
+                SummaryItem("Total Brondolan Tidak dikutip", jumBrdTglPath.toString())
             )
-
-        temuanDataList.add(
-            Pair(
-                "Temuan di Path/Pokok", listOf(
-                    SummaryItem("Total Pokok Inspeksi", totalPokokInspection.toString()),
-                    SummaryItem("Total Buah Masak Tinggal di Pokok", totalPokokInspection.toString()),
-                    SummaryItem("Total Buah Mentah disembunyikan (M1)", jumBuahTglPath.toString()),
-                    SummaryItem("Total Buah Matang Tidak dikeluarkan (M2)", jumBuahTglPath.toString()),
-                    SummaryItem("Total Brondolan Tidak dikutip", jumBrdTglPath.toString()),
-                )
-            ),
         )
 
-
-
         for ((temuanName, data) in temuanDataList) {
-            // Inflate the included layout
-            val inflater = LayoutInflater.from(this)
-            val cardView =
-                inflater.inflate(R.layout.layout_card_temuan, containerTemuanCards, false)
+            val cardView = LayoutInflater.from(this).inflate(R.layout.layout_card_temuan, containerTemuanCards, false)
 
             // Set the temuan name
-            val nameTemuan = cardView.findViewById<TextView>(R.id.name_temuan)
-            nameTemuan.text = temuanName
+            cardView.findViewById<TextView>(R.id.name_temuan).text = temuanName
 
-            // Get the table layout from the included layout
-            val tableLayout = cardView.findViewById<TableLayout>(R.id.tblLytSummary)
-            tableLayout.removeAllViews()
+            // Get the photo and issues count cards
+            val photoCard = cardView.findViewById<MaterialCardView>(R.id.photoCard)
+            val issuesCard = cardView.findViewById<MaterialCardView>(R.id.issuesCard)
 
-            // Populate the table with data
+            val countPhotos = cardView.findViewById<TextView>(R.id.countPhotos)
+            val countIssues = cardView.findViewById<TextView>(R.id.countIssues)
+
+            // Set photo count (always visible)
+            val photoCount = getPhotoCountForTemuan(temuanName)
+            countPhotos.text = "$photoCount Foto"
+
+            // Handle card visibility based on temuan type and counts
+            when (temuanName) {
+                "Temuan di TPH" -> {
+                    // Always hide issues card for TPH (never has temuan)
+                    issuesCard.visibility = View.GONE
+
+                    // Show/hide photo card based on photo count
+                    if (photoCount > 0) {
+                        photoCard.visibility = View.VISIBLE
+                    } else {
+                        photoCard.visibility = View.GONE
+                    }
+                }
+                "Path / Pokok" -> {
+                    // Always show photo card for Path
+                    photoCard.visibility = View.VISIBLE
+
+                    // Always show issues card for Path and set count
+                    issuesCard.visibility = View.VISIBLE
+                    val issuesCount = data.size // Count of issues from data
+                    countIssues.text = "$issuesCount Temuan"
+                }
+                else -> {
+                    // Default behavior for other types
+                    photoCard.visibility = View.VISIBLE
+                    issuesCard.visibility = View.VISIBLE
+                    val issuesCount = data.size
+                    countIssues.text = "$issuesCount Temuan"
+                }
+            }
+
+            // Build the summary table
+            val summaryContainer = cardView.findViewById<LinearLayout>(R.id.tblLytSummary)
+            summaryContainer.removeAllViews()
+
             for (item in data) {
-                val tableRow = TableRow(this)
+                val rowLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
 
-                val titleTextView = createTextView(item.title, Gravity.START, 2f, true)
-                tableRow.addView(titleTextView)
+                    addView(createRowTextView(item.title, Gravity.START, 2f, true))
+                    addView(createRowTextView(item.value, Gravity.CENTER, 1f, false))
+                }
 
-                val valueTextView = createTextView(item.value, Gravity.CENTER, 1f)
-                tableRow.addView(valueTextView)
-
-                tableLayout.addView(tableRow)
+                summaryContainer.addView(rowLayout)
             }
 
             containerTemuanCards.addView(cardView)
