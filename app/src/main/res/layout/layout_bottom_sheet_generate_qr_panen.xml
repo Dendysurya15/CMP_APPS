@@ -188,11 +188,11 @@
             <!-- QR code container centered in scrollable area -->
             <Space
                 android:layout_width="match_parent"
-                android:layout_height="300dp" />
+                android:layout_height="290dp" />
 
             <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="217dp"
+                android:layout_height="320dp"
                 android:layout_gravity="center">
 
                 <ImageView
@@ -201,7 +201,7 @@
                     android:layout_height="match_parent"
                     android:layout_gravity="center"
                     android:adjustViewBounds="true"
-                    android:scaleType="fitCenter"
+                    android:scaleType="fitXY"
                     android:visibility="gone" />
             </FrameLayout>
 

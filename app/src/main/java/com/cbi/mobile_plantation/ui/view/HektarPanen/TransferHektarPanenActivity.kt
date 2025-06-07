@@ -1487,14 +1487,6 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
                 val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
 
-
-                val tvTitleQRGenerate: TextView =
-                    screenshotLayout.findViewById(R.id.textTitleQRGenerate)
-                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
-                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-                }
-                tvTitleQRGenerate.text = "Hasil QR $capitalizedFeatureName"
-
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
@@ -1545,8 +1537,11 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 val processedData =
                     AppUtils.getPanenProcessedData(limitedData, featureName)
 
+                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
                 tvUserName.text =
-                    "Hasil QR dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
+                    "Hasil QR ${capitalizedFeatureName} dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
                 setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
                 setInfoData(
                     infoTotalJjg,

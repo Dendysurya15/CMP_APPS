@@ -916,7 +916,7 @@ class FormESPBActivity : AppCompatActivity() {
 
                         ListPanenTBSActivity().generateHighQualityQRCode(encodedData!!, qrCodeImageView,
                             this@FormESPBActivity,
-                            showLogo = true)
+                            showLogo = false)
                         setMaxBrightness(this, true)
                         playSound(R.raw.berhasil_generate_qr)
 
@@ -1117,13 +1117,6 @@ class FormESPBActivity : AppCompatActivity() {
                 val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
 
 
-                val tvTitleQRGenerate: TextView =
-                    screenshotLayout.findViewById(R.id.textTitleQRGenerate)
-                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
-                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-                }
-                tvTitleQRGenerate.text = "Hasil QR $capitalizedFeatureName"
-
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
@@ -1202,8 +1195,11 @@ class FormESPBActivity : AppCompatActivity() {
                 val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
                 val formattedTime = timeFormat.format(currentDate)
 
+                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
                 // Set data for eSPB
-                tvUserName.text = "Hasil QR dari ${prefManager!!.jabatanUserLogin}"
+                tvUserName.text = "Hasil QR ${capitalizedFeatureName} dari ${prefManager!!.jabatanUserLogin}"
                 setInfoData(infoBlokList, "Blok", ": $blokDisplay")
                 setInfoData(infoTotalJjg, "Total Janjang", ": $totalJjg")
                 setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": $tphCount")

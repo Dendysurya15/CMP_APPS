@@ -633,7 +633,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
                 findViewById<HorizontalScrollView>(R.id.horizontalCardFeature).visibility =
                     View.GONE
-            } else if (featureName == "Rekap panen dan restan") {
+            }
+            else if (featureName == "Rekap panen dan restan") {
 
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
                 findViewById<TextView>(R.id.tv_card_tersimpan).text = "Rekap TPH"
@@ -647,7 +648,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val headerCheckBoxPanen = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
                 headerCheckBoxPanen.visibility = View.GONE
-            } else if (featureName == "Detail eSPB") {
+            }
+            else if (featureName == "Detail eSPB") {
                 val btnEditEspb = findViewById<FloatingActionButton>(R.id.btnEditEspb)
                 btnEditEspb.visibility = View.VISIBLE
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
@@ -726,7 +728,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 AlertDialogUtility.withTwoActions(
                                     this@ListPanenTBSActivity,
                                     "Lanjut",
-                                    "Edit eSPB",
+                                    "Tambah/Hapus TPH",
                                     "Apakah anda yakin ingin Tambah/Hapus TPH di e-SPB ini?",
                                     "warning.json",
                                     function = {
@@ -865,7 +867,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
 
-            } else {
+            }
+            else {
                 counterPerPemanen.visibility = View.GONE
                 val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
@@ -873,7 +876,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
                 flCheckBoxTableHeaderLayout.visibility = View.GONE
-                findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.VISIBLE
+                findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
                 panenViewModel.loadTPHNonESPB(0, 0, 0, AppUtils.currentDate)
                 panenViewModel.countTPHNonESPB(0, 0, 0, AppUtils.currentDate)
                 panenViewModel.countTPHESPB(1, 0, 0, AppUtils.currentDate)
@@ -1749,9 +1752,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     )
                 val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
                 dialog.setContentView(view)
-                // Get references to views
                 val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
-//                        val qrCodeImageView: com.github.chrisbanes.photoview.PhotoView = view.findViewById(R.id.qrCodeImageView)
                 val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
                 val tvTitleQRGenerate: TextView =
                     view.findViewById(R.id.textTitleQRGenerate)
@@ -2135,7 +2136,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             try {
                                 generateHighQualityQRCode(encodedData, qrCodeImageView,
                                     this@ListPanenTBSActivity,
-                                    showLogo = true)
+                                    showLogo = false)
                                 val fadeOut =
                                     ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
                                         .apply {
@@ -3974,13 +3975,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
                 val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
 
-                val tvTitleQRGenerate: TextView =
-                    screenshotLayout.findViewById(R.id.textTitleQRGenerate)
-                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
-                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-                }
-                tvTitleQRGenerate.text = "Hasil QR $capitalizedFeatureName"
-
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
@@ -4030,9 +4024,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                 val processedData =
                     AppUtils.getPanenProcessedData(limitedData, featureName)
-
+                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
                 tvUserName.text =
-                    "Hasil QR dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
+                    "Hasil QR ${capitalizedFeatureName} dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
                 if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                     val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
                     val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
