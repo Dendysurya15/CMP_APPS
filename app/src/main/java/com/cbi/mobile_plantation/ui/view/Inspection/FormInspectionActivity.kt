@@ -2084,6 +2084,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     // Bottom sheet function
+    // Updated Bottom sheet function with height control and disabled drag-to-dismiss
     private fun showDetailBottomSheet(temuanType: String) {
         val bottomSheetDialog = BottomSheetDialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.layout_detail_inspeksi, null)
@@ -2093,7 +2094,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         val llContainer = view.findViewById<LinearLayout>(R.id.llDetailContainer)
         val btnClose = view.findViewById<MaterialButton>(R.id.btnCloseDetail)
 
-        // Set title (normal - no click listener)
+        // Set title
         tvTitle.text = "Detail $temuanType"
 
         // Handle content based on temuan type
@@ -2112,10 +2113,43 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         bottomSheetDialog.setContentView(view)
+
+        // Set bottom sheet height to 80% of screen height and disable drag-to-dismiss
+        bottomSheetDialog.setOnShowListener { dialog ->
+            val bottomSheet = (dialog as BottomSheetDialog).findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            if (bottomSheet != null) {
+                val screenHeight = resources.displayMetrics.heightPixels
+                val desiredHeight = (screenHeight * 0.8).toInt() // 80% of screen height
+
+                val layoutParams = bottomSheet.layoutParams
+                layoutParams.height = desiredHeight
+                bottomSheet.layoutParams = layoutParams
+
+                // Set the view height as well
+                val viewLayoutParams = view.layoutParams ?: ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    desiredHeight
+                )
+                viewLayoutParams.height = desiredHeight
+                view.layoutParams = viewLayoutParams
+
+                // Disable dragging to prevent accidental dismiss
+                val behavior = BottomSheetBehavior.from(bottomSheet)
+                behavior.isDraggable = false // Disable drag to dismiss
+                behavior.state = BottomSheetBehavior.STATE_EXPANDED
+
+                // Disable swipe to dismiss
+                bottomSheetDialog.setCancelable(false)
+                bottomSheetDialog.setCanceledOnTouchOutside(false)
+            }
+        }
+
         bottomSheetDialog.show()
     }
 
 
+
+    // Updated setupTPHDetail - DON'T dismiss bottom sheet, just hide it temporarily
     private fun setupTPHDetail(imageView: ImageView, container: LinearLayout, bottomSheetDialog: BottomSheetDialog? = null) {
         // Show image for TPH
         if (!photoInTPH.isNullOrEmpty()) {
@@ -2146,8 +2180,9 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         // Add click listener to IMAGE for full screen view
                         imageView.setOnClickListener {
-                            bottomSheetDialog?.dismiss() // Close bottom sheet first
-                            showFullScreenPhoto(fullImagePath, "Detail Temuan di TPH")
+                            // Hide bottom sheet temporarily instead of dismissing
+//                            bottomSheetDialog?.hide()
+                            showFullScreenPhoto(fullImagePath, "Detail Temuan di TPH", bottomSheetDialog)
                         }
                     } else {
                         AppLogger.e("Failed to decode bitmap from file")
@@ -2170,8 +2205,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         container.visibility = View.GONE
     }
 
-
-    private fun showFullScreenPhoto(imagePath: String, title: String) {
+    // Updated showFullScreenPhoto - accept bottomSheetDialog to show it back when closing
+    private fun showFullScreenPhoto(imagePath: String, title: String, bottomSheetDialog: BottomSheetDialog? = null) {
         AppLogger.d("showFullScreenPhoto called with: $imagePath, $title")
 
         // Create full screen dialog
@@ -2218,16 +2253,23 @@ open class FormInspectionActivity : AppCompatActivity(),
         cardChangePhoto?.visibility = View.GONE
         cardDeletePhoto?.visibility = View.GONE
 
+        // Function to close full screen and show bottom sheet again
+        fun closeFullScreenAndShowBottomSheet() {
+            AppLogger.d("Closing full screen and showing bottom sheet again")
+            dialog.dismiss()
+//            bottomSheetDialog?.show() // Show the bottom sheet again
+        }
+
         // Set up close button
         cardCloseZoom?.setOnClickListener {
             AppLogger.d("Close button clicked")
-            dialog.dismiss()
+            closeFullScreenAndShowBottomSheet()
         }
 
         // Optional: Close on photo tap
         fotoZoom?.setOnClickListener {
             AppLogger.d("Photo tapped - closing dialog")
-            dialog.dismiss()
+            closeFullScreenAndShowBottomSheet()
         }
 
         // Show dialog
@@ -2239,7 +2281,124 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    // Setup Path detail (show detailed list)
+    private fun createPathDetailCard(pageNumber: Int, pageData: FormAncakViewModel.PageData, bottomSheetDialog: BottomSheetDialog? = null): View {
+        // Inflate the card layout
+        val cardView = LayoutInflater.from(this).inflate(R.layout.layout_temuan_path_inspeksi, null)
+
+        // Set margins programmatically for proper spacing
+        val layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            setMargins(0, 5.dpToPx(), 0, 5.dpToPx()) // 5dp top and bottom margins
+        }
+        cardView.layoutParams = layoutParams
+
+        // Find views
+        val tvPokokNumber = cardView.findViewById<TextView>(R.id.tvPokokNumber)
+        val ivPokokPhoto = cardView.findViewById<ImageView>(R.id.ivPokokPhoto)
+        val llDetailsList = cardView.findViewById<LinearLayout>(R.id.llDetailsList)
+
+        // Set pokok number
+        tvPokokNumber.text = "Pokok $pageNumber"
+
+        // Load photo if available
+        if (!pageData.photo.isNullOrEmpty()) {
+            ivPokokPhoto.visibility = View.VISIBLE
+
+            // Build correct path for pageData photo
+            val rootApp = File(
+                getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksi}"
+            ).toString()
+
+            val fullImagePath = File(rootApp, pageData.photo).absolutePath
+
+            AppLogger.d("Path Photo - pageNumber: $pageNumber")
+            AppLogger.d("pageData.photo: ${pageData.photo}")
+            AppLogger.d("fullImagePath: $fullImagePath")
+
+            val file = File(fullImagePath)
+            if (file.exists()) {
+                try {
+                    val bitmap = BitmapFactory.decodeFile(fullImagePath)
+                    if (bitmap != null) {
+                        ivPokokPhoto.setImageBitmap(bitmap)
+                        AppLogger.d("Path image loaded successfully for pokok $pageNumber")
+
+                        // Add click listener to IMAGE for full screen
+                        ivPokokPhoto.setOnClickListener {
+                            showFullScreenPhoto(fullImagePath, "Pokok $pageNumber")
+                        }
+                    } else {
+                        AppLogger.e("Failed to decode bitmap for pokok $pageNumber")
+                        ivPokokPhoto.visibility = View.GONE
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error loading path image for pokok $pageNumber: ${e.message}")
+                    ivPokokPhoto.visibility = View.GONE
+                }
+            } else {
+                AppLogger.e("Path image file not found: $fullImagePath")
+                ivPokokPhoto.visibility = View.GONE
+            }
+        } else {
+            ivPokokPhoto.visibility = View.GONE
+        }
+
+        // Add detail rows dynamically (only show non-zero values)
+        var hasData = false
+
+        if (pageData.ripe > 0) {
+            llDetailsList.addView(createDetailRow("Buah Masak Tinggal:", pageData.ripe.toString()))
+            hasData = true
+        }
+
+        if (pageData.buahM1 > 0) {
+            llDetailsList.addView(createDetailRow("Buah M1:", pageData.buahM1.toString()))
+            hasData = true
+        }
+
+        if (pageData.buahM2 > 0) {
+            llDetailsList.addView(createDetailRow("Buah M2:", pageData.buahM2.toString()))
+            hasData = true
+        }
+
+        if (pageData.brdKtp > 0) {
+            llDetailsList.addView(createDetailRow("Brondolan:", pageData.brdKtp.toString()))
+            hasData = true
+        }
+
+        // Show empty message if no data
+        if (!hasData) {
+            val emptyText = TextView(this).apply {
+                text = "Tidak ada temuan"
+                textSize = 12f
+                typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
+                setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.graydarker))
+                gravity = Gravity.CENTER
+                setPadding(16, 16, 16, 16)
+            }
+            llDetailsList.addView(emptyText)
+        }
+
+        return cardView
+    }
+
+    // Helper function to create detail rows using your clean layout
+    private fun createDetailRow(label: String, value: String): View {
+        val rowView = LayoutInflater.from(this).inflate(R.layout.layout_wb_data_info, null)
+
+        val tvLabel = rowView.findViewById<TextView>(R.id.tvLabel)
+        val tvValue = rowView.findViewById<TextView>(R.id.tvValue)
+
+        tvLabel.text = label
+        tvValue.text = value
+
+        return rowView
+    }
+
+    // Updated setupPathDetail with "Tidak ada temuan" message
     private fun setupPathDetail(imageView: ImageView, container: LinearLayout, bottomSheetDialog: BottomSheetDialog? = null) {
         // Hide image for Path
         imageView.visibility = View.GONE
@@ -2262,9 +2421,10 @@ open class FormInspectionActivity : AppCompatActivity(),
         // If no items, show empty message
         if (container.childCount == 0) {
             val emptyText = TextView(this).apply {
-                text = "Tidak ada data temuan"
+                text = "Tidak ada temuan"
                 textSize = 16f
                 typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
+                setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.graydarker))
                 gravity = Gravity.CENTER
                 setPadding(32, 32, 32, 32)
             }
@@ -2272,134 +2432,11 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    // Create detail card for each path page
-    private fun createPathDetailCard(pageNumber: Int, pageData: FormAncakViewModel.PageData, bottomSheetDialog: BottomSheetDialog? = null): View {
-        val card = MaterialCardView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, 8, 0, 8)
-            }
-            radius = 12f
-            cardElevation = 4f
-            setCardBackgroundColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.white))
-        }
-
-        val contentLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(16, 16, 16, 16)
-        }
-
-        // Title
-        val titleText = TextView(this).apply {
-            text = "Pokok $pageNumber"
-            textSize = 16f
-            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_bold)
-            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.black))
-            setPadding(0, 0, 0, 8)
-        }
-        contentLayout.addView(titleText)
-
-        // Details based on pageData values (only show non-zero values)
-        if (pageData.ripe > 0) {
-            contentLayout.addView(createDetailRow("Buah Masak Tinggal", pageData.ripe.toString()))
-        }
-        if (pageData.buahM1 > 0) {
-            contentLayout.addView(createDetailRow("Buah M1", pageData.buahM1.toString()))
-        }
-        if (pageData.buahM2 > 0) {
-            contentLayout.addView(createDetailRow("Buah M2", pageData.buahM2.toString()))
-        }
-        if (pageData.brdKtp > 0) {
-            contentLayout.addView(createDetailRow("Brondolan", pageData.brdKtp.toString()))
-        }
-
-        // Photo if available
-        if (!pageData.photo.isNullOrEmpty()) {
-            val imageView = ImageView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    200
-                ).apply {
-                    setMargins(0, 8, 0, 0)
-                }
-                scaleType = ImageView.ScaleType.CENTER_CROP
-
-                // Build correct path for pageData photo
-                val rootApp = File(
-                    getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                    "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksi}"
-                ).toString()
-
-                val fullImagePath = File(rootApp, pageData.photo).absolutePath
-
-                AppLogger.d("Path Photo - pageNumber: $pageNumber")
-                AppLogger.d("pageData.photo: ${pageData.photo}")
-                AppLogger.d("fullImagePath: $fullImagePath")
-
-                val file = File(fullImagePath)
-                if (file.exists()) {
-                    try {
-                        val bitmap = BitmapFactory.decodeFile(fullImagePath)
-                        if (bitmap != null) {
-                            setImageBitmap(bitmap)
-                            AppLogger.d("Path image loaded successfully for pokok $pageNumber")
-
-                            // Add click listener to IMAGE for full screen
-                            setOnClickListener {
-                                bottomSheetDialog?.dismiss() // Close bottom sheet first
-                                showFullScreenPhoto(fullImagePath, "Pokok $pageNumber")
-                            }
-                        } else {
-                            AppLogger.e("Failed to decode bitmap for pokok $pageNumber")
-                        }
-                    } catch (e: Exception) {
-                        AppLogger.e("Error loading path image for pokok $pageNumber: ${e.message}")
-                    }
-                } else {
-                    AppLogger.e("Path image file not found: $fullImagePath")
-                }
-            }
-            contentLayout.addView(imageView)
-        }
-
-        card.addView(contentLayout)
-        return card
+    // Helper extension function to convert dp to pixels
+    private fun Int.dpToPx(): Int {
+        return (this * resources.displayMetrics.density).toInt()
     }
 
-    // Helper to create detail rows
-    private fun createDetailRow(label: String, value: String): View {
-        val rowLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            setPadding(0, 4, 0, 4)
-        }
-
-        val labelText = TextView(this).apply {
-            text = "$label:"
-            textSize = 14f
-            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
-            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.black))
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-
-        val valueText = TextView(this).apply {
-            text = value
-            textSize = 14f
-            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_bold)
-            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.greenDarker))
-            gravity = Gravity.END
-        }
-
-        rowLayout.addView(labelText)
-        rowLayout.addView(valueText)
-
-        return rowLayout
-    }
 
     @SuppressLint("ClickableViewAccessibility")
     private fun setupSpinnerView(

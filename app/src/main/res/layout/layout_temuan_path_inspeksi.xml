@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- layout_path_detail_card.xml -->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res/auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app1="http://schemas.android.com/apk/res-auto"
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="8dp"
+    app1:cardBackgroundColor="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp">
+
+        <!-- Left Side: Pokok Number + Image -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginEnd="16dp">
+
+            <!-- Pokok Number -->
+            <TextView
+                android:id="@+id/tvPokokNumber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Pokok 1"
+                android:textSize="16sp"
+                android:fontFamily="@font/manrope_bold"
+                android:textColor="@color/black"
+                android:gravity="center"
+                android:paddingBottom="8dp" />
+
+            <!-- Image -->
+            <ImageView
+                android:id="@+id/ivPokokPhoto"
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:scaleType="centerCrop"
+                android:contentDescription="Pokok Photo" />
+
+        </LinearLayout>
+
+        <!-- Right Side: Dynamic Details List -->
+        <LinearLayout
+            android:id="@+id/llDetailsList"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>
