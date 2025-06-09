@@ -700,7 +700,7 @@ class AppRepository(context: Context) {
                                 kemandoran_id = "",
                                 karyawan_nik = "",
                                 karyawan_nama = "",
-                                jjg_json = "{\"KP\": ${tphData.jjg}}",
+                                jjg_json = "{\"PA\": ${tphData.jjg}}",
                                 foto = "",
                                 komentar = "",
                                 asistensi = 0,

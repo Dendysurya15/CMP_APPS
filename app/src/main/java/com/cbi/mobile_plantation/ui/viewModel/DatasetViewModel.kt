@@ -1677,7 +1677,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         status0WithNullSpb++
 
                                         // ADD THE ENTITY TO PANEN LIST HERE - Only for status_espb=0 with null spb_kode
-                                        val jjgJson = "{\"KP\": $jjgKirim}"
+                                        val jjgJson = "{\"PA\": $jjgKirim}"
                                         AppLogger.d("Creating entity for insert/update: tphId=$tphId, date=$createdDate, jjgJson=$jjgJson")
 
                                         // Create a PanenEntity with the required fields

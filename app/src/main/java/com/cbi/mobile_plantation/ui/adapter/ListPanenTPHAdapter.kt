@@ -108,11 +108,13 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             JSONObject()
         }
 
-        val totalJjg = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
-            jjgJson.optInt("KP", 0)
-        } else {
-            jjgJson.optInt("TO", 0) //diganti KP
-        }
+//        val totalJjg = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
+//            jjgJson.optInt("KP", 0)
+//        } else {
+//            jjgJson.optInt("TO", 0) //diganti KP
+//        }
+
+        val totalJjg =  jjgJson.optInt("PA", 0)
 
         val formattedTime = try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
@@ -252,11 +254,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 try {
                     val jjgJson = JSONObject(jjgJsonString)
                     // Use different fields based on feature name
-                    val jjgValue = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
-                        jjgJson.optInt("KP", 0)
-                    } else {
-                        jjgJson.optInt("TO", 0)
-                    }
+                    val jjgValue =
+                        jjgJson.optInt("PA", 0)
+
 
                     // Update block details - add jjgValue to total and increment count
                     val currentDetails = checkedBlocksDetails[blokName] ?: Pair(0, 0)
@@ -291,11 +291,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 try {
                     val jjgJson = JSONObject(jjgJsonString)
                     // Use different fields based on feature name
-                    val jjgValue = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
-                        jjgJson.optInt("KP", 0)
-                    } else {
-                        jjgJson.optInt("TO", 0)
-                    }
+                    val jjgValue =
+                        jjgJson.optInt("PA", 0)
 
                     // Update block details - add jjgValue to total and increment count
                     val currentDetails = checkedBlocksDetails[blokName] ?: Pair(0, 0)

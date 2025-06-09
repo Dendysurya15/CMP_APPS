@@ -1288,94 +1288,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
-    private fun formatPanenDataJSONForQR(jsonData: String): String {
-        return try {
-            // Parse the JSON array from the provided string
-            val jsonArray = JSONArray(jsonData)
-
-            // Map the JSON into the format needed
-            val mappedData = mutableListOf<Map<String, Any?>>()
-            for (i in 0 until jsonArray.length()) {
-                val item = jsonArray.getJSONObject(i)
-                mappedData.add(
-                    mapOf(
-                        "tph_id" to item.getLong("tph"),
-                        "date_created" to item.getString("tanggal"),
-                        "jjg_json" to item.getString("jjg_json")
-                    )
-                )
-            }
-
-            if (mappedData.isEmpty()) {
-                throw IllegalArgumentException("Data TPH is empty.")
-            }
-
-            val dateIndexMap = mutableMapOf<String, Int>()
-            val formattedData = buildString {
-                mappedData.forEach { data ->
-                    try {
-                        val tphId = data["tph_id"]?.toString()
-                            ?: throw IllegalArgumentException("Missing tph_id.")
-                        val dateCreated = data["date_created"]?.toString()
-                            ?: throw IllegalArgumentException("Missing date_created.")
-
-                        val jjgJsonString = data["jjg_json"]?.toString()
-                            ?: throw IllegalArgumentException("Missing jjg_json.")
-                        val jjgJson = try {
-                            JSONObject(jjgJsonString)
-                        } catch (e: JSONException) {
-                            throw IllegalArgumentException("Invalid JSON format in jjg_json: $jjgJsonString")
-                        }
-
-                        val key = "KP"  // Using "KP" as the key based on your data
-
-                        val toValue = if (jjgJson.has(key)) {
-                            jjgJson.getInt(key)
-                        } else {
-                            throw IllegalArgumentException("Missing '$key' key in jjg_json: $jjgJsonString")
-                        }
-
-                        // Extract date and time parts
-                        val dateParts = dateCreated.split(" ")
-                        if (dateParts.size != 2) {
-                            throw IllegalArgumentException("Invalid date_created format: $dateCreated")
-                        }
-
-                        val date = dateParts[0]  // 2025-04-03
-                        val time = dateParts[1]  // 07:53:02
-
-                        // Use dateIndexMap.size as the index for new dates
-                        append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue;")
-                    } catch (e: Exception) {
-                        throw IllegalArgumentException("Error processing data entry: ${e.message}")
-                    }
-                }
-            }
-
-            val username = try {
-                PrefManager(this).username.toString().split("@")[0].takeLast(3).uppercase()
-            } catch (e: Exception) {
-                Toasty.error(this, "Error mengambil username: ${e.message}", Toast.LENGTH_LONG)
-                    .show()
-                "NULL"
-            }
-
-            // Create the tgl object with date mappings
-            val tglJson = JSONObject()
-            dateIndexMap.forEach { (date, index) ->
-                tglJson.put(index.toString(), date)
-            }
-
-            return JSONObject().apply {
-                put("tph_0", formattedData)
-                put("username", username)
-                put("tgl", tglJson)
-            }.toString()
-        } catch (e: Exception) {
-            AppLogger.e("formatPanenDataForQR Error: ${e.message}")
-            throw e
-        }
-    }
 
     private fun formatPanenDataForQR(mappedData: List<Map<String, Any?>>): String {
         return try {
@@ -1399,8 +1311,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             throw IllegalArgumentException("Invalid JSON format in jjg_json: $jjgJsonString")
                         }
 
-                        val key =
-                            if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB" || featureName == AppUtils.ListFeatureNames.RekapHasilPanen) "KP" else "TO"
+                        val key = "PA"
 
                         val toValue = if (jjgJson.has(key)) {
                             jjgJson.getInt(key)
@@ -1572,11 +1483,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val selectedItems = listAdapter.getSelectedItems()
         Log.d("ListPanenTBSActivityESPB", "selectedItems: $selectedItems")
         val tph1AD0 =
-            convertToFormattedString(selectedItems.toString(), 0).replace("{\"KP\": ", "")
+            convertToFormattedString(selectedItems.toString(), 0).replace("{\"PA\": ", "")
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD0")
         val tph1AD2 =
-            convertToFormattedString(selectedItems.toString(), 1).replace("{\"KP\": ", "")
+            convertToFormattedString(selectedItems.toString(), 1).replace("{\"PA\": ", "")
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD2")
 
@@ -1637,12 +1548,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val tph1NO = convertToFormattedString(
             selectedItems2.toString(),
             listTPHDriver
-        ).replace("{\"KP\": ", "").replace("},", ",")
+        ).replace("{\"PA\": ", "").replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsNO: $tph1NO")
 
         //get item which is not selected
         val tph0before =
-            convertToFormattedString(allItems.toString(), 0).replace("{\"KP\": ", "")
+            convertToFormattedString(allItems.toString(), 0).replace("{\"PA\": ", "")
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItems0: $tph0before")
 
@@ -2553,7 +2464,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             val kpValue = parts[2].trim() // Third index for KP value
 
                                             // Create JSON for jjg_json
-                                            val jjgJson = "{\"KP\": $kpValue}"
+                                            val jjgJson = "{\"PA\": $kpValue}"
 
                                             try {
                                                 // Convert tphId to Int for the query
@@ -2623,7 +2534,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             for (data in processedDataList) {
                                 try {
                                     val jjgJson = JSONObject(data["jjg_json"].toString())
-                                    val kpValue = jjgJson.optDouble("KP", 0.0)
+                                    val kpValue = jjgJson.optDouble("PA", 0.0)
                                     totalKpSum += kpValue
                                 } catch (e: Exception) {
                                     AppLogger.e("Error parsing jjg_json: ${e.message}")
@@ -2664,7 +2575,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         } else if (currentState == 1) {
                             // State 1: Merge by blok (similar to your existing merge logic)
                             val globalMergedBlokMap = mutableMapOf<String, MutableMap<String, Any>>()
-                            val jjgTypes = listOf("KP") // Only KP for restan data
+                            val jjgTypes = listOf("PA")
 
                             for (blokData in processedDataList) {
                                 val blokName = blokData["blok_name"].toString()
@@ -2692,7 +2603,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     existingBlokData["jjg_json"] = existingJjgJson.toString()
 
                                     // For restan, use KP as the total
-                                    val newTotalKP = existingJjgJson.optDouble("KP", 0.0)
+                                    val newTotalKP = existingJjgJson.optDouble("PA", 0.0)
                                     existingBlokData["jjg_total"] = if (newTotalKP == newTotalKP.toInt().toDouble()) {
                                         newTotalKP.toInt().toString()
                                     } else {
@@ -2717,7 +2628,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     val mutableBlokData = blokData.toMutableMap()
 
                                     // Format the KP value
-                                    val jjgKP = jjgValues["KP"] ?: 0.0
+                                    val jjgKP = jjgValues["PA"] ?: 0.0
                                     val formattedJjgKP = if (jjgKP == jjgKP.toInt().toDouble()) {
                                         jjgKP.toInt().toString()
                                     } else {
@@ -4449,7 +4360,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     totalTphTextView.text = tphCount.toString()
                     totalJjgTextView.text = jjgCount.toString()
                     tvTotalTPH.text = "Jmlh Transaksi: "
-                    titleTotalJjg.text = "Kirim Pabrik: "
+                    titleTotalJjg.text = "Jjg Bayar: "
 
                     // No need to format again, just join the already formatted blocks
                     val blocksText = formattedBlocks.joinToString(", ")
@@ -4462,7 +4373,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 }
             }
         } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
-            titleTotalJjg.text = "Kirim Pabrik: "
+            titleTotalJjg.text = "Jjg Bayar: "
+        }else{
+            titleTotalJjg.text = "Jjg Bayar: "
         }
     }
 
@@ -4501,11 +4414,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                             val kpNumber = try {
                                 val jjgJson = panenWithRelations.panen.jjg_json ?: ""
-                                if (jjgJson.startsWith("{") && jjgJson.contains("KP")) {
-                                    // Parse JSON: {"KP": 18} -> "18"
+                                if (jjgJson.startsWith("{") && jjgJson.contains("PA")) {
                                     val gson = Gson()
                                     val jsonObject = gson.fromJson(jjgJson, JsonObject::class.java)
-                                    jsonObject.get("KP")?.asString ?: jjgJson
+                                    jsonObject.get("PA")?.asString ?: jjgJson
                                 } else {
                                     // If it's not JSON, use as is
                                     jjgJson
@@ -4635,11 +4547,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val status = parts[3].trim()
 
                         val kpNumber = try {
-                            if (kpValue.startsWith("{") && kpValue.contains("KP")) {
-                                // Parse JSON: {"KP": 18} -> "18"
+                            if (kpValue.startsWith("{") && kpValue.contains("PA")) {
+                                // Parse JSON: {"PA": 18} -> "18"
                                 val gson = Gson()
                                 val jsonObject = gson.fromJson(kpValue, JsonObject::class.java)
-                                jsonObject.get("KP")?.asString ?: kpValue
+                                jsonObject.get("PA")?.asString ?: kpValue
                             } else {
                                 // If it's not JSON, use as is
                                 kpValue

@@ -170,6 +170,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                         tvEmptyState.visibility = View.GONE
                         recyclerView.visibility = View.VISIBLE
                         val allWorkerData = mutableListOf<Map<String, Any>>()
+
                         panenList.map { panenWithRelations ->
                             val standardData = mapOf<String, Any>(
                                 "id" to (panenWithRelations.panen.id as Any),
@@ -258,35 +259,43 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
                         mappedData = allWorkerData
 
-                        val processedData =
-                            AppUtils.getPanenProcessedData(originalMappedData, featureName)
+                        // ========== USE AppUtils.getPanenProcessedData ==========
+                        val processedData = AppUtils.getPanenProcessedData(originalMappedData, featureName)
 
+                        if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen ||
+                            featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan ||
+                            featureName == AppUtils.ListFeatureNames.DetailESPB ||
+                            featureName == AppUtils.ListFeatureNames.TransferHektarPanen) {
+
+                            findViewById<LinearLayout>(R.id.blok_section).visibility = View.VISIBLE
+                            findViewById<LinearLayout>(R.id.total_section).visibility = View.VISIBLE
+                        }
+
+                        // Extract values from processed data
                         val blokNames = processedData["blokNames"]?.toString() ?: ""
                         blok = if (blokNames.isEmpty()) "-" else blokNames
 
-                        jjg = processedData["totalJjgCount"]?.toString()!!.toInt()
+                        val blokDisplay = processedData["blokDisplay"]?.toString() ?: "-"
+                        jjg = processedData["totalJjgCount"]?.toString()?.toIntOrNull() ?: 0
+                        tph = processedData["tphCount"]?.toString()?.toIntOrNull() ?: 0
 
-                        tph = processedData["tphCount"]?.toString()!!.toInt()
+                        findViewById<TextView>(R.id.titleTotalJjg).text = "Jjg Bayar: "
+                        findViewById<TextView>(R.id.listBlok).text = blokDisplay
+                        findViewById<TextView>(R.id.totalJjg).text = jjg.toString()
+                        findViewById<TextView>(R.id.totalTPH).text = tph.toString()
 
-//                            // Set Blok
-//                            val tvBlok = findViewById<View>(R.id.tv_blok)
-//                            tvBlok.findViewById<TextView>(R.id.tvTitleEspb).text = "Blok"
-//                            tvBlok.findViewById<TextView>(R.id.tvSubTitleEspb).text = blok
+                        // Log the results for debugging with feature context
+                        val jsonFieldUsed = "PA"
 
-//                            // Set jjg
-//                            val tvJjg = findViewById<View>(R.id.tv_jjg)
-//                            tvJjg.findViewById<TextView>(R.id.tvTitleEspb).text = "Janjang"
-//                            tvJjg.findViewById<TextView>(R.id.tvSubTitleEspb).text = jjg.toString()
+                        AppLogger.d("Feature: $featureName")
+                        AppLogger.d("JSON field used: $jsonFieldUsed")
+                        AppLogger.d("Blok Display: $blokDisplay")
+                        AppLogger.d("Total JJG: $jjg")
+                        AppLogger.d("Total TPH: $tph")
 
-//                            // Set jjg
-//                            val tvTph = findViewById<View>(R.id.tv_total_tph)
-//                            tvTph.findViewById<TextView>(R.id.tvTitleEspb).text = "Jumlah TPH"
-//                            tvTph.findViewById<TextView>(R.id.tvSubTitleEspb).text = tph.toString()
                         // First, convert the Map<String, Any> data to TransferHektarPanenData objects
                         val transferHektarPanenDataList = allWorkerData.map { item ->
-                            val jjgStr =
-                                JSONObject(item["jjg_json"] as? String).optDouble("PA", 0.0).toInt()
-                                    .toString()
+                            val jjgStr = JSONObject(item["jjg_json"] as? String).optDouble("PA", 0.0).toInt().toString()
                             TransferHektarPanenData(
                                 time = (item["date_created"] as? String) ?: "",
                                 blok = (item["blok_name"] as? String) ?: "-",
@@ -294,24 +303,22 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                 noTph = "${item["nomor"] ?: ""}",
                                 namaPemanen = (item["nama_karyawans"] as? String) ?: "-",
                                 status_scan = 1, // Or any appropriate default
-                                id = (item["id"] as? String)?.toIntOrNull() ?: (item["id"] as? Int)
-                                ?: 0
+                                id = (item["id"] as? String)?.toIntOrNull() ?: (item["id"] as? Int) ?: 0
                             )
                         }
 
-// Then update the adapter with the correctly typed list
+                        // Then update the adapter with the correctly typed list
                         adapter.updateList(transferHektarPanenDataList)
-
-//                                adapter.updateData(mappedData)
-//                                originalData =
-//                                    emptyList() // Reset original data when new data is loaded
 
                     } else {
                         AppLogger.d("panenWithRelations panenList is empty")
                         tvEmptyState.visibility = View.VISIBLE
                         recyclerView.visibility = View.GONE
-                    }
 
+                        // Hide the summary sections when no data
+                        findViewById<LinearLayout>(R.id.blok_section).visibility = View.GONE
+                        findViewById<LinearLayout>(R.id.total_section).visibility = View.GONE
+                    }
                 }
             }, 500)
         }
@@ -460,7 +467,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                         .substringBeforeLast(":")
 
                                     val janjang =
-                                        JSONObject(item.jjg_json).optDouble("TO", 0.0).toInt()
+                                        JSONObject(item.jjg_json).optDouble("PA", 0.0).toInt()
                                             .toString()
 
                                     val noTph = try {
@@ -502,6 +509,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                             }.map { it.await() } // Wait for all async tasks to complete
                         }
 
+
+                        AppLogger.d(filteredData.size.toString())
                         adapter.updateList(filteredData)
                     } catch (e: Exception) {
                         AppLogger.e("Data processing error: ${e.message}")
