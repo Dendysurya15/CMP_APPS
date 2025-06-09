@@ -1477,7 +1477,7 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 withContext(Dispatchers.Main) {
-                                    startDownloads(previewRestanData)
+                                    startDownloads(previewRestanData, "Sinkronisasi Data")
                                 }
                             } catch (e: Exception) {
                                 // Handle any errors

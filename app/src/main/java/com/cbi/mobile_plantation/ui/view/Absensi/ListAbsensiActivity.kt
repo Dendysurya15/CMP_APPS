@@ -1034,7 +1034,7 @@ class ListAbsensiActivity : AppCompatActivity() {
 
                 // Set user info
                 tvUserName.text =
-                    "Hasil QR dari ${prefManager?.jabatanUserLogin ?: "Unknown"} - ${estateAfdeling}"
+                    "Hasil QR ${featureName} dari ${prefManager?.jabatanUserLogin ?: "Unknown"} - ${estateAfdeling}"
 
                 // Set footer with date/time
                 val currentDate = Date()

@@ -1659,13 +1659,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val createdDate = item.optString("created_date", "")
                             val statusEspb = item.optInt("status_espb", -1)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
-
+                            val createdName = item.optString("created_name", "")
                             // For spb_kode, check specifically for null vs. empty string
                             val spbKode: String? = if (item.has("spb_kode") && !item.isNull("spb_kode")) {
                                 item.optString("spb_kode")
                             } else {
                                 null
                             }
+
+                            val username = extractUsernameFromCreatedName(createdName)
 
                             // Count status_espb values and check spb_kode relationship
                             when (statusEspb) {
@@ -1703,7 +1705,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             scan_status = 1,
                                             dataIsZipped = 0,
                                             no_espb = spbKode ?: "",
-                                            username = "",
+                                            username = username,
                                             status_upload = 0,
                                             status_uploaded_image = "0",
                                             status_pengangkutan = 0,
@@ -3448,6 +3450,78 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         } catch (e: Exception) {
             AppLogger.e("Error parsing JSON: ${e.message}")
             throw e
+        }
+    }
+
+
+    private fun extractUsernameFromCreatedName(createdName: String): String {
+        if (createdName.isEmpty()) return ""
+
+        try {
+            // Remove extra spaces and split by space
+            val parts = createdName.trim().split("\\s+".toRegex())
+
+            if (parts.isEmpty()) return ""
+
+            // Look for the pattern: 2-3 letters followed by a number
+            // Start from the end and work backwards
+            var result = ""
+            var foundNumber = false
+            var letters = ""
+
+            // Go through parts from right to left
+            for (i in parts.indices.reversed()) {
+                val part = parts[i]
+
+                // Check if this part is just a number
+                if (part.matches("\\d+".toRegex()) && !foundNumber) {
+                    result = part + result
+                    foundNumber = true
+                    continue
+                }
+
+                // Check if this part contains letters (and possibly numbers)
+                if (part.matches(".*[A-Za-z].*".toRegex())) {
+                    // Extract only the letters from this part
+                    val lettersInPart = part.replace("[^A-Za-z]".toRegex(), "")
+
+                    if (lettersInPart.length >= 2) {
+                        // Take the last 2 characters if more than 2, or all if exactly 2
+                        letters = if (lettersInPart.length > 2) {
+                            lettersInPart.takeLast(2)
+                        } else {
+                            lettersInPart
+                        }
+                        result = letters + result
+                        break
+                    }
+                }
+            }
+
+            // If we couldn't find the pattern, try a simpler approach
+            if (result.length < 3) {
+                // Look for any combination that has letters followed by numbers
+                val combined = parts.joinToString("")
+                val regex = "([A-Za-z]{2,3})(\\d+)".toRegex()
+                val match = regex.findAll(combined).lastOrNull()
+
+                if (match != null) {
+                    val matchedLetters = match.groupValues[1]
+                    val matchedNumber = match.groupValues[2]
+                    result = matchedLetters.takeLast(2) + matchedNumber.takeLast(1)
+                }
+            }
+
+            // Ensure result is exactly 3 characters and uppercase
+            return if (result.length >= 3) {
+                result.takeLast(3).uppercase()
+            } else {
+                result.uppercase()
+            }
+
+        } catch (e: Exception) {
+            AppLogger.e("Error extracting username from '$createdName': ${e.message}")
+            return ""
         }
     }
 
