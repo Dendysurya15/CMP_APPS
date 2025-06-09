@@ -53,6 +53,7 @@
             android:orientation="vertical"
             android:layout_marginBottom="16dp">
 
+
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -63,10 +64,26 @@
                 android:layout_marginBottom="8dp" />
 
             <include
+                android:id="@+id/infoUrutanKe"
+                layout="@layout/layout_wb_data_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                />
+
+            <include
+                android:id="@+id/infoJamTanggal"
+                layout="@layout/layout_wb_data_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                />
+
+            <include
                 android:id="@+id/infoKemandoran"
                 layout="@layout/layout_wb_data_info"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"/>
 
             <include
                 android:id="@+id/infoKehadiran"

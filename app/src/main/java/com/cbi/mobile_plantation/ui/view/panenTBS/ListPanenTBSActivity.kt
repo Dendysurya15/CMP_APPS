@@ -433,7 +433,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
                     }
 
-//                    filterDateContainer.visibility = View.GONE
                     nameFilterDate.text = displayDate
                     dateButton.isEnabled = true
                     dateButton.alpha = 1f // Make the button appear darker
@@ -3959,8 +3958,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
     private fun takeQRCodeScreenshot(view: View) {
-
-
         lifecycleScope.launch {
             try {
                 val screenshotLayout: View =
@@ -3978,8 +3975,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
-                val infoTotalTransaksi =
-                    screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+                val infoTotalTransaksi = screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+
+                // Add references for new info views
+                val infoUrutanKe = screenshotLayout.findViewById<View>(R.id.infoUrutanKe)
+                val infoJamTanggal = screenshotLayout.findViewById<View>(R.id.infoJamTanggal)
 
                 fun setInfoData(includeView: View, labelText: String, valueText: String) {
                     val tvLabel = includeView.findViewById<TextView>(R.id.tvLabel)
@@ -4015,20 +4015,23 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
                 val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                val formattedDate = dateFormat.format(currentDate).uppercase(indonesianLocale)
                 val formattedTime = timeFormat.format(currentDate)
 
-                val effectiveLimit =
-                    if (limit == 0) mappedData.size else limit
+                // Get and increment screenshot counter
+                val screenshotNumber = getAndIncrementScreenshotCounter()
+
+                val effectiveLimit = if (limit == 0) mappedData.size else limit
                 val limitedData = mappedData.take(effectiveLimit)
 
-                val processedData =
-                    AppUtils.getPanenProcessedData(limitedData, featureName)
+                val processedData = AppUtils.getPanenProcessedData(limitedData, featureName)
                 val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
                     word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
                 }
+
                 tvUserName.text =
                     "Hasil QR ${capitalizedFeatureName} dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
+
                 if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                     val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
                     val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
@@ -4041,35 +4044,27 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     infoPemuat.visibility = View.VISIBLE
 
                     setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
-                    setInfoData(
-                        infoTotalJjg,
-                        "Total Janjang",
-                        ": ${processedData["totalJjgCount"]} jjg"
-                    )
-                    setInfoData(
-                        infoTotalTransaksi,
-                        "Jumlah Transaksi",
-                        ": ${processedData["tphCount"]}"
-                    )
+                    setInfoData(infoTotalJjg, "Total Janjang", ": ${processedData["totalJjgCount"]} jjg")
+                    setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": ${processedData["tphCount"]}")
                     setInfoData(infoNoESPB, "E-SPB", ": $no_espb")
                     setInfoData(infoDriver, "Driver", ": $driver")
                     setInfoData(infoNopol, "Nomor Polisi", ": $nopol")
                     setInfoData(infoPemuat, "Pemuat", ": $pemuatNamaESPB")
+
+                    // Add new info data for DetailESPB
+                    setInfoData(infoUrutanKe, "Urutan Ke", ": $screenshotNumber")
+                    setInfoData(infoJamTanggal, "Jam & Tanggal", ": $formattedDate, $formattedTime")
+
                 } else {
-
                     setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
-                    setInfoData(
-                        infoTotalJjg,
-                        "Total Janjang",
-                        ": ${processedData["totalJjgCount"]} jjg"
-                    )
-                    setInfoData(
-                        infoTotalTransaksi,
-                        "Jumlah Transaksi",
-                        ": ${processedData["tphCount"]}"
-                    )
+                    setInfoData(infoTotalJjg, "Total Janjang", ": ${processedData["totalJjgCount"]} jjg")
+                    setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": ${processedData["tphCount"]}")
 
+                    // Add new info data for other features
+                    setInfoData(infoUrutanKe, "Urutan Ke", ": $screenshotNumber")
+                    setInfoData(infoJamTanggal, "Jam & Tanggal", ": $formattedDate, $formattedTime")
                 }
+
                 tvFooter.text =
                     "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
 
@@ -4101,9 +4096,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     AppUtils.WaterMarkFotoDanFolder.WMESPB
                 } else if (featureName == AppUtils.ListFeatureNames.AbsensiPanen) {
                     AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
-                }else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
                     AppUtils.WaterMarkFotoDanFolder.WMRekapPanenDanRestan
-                }else if(featureName == AppUtils.ListFeatureNames.DetailESPB){
+                } else if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                     AppUtils.WaterMarkFotoDanFolder.WMESPB
                 } else {
                     AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
@@ -4133,6 +4128,24 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     ).show()
                 }
             }
+        }
+    }
+
+    private fun getAndIncrementScreenshotCounter(): Int {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val lastDate = prefManager!!.getScreenshotDate(featureName!!)
+        val currentCounter = prefManager!!.getScreenshotCounter(featureName!!)
+
+        return if (lastDate != today) {
+            // Reset counter for new day
+            prefManager!!.setScreenshotDate(featureName!!, today)
+            prefManager!!.setScreenshotCounter(featureName!!, 1)
+            1
+        } else {
+            // Increment counter for same day
+            val newCounter = currentCounter + 1
+            prefManager!!.setScreenshotCounter(featureName!!, newCounter)
+            newCounter
         }
     }
 

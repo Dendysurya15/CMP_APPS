@@ -664,7 +664,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         val tvGenQRFull = findViewById<TextView>(R.id.tvGenQRFull)
 
         btnGenerateQRTPH.visibility = View.VISIBLE
-        btnGenerateQRTPHUnl.visibility = View.VISIBLE
+        btnGenerateQRTPHUnl.visibility = View.GONE
         tvGenQR60.visibility = View.VISIBLE
         tvGenQRFull.visibility = View.VISIBLE
 
@@ -1472,7 +1472,6 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
     private fun takeQRCodeScreenshot(view: View) {
 
-
         lifecycleScope.launch {
             try {
                 val screenshotLayout: View =
@@ -1490,8 +1489,11 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
-                val infoTotalTransaksi =
-                    screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+                val infoTotalTransaksi = screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+
+                // Add references for new info views
+                val infoUrutanKe = screenshotLayout.findViewById<View>(R.id.infoUrutanKe)
+                val infoJamTanggal = screenshotLayout.findViewById<View>(R.id.infoJamTanggal)
 
                 fun setInfoData(includeView: View, labelText: String, valueText: String) {
                     val tvLabel = includeView.findViewById<TextView>(R.id.tvLabel)
@@ -1527,33 +1529,31 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
                 val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                val formattedDate = dateFormat.format(currentDate).uppercase(indonesianLocale)
                 val formattedTime = timeFormat.format(currentDate)
 
-                val effectiveLimit =
-                    if (limit == 0) mappedData.size else limit
+                // Get and increment screenshot counter
+                val screenshotNumber = getAndIncrementScreenshotCounter()
+
+                val effectiveLimit = if (limit == 0) mappedData.size else limit
                 val limitedData = mappedData.take(effectiveLimit)
 
-                val processedData =
-                    AppUtils.getPanenProcessedData(limitedData, featureName)
+                val processedData = AppUtils.getPanenProcessedData(limitedData, featureName)
 
                 val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
                     word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
                 }
+
                 tvUserName.text =
                     "Hasil QR ${capitalizedFeatureName} dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
-                setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
-                setInfoData(
-                    infoTotalJjg,
-                    "Total Janjang",
-                    ": ${processedData["totalJjgCount"]} jjg"
-                )
-                setInfoData(
-                    infoTotalTransaksi,
-                    "Jumlah Transaksi",
-                    ": ${processedData["tphCount"]}"
-                )
 
+                setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
+                setInfoData(infoTotalJjg, "Total Janjang", ": ${processedData["totalJjgCount"]} jjg")
+                setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": ${processedData["tphCount"]}")
+
+                // Add new info data
+                setInfoData(infoUrutanKe, "Urutan Ke", ": $screenshotNumber")
+                setInfoData(infoJamTanggal, "Jam & Tanggal", ": $formattedDate, $formattedTime")
 
                 tvFooter.text =
                     "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
@@ -1571,12 +1571,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                     0, 0, screenshotLayout.measuredWidth, screenshotLayout.measuredHeight
                 )
 
-
-                val date =
-                    SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                "Panen_QR_$date"
-
-                val screenshotFileName = "Panen_QR_$date"
+                val date = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val screenshotFileName = "Transer_Hektar_Panen_$date"
 
                 val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
                     AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
@@ -1593,6 +1589,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 } else {
                     AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
                 }
+
                 val screenshotFile = ScreenshotUtil.takeScreenshot(
                     screenshotLayout,
                     screenshotFileName,
@@ -1617,6 +1614,24 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                     ).show()
                 }
             }
+        }
+    }
+
+    private fun getAndIncrementScreenshotCounter(): Int {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val lastDate = prefManager!!.getScreenshotDate(featureName!!)
+        val currentCounter = prefManager!!.getScreenshotCounter(featureName!!)
+
+        return if (lastDate != today) {
+            // Reset counter for new day
+            prefManager!!.setScreenshotDate(featureName!!, today)
+            prefManager!!.setScreenshotCounter(featureName!!, 1)
+            1
+        } else {
+            // Increment counter for same day
+            val newCounter = currentCounter + 1
+            prefManager!!.setScreenshotCounter(featureName!!, newCounter)
+            newCounter
         }
     }
 }
