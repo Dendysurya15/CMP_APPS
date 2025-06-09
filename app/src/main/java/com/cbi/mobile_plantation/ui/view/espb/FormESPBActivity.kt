@@ -1116,16 +1116,18 @@ class FormESPBActivity : AppCompatActivity() {
                 val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
                 val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
 
-
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
-                val infoTotalTransaksi =
-                    screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+                val infoTotalTransaksi = screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
                 val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
                 val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
                 val infoNopol = screenshotLayout.findViewById<View>(R.id.infoNopol)
                 val infoPemuat = screenshotLayout.findViewById<View>(R.id.infoPemuat)
+
+                // Add references for new info views
+                val infoUrutanKe = screenshotLayout.findViewById<View>(R.id.infoUrutanKe)
+                val infoJamTanggal = screenshotLayout.findViewById<View>(R.id.infoJamTanggal)
 
                 // Helper function to set label and value for included layouts
                 fun setInfoData(includeView: View, labelText: String, valueText: String) {
@@ -1192,12 +1194,16 @@ class FormESPBActivity : AppCompatActivity() {
                 val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
                 val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                val formattedDate = dateFormat.format(currentDate).uppercase(indonesianLocale)
                 val formattedTime = timeFormat.format(currentDate)
+
+                // Get and increment screenshot counter
+                val screenshotNumber = getAndIncrementScreenshotCounter()
 
                 val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
                     word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
                 }
+
                 // Set data for eSPB
                 tvUserName.text = "Hasil QR ${capitalizedFeatureName} dari ${prefManager!!.jabatanUserLogin}"
                 setInfoData(infoBlokList, "Blok", ": $blokDisplay")
@@ -1208,6 +1214,9 @@ class FormESPBActivity : AppCompatActivity() {
                 setInfoData(infoNopol, "Nomor Polisi", ": $selectedNopol")
                 setInfoData(infoPemuat, "Pemuat", ": $pemuatNama")
 
+                // Add new info data
+                setInfoData(infoUrutanKe, "Urutan Ke", ": $screenshotNumber")
+                setInfoData(infoJamTanggal, "Jam & Tanggal", ": $formattedDate, $formattedTime")
 
                 tvFooter.text =
                     "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
@@ -1254,6 +1263,25 @@ class FormESPBActivity : AppCompatActivity() {
                     ).show()
                 }
             }
+        }
+    }
+
+
+    private fun getAndIncrementScreenshotCounter(): Int {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val lastDate = prefManager!!.getScreenshotDate(featureName!!)
+        val currentCounter = prefManager!!.getScreenshotCounter(featureName!!)
+
+        return if (lastDate != today) {
+            // Reset counter for new day
+            prefManager!!.setScreenshotDate(featureName!!, today)
+            prefManager!!.setScreenshotCounter(featureName!!, 1)
+            1
+        } else {
+            // Increment counter for same day
+            val newCounter = currentCounter + 1
+            prefManager!!.setScreenshotCounter(featureName!!, newCounter)
+            newCounter
         }
     }
 
