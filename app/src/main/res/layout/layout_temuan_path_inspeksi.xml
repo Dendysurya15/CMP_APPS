@@ -1,12 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- layout_path_detail_card.xml -->
+<?xml version="1.0" encoding="utf-8"?><!-- layout_path_detail_card.xml -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app1="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    xmlns:app1="http://schemas.android.com/apk/res-auto"
     android:layout_marginStart="16dp"
-    android:layout_marginEnd="16dp"
     android:layout_marginTop="8dp"
+    android:layout_marginEnd="16dp"
     android:layout_marginBottom="8dp"
     app1:cardBackgroundColor="@color/white">
 
@@ -20,21 +19,21 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <!-- Left: Title -->
             <TextView
                 android:id="@+id/tvPokokNumber"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="16dp"
                 android:layout_weight="1"
-                android:text="Pokok 1"
-                android:textSize="@dimen/xl"
                 android:fontFamily="@font/manrope_bold"
+                android:gravity="center_vertical"
+
                 android:textColor="@color/black"
-                android:gravity="start|center_vertical"
-                android:layout_marginEnd="16dp" />
+                android:textSize="@dimen/xl" />
 
             <!-- Right: Two Cards Container -->
             <LinearLayout
@@ -48,7 +47,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
-                    app1:cardBackgroundColor="@color/white"
+                    app1:cardBackgroundColor="@color/orangeButton"
                     app1:cardCornerRadius="12dp"
                     app1:cardElevation="2dp"
                     app1:strokeColor="@color/graydarker"
@@ -57,26 +56,27 @@
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:padding="8dp"
-                        android:gravity="center_vertical">
+                        android:padding="8dp">
 
                         <ImageView
                             android:id="@+id/ivPokokPhoto"
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:layout_marginEnd="6dp"
-                            android:scaleType="centerCrop"
-                            android:background="@drawable/baseline_cameraswitch_24"
-                            android:contentDescription="Foto Icon" />
+                            android:src="@drawable/baseline_image_not_supported_24"
+                            android:tint="@color/white"
+                            android:contentDescription="Foto Icon"
+                            android:scaleType="centerCrop" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="FOTO"
-                            android:textSize="12sp"
                             android:fontFamily="@font/manrope_medium"
-                            android:textColor="@color/black" />
+                            android:text="FOTO"
+                            android:textColor="@color/white"
+                            android:textSize="12sp" />
 
                     </LinearLayout>
 
@@ -84,36 +84,37 @@
 
                 <!-- Second Card: Telusuri -->
                 <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardTelusuri"
+                    android:id="@+id/cardEdit"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    app1:cardBackgroundColor="@color/white"
+                    app1:cardBackgroundColor="@color/greenDarker"
                     app1:cardCornerRadius="12dp"
                     app1:cardElevation="2dp"
-                    app1:strokeColor="@color/graydarker"
+                    app1:strokeColor="@color/white"
                     app1:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:padding="8dp"
-                        android:gravity="center_vertical">
+                        android:padding="8dp">
 
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:layout_marginEnd="6dp"
+                            android:contentDescription="Detail Icon"
                             android:src="@drawable/baseline_arrow_outward_24"
-                            android:contentDescription="Detail Icon" />
+                            android:tint="@color/white" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="EDIT"
-                            android:textSize="12sp"
                             android:fontFamily="@font/manrope_medium"
-                            android:textColor="@color/black" />
+                            android:text="EDIT"
+                            android:textColor="@color/white"
+                            android:textSize="12sp" />
 
                     </LinearLayout>
 

@@ -785,8 +785,20 @@ open class FormInspectionActivity : AppCompatActivity(),
             val photoValue = pokokData?.photo ?: ""
             val emptyTreeValue = pokokData?.emptyTree ?: 0
 
-            if (selectedInspeksiValue.toInt() == 1 && (emptyTreeValue == 1) && photoValue.isEmpty()) {
-                AppLogger.d("BLOCKED: Photo validation - inspection=1, emptyTree=1, photo empty")
+            val ripeValue = pokokData?.ripe ?: 0
+            val buahM1Value = pokokData?.buahM1 ?: 0
+            val buahM2Value = pokokData?.buahM2 ?: 0
+            val brdKtpValue = pokokData?.brdKtp ?: 0
+
+            // Check if photo is required based on findings
+            val hasFindings = (ripeValue > 0) ||
+                    (buahM1Value > 0) ||
+                    (buahM2Value > 0) ||
+                    (brdKtpValue > 50)
+
+            val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
+
+            if (selectedInspeksiValue.toInt() == 1 && hasFindings && !hasValidPhoto) {
                 vibrate(500)
                 showViewPhotoBottomSheet(null, isInTPH)
                 AlertDialogUtility.withSingleAction(
@@ -2298,12 +2310,12 @@ open class FormInspectionActivity : AppCompatActivity(),
         // Find views
         val tvPokokNumber = cardView.findViewById<TextView>(R.id.tvPokokNumber)
         val cardFoto = cardView.findViewById<MaterialCardView>(R.id.cardFoto)
-        val cardTelusuri = cardView.findViewById<MaterialCardView>(R.id.cardTelusuri)
+        val cardTelusuri = cardView.findViewById<MaterialCardView>(R.id.cardEdit)
         val ivPokokPhoto = cardView.findViewById<ImageView>(R.id.ivPokokPhoto)
         val llDetailsList = cardView.findViewById<LinearLayout>(R.id.llDetailsList)
 
         // Set pokok number
-        tvPokokNumber.text = "Pokok $pageNumber"
+        tvPokokNumber.text = "#Pokok $pageNumber"
 
         // Handle photo availability and card visibility
         if (!pageData.photo.isNullOrEmpty()) {
@@ -2338,29 +2350,26 @@ open class FormInspectionActivity : AppCompatActivity(),
                     } else {
                         AppLogger.e("Failed to decode bitmap for pokok $pageNumber")
                         // Show camera icon as fallback
-                        ivPokokPhoto.setImageResource(R.drawable.baseline_cameraswitch_24)
+                        ivPokokPhoto.setImageResource(R.drawable.baseline_image_not_supported_24)
                         ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
                         cardFoto.visibility = View.VISIBLE
                     }
                 } catch (e: Exception) {
                     AppLogger.e("Error loading path image for pokok $pageNumber: ${e.message}")
                     // Show camera icon as fallback
-                    ivPokokPhoto.setImageResource(R.drawable.baseline_cameraswitch_24)
+                    ivPokokPhoto.setImageResource(R.drawable.baseline_image_not_supported_24)
                     ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
                     cardFoto.visibility = View.VISIBLE
                 }
             } else {
                 AppLogger.e("Path image file not found: $fullImagePath")
                 // Show camera icon as fallback
-                ivPokokPhoto.setImageResource(R.drawable.baseline_cameraswitch_24)
+                ivPokokPhoto.setImageResource(R.drawable.baseline_image_not_supported_24)
                 ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
                 cardFoto.visibility = View.VISIBLE
             }
         } else {
-            // No photo available - show camera icon
-            ivPokokPhoto.setImageResource(R.drawable.baseline_cameraswitch_24)
-            ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
-            cardFoto.visibility = View.VISIBLE
+            cardFoto.visibility = View.GONE
         }
 
         // Add click listener to Telusuri card (for future detail functionality)
