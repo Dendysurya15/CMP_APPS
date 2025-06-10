@@ -27,6 +27,7 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.TextUtils
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
@@ -2296,16 +2297,16 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         // Find views
         val tvPokokNumber = cardView.findViewById<TextView>(R.id.tvPokokNumber)
+        val cardFoto = cardView.findViewById<MaterialCardView>(R.id.cardFoto)
+        val cardTelusuri = cardView.findViewById<MaterialCardView>(R.id.cardTelusuri)
         val ivPokokPhoto = cardView.findViewById<ImageView>(R.id.ivPokokPhoto)
         val llDetailsList = cardView.findViewById<LinearLayout>(R.id.llDetailsList)
 
         // Set pokok number
         tvPokokNumber.text = "Pokok $pageNumber"
 
-        // Load photo if available
+        // Handle photo availability and card visibility
         if (!pageData.photo.isNullOrEmpty()) {
-            ivPokokPhoto.visibility = View.VISIBLE
-
             // Build correct path for pageData photo
             val rootApp = File(
                 getExternalFilesDir(Environment.DIRECTORY_PICTURES),
@@ -2323,32 +2324,133 @@ open class FormInspectionActivity : AppCompatActivity(),
                 try {
                     val bitmap = BitmapFactory.decodeFile(fullImagePath)
                     if (bitmap != null) {
+                        // Show the actual image preview in the small ImageView
                         ivPokokPhoto.setImageBitmap(bitmap)
+                        ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_CROP
+
+                        cardFoto.visibility = View.VISIBLE
                         AppLogger.d("Path image loaded successfully for pokok $pageNumber")
 
-                        // Add click listener to IMAGE for full screen
-                        ivPokokPhoto.setOnClickListener {
+                        // Add click listener to FOTO CARD for full screen
+                        cardFoto.setOnClickListener {
                             showFullScreenPhoto(fullImagePath, "Pokok $pageNumber")
                         }
                     } else {
                         AppLogger.e("Failed to decode bitmap for pokok $pageNumber")
-                        ivPokokPhoto.visibility = View.GONE
+                        // Show camera icon as fallback
+                        ivPokokPhoto.setImageResource(R.drawable.baseline_cameraswitch_24)
+                        ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                        cardFoto.visibility = View.VISIBLE
                     }
                 } catch (e: Exception) {
                     AppLogger.e("Error loading path image for pokok $pageNumber: ${e.message}")
-                    ivPokokPhoto.visibility = View.GONE
+                    // Show camera icon as fallback
+                    ivPokokPhoto.setImageResource(R.drawable.baseline_cameraswitch_24)
+                    ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    cardFoto.visibility = View.VISIBLE
                 }
             } else {
                 AppLogger.e("Path image file not found: $fullImagePath")
-                ivPokokPhoto.visibility = View.GONE
+                // Show camera icon as fallback
+                ivPokokPhoto.setImageResource(R.drawable.baseline_cameraswitch_24)
+                ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                cardFoto.visibility = View.VISIBLE
             }
         } else {
-            ivPokokPhoto.visibility = View.GONE
+            // No photo available - show camera icon
+            ivPokokPhoto.setImageResource(R.drawable.baseline_cameraswitch_24)
+            ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
+            cardFoto.visibility = View.VISIBLE
+        }
+
+        // Add click listener to Telusuri card (for future detail functionality)
+        cardTelusuri.setOnClickListener {
+            // Handle detail exploration functionality here
+            // You can implement this later based on your requirements
+            AppLogger.d("Telusuri clicked for pokok $pageNumber")
         }
 
         // Add detail rows dynamically (only show non-zero values)
         var hasData = false
 
+        // Helper function to get text value from radio items
+        fun getRadioText(category: String, value: Int): String {
+            val listRadioItems: Map<String, Map<String, String>> = mapOf(
+                "YesOrNoOrTitikKosong" to mapOf(
+                    "1" to "Ya",
+                    "2" to "Tidak",
+                    "3" to "Titik Kosong"
+                ),
+                "YesOrNo" to mapOf(
+                    "1" to "Ya",
+                    "2" to "Tidak"
+                ),
+                "HighOrLow" to mapOf(
+                    "1" to "Tinggi",
+                    "2" to "Rendah"
+                ),
+                "ExistsOrNot" to mapOf(
+                    "1" to "Ada",
+                    "2" to "Tidak"
+                ),
+                "NeatOrNot" to mapOf(
+                    "1" to "Rapi",
+                    "2" to "Tidak Rapi"
+                ),
+                "PelepahType" to mapOf(
+                    "1" to "Alami",
+                    "2" to "Buatan",
+                    "3" to "Kering",
+                    "4" to "Tidak ada"
+                ),
+                "PruningType" to mapOf(
+                    "1" to "Standard",
+                    "2" to "Overpruning",
+                    "3" to "Underpruning"
+                )
+            )
+
+            val categoryMap = when (category) {
+                "priority" -> listRadioItems["HighOrLow"]
+                "harvestTree" -> listRadioItems["YesOrNo"]
+                "neatPelepah" -> listRadioItems["NeatOrNot"]
+                "pelepahSengkleh" -> listRadioItems["PelepahType"]
+                "pruning" -> listRadioItems["PruningType"]
+                else -> null
+            }
+
+            val result = categoryMap?.get(value.toString()) ?: value.toString()
+            AppLogger.d("getRadioText - category: $category, value: $value, result: $result")
+            return result
+        }
+
+        // Show radio button fields if they have valid values (> 0)
+        if (pageData.priority > 0) {
+            llDetailsList.addView(createDetailRow("Prioritas:", getRadioText("priority", pageData.priority)))
+            hasData = true
+        }
+
+        if (pageData.harvestTree > 0) {
+            llDetailsList.addView(createDetailRow("Pokok di Panen:", getRadioText("harvestTree", pageData.harvestTree)))
+            hasData = true
+        }
+
+        if (pageData.neatPelepah > 0) {
+            llDetailsList.addView(createDetailRow("Susunan Pelepah:", getRadioText("neatPelepah", pageData.neatPelepah)))
+            hasData = true
+        }
+
+        if (pageData.pelepahSengkleh > 0) {
+            llDetailsList.addView(createDetailRow("Pelepah Sengkleh:", getRadioText("pelepahSengkleh", pageData.pelepahSengkleh)))
+            hasData = true
+        }
+
+        if (pageData.pruning > 0) {
+            llDetailsList.addView(createDetailRow("Kondisi Pruning:", getRadioText("pruning", pageData.pruning)))
+            hasData = true
+        }
+
+        // Show numeric fields if they have values > 0
         if (pageData.ripe > 0) {
             llDetailsList.addView(createDetailRow("Buah Masak Tinggal:", pageData.ripe.toString()))
             hasData = true
@@ -2379,23 +2481,44 @@ open class FormInspectionActivity : AppCompatActivity(),
                 gravity = Gravity.CENTER
                 setPadding(16, 16, 16, 16)
             }
-            llDetailsList.addView(emptyText)
+
+            // Set proper layout params when adding to container
+            val emptyTextLayoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            llDetailsList.addView(emptyText, emptyTextLayoutParams)
+
+            // Hide FOTO card when there's no data
+            cardFoto.visibility = View.GONE
         }
 
         return cardView
     }
 
-    // Helper function to create detail rows using your clean layout
+    // Fixed Helper function to create detail rows with proper layout parameters
     private fun createDetailRow(label: String, value: String): View {
-        val rowView = LayoutInflater.from(this).inflate(R.layout.layout_wb_data_info, null)
+        val rowView = LayoutInflater.from(this).inflate(R.layout.list_issue_inspeksi_path, null)
+
 
         val tvLabel = rowView.findViewById<TextView>(R.id.tvLabel)
         val tvValue = rowView.findViewById<TextView>(R.id.tvValue)
 
-        tvLabel.text = label
-        tvValue.text = value
+        // Configure label text view for better text wrapping
+        tvLabel.apply {
+            text = label
+        }
+
+        tvValue.apply {
+            text = value
+        }
 
         return rowView
+    }
+
+    // Extension function to convert dp to px (add this if you don't have it already)
+    private fun Int.dpToPx(): Int {
+        return (this * resources.displayMetrics.density).toInt()
     }
 
     // Updated setupPathDetail with "Tidak ada temuan" message
@@ -2430,11 +2553,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
             container.addView(emptyText)
         }
-    }
-
-    // Helper extension function to convert dp to pixels
-    private fun Int.dpToPx(): Int {
-        return (this * resources.displayMetrics.density).toInt()
     }
 
 

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- layout_path_detail_card.xml -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res/auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     xmlns:app1="http://schemas.android.com/apk/res-auto"
@@ -14,45 +13,129 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Left Side: Pokok Number + Image -->
+        <!-- Top Section: Title on Left, Two Cards on Right -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginEnd="16dp">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-            <!-- Pokok Number -->
+            <!-- Left: Title -->
             <TextView
                 android:id="@+id/tvPokokNumber"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="Pokok 1"
-                android:textSize="16sp"
+                android:textSize="@dimen/xl"
                 android:fontFamily="@font/manrope_bold"
                 android:textColor="@color/black"
-                android:gravity="center"
-                android:paddingBottom="8dp" />
+                android:gravity="start|center_vertical"
+                android:layout_marginEnd="16dp" />
 
-            <!-- Image -->
-            <ImageView
-                android:id="@+id/ivPokokPhoto"
-                android:layout_width="match_parent"
-                android:layout_height="120dp"
-                android:scaleType="centerCrop"
-                android:contentDescription="Pokok Photo" />
+            <!-- Right: Two Cards Container -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <!-- First Card: FOTO -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardFoto"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    app1:cardBackgroundColor="@color/white"
+                    app1:cardCornerRadius="12dp"
+                    app1:cardElevation="2dp"
+                    app1:strokeColor="@color/graydarker"
+                    app1:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="8dp"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:id="@+id/ivPokokPhoto"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginEnd="6dp"
+                            android:scaleType="centerCrop"
+                            android:background="@drawable/baseline_cameraswitch_24"
+                            android:contentDescription="Foto Icon" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="FOTO"
+                            android:textSize="12sp"
+                            android:fontFamily="@font/manrope_medium"
+                            android:textColor="@color/black" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Second Card: Telusuri -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardTelusuri"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app1:cardBackgroundColor="@color/white"
+                    app1:cardCornerRadius="12dp"
+                    app1:cardElevation="2dp"
+                    app1:strokeColor="@color/graydarker"
+                    app1:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="8dp"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginEnd="6dp"
+                            android:src="@drawable/baseline_arrow_outward_24"
+                            android:contentDescription="Detail Icon" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="EDIT"
+                            android:textSize="12sp"
+                            android:fontFamily="@font/manrope_medium"
+                            android:textColor="@color/black" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
 
         </LinearLayout>
 
-        <!-- Right Side: Dynamic Details List -->
+        <!-- Dash Line -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="10dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/dashed_straight_line" />
+
+        <!-- Bottom Section: Full Width Details List -->
         <LinearLayout
             android:id="@+id/llDetailsList"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:orientation="vertical">
 
         </LinearLayout>
