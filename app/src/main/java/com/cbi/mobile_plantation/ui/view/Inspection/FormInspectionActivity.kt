@@ -2315,68 +2315,103 @@ open class FormInspectionActivity : AppCompatActivity(),
         val llDetailsList = cardView.findViewById<LinearLayout>(R.id.llDetailsList)
 
         // Set pokok number
-        tvPokokNumber.text = "#Pokok $pageNumber"
+        tvPokokNumber.text = "Pokok $pageNumber"
 
-        // Handle photo availability and card visibility
-        if (!pageData.photo.isNullOrEmpty()) {
-            // Build correct path for pageData photo
-            val rootApp = File(
-                getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksi}"
-            ).toString()
+        // Determine if photo is required based on findings
+        val ripeValue = pageData.ripe
+        val buahM1Value = pageData.buahM1
+        val buahM2Value = pageData.buahM2
+        val brdKtpValue = pageData.brdKtp
+        val emptyTreeValue = pageData.emptyTree
 
-            val fullImagePath = File(rootApp, pageData.photo).absolutePath
+        val hasFindings = (emptyTreeValue == 1) ||
+                (ripeValue > 0) ||
+                (buahM1Value > 0) ||
+                (buahM2Value > 0) ||
+                (brdKtpValue > 50)
 
-            AppLogger.d("Path Photo - pageNumber: $pageNumber")
-            AppLogger.d("pageData.photo: ${pageData.photo}")
-            AppLogger.d("fullImagePath: $fullImagePath")
+        // Handle photo availability and card visibility based on findings
+        if (hasFindings) {
+            // Show FOTO card when findings exist
+            if (!pageData.photo.isNullOrEmpty()) {
+                // Build correct path for pageData photo
+                val rootApp = File(
+                    getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                    "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksi}"
+                ).toString()
 
-            val file = File(fullImagePath)
-            if (file.exists()) {
-                try {
-                    val bitmap = BitmapFactory.decodeFile(fullImagePath)
-                    if (bitmap != null) {
-                        // Show the actual image preview in the small ImageView
-                        ivPokokPhoto.setImageBitmap(bitmap)
-                        ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_CROP
+                val fullImagePath = File(rootApp, pageData.photo).absolutePath
 
-                        cardFoto.visibility = View.VISIBLE
-                        AppLogger.d("Path image loaded successfully for pokok $pageNumber")
+                AppLogger.d("Path Photo - pageNumber: $pageNumber")
+                AppLogger.d("pageData.photo: ${pageData.photo}")
+                AppLogger.d("fullImagePath: $fullImagePath")
 
-                        // Add click listener to FOTO CARD for full screen
-                        cardFoto.setOnClickListener {
-                            showFullScreenPhoto(fullImagePath, "Pokok $pageNumber")
+                val file = File(fullImagePath)
+                if (file.exists()) {
+                    try {
+                        val bitmap = BitmapFactory.decodeFile(fullImagePath)
+                        if (bitmap != null) {
+                            // Show the actual image preview in the small ImageView
+                            ivPokokPhoto.setImageBitmap(bitmap)
+                            ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_CROP
+
+                            cardFoto.visibility = View.VISIBLE
+                            AppLogger.d("Path image loaded successfully for pokok $pageNumber")
+
+                            // Add click listener to FOTO CARD for full screen
+                            cardFoto.setOnClickListener {
+                                showFullScreenPhoto(fullImagePath, "Pokok $pageNumber")
+                            }
+                        } else {
+                            AppLogger.e("Failed to decode bitmap for pokok $pageNumber")
+                            // Show camera icon as fallback
+                            ivPokokPhoto.setImageResource(R.drawable.baseline_image_not_supported_24)
+                            ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                            cardFoto.visibility = View.VISIBLE
                         }
-                    } else {
-                        AppLogger.e("Failed to decode bitmap for pokok $pageNumber")
+                    } catch (e: Exception) {
+                        AppLogger.e("Error loading path image for pokok $pageNumber: ${e.message}")
                         // Show camera icon as fallback
                         ivPokokPhoto.setImageResource(R.drawable.baseline_image_not_supported_24)
                         ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
                         cardFoto.visibility = View.VISIBLE
                     }
-                } catch (e: Exception) {
-                    AppLogger.e("Error loading path image for pokok $pageNumber: ${e.message}")
-                    // Show camera icon as fallback
-                    ivPokokPhoto.setImageResource(R.drawable.baseline_image_not_supported_24)
-                    ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
-                    cardFoto.visibility = View.VISIBLE
+                } else {
+                    cardFoto.visibility = View.GONE
                 }
             } else {
-                AppLogger.e("Path image file not found: $fullImagePath")
-                // Show camera icon as fallback
+                // No photo available but findings exist - show camera icon (needs photo)
                 ivPokokPhoto.setImageResource(R.drawable.baseline_image_not_supported_24)
                 ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
                 cardFoto.visibility = View.VISIBLE
             }
         } else {
+            // No significant findings - hide FOTO card completely
             cardFoto.visibility = View.GONE
+            AppLogger.d("FOTO card hidden - no significant findings for pokok $pageNumber")
         }
 
         // Add click listener to Telusuri card (for future detail functionality)
         cardTelusuri.setOnClickListener {
-            // Handle detail exploration functionality here
-            // You can implement this later based on your requirements
-            AppLogger.d("Telusuri clicked for pokok $pageNumber")
+            AppLogger.d("Edit clicked for pokok $pageNumber")
+
+            // Close the bottom sheet first
+            bottomSheetDialog?.dismiss()
+
+            // 🚀 TRIGGER THE NAVIGATION PROGRAMMATICALLY
+            // This will trigger bottomNavInspect.setOnItemSelectedListener automatically
+            bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
+
+            // Wait a bit for navigation to complete, then navigate to specific pokok
+            Handler(Looper.getMainLooper()).postDelayed({
+                // Set current page to the clicked pokok number
+                formAncakViewModel.setCurrentPage(pageNumber)
+
+                // Update ViewPager to show the correct page
+                vpFormAncak.setCurrentItem(pageNumber - 1, true)
+
+                AppLogger.d("Navigated to pokok $pageNumber in form")
+            }, 500) // Increased delay to let navigation finish first
         }
 
         // Add detail rows dynamically (only show non-zero values)
@@ -2497,9 +2532,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
             llDetailsList.addView(emptyText, emptyTextLayoutParams)
-
-            // Hide FOTO card when there's no data
-            cardFoto.visibility = View.GONE
         }
 
         return cardView

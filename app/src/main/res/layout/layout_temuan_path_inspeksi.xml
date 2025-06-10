@@ -47,7 +47,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
-                    app1:cardBackgroundColor="@color/orangeButton"
+                    app1:cardBackgroundColor="@color/orange"
                     app1:cardCornerRadius="12dp"
                     app1:cardElevation="2dp"
                     app1:strokeColor="@color/graydarker"
@@ -67,6 +67,7 @@
                             android:layout_marginEnd="6dp"
                             android:src="@drawable/baseline_image_not_supported_24"
                             android:tint="@color/white"
+                            android:tintMode="src_in"
                             android:contentDescription="Foto Icon"
                             android:scaleType="centerCrop" />
 

@@ -115,6 +115,11 @@ class FormAncakViewModel : ViewModel() {
         }
     }
 
+    fun setCurrentPage(pageNumber: Int) {
+        _currentPage.value = pageNumber
+        AppLogger.d("Current page set to: $pageNumber")
+    }
+
     fun updatePokokDataWithLocationAndGetTrackingStatus(pokokNumber: Int, lat: Double?, lon: Double?): Boolean {
         val currentData = getPageData(pokokNumber) ?: PageData()
 
