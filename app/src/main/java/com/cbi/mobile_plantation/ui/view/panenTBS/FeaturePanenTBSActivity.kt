@@ -276,7 +276,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private var jabatanUser: String? = null
 
     // This should be defined at the class level
-    private data class TPHData(val count: Int, val jenisTPHId: Int, val limitTPH: String? = null)
+    private data class TPHData(
+        val count: Int,
+        val jenisTPHId: Int,
+        val limitTPH: String? = null,
+        val workerNiks: List<String> = emptyList(),
+        val blokKode: String? = null,
+        val nomor: String? = null
+    )
 
     private var panenStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
     private var radiusMinimum = 0F
@@ -391,21 +398,34 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             list?.forEach { panen ->
                                 val tphId = panen.tph?.id
                                 val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
-                                val limitTPH =
-                                    panen.tph?.limit_tph  // Extract limit_tph directly from panen.tph
+                                val limitTPH = panen.tph?.limit_tph
+                                val workerNiks =
+                                    panen.panen.karyawan_nik?.split(",")?.map { it.trim() }
+                                        ?: emptyList()
+                                val blokKode = panen.tph!!.blok_kode
+                                val nomor = panen.tph.nomor
 
                                 if (tphId != null && jenisTPHId != null) {
                                     val existingData = tphDataMap[tphId]
                                     if (existingData != null) {
-                                        // Increment the count for existing TPH
-                                        tphDataMap[tphId] =
-                                            existingData.copy(count = existingData.count + 1)
+                                        // Merge worker NIKs and increment count
+                                        val mergedNiks =
+                                            (existingData.workerNiks + workerNiks).distinct()
+                                        tphDataMap[tphId] = existingData.copy(
+                                            count = existingData.count + 1,
+                                            workerNiks = mergedNiks,
+                                            blokKode = blokKode,
+                                            nomor = nomor
+                                        )
                                     } else {
-                                        // Create new entry for this TPH with the limit_tph
+                                        // Create new entry for this TPH
                                         tphDataMap[tphId] = TPHData(
                                             count = 1,
                                             jenisTPHId = jenisTPHId,
-                                            limitTPH = limitTPH!!
+                                            limitTPH = limitTPH!!,
+                                            workerNiks = workerNiks,
+                                            blokKode = blokKode,
+                                            nomor = nomor
                                         )
                                     }
                                 }
@@ -642,141 +662,174 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     function = {
                         lifecycleScope.launch(Dispatchers.Main) {
                             try {
-                                val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
 
-                                AppLogger.d(selectedPemanen.toString())
-                                AppLogger.d(karyawanNamaMap.toString())
-                                val idKaryawanList = selectedPemanen.mapNotNull { worker ->
-                                    // First try to get ID using the full name (with NIK if present)
+                                val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
+                                val selectedPemanenLain = selectedPemanenLainAdapter.getSelectedWorkers()
+
+                                val allSelectedWorkers = (selectedPemanen + selectedPemanenLain)
+                                val uniqueWorkersByNik = mutableMapOf<String, Worker>()
+
+                                allSelectedWorkers.forEach { worker ->
+                                    val nik = if (worker.name.contains(" - ")) {
+                                        // Find the LAST occurrence of " - " to extract NIK
+                                        val lastDashIndex = worker.name.lastIndexOf(" - ")
+                                        if (lastDashIndex != -1) {
+                                            val potentialNik = worker.name.substring(lastDashIndex + 3).trim()
+                                            // Verify it's actually a numeric NIK
+                                            if (potentialNik.all { it.isDigit() }) {
+                                                potentialNik
+                                            } else {
+                                                worker.name // fallback if last segment is not numeric
+                                            }
+                                        } else {
+                                            worker.name
+                                        }
+                                    } else {
+                                        worker.name
+                                    }
+
+                                    // Only keep the first occurrence of each NIK
+                                    if (!uniqueWorkersByNik.containsKey(nik)) {
+                                        uniqueWorkersByNik[nik] = worker
+                                    }
+                                }
+
+                                val uniqueWorkers = uniqueWorkersByNik.values.toList()
+
+                                AppLogger.d("Unique workers after deduplication: ${uniqueWorkers.map { it.name }}")
+
+                                // Helper function to extract name without NIK
+                                fun getNameWithoutNik(fullName: String): String {
+                                    val lastDashIndex = fullName.lastIndexOf(" - ")
+                                    return if (lastDashIndex != -1) {
+                                        val potentialNik = fullName.substring(lastDashIndex + 3).trim()
+                                        // Only remove if the last part is actually a numeric NIK
+                                        if (potentialNik.all { it.isDigit() }) {
+                                            fullName.substring(0, lastDashIndex).trim()
+                                        } else {
+                                            fullName
+                                        }
+                                    } else {
+                                        fullName
+                                    }
+                                }
+
+// Now process the unique workers
+                                val idKaryawanList = uniqueWorkers.mapNotNull { worker ->
                                     var id = karyawanIdMap[worker.name]
 
-                                    // If that fails and the name contains a NIK separator, try with just the base name
                                     if (id == null && worker.name.contains(" - ")) {
-                                        val baseName = worker.name.substringBefore(" - ").trim()
+                                        val baseName = getNameWithoutNik(worker.name)
                                         id = karyawanIdMap[baseName]
                                     }
 
-                                    // If that still fails and we don't have a NIK separator, try all possible matches
-                                    // that start with this name (handles case where map has "NAME - NIK" but worker just has "NAME")
                                     if (id == null && !worker.name.contains(" - ")) {
-                                        // Find any key in the map that starts with this worker's name followed by " - "
-                                        val possibleKey =
-                                            karyawanIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                                        val possibleKey = karyawanIdMap.keys.find { it.startsWith("${worker.name} - ") }
                                         if (possibleKey != null) {
                                             id = karyawanIdMap[possibleKey]
                                         }
                                     }
 
-                                    id
-                                }
-                                val kemandoranIdList = selectedPemanen.mapNotNull { worker ->
-                                    var id = kemandoranIdMap[worker.name]
-
-                                    // If that fails and the name contains a NIK separator, try with just the base name
-                                    if (id == null && worker.name.contains(" - ")) {
-                                        val baseName = worker.name.substringBefore(" - ").trim()
-                                        id = kemandoranIdMap[baseName]
-                                    }
-
-                                    if (id == null && !worker.name.contains(" - ")) {
-
-                                        val possibleKey =
-                                            kemandoranIdMap.keys.find { it.startsWith("${worker.name} - ") }
-                                        if (possibleKey != null) {
-                                            id = kemandoranIdMap[possibleKey]
+                                    // If still not found, try karyawanLainIdMap
+                                    if (id == null) {
+                                        id = karyawanLainIdMap[worker.name]
+                                        if (id == null && worker.name.contains(" - ")) {
+                                            val baseName = getNameWithoutNik(worker.name)
+                                            id = karyawanLainIdMap[baseName]
+                                        }
+                                        if (id == null && !worker.name.contains(" - ")) {
+                                            val possibleKey = karyawanLainIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                                            if (possibleKey != null) {
+                                                id = karyawanLainIdMap[possibleKey]
+                                            }
                                         }
                                     }
 
                                     id
                                 }
-                                val selectedNamaPemanenList = selectedPemanen.mapNotNull { worker ->
-                                    // First try to get name using the full worker name (with NIK if present)
+
+                                val kemandoranIdList = uniqueWorkers.mapNotNull { worker ->
+                                    var id = kemandoranIdMap[worker.name]
+
+                                    if (id == null && worker.name.contains(" - ")) {
+                                        val baseName = getNameWithoutNik(worker.name)
+                                        id = kemandoranIdMap[baseName]
+                                    }
+
+                                    if (id == null && !worker.name.contains(" - ")) {
+                                        val possibleKey = kemandoranIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                                        if (possibleKey != null) {
+                                            id = kemandoranIdMap[possibleKey]
+                                        }
+                                    }
+
+                                    // If still not found, try kemandoranLainIdMap
+                                    if (id == null) {
+                                        id = kemandoranLainIdMap[worker.name]
+                                        if (id == null && worker.name.contains(" - ")) {
+                                            val baseName = getNameWithoutNik(worker.name)
+                                            id = kemandoranLainIdMap[baseName]
+                                        }
+                                        if (id == null && !worker.name.contains(" - ")) {
+                                            val possibleKey = kemandoranLainIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                                            if (possibleKey != null) {
+                                                id = kemandoranLainIdMap[possibleKey]
+                                            }
+                                        }
+                                    }
+
+                                    id
+                                }
+
+                                val selectedNamaList = uniqueWorkers.mapNotNull { worker ->
                                     var nama = karyawanNamaMap[worker.name]
 
-                                    // If that fails and the name contains a NIK separator, extract the name part (everything except the last segment after " - ")
                                     if (nama == null && worker.name.contains(" - ")) {
-                                        val segments = worker.name.split(" - ")
-                                        // Get everything except the last segment (which should be the NIK)
-                                        val nameWithoutNik = segments.dropLast(1).joinToString(" - ")
+                                        val nameWithoutNik = getNameWithoutNik(worker.name)
                                         nama = karyawanNamaMap[nameWithoutNik]
                                     }
 
-                                    // If that still fails and we don't have a NIK separator, try all possible matches
                                     if (nama == null && !worker.name.contains(" - ")) {
-                                        // Find any key in the map that starts with this worker's name followed by " - "
                                         val possibleKey = karyawanNamaMap.keys.find { it.startsWith("${worker.name} - ") }
                                         if (possibleKey != null) {
                                             nama = karyawanNamaMap[possibleKey]
                                         } else {
-                                            // If all else fails, use the worker name itself
                                             nama = worker.name
+                                        }
+                                    }
+
+                                    // If still not found, try karyawanNamaLainMap
+                                    if (nama == null) {
+                                        nama = karyawanNamaLainMap[worker.name]
+                                        if (nama == null && worker.name.contains(" - ")) {
+                                            val nameWithoutNik = getNameWithoutNik(worker.name)
+                                            nama = karyawanNamaLainMap[nameWithoutNik]
+                                        }
+                                        if (nama == null && !worker.name.contains(" - ")) {
+                                            val possibleKey = karyawanNamaLainMap.keys.find { it.startsWith("${worker.name} - ") }
+                                            if (possibleKey != null) {
+                                                nama = karyawanNamaLainMap[possibleKey]
+                                            } else {
+                                                nama = getNameWithoutNik(worker.name) // Use the clean name without NIK
+                                            }
                                         }
                                     }
 
                                     nama
                                 }
 
-                                val selectedPemanenLain =
-                                    selectedPemanenLainAdapter.getSelectedWorkers()
-
-                                val workerLainNameCounts = mutableMapOf<String, Int>()
-                                selectedPemanenLain.forEach { worker ->
-                                    val baseName = worker.name.substringBefore(" - ").trim()
-                                    workerLainNameCounts[baseName] =
-                                        (workerLainNameCounts[baseName] ?: 0) + 1
-                                }
-
-                                val idKaryawanLainList = selectedPemanenLain.mapNotNull { worker ->
-                                    val baseName = worker.name.substringBefore(" - ").trim()
-
-                                    if (workerLainNameCounts[baseName]!! > 1) {
-                                        // For duplicate names, use the full key with NIK
-                                        karyawanLainIdMap[worker.name]
-                                    } else {
-                                        // For unique names, just use the base name
-                                        karyawanLainIdMap[baseName]
-                                    }
-                                }
-
-                                val kemandoranLainIdList =
-                                    selectedPemanenLain.mapNotNull { worker ->
-                                        val baseName = worker.name.substringBefore(" - ").trim()
-
-                                        if (workerLainNameCounts[baseName]!! > 1) {
-                                            // For duplicate names, use the full key with NIK
-                                            kemandoranLainIdMap[worker.name]
-                                        } else {
-                                            // For unique names, just use the base name
-                                            kemandoranLainIdMap[baseName]
-                                        }
-                                    }
-
-                                val selectedNamaPemanenLainList =
-                                    selectedPemanenLain.mapNotNull { worker ->
-                                        // Extract the name part (everything except the last segment after " - ")
-                                        val segments = worker.name.split(" - ")
-                                        val baseName = if (segments.size > 1) {
-                                            segments.dropLast(1).joinToString(" - ").trim()
-                                        } else {
-                                            worker.name.trim()
-                                        }
-
-                                        if (workerLainNameCounts[baseName]!! > 1) {
-                                            // For duplicate names, use the full key with NIK
-                                            karyawanNamaLainMap[worker.name]
-                                        } else {
-                                            // For unique names, just use the base name
-                                            karyawanNamaLainMap[baseName]
-                                                ?: baseName  // Fallback to baseName if not in map
-                                        }
-                                    }
-
-                                val selectedNikPemanenIds = selectedPemanen.mapNotNull { worker ->
+                                val selectedNikList = uniqueWorkers.mapNotNull { worker ->
                                     if (worker.name.contains(" - ")) {
-                                        // Find the last occurrence of " - " to extract only the NIK
+                                        // Find the LAST occurrence of " - " to extract NIK
                                         val lastDashIndex = worker.name.lastIndexOf(" - ")
                                         if (lastDashIndex != -1) {
-                                            worker.name.substring(lastDashIndex + 3).trim()
+                                            val potentialNik = worker.name.substring(lastDashIndex + 3).trim()
+                                            // Only return if it's actually a numeric NIK
+                                            if (potentialNik.all { it.isDigit() }) {
+                                                potentialNik
+                                            } else {
+                                                null
+                                            }
                                         } else {
                                             null
                                         }
@@ -785,36 +838,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     }
                                 }
 
-                                val selectedNikPemanenLainIds =
-                                    selectedPemanenLain.mapNotNull { worker ->
-                                        if (worker.name.contains(" - ")) {
-                                            // Find the last occurrence of " - " to extract only the NIK
-                                            val lastDashIndex = worker.name.lastIndexOf(" - ")
-                                            if (lastDashIndex != -1) {
-                                                worker.name.substring(lastDashIndex + 3).trim()
-                                            } else {
-                                                null
-                                            }
-                                        } else {
-                                            null
-                                        }
-                                    }
 
-                                val uniqueNamaPemanen =
-                                    (selectedNamaPemanenList + selectedNamaPemanenLainList)
-                                        .joinToString(",")
+                                val uniqueNamaPemanen = selectedNamaList.joinToString(",")
+                                val uniqueNikPemanen = selectedNikList.joinToString(",")
+                                val uniqueIdKaryawan = idKaryawanList.map { it.toString() }.joinToString(",")
+                                val uniqueKemandoranId = kemandoranIdList.map { it.toString() }.joinToString(",")
 
-                                val uniqueNikPemanen =
-                                    (selectedNikPemanenIds + selectedNikPemanenLainIds)
-                                        .joinToString(",")
-
-                                val uniqueIdKaryawan = (idKaryawanList + idKaryawanLainList)
-                                    .map { it.toString() }
-                                    .joinToString(",")
-
-                                val uniqueKemandoranId = (kemandoranIdList + kemandoranLainIdList)
-                                    .map { it.toString() }
-                                    .joinToString(",")
+                                AppLogger.d("Final counts:")
+                                AppLogger.d("Names: ${selectedNamaList.size}")
+                                AppLogger.d("NIKs: ${selectedNikList.size}")
+                                AppLogger.d("IDs: ${idKaryawanList.size}")
+                                AppLogger.d("Kemandoran IDs: ${kemandoranIdList.size}")
                                 val photoFilesString = photoFiles.joinToString(";")
                                 val komentarFotoString = komentarFoto.joinToString(";")
                                     .takeIf { it.isNotBlank() && it != ";" && !it.matches(Regex("^;+$")) }
@@ -949,20 +983,31 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             val tphId = selectedTPHValue!!.toInt()
                                             val tphData = panenStoredLocal[tphId]
 
+                                            val currentWorkerNiks = uniqueNikPemanen.split(",").map { it.trim() }
+                                                .filter { it.isNotEmpty() }
+
                                             if (tphData != null) {
-                                                // Update existing entry, maintain the same jenisTPHId and limitTPH
-                                                panenStoredLocal[tphId] =
-                                                    tphData.copy(count = tphData.count + 1)
+                                                val mergedNiks =
+                                                    (tphData.workerNiks + currentWorkerNiks).distinct()
+                                                panenStoredLocal[tphId] = tphData.copy(
+                                                    count = tphData.count + 1,
+                                                    workerNiks = mergedNiks,
+                                                    blokKode = selectedBlok,
+                                                    nomor = selectedTPH
+                                                )
                                             } else {
                                                 // Create new entry
                                                 val jenisTPHId = selectedTPHJenisId ?: 0
-
                                                 val limitTPH =
                                                     tphList.find { it.id == tphId }?.limit_tph
+
                                                 panenStoredLocal[tphId] = TPHData(
                                                     count = 1,
                                                     jenisTPHId = jenisTPHId,
-                                                    limitTPH = limitTPH
+                                                    limitTPH = limitTPH,
+                                                    workerNiks = currentWorkerNiks,
+                                                    blokKode = selectedBlok,
+                                                    nomor = selectedTPH
                                                 )
                                             }
 
@@ -1939,13 +1984,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         }
 
                         R.id.layoutPemanen -> {
-                            // Prepare the data but don't show the dropdown yet
                             if (karyawanList.isNotEmpty()) {
                                 val karyawanNames = karyawanList
                                     .sortedBy { it.nama }
                                     .map { "${it.nama} - ${it.nik ?: "N/A"}" }
                                 setupSpinnerView(layoutView, karyawanNames)
-                                // Initially hidden - will be shown when needed
                                 layoutView.visibility = View.GONE
                             } else {
                                 setupSpinnerView(layoutView, emptyList())
@@ -4268,7 +4311,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }
 
                 val selectedTPHObject = try {
-                    // Determine which estate ID to use
                     val estateIdToUse =
                         if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
                             selectedEstate.toIntOrNull()
@@ -4277,7 +4319,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         }
 
                     tphList?.find {
-                        it.dept == estateIdToUse && // Using conditional estate ID
+                        it.dept == estateIdToUse &&
                                 it.divisi == selectedDivisiValue &&
                                 it.blok == selectedBlokValue &&
                                 it.tahun == selectedTahunTanamValue &&
@@ -4291,20 +4333,61 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 if (selectedTPHObject != null) {
                     selectedTPHValue = selectedTPHObject.id
 
-                    // Set the selectedTPHJenisId based on the TPH's jenis_tph_id
                     val tphJenisId = selectedTPHObject.jenis_tph_id?.toIntOrNull() ?: 0
                     selectedTPHJenisId = jenisTPHListGlobal.find { it.id == tphJenisId }?.id
 
                     AppLogger.d("Selected TPH ID: $selectedTPHValue")
                     AppLogger.d("Selected TPH Jenis ID: $selectedTPHJenisId")
+
+                    // Check if this TPH combination already has stored workers
+                    val existingTPHData = panenStoredLocal.values.find { tphData ->
+                        tphData.blokKode == selectedBlok && tphData.nomor == selectedTPH
+                    }
+
+                    if (existingTPHData != null && existingTPHData.workerNiks.isNotEmpty()) {
+                        // Remove workers that already exist in panenStoredLocal for this blok/nomor
+                        val currentPemanenWorkers = selectedPemanenAdapter.getSelectedWorkers().toMutableList()
+                        val currentPemanenLainWorkers = selectedPemanenLainAdapter.getSelectedWorkers().toMutableList()
+
+                        // Clear adapters temporarily
+                        selectedPemanenAdapter.clearAllWorkers()
+                        selectedPemanenLainAdapter.clearAllWorkers()
+
+                        // Re-add workers that are NOT in the existing stored data
+                        currentPemanenWorkers.forEach { worker ->
+                            val workerNik = extractNikFromWorkerName(worker.name) // You'll need this helper function
+                            if (!existingTPHData.workerNiks.contains(workerNik)) {
+                                selectedPemanenAdapter.addWorker(worker)
+                            }
+                        }
+
+                        currentPemanenLainWorkers.forEach { worker ->
+                            val workerNik = extractNikFromWorkerName(worker.name) // You'll need this helper function
+                            if (!existingTPHData.workerNiks.contains(workerNik)) {
+                                selectedPemanenLainAdapter.addWorker(worker)
+                            }
+                        }
+
+                        // Update spinner views
+                        val availablePemanenWorkers = selectedPemanenAdapter.getAvailableWorkers()
+                        if (availablePemanenWorkers.isNotEmpty()) {
+                            setupSpinnerView(linearLayout, availablePemanenWorkers.map { it.name })
+                        }
+
+                        val availablePemanenLainWorkers = selectedPemanenLainAdapter.getAvailableWorkers()
+                        if (availablePemanenLainWorkers.isNotEmpty()) {
+                            setupSpinnerView(linearLayout, availablePemanenLainWorkers.map { it.name })
+                        }
+                    }
+
                 } else {
                     selectedTPHValue = null
                     selectedTPHJenisId = null
                     AppLogger.e("Selected TPH object is null, skipping processing.")
                 }
             }
-//
-//
+
+
             R.id.layoutKemandoran -> {
                 selectedKemandoran = selectedItem.toString()
                 selectedKemandoranIdSpinner = position
@@ -4459,8 +4542,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         if (potentialNik.all { it.isDigit() }) potentialNik else ""
                     } else ""
 
-                AppLogger.d("Extracted NIK: $selectedNik")
-
                 // Find the selected employee in karyawanList
                 var selectedEmployee = karyawanList.firstOrNull {
                     it.nik == selectedNik || it.nama?.trim()
@@ -4484,49 +4565,58 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     }
                 }
 
-                // Process the karyawan list to build the maps
-                val nameCounts = mutableMapOf<String, Int>()
-                karyawanList.forEach {
-                    it.nama?.trim()?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 }
-                }
-
-                // Building the maps based on existing list
-                karyawanList.forEach {
-                    it.nama?.trim()?.let { nama ->
-                        val key = if (nameCounts[nama]!! > 1) {
-                            "$nama - ${it.nik}"
-                        } else {
-                            nama
-                        }
-                        karyawanIdMap[key] = it.id!!
-                        kemandoranIdMap[key] = it.kemandoran_id!!
-                        karyawanNamaMap[key] = nama  // Store the actual name without NIK
-                    }
-                }
-
-                // Explicitly ensure the selected employee is in the maps
                 if (selectedEmployee != null) {
-                    // Get clean name of selected employee
+                    val isWorkerAlreadyExists = panenStoredLocal.values.any { tphData ->
+                        tphData.blokKode == selectedBlok &&
+                                tphData.nomor == selectedTPH &&
+                                tphData.workerNiks.contains(selectedEmployee!!.nik)
+                    }
+
+                    if (isWorkerAlreadyExists) {
+                        Toasty.error(
+                            this@FeaturePanenTBSActivity,
+                            "Nama pemanen ${selectedEmployee.nama} sudah panen di nomor TPH ini",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        return
+                    }
+
+                    // Process the karyawan list to build the maps (existing code)
+                    val nameCounts = mutableMapOf<String, Int>()
+                    karyawanList.forEach {
+                        it.nama?.trim()
+                            ?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 }
+                    }
+
+                    // Building the maps based on existing list
+                    karyawanList.forEach {
+                        it.nama?.trim()?.let { nama ->
+                            val key = if (nameCounts[nama]!! > 1) {
+                                "$nama - ${it.nik}"
+                            } else {
+                                nama
+                            }
+                            karyawanIdMap[key] = it.id!!
+                            kemandoranIdMap[key] = it.kemandoran_id!!
+                            karyawanNamaMap[key] = nama
+                        }
+                    }
+
+                    // Explicitly ensure the selected employee is in the maps
                     val employeeName = selectedEmployee.nama?.trim() ?: ""
-                    // Get name without NIK from selection
                     val selectionName = if (lastDashIndex != -1) {
                         selectedPemanen.substring(0, lastDashIndex).trim()
                     } else {
                         selectedPemanen.trim()
                     }
 
-                    // Make sure employee is in both maps by both the full selection name and the clean name
                     karyawanIdMap[selectedPemanen] = selectedEmployee.id!!
                     kemandoranIdMap[selectedPemanen] = selectedEmployee.kemandoran_id!!
-
                     karyawanIdMap[selectionName] = selectedEmployee.id!!
                     kemandoranIdMap[selectionName] = selectedEmployee.kemandoran_id!!
-
                     karyawanIdMap[employeeName] = selectedEmployee.id!!
                     kemandoranIdMap[employeeName] = selectedEmployee.kemandoran_id!!
-                }
 
-                if (selectedEmployee != null) {
                     val worker = Worker(selectedEmployee.id.toString(), selectedPemanen)
                     selectedPemanenAdapter.addWorker(worker)
                     val availableWorkers = selectedPemanenAdapter.getAvailableWorkers()
@@ -4739,25 +4829,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             }
 
             R.id.layoutPemanenLain -> {
-                selectedPemanenLain = selectedItem.toString()
+                selectedPemanenLain = selectedItem
 
-                // Improved NIK extraction - look for the last occurrence of " - " followed by numbers
                 val lastDashIndex = selectedPemanenLain.lastIndexOf(" - ")
                 val selectedNik =
                     if (lastDashIndex != -1 && lastDashIndex < selectedPemanenLain.length - 3) {
                         val potentialNik = selectedPemanenLain.substring(lastDashIndex + 3).trim()
-                        // Verify if it's a numeric NIK
                         if (potentialNik.all { it.isDigit() }) {
                             potentialNik
                         } else {
-                            // If not numeric, try to find the NIK in the karyawan list by name
                             val matchingKaryawan = karyawanLainList.firstOrNull {
                                 it.nama?.trim() == selectedPemanenLain.trim()
                             }
                             matchingKaryawan?.nik ?: ""
                         }
                     } else {
-                        // If no dash, try to find the NIK in the karyawan list by name
                         val matchingKaryawan = karyawanLainList.firstOrNull {
                             it.nama?.trim() == selectedPemanenLain.trim()
                         }
@@ -4771,37 +4857,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 val nikToEmployeeMap = karyawanLainList.filter { it.nik != null }
                     .associateBy { it.nik!! }
 
-                // Create name counts for duplicate handling
-                val nameCounts = mutableMapOf<String, Int>()
-                karyawanLainList.forEach {
-                    it.nama?.trim()?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 }
-                }
-
-                // Set up maps with proper keys
-                karyawanLainList.forEach {
-                    it.nama?.trim()?.let { nama ->
-                        val key = if (nameCounts[nama]!! > 1) {
-                            "$nama - ${it.nik}"
-                        } else {
-                            nama
-                        }
-                        karyawanLainIdMap[key] = it.id!!
-                        kemandoranLainIdMap[key] = it.kemandoran_id!!
-                        karyawanNamaLainMap[key] = nama
-                    }
-                }
-
-                // Try to find the employee by NIK first
+                // Try to find the employee
                 var selectedEmployee = nikToEmployeeMap[selectedNik]
 
-                // If not found by NIK, try to find by full name
                 if (selectedEmployee == null) {
                     selectedEmployee = karyawanLainList.firstOrNull {
                         it.nama?.trim() == selectedPemanenLain.trim()
                     }
                 }
 
-                // If still not found, try to find by name without the NIK part
                 if (selectedEmployee == null && lastDashIndex != -1) {
                     val nameWithoutNik = selectedPemanenLain.substring(0, lastDashIndex).trim()
                     selectedEmployee = karyawanLainList.firstOrNull {
@@ -4810,6 +4874,43 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }
 
                 if (selectedEmployee != null) {
+                    // Check if worker already exists in panenStoredLocal for current blok and nomor
+                    val isWorkerAlreadyExists = panenStoredLocal.values.any { tphData ->
+                        tphData.blokKode == selectedBlok &&
+                                tphData.nomor == selectedTPH &&
+                                tphData.workerNiks.contains(selectedEmployee.nik)
+                    }
+
+                    if (isWorkerAlreadyExists) {
+                        Toasty.error(
+                            this@FeaturePanenTBSActivity,
+                            "Nama pemanen ${selectedEmployee.nama} sudah panen di nomor TPH ini",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        return
+                    }
+
+                    // Create name counts for duplicate handling
+                    val nameCounts = mutableMapOf<String, Int>()
+                    karyawanLainList.forEach {
+                        it.nama?.trim()
+                            ?.let { nama -> nameCounts[nama] = (nameCounts[nama] ?: 0) + 1 }
+                    }
+
+                    // Set up maps with proper keys
+                    karyawanLainList.forEach {
+                        it.nama?.trim()?.let { nama ->
+                            val key = if (nameCounts[nama]!! > 1) {
+                                "$nama - ${it.nik}"
+                            } else {
+                                nama
+                            }
+                            karyawanLainIdMap[key] = it.id!!
+                            kemandoranLainIdMap[key] = it.kemandoran_id!!
+                            karyawanNamaLainMap[key] = nama
+                        }
+                    }
+
                     val worker = Worker(selectedEmployee.toString(), selectedPemanenLain)
                     selectedPemanenLainAdapter.addWorker(worker)
 
@@ -5522,6 +5623,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
     }
 
+    private fun extractNikFromWorkerName(workerName: String): String {
+        val lastDashIndex = workerName.lastIndexOf(" - ")
+        return if (lastDashIndex != -1 && lastDashIndex < workerName.length - 3) {
+            val potentialNik = workerName.substring(lastDashIndex + 3).trim()
+            if (potentialNik.all { it.isDigit() }) potentialNik else ""
+        } else ""
+    }
 
     // Helper function to find ScrollView
     private fun findScrollView(view: View): ScrollView? {
