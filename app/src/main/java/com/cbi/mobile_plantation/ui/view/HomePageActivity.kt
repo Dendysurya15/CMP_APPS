@@ -5085,7 +5085,6 @@ class HomePageActivity : AppCompatActivity() {
 
 
         if (isTriggerFeatureInspection && (isMandor1 || isAsisten)) {
-            AppLogger.d("kalsjdflkajslf")
             AppLogger.d(isTriggerFeatureInspection.toString())
             datasets.add(
                 DatasetRequest(

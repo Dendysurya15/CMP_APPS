@@ -9,5 +9,6 @@ data class EstateModel(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val id_ppro: Int?,
     val abbr: String?,
-    val nama: String?
+    val nama: String?,
+    val tph_otomatis: Int?,
 )

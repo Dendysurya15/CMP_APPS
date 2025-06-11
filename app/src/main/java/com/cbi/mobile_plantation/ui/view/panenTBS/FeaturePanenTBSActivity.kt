@@ -155,7 +155,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private var finalLat: Double? = null
     private var finalLon: Double? = null
     private var selectedTPHIdByScan: Int? = null
-
+    private var tph_otomatis_estate: Int? = null
     var currentAccuracy: Float = 0F
     private var prefManager: PrefManager? = null
     private val _masterEstateChoice = MutableLiveData<Map<String, Boolean>>(mutableMapOf())
@@ -526,6 +526,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         }
                     }
 
+
+                    val tphOtomatisDeferred = async {
+                        try {
+                            val estateAbbr = prefManager!!.estateUserLogin
+                            datasetViewModel.getTphOtomatisByEstate(estateAbbr!!)
+                        } catch (e: Exception) {
+                            AppLogger.e("Error fetching tph_otomatis: ${e.message}")
+                            null // Return null if error occurs
+                        }
+                    }
+
+                    tph_otomatis_estate = tphOtomatisDeferred.await()
+
                     val divisiDeferred = async {
                         try {
                             datasetViewModel.getDivisiList(estateIdInt)
@@ -536,7 +549,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     }
 
                     divisiList = divisiDeferred.await()
-                    val panenList = panenDeferred.await()
                     val allKaryawan = karyawanDeferred.await()
 
 
@@ -3290,7 +3302,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     }
 
     private fun setupSwitchBlokBanjir() {
+
+        val layoutBlokBanjir= findViewById<LinearLayout>(R.id.layoutBlokBanjir)
         val switchBlokBanjir = findViewById<SwitchMaterial>(R.id.selBlokBanjir)
+
+        layoutBlokBanjir.visibility = View.VISIBLE.takeIf { tph_otomatis_estate != 1 } ?: View.GONE
 
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)

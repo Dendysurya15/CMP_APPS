@@ -103,6 +103,10 @@ class DatasetRepository(
         }
     }
 
+    suspend fun getTphOtomatisByEstate(estateAbbr: String): Int? {
+        return estateDao.getTphOtomatisByAbbr(estateAbbr)
+    }
+
 //    suspend fun getDeptByRegionalAndEstate(estateId: String): List<DeptModel> {
 //        // Fetch dept data by regionalId and estateId
 //        return deptDao.getDeptByCriteria(estateId)
