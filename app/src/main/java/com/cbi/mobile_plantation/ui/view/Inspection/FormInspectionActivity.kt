@@ -1232,7 +1232,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         val tvPhotoComment = incLytPhotosInspect.findViewById<TextView>(R.id.tvPhotoComment)
         val etPhotoComment = incLytPhotosInspect.findViewById<EditText>(R.id.etPhotoComment)
 
-
         if (isInTPH == true) {
             val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
             titlePhotoTemuan.text = "Lampiran Foto di TPH"
@@ -1244,49 +1243,57 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         val photoToShow = if (isInTPH == true) photoInTPH else currentData.photo
 
-        tvPhotoComment.visibility = View.GONE
+        tvPhotoComment.visibility = View.VISIBLE
 
-        ibDeletePhotoInspect.visibility = if (isInTPH == true) {
-            AppLogger.d("photoInTPH $photoInTPH")
-            if (!photoInTPH.isNullOrEmpty()) View.VISIBLE else View.GONE
-        } else {
-            if (currentData.photo != null || currentData.comment != null) View.VISIBLE else View.GONE
-        }
-        ibDeletePhotoInspect.setOnClickListener {
-            AlertDialogUtility.withTwoActions(
-                this,
-                "Hapus",
-                this.getString(R.string.confirmation_dialog_title),
-                "Apakah anda yakin untuk menghapus lampiran ini?",
-                "warning.json",
-                ContextCompat.getColor(this, R.color.greenDarker),
-                function = {
-                    ibDeletePhotoInspect.visibility = View.GONE
-                    ivAddPhoto.setImageResource(R.drawable.baseline_add_a_photo_24)
-                    etPhotoComment.setText("")
-                    etPhotoComment.clearFocus()
+        ibDeletePhotoInspect.visibility = View.GONE
 
-                    if (isInTPH == true) {
-                        // Clear TPH photo
-                        photoInTPH = null
-                    } else {
-                        // Clear form data photo
-                        formAncakViewModel.savePageData(
-                            currentPage,
-                            currentData.copy(
-                                photo = null,
-                                comment = null,
-                            )
-                        )
-                    }
+        val performDeleteAction = {
+            ibDeletePhotoInspect.visibility = View.GONE
+            ivAddPhoto.setImageResource(R.drawable.baseline_add_a_photo_24)
+            etPhotoComment.setText("")
+            etPhotoComment.clearFocus()
 
-                    updatePhotoBadgeVisibility()
-                }
-            )
+            if (isInTPH == true) {
+                // Clear TPH photo
+                photoInTPH = null
+            } else {
+                // Clear form data photo
+                formAncakViewModel.savePageData(
+                    currentPage,
+                    currentData.copy(
+                        photo = null,
+                        comment = null,
+                    )
+                )
+            }
+
+            updatePhotoBadgeVisibility()
+
+            // Close the bottom sheet and reopen it to reflect changes
+            bottomSheetDialog.dismiss()
+            Handler(Looper.getMainLooper()).postDelayed({
+                showViewPhotoBottomSheet(null, isInTPH)
+            }, 100)
         }
 
         if (isInTPH == true) {
+            etPhotoComment.setText("") // or load from photoInTPHComment if you have it
+            etPhotoComment.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(
+                    s: CharSequence?,
+                    start: Int,
+                    count: Int,
+                    after: Int
+                ) {
+                }
 
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    // Handle TPH comment saving here
+                    // You might need to create a variable to store TPH comments
+                    // photoInTPHComment = s?.toString() ?: ""
+                }
+            })
         } else {
             etPhotoComment.setText(currentData.comment)
             etPhotoComment.addTextChangedListener(object : TextWatcher {
@@ -1347,14 +1354,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     }, 100)
                                 },
                                 onDeletePhoto = { pos ->
-                                    ivAddPhoto.setImageResource(R.drawable.baseline_add_a_photo_24)
-                                    formAncakViewModel.savePageData(
-                                        currentPage,
-                                        currentData.copy(photo = "")
-                                    )
-                                    Handler(Looper.getMainLooper()).postDelayed({
-                                        showViewPhotoBottomSheet(null, isInTPH)
-                                    }, 100)
+                                    // Use the common delete function here
+                                    performDeleteAction()
                                 },
                                 onClosePhoto = {
                                     bottomNavInspect.visibility = View.VISIBLE
@@ -1617,21 +1618,21 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 if (activeBottomNavId == R.id.navMenuAncakInspect) {
                     val inspectionType = selectedInspeksiValue.toInt()
-                    if (inspectionType == 1 && emptyTreeValue == 2 && photoValue.isEmpty()) {
-                        vibrate(500)
-
-                        showViewPhotoBottomSheet(null, isInTPH)
-                        AlertDialogUtility.withSingleAction(
-                            this,
-                            stringXML(R.string.al_back),
-                            stringXML(R.string.al_data_not_completed),
-                            "Mohon dapat mengambil foto temuan terlebih dahulu!",
-                            "warning.json",
-                            R.color.colorRedDark
-                        ) {}
-
-                        return@setOnItemSelectedListener false
-                    }
+//                    if (inspectionType == 1 && emptyTreeValue == 2 && photoValue.isEmpty()) {
+//                        vibrate(500)
+//
+//                        showViewPhotoBottomSheet(null, isInTPH)
+//                        AlertDialogUtility.withSingleAction(
+//                            this,
+//                            stringXML(R.string.al_back),
+//                            stringXML(R.string.al_data_not_completed),
+//                            "Mohon dapat mengambil foto temuan terlebih dahulu!",
+//                            "warning.json",
+//                            R.color.colorRedDark
+//                        ) {}
+//
+//                        return@setOnItemSelectedListener false
+//                    }
 
                     if (inspectionType == 2 && emptyTreeValue == 1) {
                         val validationResult =
@@ -1975,7 +1976,14 @@ open class FormInspectionActivity : AppCompatActivity(),
         desJalurMasuk.text = "Jalur Masuk: ${selectedJalurMasuk}"
 
         val desJenisKondisi = findViewById<TextView>(R.id.desJenisKondisi)
-        desJenisKondisi.text = "Jenis Kondisi: ${selectedKondisiValue}"
+
+        val kondisiText = when (selectedKondisiValue) {
+            "1" -> "Datar"
+            "2" -> "Teras"
+            else -> "Tidak Diketahui"
+        }
+
+        desJenisKondisi.text = "Jenis Kondisi: $kondisiText"
 
         val desBr1 = findViewById<TextView>(R.id.desBr1)
         desBr1.text = "Baris Pertama: ${br1Value}"
@@ -2315,7 +2323,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         val llDetailsList = cardView.findViewById<LinearLayout>(R.id.llDetailsList)
 
         // Set pokok number
-        tvPokokNumber.text = "Pokok $pageNumber"
+        tvPokokNumber.text = "Pokok #$pageNumber"
 
         // Determine if photo is required based on findings
         val ripeValue = pageData.ripe
@@ -2355,6 +2363,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                             ivPokokPhoto.setImageBitmap(bitmap)
                             ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_CROP
 
+                            // 🚀 REMOVE THE WHITE TINT FOR ACTUAL PHOTOS
+                            ivPokokPhoto.imageTintList = null
+
                             cardFoto.visibility = View.VISIBLE
                             AppLogger.d("Path image loaded successfully for pokok $pageNumber")
 
@@ -2367,6 +2378,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                             // Show camera icon as fallback
                             ivPokokPhoto.setImageResource(R.drawable.baseline_image_not_supported_24)
                             ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
+
+                            // Keep white tint for the fallback icon
+                            ivPokokPhoto.imageTintList = ContextCompat.getColorStateList(this, R.color.white)
+
                             cardFoto.visibility = View.VISIBLE
                         }
                     } catch (e: Exception) {
@@ -2470,48 +2485,48 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         // Show radio button fields if they have valid values (> 0)
         if (pageData.priority > 0) {
-            llDetailsList.addView(createDetailRow("Prioritas:", getRadioText("priority", pageData.priority)))
+            llDetailsList.addView(createDetailRow("Prioritas", ": ${getRadioText("priority", pageData.priority)}"))
             hasData = true
         }
 
         if (pageData.harvestTree > 0) {
-            llDetailsList.addView(createDetailRow("Pokok di Panen:", getRadioText("harvestTree", pageData.harvestTree)))
+            llDetailsList.addView(createDetailRow("Pokok di Panen", ": ${getRadioText("harvestTree", pageData.harvestTree)}"))
             hasData = true
         }
 
         if (pageData.neatPelepah > 0) {
-            llDetailsList.addView(createDetailRow("Susunan Pelepah:", getRadioText("neatPelepah", pageData.neatPelepah)))
+            llDetailsList.addView(createDetailRow("Susunan Pelepah", ": ${getRadioText("neatPelepah", pageData.neatPelepah)}"))
             hasData = true
         }
 
         if (pageData.pelepahSengkleh > 0) {
-            llDetailsList.addView(createDetailRow("Pelepah Sengkleh:", getRadioText("pelepahSengkleh", pageData.pelepahSengkleh)))
+            llDetailsList.addView(createDetailRow("Pelepah Sengkleh", ": ${getRadioText("pelepahSengkleh", pageData.pelepahSengkleh)}"))
             hasData = true
         }
 
         if (pageData.pruning > 0) {
-            llDetailsList.addView(createDetailRow("Kondisi Pruning:", getRadioText("pruning", pageData.pruning)))
+            llDetailsList.addView(createDetailRow("Kondisi Pruning", ": ${getRadioText("pruning", pageData.pruning)}"))
             hasData = true
         }
 
         // Show numeric fields if they have values > 0
         if (pageData.ripe > 0) {
-            llDetailsList.addView(createDetailRow("Buah Masak Tinggal:", pageData.ripe.toString()))
+            llDetailsList.addView(createDetailRow("Buah Masak Tinggal", pageData.ripe.toString()))
             hasData = true
         }
 
         if (pageData.buahM1 > 0) {
-            llDetailsList.addView(createDetailRow("Buah M1:", pageData.buahM1.toString()))
+            llDetailsList.addView(createDetailRow("Buah M1", pageData.buahM1.toString()))
             hasData = true
         }
 
         if (pageData.buahM2 > 0) {
-            llDetailsList.addView(createDetailRow("Buah M2:", pageData.buahM2.toString()))
+            llDetailsList.addView(createDetailRow("Buah M2", pageData.buahM2.toString()))
             hasData = true
         }
 
         if (pageData.brdKtp > 0) {
-            llDetailsList.addView(createDetailRow("Brondolan:", pageData.brdKtp.toString()))
+            llDetailsList.addView(createDetailRow("Brondolan", pageData.brdKtp.toString()))
             hasData = true
         }
 
@@ -2519,7 +2534,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (!hasData) {
             val emptyText = TextView(this).apply {
                 text = "Tidak ada temuan"
-                textSize = 12f
+                textSize = 15f
                 typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
                 setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.graydarker))
                 gravity = Gravity.CENTER
