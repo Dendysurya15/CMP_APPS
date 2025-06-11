@@ -230,8 +230,8 @@ class CameraRepository(
         komentar: String? = null,
         kodeFoto: String,
         featureName: String?,
-        latitude: Double?=null,
-        longitude: Double?=null,
+        latitude: Double? = null,
+        longitude: Double? = null,
         sourceFoto: String
     ) {
         prefManager = PrefManager(context)
@@ -352,16 +352,26 @@ class CameraRepository(
                                             isFlashlightOn = !isFlashlightOn
                                             if (isFlashlightOn) {
                                                 torchButton.setBackgroundResource(R.drawable.baseline_flash_on_24)
-                                                torchButton.backgroundTintList = ColorStateList.valueOf(Color.YELLOW)
+                                                torchButton.backgroundTintList =
+                                                    ColorStateList.valueOf(Color.YELLOW)
 
                                                 // Use TORCH mode for consistent brightness
-                                                capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
+                                                capReq.set(
+                                                    CaptureRequest.FLASH_MODE,
+                                                    CaptureRequest.FLASH_MODE_TORCH
+                                                )
 
                                                 // Prevent auto-exposure from dimming the preview
-                                                capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                                                capReq.set(
+                                                    CaptureRequest.CONTROL_AE_MODE,
+                                                    CaptureRequest.CONTROL_AE_MODE_ON
+                                                )
 
                                                 // Increase exposure compensation to prevent dimming (values typically range from -3 to +3)
-                                                capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 2)
+                                                capReq.set(
+                                                    CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION,
+                                                    2
+                                                )
 
                                                 // Set a higher ISO value to increase sensor sensitivity (typical range 100-1600)
                                                 capReq.set(CaptureRequest.SENSOR_SENSITIVITY, 800)
@@ -371,12 +381,24 @@ class CameraRepository(
                                             } else {
                                                 setDefaultIconTorchButton(view)
                                                 // Reset all settings when turning flash off
-                                                capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF)
-                                                capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
-                                                capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 0)
+                                                capReq.set(
+                                                    CaptureRequest.FLASH_MODE,
+                                                    CaptureRequest.FLASH_MODE_OFF
+                                                )
+                                                capReq.set(
+                                                    CaptureRequest.CONTROL_AE_MODE,
+                                                    CaptureRequest.CONTROL_AE_MODE_ON
+                                                )
+                                                capReq.set(
+                                                    CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION,
+                                                    0
+                                                )
                                                 capReq.set(CaptureRequest.CONTROL_AE_LOCK, false)
                                                 // Let the camera determine ISO automatically
-                                                capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                                                capReq.set(
+                                                    CaptureRequest.CONTROL_AE_MODE,
+                                                    CaptureRequest.CONTROL_AE_MODE_ON
+                                                )
                                             }
 
                                             // Apply the changes
@@ -440,12 +462,17 @@ class CameraRepository(
                                             val dirDCIM = File(rootDCIM)
                                             if (!dirDCIM.exists()) dirDCIM.mkdirs()
 
-                                            val dateTimeFormat = SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
+                                            val dateTimeFormat =
+                                                SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
 
                                             val cleanFeatureName = featureName!!.replace(" ", "_")
 
                                             // Create filename
-                                            fileName = "${cleanFeatureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_${dateTimeFormat}.jpg"
+                                            val noTPH = sourceFoto?.split(" ")?.lastOrNull() ?: ""
+
+                                            fileName =
+                                                "${cleanFeatureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_NOTPH_${noTPH}_${dateTimeFormat}.jpg"
+
                                             file = File(dirApp, fileName)
 
                                             fileDCIM = File(dirDCIM, fileName)
@@ -486,25 +513,26 @@ class CameraRepository(
                                                 ""
                                             }
 
-// Create user info line with estate and jabatan
-                                        val userInfo = "${sourceFoto}\n${prefManager!!.nameUserLogin}"
+                                        AppLogger.d("sourceFoto $sourceFoto")
+                                        val userInfo =
+                                            "${sourceFoto}\n${prefManager!!.nameUserLogin}"
 
-// Line 1: Always "CMP-$featureName"
-// Line 2: Always user info
-// Line 3: Conditional - location, comment, or both (or placeholder "-" if none)
-// Line 4: Always date
                                         val line3 = when {
                                             locationText.isNotEmpty() && (resultCode != "0" && commentWm.isNotEmpty()) ->
                                                 "$locationText - $commentWm"
+
                                             locationText.isNotEmpty() ->
                                                 locationText
+
                                             resultCode != "0" && commentWm.isNotEmpty() ->
                                                 commentWm
+
                                             else ->
                                                 "-"  // Placeholder when no location or comment
                                         }
 
-                                        val watermarkText = "CMP-$featureName\n$userInfo\n$line3\n$dateWM"
+                                        val watermarkText =
+                                            "CMP-$featureName\n$userInfo\n$line3\n$dateWM"
 
                                         val watermarkedBitmap =
                                             addWatermark(takenImage, watermarkText)
@@ -666,37 +694,53 @@ class CameraRepository(
                 isEnabled = false
 
                 if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
-                    capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                    capReq =
+                        cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
                     capReq.addTarget(imageReader!!.surface)
 
                     // Apply the same flash settings for the actual photo capture
                     if (isFlashlightOn) {
                         capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
-                        capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                        capReq.set(
+                            CaptureRequest.CONTROL_AE_MODE,
+                            CaptureRequest.CONTROL_AE_MODE_ON
+                        )
                         capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 2)
                         capReq.set(CaptureRequest.SENSOR_SENSITIVITY, 800)
                         capReq.set(CaptureRequest.CONTROL_AE_LOCK, true)
                     }
 
-                    cameraCaptureSession?.capture(capReq.build(), object : CameraCaptureSession.CaptureCallback() {
-                        override fun onCaptureCompleted(session: CameraCaptureSession, request: CaptureRequest, result: TotalCaptureResult) {
-                            super.onCaptureCompleted(session, request, result)
+                    cameraCaptureSession?.capture(
+                        capReq.build(),
+                        object : CameraCaptureSession.CaptureCallback() {
+                            override fun onCaptureCompleted(
+                                session: CameraCaptureSession,
+                                request: CaptureRequest,
+                                result: TotalCaptureResult
+                            ) {
+                                super.onCaptureCompleted(session, request, result)
 
-                            // Re-enable button after a short delay
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                isEnabled = true
-                            }, 800)
-                        }
+                                // Re-enable button after a short delay
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    isEnabled = true
+                                }, 800)
+                            }
 
-                        override fun onCaptureFailed(session: CameraCaptureSession, request: CaptureRequest, failure: CaptureFailure) {
-                            super.onCaptureFailed(session, request, failure)
+                            override fun onCaptureFailed(
+                                session: CameraCaptureSession,
+                                request: CaptureRequest,
+                                failure: CaptureFailure
+                            ) {
+                                super.onCaptureFailed(session, request, failure)
 
-                            // Re-enable button after a short delay
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                isEnabled = true
-                            }, 800)
-                        }
-                    }, null)
+                                // Re-enable button after a short delay
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    isEnabled = true
+                                }, 800)
+                            }
+                        },
+                        null
+                    )
                 } else {
                     // Just log the error and re-enable the button
                     Log.e("CameraError", "CameraDevice or ImageReader is null")
@@ -812,6 +856,7 @@ class CameraRepository(
             onChangePhoto.invoke()
         }
     }
+
     fun isZoomViewVisible(): Boolean {
         return zoomView.visibility == View.VISIBLE
     }
