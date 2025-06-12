@@ -81,14 +81,14 @@
             android:textSize="16sp" />
 
         <Button
-            android:id="@+id/btnSave"
+            android:id="@+id/btnUpdatePemanen"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:backgroundTint="@color/greenDarker"
             android:fontFamily="@font/manrope_bold"
-            android:text="Simpan"
+            android:text="Perbarui"
             android:textColor="@color/white"
             android:textSize="@dimen/m"
              />

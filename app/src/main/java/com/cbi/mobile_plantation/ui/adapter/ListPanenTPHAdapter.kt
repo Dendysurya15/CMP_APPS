@@ -35,20 +35,28 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.getString
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.database.AppDatabase
+import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.databinding.TableItemRowBinding
+import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.AppUtils.stringXML
+import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.card.MaterialCardView
 import com.jaredrummler.materialspinner.MaterialSpinner
+import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -56,8 +64,9 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTPHViewHolder>() {
 
+
+class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTPHViewHolder>() {
     enum class SortField {
         TPH,
         BLOK,
@@ -83,6 +92,14 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     private var onSelectionChangeListener: ((Int) -> Unit)? = null
 
     private val uniqueUsernames = mutableListOf<String>()
+
+    private var onDataRefreshCallback: ((position: Int) -> Unit)? = null
+
+    // Method to set the callback
+    fun setOnDataRefreshCallback(callback: (position: Int) -> Unit) {
+        onDataRefreshCallback = callback
+    }
+
 
     data class ExtractedData(
         val gradingText: String,
@@ -354,7 +371,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             extractData: (Map<String, Any>) -> ExtractedData,
             featureName: String = "",
             isScannedItem: Boolean = false,
-            uniqueUsernames: MutableList<String>
+            uniqueUsernames: MutableList<String>,
+            onDataRefreshCallback: ((position: Int) -> Unit)? = null
         ) {
 //            var usernameList: List<Int> = emptyList()
 
@@ -575,7 +593,13 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
                         // Handle Edit Pemanen button click
                         btnEditPemanen.setOnClickListener {
-                            showEditPemanenDialog(context, data)
+                            showEditPemanenDialog(
+                                context,
+                                data,
+                                bottomSheetDialog,
+                                adapterPosition, // Pass the current position
+                                onDataRefreshCallback // Pass the callback
+                            )
                         }
 
                         val recyclerView = view.findViewById<RecyclerView>(R.id.rvPhotoAttachments)
@@ -796,7 +820,13 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             }
         }
 
-        private fun showEditPemanenDialog(context: Context, data: Map<String, Any>) {
+        private fun showEditPemanenDialog(
+            context: Context,
+            data: Map<String, Any>,
+            bottomSheetDialog: BottomSheetDialog? = null,
+            position: Int = -1,
+            onDataRefreshCallback: ((position: Int) -> Unit)? = null
+        ) {
             val editBottomSheetDialog = BottomSheetDialog(context)
             val editView = LayoutInflater.from(context)
                 .inflate(R.layout.layout_bottom_sheet_edit_nama_pemanen, null)
@@ -850,23 +880,68 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 editBottomSheetDialog.dismiss()
             }
 
-            // Handle Save button
-            editView.findViewById<Button>(R.id.btnSave).setOnClickListener {
+            editView.findViewById<Button>(R.id.btnUpdatePemanen).setOnClickListener {
                 val selectedWorkers = selectedPemanenAdapter.getSelectedWorkers()
+                AppLogger.d("Selected workers: $selectedWorkers")
 
-                if (selectedWorkers.isNotEmpty()) {
-                    // Convert selected workers back to database format
-                    val updatedNiks = selectedWorkers.joinToString(",") { it.id }
-                    val updatedNames = selectedWorkers.joinToString(",") { it.name.split(" - ")[0] } // Get name part only
+                AlertDialogUtility.withTwoActions(
+                    context,
+                    context.getString(R.string.al_yes),
+                    context.getString(R.string.confirmation_dialog_title),
+                    "Apakah anda yakin untuk mengubah nama pemanen ini?",
+                    "warning.json",
+                    ContextCompat.getColor(context, R.color.greenDarker),
+                    function = {
+                        if (selectedWorkers.isNotEmpty()) {
+                            // Get dropdown_absensi_full_data from the data map and cast it
+                            val fullDataList = data["dropdown_absensi_full_data"] as? List<KaryawanModel> ?: emptyList()
 
-                    // Update database
-                    updatePemanenNama(data["id"].toString(), updatedNiks, updatedNames)
+                            AppLogger.d("Full data list size: ${fullDataList.size}")
 
-                    Toast.makeText(context, "Nama pemanen berhasil diubah", Toast.LENGTH_SHORT).show()
-                    editBottomSheetDialog.dismiss()
+                            // Extract data from dropdown_absensi_full_data based on selected workers
+                            val matchedKaryawan = selectedWorkers.mapNotNull { selectedWorker ->
+                                fullDataList.find { karyawan ->
+                                    karyawan.nik == selectedWorker.id
+                                }
+                            }
 
-                } else {
-                    Toast.makeText(context, "Pilih minimal satu pemanen", Toast.LENGTH_SHORT).show()
+                            AppLogger.d("Matched karyawan: $matchedKaryawan")
+
+                            if (matchedKaryawan.isNotEmpty()) {
+                                // Build the 4 required comma-separated strings
+                                val updatedKaryawanIds = matchedKaryawan.joinToString(",") { it.id.toString() }
+                                val updatedKaryawanNiks = matchedKaryawan.joinToString(",") { it.nik!! }
+                                val updatedKaryawanNamas = matchedKaryawan.joinToString(",") { it.nama!! }
+                                val updatedKemandoranIds = matchedKaryawan.joinToString(",") { it.kemandoran_id.toString() }
+
+                                AppLogger.d("Updated karyawan_id: $updatedKaryawanIds")
+                                AppLogger.d("Updated karyawan_nik: $updatedKaryawanNiks")
+                                AppLogger.d("Updated karyawan_nama: $updatedKaryawanNamas")
+                                AppLogger.d("Updated kemandoran_id: $updatedKemandoranIds")
+
+                                // Update database with all 4 fields
+                                updatePemanenWorkers(
+                                    context,
+                                    panenId = data["id"].toString(),
+                                    karyawanIds = updatedKaryawanIds,
+                                    karyawanNiks = updatedKaryawanNiks,
+                                    karyawanNamas = updatedKaryawanNamas,
+                                    kemandoranIds = updatedKemandoranIds,
+                                    onSuccess = {
+                                        // Only dismiss dialogs and trigger refresh on success
+                                        editBottomSheetDialog.dismiss()
+                                        bottomSheetDialog!!.dismiss()
+                                        onDataRefreshCallback?.invoke(position)
+                                    }
+                                )
+                            } else {
+                                Toast.makeText(context, "Data karyawan tidak ditemukan", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            Toast.makeText(context, "Pilih minimal satu pemanen", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                ) {
                 }
             }
 
@@ -904,6 +979,48 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         val name = names[index].trim()
                         val worker = Worker(cleanNik, "$name - $cleanNik")
                         adapter.addWorker(worker)
+                    }
+                }
+            }
+        }
+
+        private fun updatePemanenWorkers(
+            context: Context,
+            panenId: String,
+            karyawanIds: String,
+            karyawanNiks: String,
+            karyawanNamas: String,
+            kemandoranIds: String,
+            onSuccess: (() -> Unit)? = null // Add success callback
+        ) {
+            val database = AppDatabase.getDatabase(context)
+            val panenDao = database.panenDao()
+
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+//                    throw Exception("Testing error case")
+
+                    panenDao.updatePemanenWorkers(
+                        id = panenId.toInt(),
+                        karyawanId = karyawanIds,
+                        karyawanNik = karyawanNiks,
+                        karyawanNama = karyawanNamas,
+                        kemandoranId = kemandoranIds
+                    )
+
+                    AppLogger.d("Successfully updated pemanen workers")
+
+                    withContext(Dispatchers.Main) {
+                        Toasty.success(context, "Nama pemanen berhasil diubah", Toast.LENGTH_SHORT).show()
+                        context.playSound(R.raw.berhasil_edit_data)
+                        onSuccess?.invoke()
+                    }
+
+                } catch (e: Exception) {
+                    AppLogger.e("Error updating pemanen workers: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        Toasty.error(context, "Gagal memperbarui nama pemanen! ${e.message}", Toast.LENGTH_LONG).show()
+                        // Don't trigger onSuccess callback on error - dialogs stay open
                     }
                 }
             }
@@ -1278,7 +1395,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             extractData = ::extractData,
             featureName = featureName,
             isScannedItem = isScannedItem,
-            uniqueUsernames = uniqueUsernames
+            uniqueUsernames = uniqueUsernames,
+            onDataRefreshCallback = onDataRefreshCallback
         )
     }
 

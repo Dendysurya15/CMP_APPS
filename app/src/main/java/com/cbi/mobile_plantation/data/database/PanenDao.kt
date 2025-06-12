@@ -84,6 +84,23 @@ abstract class PanenDao {
 """)
     abstract suspend fun countESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): Int
 
+    @Query("""
+    UPDATE panen_table
+     
+    SET karyawan_id = :karyawanId,
+        karyawan_nik = :karyawanNik,
+        karyawan_nama = :karyawanNama,
+        kemandoran_id = :kemandoranId
+    WHERE id = :id
+""")
+    abstract suspend fun updatePemanenWorkers(
+        id: Int,
+        karyawanId: String,
+        karyawanNik: String,
+        karyawanNama: String,
+        kemandoranId: String
+    )
+
     @Query("SELECT * FROM panen_table")
     abstract fun getAll(): List<PanenEntity>
 

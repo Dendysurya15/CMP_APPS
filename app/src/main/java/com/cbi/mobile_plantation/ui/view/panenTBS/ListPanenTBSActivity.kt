@@ -135,8 +135,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var globalFormattedDate: String = ""
     private lateinit var absensiViewModel: AbsensiViewModel
     private var dropdownAbsensiEdit: List<String> = emptyList()
-
-    // Add views for buttons and counters
+    private var dropdownAbsensiFullData = emptyList<KaryawanModel>() // <- GLOBAL VARIABLE
+    private var presentNikSet = mutableSetOf<String>()
+    private var lastClickedPosition: Int = -1
+    private var shouldReopenLastPosition = false
     private lateinit var cardTersimpan: MaterialCardView
     private lateinit var cardTerscan: MaterialCardView
     private lateinit var cardRekapPerPemanen: MaterialCardView
@@ -2494,7 +2496,46 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 Log.d("AbsensiDebug", "[$index] $worker")
             }
 
+            // Update global variables
             dropdownAbsensiEdit = absensiWorkers
+            presentNikSet = newPresentNikSet
+
+            // Now get all karyawan and filter by present NIKs
+            lifecycleScope.launch {
+                panenViewModel.getAllKaryawan() // This should be added to your ViewModel
+                delay(100)
+
+                withContext(Dispatchers.Main) {
+                    panenViewModel.allKaryawanList.observe(this@ListPanenTBSActivity) { list ->
+                        val allKaryawan = list ?: emptyList()
+
+                        // Only filter if presentNikSet has values
+                        if (presentNikSet.isNotEmpty()) {
+                            // Filter to get only present karyawan
+                            val presentKaryawan = allKaryawan.filter { karyawan ->
+                                karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+                            }
+
+                            // Store filtered (present) karyawan in global variable
+                            dropdownAbsensiFullData = presentKaryawan
+
+                            AppLogger.d("Total karyawan: ${allKaryawan.size}")
+                            AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
+
+                            // If we have present karyawan, log a sample
+                            if (presentKaryawan.isNotEmpty()) {
+                                val sampleSize = minOf(3, presentKaryawan.size)
+                                val sample = presentKaryawan.take(sampleSize)
+                                AppLogger.d("Sample present karyawan: $sample")
+                            } else {
+                                AppLogger.d("No present karyawan found after filtering")
+                            }
+                        } else {
+                            dropdownAbsensiFullData = emptyList()
+                        }
+                    }
+                }
+            }
         }
 
 
@@ -2813,8 +2854,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     }
                                 }
 
-                                AppLogger.d(savedWorkerData.toString())
-
                                 val standardData = mapOf<String, Any>(
                                     "id" to (panenWithRelations.panen.id as Any),
                                     "tph_id" to (panenWithRelations.panen.tph_id as Any),
@@ -2828,6 +2867,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "asistensi" to (panenWithRelations.panen.asistensi as Any),
                                     "karyawan_nik" to (panenWithRelations.panen.karyawan_nik as Any),
                                     "karyawan_nama" to (panenWithRelations.panen.karyawan_nama as Any),
+                                    "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
+                                    "kemandoran_id" to (panenWithRelations.panen.kemandoran_id as Any),
                                     "lat" to (panenWithRelations.panen.lat as Any),
                                     "lon" to (panenWithRelations.panen.lon as Any),
                                     "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
@@ -2841,7 +2882,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "nama_kemandorans" to "",
                                     "username" to (panenWithRelations.panen.username as Any),
                                     "available_workers" to savedWorkerData,
-                                    "dropdown_absensi_edit" to dropdownAbsensiEdit
+                                    "dropdown_absensi_edit" to dropdownAbsensiEdit,
+                                    "dropdown_absensi_full_data" to dropdownAbsensiFullData
                                 )
 
                                 val originalDataMapped = standardData.toMutableMap()
@@ -3481,6 +3523,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         tvGenQRFull.visibility = View.GONE
                         btnGenerateQRTPH.visibility = View.GONE
 
+
                     } else if (panenList.size > 0 && featureName == "Rekap Hasil Panen" && currentState != 2 && currentState != 3) {
                         btnGenerateQRTPH.visibility = View.VISIBLE
                         btnGenerateQRTPHUnl.visibility = View.VISIBLE
@@ -3494,6 +3537,16 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             findViewById<ConstraintLayout>(R.id.tableHeader)
                                 .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
                         flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
+
+                        if (shouldReopenLastPosition) {
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                val viewHolder = recyclerView.findViewHolderForAdapterPosition(
+                                    lastClickedPosition
+                                ) as? ListPanenTPHAdapter.ListPanenTPHViewHolder
+                                viewHolder?.itemView?.performClick()
+                            }, 300)
+                            shouldReopenLastPosition = false
+                        }
                     } else if (featureName == "Rekap Hasil Panen" && (currentState == 2 || currentState == 3)) {
                         btnGenerateQRTPHUnl.visibility = View.GONE
                         tvGenQR60.visibility = View.GONE
@@ -4486,6 +4539,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
         updateTableHeaders(headers)
 
         listAdapter = ListPanenTPHAdapter()
+
+        listAdapter.setOnDataRefreshCallback { position ->
+
+            loadingDialog.show()
+            loadingDialog.setMessage("Sedang mengambil data...", true)
+            AppLogger.d(position.toString())
+            panenViewModel.loadTPHNonESPB(0, 0, 0, globalFormattedDate)
+            lastClickedPosition = position
+            shouldReopenLastPosition = true
+        }
+
         recyclerView.apply {
             adapter = listAdapter
             layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
@@ -4525,6 +4589,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             titleTotalJjg.text = "Jjg Bayar: "
         }
     }
+
 
     fun <T> LiveData<T>.observeOnce(lifecycleOwner: LifecycleOwner, observer: Observer<T>) {
         observe(lifecycleOwner, object : Observer<T> {
