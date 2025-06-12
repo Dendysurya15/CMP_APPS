@@ -12,6 +12,8 @@ import android.graphics.drawable.ColorDrawable
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -19,10 +21,17 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ListView
+import android.widget.PopupWindow
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -36,6 +45,10 @@ import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.card.MaterialCardView
+import com.jaredrummler.materialspinner.MaterialSpinner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -376,15 +389,12 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
                     bottomSheetDialog.setContentView(view)
 
-                    val maxHeight =
-                        (context.resources.displayMetrics.heightPixels * 0.85).toInt()
+                    val maxHeight = (context.resources.displayMetrics.heightPixels * 0.85).toInt()
 
-                    view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
-                        "Detail Pemanen"
+                    view.findViewById<TextView>(R.id.titleDialogDetailTable).text = "Detail Pemanen"
 
-                    val jjgJsonStr =
-                        data["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
-                    val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
+                    val jjgJsonStr = data["jjg_json"] as? String ?: "{}"
+                    val jjgJson = JSONObject(jjgJsonStr)
 
                     val infoItems = listOf(
                         DetailInfoType.KEMANDORAN_PEMANEN to "${data["nama_kemandorans"]}",
@@ -400,13 +410,13 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         DetailInfoType.TOTAL_DATA_SERANGAN_TIKUS to jjgJson.optDouble("RA", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
                         DetailInfoType.TOTAL_DATA_TANGKAI_PANJANG to jjgJson.optDouble("LO", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
                         DetailInfoType.TOTAL_DATA_TIDAK_VCUT to jjgJson.optDouble("TI", 0.0).let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() },
-                        DetailInfoType.DATA_BLOK to  data["jjg_each_blok_bullet"].toString(),
+                        DetailInfoType.DATA_BLOK to data["jjg_each_blok_bullet"].toString(),
                     )
 
                     infoItems.forEach { (type, value) ->
                         val itemView = view.findViewById<View>(type.id)
                         if (itemView != null) {
-                             setInfoItemValues(itemView, type.label, value)
+                            setInfoItemValues(itemView, type.label, value)
                         }
                     }
                     bottomSheetDialog.show()
@@ -556,6 +566,16 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
                         view.findViewById<Button>(R.id.btnCloseDetailTable).setOnClickListener {
                             bottomSheetDialog.dismiss()
+                        }
+
+                        AppLogger.d("data $data")
+
+                        val btnEditPemanen = view.findViewById<Button>(R.id.btnEditPemanen)
+                        btnEditPemanen.visibility = View.VISIBLE
+
+                        // Handle Edit Pemanen button click
+                        btnEditPemanen.setOnClickListener {
+                            showEditPemanenDialog(context, data)
                         }
 
                         val recyclerView = view.findViewById<RecyclerView>(R.id.rvPhotoAttachments)
@@ -775,6 +795,291 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 }
             }
         }
+
+        private fun showEditPemanenDialog(context: Context, data: Map<String, Any>) {
+            val editBottomSheetDialog = BottomSheetDialog(context)
+            val editView = LayoutInflater.from(context)
+                .inflate(R.layout.layout_bottom_sheet_edit_nama_pemanen, null)
+
+            val titleDialogDetailTable= editView.findViewById<TextView>(R.id.titleDialogDetailTable)
+            titleDialogDetailTable.text = "Edit Nama Pemanen"
+            val selectedPemanenAdapter = SelectedWorkerAdapter()
+
+            // Get the included layout
+            val layoutPemanen = editView.findViewById<View>(R.id.layoutPemanen) // Your include layout
+
+            // Set the title text
+            val tvTitleFormPanenTBS = layoutPemanen.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
+            tvTitleFormPanenTBS.text = "Pilih Pemanen"
+
+
+
+            val maxHeight = (context.resources.displayMetrics.heightPixels * 0.65).toInt()
+            // You need to add a RecyclerView to your pertanyaan_spinner_layout or create one dynamically
+            // Option 1: Add RecyclerView dynamically to your existing layout
+            val recyclerView = RecyclerView(context).apply {
+                layoutManager = LinearLayoutManager(context)
+                adapter = selectedPemanenAdapter
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    topMargin = 16
+                }
+            }
+
+            // Add RecyclerView to the content container (inside ScrollView)
+            val contentContainer = editView.findViewById<LinearLayout>(R.id.contentContainer)
+            contentContainer.addView(recyclerView)
+
+            // Get available workers from data (Worker objects from current data)
+            val availableWorkers = data["available_workers"] as? List<Worker> ?: emptyList()
+            selectedPemanenAdapter.setAvailableWorkers(availableWorkers)
+
+            // Get dropdown options from absensi data (simple strings)
+            val dropdownOptions = data["dropdown_absensi_edit"] as? List<String> ?: emptyList()
+
+            // Setup existing workers (parse from current data and add to adapter)
+            setupExistingWorkers(data, selectedPemanenAdapter)
+
+            // Setup dropdown with absensi options using the existing spinner
+            setupWorkerDropdown(layoutPemanen, selectedPemanenAdapter, dropdownOptions)
+
+            // Handle Cancel button
+            editView.findViewById<Button>(R.id.btnCancel).setOnClickListener {
+                editBottomSheetDialog.dismiss()
+            }
+
+            // Handle Save button
+            editView.findViewById<Button>(R.id.btnSave).setOnClickListener {
+                val selectedWorkers = selectedPemanenAdapter.getSelectedWorkers()
+
+                if (selectedWorkers.isNotEmpty()) {
+                    // Convert selected workers back to database format
+                    val updatedNiks = selectedWorkers.joinToString(",") { it.id }
+                    val updatedNames = selectedWorkers.joinToString(",") { it.name.split(" - ")[0] } // Get name part only
+
+                    // Update database
+                    updatePemanenNama(data["id"].toString(), updatedNiks, updatedNames)
+
+                    Toast.makeText(context, "Nama pemanen berhasil diubah", Toast.LENGTH_SHORT).show()
+                    editBottomSheetDialog.dismiss()
+
+                } else {
+                    Toast.makeText(context, "Pilih minimal satu pemanen", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            editBottomSheetDialog.setContentView(editView)
+
+            editBottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                ?.let { bottomSheet ->
+                    val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                    behavior.apply {
+                        this.peekHeight = maxHeight
+                        this.state = BottomSheetBehavior.STATE_EXPANDED
+                        this.isFitToContents = true  // Keep this as true like your working example
+                        this.isDraggable = false
+                    }
+
+                    // This is the key line that was missing!
+                    bottomSheet.layoutParams?.height = maxHeight
+                }
+
+            editBottomSheetDialog.show()
+        }
+
+        private fun setupExistingWorkers(data: Map<String, Any>, adapter: SelectedWorkerAdapter) {
+            val karyawanNik = data["karyawan_nik"].toString()
+            val karyawanNama = data["karyawan_nama"].toString()
+
+            if (karyawanNik.isNotEmpty() && karyawanNama.isNotEmpty()) {
+                val niks = karyawanNik.split(",")
+                val names = karyawanNama.split(",")
+
+                niks.forEachIndexed { index, nik ->
+                    val cleanNik = nik.trim()
+                    if (cleanNik.isNotEmpty() && index < names.size) {
+                        val name = names[index].trim()
+                        val worker = Worker(cleanNik, "$name - $cleanNik")
+                        adapter.addWorker(worker)
+                    }
+                }
+            }
+        }
+
+        private fun setupWorkerDropdown(layoutPemanen: View, selectedPemanenAdapter: SelectedWorkerAdapter, dropdownOptions: List<String>) {
+            // Use your existing MaterialSpinner
+            val materialSpinner = layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+            // Set initial hint
+            materialSpinner.text = "Pilih Kategori yang sesuai"
+
+            // Set click listener to show search popup
+            materialSpinner.setOnClickListener {
+                showWorkerSearchDropdown(
+                    materialSpinner,
+                    dropdownOptions,
+                    selectedPemanenAdapter
+                ) { selectedWorkerString, _ ->
+                    // Parse the string to extract NIK and name
+                    val parts = selectedWorkerString.split(" - ")
+                    if (parts.size == 2) {
+                        val workerName = parts[0].trim()
+                        val workerNik = parts[1].trim()
+
+                        // Create Worker object and add to adapter
+                        val worker = Worker(workerNik, selectedWorkerString)
+                        selectedPemanenAdapter.addWorker(worker)
+
+                        // Reset spinner text
+                        materialSpinner.text = "Pilih Pemanen untuk Ditambahkan"
+                    }
+                }
+            }
+        }
+
+        private fun showWorkerSearchDropdown(
+            spinner: MaterialSpinner,
+            data: List<String>,
+            selectedPemanenAdapter: SelectedWorkerAdapter,
+            onItemSelected: (String, Int) -> Unit
+        ) {
+            val popupView = LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
+            val listView = popupView.findViewById<ListView>(R.id.listViewChoices)
+            val editTextSearch = popupView.findViewById<EditText>(R.id.searchEditText)
+
+            // Filter out already selected workers
+            val selectedWorkers = selectedPemanenAdapter.getSelectedWorkers()
+            val selectedNiks = selectedWorkers.map { it.id }.toSet()
+
+            val availableData = data.filter { option ->
+                val parts = option.split(" - ")
+                if (parts.size == 2) {
+                    val nik = parts[1].trim()
+                    !selectedNiks.contains(nik)
+                } else {
+                    true
+                }
+            }
+
+            // Create PopupWindow
+            val popupWindow = PopupWindow(
+                popupView,
+                spinner.width,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                true
+            ).apply {
+                isFocusable = true
+                isOutsideTouchable = true
+                softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
+                setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            }
+
+            var filteredData = availableData
+
+            // Simple single selection adapter
+            val adapter = object : ArrayAdapter<String>(
+                spinner.context,
+                android.R.layout.simple_list_item_1,
+                filteredData
+            ) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val view = super.getView(position, convertView, parent)
+                    val textView = view.findViewById<TextView>(android.R.id.text1)
+                    textView.setTextColor(Color.BLACK)
+                    return view
+                }
+            }
+
+            listView.adapter = adapter
+
+            // Search functionality
+            editTextSearch.addTextChangedListener(object : TextWatcher {
+                override fun afterTextChanged(s: Editable?) {
+                    val titleSearch = popupView.findViewById<TextView>(R.id.titleSearchDropdown)
+
+                    filteredData = if (!s.isNullOrEmpty()) {
+                        titleSearch.visibility = View.VISIBLE
+                        availableData.filter { it.contains(s, ignoreCase = true) }
+                    } else {
+                        titleSearch.visibility = View.GONE
+                        availableData
+                    }
+
+                    val filteredAdapter = object : ArrayAdapter<String>(
+                        spinner.context,
+                        android.R.layout.simple_list_item_1,
+                        if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                            listOf("Data tidak tersedia!")
+                        } else {
+                            filteredData
+                        }
+                    ) {
+                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                            val view = super.getView(position, convertView, parent)
+                            val textView = view.findViewById<TextView>(android.R.id.text1)
+
+                            if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                                textView.setTextColor(
+                                    ContextCompat.getColor(context, R.color.colorRedDark)
+                                )
+                                textView.setTypeface(textView.typeface, Typeface.ITALIC)
+                                view.isEnabled = false
+                            } else {
+                                textView.setTextColor(Color.BLACK)
+                                textView.setTypeface(textView.typeface, Typeface.NORMAL)
+                                view.isEnabled = true
+                            }
+                            return view
+                        }
+
+                        override fun isEnabled(position: Int): Boolean {
+                            return filteredData.isNotEmpty()
+                        }
+                    }
+
+                    listView.adapter = filteredAdapter
+                }
+
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            })
+
+            // Handle item selection
+            listView.setOnItemClickListener { _, _, position, _ ->
+                if (filteredData.isNotEmpty()) {
+                    val selectedItem = filteredData[position]
+                    val originalPosition = data.indexOf(selectedItem)
+                    onItemSelected(selectedItem, originalPosition)
+                    popupWindow.dismiss()
+                }
+            }
+
+            popupWindow.showAsDropDown(spinner)
+
+            editTextSearch.requestFocus()
+            val imm = spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
+        }
+
+// Remove the updateMaterialSpinnerOptions function as it's no longer needed
+
+        private fun updatePemanenNama(id: String, niks: String, names: String) {
+            // TODO: Implement database update
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    // Update in database
+                    // panenViewModel.updateWorkers(id, niks, names)
+                    AppLogger.d("Updated pemanen $id with niks: $niks, names: $names")
+                } catch (e: Exception) {
+                    AppLogger.e("Error updating pemanen: ${e.message}")
+                }
+            }
+        }
+
+
 
         private fun showFullscreenImage(context: Context, imageFile: File) {
             // Create dialog
@@ -1046,6 +1351,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         onSelectionChangeListener?.invoke(selectedItems.size)
         calculateTotals() // Add this line
     }
+
 
     // Add this method to ListPanenTPHAdapter class
     fun preSelectTphIds() {

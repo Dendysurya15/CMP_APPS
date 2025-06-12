@@ -283,6 +283,19 @@
             android:textSize="@dimen/m" />
 
         <Button
+            android:id="@+id/btnEditPemanen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/bluedarklight"
+            android:fontFamily="@font/manrope_bold"
+            android:text="Edit Pemanen"
+            android:textColor="#FFFFFF"
+            android:visibility="gone"
+            android:textSize="@dimen/m" />
+
+        <Button
             android:id="@+id/btnSaveUploadeSPB"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
