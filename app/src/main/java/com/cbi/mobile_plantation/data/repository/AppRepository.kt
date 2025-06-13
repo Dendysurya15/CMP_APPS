@@ -82,8 +82,8 @@ class AppRepository(context: Context) {
                 val hektarPanenDao = database.hektarPanenDao()
 
                 val kemandoranId = tphDataList.first().kemandoran_id
-                val kemandoranNama = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt()).nama
-                val kemandoranKode = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt()).kode
+                val kemandoranNama = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt())!!.nama
+                val kemandoranKode = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt())!!.kode
 
                 // Step 1: First, save all PanenEntity records to the panen table
                 for (tphData in tphDataList) {
