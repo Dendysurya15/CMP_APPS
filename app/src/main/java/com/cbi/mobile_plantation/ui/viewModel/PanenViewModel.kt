@@ -289,13 +289,13 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 //        }
 //    }
 
-    fun getAllScanMPanenByDate(archiveMpanen: Int, date: String? = null) = viewModelScope.launch {
+    fun getAllScanMPanenByDate(archiveMpanen: Int, date: String? = null) = viewModelScope.launch(Dispatchers.IO) {
         try {
             val list = repository.getAllScanMPanenByDate(archiveMpanen, date)
-            _activePanenList.value = list
+            _activePanenList.postValue(list) // Use postValue when calling from background thread
         } catch (e: Exception) {
             AppLogger.e("Error loading getAllScanMPanenByDate: ${e.message}")
-            _activePanenList.value = emptyList()  // Return empty list if there's an error
+            _activePanenList.postValue(emptyList())  // Use postValue here too
         }
     }
 

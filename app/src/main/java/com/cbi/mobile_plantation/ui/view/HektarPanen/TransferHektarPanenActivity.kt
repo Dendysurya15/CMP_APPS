@@ -159,7 +159,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         dateButton.text = AppUtils.getTodaysDate()
         setupFilterAllData()
 
-        viewModel.getAllScanMPanenByDate(0, AppUtils.currentDate)
+        viewModel.getAllScanMPanenByDate(0, AppUtils.currentDate) //        }
 
     }
 
@@ -279,6 +279,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
     @SuppressLint("DefaultLocale")
     private fun setupObserveData() {
         viewModel.activePanenList.observe(this) { panenList ->
+            AppLogger.d(panenList.toString())
             Handler(Looper.getMainLooper()).postDelayed({
                 lifecycleScope.launch {
                     if (panenList.isNotEmpty()) {
@@ -375,12 +376,14 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
                         mappedData = allWorkerData
 
-                        val processedData = AppUtils.getPanenProcessedData(originalMappedData, featureName)
+                        val processedData =
+                            AppUtils.getPanenProcessedData(originalMappedData, featureName)
 
                         if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen ||
                             featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan ||
                             featureName == AppUtils.ListFeatureNames.DetailESPB ||
-                            featureName == AppUtils.ListFeatureNames.TransferHektarPanen) {
+                            featureName == AppUtils.ListFeatureNames.TransferHektarPanen
+                        ) {
 
                             findViewById<LinearLayout>(R.id.blok_section).visibility = View.VISIBLE
                             findViewById<LinearLayout>(R.id.total_section).visibility = View.VISIBLE
@@ -410,7 +413,9 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
                         // First, convert the Map<String, Any> data to TransferHektarPanenData objects
                         val transferHektarPanenDataList = allWorkerData.map { item ->
-                            val jjgStr = JSONObject(item["jjg_json"] as? String).optDouble("PA", 0.0).toInt().toString()
+                            val jjgStr =
+                                JSONObject(item["jjg_json"] as? String).optDouble("PA", 0.0).toInt()
+                                    .toString()
                             TransferHektarPanenData(
                                 time = (item["date_created"] as? String) ?: "",
                                 blok = (item["blok_name"] as? String) ?: "-",
@@ -418,7 +423,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                 noTph = "${item["nomor"] ?: ""}",
                                 namaPemanen = (item["nama_karyawans"] as? String) ?: "-",
                                 status_scan = 1, // Or any appropriate default
-                                id = (item["id"] as? String)?.toIntOrNull() ?: (item["id"] as? Int) ?: 0
+                                id = (item["id"] as? String)?.toIntOrNull() ?: (item["id"] as? Int)
+                                ?: 0
                             )
                         }
 
@@ -846,11 +852,17 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                                     playSound(R.raw.berhasil_konfirmasi)
 
                                                     delay(200)
-                                                    viewModel.getAllScanMPanenByDate(0, globalFormattedDate)
+                                                    viewModel.getAllScanMPanenByDate(
+                                                        0,
+                                                        globalFormattedDate
+                                                    )
                                                     delay(400)
                                                     AppLogger.d("All items archived successfully")
                                                     loadingDialog.show()
-                                                    loadingDialog.setMessage("Sedang mengambil data", true)
+                                                    loadingDialog.setMessage(
+                                                        "Sedang mengambil data",
+                                                        true
+                                                    )
 
                                                     Toast.makeText(
                                                         this@TransferHektarPanenActivity,
@@ -1425,7 +1437,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
-                val infoTotalTransaksi = screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+                val infoTotalTransaksi =
+                    screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
 
                 // Add references for new info views
                 val infoUrutanKe = screenshotLayout.findViewById<View>(R.id.infoUrutanKe)
@@ -1484,8 +1497,16 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                     "Hasil QR ${capitalizedFeatureName} dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
 
                 setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
-                setInfoData(infoTotalJjg, "Total Janjang", ": ${processedData["totalJjgCount"]} jjg")
-                setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": ${processedData["tphCount"]}")
+                setInfoData(
+                    infoTotalJjg,
+                    "Total Janjang",
+                    ": ${processedData["totalJjgCount"]} jjg"
+                )
+                setInfoData(
+                    infoTotalTransaksi,
+                    "Jumlah Transaksi",
+                    ": ${processedData["tphCount"]}"
+                )
 
                 // Add new info data
                 setInfoData(infoUrutanKe, "Urutan Ke", ": $screenshotNumber")

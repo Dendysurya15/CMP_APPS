@@ -43,12 +43,13 @@ abstract class KemandoranDao {
     @Query(
         """
     SELECT * FROM kemandoran 
-    WHERE id = :idKemandoran
+    WHERE id = :idKemandoran OR kemandoran_ppro = :idKemandoran
+    LIMIT 1
     """
     )
     abstract fun getKemandoranByTheId(
         idKemandoran: Int,
-    ): KemandoranModel
+    ): KemandoranModel?
 
     @Query("SELECT COUNT(*) FROM kemandoran")
     abstract suspend fun getCount(): Int
