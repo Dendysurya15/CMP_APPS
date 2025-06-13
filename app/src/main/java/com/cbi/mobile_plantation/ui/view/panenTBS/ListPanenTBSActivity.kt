@@ -3090,7 +3090,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         this["nama_kemandorans"] = kemandoranNamas
                                     }
 
-                                    AppLogger.d(updatedStandardData.toString())
                                     allWorkerData.add(updatedStandardData)
 
                                     listOf(updatedStandardData)

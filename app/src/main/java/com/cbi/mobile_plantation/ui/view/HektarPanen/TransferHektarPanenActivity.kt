@@ -161,167 +161,6 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
         viewModel.getAllScanMPanenByDate(0, AppUtils.currentDate)
 
-        viewModel.activePanenList.observe(this) { panenList ->
-//                adapter.updateList(emptyList())
-            Handler(Looper.getMainLooper()).postDelayed({
-                loadingDialog.dismiss()
-                lifecycleScope.launch {
-                    if (panenList.isNotEmpty()) {
-                        tvEmptyState.visibility = View.GONE
-                        recyclerView.visibility = View.VISIBLE
-                        val allWorkerData = mutableListOf<Map<String, Any>>()
-
-                        panenList.map { panenWithRelations ->
-                            val standardData = mapOf<String, Any>(
-                                "id" to (panenWithRelations.panen.id as Any),
-                                "tph_id" to (panenWithRelations.panen.tph_id as Any),
-                                "date_created" to (panenWithRelations.panen.date_created as Any),
-                                "blok_name" to (panenWithRelations.tph?.blok_kode ?: "Unknown"),
-                                "nomor" to (panenWithRelations.tph!!.nomor as Any),
-                                "created_by" to (panenWithRelations.panen.created_by as Any),
-                                "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
-                                "foto" to (panenWithRelations.panen.foto as Any),
-                                "komentar" to (panenWithRelations.panen.komentar as Any),
-                                "asistensi" to (panenWithRelations.panen.asistensi as Any),
-                                "lat" to (panenWithRelations.panen.lat as Any),
-                                "lon" to (panenWithRelations.panen.lon as Any),
-                                "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
-                                "ancak" to (panenWithRelations.panen.ancak as Any),
-                                "archive" to (panenWithRelations.panen.archive as Any),
-                                "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
-                                "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
-                                "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
-                                "karyawan_nik" to (panenWithRelations.panen.karyawan_nik as Any),
-                                "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
-                                "nama_karyawans" to "",
-                                "nama_kemandorans" to "",
-                                "username" to (panenWithRelations.panen.username as Any)
-                            )
-
-                            AppLogger.d("panenWithRelations $panenWithRelations")
-                            val originalDataMapped = standardData.toMutableMap()
-                            originalMappedData.add(originalDataMapped)
-
-                            val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
-                                .map { it.trim() }
-                                .filter { it.isNotEmpty() }
-
-                            val pemuatData: List<KaryawanModel>? =
-                                withContext(Dispatchers.IO) {
-                                    try {
-                                        viewModel.getPemuatByIdList(pemuatList)
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error fetching Pemuat Data: ${e.message}")
-                                        null
-                                    }
-                                }
-
-                            val rawKemandoran: List<String> = pemuatData
-                                ?.mapNotNull { it.kemandoran_id?.toString() }
-                                ?.distinct() ?: emptyList()
-
-                            val kemandoranData: List<KemandoranModel>? =
-                                withContext(Dispatchers.IO) {
-                                    try {
-                                        viewModel.getKemandoranById(rawKemandoran)
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error fetching Kemandoran Data: ${e.message}")
-                                        null
-                                    }
-                                }
-
-                            val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
-                                ?.takeIf { it.isNotEmpty() }
-                                ?.joinToString("\n") { "• $it" } ?: "-"
-
-                            val karyawanNamas = pemuatData?.mapNotNull { karyawan ->
-                                karyawan.nama?.let { nama ->
-                                    // Always append NIK for every worker
-                                    "$nama - ${karyawan.nik ?: "N/A"}"
-                                }
-                            }?.takeIf { it.isNotEmpty() }
-                                ?.joinToString(", ") ?: "-"
-
-                            // Update the original data with the fetched names
-                            originalDataMapped["nama_karyawans"] = karyawanNamas
-                            originalDataMapped["nama_kemandorans"] = kemandoranNamas
-
-                            val updatedStandardData = standardData.toMutableMap().apply {
-                                this["nama_karyawans"] = karyawanNamas
-                                this["nama_kemandorans"] = kemandoranNamas
-                            }
-
-                            allWorkerData.add(updatedStandardData)
-
-                            listOf(updatedStandardData)
-
-                        }.flatten()
-
-                        mappedData = allWorkerData
-
-                        // ========== USE AppUtils.getPanenProcessedData ==========
-                        val processedData = AppUtils.getPanenProcessedData(originalMappedData, featureName)
-
-                        if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen ||
-                            featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan ||
-                            featureName == AppUtils.ListFeatureNames.DetailESPB ||
-                            featureName == AppUtils.ListFeatureNames.TransferHektarPanen) {
-
-                            findViewById<LinearLayout>(R.id.blok_section).visibility = View.VISIBLE
-                            findViewById<LinearLayout>(R.id.total_section).visibility = View.VISIBLE
-                        }
-
-                        // Extract values from processed data
-                        val blokNames = processedData["blokNames"]?.toString() ?: ""
-                        blok = if (blokNames.isEmpty()) "-" else blokNames
-
-                        val blokDisplay = processedData["blokDisplay"]?.toString() ?: "-"
-                        jjg = processedData["totalJjgCount"]?.toString()?.toIntOrNull() ?: 0
-                        tph = processedData["tphCount"]?.toString()?.toIntOrNull() ?: 0
-
-                        findViewById<TextView>(R.id.titleTotalJjg).text = "Jjg Bayar: "
-                        findViewById<TextView>(R.id.listBlok).text = blokDisplay
-                        findViewById<TextView>(R.id.totalJjg).text = jjg.toString()
-                        findViewById<TextView>(R.id.totalTPH).text = tph.toString()
-
-                        // Log the results for debugging with feature context
-                        val jsonFieldUsed = "PA"
-
-                        AppLogger.d("Feature: $featureName")
-                        AppLogger.d("JSON field used: $jsonFieldUsed")
-                        AppLogger.d("Blok Display: $blokDisplay")
-                        AppLogger.d("Total JJG: $jjg")
-                        AppLogger.d("Total TPH: $tph")
-
-                        // First, convert the Map<String, Any> data to TransferHektarPanenData objects
-                        val transferHektarPanenDataList = allWorkerData.map { item ->
-                            val jjgStr = JSONObject(item["jjg_json"] as? String).optDouble("PA", 0.0).toInt().toString()
-                            TransferHektarPanenData(
-                                time = (item["date_created"] as? String) ?: "",
-                                blok = (item["blok_name"] as? String) ?: "-",
-                                janjang = jjgStr,
-                                noTph = "${item["nomor"] ?: ""}",
-                                namaPemanen = (item["nama_karyawans"] as? String) ?: "-",
-                                status_scan = 1, // Or any appropriate default
-                                id = (item["id"] as? String)?.toIntOrNull() ?: (item["id"] as? Int) ?: 0
-                            )
-                        }
-
-                        // Then update the adapter with the correctly typed list
-                        adapter.updateList(transferHektarPanenDataList)
-
-                    } else {
-                        AppLogger.d("panenWithRelations panenList is empty")
-                        tvEmptyState.visibility = View.VISIBLE
-                        recyclerView.visibility = View.GONE
-
-                        // Hide the summary sections when no data
-                        findViewById<LinearLayout>(R.id.blok_section).visibility = View.GONE
-                        findViewById<LinearLayout>(R.id.total_section).visibility = View.GONE
-                    }
-                }
-            }, 500)
-        }
     }
 
 
@@ -439,89 +278,169 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
     @SuppressLint("DefaultLocale")
     private fun setupObserveData() {
-        viewModel.panenList.observe(this) { data ->
-
-            if (data.isNotEmpty()) {
-                tvEmptyState.visibility = View.GONE
-                recyclerView.visibility = View.VISIBLE
-
-                // Launch coroutine in lifecycleScope
+        viewModel.activePanenList.observe(this) { panenList ->
+            Handler(Looper.getMainLooper()).postDelayed({
                 lifecycleScope.launch {
-                    try {
-                        val filteredData = coroutineScope {
-                            data.map { item ->
-                                async {
+                    if (panenList.isNotEmpty()) {
+                        tvEmptyState.visibility = View.GONE
+                        recyclerView.visibility = View.VISIBLE
+                        val allWorkerData = mutableListOf<Map<String, Any>>()
 
-                                    val blok = try {
-                                        viewModel.getBlokKodeByTphId(item.tph_id.toInt())
+
+                        originalMappedData.clear()
+                        panenList.map { panenWithRelations ->
+                            val standardData = mapOf<String, Any>(
+                                "id" to (panenWithRelations.panen.id as Any),
+                                "tph_id" to (panenWithRelations.panen.tph_id as Any),
+                                "date_created" to (panenWithRelations.panen.date_created as Any),
+                                "blok_name" to (panenWithRelations.tph?.blok_kode ?: "Unknown"),
+                                "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                "created_by" to (panenWithRelations.panen.created_by as Any),
+                                "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
+                                "foto" to (panenWithRelations.panen.foto as Any),
+                                "komentar" to (panenWithRelations.panen.komentar as Any),
+                                "asistensi" to (panenWithRelations.panen.asistensi as Any),
+                                "lat" to (panenWithRelations.panen.lat as Any),
+                                "lon" to (panenWithRelations.panen.lon as Any),
+                                "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
+                                "ancak" to (panenWithRelations.panen.ancak as Any),
+                                "archive" to (panenWithRelations.panen.archive as Any),
+                                "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
+                                "nama_afdeling" to (panenWithRelations.tph.divisi_abbr as Any),
+                                "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
+                                "karyawan_nik" to (panenWithRelations.panen.karyawan_nik as Any),
+                                "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
+                                "nama_karyawans" to "",
+                                "nama_kemandorans" to "",
+                                "username" to (panenWithRelations.panen.username as Any)
+                            )
+
+                            val originalDataMapped = standardData.toMutableMap()
+                            originalMappedData.add(originalDataMapped)
+
+                            val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+
+                            val pemuatData: List<KaryawanModel>? =
+                                withContext(Dispatchers.IO) {
+                                    try {
+                                        viewModel.getPemuatByIdList(pemuatList)
                                     } catch (e: Exception) {
-                                        Log.e(
-                                            "TransferHektarPanenActivity",
-                                            "Error getting blok kode",
-                                            e
-                                        )
-                                        "NULL"
+                                        AppLogger.e("Error fetching Pemuat Data: ${e.message}")
+                                        null
                                     }
-
-                                    val hoursAndMinutes = item.date_created.substringAfter(" ")
-                                        .substringBeforeLast(":")
-
-                                    val janjang =
-                                        JSONObject(item.jjg_json).optDouble("PA", 0.0).toInt()
-                                            .toString()
-
-                                    val noTph = try {
-                                        viewModel.getNomorTPHbyId(item.tph_id.toInt())
-                                    } catch (e: Exception) {
-                                        Log.e(
-                                            "TransferHektarPanenActivity",
-                                            "Error getting blok kode",
-                                            e
-                                        )
-                                        "NULL"
-                                    }
-
-                                    val namaPemanen = try {
-                                        val nikArray = item.karyawan_nik.replace(" ", "").split(",")
-                                        nikArray.map { nik ->
-                                            viewModel.getNamaByNik(nik)
-                                        }.joinToString(", ")
-                                    } catch (e: Exception) {
-                                        Log.e(
-                                            "TransferHektarPanenActivity",
-                                            "Error getting blok kode",
-                                            e
-                                        )
-                                        "NULL"
-                                    }
-
-                                    TransferHektarPanenData(
-                                        time = hoursAndMinutes,
-                                        blok = blok,
-                                        janjang = janjang,
-                                        noTph = noTph,
-                                        status_scan = item.status_scan_mpanen,
-                                        namaPemanen = namaPemanen,
-                                        id = item.id
-                                    )
-
                                 }
-                            }.map { it.await() } // Wait for all async tasks to complete
+
+                            val rawKemandoran: List<String> = pemuatData
+                                ?.mapNotNull { it.kemandoran_id?.toString() }
+                                ?.distinct() ?: emptyList()
+
+                            val kemandoranData: List<KemandoranModel>? =
+                                withContext(Dispatchers.IO) {
+                                    try {
+                                        viewModel.getKemandoranById(rawKemandoran)
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error fetching Kemandoran Data: ${e.message}")
+                                        null
+                                    }
+                                }
+
+                            val kemandoranNamas = kemandoranData?.mapNotNull { it.nama }
+                                ?.takeIf { it.isNotEmpty() }
+                                ?.joinToString("\n") { "• $it" } ?: "-"
+
+                            val karyawanNamas = pemuatData?.mapNotNull { karyawan ->
+                                karyawan.nama?.let { nama ->
+                                    // Always append NIK for every worker
+                                    "$nama - ${karyawan.nik ?: "N/A"}"
+                                }
+                            }?.takeIf { it.isNotEmpty() }
+                                ?.joinToString(", ") ?: "-"
+
+                            // Update the original data with the fetched names
+                            originalDataMapped["nama_karyawans"] = karyawanNamas
+                            originalDataMapped["nama_kemandorans"] = kemandoranNamas
+
+                            val updatedStandardData = standardData.toMutableMap().apply {
+                                this["nama_karyawans"] = karyawanNamas
+                                this["nama_kemandorans"] = kemandoranNamas
+                            }
+
+                            allWorkerData.add(updatedStandardData)
+
+                            listOf(updatedStandardData)
+
+                        }.flatten()
+
+                        mappedData = allWorkerData
+
+                        val processedData = AppUtils.getPanenProcessedData(originalMappedData, featureName)
+
+                        if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen ||
+                            featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan ||
+                            featureName == AppUtils.ListFeatureNames.DetailESPB ||
+                            featureName == AppUtils.ListFeatureNames.TransferHektarPanen) {
+
+                            findViewById<LinearLayout>(R.id.blok_section).visibility = View.VISIBLE
+                            findViewById<LinearLayout>(R.id.total_section).visibility = View.VISIBLE
                         }
 
+                        // Extract values from processed data
+                        val blokNames = processedData["blokNames"]?.toString() ?: ""
+                        blok = if (blokNames.isEmpty()) "-" else blokNames
 
-                        AppLogger.d(filteredData.size.toString())
-                        adapter.updateList(filteredData)
-                    } catch (e: Exception) {
-                        AppLogger.e("Data processing error: ${e.message}")
+                        val blokDisplay = processedData["blokDisplay"]?.toString() ?: "-"
+                        jjg = processedData["totalJjgCount"]?.toString()?.toIntOrNull() ?: 0
+                        tph = processedData["tphCount"]?.toString()?.toIntOrNull() ?: 0
+
+                        findViewById<TextView>(R.id.titleTotalJjg).text = "Jjg Bayar: "
+                        findViewById<TextView>(R.id.listBlok).text = blokDisplay
+                        findViewById<TextView>(R.id.totalJjg).text = jjg.toString()
+                        findViewById<TextView>(R.id.totalTPH).text = tph.toString()
+
+                        // Log the results for debugging with feature context
+                        val jsonFieldUsed = "PA"
+
+                        AppLogger.d("Feature: $featureName")
+                        AppLogger.d("JSON field used: $jsonFieldUsed")
+                        AppLogger.d("Blok Display: $blokDisplay")
+                        AppLogger.d("Total JJG: $jjg")
+                        AppLogger.d("Total TPH: $tph")
+
+                        // First, convert the Map<String, Any> data to TransferHektarPanenData objects
+                        val transferHektarPanenDataList = allWorkerData.map { item ->
+                            val jjgStr = JSONObject(item["jjg_json"] as? String).optDouble("PA", 0.0).toInt().toString()
+                            TransferHektarPanenData(
+                                time = (item["date_created"] as? String) ?: "",
+                                blok = (item["blok_name"] as? String) ?: "-",
+                                janjang = jjgStr,
+                                noTph = "${item["nomor"] ?: ""}",
+                                namaPemanen = (item["nama_karyawans"] as? String) ?: "-",
+                                status_scan = 1, // Or any appropriate default
+                                id = (item["id"] as? String)?.toIntOrNull() ?: (item["id"] as? Int) ?: 0
+                            )
+                        }
+
+                        // Then update the adapter with the correctly typed list
+                        adapter.updateList(transferHektarPanenDataList)
+                        originalData =
+                            emptyList()
+
+                        loadingDialog.dismiss()
+                    } else {
+                        AppLogger.d("panenWithRelations panenList is empty")
+                        tvEmptyState.visibility = View.VISIBLE
+                        recyclerView.visibility = View.GONE
+
+                        // Hide the summary sections when no data
+                        findViewById<LinearLayout>(R.id.blok_section).visibility = View.GONE
+                        findViewById<LinearLayout>(R.id.total_section).visibility = View.GONE
+
+                        loadingDialog.dismiss()
                     }
                 }
-            } else {
-                tvEmptyState.text = "Belum ada transaksi panen"
-                tvEmptyState.visibility = View.VISIBLE
-                recyclerView.visibility = View.GONE
-            }
-
+            }, 500)
         }
     }
 
@@ -925,6 +844,14 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                                 else -> {
                                                     AppLogger.d("All items archived successfully")
                                                     playSound(R.raw.berhasil_konfirmasi)
+
+                                                    delay(200)
+                                                    viewModel.getAllScanMPanenByDate(0, globalFormattedDate)
+                                                    delay(400)
+                                                    AppLogger.d("All items archived successfully")
+                                                    loadingDialog.show()
+                                                    loadingDialog.setMessage("Sedang mengambil data", true)
+
                                                     Toast.makeText(
                                                         this@TransferHektarPanenActivity,
                                                         "Semua data berhasil diarsipkan",
@@ -960,10 +887,10 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                         }
                                     }
                                 }
-                                viewModel.getAllScanMPanenByDate(0, AppUtils.currentDate)
                             }
                         }
                     ) {
+
 
                     }
                 }
