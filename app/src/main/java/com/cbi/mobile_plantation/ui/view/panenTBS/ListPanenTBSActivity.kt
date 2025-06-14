@@ -3900,11 +3900,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
             // Create encoding hints for better quality
             val hints = hashMapOf<EncodeHintType, Any>().apply {
-                put(
-                    EncodeHintType.ERROR_CORRECTION,
-                    ErrorCorrectionLevel.H // Use HIGH error correction for logo overlay
-                )
-                put(EncodeHintType.MARGIN, 1)
+                put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M) // Change from H to M
+                put(EncodeHintType.MARGIN, 3) // Increase from 1 to 3
                 put(EncodeHintType.CHARACTER_SET, "UTF-8")
             }
 
