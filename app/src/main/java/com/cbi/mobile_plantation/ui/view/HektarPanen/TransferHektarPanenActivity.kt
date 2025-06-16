@@ -170,6 +170,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                         tvEmptyState.visibility = View.GONE
                         recyclerView.visibility = View.VISIBLE
                         val allWorkerData = mutableListOf<Map<String, Any>>()
+
                         panenList.map { panenWithRelations ->
                             val standardData = mapOf<String, Any>(
                                 "id" to (panenWithRelations.panen.id as Any),
@@ -258,35 +259,43 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
                         mappedData = allWorkerData
 
-                        val processedData =
-                            AppUtils.getPanenProcessedData(originalMappedData, featureName)
+                        // ========== USE AppUtils.getPanenProcessedData ==========
+                        val processedData = AppUtils.getPanenProcessedData(originalMappedData, featureName)
 
+                        if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen ||
+                            featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan ||
+                            featureName == AppUtils.ListFeatureNames.DetailESPB ||
+                            featureName == AppUtils.ListFeatureNames.TransferHektarPanen) {
+
+                            findViewById<LinearLayout>(R.id.blok_section).visibility = View.VISIBLE
+                            findViewById<LinearLayout>(R.id.total_section).visibility = View.VISIBLE
+                        }
+
+                        // Extract values from processed data
                         val blokNames = processedData["blokNames"]?.toString() ?: ""
                         blok = if (blokNames.isEmpty()) "-" else blokNames
 
-                        jjg = processedData["totalJjgCount"]?.toString()!!.toInt()
+                        val blokDisplay = processedData["blokDisplay"]?.toString() ?: "-"
+                        jjg = processedData["totalJjgCount"]?.toString()?.toIntOrNull() ?: 0
+                        tph = processedData["tphCount"]?.toString()?.toIntOrNull() ?: 0
 
-                        tph = processedData["tphCount"]?.toString()!!.toInt()
+                        findViewById<TextView>(R.id.titleTotalJjg).text = "Jjg Bayar: "
+                        findViewById<TextView>(R.id.listBlok).text = blokDisplay
+                        findViewById<TextView>(R.id.totalJjg).text = jjg.toString()
+                        findViewById<TextView>(R.id.totalTPH).text = tph.toString()
 
-//                            // Set Blok
-//                            val tvBlok = findViewById<View>(R.id.tv_blok)
-//                            tvBlok.findViewById<TextView>(R.id.tvTitleEspb).text = "Blok"
-//                            tvBlok.findViewById<TextView>(R.id.tvSubTitleEspb).text = blok
+                        // Log the results for debugging with feature context
+                        val jsonFieldUsed = "PA"
 
-//                            // Set jjg
-//                            val tvJjg = findViewById<View>(R.id.tv_jjg)
-//                            tvJjg.findViewById<TextView>(R.id.tvTitleEspb).text = "Janjang"
-//                            tvJjg.findViewById<TextView>(R.id.tvSubTitleEspb).text = jjg.toString()
+                        AppLogger.d("Feature: $featureName")
+                        AppLogger.d("JSON field used: $jsonFieldUsed")
+                        AppLogger.d("Blok Display: $blokDisplay")
+                        AppLogger.d("Total JJG: $jjg")
+                        AppLogger.d("Total TPH: $tph")
 
-//                            // Set jjg
-//                            val tvTph = findViewById<View>(R.id.tv_total_tph)
-//                            tvTph.findViewById<TextView>(R.id.tvTitleEspb).text = "Jumlah TPH"
-//                            tvTph.findViewById<TextView>(R.id.tvSubTitleEspb).text = tph.toString()
                         // First, convert the Map<String, Any> data to TransferHektarPanenData objects
                         val transferHektarPanenDataList = allWorkerData.map { item ->
-                            val jjgStr =
-                                JSONObject(item["jjg_json"] as? String).optDouble("PA", 0.0).toInt()
-                                    .toString()
+                            val jjgStr = JSONObject(item["jjg_json"] as? String).optDouble("PA", 0.0).toInt().toString()
                             TransferHektarPanenData(
                                 time = (item["date_created"] as? String) ?: "",
                                 blok = (item["blok_name"] as? String) ?: "-",
@@ -294,24 +303,22 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                 noTph = "${item["nomor"] ?: ""}",
                                 namaPemanen = (item["nama_karyawans"] as? String) ?: "-",
                                 status_scan = 1, // Or any appropriate default
-                                id = (item["id"] as? String)?.toIntOrNull() ?: (item["id"] as? Int)
-                                ?: 0
+                                id = (item["id"] as? String)?.toIntOrNull() ?: (item["id"] as? Int) ?: 0
                             )
                         }
 
-// Then update the adapter with the correctly typed list
+                        // Then update the adapter with the correctly typed list
                         adapter.updateList(transferHektarPanenDataList)
-
-//                                adapter.updateData(mappedData)
-//                                originalData =
-//                                    emptyList() // Reset original data when new data is loaded
 
                     } else {
                         AppLogger.d("panenWithRelations panenList is empty")
                         tvEmptyState.visibility = View.VISIBLE
                         recyclerView.visibility = View.GONE
-                    }
 
+                        // Hide the summary sections when no data
+                        findViewById<LinearLayout>(R.id.blok_section).visibility = View.GONE
+                        findViewById<LinearLayout>(R.id.total_section).visibility = View.GONE
+                    }
                 }
             }, 500)
         }
@@ -460,7 +467,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                         .substringBeforeLast(":")
 
                                     val janjang =
-                                        JSONObject(item.jjg_json).optDouble("TO", 0.0).toInt()
+                                        JSONObject(item.jjg_json).optDouble("PA", 0.0).toInt()
                                             .toString()
 
                                     val noTph = try {
@@ -502,6 +509,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                             }.map { it.await() } // Wait for all async tasks to complete
                         }
 
+
+                        AppLogger.d(filteredData.size.toString())
                         adapter.updateList(filteredData)
                     } catch (e: Exception) {
                         AppLogger.e("Data processing error: ${e.message}")
@@ -664,7 +673,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         val tvGenQRFull = findViewById<TextView>(R.id.tvGenQRFull)
 
         btnGenerateQRTPH.visibility = View.VISIBLE
-        btnGenerateQRTPHUnl.visibility = View.VISIBLE
+        btnGenerateQRTPHUnl.visibility = View.GONE
         tvGenQR60.visibility = View.VISIBLE
         tvGenQRFull.visibility = View.VISIBLE
 
@@ -697,11 +706,14 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 dialog.setContentView(view)
                 // Get references to views
                 val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
-//                        val qrCodeImageView: com.github.chrisbanes.photoview.PhotoView = view.findViewById(R.id.qrCodeImageView)
                 val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
                 val tvTitleQRGenerate: TextView =
                     view.findViewById(R.id.textTitleQRGenerate)
                 tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
+                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
+                tvTitleQRGenerate.text = "Hasil QR $capitalizedFeatureName"
                 val dashedLine: View = view.findViewById(R.id.dashedLine)
                 val loadingContainer: LinearLayout =
                     view.findViewById(R.id.loadingDotsContainerBottomSheet)
@@ -822,7 +834,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                                     takeQRCodeScreenshot(view)
 
                                     // Take only the required number of items
-                                    val limitedData = mappedData.take(effectiveLimit).toMutableList()
+                                    val limitedData =
+                                        mappedData.take(effectiveLimit).toMutableList()
                                     val itemsToRemove = mutableListOf<Map<String, Any?>>()
 
                                     limitedData.forEach { item ->
@@ -998,7 +1011,12 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                         // Switch to the main thread for UI updates
                         withContext(Dispatchers.Main) {
                             try {
-                                generateHighQualityQRCode(encodedData, qrCodeImageView)
+                                ListPanenTBSActivity().generateHighQualityQRCode(
+                                    encodedData,
+                                    qrCodeImageView,
+                                    this@TransferHektarPanenActivity,
+                                    showLogo = false
+                                )
                                 val fadeOut =
                                     ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
                                         .apply {
@@ -1368,55 +1386,6 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         }
     }
 
-    fun generateHighQualityQRCode(
-        content: String,
-        imageView: ImageView,
-        sizePx: Int = 1000
-    ) {
-        try {
-            // Create encoding hints for better quality
-            val hints = hashMapOf<EncodeHintType, Any>().apply {
-                put(
-                    EncodeHintType.ERROR_CORRECTION,
-                    ErrorCorrectionLevel.M
-                ) // Change to M for balance
-                put(EncodeHintType.MARGIN, 1) // Smaller margin
-                put(EncodeHintType.CHARACTER_SET, "UTF-8")
-                // Remove fixed QR version to allow automatic scaling
-            }
-
-            // Create QR code writer with hints
-            val writer = QRCodeWriter()
-            val bitMatrix = writer.encode(
-                content,
-                BarcodeFormat.QR_CODE,
-                sizePx,
-                sizePx,
-                hints
-            )
-
-            // Create bitmap with appropriate size
-            val width = bitMatrix.width
-            val height = bitMatrix.height
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-
-            // Fill the bitmap
-            for (x in 0 until width) {
-                for (y in 0 until height) {
-                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
-                }
-            }
-
-            // Set the bitmap to ImageView with high quality scaling
-            imageView.apply {
-                setImageBitmap(bitmap)
-                scaleType = ImageView.ScaleType.FIT_CENTER
-            }
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
 
     private fun showQrCodeFullScreen(qrDrawable: Drawable?, bottomSheetView: View) {
         if (qrDrawable == null) return
@@ -1467,8 +1436,13 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         // Set background color of the layout to white using your color resource
         fotoLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.white))
 
-        // Set close button background color to green using your color resource
-        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
+        val closeCardLinearLayout = closeZoomCard.getChildAt(0) as LinearLayout
+        closeCardLinearLayout.setBackgroundColor(
+            ContextCompat.getColor(
+                context,
+                R.color.greenDarker
+            )
+        )
 
         // Change the text color to white
         tvCardCloseButton.setTextColor(ContextCompat.getColor(context, R.color.white))
@@ -1507,7 +1481,6 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
     private fun takeQRCodeScreenshot(view: View) {
 
-
         lifecycleScope.launch {
             try {
                 val screenshotLayout: View =
@@ -1525,8 +1498,11 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
-                val infoTotalTransaksi =
-                    screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+                val infoTotalTransaksi = screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+
+                // Add references for new info views
+                val infoUrutanKe = screenshotLayout.findViewById<View>(R.id.infoUrutanKe)
+                val infoJamTanggal = screenshotLayout.findViewById<View>(R.id.infoJamTanggal)
 
                 fun setInfoData(includeView: View, labelText: String, valueText: String) {
                     val tvLabel = includeView.findViewById<TextView>(R.id.tvLabel)
@@ -1562,30 +1538,31 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                 val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
                 val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                val formattedDate = dateFormat.format(currentDate).uppercase(indonesianLocale)
                 val formattedTime = timeFormat.format(currentDate)
 
-                val effectiveLimit =
-                    if (limit == 0) mappedData.size else limit
+                // Get and increment screenshot counter
+                val screenshotNumber = getAndIncrementScreenshotCounter()
+
+                val effectiveLimit = if (limit == 0) mappedData.size else limit
                 val limitedData = mappedData.take(effectiveLimit)
 
-                val processedData =
-                    AppUtils.getPanenProcessedData(limitedData, featureName)
+                val processedData = AppUtils.getPanenProcessedData(limitedData, featureName)
+
+                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
 
                 tvUserName.text =
-                    "Hasil QR dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
-                setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
-                setInfoData(
-                    infoTotalJjg,
-                    "Total Janjang",
-                    ": ${processedData["totalJjgCount"]} jjg"
-                )
-                setInfoData(
-                    infoTotalTransaksi,
-                    "Jumlah Transaksi",
-                    ": ${processedData["tphCount"]}"
-                )
+                    "Hasil QR ${capitalizedFeatureName} dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
 
+                setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
+                setInfoData(infoTotalJjg, "Total Janjang", ": ${processedData["totalJjgCount"]} jjg")
+                setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": ${processedData["tphCount"]}")
+
+                // Add new info data
+                setInfoData(infoUrutanKe, "Urutan Ke", ": $screenshotNumber")
+                setInfoData(infoJamTanggal, "Jam & Tanggal", ": $formattedDate, $formattedTime")
 
                 tvFooter.text =
                     "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
@@ -1603,19 +1580,25 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                     0, 0, screenshotLayout.measuredWidth, screenshotLayout.measuredHeight
                 )
 
+                val date = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val screenshotFileName = "Transer_Hektar_Panen_$date"
 
-                val date =
-                    SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                "Panen_QR_$date"
-
-                val screenshotFileName = "Panen_QR_$date"
-
-
-
-                val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen)
+                val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
                     AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
-                else
+                } else if (featureName == AppUtils.ListFeatureNames.TransferHektarPanen) {
+                    AppUtils.WaterMarkFotoDanFolder.WMTransferHektarPanen
+                } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
                     AppUtils.WaterMarkFotoDanFolder.WMESPB
+                } else if (featureName == AppUtils.ListFeatureNames.AbsensiPanen) {
+                    AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
+                } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                    AppUtils.WaterMarkFotoDanFolder.WMRekapPanenDanRestan
+                } else if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
+                    AppUtils.WaterMarkFotoDanFolder.WMESPB
+                } else {
+                    AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
+                }
+
                 val screenshotFile = ScreenshotUtil.takeScreenshot(
                     screenshotLayout,
                     screenshotFileName,
@@ -1640,6 +1623,24 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                     ).show()
                 }
             }
+        }
+    }
+
+    private fun getAndIncrementScreenshotCounter(): Int {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val lastDate = prefManager!!.getScreenshotDate(featureName!!)
+        val currentCounter = prefManager!!.getScreenshotCounter(featureName!!)
+
+        return if (lastDate != today) {
+            // Reset counter for new day
+            prefManager!!.setScreenshotDate(featureName!!, today)
+            prefManager!!.setScreenshotCounter(featureName!!, 1)
+            1
+        } else {
+            // Increment counter for same day
+            val newCounter = currentCounter + 1
+            prefManager!!.setScreenshotCounter(featureName!!, newCounter)
+            newCounter
         }
     }
 }

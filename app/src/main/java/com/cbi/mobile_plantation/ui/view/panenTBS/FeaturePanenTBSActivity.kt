@@ -644,8 +644,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             try {
                                 val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
 
-                                AppLogger.d("karyawanIdMap $karyawanIdMap")
-
+                                AppLogger.d(selectedPemanen.toString())
+                                AppLogger.d(karyawanNamaMap.toString())
                                 val idKaryawanList = selectedPemanen.mapNotNull { worker ->
                                     // First try to get ID using the full name (with NIK if present)
                                     var id = karyawanIdMap[worker.name]
@@ -693,17 +693,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     // First try to get name using the full worker name (with NIK if present)
                                     var nama = karyawanNamaMap[worker.name]
 
-                                    // If that fails and the name contains a NIK separator, try with just the base name
+                                    // If that fails and the name contains a NIK separator, extract the name part (everything except the last segment after " - ")
                                     if (nama == null && worker.name.contains(" - ")) {
-                                        val baseName = worker.name.substringBefore(" - ").trim()
-                                        nama = karyawanNamaMap[baseName]
+                                        val segments = worker.name.split(" - ")
+                                        // Get everything except the last segment (which should be the NIK)
+                                        val nameWithoutNik = segments.dropLast(1).joinToString(" - ")
+                                        nama = karyawanNamaMap[nameWithoutNik]
                                     }
 
                                     // If that still fails and we don't have a NIK separator, try all possible matches
                                     if (nama == null && !worker.name.contains(" - ")) {
                                         // Find any key in the map that starts with this worker's name followed by " - "
-                                        val possibleKey =
-                                            karyawanNamaMap.keys.find { it.startsWith("${worker.name} - ") }
+                                        val possibleKey = karyawanNamaMap.keys.find { it.startsWith("${worker.name} - ") }
                                         if (possibleKey != null) {
                                             nama = karyawanNamaMap[possibleKey]
                                         } else {
@@ -714,7 +715,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                                     nama
                                 }
-
 
                                 val selectedPemanenLain =
                                     selectedPemanenLainAdapter.getSelectedWorkers()
@@ -753,7 +753,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                                 val selectedNamaPemanenLainList =
                                     selectedPemanenLain.mapNotNull { worker ->
-                                        val baseName = worker.name.substringBefore(" - ").trim()
+                                        // Extract the name part (everything except the last segment after " - ")
+                                        val segments = worker.name.split(" - ")
+                                        val baseName = if (segments.size > 1) {
+                                            segments.dropLast(1).joinToString(" - ").trim()
+                                        } else {
+                                            worker.name.trim()
+                                        }
 
                                         if (workerLainNameCounts[baseName]!! > 1) {
                                             // For duplicate names, use the full key with NIK

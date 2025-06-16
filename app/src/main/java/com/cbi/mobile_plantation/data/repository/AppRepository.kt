@@ -700,7 +700,7 @@ class AppRepository(context: Context) {
                                 kemandoran_id = "",
                                 karyawan_nik = "",
                                 karyawan_nama = "",
-                                jjg_json = "{\"KP\": ${tphData.jjg}}",
+                                jjg_json = "{\"PA\": ${tphData.jjg}}",
                                 foto = "",
                                 komentar = "",
                                 asistensi = 0,
@@ -713,7 +713,7 @@ class AppRepository(context: Context) {
                                 status_espb = 0,
                                 status_restan = 0,
                                 scan_status = 1,
-//                                username = tphData.username
+                                username = tphData.username
                             )
                         )
 

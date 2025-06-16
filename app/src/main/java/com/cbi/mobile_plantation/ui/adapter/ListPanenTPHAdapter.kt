@@ -69,6 +69,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
     private var onSelectionChangeListener: ((Int) -> Unit)? = null
 
+    private val uniqueUsernames = mutableListOf<String>()
+
     data class ExtractedData(
         val gradingText: String,
         val blokText: String,
@@ -92,7 +94,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     fun extractData(item: Map<String, Any>): ExtractedData {
         Log.d("ListPanenTPHAdapterTest", "extractData: $item")
 
-
         val panenId = item["id"] as? String ?: "0"
         val tphId = item["tph_id"] as? String ?: "0"
 
@@ -107,11 +108,13 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             JSONObject()
         }
 
-        val totalJjg = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
-            jjgJson.optInt("KP", 0)
-        } else {
-            jjgJson.optInt("TO", 0) //diganti KP
-        }
+//        val totalJjg = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
+//            jjgJson.optInt("KP", 0)
+//        } else {
+//            jjgJson.optInt("TO", 0) //diganti KP
+//        }
+
+        val totalJjg =  jjgJson.optInt("PA", 0)
 
         val formattedTime = try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
@@ -251,11 +254,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 try {
                     val jjgJson = JSONObject(jjgJsonString)
                     // Use different fields based on feature name
-                    val jjgValue = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
-                        jjgJson.optInt("KP", 0)
-                    } else {
-                        jjgJson.optInt("TO", 0)
-                    }
+                    val jjgValue =
+                        jjgJson.optInt("PA", 0)
+
 
                     // Update block details - add jjgValue to total and increment count
                     val currentDetails = checkedBlocksDetails[blokName] ?: Pair(0, 0)
@@ -290,11 +291,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 try {
                     val jjgJson = JSONObject(jjgJsonString)
                     // Use different fields based on feature name
-                    val jjgValue = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
-                        jjgJson.optInt("KP", 0)
-                    } else {
-                        jjgJson.optInt("TO", 0)
-                    }
+                    val jjgValue =
+                        jjgJson.optInt("PA", 0)
 
                     // Update block details - add jjgValue to total and increment count
                     val currentDetails = checkedBlocksDetails[blokName] ?: Pair(0, 0)
@@ -332,6 +330,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     class ListPanenTPHViewHolder(private val binding: TableItemRowBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
+
+
         fun bind(
             data: Map<String, Any>,
             context: Context,
@@ -340,8 +340,10 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             onCheckedChange: (Boolean) -> Unit,
             extractData: (Map<String, Any>) -> ExtractedData,
             featureName: String = "",
-            isScannedItem: Boolean = false
+            isScannedItem: Boolean = false,
+            uniqueUsernames: MutableList<String>
         ) {
+//            var usernameList: List<Int> = emptyList()
 
             val extractedData = extractData(data)
             binding.td1.visibility = View.VISIBLE
@@ -501,7 +503,16 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 binding.td5.layoutParams = params
 
                 val username = extractedData.username
-                val color = ListPanenTPHAdapter().getUsernameColor(username, context)
+
+
+                AppLogger.d(username)
+                if (!uniqueUsernames.contains(username)) {
+                    uniqueUsernames.add(username)
+                }
+                val colorIndex = uniqueUsernames.indexOf(username)
+
+                AppLogger.d("colorIndex $colorIndex")
+                val color = getUsernameColor(colorIndex, context)
                 binding.td5.setBackgroundColor(color)
                 binding.td1.text = extractedData.blokText
                 binding.td2.text = "${extractedData.tphText}/${extractedData.gradingText}"
@@ -803,6 +814,24 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             dialog.show()
         }
 
+        fun getUsernameColor(index: Int, context: Context): Int {
+            // Define a set of predefined colors - you can customize these
+            val colors = arrayOf(
+//            context.resources.getColor(R.color.bluedark),
+                Color.parseColor("#4CAF50"), // Green
+                Color.parseColor("#FF9800"), // Orange
+                Color.parseColor("#9C27B0"), // Purple
+                Color.parseColor("#E91E63"), // Pink
+                Color.parseColor("#00BCD4"), // Cyan
+                Color.parseColor("#FF5722"), // Deep Orange
+                Color.parseColor("#607D8B")  // Blue Grey
+            )
+
+            // Use the hash to select a color
+            val colorIndex = Math.abs(index) % colors.size
+            return colors[colorIndex]
+        }
+
         private fun getPhotoUrlsFromItem(item: Map<String, Any?>, context: Context): List<String> {
             // Get the root directory for storing photos
             val rootApp = File(
@@ -943,7 +972,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             },
             extractData = ::extractData,
             featureName = featureName,
-            isScannedItem = isScannedItem
+            isScannedItem = isScannedItem,
+            uniqueUsernames = uniqueUsernames
         )
     }
 
@@ -983,26 +1013,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         onSelectionChangeListener = listener
     }
 
-    fun getUsernameColor(username: String, context: Context): Int {
-        // Create a deterministic hash of the username to ensure the same user always gets the same color
-        val hash = username.hashCode()
 
-        // Define a set of predefined colors - you can customize these
-        val colors = arrayOf(
-            context.resources.getColor(R.color.bluedark),
-            Color.parseColor("#4CAF50"), // Green
-            Color.parseColor("#FF9800"), // Orange
-            Color.parseColor("#9C27B0"), // Purple
-            Color.parseColor("#E91E63"), // Pink
-            Color.parseColor("#00BCD4"), // Cyan
-            Color.parseColor("#FF5722"), // Deep Orange
-            Color.parseColor("#607D8B")  // Blue Grey
-        )
-
-        // Use the hash to select a color
-        val colorIndex = Math.abs(hash) % colors.size
-        return colors[colorIndex]
-    }
     @SuppressLint("NotifyDataSetChanged")
     fun updateData(newData: List<Map<String, Any>>) {
 

@@ -384,25 +384,37 @@ class ListAbsensiActivity : AppCompatActivity() {
     private fun setupQRAbsensi() {
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
         btnGenerateQRAbsensi.setOnClickListener {
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
-            val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
+            AlertDialogUtility.withTwoActions(
+                this,
+                "Generate QR",
+                getString(R.string.confirmation_dialog_title),
+                getString(R.string.al_confirm_generate_qr),
+                "warning.json",
+                ContextCompat.getColor(this, R.color.bluedarklight),
+                function = {
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
+                    val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
 
-            // Log tanggal
-            AppLogger.d("Generated Date: '$generatedDate'")
-            AppLogger.d("Today Date: '$todayDate'")
+                    // Log tanggal
+                    AppLogger.d("Generated Date: '$generatedDate'")
+                    AppLogger.d("Today Date: '$todayDate'")
 
-            if (generatedDate.isEmpty() || generatedDate != todayDate) {
-                // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
-                // Berarti ini adalah generate baru untuk hari ini
-                playSound(R.raw.berhasil_generate_qr)
-                saveGeneratedDate(todayDate)  // Simpan tanggal hari ini
-                generateData()  // Generate data baru
-            } else {
-                // Jika sudah pernah generate di hari yang sama
-                // Tampilkan QR yang sudah ada
-                showBottomSheetQR()
-            }
+                    if (generatedDate.isEmpty() || generatedDate != todayDate) {
+                        // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
+                        // Berarti ini adalah generate baru untuk hari ini
+                        playSound(R.raw.berhasil_generate_qr)
+                        saveGeneratedDate(todayDate)  // Simpan tanggal hari ini
+                        generateData()  // Generate data baru
+                    } else {
+                        // Jika sudah pernah generate di hari yang sama
+                        // Tampilkan QR yang sudah ada
+                        showBottomSheetQR()
+                    }
+                }
+            )
+
+
         }
     }
 
@@ -420,7 +432,10 @@ class ListAbsensiActivity : AppCompatActivity() {
         val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
         val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
         val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
-        tvTitleQRGenerate.text = "Generate QR Absensi"
+        val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+            word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        }
+        tvTitleQRGenerate.text = "Generate QR $capitalizedFeatureName"
         val dashedLine: View = view.findViewById(R.id.dashedLine)
         val loadingContainer: LinearLayout =
             view.findViewById(R.id.loadingDotsContainerBottomSheet)
@@ -840,7 +855,6 @@ class ListAbsensiActivity : AppCompatActivity() {
                     return@launch
                 }
 
-
                 AppLogger.d("mappedData $mappedData")
 
                 // Inflate the correct screenshot layout
@@ -861,6 +875,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
                 val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
 
+
                 // Check that we found the essential views
                 if (tvUserName == null) AppLogger.e("tvUserName not found")
                 if (qrCodeImageView == null) AppLogger.e("qrCodeImageView not found")
@@ -876,21 +891,24 @@ class ListAbsensiActivity : AppCompatActivity() {
 
                 // Let's print the resource IDs to make sure we're looking for the right ones
                 val infoKemandoranId = resources.getIdentifier("infoKemandoran", "id", packageName)
-                val infoTotalTransaksiId =
-                    resources.getIdentifier("infoTotalTransaksi", "id", packageName)
+                val infoTotalTransaksiId = resources.getIdentifier("infoTotalTransaksi", "id", packageName)
 
                 // Try to find the included layout views using resource IDs
-
-
                 val infoKemandoran = screenshotLayout.findViewById<View>(infoKemandoranId)
                     ?: screenshotLayout.findViewById<View>(R.id.infoKemandoran) // Fallback ID
 
                 val infoTotalTransaksi = screenshotLayout.findViewById<View>(infoTotalTransaksiId)
                     ?: screenshotLayout.findViewById<View>(R.id.infoKehadiran) // Fallback ID
 
+                // Add references for new info views
+                val infoUrutanKe = screenshotLayout.findViewById<View>(R.id.infoUrutanKe)
+                val infoJamTanggal = screenshotLayout.findViewById<View>(R.id.infoJamTanggal)
+
                 // Log whether we found the views
                 AppLogger.d("infoKemandoran found: ${infoKemandoran != null}")
                 AppLogger.d("infoTotalTransaksi found: ${infoTotalTransaksi != null}")
+                AppLogger.d("infoUrutanKe found: ${infoUrutanKe != null}")
+                AppLogger.d("infoJamTanggal found: ${infoJamTanggal != null}")
 
                 if (infoKemandoran == null || infoTotalTransaksi == null) {
                     AppLogger.e("One or more info layout views not found - falling back to direct search")
@@ -1016,31 +1034,36 @@ class ListAbsensiActivity : AppCompatActivity() {
                 }
 
                 val totalKaryawan = totalMasuk + totalTidakMasuk
-
-
                 val totalAttendance = "$totalMasuk / $totalKaryawan"
                 AppLogger.d("Total attendance: $totalAttendance")
 
-
-                // Set user info
-                tvUserName.text =
-                    "Hasil QR dari ${prefManager?.jabatanUserLogin ?: "Unknown"} - ${estateAfdeling}"
-
-                // Set footer with date/time
+                // Generate current date and time for footer and counter
                 val currentDate = Date()
                 val indonesianLocale = Locale("id", "ID")
                 val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
                 val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                val formattedDate = dateFormat.format(currentDate).uppercase(indonesianLocale)
                 val formattedTime = timeFormat.format(currentDate)
 
+                // Get and increment screenshot counter for this specific feature
+                val screenshotNumber = getAndIncrementScreenshotCounter()
+
+                // Set user info
+                tvUserName.text =
+                    "Hasil QR ${featureName} dari ${prefManager?.jabatanUserLogin ?: "Unknown"} - ${estateAfdeling}"
+
+                // Set footer with date/time
                 tvFooter.text =
                     "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
 
-
+                // Set info data
                 setInfoData(infoKemandoran, "Kemandoran", kemandoranValue)
                 setInfoData(infoTotalTransaksi, "Kehadiran", ": $totalAttendance")
+
+                // Add new info data with counter and timestamp
+                setInfoData(infoUrutanKe, "Urutan Ke", ": $screenshotNumber")
+                setInfoData(infoJamTanggal, "Jam & Tanggal", ": $formattedTime, $formattedDate")
 
                 // Take the screenshot
                 val displayMetrics = resources.displayMetrics
@@ -1096,6 +1119,24 @@ class ListAbsensiActivity : AppCompatActivity() {
                     ).show()
                 }
             }
+        }
+    }
+
+    private fun getAndIncrementScreenshotCounter(): Int {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val lastDate = prefManager!!.getScreenshotDate(featureName!!)
+        val currentCounter = prefManager!!.getScreenshotCounter(featureName!!)
+
+        return if (lastDate != today) {
+            // Reset counter for new day
+            prefManager!!.setScreenshotDate(featureName!!, today)
+            prefManager!!.setScreenshotCounter(featureName!!, 1)
+            1
+        } else {
+            // Increment counter for same day
+            val newCounter = currentCounter + 1
+            prefManager!!.setScreenshotCounter(featureName!!, newCounter)
+            newCounter
         }
     }
 
@@ -1343,8 +1384,8 @@ class ListAbsensiActivity : AppCompatActivity() {
         // Set background color of the layout to white using your color resource
         fotoLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.white))
 
-        // Set close button background color to green using your color resource
-        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
+        val closeCardLinearLayout = closeZoomCard.getChildAt(0) as LinearLayout
+        closeCardLinearLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
 
         // Change the text color to white
         tvCardCloseButton.setTextColor(ContextCompat.getColor(context, R.color.white))

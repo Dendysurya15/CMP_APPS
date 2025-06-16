@@ -368,7 +368,6 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
-    // Updated openPdfViewer method using afreakyelf library
     private fun openPdfViewer() {
         val pdfFile = getLocalPDFFile(pdfFileName)
         if (pdfFile != null) {
@@ -1478,7 +1477,7 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 withContext(Dispatchers.Main) {
-                                    startDownloads(previewRestanData)
+                                    startDownloads(previewRestanData, "Sinkronisasi Data")
                                 }
                             } catch (e: Exception) {
                                 // Handle any errors
@@ -1896,9 +1895,14 @@ class HomePageActivity : AppCompatActivity() {
                             val nikList =
                                 panenWithRelations.panen.karyawan_nik?.split(",")
                                     ?: listOf()
+
+
+                            AppLogger.d(panenWithRelations.panen.karyawan_nama.toString())
                             val namaList =
                                 panenWithRelations.panen.karyawan_nama?.split(",")
                                     ?: listOf()
+
+                            AppLogger.d(namaList.toString())
 
                             for (i in nikList.indices) {
                                 if (i < namaList.size) {
@@ -2064,23 +2068,23 @@ class HomePageActivity : AppCompatActivity() {
                                     "Data Panen ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
                                 }
 
-//                                                try {
-//                                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-//                                                        if (!exists()) mkdirs()
-//                                                    }
+//                                try {
+//                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+//                                        if (!exists()) mkdirs()
+//                                    }
 //
-//                                                    val filename = "panen_data_${System.currentTimeMillis()}.json"
-//                                                    val tempFile = File(tempDir, filename)
+//                                    val filename = "panen_data_${System.currentTimeMillis()}.json"
+//                                    val tempFile = File(tempDir, filename)
 //
-//                                                    FileOutputStream(tempFile).use { fos ->
-//                                                        fos.write(batchJson.toByteArray())
-//                                                    }
+//                                    FileOutputStream(tempFile).use { fos ->
+//                                        fos.write(batchJson.toByteArray())
+//                                    }
 //
-//                                                    AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
-//                                                } catch (e: Exception) {
-//                                                    AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
-//                                                    e.printStackTrace()
-//                                                }
+//                                    AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
+//                                } catch (e: Exception) {
+//                                    AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
+//                                    e.printStackTrace()
+//                                }
 
 
                                 panenBatchMap[batchKey] = mapOf(
@@ -2555,25 +2559,25 @@ class HomePageActivity : AppCompatActivity() {
                             hektaranJson = Gson().toJson(finalData)
 
                             // Save JSON to a temporary file for inspection - direct approach
-//                                            try {
-//                                                val tempDir =
-//                                                    File(getExternalFilesDir(null), "TEMP").apply {
-//                                                        if (!exists()) mkdirs()
-//                                                    }
+//                            try {
+//                                val tempDir =
+//                                    File(getExternalFilesDir(null), "TEMP").apply {
+//                                        if (!exists()) mkdirs()
+//                                    }
 //
-//                                                val filename =
-//                                                    "hektaran_data_${System.currentTimeMillis()}.json"
-//                                                val tempFile = File(tempDir, filename)
+//                                val filename =
+//                                    "hektaran_data_${System.currentTimeMillis()}.json"
+//                                val tempFile = File(tempDir, filename)
 //
-//                                                FileOutputStream(tempFile).use { fos ->
-//                                                    fos.write(hektaranJson.toByteArray())
-//                                                }
+//                                FileOutputStream(tempFile).use { fos ->
+//                                    fos.write(hektaranJson.toByteArray())
+//                                }
 //
-//                                                AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
-//                                            } catch (e: Exception) {
-//                                                AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
-//                                                e.printStackTrace()
-//                                            }
+//                                AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
+//                            } catch (e: Exception) {
+//                                AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
+//                                e.printStackTrace()
+//                            }
 
                             // Extract all IDs for tracking
                             val hektaranIds =

@@ -226,6 +226,8 @@ object AppUtils {
         const val WMInspeksi = "INSPEKSI"
         const val WMAbsensiPanen = "ABSENSI PANEN"
         const val WMESPB = "E-SPB"
+        const val WMTransferHektarPanen = "TRANSFER HEKTAR PANEN"
+        const val WMRekapPanenDanRestan = "REKAP PANEN DAN RESTAN"
     }
 
 
@@ -1274,17 +1276,21 @@ object AppUtils {
      */
     fun getBlokDisplay(mappedData: List<Map<String, Any?>>, featureName: String?): String {
         return if (featureName == ListFeatureNames.RekapHasilPanen ||
-            featureName == ListFeatureNames.RekapPanenDanRestan || featureName == ListFeatureNames.DetailESPB) {
-            val fieldToExtract = if (featureName == ListFeatureNames.RekapPanenDanRestan || featureName == ListFeatureNames.DetailESPB) "KP" else "TO"
+            featureName == ListFeatureNames.RekapPanenDanRestan ||
+            featureName == ListFeatureNames.DetailESPB ||
+            featureName == ListFeatureNames.TransferHektarPanen) {
+
+            val fieldToExtract = "PA"
+
             mappedData
                 .filter { it["blok_name"].toString() != "-" }
                 .groupBy { it["blok_name"].toString() }
                 .mapValues { (_, items) ->
                     val count = items.size
-                    val toSum = items.sumOf { item ->
+                    val paSum = items.sumOf { item ->
                         extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
                     }
-                    "${toSum.toInt()}/$count"  // Convert double sum to integer for display
+                    "${paSum.toInt()}/$count"  // Convert double sum to integer for display
                 }
                 .toSortedMap() // Sort by blok_name
                 .map { (blokName, summary) -> "$blokName ($summary)" }
@@ -1303,8 +1309,7 @@ object AppUtils {
             try {
                 val jjgJsonString = data["jjg_json"].toString()
                 val jjgJson = JSONObject(jjgJsonString)
-                val key = if (featureName == ListFeatureNames.RekapPanenDanRestan ||
-                    featureName == "Detail eSPB") "KP" else "TO"
+                val key = "PA" // Always use PA field now
 
                 totalJjgCount += jjgJson.optInt(key, 0)
             } catch (e: Exception) {

@@ -448,7 +448,7 @@ class FormESPBActivity : AppCompatActivity() {
                     val selectedTransporter = item.toString()
 
                     selectedTransporterId = try {
-                        transporterList.find { it.nama == selectedTransporter }?.id!!
+                        transporterList.find { it.nama == selectedTransporter }?.kode!!.toInt()
                     } catch (e: Exception) {
                         AppLogger.e("Error finding selectedTransporterId: ${e.message}")
                         0
@@ -457,6 +457,8 @@ class FormESPBActivity : AppCompatActivity() {
                         "FormESPBActivityTransporter",
                         "selectedTransporterId: $selectedTransporterId"
                     )
+
+                    AppLogger.d("select4edTransposertId $selectedTransporterId")
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error fetching transporter data: ${e.message}")
@@ -633,6 +635,8 @@ class FormESPBActivity : AppCompatActivity() {
             } else {
                 selectedTransporterId
             }
+
+            AppLogger.d("transporter_id $transporter_id")
             val creatorInfo = createCreatorInfo(
                 appVersion = appVersion,
                 osVersion = osVersion,
@@ -908,10 +912,11 @@ class FormESPBActivity : AppCompatActivity() {
                         AppLogger.d("json $json")
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
 
-                        ListPanenTBSActivity().generateHighQualityQRCode(
-                            encodedData!!,
-                            qrCodeImageView
-                        )
+
+
+                        ListPanenTBSActivity().generateHighQualityQRCode(encodedData!!, qrCodeImageView,
+                            this@FormESPBActivity,
+                            showLogo = false)
                         setMaxBrightness(this, true)
                         playSound(R.raw.berhasil_generate_qr)
 
@@ -1114,12 +1119,15 @@ class FormESPBActivity : AppCompatActivity() {
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
-                val infoTotalTransaksi =
-                    screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+                val infoTotalTransaksi = screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
                 val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
                 val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
                 val infoNopol = screenshotLayout.findViewById<View>(R.id.infoNopol)
                 val infoPemuat = screenshotLayout.findViewById<View>(R.id.infoPemuat)
+
+                // Add references for new info views
+                val infoUrutanKe = screenshotLayout.findViewById<View>(R.id.infoUrutanKe)
+                val infoJamTanggal = screenshotLayout.findViewById<View>(R.id.infoJamTanggal)
 
                 // Helper function to set label and value for included layouts
                 fun setInfoData(includeView: View, labelText: String, valueText: String) {
@@ -1186,11 +1194,18 @@ class FormESPBActivity : AppCompatActivity() {
                 val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
                 val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                val formattedDate = dateFormat.format(currentDate).uppercase(indonesianLocale)
                 val formattedTime = timeFormat.format(currentDate)
 
+                // Get and increment screenshot counter
+                val screenshotNumber = getAndIncrementScreenshotCounter()
+
+                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
+
                 // Set data for eSPB
-                tvUserName.text = "Hasil QR dari ${prefManager!!.jabatanUserLogin}"
+                tvUserName.text = "Hasil QR ${capitalizedFeatureName} dari ${prefManager!!.jabatanUserLogin}"
                 setInfoData(infoBlokList, "Blok", ": $blokDisplay")
                 setInfoData(infoTotalJjg, "Total Janjang", ": $totalJjg")
                 setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": $tphCount")
@@ -1199,6 +1214,9 @@ class FormESPBActivity : AppCompatActivity() {
                 setInfoData(infoNopol, "Nomor Polisi", ": $selectedNopol")
                 setInfoData(infoPemuat, "Pemuat", ": $pemuatNama")
 
+                // Add new info data
+                setInfoData(infoUrutanKe, "Urutan Ke", ": $screenshotNumber")
+                setInfoData(infoJamTanggal, "Jam & Tanggal", ": $formattedDate, $formattedTime")
 
                 tvFooter.text =
                     "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
@@ -1248,6 +1266,25 @@ class FormESPBActivity : AppCompatActivity() {
         }
     }
 
+
+    private fun getAndIncrementScreenshotCounter(): Int {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val lastDate = prefManager!!.getScreenshotDate(featureName!!)
+        val currentCounter = prefManager!!.getScreenshotCounter(featureName!!)
+
+        return if (lastDate != today) {
+            // Reset counter for new day
+            prefManager!!.setScreenshotDate(featureName!!, today)
+            prefManager!!.setScreenshotCounter(featureName!!, 1)
+            1
+        } else {
+            // Increment counter for same day
+            val newCounter = currentCounter + 1
+            prefManager!!.setScreenshotCounter(featureName!!, newCounter)
+            newCounter
+        }
+    }
+
     /**
      * Shows the QR code in fullscreen mode without relying on a bottom sheet
      */
@@ -1287,7 +1324,10 @@ class FormESPBActivity : AppCompatActivity() {
         fotoLayout.setBackgroundColor(ContextCompat.getColor(this, R.color.white))
 
         // Set close button background color to green
-        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(this, R.color.greenDarker))
+        val closeCardLinearLayout = closeZoomCard.getChildAt(0) as LinearLayout
+
+// Set the LinearLayout background to green instead of the card
+        closeCardLinearLayout.setBackgroundColor(ContextCompat.getColor(this, R.color.greenDarker))
 
         // Change the text color to white
         tvCardCloseButton.setTextColor(ContextCompat.getColor(this, R.color.white))
@@ -1689,7 +1729,7 @@ class FormESPBActivity : AppCompatActivity() {
 
             R.id.formEspbTransporter -> {
                 selectedTransporterId = try {
-                    transporterList.find { it.nama == selectedItem }?.id!!
+                    transporterList.find { it.nama == selectedItem }?.kode!!.toInt()
                 } catch (e: Exception) {
                     AppLogger.e("Error finding selectedTransporterId: ${e.message}")
                     0

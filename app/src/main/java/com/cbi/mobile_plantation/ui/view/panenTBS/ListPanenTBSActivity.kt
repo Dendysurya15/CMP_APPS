@@ -7,6 +7,7 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -15,6 +16,7 @@ import android.database.sqlite.SQLiteException
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
@@ -431,7 +433,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         panenViewModel.loadTPHNonESPB(0, 0, 1, globalFormattedDate)
                     }
 
-//                    filterDateContainer.visibility = View.GONE
                     nameFilterDate.text = displayDate
                     dateButton.isEnabled = true
                     dateButton.alpha = 1f // Make the button appear darker
@@ -631,7 +632,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 panenViewModel.loadTPHNonESPB(0, 0, 1, AppUtils.currentDate)
                 findViewById<HorizontalScrollView>(R.id.horizontalCardFeature).visibility =
                     View.GONE
-            } else if (featureName == "Rekap panen dan restan") {
+            }
+            else if (featureName == "Rekap panen dan restan") {
 
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
                 findViewById<TextView>(R.id.tv_card_tersimpan).text = "Rekap TPH"
@@ -645,7 +647,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val headerCheckBoxPanen = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
                 headerCheckBoxPanen.visibility = View.GONE
-            } else if (featureName == "Detail eSPB") {
+            }
+            else if (featureName == "Detail eSPB") {
                 val btnEditEspb = findViewById<FloatingActionButton>(R.id.btnEditEspb)
                 btnEditEspb.visibility = View.VISIBLE
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
@@ -724,7 +727,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 AlertDialogUtility.withTwoActions(
                                     this@ListPanenTBSActivity,
                                     "Lanjut",
-                                    "Edit eSPB",
+                                    "Tambah/Hapus TPH",
                                     "Apakah anda yakin ingin Tambah/Hapus TPH di e-SPB ini?",
                                     "warning.json",
                                     function = {
@@ -863,7 +866,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
 
-            } else {
+            }
+            else {
                 counterPerPemanen.visibility = View.GONE
                 val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
@@ -871,7 +875,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
                 flCheckBoxTableHeaderLayout.visibility = View.GONE
-                findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.VISIBLE
+                findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
                 panenViewModel.loadTPHNonESPB(0, 0, 0, AppUtils.currentDate)
                 panenViewModel.countTPHNonESPB(0, 0, 0, AppUtils.currentDate)
                 panenViewModel.countTPHESPB(1, 0, 0, AppUtils.currentDate)
@@ -1284,94 +1288,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
-    private fun formatPanenDataJSONForQR(jsonData: String): String {
-        return try {
-            // Parse the JSON array from the provided string
-            val jsonArray = JSONArray(jsonData)
-
-            // Map the JSON into the format needed
-            val mappedData = mutableListOf<Map<String, Any?>>()
-            for (i in 0 until jsonArray.length()) {
-                val item = jsonArray.getJSONObject(i)
-                mappedData.add(
-                    mapOf(
-                        "tph_id" to item.getLong("tph"),
-                        "date_created" to item.getString("tanggal"),
-                        "jjg_json" to item.getString("jjg_json")
-                    )
-                )
-            }
-
-            if (mappedData.isEmpty()) {
-                throw IllegalArgumentException("Data TPH is empty.")
-            }
-
-            val dateIndexMap = mutableMapOf<String, Int>()
-            val formattedData = buildString {
-                mappedData.forEach { data ->
-                    try {
-                        val tphId = data["tph_id"]?.toString()
-                            ?: throw IllegalArgumentException("Missing tph_id.")
-                        val dateCreated = data["date_created"]?.toString()
-                            ?: throw IllegalArgumentException("Missing date_created.")
-
-                        val jjgJsonString = data["jjg_json"]?.toString()
-                            ?: throw IllegalArgumentException("Missing jjg_json.")
-                        val jjgJson = try {
-                            JSONObject(jjgJsonString)
-                        } catch (e: JSONException) {
-                            throw IllegalArgumentException("Invalid JSON format in jjg_json: $jjgJsonString")
-                        }
-
-                        val key = "KP"  // Using "KP" as the key based on your data
-
-                        val toValue = if (jjgJson.has(key)) {
-                            jjgJson.getInt(key)
-                        } else {
-                            throw IllegalArgumentException("Missing '$key' key in jjg_json: $jjgJsonString")
-                        }
-
-                        // Extract date and time parts
-                        val dateParts = dateCreated.split(" ")
-                        if (dateParts.size != 2) {
-                            throw IllegalArgumentException("Invalid date_created format: $dateCreated")
-                        }
-
-                        val date = dateParts[0]  // 2025-04-03
-                        val time = dateParts[1]  // 07:53:02
-
-                        // Use dateIndexMap.size as the index for new dates
-                        append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue;")
-                    } catch (e: Exception) {
-                        throw IllegalArgumentException("Error processing data entry: ${e.message}")
-                    }
-                }
-            }
-
-            val username = try {
-                PrefManager(this).username.toString().split("@")[0].takeLast(3).uppercase()
-            } catch (e: Exception) {
-                Toasty.error(this, "Error mengambil username: ${e.message}", Toast.LENGTH_LONG)
-                    .show()
-                "NULL"
-            }
-
-            // Create the tgl object with date mappings
-            val tglJson = JSONObject()
-            dateIndexMap.forEach { (date, index) ->
-                tglJson.put(index.toString(), date)
-            }
-
-            return JSONObject().apply {
-                put("tph_0", formattedData)
-                put("username", username)
-                put("tgl", tglJson)
-            }.toString()
-        } catch (e: Exception) {
-            AppLogger.e("formatPanenDataForQR Error: ${e.message}")
-            throw e
-        }
-    }
 
     private fun formatPanenDataForQR(mappedData: List<Map<String, Any?>>): String {
         return try {
@@ -1395,8 +1311,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             throw IllegalArgumentException("Invalid JSON format in jjg_json: $jjgJsonString")
                         }
 
-                        val key =
-                            if (featureName == "Rekap panen dan restan" || featureName == "Detail eSPB" || featureName == AppUtils.ListFeatureNames.RekapHasilPanen) "KP" else "TO"
+                        val key = "PA"
 
                         val toValue = if (jjgJson.has(key)) {
                             jjgJson.getInt(key)
@@ -1568,11 +1483,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val selectedItems = listAdapter.getSelectedItems()
         Log.d("ListPanenTBSActivityESPB", "selectedItems: $selectedItems")
         val tph1AD0 =
-            convertToFormattedString(selectedItems.toString(), 0).replace("{\"KP\": ", "")
+            convertToFormattedString(selectedItems.toString(), 0).replace("{\"PA\": ", "")
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD0")
         val tph1AD2 =
-            convertToFormattedString(selectedItems.toString(), 1).replace("{\"KP\": ", "")
+            convertToFormattedString(selectedItems.toString(), 1).replace("{\"PA\": ", "")
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD2")
 
@@ -1633,12 +1548,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val tph1NO = convertToFormattedString(
             selectedItems2.toString(),
             listTPHDriver
-        ).replace("{\"KP\": ", "").replace("},", ",")
+        ).replace("{\"PA\": ", "").replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsNO: $tph1NO")
 
         //get item which is not selected
         val tph0before =
-            convertToFormattedString(allItems.toString(), 0).replace("{\"KP\": ", "")
+            convertToFormattedString(allItems.toString(), 0).replace("{\"PA\": ", "")
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItems0: $tph0before")
 
@@ -1747,13 +1662,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     )
                 val dialog = BottomSheetDialog(this@ListPanenTBSActivity)
                 dialog.setContentView(view)
-                // Get references to views
                 val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
-//                        val qrCodeImageView: com.github.chrisbanes.photoview.PhotoView = view.findViewById(R.id.qrCodeImageView)
                 val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
                 val tvTitleQRGenerate: TextView =
                     view.findViewById(R.id.textTitleQRGenerate)
                 tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
+                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
+                tvTitleQRGenerate.text = "Hasil QR $capitalizedFeatureName"
                 val dashedLine: View = view.findViewById(R.id.dashedLine)
                 val loadingContainer: LinearLayout =
                     view.findViewById(R.id.loadingDotsContainerBottomSheet)
@@ -2127,7 +2044,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         totalTPH.text = processedData["tphCount"].toString()
                         withContext(Dispatchers.Main) {
                             try {
-                                generateHighQualityQRCode(encodedData, qrCodeImageView)
+                                generateHighQualityQRCode(encodedData, qrCodeImageView,
+                                    this@ListPanenTBSActivity,
+                                    showLogo = false)
                                 val fadeOut =
                                     ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
                                         .apply {
@@ -2366,8 +2285,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
         // Set background color of the layout to white using your color resource
         fotoLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.white))
 
-        // Set close button background color to green using your color resource
-        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
+        val closeCardLinearLayout = closeZoomCard.getChildAt(0) as LinearLayout
+        closeCardLinearLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
 
         // Change the text color to white
         tvCardCloseButton.setTextColor(ContextCompat.getColor(context, R.color.white))
@@ -2545,7 +2464,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             val kpValue = parts[2].trim() // Third index for KP value
 
                                             // Create JSON for jjg_json
-                                            val jjgJson = "{\"KP\": $kpValue}"
+                                            val jjgJson = "{\"PA\": $kpValue}"
 
                                             try {
                                                 // Convert tphId to Int for the query
@@ -2615,7 +2534,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             for (data in processedDataList) {
                                 try {
                                     val jjgJson = JSONObject(data["jjg_json"].toString())
-                                    val kpValue = jjgJson.optDouble("KP", 0.0)
+                                    val kpValue = jjgJson.optDouble("PA", 0.0)
                                     totalKpSum += kpValue
                                 } catch (e: Exception) {
                                     AppLogger.e("Error parsing jjg_json: ${e.message}")
@@ -2656,7 +2575,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         } else if (currentState == 1) {
                             // State 1: Merge by blok (similar to your existing merge logic)
                             val globalMergedBlokMap = mutableMapOf<String, MutableMap<String, Any>>()
-                            val jjgTypes = listOf("KP") // Only KP for restan data
+                            val jjgTypes = listOf("PA")
 
                             for (blokData in processedDataList) {
                                 val blokName = blokData["blok_name"].toString()
@@ -2684,7 +2603,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     existingBlokData["jjg_json"] = existingJjgJson.toString()
 
                                     // For restan, use KP as the total
-                                    val newTotalKP = existingJjgJson.optDouble("KP", 0.0)
+                                    val newTotalKP = existingJjgJson.optDouble("PA", 0.0)
                                     existingBlokData["jjg_total"] = if (newTotalKP == newTotalKP.toInt().toDouble()) {
                                         newTotalKP.toInt().toString()
                                     } else {
@@ -2709,7 +2628,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     val mutableBlokData = blokData.toMutableMap()
 
                                     // Format the KP value
-                                    val jjgKP = jjgValues["KP"] ?: 0.0
+                                    val jjgKP = jjgValues["PA"] ?: 0.0
                                     val formattedJjgKP = if (jjgKP == jjgKP.toInt().toDouble()) {
                                         jjgKP.toInt().toString()
                                     } else {
@@ -3777,18 +3696,32 @@ class ListPanenTBSActivity : AppCompatActivity() {
     fun generateHighQualityQRCode(
         content: String,
         imageView: ImageView,
-        sizePx: Int = 1000
+        context: Context,
+        sizePx: Int = 1000,
+        foregroundColorRes: Int? = R.color.black, // Optional: use custom color or default
+        backgroundColorRes: Int? = R.color.white, // Optional: use custom color or default
+        showLogo: Boolean = false, // Toggle to show/hide logo (default: no logo)
+        logoRes: Int = R.drawable.cbi, // Default logo resource
+        logoSizeRatio: Float = 0.12f // Logo size as ratio of QR code (12% by default)
     ) {
         try {
+            // Get colors from colors.xml or use defaults
+            val foregroundColor = foregroundColorRes?.let {
+                ContextCompat.getColor(context, it)
+            } ?: Color.BLACK // Default black if not specified
+
+            val backgroundColor = backgroundColorRes?.let {
+                ContextCompat.getColor(context, it)
+            } ?: Color.WHITE // Default white if not specified
+
             // Create encoding hints for better quality
             val hints = hashMapOf<EncodeHintType, Any>().apply {
                 put(
                     EncodeHintType.ERROR_CORRECTION,
-                    ErrorCorrectionLevel.M
-                ) // Change to M for balance
-                put(EncodeHintType.MARGIN, 1) // Smaller margin
+                    ErrorCorrectionLevel.H // Use HIGH error correction for logo overlay
+                )
+                put(EncodeHintType.MARGIN, 1)
                 put(EncodeHintType.CHARACTER_SET, "UTF-8")
-                // Remove fixed QR version to allow automatic scaling
             }
 
             // Create QR code writer with hints
@@ -3806,23 +3739,85 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val height = bitMatrix.height
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
 
-            // Fill the bitmap
+            // Fill the bitmap with colors from colors.xml
             for (x in 0 until width) {
                 for (y in 0 until height) {
-                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
+                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) foregroundColor else backgroundColor)
                 }
             }
 
-            // Set the bitmap to ImageView with high quality scaling
-            imageView.apply {
-                setImageBitmap(bitmap)
-                scaleType = ImageView.ScaleType.FIT_CENTER
+            // Add logo if enabled
+            if (showLogo) {
+                val finalBitmap = addLogoToQRCode(bitmap, context, logoRes, logoSizeRatio)
+
+                // Set the bitmap to ImageView with high quality scaling
+                imageView.apply {
+                    setImageBitmap(finalBitmap)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                }
+            } else {
+                // No logo, just set the QR code
+                imageView.apply {
+                    setImageBitmap(bitmap)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                }
             }
 
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
+
+    private fun addLogoToQRCode(
+        qrBitmap: Bitmap,
+        context: Context,
+        logoRes: Int,
+        logoSizeRatio: Float
+    ): Bitmap {
+        try {
+            // Create a mutable copy of the QR code bitmap
+            val combinedBitmap = qrBitmap.copy(Bitmap.Config.ARGB_8888, true)
+            val canvas = Canvas(combinedBitmap)
+
+            // Load and resize logo
+            val logoDrawable = ContextCompat.getDrawable(context, logoRes)
+            logoDrawable?.let { drawable ->
+
+                // Calculate logo size
+                val qrSize = qrBitmap.width
+                val logoSize = (qrSize * logoSizeRatio).toInt()
+
+                // Calculate center position
+                val left = (qrSize - logoSize) / 2
+                val top = (qrSize - logoSize) / 2
+                val right = left + logoSize
+                val bottom = top + logoSize
+
+                // Create white background circle for logo (optional)
+                val paint = Paint().apply {
+                    color = Color.WHITE
+                    isAntiAlias = true
+                }
+                val radius = logoSize / 2f
+                val centerX = qrSize / 2f
+                val centerY = qrSize / 2f
+                canvas.drawCircle(centerX, centerY, radius + 6, paint)
+
+                // Draw logo
+                drawable.setBounds(left, top, right, bottom)
+                drawable.draw(canvas)
+            }
+
+            return combinedBitmap
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return qrBitmap // Return original if logo addition fails
+        }
+    }
+
+
+
 
     private val STORAGE_PERMISSION_CODE = 101
     private val REQUIRED_PERMISSIONS = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -3874,8 +3869,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
     private fun takeQRCodeScreenshot(view: View) {
-
-
         lifecycleScope.launch {
             try {
                 val screenshotLayout: View =
@@ -3893,8 +3886,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 // Get references to included layouts
                 val infoBlokList = screenshotLayout.findViewById<View>(R.id.infoBlokList)
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
-                val infoTotalTransaksi =
-                    screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+                val infoTotalTransaksi = screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
+
+                // Add references for new info views
+                val infoUrutanKe = screenshotLayout.findViewById<View>(R.id.infoUrutanKe)
+                val infoJamTanggal = screenshotLayout.findViewById<View>(R.id.infoJamTanggal)
 
                 fun setInfoData(includeView: View, labelText: String, valueText: String) {
                     val tvLabel = includeView.findViewById<TextView>(R.id.tvLabel)
@@ -3930,18 +3926,23 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
                 val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                val formattedDate = dateFormat.format(currentDate).uppercase(indonesianLocale)
                 val formattedTime = timeFormat.format(currentDate)
 
-                val effectiveLimit =
-                    if (limit == 0) mappedData.size else limit
+                // Get and increment screenshot counter
+                val screenshotNumber = getAndIncrementScreenshotCounter()
+
+                val effectiveLimit = if (limit == 0) mappedData.size else limit
                 val limitedData = mappedData.take(effectiveLimit)
 
-                val processedData =
-                    AppUtils.getPanenProcessedData(limitedData, featureName)
+                val processedData = AppUtils.getPanenProcessedData(limitedData, featureName)
+                val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
 
                 tvUserName.text =
-                    "Hasil QR dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
+                    "Hasil QR ${capitalizedFeatureName} dari ${prefManager!!.jabatanUserLogin} - ${prefManager!!.estateUserLogin}"
+
                 if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                     val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
                     val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
@@ -3954,35 +3955,27 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     infoPemuat.visibility = View.VISIBLE
 
                     setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
-                    setInfoData(
-                        infoTotalJjg,
-                        "Total Janjang",
-                        ": ${processedData["totalJjgCount"]} jjg"
-                    )
-                    setInfoData(
-                        infoTotalTransaksi,
-                        "Jumlah Transaksi",
-                        ": ${processedData["tphCount"]}"
-                    )
+                    setInfoData(infoTotalJjg, "Total Janjang", ": ${processedData["totalJjgCount"]} jjg")
+                    setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": ${processedData["tphCount"]}")
                     setInfoData(infoNoESPB, "E-SPB", ": $no_espb")
                     setInfoData(infoDriver, "Driver", ": $driver")
                     setInfoData(infoNopol, "Nomor Polisi", ": $nopol")
                     setInfoData(infoPemuat, "Pemuat", ": $pemuatNamaESPB")
+
+                    // Add new info data for DetailESPB
+                    setInfoData(infoUrutanKe, "Urutan Ke", ": $screenshotNumber")
+                    setInfoData(infoJamTanggal, "Jam & Tanggal", ": $formattedDate, $formattedTime")
+
                 } else {
-
                     setInfoData(infoBlokList, "Blok", ": ${processedData["blokDisplay"]}")
-                    setInfoData(
-                        infoTotalJjg,
-                        "Total Janjang",
-                        ": ${processedData["totalJjgCount"]} jjg"
-                    )
-                    setInfoData(
-                        infoTotalTransaksi,
-                        "Jumlah Transaksi",
-                        ": ${processedData["tphCount"]}"
-                    )
+                    setInfoData(infoTotalJjg, "Total Janjang", ": ${processedData["totalJjgCount"]} jjg")
+                    setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": ${processedData["tphCount"]}")
 
+                    // Add new info data for other features
+                    setInfoData(infoUrutanKe, "Urutan Ke", ": $screenshotNumber")
+                    setInfoData(infoJamTanggal, "Jam & Tanggal", ": $formattedDate, $formattedTime")
                 }
+
                 tvFooter.text =
                     "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
 
@@ -4006,10 +3999,22 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     "Panen_QR"
                 }
 
-                val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen)
+                val watermarkType = if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
                     AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
-                else
+                } else if (featureName == AppUtils.ListFeatureNames.TransferHektarPanen) {
+                    AppUtils.WaterMarkFotoDanFolder.WMTransferHektarPanen
+                } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
                     AppUtils.WaterMarkFotoDanFolder.WMESPB
+                } else if (featureName == AppUtils.ListFeatureNames.AbsensiPanen) {
+                    AppUtils.WaterMarkFotoDanFolder.WMAbsensiPanen
+                } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+                    AppUtils.WaterMarkFotoDanFolder.WMRekapPanenDanRestan
+                } else if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
+                    AppUtils.WaterMarkFotoDanFolder.WMESPB
+                } else {
+                    AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
+                }
+
                 val screenshotFile = ScreenshotUtil.takeScreenshot(
                     screenshotLayout,
                     screenshotFileName,
@@ -4034,6 +4039,24 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     ).show()
                 }
             }
+        }
+    }
+
+    private fun getAndIncrementScreenshotCounter(): Int {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val lastDate = prefManager!!.getScreenshotDate(featureName!!)
+        val currentCounter = prefManager!!.getScreenshotCounter(featureName!!)
+
+        return if (lastDate != today) {
+            // Reset counter for new day
+            prefManager!!.setScreenshotDate(featureName!!, today)
+            prefManager!!.setScreenshotCounter(featureName!!, 1)
+            1
+        } else {
+            // Increment counter for same day
+            val newCounter = currentCounter + 1
+            prefManager!!.setScreenshotCounter(featureName!!, newCounter)
+            newCounter
         }
     }
 
@@ -4337,7 +4360,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     totalTphTextView.text = tphCount.toString()
                     totalJjgTextView.text = jjgCount.toString()
                     tvTotalTPH.text = "Jmlh Transaksi: "
-                    titleTotalJjg.text = "Kirim Pabrik: "
+                    titleTotalJjg.text = "Jjg Bayar: "
 
                     // No need to format again, just join the already formatted blocks
                     val blocksText = formattedBlocks.joinToString(", ")
@@ -4350,7 +4373,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 }
             }
         } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
-            titleTotalJjg.text = "Kirim Pabrik: "
+            titleTotalJjg.text = "Jjg Bayar: "
+        }else{
+            titleTotalJjg.text = "Jjg Bayar: "
         }
     }
 
@@ -4389,11 +4414,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                             val kpNumber = try {
                                 val jjgJson = panenWithRelations.panen.jjg_json ?: ""
-                                if (jjgJson.startsWith("{") && jjgJson.contains("KP")) {
-                                    // Parse JSON: {"KP": 18} -> "18"
+                                if (jjgJson.startsWith("{") && jjgJson.contains("PA")) {
                                     val gson = Gson()
                                     val jsonObject = gson.fromJson(jjgJson, JsonObject::class.java)
-                                    jsonObject.get("KP")?.asString ?: jjgJson
+                                    jsonObject.get("PA")?.asString ?: jjgJson
                                 } else {
                                     // If it's not JSON, use as is
                                     jjgJson
@@ -4523,11 +4547,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val status = parts[3].trim()
 
                         val kpNumber = try {
-                            if (kpValue.startsWith("{") && kpValue.contains("KP")) {
-                                // Parse JSON: {"KP": 18} -> "18"
+                            if (kpValue.startsWith("{") && kpValue.contains("PA")) {
+                                // Parse JSON: {"PA": 18} -> "18"
                                 val gson = Gson()
                                 val jsonObject = gson.fromJson(kpValue, JsonObject::class.java)
-                                jsonObject.get("KP")?.asString ?: kpValue
+                                jsonObject.get("PA")?.asString ?: kpValue
                             } else {
                                 // If it's not JSON, use as is
                                 kpValue
