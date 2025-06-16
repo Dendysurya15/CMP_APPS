@@ -589,7 +589,12 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         AppLogger.d("data $data")
 
                         val btnEditPemanen = view.findViewById<Button>(R.id.btnEditPemanen)
-                        btnEditPemanen.visibility = View.VISIBLE
+                        if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 1){
+                            btnEditPemanen.visibility = View.GONE
+                        }else{
+                            btnEditPemanen.visibility = View.VISIBLE
+                        }
+
 
                         // Handle Edit Pemanen button click
                         btnEditPemanen.setOnClickListener {

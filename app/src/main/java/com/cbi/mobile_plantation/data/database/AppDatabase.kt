@@ -77,7 +77,7 @@ import java.util.concurrent.Executors
         AfdelingModel::class,
         JenisTPHModel::class
     ],
-    version = 49
+    version = 50
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -157,7 +157,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_43_44,
                         MIGRATION_44_45,
                         MIGRATION_46_47,
-                        MIGRATION_47_48
+                        MIGRATION_47_48,
+                                MIGRATION_48_49
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -626,6 +627,12 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_47_48 = object : Migration(47, 48) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE estate ADD COLUMN tph_otomatis INTEGER")
+            }
+        }
+
+        val MIGRATION_48_49 = object : Migration(47, 48) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE panen_table ADD COLUMN status_transfer_restan INTEGER NOT NULL DEFAULT 0")
             }
         }
 

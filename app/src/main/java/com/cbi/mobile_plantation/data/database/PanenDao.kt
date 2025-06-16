@@ -70,19 +70,21 @@ abstract class PanenDao {
     WHERE archive = :archive 
     AND status_espb = :statusEspb 
     AND scan_status = :scanStatus
+    AND status_transfer_restan = :statusTransferRestan
     AND (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
     ORDER BY date_created DESC
 """)
-    abstract suspend fun loadESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): List<PanenEntityWithRelations>
+    abstract suspend fun loadESPB(archive: Int, statusEspb: Int,statusTransferRestan:Int, scanStatus: Int, date: String?): List<PanenEntityWithRelations>
 
     @Query("""
     SELECT COUNT(*) FROM panen_table 
     WHERE archive = :archive 
     AND status_espb = :statusEspb 
     AND scan_status = :scanStatus
+    AND status_transfer_restan = :statusTransferRestan
     AND (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
 """)
-    abstract suspend fun countESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): Int
+    abstract suspend fun countESPB(archive: Int, statusEspb: Int,statusTransferRestan:Int, scanStatus: Int, date: String?): Int
 
     @Query("""
     UPDATE panen_table
@@ -123,6 +125,9 @@ abstract class PanenDao {
     @Query("UPDATE panen_table SET archive = 1 WHERE id = :id")
     abstract fun archiveByID(id: Int): Int
 
+    @Query("UPDATE panen_table SET status_transfer_restan = 1 WHERE id = :id")
+    abstract fun changeStatusTransferRestan(id: Int): Int
+
     @Query("UPDATE panen_table SET archive_mpanen = 1 WHERE id = :id")
     abstract fun archiveMpanenByID(id: Int): Int
 
@@ -144,7 +149,7 @@ abstract class PanenDao {
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE status_espb = 0 and status_scan_mpanen == 0")
+    @Query("SELECT * FROM panen_table WHERE status_espb = 0 and status_scan_mpanen = 0 and status_transfer_restan = 0")
     abstract fun getAllActivePanenESPBAll(): List<PanenEntityWithRelations>
 
     @Transaction

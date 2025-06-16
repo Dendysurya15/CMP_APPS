@@ -779,11 +779,12 @@ class AppRepository(context: Context) {
     suspend fun loadESPB(
         archive: Int,
         statusEspb: Int,
+        statusTransferRestan:Int,
         scanStatus: Int,
         date: String? = null
     ): List<PanenEntityWithRelations> {
         return try {
-            panenDao.loadESPB(archive, statusEspb, scanStatus, date)
+            panenDao.loadESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
             emptyList()  // Return empty list if there's an error
@@ -793,11 +794,12 @@ class AppRepository(context: Context) {
     suspend fun countESPB(
         archive: Int,
         statusEspb: Int,
+        statusTransferRestan:Int,
         scanStatus: Int,
         date: String? = null
     ): Int {
         return try {
-            panenDao.countESPB(archive, statusEspb, scanStatus, date)
+            panenDao.countESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
             0  // Return 0 if there's an error
@@ -1002,6 +1004,10 @@ class AppRepository(context: Context) {
 
     suspend fun archivePanenById(id: Int) = withContext(Dispatchers.IO) {
         panenDao.archiveByID(id)
+    }
+
+    suspend fun changeStatusTransferRestan(id: Int) = withContext(Dispatchers.IO) {
+        panenDao.changeStatusTransferRestan(id)
     }
 
     suspend fun archiveMpanenByID(id: Int) = withContext(Dispatchers.IO) {
