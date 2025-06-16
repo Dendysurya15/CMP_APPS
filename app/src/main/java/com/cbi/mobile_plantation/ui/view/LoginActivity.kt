@@ -255,6 +255,7 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.companyIdUserLogin = loginResponse.data?.user?.company
                         prefManager!!.companyAbbrUserLogin = loginResponse.data?.user?.company_abbr
                         prefManager!!.companyNamaUserLogin = loginResponse.data?.user?.company_nama
+                        prefManager!!.kemandoranPPROUserLogin = loginResponse.data?.user?.kemandoran_ppro
                         prefManager!!.kemandoranUserLogin = loginResponse.data?.user?.kemandoran
                         prefManager!!.kemandoranNamaUserLogin = loginResponse.data?.user?.kemandoran_nama
                         prefManager!!.kemandoranKodeUserLogin = loginResponse.data?.user?.kemandoran_kode

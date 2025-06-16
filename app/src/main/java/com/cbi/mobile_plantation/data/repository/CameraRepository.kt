@@ -48,6 +48,7 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.CameraOrientationHandler
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.daimajia.androidanimations.library.Techniques
@@ -82,7 +83,7 @@ class CameraRepository(
             longitude: Double?
         )
     }
-
+    private lateinit var orientationHandler: CameraOrientationHandler
     private var photoCallback: PhotoCallback? = null
     private var prefManager: PrefManager? = null
 
@@ -109,46 +110,106 @@ class CameraRepository(
         this.photoCallback = callback
     }
 
-    private fun rotateBitmapOrientation(photoFilePath: String?): Bitmap {
-        // Create and configure BitmapFactory
+    private fun rotateBitmapWithOrientation(photoFilePath: String?, cameraId: Int, orientationHandler: CameraOrientationHandler): Bitmap {
+        val TAG = "BitmapRotation"
+
+        Log.d(TAG, "=== BITMAP ROTATION START ===")
+        Log.d(TAG, "📸 Photo capture initiated")
+        Log.d(TAG, "Photo file: $photoFilePath")
+
         val bounds = BitmapFactory.Options()
         bounds.inJustDecodeBounds = true
         BitmapFactory.decodeFile(photoFilePath, bounds)
+
         val opts = BitmapFactory.Options()
-        val bm = BitmapFactory.decodeFile(photoFilePath, opts)
-        // Read EXIF Data
-        var exif: ExifInterface? = null
-        try {
-            exif = photoFilePath?.let { ExifInterface(it) }
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
-        val orientString: String? = exif?.getAttribute(ExifInterface.TAG_ORIENTATION)
-        val orientation =
-            orientString?.toInt() ?: ExifInterface.ORIENTATION_NORMAL
-        var rotationAngle = 0
-        when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> {
-                rotationAngle = 90
-            }
+        val originalBitmap = BitmapFactory.decodeFile(photoFilePath, opts)
 
-            ExifInterface.ORIENTATION_ROTATE_180 -> {
-                rotationAngle = 180
-            }
+        Log.d(TAG, "Original bitmap size: ${originalBitmap.width}x${originalBitmap.height}")
 
-            ExifInterface.ORIENTATION_ROTATE_270 -> {
-                rotationAngle = 270
+        // Get the required rotation from orientation handler
+        val rotationAngle = orientationHandler.getImageRotation(cameraId)
+
+        // Log hand detection details
+        val deviceOrientation = orientationHandler.getCurrentOrientation()
+        val isLeftHanded = orientationHandler.isLikelyLeftHanded()
+
+        Log.d(TAG, "=== 🤚 HAND DETECTION AT CAPTURE ===")
+        Log.d(TAG, "Current device orientation: $deviceOrientation°")
+        Log.d(TAG, "Camera rotation angle: $rotationAngle°")
+        Log.d(TAG, "Hand detection result: ${if (isLeftHanded) "🤚 LEFT HAND" else "👋 RIGHT HAND"}")
+        Log.d(TAG, "Detection logic:")
+        when (deviceOrientation) {
+            270 -> Log.d(TAG, "  → 270° = Landscape Left = LEFT HAND grip")
+            90 -> Log.d(TAG, "  → 90° = Landscape Right = RIGHT HAND grip")
+            0 -> Log.d(TAG, "  → 0° = Portrait = BOTH HANDS (convert to landscape)")
+            180 -> Log.d(TAG, "  → 180° = Portrait Upside Down = BOTH HANDS (convert to landscape)")
+            else -> Log.d(TAG, "  → ${deviceOrientation}° = Unknown orientation")
+        }
+        Log.d(TAG, "=================================")
+
+        // FIXED: Handle all orientations to produce landscape final images
+        val finalRotation = when (deviceOrientation) {
+            270 -> {
+                // Left hand landscape - apply 180° to fix upside down
+                Log.d(TAG, "🤚 LEFT HAND LANDSCAPE - Applying 180° rotation to fix upside down")
+                180
+            }
+            90 -> {
+                // Right hand landscape - no rotation needed (already correct)
+                Log.d(TAG, "👋 RIGHT HAND LANDSCAPE - No rotation needed")
+                0
+            }
+            0 -> {
+                // Portrait - rotate to landscape format (same as right hand result)
+                Log.d(TAG, "📱 PORTRAIT MODE - Converting to landscape format (90° rotation)")
+                90
+            }
+            180 -> {
+                // Portrait upside down - rotate to landscape format
+                Log.d(TAG, "📱 PORTRAIT UPSIDE DOWN - Converting to landscape format (270° rotation)")
+                270
+            }
+            else -> {
+                Log.d(TAG, "❓ UNKNOWN ORIENTATION - Using standard camera rotation: $rotationAngle°")
+                rotationAngle
             }
         }
-        // Rotate Bitmap
+
+        Log.d(TAG, "=== FINAL ROTATION DECISION ===")
+        Log.d(TAG, "Final rotation to apply: $finalRotation°")
+        Log.d(TAG, "Target: All photos will be in LANDSCAPE format")
+        Log.d(TAG, "==============================")
+
+        if (finalRotation == 0) {
+            Log.d(TAG, "✅ No rotation needed - returning original bitmap")
+            Log.d(TAG, "=== BITMAP ROTATION END ===")
+            return originalBitmap
+        }
+
+        Log.d(TAG, "🔄 Applying rotation: $finalRotation°")
+
+        // Apply rotation
         val matrix = Matrix()
         matrix.setRotate(
-            rotationAngle.toFloat(),
-            bm.width.toFloat() / 2,
-            bm.height.toFloat() / 2
+            finalRotation.toFloat(),
+            originalBitmap.width.toFloat() / 2,
+            originalBitmap.height.toFloat() / 2
         )
-        // Return result
-        return Bitmap.createBitmap(bm, 0, 0, bounds.outWidth, bounds.outHeight, matrix, true)
+
+        val rotatedBitmap = Bitmap.createBitmap(
+            originalBitmap,
+            0,
+            0,
+            originalBitmap.width,
+            originalBitmap.height,
+            matrix,
+            true
+        )
+
+        Log.d(TAG, "✅ Rotation complete! Rotated bitmap size: ${rotatedBitmap.width}x${rotatedBitmap.height}")
+        Log.d(TAG, "=== BITMAP ROTATION END ===")
+
+        return rotatedBitmap
     }
 
     private fun addToGallery(photoFile: File) {
@@ -230,10 +291,13 @@ class CameraRepository(
         komentar: String? = null,
         kodeFoto: String,
         featureName: String?,
-        latitude: Double?=null,
-        longitude: Double?=null,
+        latitude: Double? = null,
+        longitude: Double? = null,
         sourceFoto: String
     ) {
+
+        orientationHandler = CameraOrientationHandler(context)
+        orientationHandler.startListening()
         prefManager = PrefManager(context)
         setDefaultIconTorchButton(view)
         loadingDialog = LoadingDialog(context)
@@ -352,16 +416,26 @@ class CameraRepository(
                                             isFlashlightOn = !isFlashlightOn
                                             if (isFlashlightOn) {
                                                 torchButton.setBackgroundResource(R.drawable.baseline_flash_on_24)
-                                                torchButton.backgroundTintList = ColorStateList.valueOf(Color.YELLOW)
+                                                torchButton.backgroundTintList =
+                                                    ColorStateList.valueOf(Color.YELLOW)
 
                                                 // Use TORCH mode for consistent brightness
-                                                capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
+                                                capReq.set(
+                                                    CaptureRequest.FLASH_MODE,
+                                                    CaptureRequest.FLASH_MODE_TORCH
+                                                )
 
                                                 // Prevent auto-exposure from dimming the preview
-                                                capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                                                capReq.set(
+                                                    CaptureRequest.CONTROL_AE_MODE,
+                                                    CaptureRequest.CONTROL_AE_MODE_ON
+                                                )
 
                                                 // Increase exposure compensation to prevent dimming (values typically range from -3 to +3)
-                                                capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 2)
+                                                capReq.set(
+                                                    CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION,
+                                                    2
+                                                )
 
                                                 // Set a higher ISO value to increase sensor sensitivity (typical range 100-1600)
                                                 capReq.set(CaptureRequest.SENSOR_SENSITIVITY, 800)
@@ -371,12 +445,24 @@ class CameraRepository(
                                             } else {
                                                 setDefaultIconTorchButton(view)
                                                 // Reset all settings when turning flash off
-                                                capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF)
-                                                capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
-                                                capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 0)
+                                                capReq.set(
+                                                    CaptureRequest.FLASH_MODE,
+                                                    CaptureRequest.FLASH_MODE_OFF
+                                                )
+                                                capReq.set(
+                                                    CaptureRequest.CONTROL_AE_MODE,
+                                                    CaptureRequest.CONTROL_AE_MODE_ON
+                                                )
+                                                capReq.set(
+                                                    CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION,
+                                                    0
+                                                )
                                                 capReq.set(CaptureRequest.CONTROL_AE_LOCK, false)
                                                 // Let the camera determine ISO automatically
-                                                capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                                                capReq.set(
+                                                    CaptureRequest.CONTROL_AE_MODE,
+                                                    CaptureRequest.CONTROL_AE_MODE_ON
+                                                )
                                             }
 
                                             // Apply the changes
@@ -440,12 +526,17 @@ class CameraRepository(
                                             val dirDCIM = File(rootDCIM)
                                             if (!dirDCIM.exists()) dirDCIM.mkdirs()
 
-                                            val dateTimeFormat = SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
+                                            val dateTimeFormat =
+                                                SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
 
                                             val cleanFeatureName = featureName!!.replace(" ", "_")
 
                                             // Create filename
-                                            fileName = "${cleanFeatureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_${dateTimeFormat}.jpg"
+                                            val noTPH = sourceFoto?.split(" ")?.lastOrNull() ?: ""
+
+                                            fileName =
+                                                "${cleanFeatureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_NOTPH_${noTPH}_${dateTimeFormat}.jpg"
+
                                             file = File(dirApp, fileName)
 
                                             fileDCIM = File(dirDCIM, fileName)
@@ -468,7 +559,7 @@ class CameraRepository(
                                             closeCamera()
                                         }
 
-                                        val takenImage = rotateBitmapOrientation(file.path)
+                                            val takenImage = rotateBitmapWithOrientation(file.path, lastCameraId, orientationHandler)
                                         val dateWM = SimpleDateFormat(
                                             "dd MMMM yyyy HH:mm:ss",
                                             Locale("id", "ID")
@@ -486,25 +577,26 @@ class CameraRepository(
                                                 ""
                                             }
 
-// Create user info line with estate and jabatan
-                                        val userInfo = "${sourceFoto}\n${prefManager!!.nameUserLogin}"
+                                        AppLogger.d("sourceFoto $sourceFoto")
+                                        val userInfo =
+                                            "${sourceFoto}\n${prefManager!!.nameUserLogin}"
 
-// Line 1: Always "CMP-$featureName"
-// Line 2: Always user info
-// Line 3: Conditional - location, comment, or both (or placeholder "-" if none)
-// Line 4: Always date
                                         val line3 = when {
                                             locationText.isNotEmpty() && (resultCode != "0" && commentWm.isNotEmpty()) ->
                                                 "$locationText - $commentWm"
+
                                             locationText.isNotEmpty() ->
                                                 locationText
+
                                             resultCode != "0" && commentWm.isNotEmpty() ->
                                                 commentWm
+
                                             else ->
                                                 "-"  // Placeholder when no location or comment
                                         }
 
-                                        val watermarkText = "CMP-$featureName\n$userInfo\n$line3\n$dateWM"
+                                        val watermarkText =
+                                            "CMP-$featureName\n$userInfo\n$line3\n$dateWM"
 
                                         val watermarkedBitmap =
                                             addWatermark(takenImage, watermarkText)
@@ -666,37 +758,53 @@ class CameraRepository(
                 isEnabled = false
 
                 if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
-                    capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                    capReq =
+                        cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
                     capReq.addTarget(imageReader!!.surface)
 
                     // Apply the same flash settings for the actual photo capture
                     if (isFlashlightOn) {
                         capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
-                        capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                        capReq.set(
+                            CaptureRequest.CONTROL_AE_MODE,
+                            CaptureRequest.CONTROL_AE_MODE_ON
+                        )
                         capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 2)
                         capReq.set(CaptureRequest.SENSOR_SENSITIVITY, 800)
                         capReq.set(CaptureRequest.CONTROL_AE_LOCK, true)
                     }
 
-                    cameraCaptureSession?.capture(capReq.build(), object : CameraCaptureSession.CaptureCallback() {
-                        override fun onCaptureCompleted(session: CameraCaptureSession, request: CaptureRequest, result: TotalCaptureResult) {
-                            super.onCaptureCompleted(session, request, result)
+                    cameraCaptureSession?.capture(
+                        capReq.build(),
+                        object : CameraCaptureSession.CaptureCallback() {
+                            override fun onCaptureCompleted(
+                                session: CameraCaptureSession,
+                                request: CaptureRequest,
+                                result: TotalCaptureResult
+                            ) {
+                                super.onCaptureCompleted(session, request, result)
 
-                            // Re-enable button after a short delay
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                isEnabled = true
-                            }, 800)
-                        }
+                                // Re-enable button after a short delay
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    isEnabled = true
+                                }, 800)
+                            }
 
-                        override fun onCaptureFailed(session: CameraCaptureSession, request: CaptureRequest, failure: CaptureFailure) {
-                            super.onCaptureFailed(session, request, failure)
+                            override fun onCaptureFailed(
+                                session: CameraCaptureSession,
+                                request: CaptureRequest,
+                                failure: CaptureFailure
+                            ) {
+                                super.onCaptureFailed(session, request, failure)
 
-                            // Re-enable button after a short delay
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                isEnabled = true
-                            }, 800)
-                        }
-                    }, null)
+                                // Re-enable button after a short delay
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    isEnabled = true
+                                }, 800)
+                            }
+                        },
+                        null
+                    )
                 } else {
                     // Just log the error and re-enable the button
                     Log.e("CameraError", "CameraDevice or ImageReader is null")
@@ -812,6 +920,7 @@ class CameraRepository(
             onChangePhoto.invoke()
         }
     }
+
     fun isZoomViewVisible(): Boolean {
         return zoomView.visibility == View.VISIBLE
     }

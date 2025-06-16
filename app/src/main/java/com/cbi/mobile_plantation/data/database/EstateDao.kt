@@ -28,6 +28,9 @@ abstract class EstateDao {
     @Query("DELETE FROM estate")
     abstract fun deleteAll()
 
+    @Query("SELECT tph_otomatis FROM estate WHERE abbr = :estateAbbr LIMIT 1")
+    abstract suspend fun getTphOtomatisByAbbr(estateAbbr: String): Int?
+
     // In EstateDao.kt
     @Query("SELECT * FROM estate")
     abstract suspend fun getAllEstates(): List<EstateModel>

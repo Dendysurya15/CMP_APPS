@@ -78,6 +78,7 @@ abstract class KaryawanDao {
         idKaryawan: List<String>,
     ): List<KaryawanModel>
 
+
     @Query(
         """
         UPDATE karyawan 

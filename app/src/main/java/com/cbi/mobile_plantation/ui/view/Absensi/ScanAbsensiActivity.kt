@@ -304,25 +304,25 @@ class ScanAbsensiActivity : AppCompatActivity() {
                     var karyawanTdkMskNamaString = ""
 
                     try {
-                        // Query to get names of employees who are present
                         if (nikKaryawanMskList.isNotEmpty()) {
                             val presentEmployees = absensiViewModel.getKaryawanByNikList(nikKaryawanMskList)
-                            karyawanMskNamaString = presentEmployees.mapNotNull { it.nama }
-                                .takeIf { it.isNotEmpty() }?.joinToString(",") ?: ""
+                            val nikToNameMap = presentEmployees.associate { it.nik to it.nama }
+                            karyawanMskNamaString = nikKaryawanMskList.mapNotNull { nik ->
+                                nikToNameMap[nik]
+                            }.joinToString(",")
                         }
 
-                        // Query to get names of employees who are absent
                         if (nikKaryawanTdkMskList.isNotEmpty()) {
                             val absentEmployees = absensiViewModel.getKaryawanByNikList(nikKaryawanTdkMskList)
-                            karyawanTdkMskNamaString = absentEmployees.mapNotNull { it.nama }
-                                .takeIf { it.isNotEmpty() }?.joinToString(",") ?: ""
+                            val nikToNameMap = absentEmployees.associate { it.nik to it.nama }
+                            karyawanTdkMskNamaString = nikKaryawanTdkMskList.mapNotNull { nik ->
+                                nikToNameMap[nik]
+                            }.joinToString(",")
                         }
                     } catch (e: Exception) {
                         AppLogger.e("Error getting employee names: ${e.message}")
                     }
 
-                    // Get the kemandoran name
-                    AppLogger.d(idKemandoranList.toString())
                     var namaKemandoran = "-"
                     try {
                         val kemandoranData = absensiViewModel.getKemandoranById(idKemandoranList)
@@ -358,6 +358,9 @@ class ScanAbsensiActivity : AppCompatActivity() {
                     globalDivisiAbbr = finalDivisiAbbr
 
                     // Store employee names
+
+                    AppLogger.d(nikKaryawanMskString)
+                    AppLogger.d(karyawanMskNamaString)
                     globalKaryawanMskNama = karyawanMskNamaString
                     globalKaryawanTdkMskNama = karyawanTdkMskNamaString
                     globalKaryawanMskNik = nikKaryawanMskString

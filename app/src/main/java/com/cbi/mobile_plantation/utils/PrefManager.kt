@@ -194,6 +194,13 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var kemandoranPPROUserLogin: String?
+        get() = pref.getString("kemandoranPPROUserLogin", "")
+        set(kemandoranPPROUserLogin) {
+            editor.putString("kemandoranPPROUserLogin", kemandoranPPROUserLogin)
+            editor.commit()
+        }
+
     var kemandoranNamaUserLogin: String?
         get() = pref.getString("kemandoranNamaUserLogin", "")
         set(kemandoranNamaUserLogin) {

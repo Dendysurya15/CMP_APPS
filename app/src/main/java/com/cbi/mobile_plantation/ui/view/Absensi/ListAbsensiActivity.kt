@@ -43,6 +43,7 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.adapter.AbsensiDataRekap
 import com.cbi.mobile_plantation.ui.adapter.ListAbsensiAdapter
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -280,56 +281,6 @@ class ListAbsensiActivity : AppCompatActivity() {
 
         // Ensure handler callbacks are removed
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
-    }
-
-    fun generateHighQualityQRCode(
-        content: String,
-        imageView: ImageView,
-        sizePx: Int = 1000
-    ) {
-        try {
-            // Create encoding hints for better quality
-            val hints = hashMapOf<EncodeHintType, Any>().apply {
-                put(
-                    EncodeHintType.ERROR_CORRECTION,
-                    ErrorCorrectionLevel.M
-                ) // Change to M for balance
-                put(EncodeHintType.MARGIN, 1) // Smaller margin
-                put(EncodeHintType.CHARACTER_SET, "UTF-8")
-                // Remove fixed QR version to allow automatic scaling
-            }
-
-            // Create QR code writer with hints
-            val writer = QRCodeWriter()
-            val bitMatrix = writer.encode(
-                content,
-                BarcodeFormat.QR_CODE,
-                sizePx,
-                sizePx,
-                hints
-            )
-
-            // Create bitmap with appropriate size
-            val width = bitMatrix.width
-            val height = bitMatrix.height
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-
-            // Fill the bitmap
-            for (x in 0 until width) {
-                for (y in 0 until height) {
-                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
-                }
-            }
-
-            // Set the bitmap to ImageView with high quality scaling
-            imageView.apply {
-                setImageBitmap(bitmap)
-                scaleType = ImageView.ScaleType.FIT_CENTER
-            }
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
     }
 
     fun getGeneratedDate(): String {
@@ -667,7 +618,9 @@ class ListAbsensiActivity : AppCompatActivity() {
                         withContext(Dispatchers.Main) {
                             try {
 
-                                generateHighQualityQRCode(encodedData, qrCodeImageView)
+                                ListPanenTBSActivity().generateHighQualityQRCode(encodedData!!, qrCodeImageView,
+                                    this@ListAbsensiActivity,
+                                    showLogo = false)
                                 // Fade-out the loading elements
                                 val fadeOut =
                                     ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)

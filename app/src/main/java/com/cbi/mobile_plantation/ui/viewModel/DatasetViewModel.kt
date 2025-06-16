@@ -65,7 +65,8 @@ import java.util.Locale
 class DatasetViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: DatasetRepository = DatasetRepository(application)
     private val restanRepository: RestanRepository = RestanRepository(application)
-    private val dataPanenInspectionRepository: DataPanenInspectionRepository = DataPanenInspectionRepository(application)
+    private val dataPanenInspectionRepository: DataPanenInspectionRepository =
+        DataPanenInspectionRepository(application)
     private val prefManager = PrefManager(application)
 
     private val database = AppDatabase.getDatabase(application)
@@ -293,7 +294,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
 
 
-
     fun updateOrInsertTPH(tph: List<TPHNewModel>, isAsistensi: Boolean = false) =
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -393,6 +393,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    suspend fun getTphOtomatisByEstate(estateAbbr: String): Int? {
+        return repository.getTphOtomatisByEstate(estateAbbr)
+    }
 
 
     private fun parseTPHJsonToList(jsonContent: String): List<TPHNewModel> {
@@ -638,7 +641,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val message: String
     )
 
-    fun updateLocalUploadCMP(uploadData: List<Pair<String, String>>, jabatan :String): Deferred<Boolean> {
+    fun updateLocalUploadCMP(
+        uploadData: List<Pair<String, String>>,
+        jabatan: String
+    ): Deferred<Boolean> {
         val result = CompletableDeferred<Boolean>()
 
         viewModelScope.launch {
@@ -715,40 +721,60 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                             when (tableName) {
                                                 AppUtils.DatabaseTables.PANEN -> {
-                                                    panenDao.updateStatusUploadPanen(idList, statusCode)
+                                                    panenDao.updateStatusUploadPanen(
+                                                        idList,
+                                                        statusCode
+                                                    )
                                                     AppLogger.d("Updated panen_table successfully")
                                                 }
+
                                                 AppUtils.DatabaseTables.ESPB -> {
                                                     // Conditional update based on jabatan/role
                                                     when (jabatan) {
                                                         AppUtils.ListFeatureByRoleUser.Mandor1,
                                                         AppUtils.ListFeatureByRoleUser.Asisten -> {
-                                                            espbDao.updateStatusUploadEspbCmpSp(idList, statusCode)
+                                                            espbDao.updateStatusUploadEspbCmpSp(
+                                                                idList,
+                                                                statusCode
+                                                            )
                                                             AppLogger.d("Updated espb_table status_upload_cmp_sp successfully")
                                                         }
+
                                                         AppUtils.ListFeatureByRoleUser.KeraniTimbang -> {
-                                                            espbDao.updateStatusUploadEspbCmpWb(idList, statusCode)
+                                                            espbDao.updateStatusUploadEspbCmpWb(
+                                                                idList,
+                                                                statusCode
+                                                            )
                                                             AppLogger.d("Updated espb_table status_upload_cmp_wb successfully")
                                                         }
                                                     }
                                                 }
+
                                                 AppUtils.DatabaseTables.HEKTAR_PANEN -> {
                                                     when (jabatan) {
                                                         AppUtils.ListFeatureByRoleUser.MandorPanen -> {
-                                                            hektarPanenDao.updateStatusUploadHektarPanen(idList, statusCode)
+                                                            hektarPanenDao.updateStatusUploadHektarPanen(
+                                                                idList,
+                                                                statusCode
+                                                            )
                                                             AppLogger.d("Updated panen_table successfully")
                                                         }
                                                     }
                                                 }
+
                                                 AppUtils.DatabaseTables.ABSENSI -> {
                                                     when (jabatan) {
                                                         AppUtils.ListFeatureByRoleUser.MandorPanen -> {
-                                                            absensiDao.updateStatusUploadAbsensiPanen(idList, statusCode)
+                                                            absensiDao.updateStatusUploadAbsensiPanen(
+                                                                idList,
+                                                                statusCode
+                                                            )
                                                             AppLogger.d("Updated panen_table successfully")
                                                         }
                                                     }
 
                                                 }
+
                                                 else -> {
                                                     AppLogger.w("Unknown table name: $tableName")
                                                 }
@@ -890,7 +916,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 update_date == null && status == null
     }
 
-    fun downloadDataset(requests: List<DatasetRequest>, downloadItems: List<UploadCMPItem>,  isDownloadDataset: Boolean = true) {
+    fun downloadDataset(
+        requests: List<DatasetRequest>,
+        downloadItems: List<UploadCMPItem>,
+        isDownloadDataset: Boolean = true
+    ) {
         AppLogger.d("Starting download for ${requests.size} datasets")
         val mutableRequests = requests.toMutableList()
         // Initialize counts
@@ -976,7 +1006,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                     var modifiedRequest = request
                     if (request.dataset in validDatasets) {
-                        val deptId = if (request.dataset == AppUtils.DatasetNames.tph) request.estate else null
+                        val deptId =
+                            if (request.dataset == AppUtils.DatasetNames.tph) request.estate else null
 
                         val count = withContext(Dispatchers.IO) {
                             repository.getDatasetCount(request.dataset, deptId)
@@ -1000,11 +1031,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadSmallDataset(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
-                    }else if(request.dataset == AppUtils.DatasetNames.sinkronisasiRestan){
-                        response = restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
-                    } else if(request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen){
-                        response = dataPanenInspectionRepository.getDataPanen(request.estate!!, request.afdeling!!)
-                    }else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
+                        response =
+                            restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
+                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
+                        response = dataPanenInspectionRepository.getDataPanen(
+                            request.estate!!,
+                            request.afdeling!!
+                        )
+                    } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified ?: "")
                     } else {
                         response = repository.downloadDataset(modifiedRequest)
@@ -1045,7 +1080,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                         // Update progress
                                         if (contentLength > 0) {
-                                            val progress = (downloadedBytes * 100 / contentLength).toInt()
+                                            val progress =
+                                                (downloadedBytes * 100 / contentLength).toInt()
                                             progressMap[itemId] = progress
                                             _itemProgressMap.postValue(progressMap.toMap())
                                         }
@@ -1090,14 +1126,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                 when (request.dataset) {
                                     AppUtils.DatasetNames.tph -> {
-                                        val tphList = parseTPHJsonToList(jsonContent) as List<TPHNewModel>
-                                        val filteredTphList = tphList.filterNot { it.isCompletelyNull() }
+                                        val tphList =
+                                            parseTPHJsonToList(jsonContent) as List<TPHNewModel>
+                                        val filteredTphList =
+                                            tphList.filterNot { it.isCompletelyNull() }
 
                                         AppLogger.d("Parsed ${tphList.size} TPH records, ${filteredTphList.size} valid after filtering")
 
                                         if (filteredTphList.isEmpty()) {
                                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
-                                            errorMap[itemId] = "All TPH records are empty or invalid"
+                                            errorMap[itemId] =
+                                                "All TPH records are empty or invalid"
                                             _itemStatusMap.postValue(statusMap.toMap())
                                             _itemErrorMap.postValue(errorMap.toMap())
                                             incrementCompletedCount()
@@ -1113,7 +1152,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     AppLogger.d("TPH Update - Department ID from request: $deptId, Estate Abbr: ${request.estateAbbr}")
 
                                                     val dataToUse = if (deptId != null) {
-                                                        val tphForDept = filteredTphList.filter { it.dept == deptId }
+                                                        val tphForDept =
+                                                            filteredTphList.filter { it.dept == deptId }
                                                         AppLogger.d("TPH Update - Filtered ${tphForDept.size} records for department $deptId")
                                                         tphForDept
                                                     } else {
@@ -1139,7 +1179,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
 
                                     AppUtils.DatasetNames.kemandoran -> {
-                                        val kemandoranList = parseStructuredJsonToList(jsonContent, KemandoranModel::class.java)
+                                        val kemandoranList = parseStructuredJsonToList(
+                                            jsonContent,
+                                            KemandoranModel::class.java
+                                        )
                                         AppLogger.d("Parsed ${kemandoranList.size} kemandoran records, starting database update")
 
                                         withContext(Dispatchers.IO) {
@@ -1160,7 +1203,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     }
 
                                     AppUtils.DatasetNames.pemanen -> {
-                                        val karyawanList = parseStructuredJsonToList(jsonContent, KaryawanModel::class.java)
+                                        val karyawanList = parseStructuredJsonToList(
+                                            jsonContent,
+                                            KaryawanModel::class.java
+                                        )
                                         AppLogger.d("Parsed ${karyawanList.size} pemanen records, starting database update")
 
                                         withContext(Dispatchers.IO) {
@@ -1181,7 +1227,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     }
 
                                     AppUtils.DatasetNames.blok -> {
-                                        val blokList = parseStructuredJsonToList(jsonContent, BlokModel::class.java)
+                                        val blokList = parseStructuredJsonToList(
+                                            jsonContent,
+                                            BlokModel::class.java
+                                        )
                                         AppLogger.d("Parsed ${blokList.size} blok records, starting database update")
 
                                         withContext(Dispatchers.IO) {
@@ -1202,7 +1251,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     }
 
                                     AppUtils.DatasetNames.transporter -> {
-                                        val transporterList = parseStructuredJsonToList(jsonContent, TransporterModel::class.java)
+                                        val transporterList = parseStructuredJsonToList(
+                                            jsonContent,
+                                            TransporterModel::class.java
+                                        )
                                         AppLogger.d("Parsed ${transporterList.size} transporter records, starting database update")
 
                                         withContext(Dispatchers.IO) {
@@ -1216,14 +1268,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
 
                                         if (lastModified != null) {
-                                            prefManager.lastModifiedDatasetTransporter = lastModified
+                                            prefManager.lastModifiedDatasetTransporter =
+                                                lastModified
                                         }
 
                                         processed = true
                                     }
 
                                     AppUtils.DatasetNames.kendaraan -> {
-                                        val kendaraanList = parseStructuredJsonToList(jsonContent, KendaraanModel::class.java)
+                                        val kendaraanList = parseStructuredJsonToList(
+                                            jsonContent,
+                                            KendaraanModel::class.java
+                                        )
                                         AppLogger.d("Parsed ${kendaraanList.size} kendaraan records, starting database update")
 
                                         withContext(Dispatchers.IO) {
@@ -1244,7 +1300,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     }
 
                                     AppUtils.DatasetNames.jenisTPH -> {
-                                        val jenisTPHList = parseStructuredJsonToList(jsonContent, JenisTPHModel::class.java)
+                                        val jenisTPHList = parseStructuredJsonToList(
+                                            jsonContent,
+                                            JenisTPHModel::class.java
+                                        )
                                         AppLogger.d("Parsed ${jenisTPHList.size} jenis TPH records, starting database update")
 
                                         withContext(Dispatchers.IO) {
@@ -1274,7 +1333,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     }
                                 } else {
                                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
-                                    errorMap[itemId] = "No processor found for dataset: ${request.dataset}"
+                                    errorMap[itemId] =
+                                        "No processor found for dataset: ${request.dataset}"
                                 }
                             } else {
                                 statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
@@ -1286,15 +1346,23 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 tempFile.delete()
                                 extractDir.deleteRecursively()
                             }
-                        }
-                        else if (contentType?.contains("application/json") == true) {
-                            handleJsonResponse(request, itemId, response, statusMap, errorMap, progressMap, lastModified, lastModifiedSettingsJson, isDownloadDataset)
-                        }else {
+                        } else if (contentType?.contains("application/json") == true) {
+                            handleJsonResponse(
+                                request,
+                                itemId,
+                                response,
+                                statusMap,
+                                errorMap,
+                                progressMap,
+                                lastModified,
+                                lastModifiedSettingsJson,
+                                isDownloadDataset
+                            )
+                        } else {
                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                             errorMap[itemId] = "Unsupported content type: $contentType"
                         }
-                    }
-                    else {
+                    } else {
                         val errorBody = response.errorBody()?.string()
 
                         AppLogger.d("API Error response: $errorBody")
@@ -1310,14 +1378,27 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 // 2. error field if available
                                 // 3. Fallback to raw error body
                                 errorMessage = when {
-                                    jsonError.has("message") -> "API Error ${response.code()}: ${jsonError.getString("message")}"
-                                    jsonError.has("error") -> "API Error ${response.code()}: ${jsonError.getString("error")}"
+                                    jsonError.has("message") -> "API Error ${response.code()}: ${
+                                        jsonError.getString(
+                                            "message"
+                                        )
+                                    }"
+
+                                    jsonError.has("error") -> "API Error ${response.code()}: ${
+                                        jsonError.getString(
+                                            "error"
+                                        )
+                                    }"
+
                                     else -> "API Error ${response.code()}: $errorBody"
                                 }
 
                                 // If both message and error are available, combine them for more detail
                                 if (jsonError.has("message") && jsonError.has("error")) {
-                                    errorMessage = "API Error ${response.code()}: ${jsonError.getString("message")} - Details: ${jsonError.getString("error")}"
+                                    errorMessage =
+                                        "API Error ${response.code()}: ${jsonError.getString("message")} - Details: ${
+                                            jsonError.getString("error")
+                                        }"
                                 }
 
                             } catch (e: Exception) {
@@ -1384,7 +1465,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
             try {
                 val response = withContext(Dispatchers.IO) {
-                    dataPanenInspectionRepository.getDataPanen  (estate, afdeling)
+                    dataPanenInspectionRepository.getDataPanen(estate, afdeling)
                 }
 
                 AppLogger.d(response.body().toString())
@@ -1434,7 +1515,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
         // Check if it's an "up to date" response
         if (responseBodyString.contains("\"success\":false") &&
-            responseBodyString.contains("\"message\":\"Dataset is up to date\"")) {
+            responseBodyString.contains("\"message\":\"Dataset is up to date\"")
+        ) {
             progressMap[itemId] = 100
             statusMap[itemId] = AppUtils.UploadStatusUtils.UPTODATE
             _itemProgressMap.postValue(progressMap.toMap())
@@ -1490,7 +1572,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     } else {
                         if (responseBodyString.contains("\"success\":false") &&
                             (responseBodyString.contains("\"message\":\"Settings is up to date\"") ||
-                                    responseBodyString.contains("\"message\":\"Dataset is up to date\""))) {
+                                    responseBodyString.contains("\"message\":\"Dataset is up to date\""))
+                        ) {
                             statusMap[itemId] = AppUtils.UploadStatusUtils.UPTODATE
                             AppLogger.d("${AppUtils.DatasetNames.settingJSON} are up to date")
                         } else {
@@ -1631,7 +1714,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     if (jsonObject.optBoolean("success", false)) {
                         val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
                         val panenList = mutableListOf<PanenEntity>()
-                        val recordsToDelete = mutableListOf<Pair<String, String>>() // Store (tph_id, date_created) pairs for records to delete
+                        val recordsToDelete =
+                            mutableListOf<Pair<String, String>>() // Store (tph_id, date_created) pairs for records to delete
 
                         // Update to 70% before processing records
                         progressMap[itemId] = 70
@@ -1661,11 +1745,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
                             val createdName = item.optString("created_name", "")
                             // For spb_kode, check specifically for null vs. empty string
-                            val spbKode: String? = if (item.has("spb_kode") && !item.isNull("spb_kode")) {
-                                item.optString("spb_kode")
-                            } else {
-                                null
-                            }
+                            val spbKode: String? =
+                                if (item.has("spb_kode") && !item.isNull("spb_kode")) {
+                                    item.optString("spb_kode")
+                                } else {
+                                    null
+                                }
 
                             val username = extractUsernameFromCreatedName(createdName)
 
@@ -1724,6 +1809,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                     }
                                 }
+
                                 1 -> {
                                     status1Count++
                                     if (spbKode.isNullOrEmpty()) {
@@ -1738,6 +1824,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                     }
                                 }
+
                                 2 -> {
                                     status2Count++
                                     if (spbKode.isNullOrEmpty()) {
@@ -1806,7 +1893,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         if (exists) {
                                             try {
                                                 // Get the record ID
-                                                val recordId = panenDao.getIdByTphIdAndDateCreated(tphId, dateCreated)
+                                                val recordId = panenDao.getIdByTphIdAndDateCreated(
+                                                    tphId,
+                                                    dateCreated
+                                                )
 
                                                 if (recordId > 0) {
                                                     // Delete the record
@@ -1832,7 +1922,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     for (panen in panenList) {
                                         try {
                                             // Check if record already exists in local DB
-                                            val exists = panenDao.exists(panen.tph_id, panen.date_created)
+                                            val exists =
+                                                panenDao.exists(panen.tph_id, panen.date_created)
 
                                             if (!exists) {
                                                 // Record doesn't exist -> INSERT
@@ -1850,11 +1941,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                                 try {
                                                     // Get the existing record ID
-                                                    val recordId = panenDao.getIdByTphIdAndDateCreated(panen.tph_id, panen.date_created)
+                                                    val recordId =
+                                                        panenDao.getIdByTphIdAndDateCreated(
+                                                            panen.tph_id,
+                                                            panen.date_created
+                                                        )
 
                                                     if (recordId > 0) {
                                                         // Create updated record with same ID
-                                                        val updatedRecord = panen.copy(id = recordId)
+                                                        val updatedRecord =
+                                                            panen.copy(id = recordId)
 
                                                         // Update the record
                                                         panenDao.update(listOf(updatedRecord))
@@ -1863,7 +1959,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     } else {
                                                         // Fallback: insert as new if we can't find the ID
                                                         AppLogger.e("Couldn't find existing record to update: ${panen.tph_id}, ${panen.date_created}")
-                                                        val result = panenDao.insertWithTransaction(panen)
+                                                        val result =
+                                                            panenDao.insertWithTransaction(panen)
                                                         if (result.isSuccess) {
                                                             successCount++
                                                             AppLogger.d("Inserted as new after update failure: ${panen.tph_id}, ${panen.date_created}")
@@ -1909,11 +2006,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 } else if (successCount > 0 || deleteCount > 0) {
                                     // Partial success
                                     statusMap[itemId] = AppUtils.UploadStatusUtils.UPDATED
-                                    errorMap[itemId] = "Partial success: $failCount/${panenList.size + recordsToDelete.size} records failed"
+                                    errorMap[itemId] =
+                                        "Partial success: $failCount/${panenList.size + recordsToDelete.size} records failed"
                                 } else {
                                     // Complete failure
                                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
-                                    errorMap[itemId] = "Failed to process restan data: $failCount/${panenList.size + recordsToDelete.size} records failed"
+                                    errorMap[itemId] =
+                                        "Failed to process restan data: $failCount/${panenList.size + recordsToDelete.size} records failed"
                                 }
                             } catch (e: Exception) {
                                 progressMap[itemId] = 100  // Still show 100% even on error
@@ -1985,7 +2084,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val jjgMasak = item.optInt("jjg_masak", 0)
 
                             // Build jjg_json
-                            val jjgJson = "{\"TO\":$jjgPanen,\"UN\":$jjgMentah,\"OV\":$jjgLewatMasak,\"EM\":$jjgKosong,\"AB\":$jjgAbnormal,\"RA\":$jjgSeranganTikus,\"LO\":$jjgPanjang,\"TI\":$jjgTidakVcut,\"RI\":$jjgMasak,\"KP\":$jjgKirim,\"PA\":$jjgBayar}"
+                            val jjgJson =
+                                "{\"TO\":$jjgPanen,\"UN\":$jjgMentah,\"OV\":$jjgLewatMasak,\"EM\":$jjgKosong,\"AB\":$jjgAbnormal,\"RA\":$jjgSeranganTikus,\"LO\":$jjgPanjang,\"TI\":$jjgTidakVcut,\"RI\":$jjgMasak,\"KP\":$jjgKirim,\"PA\":$jjgBayar}"
 
                             // Parse kemandoran JSON to extract kemandoran_id and karyawan info
                             val kemandoranString = item.optString("kemandoran", "")
@@ -2022,7 +2122,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             var karyawanIdList = mutableListOf<String>()
                             if (karyawanNikList.isNotEmpty()) {
                                 try {
-                                    val karyawanList = karyawanDao.getKaryawanByNikList(karyawanNikList)
+                                    val karyawanList =
+                                        karyawanDao.getKaryawanByNikList(karyawanNikList)
                                     for (karyawan in karyawanList) {
                                         karyawan.id?.let { karyawanIdList.add(it.toString()) }
                                     }
@@ -2095,7 +2196,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 for (panen in panenList) {
                                     try {
                                         // Check if record already exists in local DB
-                                        val exists = panenDao.exists(panen.tph_id, panen.date_created)
+                                        val exists =
+                                            panenDao.exists(panen.tph_id, panen.date_created)
 
                                         if (!exists) {
                                             // Record doesn't exist -> INSERT
@@ -2113,7 +2215,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                             try {
                                                 // Get the existing record ID
-                                                val recordId = panenDao.getIdByTphIdAndDateCreated(panen.tph_id, panen.date_created)
+                                                val recordId = panenDao.getIdByTphIdAndDateCreated(
+                                                    panen.tph_id,
+                                                    panen.date_created
+                                                )
 
                                                 if (recordId > 0) {
                                                     // Create updated record with same ID
@@ -2126,7 +2231,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 } else {
                                                     // Fallback: insert as new if we can't find the ID
                                                     AppLogger.e("Couldn't find existing record to update: ${panen.tph_id}, ${panen.date_created}")
-                                                    val result = panenDao.insertWithTransaction(panen)
+                                                    val result =
+                                                        panenDao.insertWithTransaction(panen)
                                                     if (result.isSuccess) {
                                                         successCount++
                                                         AppLogger.d("Inserted as new after update failure: ${panen.tph_id}, ${panen.date_created}")
@@ -2169,11 +2275,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 } else if (successCount > 0) {
                                     // Partial success
                                     statusMap[itemId] = AppUtils.UploadStatusUtils.UPDATED
-                                    errorMap[itemId] = "Partial success: $failCount/${panenList.size} records failed"
+                                    errorMap[itemId] =
+                                        "Partial success: $failCount/${panenList.size} records failed"
                                 } else {
                                     // Complete failure
                                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
-                                    errorMap[itemId] = "Failed to process panen data: $failCount/${panenList.size} records failed"
+                                    errorMap[itemId] =
+                                        "Failed to process panen data: $failCount/${panenList.size} records failed"
                                 }
                             } catch (e: Exception) {
                                 progressMap[itemId] = 100  // Still show 100% even on error
@@ -2224,7 +2332,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                 // Set up date range
                 val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
+                val displayFormatter =
+                    SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
                 val calendar = Calendar.getInstance()
 
                 // Yesterday
@@ -2274,13 +2383,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     }
 
                     // Increment record count for this date
-                    recordCountByDate[createdDate] = recordCountByDate.getOrDefault(createdDate, 0) + 1
+                    recordCountByDate[createdDate] =
+                        recordCountByDate.getOrDefault(createdDate, 0) + 1
 
                     // Simply increment the TPH count for this date (no uniqueness check)
                     // Only count if tph value is greater than 0
                     val tphIdInt = item.optInt("tph", 0)
                     if (tphIdInt > 0) {
-                        tphCountByDate[createdDate] = tphCountByDate.getOrDefault(createdDate, 0) + 1
+                        tphCountByDate[createdDate] =
+                            tphCountByDate.getOrDefault(createdDate, 0) + 1
                     }
                 }
 
@@ -2345,7 +2456,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                 // Set up date range
                 val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
+                val displayFormatter =
+                    SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
                 val calendar = Calendar.getInstance()
 
                 // Yesterday
@@ -2412,6 +2524,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 }
                             }
                         }
+
                         1 -> {
                             status1Count++
                             if (spbKode.isNullOrEmpty()) {
@@ -2426,6 +2539,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 }
                             }
                         }
+
                         2 -> {
                             status2Count++
                             if (spbKode.isNullOrEmpty()) {
@@ -2466,19 +2580,22 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     }
 
                     // Increment record count for this date
-                    recordCountByDate[createdDate] = recordCountByDate.getOrDefault(createdDate, 0) + 1
+                    recordCountByDate[createdDate] =
+                        recordCountByDate.getOrDefault(createdDate, 0) + 1
 
                     // Get jjg_kirim value
                     val jjgKirim = item.optInt("jjg_kirim", 0)
 
                     // Update the total jjg_kirim for this date
-                    jjgKirimByDate[createdDate] = jjgKirimByDate.getOrDefault(createdDate, 0) + jjgKirim
+                    jjgKirimByDate[createdDate] =
+                        jjgKirimByDate.getOrDefault(createdDate, 0) + jjgKirim
 
                     // Simply increment the TPH count for this date (no uniqueness check)
                     // Only count if tph value is greater than 0
                     val tphIdInt = item.optInt("tph", 0)
                     if (tphIdInt > 0) {
-                        tphCountByDate[createdDate] = tphCountByDate.getOrDefault(createdDate, 0) + 1
+                        tphCountByDate[createdDate] =
+                            tphCountByDate.getOrDefault(createdDate, 0) + 1
                     }
                 }
 
@@ -2593,8 +2710,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     val id = if (estateObject.has("id") && !estateObject.get("id").isJsonNull)
                         estateObject.get("id").asInt else 0
 
-                    val idPpro = if (estateObject.has("id_ppro") && !estateObject.get("id_ppro").isJsonNull)
-                        estateObject.get("id_ppro").asInt else null
+                    val idPpro =
+                        if (estateObject.has("id_ppro") && !estateObject.get("id_ppro").isJsonNull)
+                            estateObject.get("id_ppro").asInt else null
 
                     val abbr = if (estateObject.has("abbr") && !estateObject.get("abbr").isJsonNull)
                         estateObject.get("abbr").asString else null
@@ -2602,12 +2720,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     val nama = if (estateObject.has("nama") && !estateObject.get("nama").isJsonNull)
                         estateObject.get("nama").asString else null
 
-                    // Create EstateModel
+                    val tph_otomatis =
+                        if (estateObject.has("tph_otomatis") && !estateObject.get("tph_otomatis").isJsonNull)
+                            estateObject.get("tph_otomatis").asString else null
+
                     val estate = EstateModel(
                         id = id,
                         id_ppro = idPpro,
                         abbr = abbr,
-                        nama = nama
+                        nama = nama,
+                        tph_otomatis = tph_otomatis!!.toInt()
                     )
                     estateList.add(estate)
 
@@ -2619,17 +2741,21 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             try {
                                 val divisiObject = divisiArray.get(j).asJsonObject
 
-                                val divisiId = if (divisiObject.has("id") && !divisiObject.get("id").isJsonNull)
-                                    divisiObject.get("id").asInt else continue
+                                val divisiId =
+                                    if (divisiObject.has("id") && !divisiObject.get("id").isJsonNull)
+                                        divisiObject.get("id").asInt else continue
 
-                                val divisiIdPpro = if (divisiObject.has("id_ppro") && !divisiObject.get("id_ppro").isJsonNull)
-                                    divisiObject.get("id_ppro").asInt else null
+                                val divisiIdPpro =
+                                    if (divisiObject.has("id_ppro") && !divisiObject.get("id_ppro").isJsonNull)
+                                        divisiObject.get("id_ppro").asInt else null
 
-                                val divisiAbbr = if (divisiObject.has("abbr") && !divisiObject.get("abbr").isJsonNull)
-                                    divisiObject.get("abbr").asString?.trim() else null
+                                val divisiAbbr =
+                                    if (divisiObject.has("abbr") && !divisiObject.get("abbr").isJsonNull)
+                                        divisiObject.get("abbr").asString?.trim() else null
 
-                                val divisiNama = if (divisiObject.has("nama") && !divisiObject.get("nama").isJsonNull)
-                                    divisiObject.get("nama").asString else null
+                                val divisiNama =
+                                    if (divisiObject.has("nama") && !divisiObject.get("nama").isJsonNull)
+                                        divisiObject.get("nama").asString else null
 
                                 val afdeling = AfdelingModel(
                                     id = divisiId,
@@ -2660,7 +2786,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // Helper function to parse JSON to model list (assuming you have this somewhere)
-    private inline fun <reified T> parseJsonToList(jsonContent: String, modelClass: Class<T>): List<T> {
+    private inline fun <reified T> parseJsonToList(
+        jsonContent: String,
+        modelClass: Class<T>
+    ): List<T> {
         val gson = Gson()
         val jsonObject = gson.fromJson(jsonContent, JsonObject::class.java)
         val dataArray = jsonObject.getAsJsonArray("data")
@@ -2669,7 +2798,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             TypeToken.getParameterized(List::class.java, modelClass).type
         )
     }
-
 
 
     fun resetState() {
@@ -2729,11 +2857,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadSmallDataset(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
-                    }
-                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
-                        response = restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
-                    }
-                    else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
+                        response =
+                            restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
+                    } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified!!)
                     } else {
                         response = repository.downloadDataset(modifiedRequest)
@@ -2970,8 +3097,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     results[request.dataset] =
                                         Resource.Error("ZIP response body is null")
                                 }
-                            }
-                            else if (contentType?.contains("application/json") == true) {
+                            } else if (contentType?.contains("application/json") == true) {
 
                                 Log.d("DownloadResponse", request.lastModified.toString())
                                 val responseBodyString =
@@ -3106,11 +3232,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                             val gson = Gson()
                                             try {
-                                                val jsonObject = gson.fromJson(jsonContent, JsonObject::class.java)
+                                                val jsonObject = gson.fromJson(
+                                                    jsonContent,
+                                                    JsonObject::class.java
+                                                )
 
                                                 // Check if the JSON has the expected structure
                                                 if (!jsonObject.has("data") || jsonObject.get("data").isJsonNull) {
-                                                    Log.e("EstateParser", "JSON does not contain 'data' field or it's null")
+                                                    Log.e(
+                                                        "EstateParser",
+                                                        "JSON does not contain 'data' field or it's null"
+                                                    )
                                                     return
                                                 }
 
@@ -3118,49 +3250,95 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                                 for (i in 0 until dataArray.size()) {
                                                     try {
-                                                        val estateObject = dataArray.get(i).asJsonObject
+                                                        val estateObject =
+                                                            dataArray.get(i).asJsonObject
 
                                                         // Safely extract estate values with null checks
-                                                        val id = if (estateObject.has("id") && !estateObject.get("id").isJsonNull)
-                                                            estateObject.get("id").asInt else 0
+                                                        val id =
+                                                            if (estateObject.has("id") && !estateObject.get(
+                                                                    "id"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("id").asInt else 0
 
-                                                        val idPpro = if (estateObject.has("id_ppro") && !estateObject.get("id_ppro").isJsonNull)
-                                                            estateObject.get("id_ppro").asInt else null
+                                                        val idPpro =
+                                                            if (estateObject.has("id_ppro") && !estateObject.get(
+                                                                    "id_ppro"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("id_ppro").asInt else null
 
-                                                        val abbr = if (estateObject.has("abbr") && !estateObject.get("abbr").isJsonNull)
-                                                            estateObject.get("abbr").asString else null
+                                                        val abbr =
+                                                            if (estateObject.has("abbr") && !estateObject.get(
+                                                                    "abbr"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("abbr").asString else null
 
-                                                        val nama = if (estateObject.has("nama") && !estateObject.get("nama").isJsonNull)
-                                                            estateObject.get("nama").asString else null
+                                                        val nama =
+                                                            if (estateObject.has("nama") && !estateObject.get(
+                                                                    "nama"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("nama").asString else null
+
+                                                        val tph_otomatis =
+                                                            if (estateObject.has("tph_otomatis") && !estateObject.get(
+                                                                    "tph_otomatis"
+                                                                ).isJsonNull
+                                                            )
+                                                                estateObject.get("tph_otomatis").asString else null
 
                                                         // Create EstateModel
                                                         val estate = EstateModel(
                                                             id = id,
                                                             id_ppro = idPpro,
                                                             abbr = abbr,
-                                                            nama = nama
+                                                            nama = nama,
+                                                            tph_otomatis = tph_otomatis!!.toInt()
                                                         )
                                                         estateList.add(estate)
 
                                                         // Parse afdeling data if present
-                                                        if (estateObject.has("divisi") && !estateObject.get("divisi").isJsonNull) {
-                                                            val divisiArray = estateObject.getAsJsonArray("divisi")
+                                                        if (estateObject.has("divisi") && !estateObject.get(
+                                                                "divisi"
+                                                            ).isJsonNull
+                                                        ) {
+                                                            val divisiArray =
+                                                                estateObject.getAsJsonArray("divisi")
 
                                                             for (j in 0 until divisiArray.size()) {
                                                                 try {
-                                                                    val divisiObject = divisiArray.get(j).asJsonObject
+                                                                    val divisiObject =
+                                                                        divisiArray.get(j).asJsonObject
 
-                                                                    val divisiId = if (divisiObject.has("id") && !divisiObject.get("id").isJsonNull)
-                                                                        divisiObject.get("id").asInt else continue
+                                                                    val divisiId =
+                                                                        if (divisiObject.has("id") && !divisiObject.get(
+                                                                                "id"
+                                                                            ).isJsonNull
+                                                                        )
+                                                                            divisiObject.get("id").asInt else continue
 
-                                                                    val divisiIdPpro = if (divisiObject.has("id_ppro") && !divisiObject.get("id_ppro").isJsonNull)
-                                                                        divisiObject.get("id_ppro").asInt else null
+                                                                    val divisiIdPpro =
+                                                                        if (divisiObject.has("id_ppro") && !divisiObject.get(
+                                                                                "id_ppro"
+                                                                            ).isJsonNull
+                                                                        )
+                                                                            divisiObject.get("id_ppro").asInt else null
 
-                                                                    val divisiAbbr = if (divisiObject.has("abbr") && !divisiObject.get("abbr").isJsonNull)
-                                                                        divisiObject.get("abbr").asString?.trim() else null
+                                                                    val divisiAbbr =
+                                                                        if (divisiObject.has("abbr") && !divisiObject.get(
+                                                                                "abbr"
+                                                                            ).isJsonNull
+                                                                        )
+                                                                            divisiObject.get("abbr").asString?.trim() else null
 
-                                                                    val divisiNama = if (divisiObject.has("nama") && !divisiObject.get("nama").isJsonNull)
-                                                                        divisiObject.get("nama").asString else null
+                                                                    val divisiNama =
+                                                                        if (divisiObject.has("nama") && !divisiObject.get(
+                                                                                "nama"
+                                                                            ).isJsonNull
+                                                                        )
+                                                                            divisiObject.get("nama").asString else null
 
                                                                     val afdeling = AfdelingModel(
                                                                         id = divisiId,
@@ -3171,20 +3349,32 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                     )
                                                                     afdelingList.add(afdeling)
                                                                 } catch (e: Exception) {
-                                                                    Log.e("AfdelingParser", "Error parsing afdeling at index $j for estate $id: ${e.message}")
+                                                                    Log.e(
+                                                                        "AfdelingParser",
+                                                                        "Error parsing afdeling at index $j for estate $id: ${e.message}"
+                                                                    )
                                                                     continue
                                                                 }
                                                             }
                                                         }
                                                     } catch (e: Exception) {
-                                                        Log.e("EstateParser", "Error parsing estate at index $i: ${e.message}")
+                                                        Log.e(
+                                                            "EstateParser",
+                                                            "Error parsing estate at index $i: ${e.message}"
+                                                        )
                                                         continue
                                                     }
                                                 }
 
-                                                Log.d("EstateParser", "Successfully parsed ${estateList.size} estates and ${afdelingList.size} afdelings")
+                                                Log.d(
+                                                    "EstateParser",
+                                                    "Successfully parsed ${estateList.size} estates and ${afdelingList.size} afdelings"
+                                                )
                                             } catch (e: Exception) {
-                                                Log.e("EstateParser", "Error parsing JSON: ${e.message}")
+                                                Log.e(
+                                                    "EstateParser",
+                                                    "Error parsing JSON: ${e.message}"
+                                                )
                                             }
                                         }
 
@@ -3194,11 +3384,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         // Check if we have any data to store
                                         if (estateList.isEmpty()) {
                                             Log.w("DownloadResponse", "No estate data to store")
-                                            results[request.dataset] = Resource.Error("No estate data found in response")
+                                            results[request.dataset] =
+                                                Resource.Error("No estate data found in response")
                                             _downloadStatuses.postValue(results.toMap())
                                         }
 
-                                        Log.d("DownloadResponse", "Storing ${estateList.size} estates and ${afdelingList.size} afdelings")
+                                        Log.d(
+                                            "DownloadResponse",
+                                            "Storing ${estateList.size} estates and ${afdelingList.size} afdelings"
+                                        )
 
                                         // Update status to storing
                                         results[request.dataset] = Resource.Storing(request.dataset)
@@ -3223,9 +3417,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         _downloadStatuses.postValue(results.toMap())
 
                                     } catch (e: Exception) {
-                                        Log.e("DownloadResponse", "Error processing estate data: ${e.message}")
+                                        Log.e(
+                                            "DownloadResponse",
+                                            "Error processing estate data: ${e.message}"
+                                        )
                                         if (!hasShownError) {
-                                            results[request.dataset] = Resource.Error("Error processing estate data: ${e.message}")
+                                            results[request.dataset] =
+                                                Resource.Error("Error processing estate data: ${e.message}")
                                             hasShownError = true
                                         }
                                         _downloadStatuses.postValue(results.toMap())

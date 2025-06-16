@@ -491,17 +491,20 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
                 try {
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.showLoadingForFeature(AppUtils.ListFeatureNames.RekapAbsensiPanen)
+                    }
                     val countDeferredAbsensi = async { absensiViewModel.loadAbsensiCount() }
                     countAbsensi = countDeferredAbsensi.await()
                     withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount("Rekap absensi panen", countAbsensi.toString())
-                        AppLogger.d(countAbsensi.toString())
-                        featureAdapter.hideLoadingForFeature("Rekap absensi panen")
+                        featureAdapter.updateCount(AppUtils.ListFeatureNames.RekapAbsensiPanen, countAbsensi.toString())
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapAbsensiPanen)
                     }
                 } catch (e: Exception) {
-                    AppLogger.e("Error fetching data: ${e.message}")
+                    AppLogger.e("Error fetching absensi data: ${e.message}")
                     withContext(Dispatchers.Main) {
-                        featureAdapter.hideLoadingForFeature("Rekap absensi panen")
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapAbsensiPanen)
+
                     }
                 }
                 try {
@@ -544,6 +547,9 @@ class HomePageActivity : AppCompatActivity() {
 
 
     private fun setupRecyclerView() {
+
+
+        AppLogger.d("a;sldf;alskdf;laksdf")
         val features = listOf(
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -1700,8 +1706,6 @@ class HomePageActivity : AppCompatActivity() {
 
                 var mappedPanenData: List<Map<String, Any>> = emptyList()
                 var mappedESPBData: List<Map<String, Any>> = emptyList()
-                var mappedHektaranData: List<Map<String, Any>> = emptyList()
-                var mappedAbsensiData: List<Map<String, Any>> = emptyList()
 
                 var allPhotosPanen = mutableListOf<Map<String, String>>()
                 var allPhotosAbsensi = mutableListOf<Map<String, String>>()
@@ -2606,7 +2610,6 @@ class HomePageActivity : AppCompatActivity() {
                             globalHektaranIds = hektaranIds
 
                         } else {
-                            mappedHektaranData = emptyList()
                             globalHektaranIds = emptyList()
                             unzippedHektaranData = emptyList()
                         }
@@ -3170,8 +3173,6 @@ class HomePageActivity : AppCompatActivity() {
 
                             globalAbsensiIds = absensiIds
                         } else {
-                            // If no data to upload, still set these variables
-                            mappedAbsensiData = emptyList()
                             globalAbsensiIds = emptyList()
                             unzippedAbsensiData = emptyList()
                         }
@@ -5085,7 +5086,6 @@ class HomePageActivity : AppCompatActivity() {
 
 
         if (isTriggerFeatureInspection && (isMandor1 || isAsisten)) {
-            AppLogger.d("kalsjdflkajslf")
             AppLogger.d(isTriggerFeatureInspection.toString())
             datasets.add(
                 DatasetRequest(
