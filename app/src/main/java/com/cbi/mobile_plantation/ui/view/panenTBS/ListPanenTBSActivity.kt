@@ -2783,6 +2783,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     lifecycleScope.launch {
 
+
                         if (panenList.isNotEmpty()) {
                             tvEmptyState.visibility = View.GONE
                             recyclerView.visibility = View.VISIBLE
@@ -2791,12 +2792,43 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             originalMappedData.clear()
                             panenList.map { panenWithRelations ->
 
+//                                AppLogger.d("Raw tph_id: ${panenWithRelations.panen.tph_id}")
+//                                AppLogger.d("tph_id type: ${panenWithRelations.panen.tph_id?.javaClass?.simpleName}")
+//
+//                                AppLogger.d("TPH object: ${panenWithRelations.tph}")
+//                                AppLogger.d("TPH is null: ${panenWithRelations.tph == null}")
+//
+//                                if (panenWithRelations.tph == null) {
+//                                    AppLogger.e("Skipping panen with ID ${panenWithRelations.panen.id} - TPH is null for tph_id: ${panenWithRelations.panen.tph_id}")
+//                                    return@map emptyList<Map<String, Any>>() // Skip this iteration
+//                                }
+
+                                AppLogger.d("Raw tph_id: ${panenWithRelations.panen.tph_id}")
+                                AppLogger.d("tph_id type: ${panenWithRelations.panen.tph_id?.javaClass?.simpleName}")
+
+                                AppLogger.d("TPH object: ${panenWithRelations.tph}")
+                                AppLogger.d("TPH is null: ${panenWithRelations.tph == null}")
+
+                                if (panenWithRelations.tph == null) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@ListPanenTBSActivity,
+                                        stringXML(R.string.al_back),
+                                        "Data TPH Tidak Ditemukan",
+                                        "TPH dengan ID ${panenWithRelations.panen.tph_id} tidak ditemukan di database. Silakan periksa data TPH.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        finish()
+                                    }
+                                    return@launch // Exit the entire coroutine
+                                }
+
                                 val standardData = mapOf<String, Any>(
                                     "id" to (panenWithRelations.panen.id as Any),
                                     "tph_id" to (panenWithRelations.panen.tph_id as Any),
                                     "date_created" to (panenWithRelations.panen.date_created as Any),
                                     "blok_name" to (panenWithRelations.tph?.blok_kode ?: "Unknown"),
-                                    "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                    "nomor" to (panenWithRelations.tph.nomor as Any),
                                     "created_by" to (panenWithRelations.panen.created_by as Any),
                                     "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
                                     "foto" to (panenWithRelations.panen.foto as Any),
@@ -2939,7 +2971,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             "date_created" to (panenWithRelations.panen.date_created as Any),
                                             "blok_name" to (panenWithRelations.tph?.blok_kode
                                                 ?: "Unknown"),
-                                            "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                            "nomor" to (panenWithRelations.tph.nomor as Any),
                                             "created_by" to (panenWithRelations.panen.created_by as Any),
                                             "karyawan_id" to (karyawanId as Any),
                                             "kemandoran_id" to (kemandoranId as Any),

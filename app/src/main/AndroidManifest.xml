@@ -64,6 +64,9 @@
             android:name=".ui.view.Inspection.FormInspectionActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.view.Inspection.ListInspectionActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.view.Absensi.ListAbsensiActivity"
             android:exported="false" />
         <activity

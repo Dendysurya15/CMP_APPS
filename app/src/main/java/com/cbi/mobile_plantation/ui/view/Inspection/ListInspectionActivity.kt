@@ -110,9 +110,9 @@ class ListInspectionActivity : AppCompatActivity() {
         currentState = 0
         setActiveCard(cardTersimpan)
 
-        lifecycleScope.launch {
+//        lifecycleScope.launch {
 //            inspectionViewModel.loadInspectionPaths()
-        }
+//        }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -447,8 +447,8 @@ class ListInspectionActivity : AppCompatActivity() {
         loadingDialog.show()
         loadingDialog.setMessage("Loading data...")
 
-//        inspectionViewModel.inspectionPaths.observe(this) { inspectionPaths ->
-//            adapter.setData(inspectionPaths)
+//        inspectionViewModel.inspectionWithDetails.observe(this) { inspectionPaths ->
+////            adapter.setData(inspectionPaths)
 //            Handler(Looper.getMainLooper()).postDelayed({
 //                loadingDialog.dismiss()
 //

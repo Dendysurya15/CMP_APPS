@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
+import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +22,9 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _inspectionList = MutableLiveData<List<InspectionModel>>()
     val inspectionList: LiveData<List<InspectionModel>> get() = _inspectionList
+
+    private val _inspectionWithDetails = MutableLiveData<List<InspectionWithDetailRelations>>()
+    val inspectionWithDetails: LiveData<List<InspectionWithDetailRelations>> = _inspectionWithDetails
 
     sealed class SaveDataInspectionState {
         data class Success(val inspectionId: Long) : SaveDataInspectionState()
@@ -42,6 +46,11 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+//    fun loadInspectionPaths(archive: Int = 0) {
+//        viewModelScope.launch {
+//            _inspectionWithDetails.value = repository.getInspectionPathsWithTphAndCount(archive)
+//        }
+//    }
 
     suspend fun saveDataInspection(
         created_date_start: String,
