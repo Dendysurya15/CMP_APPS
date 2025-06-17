@@ -2486,7 +2486,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val firstHalf = base64Encoded.substring(0, midPoint)
                 val secondHalf = base64Encoded.substring(midPoint)
 
-                firstHalf + "5nqHzPKdlILxS9ABpClq" + secondHalf
+                firstHalf + AppUtils.half_json_encrypted + secondHalf
             }
         } catch (e: JSONException) {
             AppLogger.e("JSON Processing Error: ${e.message}")

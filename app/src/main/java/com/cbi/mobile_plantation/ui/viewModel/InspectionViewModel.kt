@@ -19,52 +19,16 @@ import kotlinx.coroutines.withContext
 class InspectionViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: AppRepository = AppRepository(application)
 
-//    private val _inspectionPaths = MutableLiveData<List<PathWithInspectionTphRelations>>()
-//    val inspectionPaths: LiveData<List<PathWithInspectionTphRelations>> = _inspectionPaths
-//
     private val _inspectionList = MutableLiveData<List<InspectionModel>>()
     val inspectionList: LiveData<List<InspectionModel>> get() = _inspectionList
-//
-    private val _error = MutableLiveData<String>()
-    val error: LiveData<String> = _error
 
-//    fun loadInspectionPaths(archive: Int = 0) {
-//        viewModelScope.launch {
-//            _inspectionPaths.value = repository.getInspectionPathsWithTphAndCount(archive)
-//        }
-//    }
-
-//    suspend fun getInspectionCount(archive: Int = 0): Int {
-//        try {
-//            return repository.getInspectionCountCard(archive)
-//        } catch (e: Exception) {
-//            AppLogger.e("Error loading get count: ${e.message}")
-//            return 0
-//        }
-//    }
-
-//    suspend fun insertPathDataSync(pathData: InspectionDetailModel): String? {
-//        return withContext(Dispatchers.IO) {
-//            try {
-//                val result = repository.addPathDataInspection(pathData)
-//                result.getOrNull()?.toString()
-//            } catch (e: Exception) {
-//                null
-//            }
-//        }
-//    }
-
-    suspend fun insertInspectionDataSync(inspectionList: List<InspectionModel>): List<Long> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val result = repository.addDataInspection(inspectionList)
-                result.getOrElse { emptyList() }
-            } catch (e: Exception) {
-                emptyList()
-            }
-        }
+    sealed class SaveDataInspectionState {
+        data class Success(val inspectionId: Long) : SaveDataInspectionState()
+        data class Error(val message: String) : SaveDataInspectionState()
     }
 
+    private val _error = MutableLiveData<String>()
+    val error: LiveData<String> = _error
 
     fun getTPHHasBeenInspect() {
         viewModelScope.launch {
@@ -79,20 +43,114 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
 
-//    suspend fun deleteInspectionDatas(ids: List<String>): Result<Boolean> {
-//        return withContext(Dispatchers.IO) {
-//            try {
-//                val result = repository.deleteInspectionDatas(ids)
-//                if (result.isSuccess) {
-//                    Result.success(true)
-//                } else {
-//                    Result.failure(Exception("Failed to delete data"))
-//                }
-//            } catch (e: Exception) {
-//                Result.failure(e)
-//            }
-//        }
-//    }
+    suspend fun saveDataInspection(
+        created_date_start: String,
+        created_date_end: String,
+        created_by: String,
+        tph_id: Int,
+        date_panen: String,
+        jalur_masuk: String,
+        brd_tinggal: Int,
+        buah_tinggal: Int,
+        jenis_kondisi: Int,
+        baris1: Int,
+        baris2: Int?,
+        jml_pkk_inspeksi: Int,
+        tracking_path: String,
+        foto: String? = null,
+        komentar: String? = null,
+        latTPH: Double,
+        lonTPH: Double,
+        app_version: String,
+        status_upload: String,
+        status_uploaded_image: String,
+    ): SaveDataInspectionState {
+        return try {
+            val inspectionData = InspectionModel(
+                created_date_start = created_date_start,
+                created_date_end = created_date_end,
+                created_by = created_by,
+                tph_id = tph_id,
+                date_panen = date_panen,
+                jalur_masuk = jalur_masuk,
+                brd_tinggal = brd_tinggal,
+                buah_tinggal = buah_tinggal,
+                jenis_kondisi = jenis_kondisi,
+                baris1 = baris1,
+                baris2 = baris2,
+                jml_pkk_inspeksi = jml_pkk_inspeksi,
+                tracking_path = tracking_path,
+                foto = foto,
+                komentar = komentar,
+                latTPH = latTPH,
+                lonTPH = lonTPH,
+                app_version = app_version,
+                status_upload = status_upload,
+                status_uploaded_image =  status_uploaded_image
+            )
+
+            val inspectionId = repository.insertInspectionData(inspectionData)
+            SaveDataInspectionState.Success(inspectionId)
+
+        } catch (e: Exception) {
+            SaveDataInspectionState.Error(e.toString())
+        }
+    }
+
+    suspend fun saveDataInspectionDetails(
+        inspectionId: String,
+        formData: Map<Int, FormAncakViewModel.PageData>,
+        totalPages: Int,
+    ): SaveDataInspectionDetailsState {
+        return try {
+            val inspectionDetailList = mutableListOf<InspectionDetailModel>()
+
+            for (page in 1..totalPages) {
+                val pageData = formData[page]
+                val emptyTreeValue = pageData?.emptyTree ?: 0
+
+                // Skip
+                if (emptyTreeValue == 2 || emptyTreeValue == 3 || emptyTreeValue == 0) {
+                    continue
+                }
+
+                val inspectionDetail = InspectionDetailModel(
+                    id_inspeksi = inspectionId,
+                    no_pokok = page,
+                    prioritas = pageData?.priority ?: 0,
+                    pokok_panen = pageData?.harvestTree ?: 0,
+                    susunan_pelepah = pageData?.neatPelepah ?: 0,
+                    pelepah_sengkleh = pageData?.pelepahSengkleh ?: 0,
+                    kondisi_pruning = pageData?.pruning ?: 0,
+                    brd_tidak_dikutip = pageData?.brdKtp ?: 0,
+                    foto = pageData?.photo,
+                    komentar = pageData?.comment,
+                    latIssue = pageData?.latIssue ?: 0.0,
+                    lonIssue = pageData?.lonIssue ?: 0.0,
+                    status_upload = "0",
+                    status_uploaded_image = "0"
+                )
+                inspectionDetailList.add(inspectionDetail)
+            }
+
+            // Only insert if we have data to insert
+            if (inspectionDetailList.isNotEmpty()) {
+                repository.insertInspectionDetails(inspectionDetailList)
+                SaveDataInspectionDetailsState.Success(inspectionDetailList.size)
+            } else {
+                SaveDataInspectionDetailsState.Success(0)
+            }
+
+        } catch (e: Exception) {
+            SaveDataInspectionDetailsState.Error(e.toString())
+        }
+    }
+
+    // ===== STATE CLASS =====
+    sealed class SaveDataInspectionDetailsState {
+        data class Success(val insertedCount: Int) : SaveDataInspectionDetailsState()
+        data class Error(val message: String) : SaveDataInspectionDetailsState()
+    }
 
     class InspectionViewModelFactory(
         private val application: Application

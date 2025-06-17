@@ -2560,7 +2560,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 descScannedTPHInsideRadius.visibility = View.VISIBLE
                 emptyScannedTPHInsideRadius.visibility = View.GONE
                 tphScannedResultRecyclerView.adapter =
-                    ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal)
+                    ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal, true)
 
 
                 val itemHeight = 50

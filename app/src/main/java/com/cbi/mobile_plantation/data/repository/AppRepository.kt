@@ -67,6 +67,14 @@ class AppRepository(context: Context) {
         panenDao.insert(data)
     }
 
+    suspend fun insertInspectionData(inspectionData: InspectionModel): Long {
+        return inspectionDao.insertInspection(inspectionData)
+    }
+
+    suspend fun insertInspectionDetails(inspectionDetailList: List<InspectionDetailModel>) {
+        inspectionDao.insertInspectionDetails(inspectionDetailList)
+    }
+
     suspend fun saveScanMPanen(
         tphDataList: List<PanenEntity>,
         createdBy: String? = null,

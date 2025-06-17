@@ -62,6 +62,7 @@ object AppUtils {
     const val MAX_SELECTIONS_PER_TPH = 3
     const val MAX_ALERT_FOR_GENERATE_QR = 60
     const val max_data_in_zip = 12
+    const val half_json_encrypted = "5nqHzPKdlILxS9ABpClq"
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"

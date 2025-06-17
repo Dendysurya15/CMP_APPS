@@ -28,7 +28,8 @@ import com.google.android.material.radiobutton.MaterialRadioButton
 class ListTPHInsideRadiusAdapter(
     private val tphList: List<ScannedTPHSelectionItem>,
     private val listener: OnTPHSelectedListener,
-    private val jenisTPHList: List<JenisTPHModel> // Added parameter
+    private val jenisTPHList: List<JenisTPHModel>,
+    private val enforceSelectionLimits: Boolean = true
 ) : RecyclerView.Adapter<ListTPHInsideRadiusAdapter.ViewHolder>() {
 
     private var selectedPosition = -1
@@ -190,8 +191,7 @@ class ListTPHInsideRadiusAdapter(
             selectedTPHId = tphItem.id
         }
 
-        // Handle status text based on selection and range
-        if (tphItem.isAlreadySelected) {
+        if (tphItem.isAlreadySelected && enforceSelectionLimits) { // Add enforceSelectionLimits check
             val jenisTPHId = tphItem.jenisTPHId.toInt()
             // Get the default limit from jenisTPHList
             val defaultLimit = jenisTPHList.find { it.id == jenisTPHId }?.limit ?: 1
@@ -202,7 +202,7 @@ class ListTPHInsideRadiusAdapter(
             } catch (e: Exception) {
                 null
             }
-            
+
             // Calculate the limit to use based on TPH type
             val limit = if (jenisTPHId == 2 && jenisTPHList.find { it.id == 2 }?.jenis_tph == "induk") {
                 // Special case for jenis_tph = induk (id = 2)
@@ -241,7 +241,7 @@ class ListTPHInsideRadiusAdapter(
                 holder.radioButton.alpha = 1.0f
             }
         } else {
-            // IMPORTANT: For items that are NOT already selected, ensure the TextView is hidden
+            // IMPORTANT: For items that are NOT already selected OR when limits are not enforced, ensure the TextView is hidden
             holder.tphHasBeenSelected.visibility = View.GONE
             holder.tphHasBeenSelected.text = ""
         }
@@ -250,18 +250,21 @@ class ListTPHInsideRadiusAdapter(
         holder.radioButton.setOnClickListener(null)
         holder.itemView.setOnClickListener(null)
 
-        // Only enable click listener if the TPH can be selected again and is within range
-        if (tphItem.canBeSelectedAgain && tphItem.isWithinRange) {
+        val canClick = if (enforceSelectionLimits) {
+            tphItem.canBeSelectedAgain && tphItem.isWithinRange
+        } else {
+            tphItem.isWithinRange // Only check if within range, ignore selection limits
+        }
+
+        if (canClick) {
             holder.radioButton.setOnClickListener {
                 val oldPosition = selectedPosition
                 selectedPosition = position
                 selectedTPHId = tphItem.id
 
-                // Update old and new positions
                 if (oldPosition >= 0) notifyItemChanged(oldPosition)
                 notifyItemChanged(position)
 
-                // Notify the activity about the selected item
                 listener.onTPHSelected(tphItem)
             }
 

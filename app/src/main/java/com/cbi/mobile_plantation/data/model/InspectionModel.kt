@@ -13,7 +13,8 @@ import com.cbi.mobile_plantation.utils.AppUtils
 )
 data class InspectionModel(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val created_date: String,
+    val created_date_start: String,
+    val created_date_end: String,
     val created_by: String,
     val tph_id:Int,
     val date_panen:String,
@@ -25,6 +26,11 @@ data class InspectionModel(
     val baris2: Int? = null,
     val jml_pkk_inspeksi: Int,
     val tracking_path: String,
+    val foto: String? = null,
+    val komentar: String? = null,
+    val latTPH: Double,
+    val lonTPH: Double,
     val app_version: String,
     val status_upload: String,
+    val status_uploaded_image: String,
 )

@@ -31,6 +31,7 @@ import android.text.TextUtils
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -179,6 +180,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private val autoScanHandler = Handler(Looper.getMainLooper())
     private val autoScanInterval = 5000L
     private lateinit var tvErrorScannedNotSelected: TextView
+    private var dateStartInspection: String = ""
 
     //    private lateinit var lyPemanen1Inspect: LinearLayout
     private var panenStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
@@ -194,7 +196,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private val listRadioItems: Map<String, Map<String, String>> = mapOf(
         "InspectionType" to mapOf(
             "1" to "Inspeksi",
-            "2" to "AKP"
         ),
         "ConditionType" to mapOf(
             "1" to "Datar",
@@ -229,25 +230,19 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private val karyawanIdMap: MutableMap<String, Int> = mutableMapOf()
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
-    private val karyawanLainIdMap: MutableMap<String, Int> = mutableMapOf()
-    private val kemandoranLainIdMap: MutableMap<String, Int> = mutableMapOf()
 
     private var totalPokokInspection = 0
     private var jumBrdTglPath = 0
     private var jumBuahTglPath = 0
     private var latLonMap: Map<Int, ScannedTPHLocation> = emptyMap()
     private lateinit var tphScannedResultRecyclerView: RecyclerView
-    private var asistensi: Int = 0
     private var selectedAfdeling: String = ""
     private var selectedAfdelingIdSpinner: Int = 0
     private var selectedDivisiValue: Int? = null
-    private var selectedTahunTanamValue: String? = null
     private var selectedBlok: String = ""
-    private var selectedBlokValue: Int? = null
-    private var selectedTPH: String = ""
     private var selectedTPHValue: Int? = null
     private var selectedJalurMasuk: String = ""
-    private var selectedInspeksiValue: String = ""
+//    private var selectedInspeksiValue: String = ""
     private var selectedKondisiValue: String = ""
 
     private var isInTPH: Boolean = true
@@ -255,7 +250,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var br2Value: String = ""
 
     private lateinit var selectedPemanenAdapter: SelectedWorkerAdapter
-    private lateinit var selectedPemanenLainAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
 
     private lateinit var datasetViewModel: DatasetViewModel
@@ -749,10 +743,9 @@ open class FormInspectionActivity : AppCompatActivity(),
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val pageData = formData[currentPage]
             val emptyTreeValue = pageData?.emptyTree ?: 0
-            val inspectionType = selectedInspeksiValue.toInt()
 
             // Show/hide photo FAB based on conditions
-            fabPhotoFormAncak.visibility = if (inspectionType == 1 && emptyTreeValue == 1) {
+            fabPhotoFormAncak.visibility = if ( emptyTreeValue == 1) {
                 View.VISIBLE
             } else {
                 View.GONE
@@ -798,7 +791,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
 
-            if (selectedInspeksiValue.toInt() == 1 && hasFindings && !hasValidPhoto) {
+            if (hasFindings && !hasValidPhoto) {
                 vibrate(500)
                 showViewPhotoBottomSheet(null, isInTPH)
                 AlertDialogUtility.withSingleAction(
@@ -813,7 +806,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             val validationResult =
-                formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
+                formAncakViewModel.validateCurrentPage(1)
 
             if (!validationResult.isValid) {
                 vibrate(500)
@@ -912,13 +905,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         fabPhotoFormAncak.setOnClickListener {
-//            val validationResult =
-//                formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
-//            if (validationResult.isValid) {
             showViewPhotoBottomSheet(null, isInTPH)
-//            } else {
-//                vibrate(500)
-//            }
         }
 
         fabPhotoInfoBlok.setOnClickListener {
@@ -951,223 +938,153 @@ open class FormInspectionActivity : AppCompatActivity(),
                             loadingDialog.show()
                             loadingDialog.setMessage("Menyimpan data...")
 
+                            // Log all variables before processing
+                            Log.d("SaveInspection", "=== Starting Save Process ===")
+                            Log.d("SaveInspection", "isTenthTrees: $isTenthTrees")
+                            Log.d("SaveInspection", "lat: $lat")
+                            Log.d("SaveInspection", "lon: $lon")
+                            Log.d("SaveInspection", "dateStartInspection: $dateStartInspection")
+                            Log.d("SaveInspection", "userId: $userId")
+                            Log.d("SaveInspection", "selectedTPHIdByScan: $selectedTPHIdByScan")
+                            Log.d("SaveInspection", "selectedTanggalPanenByScan: $selectedTanggalPanenByScan")
+                            Log.d("SaveInspection", "selectedJalurMasuk: $selectedJalurMasuk")
+                            Log.d("SaveInspection", "jumBrdTglPath: $jumBrdTglPath")
+                            Log.d("SaveInspection", "jumBuahTglPath: $jumBuahTglPath")
+                            Log.d("SaveInspection", "selectedKondisiValue: $selectedKondisiValue")
+                            Log.d("SaveInspection", "br1Value: $br1Value")
+                            Log.d("SaveInspection", "br2Value: $br2Value")
+                            Log.d("SaveInspection", "totalPokokInspection: $totalPokokInspection")
+                            Log.d("SaveInspection", "photoInTPH: $photoInTPH")
+                            Log.d("SaveInspection", "komentarInTPH: $komentarInTPH")
+                            Log.d("SaveInspection", "infoApp: $infoApp")
+
                             if (!isTenthTrees) {
                                 trackingLocation["end"] = Location(lat ?: 0.0, lon ?: 0.0)
+                                Log.d("SaveInspection", "Added end location to trackingLocation")
                             }
 
-                            val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
-                            val idKaryawanList = selectedPemanen.mapNotNull {
-                                karyawanIdMap[it.name.substringBefore(" - ").trim()]
-                            }
-                            val kemandoranIdList = selectedPemanen.mapNotNull {
-                                kemandoranIdMap[it.name.substringBefore(" - ").trim()]
-                            }
-                            val selectedPemanenLain =
-                                selectedPemanenLainAdapter.getSelectedWorkers()
-                            val idKaryawanLainList = selectedPemanenLain.mapNotNull {
-                                karyawanLainIdMap[it.name.substringBefore(" - ").trim()]
-                            }
-                            val kemandoranLainIdList = selectedPemanenLain.mapNotNull {
-                                kemandoranLainIdMap[it.name.substringBefore(" - ").trim()]
-                            }
-
-                            val selectedNikPemanenIds = selectedPemanen.map { it.id }
-                            val selectedNikPemanenLainIds = selectedPemanenLain.map { it.id }
-                            val uniqueNikPemanen =
-                                (selectedNikPemanenIds + selectedNikPemanenLainIds)
-                                    .distinct()
-                                    .joinToString(",")
-
-                            val uniqueIdKaryawan = (idKaryawanList + idKaryawanLainList)
-                                .distinct()
-                                .map { it.toString() }
-                                .joinToString(",")
-
-                            val uniqueKemandoranId = (kemandoranIdList + kemandoranLainIdList)
-                                .map { it.toString() }
-                                .joinToString(",")
-
-                            val datetimeFormattedForPath =
-                                SimpleDateFormat(
-                                    "yyMMddHHmmssSSS",
-                                    Locale.getDefault()
-                                ).format(Date())
-                            val uniquePathId = "$userId$datetimeFormattedForPath"
-
-                            val formattedTracking =
-                                trackingLocation.values.joinToString("#") { "${it.lat},${it.lon}" }
-
-
-                            AppLogger.d(formattedTracking.toString())
-
-                            val datetimeCreated = SimpleDateFormat(
+                            val dateEndInspection = SimpleDateFormat(
                                 "yyyy-MM-dd HH:mm:ss",
                                 Locale.getDefault()
                             ).format(Date())
+                            Log.d("SaveInspection", "dateEndInspection: $dateEndInspection")
 
-                            // Check from radio button AKP/Inspeksi
-                            val isInspection = selectedInspeksiValue.toInt() == 1
+                            val totalPages = formAncakViewModel.totalPages.value
+                                ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+                            Log.d("SaveInspection", "totalPages: $totalPages")
 
-                            val totalPages =
-                                formAncakViewModel.totalPages.value
-                                    ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
                             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+                            Log.d("SaveInspection", "formData size: ${formData.size}")
+                            Log.d("SaveInspection", "formData: $formData")
 
-                            val inspectionDataList = mutableListOf<InspectionModel>()
-                            for (page in 1..totalPages) {
-                                val pageData = formData[page]
-                                val emptyTreeValue = pageData?.emptyTree ?: 0
-                                val isEmpty =
-                                    if (isInspection) emptyTreeValue == 1 else emptyTreeValue == 2
+                            // Validate required fields before saving
+                            if (selectedTPHIdByScan == null) {
+                                Log.e("SaveInspection", "ERROR: selectedTPHIdByScan is null!")
+                                throw Exception("TPH ID tidak boleh kosong")
+                            }
 
-                                if (emptyTreeValue > 0 && !isEmpty) {
-//                                    val inspection = InspectionModel(
-//                                        id_path = uniquePathId,
-//                                        tph_id = selectedTPHValue ?: 0,
-//                                        ancak = ancakValue.toInt(),
-//                                        status_panen = selectedStatusPanen.toInt(),
-//                                        jalur_masuk = selectedJalurMasuk,
-//                                        brd_tinggal = jumBrdTglPath,
-//                                        buah_tinggal = jumBuahTglPath,
-//                                        jenis_inspeksi = selectedInspeksiValue.toInt(),
-//                                        kemandoran_id = uniqueKemandoranId,
-//                                        karyawan_id = uniqueIdKaryawan,
-//                                        karyawan_nik = uniqueNikPemanen,
-//                                        asistensi = asistensi,
-//                                        jenis_kondisi = selectedKondisiValue.toInt(),
-//                                        baris1 = br1Value.toInt(),
-//                                        baris2 = if (selectedKondisiValue.toInt() == 1) br2Value.toInt() else null,
-//                                        no_pokok = page,
-//                                        jml_pokok = totalPokokInspection,
-//                                        titik_kosong = emptyTreeValue,
-//                                        jjg_akp = if (isInspection) null else (pageData?.jjgAkp
-//                                            ?: 0),
-//                                        prioritas = if (isInspection) (pageData?.priority
-//                                            ?: 0) else null,
-//                                        pokok_panen = if (isInspection) (pageData?.harvestTree
-//                                            ?: 0) else null,
-//                                        serangan_tikus = if (isInspection) (pageData?.ratAttack
-//                                            ?: 0) else null,
-//                                        ganoderma = if (isInspection) (pageData?.ganoderma
-//                                            ?: 0) else null,
-//                                        susunan_pelepah = if (isInspection) (pageData?.neatPelepah
-//                                            ?: 0) else null,
-//                                        pelepah_sengkleh = if (isInspection) (pageData?.pelepahSengkleh
-//                                            ?: 0) else null,
-//                                        kondisi_pruning = if (isInspection) (pageData?.pruning
-//                                            ?: 0) else null,
-//                                        kentosan = if (isInspection) (pageData?.kentosan
-//                                            ?: 0) else null,
-//                                        buah_masak = if (isInspection) (pageData?.ripe
-//                                            ?: 0) else null,
-//                                        buah_mentah = if (isInspection) (pageData?.buahM1
-//                                            ?: 0) else null,
-//                                        buah_matang = if (isInspection) (pageData?.buahM2
-//                                            ?: 0) else null,
-//                                        buah_matahari = if (isInspection) (pageData?.buahM3
-//                                            ?: 0) else null,
-//                                        brd_tidak_dikutip = if (isInspection) (pageData?.brdKtp
-//                                            ?: 0) else null,
-//                                        brd_dlm_piringan = if (isInspection) (pageData?.brdIn
-//                                            ?: 0) else null,
-//                                        brd_luar_piringan = if (isInspection) (pageData?.brdOut
-//                                            ?: 0) else null,
-//                                        brd_pasar_pikul = if (isInspection) (pageData?.pasarPikul
-//                                            ?: 0) else null,
-//                                        brd_ketiak = if (isInspection) (pageData?.ketiak
-//                                            ?: 0) else null,
-//                                        brd_parit = if (isInspection) (pageData?.parit
-//                                            ?: 0) else null,
-//                                        brd_segar = if (isInspection) (pageData?.brdSegar
-//                                            ?: 0) else null,
-//                                        brd_busuk = if (isInspection) (pageData?.brdBusuk
-//                                            ?: 0) else null,
-//                                        foto = if (isInspection) pageData?.photo else null,
-//                                        komentar = if (isInspection) pageData?.comment else null,
-//                                        info = infoApp,
-//                                        created_by = userId ?: 0,
-//                                        created_date = datetimeCreated,
-//                                    )
-//                                    inspectionDataList.add(inspection)
+                            if (selectedTanggalPanenByScan == null) {
+                                Log.e("SaveInspection", "ERROR: selectedTanggalPanenByScan is null!")
+                                throw Exception("Tanggal panen tidak boleh kosong")
+                            }
+
+                            Log.d("SaveInspection", "trackingLocation: ${trackingLocation.toString()}")
+
+                            // Save main inspection first
+                            Log.d("SaveInspection", "=== Calling saveDataInspection ===")
+                            val result = inspectionViewModel.saveDataInspection(
+                                created_date_start = dateStartInspection,
+                                created_date_end = dateEndInspection,
+                                created_by = userId.toString(),
+                                tph_id = selectedTPHIdByScan!!,
+                                date_panen = selectedTanggalPanenByScan!!,
+                                jalur_masuk = selectedJalurMasuk,
+                                brd_tinggal = jumBrdTglPath,
+                                buah_tinggal = jumBuahTglPath,
+                                jenis_kondisi = selectedKondisiValue.toInt(),
+                                baris1 = br1Value.toInt(),
+                                baris2 = if (selectedKondisiValue.toInt() == 1) br2Value.toInt() else null,
+                                jml_pkk_inspeksi = totalPokokInspection,
+                                tracking_path = trackingLocation.toString(),
+                                latTPH = lat ?: 0.0,
+                                lonTPH = lon ?: 0.0,
+                                foto = photoInTPH,
+                                komentar = komentarInTPH,
+                                app_version = infoApp,
+                                status_upload = "0",
+                                status_uploaded_image = "0"
+                            )
+
+                            Log.d("SaveInspection", "saveDataInspection result: $result")
+
+                            when (result) {
+                                is InspectionViewModel.SaveDataInspectionState.Success -> {
+                                    Log.d("SaveInspection", "Main inspection saved successfully with ID: ${result.inspectionId}")
+
+                                    // Now save inspection details using the generated ID
+                                    Log.d("SaveInspection", "=== Calling saveDataInspectionDetails ===")
+                                    val detailResult = inspectionViewModel.saveDataInspectionDetails(
+                                        inspectionId = result.inspectionId.toString(),
+                                        formData = formData,
+                                        totalPages = totalPages,
+                                    )
+
+                                    Log.d("SaveInspection", "saveDataInspectionDetails result: $detailResult")
+                                    loadingDialog.dismiss()
+
+                                    when (detailResult) {
+                                        is InspectionViewModel.SaveDataInspectionDetailsState.Success -> {
+                                            Log.d("SaveInspection", "Inspection details saved successfully")
+                                            AlertDialogUtility.withSingleAction(
+                                                this@FormInspectionActivity,
+                                                stringXML(R.string.al_back),
+                                                stringXML(R.string.al_success_save_local),
+                                                stringXML(R.string.al_description_success_save_local),
+                                                "success.json",
+                                                R.color.greenDefault
+                                            ) {
+                                                val intent = Intent(
+                                                    this@FormInspectionActivity,
+                                                    HomePageActivity::class.java
+                                                )
+                                                startActivity(intent)
+                                                finishAffinity()
+                                            }
+                                        }
+
+                                        is InspectionViewModel.SaveDataInspectionDetailsState.Error -> {
+                                            Log.e("SaveInspection", "Error saving inspection details: ${detailResult.message}")
+                                            AlertDialogUtility.withSingleAction(
+                                                this@FormInspectionActivity,
+                                                stringXML(R.string.al_back),
+                                                stringXML(R.string.al_failed_save_local),
+                                                "${stringXML(R.string.al_description_failed_save_local)} : ${detailResult.message}",
+                                                "warning.json",
+                                                R.color.colorRedDark
+                                            ) {}
+                                        }
+                                    }
+                                }
+
+                                is InspectionViewModel.SaveDataInspectionState.Error -> {
+                                    Log.e("SaveInspection", "Error saving main inspection: ${result.message}")
+                                    loadingDialog.dismiss()
+                                    AlertDialogUtility.withSingleAction(
+                                        this@FormInspectionActivity,
+                                        stringXML(R.string.al_back),
+                                        stringXML(R.string.al_failed_save_local),
+                                        "${stringXML(R.string.al_description_failed_save_local)} : ${result.message}",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {}
                                 }
                             }
 
-//                            if (inspectionDataList.isNotEmpty()) {
-//                                val pathData = InspectionDetailModel(
-//                                    id = uniquePathId,
-//                                    tracking_path = formattedTracking
-//                                )
-//
-//                                val pathInsertSuccess = withContext(Dispatchers.IO) {
-//                                    try {
-//                                        val insertedPathId =
-//                                            inspectionViewModel.insertPathDataSync(pathData)
-//                                        insertedPathId != null
-//                                    } catch (e: Exception) {
-//                                        AppLogger.d("Error inserting path: ${e.message}")
-//                                        false
-//                                    }
-//                                }
-//
-//                                if (!pathInsertSuccess) {
-//                                    val deleteResult =
-//                                        inspectionViewModel.deleteInspectionDatas(
-//                                            listOf(
-//                                                uniquePathId
-//                                            )
-//                                        )
-//                                    deleteResult.onFailure { error ->
-//                                        AppLogger.d("Failed to delete data path: $error")
-//                                    }
-//                                    throw Exception("Failed to insert path data")
-//                                }
-//
-//                                val inspectionInsertSuccess = withContext(Dispatchers.IO) {
-//                                    try {
-//                                        val insertedInspectionIds =
-//                                            inspectionViewModel.insertInspectionDataSync(
-//                                                inspectionDataList
-//                                            )
-//                                        insertedInspectionIds.isNotEmpty()
-//                                    } catch (e: Exception) {
-//                                        AppLogger.d("Error inserting inspection: ${e.message}")
-//                                        false
-//                                    }
-//                                }
-//
-//                                if (!inspectionInsertSuccess) {
-//                                    val deleteResult =
-//                                        inspectionViewModel.deleteInspectionDatas(
-//                                            listOf(
-//                                                uniquePathId
-//                                            )
-//                                        )
-//                                    deleteResult.onFailure { error ->
-//                                        AppLogger.d("Failed to delete data inspection: $error")
-//                                    }
-//                                    throw Exception("Failed to insert inspection data")
-//                                }
-//
-//                                AlertDialogUtility.withSingleAction(
-//                                    this@FormInspectionActivity,
-//                                    stringXML(R.string.al_back),
-//                                    stringXML(R.string.al_success_save_local),
-//                                    stringXML(R.string.al_description_success_save_local),
-//                                    "success.json",
-//                                    R.color.greenDefault
-//                                ) {
-//                                    val intent = Intent(
-//                                        this@FormInspectionActivity,
-//                                        HomePageActivity::class.java
-//                                    )
-//                                    startActivity(intent)
-//                                    finishAffinity()
-//                                }
-//                            } else {
-//                                throw Exception("Failed to add list inspection data")
-//                            }
                         } catch (e: Exception) {
-                            AppLogger.d("Unexpected error: ${e.message}")
+                            Log.e("SaveInspection", "Exception occurred during save process", e)
+                            Log.e("SaveInspection", "Exception message: ${e.message}")
+                            Log.e("SaveInspection", "Exception cause: ${e.cause}")
+                            loadingDialog.dismiss()
                             AlertDialogUtility.withSingleAction(
                                 this@FormInspectionActivity,
                                 stringXML(R.string.al_back),
@@ -1176,10 +1093,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 "warning.json",
                                 R.color.colorRedDark
                             ) {}
-                        } finally {
-                            if (loadingDialog.isShowing) {
-                                loadingDialog.dismiss()
-                            }
                         }
                     }
                 }
@@ -1269,7 +1182,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             updatePhotoBadgeVisibility()
 
-            // Close the bottom sheet and reopen it to reflect changes
+            bottomNavInspect.visibility = View.VISIBLE
             bottomSheetDialog.dismiss()
             Handler(Looper.getMainLooper()).postDelayed({
                 showViewPhotoBottomSheet(null, isInTPH)
@@ -1617,35 +1530,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                 loadingDialog.dismiss()
 
                 if (activeBottomNavId == R.id.navMenuAncakInspect) {
-                    val inspectionType = selectedInspeksiValue.toInt()
-//                    if (inspectionType == 1 && emptyTreeValue == 2 && photoValue.isEmpty()) {
-//                        vibrate(500)
-//
-//                        showViewPhotoBottomSheet(null, isInTPH)
-//                        AlertDialogUtility.withSingleAction(
-//                            this,
-//                            stringXML(R.string.al_back),
-//                            stringXML(R.string.al_data_not_completed),
-//                            "Mohon dapat mengambil foto temuan terlebih dahulu!",
-//                            "warning.json",
-//                            R.color.colorRedDark
-//                        ) {}
-//
-//                        return@setOnItemSelectedListener false
-//                    }
 
-                    if (inspectionType == 2 && emptyTreeValue == 1) {
-                        val validationResult =
-                            formAncakViewModel.validateCurrentPage(selectedInspeksiValue.toInt())
-                        if (!validationResult.isValid) {
-                            vibrate(500)
-                            return@setOnItemSelectedListener false
-                        }
-                    }
-                } else {
+                }else{
+                    AppLogger.d("masuk sini gessss")
                     vibrate(500)
                     return@setOnItemSelectedListener false
                 }
+
             }
 
             lifecycleScope.launch {
@@ -1670,13 +1561,18 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
                             }
 
+                            dateStartInspection = SimpleDateFormat(
+                                "yyyy-MM-dd HH:mm:ss",
+                                Locale.getDefault()
+                            ).format(Date())
+
                             val afdResult = selectedAfdeling.replaceFirst("AFD-", "")
                             formAncakViewModel.updateInfoFormAncak(
                                 estateName ?: "",
                                 afdResult,
                                 selectedBlok
                             )
-                            formAncakViewModel.updateTypeInspection(selectedInspeksiValue.toInt() == 1)
+//                            formAncakViewModel.updateTypeInspection(selectedInspeksiValue.toInt() == 1)
                             fabPhotoInfoBlok.visibility = View.GONE
                             infoBlokView.visibility = View.GONE
                             summaryView.visibility = View.GONE
@@ -1732,11 +1628,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 "Jalur Masuk",
                 InputType.SPINNER
             ),
-            Triple(
-                findViewById(R.id.lyInspectionType),
-                "Jenis Inspeksi",
-                InputType.RADIO
-            ),
+
             Triple(
                 findViewById(R.id.lyMandor2Inspect),
                 "Kemandoran Lain",
@@ -1790,10 +1682,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 InputType.RADIO -> {
                     when (layoutView.id) {
-                        R.id.lyInspectionType -> setupRadioView(
-                            layoutView,
-                            listRadioItems["InspectionType"] ?: emptyMap(), ::selectedInspeksiValue
-                        )
+//                        R.id.lyInspectionType -> setupRadioView(
+//                            layoutView,
+//                            listRadioItems["InspectionType"] ?: emptyMap(), ::1
+//                        )
 
                         R.id.lyConditionType -> setupRadioView(
                             layoutView,
@@ -1880,18 +1772,28 @@ open class FormInspectionActivity : AppCompatActivity(),
                 textSize = 15f
                 this.gravity = gravity or Gravity.CENTER_VERTICAL
                 // Use Manrope font
-                typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
+                typeface =
+                    ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
                 maxLines = Int.MAX_VALUE
                 ellipsize = null
                 isSingleLine = false
 
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, weight).apply {
-                    setMargins(5, 5, 5, 5)
-                }
+                layoutParams =
+                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, weight)
+                        .apply {
+                            setMargins(5, 5, 5, 5)
+                        }
 
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
-                    setColor(ColorUtils.setAlphaComponent(ContextCompat.getColor(this@FormInspectionActivity, R.color.graydarker), (0.2 * 255).toInt()))
+                    setColor(
+                        ColorUtils.setAlphaComponent(
+                            ContextCompat.getColor(
+                                this@FormInspectionActivity,
+                                R.color.graydarker
+                            ), (0.2 * 255).toInt()
+                        )
+                    )
                     cornerRadii = if (isTitle) floatArrayOf(20f, 20f, 0f, 0f, 0f, 0f, 20f, 20f)
                     else floatArrayOf(0f, 0f, 20f, 20f, 20f, 20f, 0f, 0f)
                 }
@@ -1903,12 +1805,14 @@ open class FormInspectionActivity : AppCompatActivity(),
                 "Temuan di TPH" -> {
                     if (photoInTPH.isNullOrEmpty()) 0 else 1
                 }
+
                 "Path / Pokok" -> {
                     val formData = formAncakViewModel.formData.value ?: mutableMapOf()
                     formData.values.count { pageData ->
                         pageData.emptyTree == 1 && !pageData.photo.isNullOrEmpty()
                     }
                 }
+
                 else -> 0
             }
         }
@@ -1958,17 +1862,32 @@ open class FormInspectionActivity : AppCompatActivity(),
         spannable.append("TPH ")
         val tphStart = spannable.length
         spannable.append(selectedTPHNomorByScan?.toString() ?: "")
-        spannable.setSpan(StyleSpan(Typeface.BOLD), tphStart, spannable.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        spannable.setSpan(
+            StyleSpan(Typeface.BOLD),
+            tphStart,
+            spannable.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
 
         spannable.append(" ,Ancak ")
         val ancakStart = spannable.length
         spannable.append(selectedAncakByScan ?: "")
-        spannable.setSpan(StyleSpan(Typeface.BOLD), ancakStart, spannable.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        spannable.setSpan(
+            StyleSpan(Typeface.BOLD),
+            ancakStart,
+            spannable.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
 
         spannable.append("\nTanggal Panen ")
         val tanggalStart = spannable.length
-        spannable.append(selectedTanggalPanenByScan ?: "")
-        spannable.setSpan(StyleSpan(Typeface.BOLD), tanggalStart, spannable.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        spannable.append(AppUtils.formatToIndonesianDate(selectedTanggalPanenByScan!!) ?: "")
+        spannable.setSpan(
+            StyleSpan(Typeface.BOLD),
+            tanggalStart,
+            spannable.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
 
         desTPH.text = spannable
 
@@ -2015,13 +1934,17 @@ open class FormInspectionActivity : AppCompatActivity(),
                 SummaryItem("Total Pokok Inspeksi", totalPokokInspection.toString()),
                 SummaryItem("Total Buah Masak Tinggal di Pokok", pathTotals["ripe"].toString()),
                 SummaryItem("Total Buah Mentah disembunyikan (M1)", pathTotals["m1"].toString()),
-                SummaryItem("Total Buah Matang Tidak dikeluarkan (M2)", pathTotals["m2"].toString()),
+                SummaryItem(
+                    "Total Buah Matang Tidak dikeluarkan (M2)",
+                    pathTotals["m2"].toString()
+                ),
                 SummaryItem("Total Brondolan Tidak dikutip", pathTotals["brondolan"].toString())
             )
         )
 
         for ((temuanName, data) in temuanDataList) {
-            val cardView = LayoutInflater.from(this).inflate(R.layout.layout_card_temuan, containerTemuanCards, false)
+            val cardView = LayoutInflater.from(this)
+                .inflate(R.layout.layout_card_temuan, containerTemuanCards, false)
 
             // Set the temuan name
             cardView.findViewById<TextView>(R.id.name_temuan).text = temuanName
@@ -2052,6 +1975,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         detailCard.visibility = View.GONE
                     }
                 }
+
                 "Path / Pokok" -> {
                     tvCardDetailInspeksi.text = "Detail Temuan Path"
                     if (photoCount > 0) {
@@ -2070,6 +1994,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         issuesCard.visibility = View.GONE
                     }
                 }
+
                 else -> {
                     // Default behavior for other types
                     photoCard.visibility = View.VISIBLE
@@ -2091,7 +2016,10 @@ open class FormInspectionActivity : AppCompatActivity(),
             for (item in data) {
                 val rowLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
 
                     addView(createRowTextView(item.title, Gravity.START, 2f, true))
                     addView(createRowTextView(item.value, Gravity.CENTER, 1f, false))
@@ -2123,6 +2051,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             "Temuan di TPH" -> {
                 setupTPHDetail(ivImage, llContainer, bottomSheetDialog)
             }
+
             "Path / Pokok" -> {
                 setupPathDetail(ivImage, llContainer, bottomSheetDialog)
             }
@@ -2137,10 +2066,17 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         // Set bottom sheet height to 80% of screen height and disable drag-to-dismiss
         bottomSheetDialog.setOnShowListener { dialog ->
-            val bottomSheet = (dialog as BottomSheetDialog).findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            val bottomSheet =
+                (dialog as BottomSheetDialog).findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             if (bottomSheet != null) {
                 val screenHeight = resources.displayMetrics.heightPixels
-                val desiredHeight = (screenHeight * 0.8).toInt() // 80% of screen height
+                var desiredHeight = 0
+                if(temuanType == "Temuan di TPH"){
+                    desiredHeight = (screenHeight * 0.4).toInt()
+                }else{
+                    desiredHeight = (screenHeight * 0.8).toInt()
+                }
+            // 80% of screen height
 
                 val layoutParams = bottomSheet.layoutParams
                 layoutParams.height = desiredHeight
@@ -2169,9 +2105,12 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
 
-
     // Updated setupTPHDetail - DON'T dismiss bottom sheet, just hide it temporarily
-    private fun setupTPHDetail(imageView: ImageView, container: LinearLayout, bottomSheetDialog: BottomSheetDialog? = null) {
+    private fun setupTPHDetail(
+        imageView: ImageView,
+        container: LinearLayout,
+        bottomSheetDialog: BottomSheetDialog? = null
+    ) {
         // Show image for TPH
         if (!photoInTPH.isNullOrEmpty()) {
             imageView.visibility = View.VISIBLE
@@ -2203,7 +2142,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                         imageView.setOnClickListener {
                             // Hide bottom sheet temporarily instead of dismissing
 //                            bottomSheetDialog?.hide()
-                            showFullScreenPhoto(fullImagePath, "Detail Temuan di TPH", bottomSheetDialog)
+                            showFullScreenPhoto(
+                                fullImagePath,
+                                "Detail Temuan di TPH",
+                                bottomSheetDialog
+                            )
                         }
                     } else {
                         AppLogger.e("Failed to decode bitmap from file")
@@ -2227,7 +2170,11 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     // Updated showFullScreenPhoto - accept bottomSheetDialog to show it back when closing
-    private fun showFullScreenPhoto(imagePath: String, title: String, bottomSheetDialog: BottomSheetDialog? = null) {
+    private fun showFullScreenPhoto(
+        imagePath: String,
+        title: String,
+        bottomSheetDialog: BottomSheetDialog? = null
+    ) {
         AppLogger.d("showFullScreenPhoto called with: $imagePath, $title")
 
         // Create full screen dialog
@@ -2302,7 +2249,11 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    private fun createPathDetailCard(pageNumber: Int, pageData: FormAncakViewModel.PageData, bottomSheetDialog: BottomSheetDialog? = null): View {
+    private fun createPathDetailCard(
+        pageNumber: Int,
+        pageData: FormAncakViewModel.PageData,
+        bottomSheetDialog: BottomSheetDialog? = null
+    ): View {
         // Inflate the card layout
         val cardView = LayoutInflater.from(this).inflate(R.layout.layout_temuan_path_inspeksi, null)
 
@@ -2380,7 +2331,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                             ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_INSIDE
 
                             // Keep white tint for the fallback icon
-                            ivPokokPhoto.imageTintList = ContextCompat.getColorStateList(this, R.color.white)
+                            ivPokokPhoto.imageTintList =
+                                ContextCompat.getColorStateList(this, R.color.white)
 
                             cardFoto.visibility = View.VISIBLE
                         }
@@ -2479,33 +2431,57 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             val result = categoryMap?.get(value.toString()) ?: value.toString()
-            AppLogger.d("getRadioText - category: $category, value: $value, result: $result")
             return result
         }
 
         // Show radio button fields if they have valid values (> 0)
         if (pageData.priority > 0) {
-            llDetailsList.addView(createDetailRow("Prioritas", ": ${getRadioText("priority", pageData.priority)}"))
+            llDetailsList.addView(
+                createDetailRow(
+                    "Prioritas",
+                    ": ${getRadioText("priority", pageData.priority)}"
+                )
+            )
             hasData = true
         }
 
         if (pageData.harvestTree > 0) {
-            llDetailsList.addView(createDetailRow("Pokok di Panen", ": ${getRadioText("harvestTree", pageData.harvestTree)}"))
+            llDetailsList.addView(
+                createDetailRow(
+                    "Pokok di Panen",
+                    ": ${getRadioText("harvestTree", pageData.harvestTree)}"
+                )
+            )
             hasData = true
         }
 
         if (pageData.neatPelepah > 0) {
-            llDetailsList.addView(createDetailRow("Susunan Pelepah", ": ${getRadioText("neatPelepah", pageData.neatPelepah)}"))
+            llDetailsList.addView(
+                createDetailRow(
+                    "Susunan Pelepah",
+                    ": ${getRadioText("neatPelepah", pageData.neatPelepah)}"
+                )
+            )
             hasData = true
         }
 
         if (pageData.pelepahSengkleh > 0) {
-            llDetailsList.addView(createDetailRow("Pelepah Sengkleh", ": ${getRadioText("pelepahSengkleh", pageData.pelepahSengkleh)}"))
+            llDetailsList.addView(
+                createDetailRow(
+                    "Pelepah Sengkleh",
+                    ": ${getRadioText("pelepahSengkleh", pageData.pelepahSengkleh)}"
+                )
+            )
             hasData = true
         }
 
         if (pageData.pruning > 0) {
-            llDetailsList.addView(createDetailRow("Kondisi Pruning", ": ${getRadioText("pruning", pageData.pruning)}"))
+            llDetailsList.addView(
+                createDetailRow(
+                    "Kondisi Pruning",
+                    ": ${getRadioText("pruning", pageData.pruning)}"
+                )
+            )
             hasData = true
         }
 
@@ -2535,8 +2511,14 @@ open class FormInspectionActivity : AppCompatActivity(),
             val emptyText = TextView(this).apply {
                 text = "Tidak ada temuan"
                 textSize = 15f
-                typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
-                setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.graydarker))
+                typeface =
+                    ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
+                setTextColor(
+                    ContextCompat.getColor(
+                        this@FormInspectionActivity,
+                        R.color.graydarker
+                    )
+                )
                 gravity = Gravity.CENTER
                 setPadding(16, 16, 16, 16)
             }
@@ -2578,7 +2560,11 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     // Updated setupPathDetail with "Tidak ada temuan" message
-    private fun setupPathDetail(imageView: ImageView, container: LinearLayout, bottomSheetDialog: BottomSheetDialog? = null) {
+    private fun setupPathDetail(
+        imageView: ImageView,
+        container: LinearLayout,
+        bottomSheetDialog: BottomSheetDialog? = null
+    ) {
         // Hide image for Path
         imageView.visibility = View.GONE
 
@@ -2602,8 +2588,14 @@ open class FormInspectionActivity : AppCompatActivity(),
             val emptyText = TextView(this).apply {
                 text = "Tidak ada temuan"
                 textSize = 16f
-                typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
-                setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.graydarker))
+                typeface =
+                    ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
+                setTextColor(
+                    ContextCompat.getColor(
+                        this@FormInspectionActivity,
+                        R.color.graydarker
+                    )
+                )
                 gravity = Gravity.CENTER
                 setPadding(32, 32, 32, 32)
             }
@@ -3073,35 +3065,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     ancakValue = firstTph?.ancak ?: ""
                 }
 
-                // Convert to Indonesian date format directly
-                val outputFormat = SimpleDateFormat("dd MMMM yyyy HH:mm:ss", Locale("id", "ID"))
-                val indonesianDate = if (dateCreated.isNotBlank()) {
-                    try {
-                        // Check if the date string contains time information
-                        val inputFormat = if (dateCreated.contains(" ")) {
-                            // Has time: "2025-05-30 14:30:00" or "2025-05-30 14:30"
-                            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                        } else {
-                            // Only date: "2025-05-30" - will default to 00:00
-                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                        }
-
-                        val date = inputFormat.parse(dateCreated)
-                        outputFormat.format(date ?: Date())
-                    } catch (e: Exception) {
-                        // If parsing with seconds fails, try without seconds
-                        try {
-                            val inputFormat2 =
-                                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                            val date = inputFormat2.parse(dateCreated)
-                            outputFormat.format(date ?: Date())
-                        } catch (e2: Exception) {
-                            dateCreated
-                        }
-                    }
-                } else {
-                    "tanggal tidak tersedia"
-                }
 
                 // Use Set to avoid duplicates - store the formatted "NIK - Name" strings
                 val karyawanFormattedSet = mutableSetOf<String>()
@@ -3219,9 +3182,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val ancakText = if (ancakValue.isNotBlank()) ancakValue else "tidak diketahui"
 
                 selectedAncakByScan = ancakText
-                selectedTanggalPanenByScan = indonesianDate
+                selectedTanggalPanenByScan = dateCreated
                 val descriptionText =
-                    "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$indonesianDate</b> oleh :"
+                    "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateCreated</b> oleh :"
                 descPemanenInspeksi.text =
                     Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
 
@@ -3252,7 +3215,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 descScannedTPHInsideRadius.visibility = View.VISIBLE
                 emptyScannedTPHInsideRadius.visibility = View.GONE
                 tphScannedResultRecyclerView.adapter =
-                    ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal)
+                    ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal, false)
 
 
                 val itemHeight = 50
@@ -3421,108 +3384,108 @@ open class FormInspectionActivity : AppCompatActivity(),
             missingFields.add("Foto TPH")
         }
 
-//        if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
-//            isValid = false
-//            errorMessages.add(stringXML(R.string.al_location_description_failed))
-//            missingFields.add("Location")
-//        }
-//
-//
-//        inputMappings.forEach { (layout, key, inputType) ->
-//            if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
-//
-//                val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-//                val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
-//                val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-//                val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
-//
-//                val isEmpty = when (inputType) {
-//                    InputType.SPINNER -> {
-//                        when (layout.id) {
-//                            R.id.lyAfdInspect -> selectedAfdeling.isEmpty()
-//                            R.id.lyJalurInspect -> selectedJalurMasuk.isEmpty()
-//                            else -> spinner.selectedIndex == -1
-//                        }
-//                    }
-//
-//                    InputType.EDITTEXT -> {
-//                        when (layout.id) {
-//                            R.id.lyBaris1Inspect -> br1Value.trim().isEmpty()
-//                            R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim()
-//                                .isEmpty() else false
-//
-//                            else -> editText.text.toString().trim().isEmpty()
-//                        }
-//                    }
-//
-//                    InputType.RADIO -> {
-//                        when (layout.id) {
+        if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
+            isValid = false
+            errorMessages.add(stringXML(R.string.al_location_description_failed))
+            missingFields.add("Location")
+        }
+
+
+        inputMappings.forEach { (layout, key, inputType) ->
+            if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
+
+                val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
+                val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
+
+                val isEmpty = when (inputType) {
+                    InputType.SPINNER -> {
+                        when (layout.id) {
+                            R.id.lyAfdInspect -> selectedAfdeling.isEmpty()
+                            R.id.lyJalurInspect -> selectedJalurMasuk.isEmpty()
+                            else -> spinner.selectedIndex == -1
+                        }
+                    }
+
+                    InputType.EDITTEXT -> {
+                        when (layout.id) {
+                            R.id.lyBaris1Inspect -> br1Value.trim().isEmpty()
+                            R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim()
+                                .isEmpty() else false
+
+                            else -> editText.text.toString().trim().isEmpty()
+                        }
+                    }
+
+                    InputType.RADIO -> {
+                        when (layout.id) {
 //                            R.id.lyInspectionType -> selectedInspeksiValue.isEmpty()
-//                            R.id.lyConditionType -> selectedKondisiValue.isEmpty()
-//                            else -> false
-//                        }
-//                    }
-//
-//                }
-//
-//                if (isEmpty) {
-//                    tvError.visibility = View.VISIBLE
-//                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-//                    missingFields.add(key)
-//                    isValid = false
-//                } else {
-//                    tvError.visibility = View.GONE
-//                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
-//                }
-//            }
-//        }
-//
-//
-//        if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
-//            if (isTriggeredBtnScanned) {
-//                // Button was triggered - show appropriate message based on search results
-//                if (isEmptyScannedTPH) {
-//                    // Search was done but no TPH found
-//                    tvErrorScannedNotSelected.text = stringXML(R.string.al_no_tph_detected_trigger_submit)
-//                    tvErrorScannedNotSelected.visibility = View.VISIBLE
-//                    errorMessages.add(stringXML(R.string.al_no_tph_detected_trigger_submit))
-//                } else {
-//                    // Search was done and TPH found, but user hasn't selected one
-//                    tvErrorScannedNotSelected.text = "Silakan untuk memilih TPH yang ingin diperiksa!"
-//                    tvErrorScannedNotSelected.visibility = View.VISIBLE
-//                    errorMessages.add("Silakan untuk memilih TPH yang ingin diperiksa!")
-//                }
-//            } else {
-//                // Button not triggered yet - ask user to search first
-//                tvErrorScannedNotSelected.text = "Silakan tekan tombol scan untuk mencari TPH"
-//                tvErrorScannedNotSelected.visibility = View.VISIBLE
-//                errorMessages.add("Silakan tekan tombol scan untuk mencari TPH")
-//            }
-//        } else {
-//            // TPH is selected or no afdeling selected - hide error
-//            tvErrorScannedNotSelected.visibility = View.GONE
-//        }
-//
-//        // NEW: Simple validation - br1 and br2 cannot be the same when kondisi == 0
-//        if (selectedKondisiValue.toInt() == 1 && br1Value.trim().isNotEmpty() && br2Value.trim().isNotEmpty()) {
-//            val br1Int = br1Value.trim().toIntOrNull() ?: 0
-//            val br2Int = br2Value.trim().toIntOrNull() ?: 0
-//
-//            AppLogger.d(br1Int.toString())
-//            AppLogger.d(br2Int.toString())
-//            if (br1Int == br2Int) {
-//                val layoutBaris2 = findViewById<LinearLayout>(R.id.lyBaris2Inspect)
-//                val tvErrorBaris2 = layoutBaris2.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-//                val mcvBaris2 = layoutBaris2.findViewById<MaterialCardView>(R.id.MCVSpinner)
-//
-//                tvErrorBaris2.text = "Baris pertama dan Baris kedua tidak boleh sama"
-//                tvErrorBaris2.visibility = View.VISIBLE
-//                mcvBaris2.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-//                errorMessages.add("Baris pertama dan Baris kedua tidak boleh sama")
-//                isValid = false
-//            }
-//        }
-//
+                            R.id.lyConditionType -> selectedKondisiValue.isEmpty()
+                            else -> false
+                        }
+                    }
+
+                }
+
+                if (isEmpty) {
+                    tvError.visibility = View.VISIBLE
+                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+                    missingFields.add(key)
+                    isValid = false
+                } else {
+                    tvError.visibility = View.GONE
+                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+                }
+            }
+        }
+
+
+        if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
+            if (isTriggeredBtnScanned) {
+                // Button was triggered - show appropriate message based on search results
+                if (isEmptyScannedTPH) {
+                    // Search was done but no TPH found
+                    tvErrorScannedNotSelected.text = stringXML(R.string.al_no_tph_detected_trigger_submit)
+                    tvErrorScannedNotSelected.visibility = View.VISIBLE
+                    errorMessages.add(stringXML(R.string.al_no_tph_detected_trigger_submit))
+                } else {
+                    // Search was done and TPH found, but user hasn't selected one
+                    tvErrorScannedNotSelected.text = "Silakan untuk memilih TPH yang ingin diperiksa!"
+                    tvErrorScannedNotSelected.visibility = View.VISIBLE
+                    errorMessages.add("Silakan untuk memilih TPH yang ingin diperiksa!")
+                }
+            } else {
+                // Button not triggered yet - ask user to search first
+                tvErrorScannedNotSelected.text = "Silakan tekan tombol scan untuk mencari TPH"
+                tvErrorScannedNotSelected.visibility = View.VISIBLE
+                errorMessages.add("Silakan tekan tombol scan untuk mencari TPH")
+            }
+        } else {
+            // TPH is selected or no afdeling selected - hide error
+            tvErrorScannedNotSelected.visibility = View.GONE
+        }
+
+        // NEW: Simple validation - br1 and br2 cannot be the same when kondisi == 0
+        if (selectedKondisiValue.toInt() == 1 && br1Value.trim().isNotEmpty() && br2Value.trim().isNotEmpty()) {
+            val br1Int = br1Value.trim().toIntOrNull() ?: 0
+            val br2Int = br2Value.trim().toIntOrNull() ?: 0
+
+            AppLogger.d(br1Int.toString())
+            AppLogger.d(br2Int.toString())
+            if (br1Int == br2Int) {
+                val layoutBaris2 = findViewById<LinearLayout>(R.id.lyBaris2Inspect)
+                val tvErrorBaris2 = layoutBaris2.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                val mcvBaris2 = layoutBaris2.findViewById<MaterialCardView>(R.id.MCVSpinner)
+
+                tvErrorBaris2.text = "Baris pertama dan Baris kedua tidak boleh sama"
+                tvErrorBaris2.visibility = View.VISIBLE
+                mcvBaris2.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+                errorMessages.add("Baris pertama dan Baris kedua tidak boleh sama")
+                isValid = false
+            }
+        }
+
         if (!isValid) {
             vibrate(500)
             val combinedErrorMessage = buildString {
@@ -3575,7 +3538,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun startPeriodicDateTimeChecking() {
         dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
-
     }
 
 
