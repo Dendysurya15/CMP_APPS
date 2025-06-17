@@ -164,6 +164,9 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var lon: Double? = null
     private var currentAccuracy: Float = 0F
     private var selectedTPHIdByScan: Int? = null
+    private var selectedEstateByScan: String? = null
+    private var selectedBlokByScan: String? = null
+    private var selectedAfdelingByScan: String? = null
     private var selectedTPHNomorByScan: Int? = null
     private var selectedAncakByScan: String? = null
     private var selectedTanggalPanenByScan: String? = null
@@ -316,6 +319,9 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         if (autoScanEnabled) {
             btnScanTPHRadius.visibility = View.GONE
+            selectedEstateByScan = null
+            selectedAfdelingByScan = null
+            selectedBlokByScan = null
             selectedTPHIdByScan = null
             selectedTPHNomorByScan = null
             selectedAncakByScan = null
@@ -1128,6 +1134,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
+
         val rootApp = File(
             this.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
             "CMP-${WaterMarkFotoDanFolder.WMInspeksi}"
@@ -1155,6 +1162,16 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         val photoToShow = if (isInTPH == true) photoInTPH else currentData.photo
+
+        var sourceFoto = ""
+        if(isInTPH == true){
+            sourceFoto =  "$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan"
+        }
+        else{
+//            sourceFoto = "$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan #Pokok ${currentData.pokokNumber}"
+            var kondisi  = if(selectedKondisiValue.toInt() == 2) "Terasan Baris No:$br1Value" else "br1:${br1Value} br2:$br2Value"
+            sourceFoto = " $kondisi #Pokok ${currentData.pokokNumber}"
+        }
 
         tvPhotoComment.visibility = View.VISIBLE
 
@@ -1260,14 +1277,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                                             "", // soon assign lat lon
                                             currentPage.toString(),
                                             WaterMarkFotoDanFolder.WMInspeksi,
-                                            null,
-                                            null,
-                                            ""
+                                            lat,
+                                            lon,
+                                            sourceFoto
                                         )
                                     }, 100)
                                 },
                                 onDeletePhoto = { pos ->
-                                    // Use the common delete function here
                                     performDeleteAction()
                                 },
                                 onClosePhoto = {
@@ -1290,9 +1306,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 "", // soon assign lat lon
                                 currentPage.toString(),
                                 WaterMarkFotoDanFolder.WMInspeksi,
-                                null,
-                                null,
-                                ""
+                                lat,
+                                lon,
+                                sourceFoto
                             )
                         }, 100)
                     }
@@ -1482,11 +1498,15 @@ open class FormInspectionActivity : AppCompatActivity(),
                     ContextCompat.getColor(this@FormInspectionActivity, R.color.greendarkerbutton),
                     function = {
                         isTriggeredBtnScanned = true
+                        selectedEstateByScan = null
+                        selectedAfdelingByScan = null
+                        selectedBlokByScan = null
                         selectedTPHIdByScan = null
                         selectedTPHNomorByScan = null
                         selectedAncakByScan = null
                         selectedTanggalPanenByScan = null
                         selectedTPHValue = null
+
                         progressBarScanTPHManual.visibility = View.VISIBLE
                         Handler(Looper.getMainLooper()).postDelayed({
                             checkScannedTPHInsideRadius()
@@ -1497,6 +1517,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                 )
             } else {
                 isTriggeredBtnScanned = true
+                selectedEstateByScan = null
+                selectedAfdelingByScan = null
+                selectedBlokByScan = null
                 selectedTPHIdByScan = null
                 selectedTPHNomorByScan = null
                 selectedAncakByScan = null
@@ -3018,185 +3041,211 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var isProcessingTPHSelection = false // Add this as a class variable
 
     override fun onTPHSelected(selectedTPHInLIst: ScannedTPHSelectionItem) {
-        // Prevent rapid clicking
         if (isProcessingTPHSelection) {
             AppLogger.d("TPH selection already in progress, ignoring...")
             return
         }
 
-        isProcessingTPHSelection = true
+        AppLogger.d(photoInTPH.toString())
+        if(photoInTPH != null){
+            AlertDialogUtility.withTwoActions(
+                this@FormInspectionActivity, // Replace with your actual Activity name
+                "Lanjutkan Hapus Foto",
+                getString(R.string.confirmation_dialog_title),
+                "Foto di TPH sudah terpilih, jika anda melanjutkan maka foto akan terhapus di TPH lama",
+                "warning.json",
+                ContextCompat.getColor(this@FormInspectionActivity, R.color.greendarkerbutton),
+                function = {
+                    photoInTPH = null
+                    updatePhotoBadgeVisibility()
+                },
+                cancelFunction = {
+                }
+            )
+        }else{
+            isProcessingTPHSelection = true
 
-        tvErrorScannedNotSelected.visibility = View.GONE
+            tvErrorScannedNotSelected.visibility = View.GONE
 
-        // Make title and description visible
-        val titlePemanenInspeksi = findViewById<TextView>(R.id.titlePemanenInspeksi)
-        val descPemanenInspeksi = findViewById<TextView>(R.id.descPemanenInspeksi)
-        titlePemanenInspeksi.visibility = View.VISIBLE
-        descPemanenInspeksi.visibility = View.VISIBLE
+            // Make title and description visible
+            val titlePemanenInspeksi = findViewById<TextView>(R.id.titlePemanenInspeksi)
+            val descPemanenInspeksi = findViewById<TextView>(R.id.descPemanenInspeksi)
+            titlePemanenInspeksi.visibility = View.VISIBLE
+            descPemanenInspeksi.visibility = View.VISIBLE
 
-        // Clear adapter and maps FIRST
-        selectedPemanenAdapter.clearAllWorkers()
-        karyawanIdMap.clear()
-        kemandoranIdMap.clear()
-        rvSelectedPemanen.visibility = View.VISIBLE
+            // Clear adapter and maps FIRST
+            selectedPemanenAdapter.clearAllWorkers()
+            karyawanIdMap.clear()
+            kemandoranIdMap.clear()
+            rvSelectedPemanen.visibility = View.VISIBLE
 
-        // Set display mode to show names without remove buttons
-        selectedPemanenAdapter.setDisplayOnly(true)
+            // Set display mode to show names without remove buttons
+            selectedPemanenAdapter.setDisplayOnly(true)
 
-        selectedTPHIdByScan = selectedTPHInLIst.id
-        selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
+            selectedTPHIdByScan = selectedTPHInLIst.id
+            selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
 
-        // Add a small delay to allow UI to update and prevent rapid clicking
-        Handler(Looper.getMainLooper()).postDelayed({
-            try {
-                val matchingPanenList = tphList.filter { panenWithRelations ->
-                    val tphId = panenWithRelations.tph?.id
+            // Add a small delay to allow UI to update and prevent rapid clicking
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    val matchingPanenList = tphList.filter { panenWithRelations ->
+                        val tphId = panenWithRelations.tph?.id
 //                    AppLogger.d("Checking TPH ID: $tphId against selected: ${selectedTPHInLIst.id}")
-                    tphId == selectedTPHInLIst.id
-                }
+                        tphId == selectedTPHInLIst.id
+                    }
 
-                // Get date_created and ancak from the first matching record for description
-                var dateCreated = ""
-                var ancakValue = ""
-                if (matchingPanenList.isNotEmpty()) {
-                    val firstPanen = matchingPanenList.first().panen
-                    val firstTph = matchingPanenList.first().tph
-                    dateCreated = firstPanen?.date_created ?: ""
-                    ancakValue = firstTph?.ancak ?: ""
-                }
+                    // Get date_created and ancak from the first matching record for description
+                    var dateCreated = ""
+                    var ancakValue = ""
+
+                    AppLogger.d(matchingPanenList.toString())
+                    AppLogger.d(matchingPanenList.first().tph.toString())
+                    if (matchingPanenList.isNotEmpty()) {
+                        val firstPanen = matchingPanenList.first().panen
+                        val firstTph = matchingPanenList.first().tph
+                        dateCreated = firstPanen?.date_created ?: ""
+                        ancakValue = firstTph?.ancak ?: ""
+
+                        selectedEstateByScan =  firstTph?.dept_abbr ?: ""
+                        selectedAfdelingByScan =  firstTph?.divisi_abbr ?: ""
+                        selectedBlokByScan =  firstTph?.blok_kode ?: ""
+                    }
 
 
-                // Use Set to avoid duplicates - store the formatted "NIK - Name" strings
-                val karyawanFormattedSet = mutableSetOf<String>()
+                    // Use Set to avoid duplicates - store the formatted "NIK - Name" strings
+                    val karyawanFormattedSet = mutableSetOf<String>()
 
-                matchingPanenList.forEach { panenWithRelations ->
-                    val panenEntity = panenWithRelations.panen
-                    val karyawanNama = panenEntity?.karyawan_nama
-                    val karyawanNik = panenEntity?.karyawan_nik
+                    matchingPanenList.forEach { panenWithRelations ->
+                        val panenEntity = panenWithRelations.panen
+                        val karyawanNama = panenEntity?.karyawan_nama
+                        val karyawanNik = panenEntity?.karyawan_nik
 
-                    if (!karyawanNama.isNullOrBlank() && !karyawanNik.isNullOrBlank()) {
-                        // Split both names and NIKs by comma and trim whitespace
-                        val names = karyawanNama.split(",")
-                            .map { it.trim() }
-                            .filter { it.isNotBlank() }
+                        if (!karyawanNama.isNullOrBlank() && !karyawanNik.isNullOrBlank()) {
+                            // Split both names and NIKs by comma and trim whitespace
+                            val names = karyawanNama.split(",")
+                                .map { it.trim() }
+                                .filter { it.isNotBlank() }
 
-                        val niks = karyawanNik.split(",")
-                            .map { it.trim() }
-                            .filter { it.isNotBlank() }
+                            val niks = karyawanNik.split(",")
+                                .map { it.trim() }
+                                .filter { it.isNotBlank() }
 
-                        AppLogger.d("Split names: $names")
-                        AppLogger.d("Split NIKs: $niks")
+                            AppLogger.d("Split names: $names")
+                            AppLogger.d("Split NIKs: $niks")
 
-                        val minSize = minOf(names.size, niks.size)
-                        for (i in 0 until minSize) {
-                            val formattedName = "${niks[i]} - ${names[i]}"
-                            karyawanFormattedSet.add(formattedName)
-                            AppLogger.d("Added formatted name: '$formattedName'")
+                            val minSize = minOf(names.size, niks.size)
+                            for (i in 0 until minSize) {
+                                val formattedName = "${niks[i]} - ${names[i]}"
+                                karyawanFormattedSet.add(formattedName)
+                                AppLogger.d("Added formatted name: '$formattedName'")
+                            }
+
+                            if (names.size != niks.size) {
+                                AppLogger.w("Mismatch between names count (${names.size}) and NIKs count (${niks.size})")
+                            }
+                        } else {
+                            AppLogger.w("Missing karyawan_nama or karyawan_nik for record")
+                        }
+                    }
+
+                    val karyawanNames = karyawanFormattedSet.toList().sorted()
+                    AppLogger.d("Total unique karyawan found: ${karyawanNames.size}")
+
+                    // Automatically add all karyawan to the adapter
+                    karyawanNames.forEach { formattedName ->
+                        // Extract NIK and Name from formatted string
+                        val dashIndex = formattedName.indexOf(" - ")
+                        val selectedNik = if (dashIndex != -1) {
+                            formattedName.substring(0, dashIndex).trim()
+                        } else {
+                            ""
+                        }
+                        val selectedName = if (dashIndex != -1) {
+                            formattedName.substring(dashIndex + 3).trim()
+                        } else {
+                            formattedName.trim()
                         }
 
-                        if (names.size != niks.size) {
-                            AppLogger.w("Mismatch between names count (${names.size}) and NIKs count (${niks.size})")
-                        }
-                    } else {
-                        AppLogger.w("Missing karyawan_nama or karyawan_nik for record")
-                    }
-                }
+                        // Find the corresponding employee data
+                        var selectedEmployee: PanenEntity? = null
+                        var individualKaryawanId: String? = null
 
-                val karyawanNames = karyawanFormattedSet.toList().sorted()
-                AppLogger.d("Total unique karyawan found: ${karyawanNames.size}")
+                        // Find by matching NIK and name combination
+                        for (panenWithRelations in matchingPanenList) {
+                            val panenEntity = panenWithRelations.panen ?: continue
+                            val karyawanNik = panenEntity.karyawan_nik
+                            val karyawanNama = panenEntity.karyawan_nama
+                            val karyawanId = panenEntity.karyawan_id
 
-                // Automatically add all karyawan to the adapter
-                karyawanNames.forEach { formattedName ->
-                    // Extract NIK and Name from formatted string
-                    val dashIndex = formattedName.indexOf(" - ")
-                    val selectedNik = if (dashIndex != -1) {
-                        formattedName.substring(0, dashIndex).trim()
-                    } else {
-                        ""
-                    }
-                    val selectedName = if (dashIndex != -1) {
-                        formattedName.substring(dashIndex + 3).trim()
-                    } else {
-                        formattedName.trim()
-                    }
+                            if (!karyawanNik.isNullOrBlank() && !karyawanNama.isNullOrBlank() && !karyawanId.isNullOrBlank()) {
+                                val niks = karyawanNik.split(",").map { it.trim() }
+                                val names = karyawanNama.split(",").map { it.trim() }
+                                val ids = karyawanId.split(",").map { it.trim() }
 
-                    // Find the corresponding employee data
-                    var selectedEmployee: PanenEntity? = null
-                    var individualKaryawanId: String? = null
+                                // Check if this employee record contains our selected NIK and name
+                                val nikIndex = niks.indexOf(selectedNik)
+                                val nameIndex = names.indexOf(selectedName)
 
-                    // Find by matching NIK and name combination
-                    for (panenWithRelations in matchingPanenList) {
-                        val panenEntity = panenWithRelations.panen ?: continue
-                        val karyawanNik = panenEntity.karyawan_nik
-                        val karyawanNama = panenEntity.karyawan_nama
-                        val karyawanId = panenEntity.karyawan_id
-
-                        if (!karyawanNik.isNullOrBlank() && !karyawanNama.isNullOrBlank() && !karyawanId.isNullOrBlank()) {
-                            val niks = karyawanNik.split(",").map { it.trim() }
-                            val names = karyawanNama.split(",").map { it.trim() }
-                            val ids = karyawanId.split(",").map { it.trim() }
-
-                            // Check if this employee record contains our selected NIK and name
-                            val nikIndex = niks.indexOf(selectedNik)
-                            val nameIndex = names.indexOf(selectedName)
-
-                            if (nikIndex != -1 && nameIndex != -1 && nikIndex < ids.size) {
-                                selectedEmployee = panenEntity
-                                individualKaryawanId =
-                                    ids[nikIndex] // Get the specific ID for this worker
-                                AppLogger.d("Found matching employee: NIK='$selectedNik', Name='$selectedName', Individual ID='$individualKaryawanId'")
-                                break
+                                if (nikIndex != -1 && nameIndex != -1 && nikIndex < ids.size) {
+                                    selectedEmployee = panenEntity
+                                    individualKaryawanId =
+                                        ids[nikIndex] // Get the specific ID for this worker
+                                    AppLogger.d("Found matching employee: NIK='$selectedNik', Name='$selectedName', Individual ID='$individualKaryawanId'")
+                                    break
+                                }
                             }
                         }
+
+                        if (selectedEmployee != null && individualKaryawanId != null) {
+                            // Add to maps using individual ID
+                            karyawanIdMap[formattedName] = individualKaryawanId.toIntOrNull() ?: 0
+                            kemandoranIdMap[formattedName] =
+                                selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+
+                            // Also add by NIK and name as keys
+                            if (selectedNik.isNotEmpty()) {
+                                karyawanIdMap[selectedNik] = individualKaryawanId.toIntOrNull() ?: 0
+                                kemandoranIdMap[selectedNik] =
+                                    selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                            }
+                            if (selectedName.isNotEmpty()) {
+                                karyawanIdMap[selectedName] = individualKaryawanId.toIntOrNull() ?: 0
+                                kemandoranIdMap[selectedName] =
+                                    selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                            }
+
+                            // Create Worker with individual ID
+                            val worker = Worker(individualKaryawanId, formattedName)
+                            selectedPemanenAdapter.addWorker(worker)
+
+                            AppLogger.d("Auto-added worker: $formattedName, Individual Karyawan ID: $individualKaryawanId")
+                        } else {
+                            AppLogger.e("Could not find employee data for: $formattedName")
+                        }
                     }
 
-                    if (selectedEmployee != null && individualKaryawanId != null) {
-                        // Add to maps using individual ID
-                        karyawanIdMap[formattedName] = individualKaryawanId.toIntOrNull() ?: 0
-                        kemandoranIdMap[formattedName] =
-                            selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                    // Set the description text with bold ancak and Indonesian date
+                    val ancakText = if (ancakValue.isNotBlank()) ancakValue else "tidak diketahui"
 
-                        // Also add by NIK and name as keys
-                        if (selectedNik.isNotEmpty()) {
-                            karyawanIdMap[selectedNik] = individualKaryawanId.toIntOrNull() ?: 0
-                            kemandoranIdMap[selectedNik] =
-                                selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
-                        }
-                        if (selectedName.isNotEmpty()) {
-                            karyawanIdMap[selectedName] = individualKaryawanId.toIntOrNull() ?: 0
-                            kemandoranIdMap[selectedName] =
-                                selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
-                        }
+                    selectedAncakByScan = ancakText
+                    selectedTanggalPanenByScan = dateCreated
+                    val descriptionText =
+                        "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateCreated</b> oleh :"
+                    descPemanenInspeksi.text =
+                        Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
 
-                        // Create Worker with individual ID
-                        val worker = Worker(individualKaryawanId, formattedName)
-                        selectedPemanenAdapter.addWorker(worker)
+                    AppLogger.d("Total workers added to adapter: ${selectedPemanenAdapter.getSelectedWorkers().size}")
 
-                        AppLogger.d("Auto-added worker: $formattedName, Individual Karyawan ID: $individualKaryawanId")
-                    } else {
-                        AppLogger.e("Could not find employee data for: $formattedName")
-                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error processing TPH selection: ${e.message}")
+                } finally {
+                    // Re-enable TPH selection after processing is complete
+                    isProcessingTPHSelection = false
                 }
+            }, 200)
+        }
 
-                // Set the description text with bold ancak and Indonesian date
-                val ancakText = if (ancakValue.isNotBlank()) ancakValue else "tidak diketahui"
 
-                selectedAncakByScan = ancakText
-                selectedTanggalPanenByScan = dateCreated
-                val descriptionText =
-                    "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateCreated</b> oleh :"
-                descPemanenInspeksi.text =
-                    Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
-
-                AppLogger.d("Total workers added to adapter: ${selectedPemanenAdapter.getSelectedWorkers().size}")
-
-            } catch (e: Exception) {
-                AppLogger.e("Error processing TPH selection: ${e.message}")
-            } finally {
-                // Re-enable TPH selection after processing is complete
-                isProcessingTPHSelection = false
-            }
-        }, 200)
     }
 
     override fun getCurrentlySelectedTPHId(): Int? {
