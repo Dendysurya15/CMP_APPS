@@ -64,7 +64,7 @@ class ListInspectionAdapter(
                 td4.visibility = View.VISIBLE
                 td5.visibility = View.GONE
 
-                td1.text = "TPH-${item.inspeksi.tph_id}"
+                td1.text = "${item.tph?.blok_kode ?: ""}-${item.tph?.nomor ?: ""}"
                 td2.text = item.inspeksi.jml_pkk_inspeksi.toString()
                 val startTime = formatTime(item.inspeksi.created_date_start)
                 val endTime = formatTime(item.inspeksi.created_date_end)

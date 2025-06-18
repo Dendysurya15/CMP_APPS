@@ -34,6 +34,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.ui.adapter.ListInspectionAdapter
 //import com.cbi.mobile_plantation.ui.adapter.ListInspectionAdapter
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
@@ -280,7 +281,7 @@ class ListInspectionActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         adapter = ListInspectionAdapter(
             onItemClick = { inspectionPath ->
-//                showDetailData(inspectionPath)
+                showDetailData(inspectionPath)
             },
         )
 
@@ -317,207 +318,39 @@ class ListInspectionActivity : AppCompatActivity() {
             textView.visibility = View.GONE
         }
     }
-//    @SuppressLint("InflateParams", "SetTextI18n", "MissingInflatedId", "Recycle")
-//    private fun showDetailData(inspectionPath: PathWithInspectionTphRelations) {
-//        fun createTextView(
-//            text: String,
-//            gravity: Int,
-//            weight: Float,
-//            isTitle: Boolean = false,
-//            isSemiColon: Boolean = false
-//        ): TextView {
-//            val textView = TextView(this)
-//            textView.text = text
-//
-//            val paddingNumber = if (isSemiColon) 0 else 32
-//            textView.setPadding(paddingNumber, paddingNumber, paddingNumber, paddingNumber)
-//
-//            textView.setTextColor(Color.BLACK)
-//            textView.setResponsiveTextSizeWithConstraints(17F, 17F, 19F)
-//            textView.gravity = gravity
-//            textView.setTypeface(null, if (isTitle) Typeface.NORMAL else Typeface.BOLD)
-//
-//            val marginNumber = if (isSemiColon) 0 else 5
-//            val params = TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, weight)
-//            params.setMargins(marginNumber, marginNumber, marginNumber, marginNumber)
-//            textView.layoutParams = params
-//
-//            return textView
-//        }
-//
-//        val inspectionWithTph = inspectionPath.inspections.firstOrNull()
-//        val totalPokok = inspectionPath.inspections.size
-//
-//        var estNama = ""
-//        var afdNama = ""
-//        var blokNama = ""
-//        var jalurMasuk = ""
-//        var createdDate = ""
-//        if (inspectionWithTph != null) {
-//            estNama = inspectionWithTph.tph.dept_abbr ?: ""
-//            afdNama = inspectionWithTph.tph.divisi_abbr ?: "-"
-//            blokNama = inspectionWithTph.tph.blok_kode ?: "-"
-//            jalurMasuk = inspectionWithTph.inspection.jalur_masuk
-//            createdDate = formatToIndonesianDate(inspectionWithTph.inspection.created_date)
-//        }
-//
-//        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_generate_qr_panen, null)
-//        view.background = ContextCompat.getDrawable(
-//            this@ListInspectionActivity,
-//            R.drawable.rounded_top_right_left
-//        )
-//
-//        val dialog = BottomSheetDialog(this@ListInspectionActivity)
-//        dialog.setContentView(view)
-//
-//        val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
-//        val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
-//        tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
-//        tvTitleQRGenerate.text = "Detail Data Inspeksi"
-//
-//        val dashedLine: View = view.findViewById(R.id.dashedLine)
-//        val loadingContainer: LinearLayout = view.findViewById(R.id.loadingDotsContainerBottomSheet)
-//        val tableLayoutData: TableLayout = view.findViewById(R.id.tblLytTextView)
-//        tableLayoutData.removeAllViews()
-//
-//        loadingLogo.visibility = View.VISIBLE
-//        loadingContainer.visibility = View.VISIBLE
-//
-//        // Load and start bounce animation
-//        val bounceAnimation = AnimationUtils.loadAnimation(this, R.anim.bounce)
-//        loadingLogo.startAnimation(bounceAnimation)
-//
-//        // Setup dots animation
-//        val dots = listOf(
-//            loadingContainer.findViewById<View>(R.id.dot1),
-//            loadingContainer.findViewById<View>(R.id.dot2),
-//            loadingContainer.findViewById<View>(R.id.dot3),
-//            loadingContainer.findViewById<View>(R.id.dot4)
-//        )
-//
-//        dots.forEachIndexed { index, dot ->
-//            val translateAnimation = ObjectAnimator.ofFloat(dot, "translationY", 0f, -10f, 0f)
-//            val scaleXAnimation = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 0.8f, 1f)
-//            val scaleYAnimation = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 0.8f, 1f)
-//
-//            listOf(translateAnimation, scaleXAnimation, scaleYAnimation).forEach { animation ->
-//                animation.duration = 500
-//                animation.repeatCount = ObjectAnimator.INFINITE
-//                animation.repeatMode = ObjectAnimator.REVERSE
-//                animation.startDelay = (index * 100).toLong()
-//                animation.start()
-//            }
-//        }
-//
-//        dialog.setOnShowListener {
-//            val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-//            val behavior = BottomSheetBehavior.from(bottomSheet!!)
-//            behavior.state = BottomSheetBehavior.STATE_EXPANDED
-//        }
-//
-//        dialog.show()
-//
-//        lifecycleScope.launch {
-//            try {
-//                // Delay for loading effect
-//                delay(1000)
-//
-//                // Prepare data for the table
-//                val data = listOf(
-//                    SummaryItem("Estate", estNama),
-//                    SummaryItem("Afdeling", afdNama),
-//                    SummaryItem("Blok", blokNama),
-//                    SummaryItem("Jalur Masuk", jalurMasuk),
-//                    SummaryItem("Total Pokok", totalPokok.toString()),
-//                    SummaryItem("Tanggal", createdDate)
-//                )
-//
-//                for (item in data) {
-//                    val tableRow = TableRow(this@ListInspectionActivity)
-//
-//                    val titleTextView = createTextView(item.title, Gravity.START, 1f, true)
-//                    tableRow.addView(titleTextView)
-//
-//                    val semicolonTextView = createTextView(":", Gravity.START, 0.02f, isSemiColon = true)
-//                    tableRow.addView(semicolonTextView)
-//
-//                    val valueTextView = createTextView(item.value, Gravity.START, 2f)
-//                    tableRow.addView(valueTextView)
-//
-//                    tableLayoutData.addView(tableRow)
-//                }
-//
-//                // Switch to the main thread for UI updates
-//                withContext(Dispatchers.Main) {
-//                    try {
-//                        // Create animations for transitions
-//                        val fadeOut = ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f).apply {
-//                            duration = 250
-//                        }
-//                        val fadeOutDots = ObjectAnimator.ofFloat(loadingContainer, "alpha", 1f, 0f).apply {
-//                            duration = 250
-//                        }
-//
-//                        // Ensure QR code and other elements start invisible
-//                        dashedLine.alpha = 0f
-//                        tvTitleQRGenerate.alpha = 0f
-//                        tableLayoutData.alpha = 0f
-//
-//                        // Create fade-in animations
-//                        val fadeInDashedLine = ObjectAnimator.ofFloat(dashedLine, "alpha", 0f, 1f).apply {
-//                            duration = 250
-//                            startDelay = 150
-//                        }
-//                        val fadeInTitle = ObjectAnimator.ofFloat(tvTitleQRGenerate, "alpha", 0f, 1f).apply {
-//                            duration = 250
-//                            startDelay = 150
-//                        }
-//                        val fadeInTableLayout = ObjectAnimator.ofFloat(tableLayoutData, "alpha", 0f, 1f).apply {
-//                            duration = 250
-//                            startDelay = 150
-//                        }
-//
-//                        // Run animations sequentially
-//                        AnimatorSet().apply {
-//                            playTogether(fadeOut, fadeOutDots)
-//                            addListener(object : AnimatorListenerAdapter() {
-//                                override fun onAnimationEnd(animation: Animator) {
-//                                    // Hide loading elements
-//                                    loadingLogo.visibility = View.GONE
-//                                    loadingContainer.visibility = View.GONE
-//
-//                                    // Show elements
-//                                    tvTitleQRGenerate.visibility = View.VISIBLE
-//                                    dashedLine.visibility = View.VISIBLE
-//                                    tableLayoutData.visibility = View.VISIBLE
-//
-//                                    // Start fade-in animations
-//                                    fadeInDashedLine.start()
-//                                    fadeInTitle.start()
-//                                    fadeInTableLayout.start()
-//                                }
-//                            })
-//                            start()
-//                        }
-//                    } catch (e: Exception) {
-//                        // Handle UI-related errors on the main thread
-//                        loadingLogo.animation?.cancel()
-//                        loadingLogo.clearAnimation()
-//                        loadingLogo.visibility = View.GONE
-//                        loadingContainer.visibility = View.GONE
-//                        AppLogger.e("QR Generation UI Error: ${e.message}")
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                // Handle any other errors
-//                withContext(Dispatchers.Main) {
-//                    AppLogger.e("Error in QR process: ${e.message}")
-//                }
-//            } finally {
-//                stopLoadingAnimation(loadingLogo, loadingContainer)
-//            }
-//        }
-//    }
+
+    @SuppressLint("InflateParams", "SetTextI18n", "MissingInflatedId", "Recycle")
+    private fun showDetailData(inspectionPath: InspectionWithDetailRelations) {
+
+
+        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_history_inspeksi, null)
+        view.background = ContextCompat.getDrawable(
+            this@ListInspectionActivity,
+            R.drawable.rounded_top_right_left
+        )
+
+        val dialog = BottomSheetDialog(this@ListInspectionActivity)
+        dialog.setContentView(view)
+
+        dialog.setOnShowListener {
+            val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            val behavior = BottomSheetBehavior.from(bottomSheet!!)
+
+            // Set the height to 85% of screen height
+            val displayMetrics = resources.displayMetrics
+            val screenHeight = displayMetrics.heightPixels
+            val desiredHeight = (screenHeight * 0.85).toInt()
+
+            bottomSheet?.layoutParams?.height = desiredHeight
+            bottomSheet?.requestLayout()
+
+            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            behavior.isDraggable = false // Optional: allow dragging
+            behavior.peekHeight = desiredHeight // Set peek height to same as max height
+        }
+
+        dialog.show()
+    }
 
     private fun stopLoadingAnimation(
         loadingLogo: ImageView,
