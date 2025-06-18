@@ -7,7 +7,9 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.data.model.InspectionModel
+import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
+import com.cbi.mobile_plantation.utils.AppUtils
 
 @Dao
 abstract class InspectionDao {
@@ -19,6 +21,15 @@ abstract class InspectionDao {
 
     @Insert
     suspend abstract fun insertInspectionDetails(details: List<InspectionDetailModel>)
+
+    @Query("""
+        SELECT * FROM ${AppUtils.DatabaseTables.INSPEKSI}
+        WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date_start) = :datetime)
+        ORDER BY created_date_start DESC
+    """)
+    abstract  suspend fun getInspectionData(
+        datetime: String? = null
+    ): List<InspectionWithDetailRelations>
 
     @Transaction
     @Query("SELECT * FROM inspeksi")

@@ -46,11 +46,11 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-//    fun loadInspectionPaths(archive: Int = 0) {
-//        viewModelScope.launch {
-//            _inspectionWithDetails.value = repository.getInspectionPathsWithTphAndCount(archive)
-//        }
-//    }
+    fun loadInspectionPaths(datetime: String? = null) {
+        viewModelScope.launch {
+            _inspectionWithDetails.value = repository.getInspectionData(datetime)
+        }
+    }
 
     suspend fun saveDataInspection(
         created_date_start: String,

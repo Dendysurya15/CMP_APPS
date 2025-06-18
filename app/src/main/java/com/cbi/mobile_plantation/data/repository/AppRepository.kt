@@ -10,6 +10,7 @@ import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
+import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
@@ -73,6 +74,17 @@ class AppRepository(context: Context) {
 
     suspend fun insertInspectionDetails(inspectionDetailList: List<InspectionDetailModel>) {
         inspectionDao.insertInspectionDetails(inspectionDetailList)
+    }
+
+    suspend fun getInspectionData(
+        datetime: String? = null
+    ): List<InspectionWithDetailRelations> {
+        return try {
+            inspectionDao.getInspectionData(datetime)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading inspection paths: ${e.message}")
+            emptyList()  // Return empty list if there's an error
+        }
     }
 
     suspend fun saveScanMPanen(

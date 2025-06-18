@@ -8,7 +8,7 @@ data class InspectionWithDetailRelations(
 
     @Relation(
         parentColumn = "id",
-        entityColumn = "inspeksi_id"
+        entityColumn = "id_inspeksi"
     )
     val detailInspeksi: InspectionDetailModel?
 )
