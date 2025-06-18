@@ -53,6 +53,7 @@ import android.widget.RadioButton
 import android.widget.ScrollView
 import android.widget.TableLayout
 import android.widget.TableRow
+import android.text.InputType as AndroidInputType
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -1150,7 +1151,49 @@ open class FormInspectionActivity : AppCompatActivity(),
         val incLytPhotosInspect = view.findViewById<View>(R.id.incLytPhotosInspect)
         val ivAddPhoto = incLytPhotosInspect.findViewById<ImageView>(R.id.ivAddFoto)
         val tvPhotoComment = incLytPhotosInspect.findViewById<TextView>(R.id.tvPhotoComment)
+        tvPhotoComment.visibility = View.GONE
         val etPhotoComment = incLytPhotosInspect.findViewById<EditText>(R.id.etPhotoComment)
+
+        etPhotoComment.visibility = View.VISIBLE
+
+        etPhotoComment.apply {
+            isEnabled = true
+            isFocusable = true
+            isFocusableInTouchMode = true
+            isClickable = true
+            imeOptions = EditorInfo.IME_ACTION_DONE
+            inputType = AndroidInputType.TYPE_CLASS_TEXT
+
+        }
+
+        etPhotoComment.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                // Hide keyboard when Done is pressed
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(etPhotoComment.windowToken, 0)
+                etPhotoComment.clearFocus()
+                true
+            } else {
+                false
+            }
+        }
+
+        etPhotoComment.setOnClickListener {
+            etPhotoComment.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(etPhotoComment, InputMethodManager.SHOW_IMPLICIT)
+        }
+
+
+
+        bottomSheetDialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+
+        bottomSheetDialog.setOnShowListener {
+            val bottomSheet = bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            val behavior = BottomSheetBehavior.from(bottomSheet!!)
+            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            behavior.isDraggable = false
+        }
 
         if (isInTPH == true) {
             val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
@@ -1173,8 +1216,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             sourceFoto = " $kondisi #Pokok ${currentData.pokokNumber}"
         }
 
-        tvPhotoComment.visibility = View.VISIBLE
-
         ibDeletePhotoInspect.visibility = View.GONE
 
         val performDeleteAction = {
@@ -1186,6 +1227,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             if (isInTPH == true) {
                 // Clear TPH photo
                 photoInTPH = null
+                komentarInTPH = null
             } else {
                 // Clear form data photo
                 formAncakViewModel.savePageData(
@@ -1207,7 +1249,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         if (isInTPH == true) {
-            etPhotoComment.setText("") // or load from photoInTPHComment if you have it
+            // Load existing TPH comment
+            etPhotoComment.setText(komentarInTPH)
             etPhotoComment.addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(
                     s: CharSequence?,
@@ -1219,9 +1262,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: Editable?) {
-                    // Handle TPH comment saving here
-                    // You might need to create a variable to store TPH comments
-                    // photoInTPHComment = s?.toString() ?: ""
+                    // Save TPH comment to the variable
+                    komentarInTPH = s?.toString() ?: ""
                 }
             })
         } else {
@@ -1372,7 +1414,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         hideWithAnimation(bottomNavInspect, 100)
                         hideWithAnimation(fabPrevFormAncak, 100)
                         hideWithAnimation(fabNextFormAncak, 100)
-                        hideWithAnimation(fabPhotoFormAncak, 100)
+//                        hideWithAnimation(fabPhotoFormAncak, 100)
                     }
                 }
 
@@ -1381,7 +1423,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         showWithAnimation(bottomNavInspect)
                         showWithAnimation(fabPrevFormAncak)
                         showWithAnimation(fabNextFormAncak)
-                        showWithAnimation(fabPhotoFormAncak)
+//                        showWithAnimation(fabPhotoFormAncak)
                     }
                 }
             })
@@ -3057,6 +3099,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 ContextCompat.getColor(this@FormInspectionActivity, R.color.greendarkerbutton),
                 function = {
                     photoInTPH = null
+                    komentarInTPH = null
                     updatePhotoBadgeVisibility()
                 },
                 cancelFunction = {
