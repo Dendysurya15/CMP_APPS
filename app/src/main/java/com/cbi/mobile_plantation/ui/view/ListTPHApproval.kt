@@ -470,7 +470,7 @@ class ListTPHApproval : AppCompatActivity() {
 
                                 totalSection.visibility = View.VISIBLE
                                 blokSection.visibility = View.VISIBLE
-                                titleTotalJjg.text = "Jjg Bayar: "
+                                titleTotalJjg.text = if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) "Kirim Pabrik: " else "Jjg Bayar: "
                                 totalJjgTextView.text = totalJjg.toString()
                                 totalTphTextView.text = totalTphCount.toString()
                                 listBlokTextView.text = blokSummary
@@ -594,7 +594,6 @@ class ListTPHApproval : AppCompatActivity() {
                     AppLogger.d(tph0String.toString())
                     val parts = entry.split(",")
 
-                    AppLogger.d(parts.toString())
                     if (parts.size != 4 && featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
                         Log.e(
                             TAG,

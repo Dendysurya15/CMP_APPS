@@ -1274,13 +1274,14 @@ object AppUtils {
     /**
      * Get blok display information based on featureName
      */
+
     fun getBlokDisplay(mappedData: List<Map<String, Any?>>, featureName: String?): String {
         return if (featureName == ListFeatureNames.RekapHasilPanen ||
             featureName == ListFeatureNames.RekapPanenDanRestan ||
             featureName == ListFeatureNames.DetailESPB ||
             featureName == ListFeatureNames.TransferHektarPanen) {
 
-            val fieldToExtract = "PA"
+            val fieldToExtract = if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
 
             mappedData
                 .filter { it["blok_name"].toString() != "-" }
@@ -1309,7 +1310,7 @@ object AppUtils {
             try {
                 val jjgJsonString = data["jjg_json"].toString()
                 val jjgJson = JSONObject(jjgJsonString)
-                val key = "PA" // Always use PA field now
+                val key = if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
 
                 totalJjgCount += jjgJson.optInt(key, 0)
             } catch (e: Exception) {

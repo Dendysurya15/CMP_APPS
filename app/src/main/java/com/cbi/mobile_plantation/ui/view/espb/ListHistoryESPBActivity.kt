@@ -566,7 +566,7 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
         recyclerView = findViewById(R.id.wbTableData)
         recyclerView.layoutManager = LinearLayoutManager(this)
         if (featureName == AppUtils.ListFeatureNames.RekapESPB){
-            val headers = listOf("WAKTU", "BLOK", "JANJANG", "TPH", "SCAN")
+            val headers = listOf("WAKTU", "BLOK", "KIRIM PABRIK", "TPH", "SCAN")
             updateTableHeaders(headers)
             adapterESPB = ESPBAdapter(emptyList(), this@ListHistoryESPBActivity)
             recyclerView.adapter = adapterESPB

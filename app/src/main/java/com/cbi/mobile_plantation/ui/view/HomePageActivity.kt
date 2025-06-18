@@ -41,6 +41,7 @@ import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.database.KaryawanDao
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
+import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
@@ -547,9 +548,6 @@ class HomePageActivity : AppCompatActivity() {
 
 
     private fun setupRecyclerView() {
-
-
-        AppLogger.d("a;sldf;alskdf;laksdf")
         val features = listOf(
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -937,7 +935,6 @@ class HomePageActivity : AppCompatActivity() {
 
 
     @SuppressLint("MissingSuperCall")
-    @Deprecated("This method has been deprecated in favor of using the\n      {@link OnBackPressedDispatcher} via {@link #getOnBackPressedDispatcher()}.\n      The OnBackPressedDispatcher controls how back button events are dispatched\n      to one or more {@link OnBackPressedCallback} objects.")
     override fun onBackPressed() {
         AlertDialogUtility.withTwoActions(
             this,
@@ -964,8 +961,59 @@ class HomePageActivity : AppCompatActivity() {
                 if (feature.displayType == DisplayType.ICON) {
                     lifecycleScope.launch {
                         try {
-                            val absensiDeferred =
-                                CompletableDeferred<List<AbsensiKemandoranRelations>>()
+                            // Get afdeling ID from preferences
+                            val afdelingId = prefManager!!.afdelingIdUserLogin
+
+                            // Check afdeling data and sinkronisasi_otomatis
+                            val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
+
+                            withContext(Dispatchers.IO) {
+                                val afdelingData = datasetViewModel.getAfdelingById(afdelingId!!.toInt())
+                                afdelingDeferred.complete(afdelingData)
+                            }
+
+                            val afdeling = afdelingDeferred.await()
+
+                            if (afdeling == null) {
+                                AlertDialogUtility.withSingleAction(
+                                    this@HomePageActivity,
+                                    "Kembali",
+                                    "Data Afdeling Tidak Ditemukan",
+                                    "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ) {
+                                    // Do nothing on click
+                                }
+                                return@launch
+                            }
+
+                            // Check sinkronisasi_otomatis value
+                            if (afdeling.sinkronisasi_otomatis != 0) {
+                                // Check if sinkronisasi is required
+                                val lastSyncDateTime = prefManager!!.lastSyncDate
+                                val lastSyncDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
+                                    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(lastSyncDateTime)
+                                )
+                                val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+                                if (lastSyncDate != currentDate) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Sinkronisasi Database Diperlukan",
+                                        "Database perlu disinkronisasi untuk hari ini. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
+                                }
+                            }
+
+                            // All validations passed, proceed with attendance check
+                            val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
 
                             absensiViewModel.loadActiveAbsensi()
                             delay(100)
@@ -973,7 +1021,6 @@ class HomePageActivity : AppCompatActivity() {
                             withContext(Dispatchers.Main) {
                                 absensiViewModel.activeAbsensiList.observe(this@HomePageActivity) { absensiWithRelations ->
                                     val absensiData = absensiWithRelations ?: emptyList()
-
                                     absensiDeferred.complete(absensiData)
                                 }
                             }
@@ -1033,7 +1080,6 @@ class HomePageActivity : AppCompatActivity() {
                                     "warning.json",
                                     R.color.colorRedDark
                                 ) {
-
                                     // Do nothing on click
                                 }
                             } else {
@@ -1047,13 +1093,12 @@ class HomePageActivity : AppCompatActivity() {
                             }
 
                         } catch (e: Exception) {
-                            AppLogger.e("Error checking present karyawan: ${e.message}")
-                            // Show error alert
+                            AppLogger.e("Error in validation checks: ${e.message}")
                             AlertDialogUtility.withSingleAction(
                                 this@HomePageActivity,
                                 "Kembali",
                                 "Terjadi Kesalahan",
-                                "Gagal memuat data karyawan hadir. Silakan coba lagi sinkronisasi.",
+                                "Gagal melakukan validasi data. Silakan coba lagi.",
                                 "error.json",
                                 R.color.colorRedDark
                             ) {
