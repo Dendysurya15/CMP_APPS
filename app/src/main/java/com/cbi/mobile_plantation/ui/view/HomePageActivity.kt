@@ -964,6 +964,20 @@ class HomePageActivity : AppCompatActivity() {
                             // Get afdeling ID from preferences
                             val afdelingId = prefManager!!.afdelingIdUserLogin
 
+                            if (afdelingId == "X" || afdelingId!!.isEmpty()) {
+                                AlertDialogUtility.withSingleAction(
+                                    this@HomePageActivity,
+                                    "Kembali",
+                                    "Afdeling tidak valid",
+                                    "Data afdeling saat ini adalah $afdelingId",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ) {
+                                    // Do nothing on click
+                                }
+                                return@launch
+                            }
+
                             // Check afdeling data and sinkronisasi_otomatis
                             val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
 

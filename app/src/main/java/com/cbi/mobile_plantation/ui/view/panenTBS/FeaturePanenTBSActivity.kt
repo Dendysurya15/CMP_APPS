@@ -687,11 +687,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         val lastDashIndex = worker.name.lastIndexOf(" - ")
                                         if (lastDashIndex != -1) {
                                             val potentialNik = worker.name.substring(lastDashIndex + 3).trim()
-                                            // Verify it's actually a numeric NIK
-                                            if (potentialNik.all { it.isDigit() }) {
+                                            // Accept any non-empty string as NIK (including mobile/string NIKs)
+                                            if (potentialNik.isNotEmpty()) {
                                                 potentialNik
                                             } else {
-                                                worker.name // fallback if last segment is not numeric
+                                                worker.name // fallback if last segment is empty
                                             }
                                         } else {
                                             worker.name
@@ -715,8 +715,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     val lastDashIndex = fullName.lastIndexOf(" - ")
                                     return if (lastDashIndex != -1) {
                                         val potentialNik = fullName.substring(lastDashIndex + 3).trim()
-                                        // Only remove if the last part is actually a numeric NIK
-                                        if (potentialNik.all { it.isDigit() }) {
+                                        // Only remove if the last part is not empty (could be string/mobile NIK)
+                                        if (potentialNik.isNotEmpty()) {
                                             fullName.substring(0, lastDashIndex).trim()
                                         } else {
                                             fullName
@@ -836,8 +836,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         val lastDashIndex = worker.name.lastIndexOf(" - ")
                                         if (lastDashIndex != -1) {
                                             val potentialNik = worker.name.substring(lastDashIndex + 3).trim()
-                                            // Only return if it's actually a numeric NIK
-                                            if (potentialNik.all { it.isDigit() }) {
+                                            // Return any non-empty string as NIK (supports mobile/string NIKs)
+                                            if (potentialNik.isNotEmpty()) {
                                                 potentialNik
                                             } else {
                                                 null
@@ -849,7 +849,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         null
                                     }
                                 }
-
 
                                 val uniqueNamaPemanen = selectedNamaList.joinToString(",")
                                 val uniqueNikPemanen = selectedNikList.joinToString(",")
